@@ -189,8 +189,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK_EQ(streaming_result.imported_functions, sync_result.imported_functions);
   CHECK_EQ(streaming_result.declared_functions, sync_result.declared_functions);
 
-  // We should not leave pending exceptions behind.
-  DCHECK(!i_isolate->has_pending_exception());
+  // We should not leave exceptions behind.
+  DCHECK(!i_isolate->has_exception());
 
   return 0;
 }

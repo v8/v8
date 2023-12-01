@@ -139,7 +139,7 @@ class WasmGCTester {
     DCHECK_EQ(sig->return_count(), 1);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
+    CHECK(!isolate_->has_exception());
     packer.Reset();
     return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
@@ -152,7 +152,7 @@ class WasmGCTester {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
-    CHECK(!isolate_->has_pending_exception());
+    CHECK(!isolate_->has_exception());
     packer.Reset();
     return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
@@ -215,10 +215,10 @@ class WasmGCTester {
   void CheckResultImpl(uint32_t function_index, const FunctionSig* sig,
                        CWasmArgumentsPacker* packer, int32_t expected) {
     CallFunctionImpl(function_index, sig, packer);
-    if (isolate_->has_pending_exception()) {
+    if (isolate_->has_exception()) {
       Handle<String> message =
           ErrorUtils::ToString(isolate_,
-                               handle(isolate_->pending_exception(), isolate_))
+                               handle(isolate_->exception(), isolate_))
               .ToHandleChecked();
       FATAL("%s", message->ToCString().get());
     }
@@ -229,14 +229,13 @@ class WasmGCTester {
   void CheckHasThrownImpl(uint32_t function_index, const FunctionSig* sig,
                           CWasmArgumentsPacker* packer, const char* expected) {
     CallFunctionImpl(function_index, sig, packer);
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     Handle<String> message =
-        ErrorUtils::ToString(isolate_,
-                             handle(isolate_->pending_exception(), isolate_))
+        ErrorUtils::ToString(isolate_, handle(isolate_->exception(), isolate_))
             .ToHandleChecked();
     std::string message_str(message->ToCString().get());
     CHECK_NE(message_str.find(expected), std::string::npos);
-    isolate_->clear_pending_exception();
+    isolate_->clear_exception();
   }
 
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
@@ -2037,7 +2036,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
     CHECK(maybe_result.is_null());
     CHECK(try_catch.HasCaught());
     try_catch.Reset();
-    isolate->clear_pending_exception();
+    isolate->clear_exception();
   }
 }
 

@@ -1176,8 +1176,8 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
       ParseTimeZoneOffsetString(isolate, identifier);
   // 4. If offsetNanosecondsResult is an abrupt completion, then
   if (maybe_offset_nanoseconds.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     // a. Assert: ! CanonicalizeTimeZoneName(identifier) is identifier.
     DCHECK(String::Equals(isolate, identifier,
                           CanonicalizeTimeZoneName(isolate, identifier)));
@@ -4047,8 +4047,8 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
     }
     // 3. Else,
   } else {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     // a. Set parseResult to ParseText(StringToCodePoints(isoString),
     // CalendarName).
     base::Optional<ParsedISO8601Result> parsed =

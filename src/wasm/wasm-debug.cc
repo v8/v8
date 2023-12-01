@@ -1208,7 +1208,7 @@ bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
   if (!DebugEvaluate::Local(isolate, frame_id, inlined_jsframe_index, condition,
                             throw_on_side_effect)
            .ToHandle(&result)) {
-    isolate->clear_pending_exception();
+    isolate->clear_exception();
     return false;
   }
   return Object::BooleanValue(*result, isolate);

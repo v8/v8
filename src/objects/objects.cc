@@ -1472,7 +1472,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    Just(kDontThrow));
     Handle<Object> result = args.CallAccessorGetter(info, name);
-    RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate, Object);
     if (result.is_null()) return isolate->factory()->undefined_value();
     Handle<Object> reboxed_result = handle(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
@@ -1554,7 +1554,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     // cannot have been set, so the result of Call will be null.  In the case of
     // AccessorNameBooleanSetterCallback, the result will either be null
     // (signalling an exception) or a boolean Oddball.
-    RETURN_VALUE_IF_PENDING_EXCEPTION(isolate, Nothing<bool>());
+    RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
     if (result.is_null()) return Just(true);
     DCHECK(Object::BooleanValue(*result, isolate) ||
            GetShouldThrow(isolate, maybe_should_throw) == kDontThrow);
@@ -3109,7 +3109,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
   // 3. - 7. Convert Desc.[[Value]] to newLen.
   uint32_t new_len = 0;
   if (!AnythingToArrayLength(isolate, desc->value(), &new_len)) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return Nothing<bool>();
   }
   // 8. Set newLenDesc.[[Value]] to newLen.
@@ -3442,7 +3442,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   // 13. Let resultDesc be ? ToPropertyDescriptor(trapResultObj).
   if (!PropertyDescriptor::ToPropertyDescriptor(isolate, trap_result_obj,
                                                 desc)) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return Nothing<bool>();
   }
   // 14. Call CompletePropertyDescriptor(resultDesc).
@@ -4886,13 +4886,13 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   Handle<Object> then_action;
   if (!then.ToHandle(&then_action)) {
     // The "then" lookup can cause termination.
-    if (!isolate->is_catchable_by_javascript(isolate->pending_exception())) {
+    if (!isolate->is_catchable_by_javascript(isolate->exception())) {
       return kNullMaybeHandle;
     }
 
     // a. Return RejectPromise(promise, then.[[Value]]).
-    Handle<Object> reason(isolate->pending_exception(), isolate);
-    isolate->clear_pending_exception();
+    Handle<Object> reason(isolate->exception(), isolate);
+    isolate->clear_exception();
     return Reject(promise, reason, false);
   }
 

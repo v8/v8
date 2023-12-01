@@ -73,36 +73,36 @@ bool Isolate::has_pending_message() {
   return !IsTheHole(pending_message(), this);
 }
 
-Tagged<Object> Isolate::pending_exception() {
-  CHECK(has_pending_exception());
-  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
-  return thread_local_top()->pending_exception_;
+Tagged<Object> Isolate::exception() {
+  CHECK(has_exception());
+  DCHECK(!IsException(thread_local_top()->exception_, this));
+  return thread_local_top()->exception_;
 }
 
-void Isolate::set_pending_exception(Tagged<Object> exception_obj) {
+void Isolate::set_exception(Tagged<Object> exception_obj) {
   DCHECK(!IsException(exception_obj, this));
-  thread_local_top()->pending_exception_ = exception_obj;
+  thread_local_top()->exception_ = exception_obj;
 }
 
-void Isolate::clear_pending_exception() {
-  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
-  thread_local_top()->pending_exception_ = ReadOnlyRoots(this).the_hole_value();
+void Isolate::clear_exception() {
+  DCHECK(!IsException(thread_local_top()->exception_, this));
+  thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
-bool Isolate::has_pending_exception() {
+bool Isolate::has_exception() {
   ThreadLocalTop* top = thread_local_top();
-  DCHECK(!IsException(top->pending_exception_, this));
-  return !IsTheHole(top->pending_exception_, this);
+  DCHECK(!IsException(top->exception_, this));
+  return !IsTheHole(top->exception_, this);
 }
 
 bool Isolate::is_execution_terminating() {
-  return thread_local_top()->pending_exception_ ==
+  return thread_local_top()->exception_ ==
          i::ReadOnlyRoots(this).termination_exception();
 }
 
 #ifdef DEBUG
 Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
-  DCHECK_EQ(has_pending_exception(), result == ReadOnlyRoots(this).exception());
+  DCHECK_EQ(has_exception(), result == ReadOnlyRoots(this).exception());
 #ifdef V8_COMPRESS_POINTERS
   // Check that the returned pointer is actually part of the current isolate,
   // because that's the assumption in generated code (which might call this
@@ -117,8 +117,7 @@ Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
 
 ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
 #ifdef V8_HOST_ARCH_64_BIT
-  DCHECK_EQ(has_pending_exception(),
-            pair.x == ReadOnlyRoots(this).exception().ptr());
+  DCHECK_EQ(has_exception(), pair.x == ReadOnlyRoots(this).exception().ptr());
 #ifdef V8_COMPRESS_POINTERS
   // Check that the returned pointer is actually part of the current isolate,
   // because that's the assumption in generated code (which might call this
@@ -168,13 +167,12 @@ Handle<JSGlobalProxy> Isolate::global_proxy() {
 }
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
-    : isolate_(isolate),
-      pending_exception_(isolate_->pending_exception(), isolate_) {
-  isolate_->clear_pending_exception();
+    : isolate_(isolate), exception_(isolate_->exception(), isolate_) {
+  isolate_->clear_exception();
 }
 
 Isolate::ExceptionScope::~ExceptionScope() {
-  isolate_->set_pending_exception(*pending_exception_);
+  isolate_->set_exception(*exception_);
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Tagged<JSArray> array) {

@@ -16,7 +16,7 @@
  * ENTER_V8, ENTER_V8_NO_SCRIPT, ENTER_V8_NO_SCRIPT_NO_EXCEPTION.
  *
  * The latter two assume that no script is executed, and no exceptions are
- * scheduled in addition (respectively). Creating a pending exception and
+ * scheduled in addition (respectively). Creating a exception and
  * removing it before returning is ok.
  *
  * Exceptions should be handled either by invoking one of the
@@ -52,18 +52,18 @@
   CallDepthScope<do_callback> call_depth_scope(i_isolate, context);            \
   API_RCS_SCOPE(i_isolate, class_name, function_name);                         \
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
-  bool has_pending_exception = false
+  bool has_exception = false
 
 #define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, T)       \
   DCHECK(!i_isolate->is_execution_terminating());                              \
   InternalEscapableScope handle_scope(i_isolate);                              \
   CallDepthScope<false> call_depth_scope(i_isolate, v8::Local<v8::Context>()); \
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
-  bool has_pending_exception = false
+  bool has_exception = false
 
 #define PREPARE_FOR_EXECUTION(context, class_name, function_name)         \
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());  \
-  i_isolate->clear_pending_exception();                                   \
+  i_isolate->clear_exception();                                           \
   ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name, \
                            InternalEscapableScope, false);
 
@@ -109,7 +109,7 @@
 #endif  // DEBUG
 
 #define EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, value) \
-  if (has_pending_exception) return value;
+  if (has_exception) return value;
 
 #define RETURN_ON_FAILED_EXECUTION(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, MaybeLocal<T>())

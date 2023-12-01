@@ -45,7 +45,7 @@ Local<Message> InterpreterTester::CheckThrowsReturnMessage() {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
   auto callable = GetCallable<>();
   MaybeHandle<Object> no_result = callable();
-  CHECK(isolate_->has_pending_exception());
+  CHECK(isolate_->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
   CHECK(!try_catch.Message().IsEmpty());

@@ -905,9 +905,9 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
   bool exception_thrown = true;
   if (maybe_result.ToHandle(&result)) {
     exception_thrown = false;
-  } else if (isolate_->has_pending_exception()) {
-    maybe_exception = handle(isolate_->pending_exception(), isolate_);
-    isolate_->clear_pending_exception();
+  } else if (isolate_->has_exception()) {
+    maybe_exception = handle(isolate_->exception(), isolate_);
+    isolate_->clear_exception();
   }
 
   CHECK(in_debug_scope());
@@ -1911,8 +1911,8 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
       Compiler::CompileToplevel(&parse_info, script, isolate,
                                 &is_compiled_scope);
   if (maybe_result.is_null()) {
-    if (isolate->has_pending_exception()) {
-      isolate->clear_pending_exception();
+    if (isolate->has_exception()) {
+      isolate->clear_exception();
     }
     return false;
   }
@@ -2362,12 +2362,12 @@ bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
 base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
-  // Temporarily clear any pending_exception to allow evaluating
+  // Temporarily clear any exception to allow evaluating
   // JavaScript from the debug event handler.
   HandleScope scope(isolate_);
   {
     base::Optional<Isolate::ExceptionScope> exception_scope;
-    if (isolate_->has_pending_exception()) exception_scope.emplace(isolate_);
+    if (isolate_->has_exception()) exception_scope.emplace(isolate_);
     Handle<Object> maybe_promise = isolate_->GetPromiseOnStackOnThrow();
     OnException(exception, maybe_promise,
                 IsJSPromise(*maybe_promise) ? v8::debug::kPromiseRejection
@@ -3000,7 +3000,7 @@ void Debug::StopSideEffectCheckMode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
-    DCHECK(isolate_->has_pending_exception());
+    DCHECK(isolate_->has_exception());
     DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                    isolate_->is_execution_terminating());
     // Convert the termination exception into a regular exception.

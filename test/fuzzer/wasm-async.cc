@@ -56,9 +56,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8::Isolate::Scope isolate_scope(isolate);
 
-  // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
   }
 
   v8::HandleScope handle_scope(isolate);

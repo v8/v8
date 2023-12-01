@@ -992,7 +992,7 @@ TEST(TestReturnNever_Runtime_Called) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   MaybeHandle<Object> result = ft.Call();
   CHECK(result.is_null());
-  CHECK(isolate->has_pending_exception());
+  CHECK(isolate->has_exception());
 }
 
 // Test calling a builtin that calls another builtin with return type {never}.
@@ -1012,7 +1012,7 @@ TEST(TestReturnNever_Builtin_Called) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   MaybeHandle<Object> result = ft.Call();
   CHECK(result.is_null());
-  CHECK(isolate->has_pending_exception());
+  CHECK(isolate->has_exception());
 }
 
 }  // namespace compiler

@@ -313,7 +313,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           isolate, params.is_construct, fun_data, receiver, params.argc,
           params.argv, Handle<HeapObject>::cast(params.new_target));
       bool has_exception = value.is_null();
-      DCHECK(has_exception == isolate->has_pending_exception());
+      DCHECK_EQ(has_exception, isolate->has_exception());
       if (has_exception) {
         isolate->ReportPendingMessages(params.message_handling ==
                                        Execution::MessageHandling::kReport);
@@ -378,7 +378,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
       v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
       callback(api_isolate, api_context);
-      DCHECK(!isolate->has_pending_exception());
+      DCHECK(!isolate->has_exception());
       // Always throw an exception to abort execution, if callback exists.
       isolate->ThrowIllegalOperation();
       return MaybeHandle<Object>();
@@ -395,8 +395,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
 
-    if (v8_flags.clear_exceptions_on_js_entry)
-      isolate->clear_pending_exception();
+    if (v8_flags.clear_exceptions_on_js_entry) isolate->clear_exception();
 
     if (params.execution_target == Execution::Target::kCallable) {
       // clang-format off
@@ -443,7 +442,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Update the pending exception flag and return the value.
   bool has_exception = IsException(value, isolate);
-  DCHECK_EQ(has_exception, isolate->has_pending_exception());
+  DCHECK_EQ(has_exception, isolate->has_exception());
   if (has_exception) {
     isolate->ReportPendingMessages(params.message_handling ==
                                    Execution::MessageHandling::kReport);
@@ -475,11 +474,11 @@ MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
   maybe_result = Invoke(isolate, params);
 
   if (V8_LIKELY(!maybe_result.is_null())) {
-    DCHECK(!isolate->has_pending_exception());
+    DCHECK(!isolate->has_exception());
     return maybe_result;
   }
 
-  DCHECK(isolate->has_pending_exception());
+  DCHECK(isolate->has_exception());
   if (isolate->is_execution_terminating()) {
     return maybe_result;
   }
@@ -625,9 +624,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
     static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
     Address result = stub_entry.Call(wasm_call_target, (*object_ref).ptr(),
                                      packed_args, saved_c_entry_fp);
-    if (result != kNullAddress) {
-      isolate->set_pending_exception(Tagged<Object>(result));
-    }
+    if (result != kNullAddress) isolate->set_exception(Tagged<Object>(result));
   }
 
   // If there was an exception, then the thread-in-wasm flag is cleared

@@ -46,7 +46,7 @@ class RegExpImpl final : public AllStatic {
   // the subject is flat.
   // Returns the number of integer spaces required by IrregexpExecOnce
   // as its "registers" argument.  If the regexp cannot be compiled,
-  // an exception is set as pending, and this function returns negative.
+  // an exception is thrown as indicated by a negative return value.
   static int IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
                              Handle<String> subject);
 
@@ -67,7 +67,7 @@ class RegExpImpl final : public AllStatic {
   // than one in the case of global regular expressions.
   // The captures and subcaptures are stored into the registers vector.
   // If matching fails, returns RE_FAILURE.
-  // If execution fails, sets a pending exception and returns RE_EXCEPTION.
+  // If execution fails, sets a exception and returns RE_EXCEPTION.
   static int IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                              Handle<String> subject, int index, int32_t* output,
                              int output_size);
@@ -221,7 +221,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
                                                &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
@@ -296,14 +296,14 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate, Handle<JSRegExp> re,
       return true;
     case JSRegExp::IRREGEXP:
       if (RegExpImpl::IrregexpPrepare(isolate, re, subject) == -1) {
-        DCHECK(isolate->has_pending_exception());
+        DCHECK(isolate->has_exception());
         return false;
       }
       return true;
     case JSRegExp::EXPERIMENTAL:
       if (!ExperimentalRegExp::IsCompiled(re, isolate) &&
           !ExperimentalRegExp::Compile(isolate, re)) {
-        DCHECK(isolate->has_pending_exception());
+        DCHECK(isolate->has_exception());
         return false;
       }
       return true;
@@ -694,7 +694,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                                                   output_size, index, isolate);
       if (res != NativeRegExpMacroAssembler::RETRY) {
         DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
-               isolate->has_pending_exception());
+               isolate->has_exception());
         static_assert(static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) ==
                       RegExp::RE_SUCCESS);
         static_assert(static_cast<int>(NativeRegExpMacroAssembler::FAILURE) ==
@@ -720,7 +720,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
           IrregexpInterpreter::MatchForCallFromRuntime(
               isolate, regexp, subject, output, output_size, index);
       DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
-                     isolate->has_pending_exception());
+                     isolate->has_exception());
 
       switch (result) {
         case IrregexpInterpreter::SUCCESS:
@@ -776,7 +776,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
       RegExpImpl::IrregexpPrepare(isolate, regexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
 
@@ -806,7 +806,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     return ExperimentalRegExp::OneshotExec(isolate, regexp, subject,
                                            previous_index, last_match_info);
   } else if (res == RegExp::RE_EXCEPTION) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   } else {
     DCHECK(res == RegExp::RE_FAILURE);
@@ -1100,7 +1100,7 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
     case JSRegExp::EXPERIMENTAL: {
       if (!ExperimentalRegExp::IsCompiled(regexp, isolate_) &&
           !ExperimentalRegExp::Compile(isolate_, regexp)) {
-        DCHECK(isolate->has_pending_exception());
+        DCHECK(isolate->has_exception());
         num_matches_ = -1;  // Signal exception.
         return;
       }

@@ -793,7 +793,7 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
   if (shared_info->CanCollectSourcePosition(isolate)) {
     base::Optional<Isolate::ExceptionScope> exception_scope;
-    if (isolate->has_pending_exception()) {
+    if (isolate->has_exception()) {
       exception_scope.emplace(isolate);
     }
     Compiler::CollectSourcePositions(isolate, shared_info);

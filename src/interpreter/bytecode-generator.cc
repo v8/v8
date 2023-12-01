@@ -2696,7 +2696,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
         }
 
         // If requested, clear message object as we enter the catch block.
-        if (stmt->ShouldClearPendingException(outer_catch_prediction)) {
+        if (stmt->ShouldClearException(outer_catch_prediction)) {
           builder()->LoadTheHole().SetPendingMessage();
         }
 

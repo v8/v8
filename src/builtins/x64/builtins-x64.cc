@@ -430,7 +430,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ bind(&cont);
 
   // Jump to a faked try block that does the invoke, with a faked catch
-  // block that sets the pending exception.
+  // block that sets the exception.
   __ jmp(&invoke);
   __ BindExceptionHandler(&handler_entry);
 
@@ -438,11 +438,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // handler table.
   masm->isolate()->builtins()->SetJSEntryHandlerOffset(handler_entry.pos());
 
-  // Caught exception: Store result (exception) in the pending exception
+  // Caught exception: Store result (exception) in the exception
   // field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception = ExternalReference::Create(
-      IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-  __ Store(pending_exception, rax);
+  ExternalReference exception = ExternalReference::Create(
+      IsolateAddressId::kExceptionAddress, masm->isolate());
+  __ Store(exception, rax);
   __ LoadRoot(rax, RootIndex::kException);
   __ jmp(&exit);
 
@@ -4193,15 +4193,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ CompareRoot(rax, RootIndex::kException);
   __ j(equal, &exception_returned);
 
-  // Check that there is no pending exception, otherwise we
+  // Check that there is no exception, otherwise we
   // should have returned the exception sentinel.
   if (v8_flags.debug_code) {
     Label okay;
     __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
-    ER pending_exception_address =
-        ER::Create(IsolateAddressId::kPendingExceptionAddress, masm->isolate());
+    ER exception_address =
+        ER::Create(IsolateAddressId::kExceptionAddress, masm->isolate());
     __ cmp_tagged(kScratchRegister,
-                  masm->ExternalReferenceAsOperand(pending_exception_address));
+                  masm->ExternalReferenceAsOperand(exception_address));
     __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
@@ -4229,7 +4229,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       ER::Create(IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
   // Ask the runtime for help to determine the handler. This will set rax to
-  // contain the current pending exception, don't clobber it.
+  // contain the current exception, don't clobber it.
   ER find_handler = ER::Create(Runtime::kUnwindAndFindExceptionHandler);
   {
     FrameScope scope(masm, StackFrame::MANUAL);

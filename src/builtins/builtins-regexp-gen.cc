@@ -676,11 +676,11 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   {
 // A stack overflow was detected in RegExp code.
 #ifdef DEBUG
-    TNode<ExternalReference> pending_exception_address =
+    TNode<ExternalReference> exception_address =
         ExternalConstant(ExternalReference::Create(
-            IsolateAddressId::kPendingExceptionAddress, isolate()));
-    TNode<Object> pending_exception = LoadFullTagged(pending_exception_address);
-    CSA_DCHECK(this, IsTheHole(pending_exception));
+            IsolateAddressId::kExceptionAddress, isolate()));
+    TNode<Object> exception = LoadFullTagged(exception_address);
+    CSA_DCHECK(this, IsTheHole(exception));
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
     Unreachable();

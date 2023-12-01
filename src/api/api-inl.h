@@ -215,14 +215,14 @@ class V8_NODISCARD CallDepthScope {
       microtask_queue = env->native_context()->microtask_queue();
     }
     isolate_->thread_local_top()->DecrementCallDepth(this);
-    // Clear the pending exception when exiting V8 to avoid memory leaks.
+    // Clear the exception when exiting V8 to avoid memory leaks.
     // Also clear termination exceptions iff there's no TryCatch handler.
     // TODO(verwaest): Drop this once we propagate exceptions to external
     // TryCatch on Throw. This should be debug-only.
     if (isolate_->thread_local_top()->CallDepthIsZero() &&
         (isolate_->thread_local_top()->try_catch_handler_ == nullptr ||
          !isolate_->is_execution_terminating())) {
-      isolate_->clear_pending_exception();
+      isolate_->clear_exception();
     }
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 #ifdef DEBUG

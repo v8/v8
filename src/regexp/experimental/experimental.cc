@@ -72,7 +72,7 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 
   // Parse and compile the regexp source.
   RegExpCompileData parse_result;
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
 
   RegExpFlags flags = JSRegExp::AsRegExpFlags(regexp->flags());
   bool parse_success = RegExpParser::ParseRegExpFromHeapString(
@@ -113,7 +113,7 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   base::Optional<CompilationResult> compilation_result =
       CompileImpl(isolate, re);
   if (!compilation_result.has_value()) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return false;
   }
 
@@ -210,7 +210,7 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
 #endif
 
   if (!IsCompiled(regexp, isolate) && !Compile(isolate, regexp)) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
 
@@ -252,7 +252,7 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
         // Re-run execution.
         continue;
       }
-      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->has_exception());
       return MaybeHandle<Object>();
     }
   } while (true);
@@ -323,7 +323,7 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
         // Re-run execution.
         continue;
       }
-      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->has_exception());
       return MaybeHandle<Object>();
     }
   } while (true);

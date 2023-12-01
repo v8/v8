@@ -400,8 +400,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
 
   isolate->RunAtomicsWaitCallback(AtomicsWaitEvent::kStartWait, array_buffer,
                                   addr, value, rel_timeout_ms, &stop_handle);
-  if (isolate->has_pending_exception())
-    return ReadOnlyRoots(isolate).exception();
+  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
 
   Handle<Object> result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
@@ -521,7 +520,7 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate,
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);
 
-  if (isolate->has_pending_exception() &&
+  if (isolate->has_exception() &&
       callback_result != AtomicsWaitEvent::kTerminatedExecution) {
     return ReadOnlyRoots(isolate).exception();
   }

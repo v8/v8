@@ -1100,7 +1100,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
 
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   OptimizedCodeCache::Insert(isolate, *compilation_info->closure(),
                              compilation_info->osr_offset(),
                              *compilation_info->code(),
@@ -1190,7 +1190,7 @@ MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   PostponeInterruptsScope postpone(isolate);
   const compiler::IsScriptAvailable has_script =
       IsScript(shared->script()) ? compiler::IsScriptAvailable::kYes
@@ -1220,7 +1220,7 @@ MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
     }
   }
 
-  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+  if (isolate->has_exception()) isolate->clear_exception();
   return {};
 }
 
@@ -1253,7 +1253,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 
   // TODO(v8:7700): Tracing, see CompileTurbofan.
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   PostponeInterruptsScope postpone(isolate);
 
   // TODO(v8:7700): See everything in CompileTurbofan_Concurrent.
@@ -1407,13 +1407,13 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
                             result_behavior));
 }
 
-bool FailAndClearPendingException(Isolate* isolate) {
-  isolate->clear_pending_exception();
+bool FailAndClearException(Isolate* isolate) {
+  isolate->clear_exception();
   return false;
 }
 
 template <typename IsolateT>
-bool PreparePendingException(IsolateT* isolate, ParseInfo* parse_info) {
+bool PrepareException(IsolateT* isolate, ParseInfo* parse_info) {
   if (parse_info->pending_error_handler()->has_pending_error()) {
     parse_info->pending_error_handler()->PrepareErrors(
         isolate, parse_info->ast_value_factory());
@@ -1421,15 +1421,15 @@ bool PreparePendingException(IsolateT* isolate, ParseInfo* parse_info) {
   return false;
 }
 
-bool FailWithPreparedPendingException(
+bool FailWithPreparedException(
     Isolate* isolate, Handle<Script> script,
     const PendingCompilationErrorHandler* pending_error_handler,
     Compiler::ClearExceptionFlag flag = Compiler::KEEP_EXCEPTION) {
   if (flag == Compiler::CLEAR_EXCEPTION) {
-    return FailAndClearPendingException(isolate);
+    return FailAndClearException(isolate);
   }
 
-  if (!isolate->has_pending_exception()) {
+  if (!isolate->has_exception()) {
     if (pending_error_handler->has_pending_error()) {
       pending_error_handler->ReportErrors(isolate, script);
     } else {
@@ -1439,12 +1439,12 @@ bool FailWithPreparedPendingException(
   return false;
 }
 
-bool FailWithPendingException(Isolate* isolate, Handle<Script> script,
-                              ParseInfo* parse_info,
-                              Compiler::ClearExceptionFlag flag) {
-  PreparePendingException(isolate, parse_info);
-  return FailWithPreparedPendingException(
-      isolate, script, parse_info->pending_error_handler(), flag);
+bool FailWithException(Isolate* isolate, Handle<Script> script,
+                       ParseInfo* parse_info,
+                       Compiler::ClearExceptionFlag flag) {
+  PrepareException(isolate, parse_info);
+  return FailWithPreparedException(isolate, script,
+                                   parse_info->pending_error_handler(), flag);
 }
 
 void FinalizeUnoptimizedCompilation(
@@ -1565,8 +1565,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
                              isolate, parsing::ReportStatisticsMode::kYes)) {
-    FailWithPendingException(isolate, script, parse_info,
-                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
+    FailWithException(isolate, script, parse_info,
+                      Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
   // Measure how long it takes to do the compilation; only take the
@@ -1592,8 +1592,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
           isolate, shared_info, script, parse_info, isolate->allocator(),
           is_compiled_scope, &finalize_unoptimized_compilation_data_list,
           nullptr)) {
-    FailWithPendingException(isolate, script, parse_info,
-                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
+    FailWithException(isolate, script, parse_info,
+                      Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
 
@@ -1990,7 +1990,7 @@ void BackgroundCompileTask::Run(
   }
 
   if (maybe_result.is_null()) {
-    PreparePendingException(isolate, &info);
+    PrepareException(isolate, &info);
   } else if (v8_flags.enable_slow_asserts) {
 #ifdef ENABLE_SLOW_DCHECKS
     MergeAssumptionChecker checker(isolate);
@@ -2318,8 +2318,8 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
-    FailWithPreparedPendingException(isolate, script,
-                                     compile_state_.pending_error_handler());
+    FailWithPreparedException(isolate, script,
+                              compile_state_.pending_error_handler());
     return kNullMaybeHandle;
   }
 
@@ -2356,8 +2356,8 @@ bool BackgroundCompileTask::FinalizeFunction(
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
-    FailWithPreparedPendingException(
-        isolate, script_, compile_state_.pending_error_handler(), flag);
+    FailWithPreparedException(isolate, script_,
+                              compile_state_.pending_error_handler(), flag);
     return false;
   }
 
@@ -2471,7 +2471,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
       handle(shared_info->GetBytecodeArray(isolate), isolate);
 
   // TODO(v8:8510): Push the CLEAR_EXCEPTION flag or something like it down into
-  // the parser so it aborts without setting a pending exception, which then
+  // the parser so it aborts without setting a exception, which then
   // gets thrown. This would avoid the situation where potentially we'd reparse
   // several times (running out of stack each time) before hitting this limit.
   if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit()) {
@@ -2490,7 +2490,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
@@ -2518,7 +2518,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
                          parsing::ReportStatisticsMode::kNo)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
-    return FailAndClearPendingException(isolate);
+    return FailAndClearException(isolate);
   }
 
   // Character stream shouldn't be used again.
@@ -2537,7 +2537,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
         job->FinalizeJob(shared_info, isolate) != CompilationJob::SUCCEEDED) {
       // Recompiling failed probably as a result of stack exhaustion.
       bytecode->SetSourcePositionsFailedToCollect();
-      return FailAndClearPendingException(isolate);
+      return FailAndClearException(isolate);
     }
   }
 
@@ -2555,7 +2555,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
     }
   }
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   DCHECK(shared_info->is_compiled_scope(isolate).is_compiled());
   return true;
 }
@@ -2570,7 +2570,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   DCHECK(!is_compiled_scope->is_compiled());
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   DCHECK(!shared_info->HasBytecodeArray());
 
   VMState<BYTECODE_COMPILER> state(isolate);
@@ -2597,7 +2597,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
   if (dispatcher && dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
-      return FailWithPendingException(isolate, script, &parse_info, flag);
+      return FailWithException(isolate, script, &parse_info, flag);
     }
     *is_compiled_scope = shared_info->is_compiled_scope(isolate);
     DCHECK(is_compiled_scope->is_compiled());
@@ -2615,7 +2615,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   // Parse and update ParseInfo with the results.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
                          parsing::ReportStatisticsMode::kYes)) {
-    return FailWithPendingException(isolate, script, &parse_info, flag);
+    return FailWithException(isolate, script, &parse_info, flag);
   }
 
   // Generate the unoptimized bytecode or asm-js data.
@@ -2626,7 +2626,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
           isolate, shared_info, script, &parse_info, isolate->allocator(),
           is_compiled_scope, &finalize_unoptimized_compilation_data_list,
           nullptr)) {
-    return FailWithPendingException(isolate, script, &parse_info, flag);
+    return FailWithException(isolate, script, &parse_info, flag);
   }
 
   FinalizeUnoptimizedCompilation(isolate, script, flags, &compile_state,
@@ -2651,7 +2651,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     script->set_compiled_lazy_function_positions(*list);
   }
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   DCHECK(is_compiled_scope->is_compiled());
   return true;
 }
@@ -2726,7 +2726,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Check postconditions on success.
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   DCHECK(function->shared()->is_compiled());
   DCHECK(function->is_compiled(isolate));
   return true;
@@ -2822,7 +2822,7 @@ bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
 
   if (!task->FinalizeFunction(isolate, flag)) return false;
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   return true;
 }
 
@@ -2846,7 +2846,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
 #ifdef DEBUG
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   DCHECK(function->is_compiled(isolate));
   DCHECK(function->shared()->HasBytecodeArray());
   const TieringState tiering_state = function->tiering_state();
@@ -3508,8 +3508,8 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     if (main_thread_maybe_result.is_null()) {
       // Assume all range errors are stack overflows.
       main_thread_had_stack_overflow = CompilationExceptionIsRangeError(
-          isolate, handle(isolate->pending_exception(), isolate));
-      isolate->clear_pending_exception();
+          isolate, handle(isolate->exception(), isolate));
+      isolate->clear_exception();
     }
   }
 

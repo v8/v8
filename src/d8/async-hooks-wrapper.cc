@@ -184,10 +184,10 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
   HandleScope handle_scope(v8_isolate);
-  i::Handle<i::Object> pending_exception;
+  i::Handle<i::Object> exception;
   // Keep track of any previously thrown exception.
-  if (i_isolate->has_pending_exception()) {
-    pending_exception = handle(i_isolate->pending_exception(), i_isolate);
+  if (i_isolate->has_exception()) {
+    exception = handle(i_isolate->exception(), i_isolate);
   }
   {
     TryCatch try_catch(v8_isolate);
@@ -252,8 +252,8 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
       if (try_catch.HasCaught()) Shell::ReportException(v8_isolate, try_catch);
     }
   }
-  if (!pending_exception.is_null()) {
-    i_isolate->set_pending_exception(*pending_exception);
+  if (!exception.is_null()) {
+    i_isolate->set_exception(*exception);
   }
 }
 

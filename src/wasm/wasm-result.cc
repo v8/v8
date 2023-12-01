@@ -146,19 +146,10 @@ ErrorThrower::ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT
 }
 
 ErrorThrower::~ErrorThrower() {
-  if (!error() || isolate_->has_pending_exception()) return;
+  if (!error() || isolate_->has_exception()) return;
 
   HandleScope handle_scope{isolate_};
   isolate_->Throw(*Reify());
-}
-
-ScheduledErrorThrower::~ScheduledErrorThrower() {
-  // Don't throw another error if there is already a pending error.
-  if (isolate()->has_pending_exception()) {
-    Reset();
-  } else if (error()) {
-    isolate()->Throw(*Reify());
-  }
 }
 
 }  // namespace wasm

@@ -955,7 +955,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
         Maybe<bool> result =
             JSObject::DeletePropertyWithInterceptor(it, should_throw);
         // An exception was thrown in the interceptor. Propagate.
-        if (isolate->has_pending_exception()) return Nothing<bool>();
+        if (isolate->has_exception()) return Nothing<bool>();
         // Delete with interceptor succeeded. Return result.
         // TODO(neis): In strict mode, we should probably throw if the
         // interceptor returns false.
@@ -1223,8 +1223,7 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
     result = args.CallNamedGetter(interceptor, it->name());
   }
 
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args,
-                                             MaybeHandle<Object>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, MaybeHandle<Object>());
   if (result.is_null()) return isolate->factory()->undefined_value();
   *done = true;
   args.AcceptSideEffects();
@@ -1283,8 +1282,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     }
   }
 
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args,
-                                             Nothing<PropertyAttributes>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
+                                     Nothing<PropertyAttributes>());
   return Just(ABSENT);
 }
 
@@ -1318,8 +1317,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
     result = !args.CallNamedSetter(interceptor, it->name(), value).is_null();
   }
 
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(it->isolate(), args,
-                                             Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(it->isolate(), args, Nothing<bool>());
   if (result) args.AcceptSideEffects();
   return Just(result);
 }
@@ -1393,8 +1391,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
         !args.CallNamedDefiner(interceptor, it->name(), *descriptor).is_null();
   }
 
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(it->isolate(), args,
-                                             Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(it->isolate(), args, Nothing<bool>());
   if (result) args.AcceptSideEffects();
   return Just(result);
 }
@@ -1852,7 +1849,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
     result = args.CallNamedDescriptor(interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
   if (!result.is_null()) {
     // Request was successfully intercepted, try to set the property
     // descriptor.
@@ -1897,7 +1894,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   MAYBE_RETURN(maybe, Nothing<bool>());
   PropertyAttributes attrs = maybe.FromJust();
   if (attrs == ABSENT) return Just(false);
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
 
   // 3. Let D be a newly created Property Descriptor with no fields.
   DCHECK(desc->is_empty());
@@ -1909,7 +1906,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
     Handle<Object> value;
     if (!Object::GetProperty(it).ToHandle(&value)) {
-      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->has_exception());
       return Nothing<bool>();
     }
     desc->set_value(value);
@@ -2669,7 +2666,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   if (!interceptor.is_null()) {
     Maybe<PropertyAttributes> result =
         GetPropertyAttributesWithInterceptorInternal(it, interceptor);
-    if (isolate->has_pending_exception()) return Nothing<PropertyAttributes>();
+    if (isolate->has_exception()) return Nothing<PropertyAttributes>();
     if (result.FromMaybe(ABSENT) != ABSENT) return result;
   }
   RETURN_ON_EXCEPTION_VALUE(isolate, isolate->ReportFailedAccessCheck(checked),
@@ -2686,7 +2683,7 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
   if (!interceptor.is_null()) {
     Maybe<bool> result = SetPropertyWithInterceptorInternal(
         it, interceptor, should_throw, value);
-    if (isolate->has_pending_exception()) return Nothing<bool>();
+    if (isolate->has_exception()) return Nothing<bool>();
     if (result.IsJust()) return result;
   }
   RETURN_ON_EXCEPTION_VALUE(isolate, isolate->ReportFailedAccessCheck(checked),
@@ -4037,7 +4034,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
     result = args.CallNamedDeleter(interceptor, it->name());
   }
 
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
   if (result.is_null()) return Nothing<bool>();
 
   DCHECK(IsBoolean(*result));

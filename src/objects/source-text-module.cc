@@ -222,7 +222,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     if (!ResolveImport(isolate, module, import_name, entry->module_request(),
                        new_loc, true, resolve_set)
              .ToHandle(&cell)) {
-      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->has_exception());
       return MaybeHandle<Cell>();
     }
 
@@ -258,7 +258,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
   MaybeHandle<Cell> result =
       Module::ResolveExport(isolate, requested_module, module_specifier, name,
                             loc, must_resolve, resolve_set);
-  DCHECK_IMPLIES(isolate->has_pending_exception(), result.is_null());
+  DCHECK_IMPLIES(isolate->has_exception(), result.is_null());
   return result;
 }
 
@@ -293,7 +293,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
                                             module_specifier, export_name),
                                         &loc);
         }
-      } else if (isolate->has_pending_exception()) {
+      } else if (isolate->has_exception()) {
         return MaybeHandle<Cell>();
       }
     }
@@ -408,7 +408,7 @@ bool SourceTextModule::RunInitializationCode(Isolate* isolate,
       Execution::Call(isolate, function, receiver, 0, {});
   Handle<Object> generator;
   if (!maybe_generator.ToHandle(&generator)) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return false;
   }
   DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
@@ -684,15 +684,15 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
 bool SourceTextModule::MaybeHandleEvaluationException(
     Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack) {
   DisallowGarbageCollection no_gc;
-  Tagged<Object> pending_exception = isolate->pending_exception();
-  if (isolate->is_catchable_by_javascript(pending_exception)) {
+  Tagged<Object> exception = isolate->exception();
+  if (isolate->is_catchable_by_javascript(exception)) {
     //  a. For each Cyclic Module Record m in stack, do
     for (Handle<SourceTextModule>& descendant : *stack) {
       //   i. Assert: m.[[Status]] is "evaluating".
       CHECK_EQ(descendant->status(), kEvaluating);
       //  ii. Set m.[[Status]] to "evaluated".
       // iii. Set m.[[EvaluationError]] to result.
-      descendant->RecordError(isolate, pending_exception);
+      descendant->RecordError(isolate, exception);
     }
     return true;
   }
@@ -700,12 +700,12 @@ bool SourceTextModule::MaybeHandleEvaluationException(
   // would resume execution, and our API contract is to return an empty
   // handle. The module's status should be set to kErrored and the
   // exception field should be set to `null`.
-  RecordError(isolate, pending_exception);
+  RecordError(isolate, exception);
   for (Handle<SourceTextModule>& descendant : *stack) {
-    descendant->RecordError(isolate, pending_exception);
+    descendant->RecordError(isolate, exception);
   }
   CHECK_EQ(status(), kErrored);
-  CHECK_EQ(exception(), *isolate->factory()->null_value());
+  CHECK_EQ(this->exception(), *isolate->factory()->null_value());
   return false;
 }
 

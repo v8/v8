@@ -468,8 +468,8 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
 template <typename Char>
 void JsonParser<Char>::ReportUnexpectedToken(
     JsonToken token, base::Optional<MessageTemplate> errorMessage) {
-  // Some exception (for example stack overflow) is already pending.
-  if (isolate_->has_pending_exception()) return;
+  // Some exception (for example stack overflow) was already thrown.
+  if (isolate_->has_exception()) return;
 
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
@@ -555,7 +555,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
         peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
     return MaybeHandle<Object>();
   }
-  if (isolate_->has_pending_exception()) {
+  if (isolate_->has_exception()) {
     return MaybeHandle<Object>();
   }
   return result;
@@ -993,7 +993,7 @@ bool JsonParser<Char>::ParseRawJson() {
       ReportUnexpectedCharacter(CurrentCharacter());
       return false;
   }
-  if (isolate_->has_pending_exception()) return false;
+  if (isolate_->has_exception()) return false;
   if (cursor_ != end_) {
     isolate_->Throw(*isolate_->factory()->NewSyntaxError(
         MessageTemplate::kInvalidRawJsonValue));

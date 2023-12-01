@@ -646,9 +646,8 @@ ExternalReference ExternalReference::handle_scope_limit_address(
   return ExternalReference(HandleScope::current_limit_address(isolate));
 }
 
-ExternalReference ExternalReference::pending_exception_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_exception_address());
+ExternalReference ExternalReference::exception_address(Isolate* isolate) {
+  return ExternalReference(isolate->exception_address());
 }
 
 ExternalReference ExternalReference::address_of_pending_message(

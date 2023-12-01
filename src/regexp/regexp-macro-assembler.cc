@@ -449,7 +449,7 @@ int NativeRegExpMacroAssembler::Execute(
                        output, output_size, call_origin, isolate, regexp.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
-  if (result == EXCEPTION && !isolate->has_pending_exception()) {
+  if (result == EXCEPTION && !isolate->has_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
     // but haven't created the exception yet. Additionally, we allow heap
     // allocation because even though it invalidates {input_start} and

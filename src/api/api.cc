@@ -2159,7 +2159,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
       i::Script::cast(fun->shared()->script())->host_defined_options(),
       i_isolate);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::CallScript(i_isolate, fun, receiver, options), &result);
 
   RETURN_ON_FAILED_EXECUTION(Value);
@@ -2434,8 +2434,8 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
                                       Module::ResolveModuleCallback callback) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Module, InstantiateModule, i::HandleScope);
-  has_pending_exception = !i::Module::Instantiate(
-      i_isolate, Utils::OpenHandle(this), context, callback, nullptr);
+  has_exception = !i::Module::Instantiate(i_isolate, Utils::OpenHandle(this),
+                                          context, callback, nullptr);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -2455,8 +2455,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
                   "Expected instantiated module");
 
   Local<Value> result;
-  has_pending_exception =
-      !ToLocal(i::Module::Evaluate(i_isolate, self), &result);
+  has_exception = !ToLocal(i::Module::Evaluate(i_isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -2503,11 +2502,10 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
                   "a SyntheticModule");
   ENTER_V8_NO_SCRIPT(i_isolate, v8_isolate->GetCurrentContext(), Module,
                      SetSyntheticModuleExport, i::HandleScope);
-  has_pending_exception =
-      i::SyntheticModule::SetExport(i_isolate,
-                                    i::Handle<i::SyntheticModule>::cast(self),
-                                    i_export_name, i_export_value)
-          .IsNothing();
+  has_exception = i::SyntheticModule::SetExport(
+                      i_isolate, i::Handle<i::SyntheticModule>::cast(self),
+                      i_export_name, i_export_value)
+                      .IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -2646,8 +2644,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
         i::NOT_NATIVES_CODE, &source->compilation_details);
   }
 
-  has_pending_exception = !maybe_function_info.ToHandle(&result);
-  DCHECK_IMPLIES(!has_pending_exception, !result->InReadOnlySpace());
+  has_exception = !maybe_function_info.ToHandle(&result);
+  DCHECK_IMPLIES(!has_exception, !result->InReadOnlySpace());
   RETURN_ON_FAILED_EXECUTION(UnboundScript);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
@@ -2779,7 +2777,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     }
 
     i::Handle<i::JSFunction> scoped_result;
-    has_pending_exception =
+    has_exception =
         !i::Compiler::GetWrappedFunction(
              Utils::OpenHandle(*source->source_string), arguments_list, context,
              script_details, cached_data.get(), options, no_cache_reason)
@@ -2907,8 +2905,8 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   i::Handle<i::SharedFunctionInfo> sfi;
   i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
       CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
-  has_pending_exception = !maybe_sfi.ToHandle(&sfi);
-  if (has_pending_exception) i_isolate->ReportPendingMessages();
+  has_exception = !maybe_sfi.ToHandle(&sfi);
+  if (has_exception) i_isolate->ReportPendingMessages();
   RETURN_ON_FAILED_EXECUTION(Script);
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(sfi);
   if (generic.IsEmpty()) return Local<Script>();
@@ -2927,8 +2925,8 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   i::Handle<i::SharedFunctionInfo> sfi;
   i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
       CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
-  has_pending_exception = !maybe_sfi.ToHandle(&sfi);
-  if (has_pending_exception) i_isolate->ReportPendingMessages();
+  has_exception = !maybe_sfi.ToHandle(&sfi);
+  if (has_exception) i_isolate->ReportPendingMessages();
   RETURN_ON_FAILED_EXECUTION(Module);
   RETURN_ESCAPED(
       ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(sfi)));
@@ -3024,7 +3022,7 @@ v8::TryCatch::~TryCatch() {
         i_isolate_->set_pending_message(ToObject(message_obj_));
       }
       i_isolate_->UnregisterTryCatchHandler(this);
-      i_isolate_->clear_pending_exception();
+      i_isolate_->clear_exception();
       i_isolate_->Throw(ToObject(exception_));
       return;
     }
@@ -3073,11 +3071,11 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
   auto obj = i::Handle<i::JSObject>::cast(i_exception);
   i::Handle<i::String> name = i_isolate->factory()->stack_string();
   Maybe<bool> maybe = i::JSReceiver::HasProperty(i_isolate, obj, name);
-  has_pending_exception = maybe.IsNothing();
+  has_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!maybe.FromJust()) return v8::Local<Value>();
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::JSReceiver::GetProperty(i_isolate, obj, name), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -3104,7 +3102,7 @@ void v8::TryCatch::Reset() {
       !i_isolate_->thread_local_top()->CallDepthIsZero()) {
     return;
   }
-  i_isolate_->clear_pending_exception();
+  i_isolate_->clear_exception();
   i_isolate_->clear_pending_message();
   ResetInternal();
 }
@@ -3433,7 +3431,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context,
           ? i::JsonParser<uint8_t>::Parse(i_isolate, source, undefined)
           : i::JsonParser<uint16_t>::Parse(i_isolate, source, undefined);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(maybe, &result);
+  has_exception = !ToLocal<Value>(maybe, &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -3448,12 +3446,11 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                         ? i_isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
   i::Handle<i::Object> maybe;
-  has_pending_exception =
-      !i::JsonStringify(i_isolate, object, replacer, gap_string)
-           .ToHandle(&maybe);
+  has_exception = !i::JsonStringify(i_isolate, object, replacer, gap_string)
+                       .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<String>(i::Object::ToString(i_isolate, maybe), &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(result);
@@ -3561,7 +3558,7 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
   ENTER_V8(i_isolate, context, ValueSerializer, WriteValue, i::HandleScope);
   auto object = Utils::OpenHandle(*value);
   Maybe<bool> result = private_->serializer.WriteObject(object);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -3656,7 +3653,7 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
                      i::HandleScope);
 
   bool read_header = false;
-  has_pending_exception = !private_->deserializer.ReadHeader().To(&read_header);
+  has_exception = !private_->deserializer.ReadHeader().To(&read_header);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   DCHECK(read_header);
 
@@ -3665,7 +3662,7 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
       !private_->supports_legacy_wire_format) {
     i_isolate->Throw(*i_isolate->factory()->NewError(
         i::MessageTemplate::kDataCloneDeserializationVersionError));
-    has_pending_exception = true;
+    has_exception = true;
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   }
 
@@ -3691,7 +3688,7 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
         private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
   }
   Local<Value> value;
-  has_pending_exception = !ToLocal(result, &value);
+  has_exception = !ToLocal(result, &value);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(value);
 }
@@ -3928,7 +3925,7 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToString);
   Local<String> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<String>(i::Object::ToString(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(result);
@@ -3953,7 +3950,7 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   if (i::IsJSReceiver(*obj)) return ToApiHandle<Object>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToObject);
   Local<Object> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Object>(i::Object::ToObject(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
@@ -3964,7 +3961,7 @@ MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   if (i::IsBigInt(*obj)) return ToApiHandle<BigInt>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToBigInt);
   Local<BigInt> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<BigInt>(i::BigInt::FromObject(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(BigInt);
   RETURN_ESCAPED(result);
@@ -3980,7 +3977,7 @@ MaybeLocal<Primitive> Value::ToPrimitive(Local<Context> context) const {
   if (i::IsPrimitive(*obj)) return ToApiHandle<Primitive>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToPrimitive);
   Local<Primitive> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Primitive>(i::Object::ToPrimitive(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Primitive);
   RETURN_ESCAPED(result);
@@ -3991,7 +3988,7 @@ MaybeLocal<Numeric> Value::ToNumeric(Local<Context> context) const {
   if (i::IsNumeric(*obj)) return ToApiHandle<Numeric>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToNumeric);
   Local<Numeric> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Numeric>(i::Object::ToNumeric(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Numeric);
   RETURN_ESCAPED(result);
@@ -4009,7 +4006,7 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   if (i::IsNumber(*obj)) return ToApiHandle<Number>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToNumber);
   Local<Number> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Number>(i::Object::ToNumber(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Number);
   RETURN_ESCAPED(result);
@@ -4020,7 +4017,7 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   if (i::IsSmi(*obj)) return ToApiHandle<Integer>(obj);
   PREPARE_FOR_EXECUTION(context, Object, ToInteger);
   Local<Integer> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Integer>(i::Object::ToInteger(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Integer);
   RETURN_ESCAPED(result);
@@ -4031,8 +4028,7 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   if (i::IsSmi(*obj)) return ToApiHandle<Int32>(obj);
   Local<Int32> result;
   PREPARE_FOR_EXECUTION(context, Object, ToInt32);
-  has_pending_exception =
-      !ToLocal<Int32>(i::Object::ToInt32(i_isolate, obj), &result);
+  has_exception = !ToLocal<Int32>(i::Object::ToInt32(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Int32);
   RETURN_ESCAPED(result);
 }
@@ -4042,7 +4038,7 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   if (i::IsSmi(*obj)) return ToApiHandle<Uint32>(obj);
   Local<Uint32> result;
   PREPARE_FOR_EXECUTION(context, Object, ToUint32);
-  has_pending_exception =
+  has_exception =
       !ToLocal<Uint32>(i::Object::ToUint32(i_isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Uint32);
   RETURN_ESCAPED(result);
@@ -4382,7 +4378,7 @@ Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, NumberValue, i::HandleScope);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
+  has_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
   return Just(i::Object::Number(*num));
 }
@@ -4395,7 +4391,7 @@ Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, IntegerValue, i::HandleScope);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Object::ToInteger(i_isolate, obj).ToHandle(&num);
+  has_exception = !i::Object::ToInteger(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
   return Just(NumberToInt64(*num));
 }
@@ -4406,7 +4402,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, Int32Value, i::HandleScope);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
+  has_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
   return Just(IsSmi(*num) ? i::Smi::ToInt(*num)
                           : static_cast<int32_t>(i::Object::Number(*num)));
@@ -4418,7 +4414,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, Uint32Value, i::HandleScope);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Object::ToUint32(i_isolate, obj).ToHandle(&num);
+  has_exception = !i::Object::ToUint32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
   return Just(IsSmi(*num) ? static_cast<uint32_t>(i::Smi::ToInt(*num))
                           : static_cast<uint32_t>(i::Object::Number(*num)));
@@ -4432,8 +4428,7 @@ MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
   }
   PREPARE_FOR_EXECUTION(context, Object, ToArrayIndex);
   i::Handle<i::Object> string_obj;
-  has_pending_exception =
-      !i::Object::ToString(i_isolate, self).ToHandle(&string_obj);
+  has_exception = !i::Object::ToString(i_isolate, self).ToHandle(&string_obj);
   RETURN_ON_FAILED_EXECUTION(Uint32);
   auto str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
@@ -4455,7 +4450,7 @@ Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
   auto self = Utils::OpenHandle(this);
   auto other = Utils::OpenHandle(*that);
   Maybe<bool> result = i::Object::Equals(i_isolate, self, other);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -4486,7 +4481,7 @@ Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
   auto left = Utils::OpenHandle(this);
   auto right = Utils::OpenHandle(*object);
   i::Handle<i::Object> result;
-  has_pending_exception =
+  has_exception =
       !i::Object::InstanceOf(i_isolate, left, right).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
@@ -4499,7 +4494,7 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception =
+  has_exception =
       i::Runtime::SetObjectProperty(i_isolate, self, key_obj, value_obj,
                                     i::StoreOrigin::kMaybeKeyed,
                                     Just(i::ShouldThrow::kDontThrow))
@@ -4514,10 +4509,9 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   ENTER_V8(i_isolate, context, Object, Set, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception =
-      i::Object::SetElement(i_isolate, self, index, value_obj,
-                            i::ShouldThrow::kDontThrow)
-          .is_null();
+  has_exception = i::Object::SetElement(i_isolate, self, index, value_obj,
+                                        i::ShouldThrow::kDontThrow)
+                      .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -4536,7 +4530,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
     Maybe<bool> result =
         i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   } else {
@@ -4544,7 +4538,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                        i::HandleScope);
     Maybe<bool> result =
         i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   }
@@ -4562,7 +4556,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
     ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
     Maybe<bool> result =
         i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   } else {
@@ -4570,7 +4564,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                        i::HandleScope);
     Maybe<bool> result =
         i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   }
@@ -4689,7 +4683,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
         i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
     // Even though we said kDontThrow, there might be accessors that do throw.
-    has_pending_exception = success.IsNothing();
+    has_exception = success.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return success;
   } else {
@@ -4699,7 +4693,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                        i::HandleScope);
     Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
         i_isolate, self, key_obj, &desc, Just(i::kDontThrow));
-    has_pending_exception = success.IsNothing();
+    has_exception = success.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return success;
   }
@@ -4716,7 +4710,7 @@ Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
       i_isolate, self, key_obj, &descriptor.get_private()->desc,
       Just(i::kDontThrow));
-  has_pending_exception = success.IsNothing();
+  has_exception = success.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
 }
@@ -4740,9 +4734,9 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
   }
   auto js_object = i::Handle<i::JSObject>::cast(self);
   i::LookupIterator it(i_isolate, js_object, key_obj, js_object);
-  has_pending_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
-                              &it, value_obj, i::DONT_ENUM)
-                              .is_null();
+  has_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value_obj,
+                                                                 i::DONT_ENUM)
+                      .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -4753,9 +4747,8 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> result;
-  has_pending_exception =
-      !i::Runtime::GetObjectProperty(i_isolate, self, key_obj)
-           .ToHandle(&result);
+  has_exception = !i::Runtime::GetObjectProperty(i_isolate, self, key_obj)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
@@ -4764,7 +4757,7 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Object, Get);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  has_pending_exception =
+  has_exception =
       !i::JSReceiver::GetElement(i_isolate, self, index).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
@@ -4782,13 +4775,12 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   if (!i::IsName(*key_obj)) {
-    has_pending_exception =
-        !i::Object::ToString(i_isolate, key_obj).ToHandle(&key_obj);
+    has_exception = !i::Object::ToString(i_isolate, key_obj).ToHandle(&key_obj);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   }
   auto key_name = i::Handle<i::Name>::cast(key_obj);
   auto result = i::JSReceiver::GetPropertyAttributes(self, key_name);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (result.FromJust() == i::ABSENT) {
     return Just(static_cast<PropertyAttribute>(i::NONE));
@@ -4805,7 +4797,7 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   i::PropertyDescriptor desc;
   Maybe<bool> found =
       i::JSReceiver::GetOwnPropertyDescriptor(i_isolate, obj, key_name, &desc);
-  has_pending_exception = found.IsNothing();
+  has_exception = found.IsNothing();
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!found.FromJust()) {
     return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -4833,7 +4825,7 @@ Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
     auto result =
         i::JSProxy::SetPrototype(i_isolate, i::Handle<i::JSProxy>::cast(self),
                                  value_obj, false, i::kThrowOnError);
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   } else {
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -4879,7 +4871,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
       i_isolate, static_cast<i::KeyCollectionMode>(mode),
       static_cast<i::PropertyFilter>(property_filter));
   accumulator.set_skip_indices(index_filter == IndexFilter::kSkipIndices);
-  has_pending_exception = accumulator.CollectKeys(self, self).IsNothing();
+  has_exception = accumulator.CollectKeys(self, self).IsNothing();
   RETURN_ON_FAILED_EXECUTION(Array);
   value =
       accumulator.GetKeys(static_cast<i::GetKeysConversion>(key_conversion));
@@ -4907,7 +4899,7 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Object, ObjectProtoToString);
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::CallBuiltin(i_isolate, i_isolate->object_to_string(), self,
                                 0, nullptr),
       &result);
@@ -4938,7 +4930,7 @@ Maybe<bool> v8::Object::SetIntegrityLevel(Local<Context> context,
       level == IntegrityLevel::kFrozen ? i::FROZEN : i::SEALED;
   Maybe<bool> result = i::JSReceiver::SetIntegrityLevel(
       i_isolate, self, i_level, i::kThrowOnError);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -4951,7 +4943,7 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
     ENTER_V8(i_isolate, context, Object, Delete, i::HandleScope);
     Maybe<bool> result = i::Runtime::DeleteObjectProperty(
         i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   } else {
@@ -4960,7 +4952,7 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, Delete, i::HandleScope);
     Maybe<bool> result = i::Runtime::DeleteObjectProperty(
         i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-    has_pending_exception = result.IsNothing();
+    has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   }
@@ -4976,7 +4968,7 @@ Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
   auto key_obj = Utils::OpenHandle(*key);
   Maybe<bool> result = i::Runtime::DeleteObjectProperty(
       i_isolate, self, key_obj, i::LanguageMode::kSloppy);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -4998,7 +4990,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
       maybe = i::JSReceiver::HasProperty(i_isolate, self, name);
     }
   }
-  has_pending_exception = maybe.IsNothing();
+  has_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return maybe;
 }
@@ -5012,7 +5004,7 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, uint32_t index) {
   ENTER_V8(i_isolate, context, Object, Delete, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   Maybe<bool> result = i::JSReceiver::DeleteElement(self, index);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5022,7 +5014,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, uint32_t index) {
   ENTER_V8(i_isolate, context, Object, Has, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto maybe = i::JSReceiver::HasElement(i_isolate, self, index);
-  has_pending_exception = maybe.IsNothing();
+  has_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return maybe;
 }
@@ -5051,9 +5043,8 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
 
   i::Handle<i::Name> accessor_name(info->name(), i_isolate);
   i::PropertyAttributes attrs = static_cast<i::PropertyAttributes>(attributes);
-  has_pending_exception =
-      !i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
-           .ToHandle(&result);
+  has_exception = !i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   if (i::IsUndefined(*result, i_isolate)) return Just(false);
   if (fast) {
@@ -5131,7 +5122,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_val = Utils::OpenHandle(*key);
   auto result = i::JSReceiver::HasOwnProperty(i_isolate, self, key_val);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5141,7 +5132,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context, uint32_t index) {
   ENTER_V8(i_isolate, context, Object, HasOwnProperty, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto result = i::JSReceiver::HasOwnProperty(i_isolate, self, index);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5156,7 +5147,7 @@ Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
   auto key_val = Utils::OpenHandle(*key);
   auto result = i::JSObject::HasRealNamedProperty(
       i_isolate, i::Handle<i::JSObject>::cast(self), key_val);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5170,7 +5161,7 @@ Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
   if (!IsJSObject(*self)) return Just(false);
   auto result = i::JSObject::HasRealElementProperty(
       i_isolate, i::Handle<i::JSObject>::cast(self), index);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5185,7 +5176,7 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
   auto key_val = Utils::OpenHandle(*key);
   auto result = i::JSObject::HasRealNamedCallbackProperty(
       i_isolate, i::Handle<i::JSObject>::cast(self), key_val);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
@@ -5216,7 +5207,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::LookupIterator it(i_isolate, self, lookup_key, proto,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
+  has_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!it.IsFound()) return MaybeLocal<Value>();
   RETURN_ESCAPED(result);
@@ -5240,7 +5231,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Maybe<i::PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(&it);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) return Just(None);
@@ -5256,7 +5247,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
+  has_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!it.IsFound()) return MaybeLocal<Value>();
   RETURN_ESCAPED(result);
@@ -5273,7 +5264,7 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
-  has_pending_exception = result.IsNothing();
+  has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) {
@@ -5383,7 +5374,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -5402,7 +5393,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::New(i_isolate, self, self, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -5458,7 +5449,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   }
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Object> result;
-  has_pending_exception = !ToLocal<Object>(
+  has_exception = !ToLocal<Object>(
       i::Execution::New(i_isolate, self, self, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
@@ -5489,7 +5480,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
 #endif  // V8_ENABLE_DIRECT_LOCAL
 
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -5659,7 +5650,7 @@ MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Function, FunctionProtoToString);
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::CallBuiltin(i_isolate, i_isolate->function_to_string(),
                                 self, 0, nullptr),
       &result);
@@ -6771,8 +6762,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
       i_isolate, nullptr, global_template, global_object, 0,
       DeserializeInternalFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
-    if (i_isolate->has_pending_exception())
-      i_isolate->clear_pending_exception();
+    if (i_isolate->has_exception()) i_isolate->clear_exception();
     return MaybeLocal<Object>();
   }
   return Utils::ToLocal(scope.CloseAndEscape(global_proxy));
@@ -7091,7 +7081,7 @@ Maybe<void> Context::DeepFreeze(DeepFreezeDelegate* delegate) {
   Local<Context> context = Utils::ToLocal(env);
   ENTER_V8_NO_SCRIPT(i_isolate, context, Context, DeepFreeze, i::HandleScope);
   ObjectVisitorDeepFreezer vfreezer(i_isolate, delegate);
-  has_pending_exception = !vfreezer.DeepFreeze(env);
+  has_exception = !vfreezer.DeepFreeze(env);
 
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(void);
   return JustVoid();
@@ -7327,7 +7317,7 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ObjectTemplate, NewInstance);
   auto self = Utils::OpenHandle(this);
   Local<Object> result;
-  has_pending_exception = !ToLocal<Object>(
+  has_exception = !ToLocal<Object>(
       i::ApiNatives::InstantiateObject(i_isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
@@ -7355,7 +7345,7 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, FunctionTemplate, GetFunction);
   auto self = Utils::OpenHandle(this);
   Local<Function> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Function>(i::ApiNatives::InstantiateFunction(
                              i_isolate, i_isolate->native_context(), self),
                          &result);
@@ -7912,7 +7902,7 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   }
   PREPARE_FOR_EXECUTION(context, Date, New);
   Local<Value> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
                                      i_isolate->date_function(), time),
                       &result);
@@ -7955,7 +7945,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
   PREPARE_FOR_EXECUTION(context, RegExp, New);
   Local<v8::RegExp> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<RegExp>(i::JSRegExp::New(i_isolate, Utils::OpenHandle(*pattern),
                                         static_cast<i::JSRegExp::Flags>(flags)),
                        &result);
@@ -7974,7 +7964,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
                   "Must set backtrack_limit");
   PREPARE_FOR_EXECUTION(context, RegExp, New);
   Local<v8::RegExp> result;
-  has_pending_exception = !ToLocal<RegExp>(
+  has_exception = !ToLocal<RegExp>(
       i::JSRegExp::New(i_isolate, Utils::OpenHandle(*pattern),
                        static_cast<i::JSRegExp::Flags>(flags), backtrack_limit),
       &result);
@@ -8021,7 +8011,7 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
   // Unfortunately, this is currently the only full implementation of
   // RegExp.prototype.exec available in C++.
   Local<v8::Object> result;
-  has_pending_exception = !ToLocal<Object>(
+  has_exception = !ToLocal<Object>(
       i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
                                  i_isolate->factory()->undefined_value()),
       &result);
@@ -8065,10 +8055,10 @@ MaybeLocal<v8::Array> v8::Array::New(
     Local<Context> context, size_t length,
     std::function<MaybeLocal<v8::Value>()> next_value_callback) {
   PREPARE_FOR_EXECUTION(context, Array, New);
-  // We should never see a pending exception here as V8 will not create an
+  // We should never see a exception here as V8 will not create an
   // exception and the callback is invoked by the embedder where the exception
   // is already scheduled.
-  USE(has_pending_exception);
+  USE(has_exception);
   i::Factory* factory = i_isolate->factory();
   const int len = static_cast<int>(length);
   i::Handle<i::FixedArray> backing = factory->NewFixedArray(len);
@@ -8078,7 +8068,7 @@ MaybeLocal<v8::Array> v8::Array::New(
     // The embedder may signal to abort creation on exception via an empty
     // local.
     if (!maybe_value.ToLocal(&value)) {
-      CHECK(i_isolate->has_pending_exception());
+      CHECK(i_isolate->has_exception());
       return {};
     }
     backing->set(i, *Utils::OpenDirectHandle(*value));
@@ -8258,7 +8248,7 @@ Maybe<void> v8::Array::Iterate(Local<Context> context,
   ENTER_V8(isolate, context, Array, Iterate, i::HandleScope);
   for (uint32_t i = 0; i < i::GetLength(*array); ++i) {
     i::Handle<i::Object> element;
-    has_pending_exception =
+    has_exception =
         !i::JSReceiver::GetElement(isolate, array, i).ToHandle(&element);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(void);
     using Result = v8::Array::CallbackResult;
@@ -8319,7 +8309,7 @@ MaybeLocal<Value> Map::Get(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
+  has_exception =
       !ToLocal<Value>(i::Execution::CallBuiltin(i_isolate, i_isolate->map_get(),
                                                 self, arraysize(argv), argv),
                       &result);
@@ -8334,10 +8324,9 @@ MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key),
                                  Utils::OpenHandle(*value)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_set(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_set(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Map);
   RETURN_ESCAPED(Local<Map>::Cast(Utils::ToLocal(result)));
 }
@@ -8348,10 +8337,9 @@ Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_has(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_has(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
 }
@@ -8362,10 +8350,9 @@ Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->map_delete(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_delete(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
 }
@@ -8454,10 +8441,9 @@ MaybeLocal<Set> Set::Add(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_add(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_add(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Set);
   RETURN_ESCAPED(Local<Set>::Cast(Utils::ToLocal(result)));
 }
@@ -8468,10 +8454,9 @@ Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_has(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_has(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
 }
@@ -8482,10 +8467,9 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
-  has_pending_exception =
-      !i::Execution::CallBuiltin(i_isolate, i_isolate->set_delete(), self,
-                                 arraysize(argv), argv)
-           .ToHandle(&result);
+  has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_delete(),
+                                             self, arraysize(argv), argv)
+                       .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
 }
@@ -8536,7 +8520,7 @@ Local<Array> Set::AsArray() const {
 MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Promise_Resolver, New);
   Local<Promise::Resolver> result;
-  has_pending_exception = !ToLocal<Promise::Resolver>(
+  has_exception = !ToLocal<Promise::Resolver>(
       i_isolate->factory()->NewJSPromise(), &result);
   RETURN_ON_FAILED_EXECUTION(Promise::Resolver);
   RETURN_ESCAPED(result);
@@ -8559,7 +8543,7 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
     return Just(true);
   }
 
-  has_pending_exception =
+  has_exception =
       i::JSPromise::Resolve(promise, Utils::OpenHandle(*value)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -8576,7 +8560,7 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
     return Just(true);
   }
 
-  has_pending_exception =
+  has_exception =
       i::JSPromise::Reject(promise, Utils::OpenHandle(*value)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -8592,7 +8576,7 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
   // Do not call the built-in Promise.prototype.catch!
   // v8::Promise should not call out to a monkeypatched Promise.prototype.then
   // as the implementation of Promise.prototype.catch does.
-  has_pending_exception =
+  has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  arraysize(argv), argv)
            .ToHandle(&result);
@@ -8606,7 +8590,7 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*handler)};
   i::Handle<i::Object> result;
-  has_pending_exception =
+  has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  arraysize(argv), argv)
            .ToHandle(&result);
@@ -8622,7 +8606,7 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   i::Handle<i::Object> argv[] = {Utils::OpenHandle(*on_fulfilled),
                                  Utils::OpenHandle(*on_rejected)};
   i::Handle<i::Object> result;
-  has_pending_exception =
+  has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
                                  arraysize(argv), argv)
            .ToHandle(&result);
@@ -8693,7 +8677,7 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   auto target = Utils::OpenHandle(*local_target);
   auto handler = Utils::OpenHandle(*local_handler);
   Local<Proxy> result;
-  has_pending_exception =
+  has_exception =
       !ToLocal<Proxy>(i::JSProxy::New(i_isolate, target, handler), &result);
   RETURN_ON_FAILED_EXECUTION(Proxy);
   RETURN_ESCAPED(result);
@@ -8789,7 +8773,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
         i_isolate, enabled_features, &thrower,
         i::wasm::ModuleWireBytes(start, start + length));
   }
-  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
+  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) {
     return MaybeLocal<WasmModuleObject>();
   }
@@ -8848,10 +8832,10 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   if (!key.IsEmpty()) {
     auto i_key = Utils::OpenHandle(*key);
     constexpr bool kForceForWasmMemory = false;
-    has_pending_exception =
+    has_exception =
         i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key).IsNothing();
   } else {
-    has_pending_exception = i::JSArrayBuffer::Detach(obj).IsNothing();
+    has_exception = i::JSArrayBuffer::Detach(obj).IsNothing();
   }
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -9336,7 +9320,7 @@ MaybeLocal<BigInt> v8::BigInt::NewFromWords(Local<Context> context,
                      InternalEscapableScope);
   i::MaybeHandle<i::BigInt> result =
       i::BigInt::FromWords64(i_isolate, sign_bit, word_count, words);
-  has_pending_exception = result.is_null();
+  has_exception = result.is_null();
   RETURN_ON_FAILED_EXECUTION(BigInt);
   RETURN_ESCAPED(Utils::ToLocal(result.ToHandleChecked()));
 }
@@ -9421,7 +9405,7 @@ v8::Local<Value> Isolate::ThrowError(v8::Local<v8::String> message) {
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_BASIC(i_isolate);
-  i_isolate->clear_pending_exception();
+  i_isolate->clear_exception();
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
@@ -10417,7 +10401,7 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   if (i_isolate->is_execution_terminating()) return;
   i_isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
 #if V8_ENABLE_WEBASSEMBLY
-  if (i::v8_flags.expose_wasm && !i_isolate->has_pending_exception()) {
+  if (i::v8_flags.expose_wasm && !i_isolate->has_exception()) {
     i::WasmJs::InstallConditionalFeatures(i_isolate,
                                           Utils::OpenHandle(*context));
   }
@@ -10598,10 +10582,10 @@ MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
     if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy() &&
-        !i_isolate_->has_pending_exception()) {
+        !i_isolate_->has_exception()) {
       microtask_queue_->PerformCheckpoint(
           reinterpret_cast<Isolate*>(i_isolate_));
-      DCHECK_IMPLIES(i_isolate_->has_pending_exception(),
+      DCHECK_IMPLIES(i_isolate_->has_exception(),
                      i_isolate_->is_execution_terminating());
     }
   }

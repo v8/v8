@@ -2242,7 +2242,7 @@ enum class AliasingKind {
   C(CEntryFP, c_entry_fp)                                           \
   C(CFunction, c_function)                                          \
   C(Context, context)                                               \
-  C(PendingException, pending_exception)                            \
+  C(Exception, exception)                                           \
   C(PendingHandlerContext, pending_handler_context)                 \
   C(PendingHandlerEntrypoint, pending_handler_entrypoint)           \
   C(PendingHandlerConstantPool, pending_handler_constant_pool)      \

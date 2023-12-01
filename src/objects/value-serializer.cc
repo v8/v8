@@ -936,7 +936,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     Maybe<uint32_t> index = delegate_->GetSharedArrayBufferId(
         v8_isolate, Utils::ToLocalShared(array_buffer));
-    RETURN_VALUE_IF_PENDING_EXCEPTION(isolate_, Nothing<bool>());
+    RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
 
     WriteTag(SerializationTag::kSharedArrayBuffer);
     WriteVarint(index.FromJust());
@@ -1112,7 +1112,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
       reinterpret_cast<v8::Isolate*>(isolate_),
       v8::Local<v8::WasmModuleObject>::Cast(
           Utils::ToLocal(Handle<JSObject>::cast(object))));
-  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   uint32_t id = 0;
   if (transfer_id.To(&id)) {
     WriteTag(SerializationTag::kWasmModuleTransfer);
@@ -1155,7 +1155,7 @@ Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
     if (!delegate_->AdoptSharedValueConveyor(v8_isolate,
                                              std::move(v8_conveyor))) {
       shared_object_conveyor_ = nullptr;
-      RETURN_VALUE_IF_PENDING_EXCEPTION(isolate_, Nothing<bool>());
+      RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
       return Nothing<bool>();
     }
   }
@@ -1176,7 +1176,7 @@ Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   Maybe<bool> result =
       delegate_->WriteHostObject(v8_isolate, Utils::ToLocal(object));
-  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   USE(result);
   DCHECK(!result.IsNothing());
   DCHECK(result.ToChecked());
@@ -1219,7 +1219,7 @@ Maybe<bool> ValueSerializer::IsHostObject(Handle<JSObject> js_object) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   Maybe<bool> result =
       delegate_->IsHostObject(v8_isolate, Utils::ToLocal(js_object));
-  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   DCHECK(!result.IsNothing());
 
   if (V8_UNLIKELY(out_of_memory_)) return ThrowIfOutOfMemory();
@@ -1497,14 +1497,13 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectWrapper() {
 
   // The deserialization code doesn't throw errors for invalid data. It throws
   // errors for stack overflows, though, and in that case we won't retry.
-  if (result.is_null() && version_ == 13 &&
-      !isolate_->has_pending_exception()) {
+  if (result.is_null() && version_ == 13 && !isolate_->has_exception()) {
     version_13_broken_data_mode_ = true;
     position_ = original_position;
     result = ReadObject();
   }
 
-  if (result.is_null() && !isolate_->has_pending_exception()) {
+  if (result.is_null() && !isolate_->has_exception()) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
@@ -1530,7 +1529,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
   }
 
   if (result.is_null() && !suppress_deserialization_errors_ &&
-      !isolate_->has_pending_exception()) {
+      !isolate_->has_exception()) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
@@ -2062,7 +2061,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
              ->GetSharedArrayBufferFromId(
                  reinterpret_cast<v8::Isolate*>(isolate_), clone_id)
              .ToLocal(&sab_value)) {
-      RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate_, JSArrayBuffer);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSArrayBuffer);
       return MaybeHandle<JSArrayBuffer>();
     }
     Handle<JSArrayBuffer> array_buffer = Utils::OpenHandle(*sab_value);
@@ -2344,7 +2343,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
            ->GetWasmModuleFromId(reinterpret_cast<v8::Isolate*>(isolate_),
                                  transfer_id)
            .ToLocal(&module_value)) {
-    RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
     return MaybeHandle<JSObject>();
   }
   uint32_t id = next_id_++;
@@ -2386,11 +2385,11 @@ namespace {
 // Throws a generic "deserialization failed" exception by default, unless a more
 // specific exception has already been thrown.
 void ThrowDeserializationExceptionIfNonePending(Isolate* isolate) {
-  if (!isolate->has_pending_exception()) {
+  if (!isolate->has_exception()) {
     isolate->Throw(*isolate->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
-  DCHECK(isolate->has_pending_exception());
+  DCHECK(isolate->has_exception());
 }
 
 }  // namespace
@@ -2401,7 +2400,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
-    RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate_, HeapObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
     return MaybeHandle<HeapObject>();
   }
 
@@ -2414,7 +2413,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
     const v8::SharedValueConveyor* conveyor = delegate_->GetSharedValueConveyor(
         reinterpret_cast<v8::Isolate*>(isolate_));
     if (!conveyor) {
-      RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate_, HeapObject);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
       return MaybeHandle<HeapObject>();
     }
     shared_object_conveyor_ = conveyor->private_.get();
@@ -2433,7 +2432,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Local<v8::Object> object;
   if (!delegate_->ReadHostObject(v8_isolate).ToLocal(&object)) {
-    RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
     return MaybeHandle<JSObject>();
   }
   Handle<JSObject> js_object =

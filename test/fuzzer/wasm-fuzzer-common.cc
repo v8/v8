@@ -112,7 +112,7 @@ void ExecuteAgainstReference(Isolate* isolate,
              ->SyncInstantiate(isolate, &thrower, module_ref, {},
                                {})  // no imports & memory
              .ToHandle(&instance_ref)) {
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
       thrower.Reset();  // Ignore errors.
       return;
     }
@@ -820,9 +820,9 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   v8::Isolate::Scope isolate_scope(isolate);
 
-  // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
   }
 
   v8::HandleScope handle_scope(isolate);

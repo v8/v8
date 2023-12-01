@@ -1107,7 +1107,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
       return instance;
     }
   }
-  DCHECK(isolate->has_pending_exception() || thrower->error());
+  DCHECK(isolate->has_exception() || thrower->error());
   return {};
 }
 
@@ -1214,7 +1214,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       } else if (AllocateMemory(memory_index).ToHandle(&memory_object)) {
         memory_objects->set(memory_index, *memory_object);
       } else {
-        DCHECK(isolate_->has_pending_exception() || thrower_->error());
+        DCHECK(isolate_->has_exception() || thrower_->error());
         return {};
       }
       WasmMemoryObject::UseInInstance(isolate_, memory_object, instance,
@@ -1474,7 +1474,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
   }
 
-  DCHECK(!isolate_->has_pending_exception());
+  DCHECK(!isolate_->has_exception());
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
   wasm_module_instantiated.success = true;
@@ -1511,7 +1511,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   hsi->LeaveContext();
 
   if (retval.is_null()) {
-    DCHECK(isolate_->has_pending_exception());
+    DCHECK(isolate_->has_exception());
     return false;
   }
   return true;

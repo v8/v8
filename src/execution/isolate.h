@@ -186,54 +186,45 @@ namespace wasm {
 class WasmCodeLookupCache;
 }
 
-#define RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate) \
+#define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
   do {                                               \
     Isolate* __isolate__ = (isolate);                \
-    if (__isolate__->has_pending_exception()) {      \
+    if (__isolate__->has_exception()) {              \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
   } while (false)
 
-#define RETURN_FAILURE_IF_PENDING_EXCEPTION_DETECTOR(isolate, detector) \
-  do {                                                                  \
-    Isolate* __isolate__ = (isolate);                                   \
-    if (__isolate__->has_pending_exception()) {                         \
-      detector.AcceptSideEffects();                                     \
-      return ReadOnlyRoots(__isolate__).exception();                    \
-    }                                                                   \
+#define RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, detector) \
+  do {                                                          \
+    Isolate* __isolate__ = (isolate);                           \
+    if (__isolate__->has_exception()) {                         \
+      detector.AcceptSideEffects();                             \
+      return ReadOnlyRoots(__isolate__).exception();            \
+    }                                                           \
   } while (false)
 
 // Macros for MaybeHandle.
 
-#define RETURN_VALUE_IF_PENDING_EXCEPTION(isolate, value) \
-  do {                                                    \
-    Isolate* __isolate__ = (isolate);                     \
-    if (__isolate__->has_pending_exception()) {           \
-      return value;                                       \
-    }                                                     \
+#define RETURN_VALUE_IF_EXCEPTION(isolate, value) \
+  do {                                            \
+    Isolate* __isolate__ = (isolate);             \
+    if (__isolate__->has_exception()) {           \
+      return value;                               \
+    }                                             \
   } while (false)
 
-#define RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, detector, value) \
-  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate,                                 \
-                                    (detector.AcceptSideEffects(), value))
+#define RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, detector, value) \
+  RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
-#define RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate, T) \
-  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate, MaybeHandle<T>())
+#define RETURN_EXCEPTION_IF_EXCEPTION(isolate, T) \
+  RETURN_VALUE_IF_EXCEPTION(isolate, MaybeHandle<T>())
 
-#define ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                      \
-    if (!(call).ToLocal(&dst)) {                                            \
-      DCHECK((isolate)->has_pending_exception());                           \
-      return value;                                                         \
-    }                                                                       \
-  } while (false)
-
-#define RETURN_ON_PENDING_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                          \
-    if ((call).IsNothing()) {                                   \
-      DCHECK((isolate)->has_pending_exception());               \
-      return value;                                             \
-    }                                                           \
+#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
+  do {                                                        \
+    if ((call).IsNothing()) {                                 \
+      DCHECK((isolate)->has_exception());                     \
+      return value;                                           \
+    }                                                         \
   } while (false)
 
 /**
@@ -259,17 +250,17 @@ class WasmCodeLookupCache;
     Handle<Object> __result__;                       \
     Isolate* __isolate__ = (isolate);                \
     if (!(call).ToHandle(&__result__)) {             \
-      DCHECK(__isolate__->has_pending_exception());  \
+      DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
-    DCHECK(!__isolate__->has_pending_exception());   \
+    DCHECK(!__isolate__->has_exception());           \
     return *__result__;                              \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                              \
     if (!(call).ToHandle(&dst)) {                                   \
-      DCHECK((isolate)->has_pending_exception());                   \
+      DCHECK((isolate)->has_exception());                           \
       return value;                                                 \
     }                                                               \
   } while (false)
@@ -336,7 +327,7 @@ class WasmCodeLookupCache;
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                  \
     if ((call).is_null()) {                             \
-      DCHECK((isolate)->has_pending_exception());       \
+      DCHECK((isolate)->has_exception());               \
       return value;                                     \
     }                                                   \
   } while (false)
@@ -408,10 +399,18 @@ class WasmCodeLookupCache;
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                  \
+    if (!(call).ToLocal(&dst)) {                                        \
+      DCHECK((isolate)->has_exception());                               \
+      return value;                                                     \
+    }                                                                   \
+  } while (false)
+
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                        \
     if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_pending_exception());             \
+      DCHECK((isolate)->has_exception());                     \
       return value;                                           \
     }                                                         \
   } while (false)
@@ -419,7 +418,7 @@ class WasmCodeLookupCache;
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                    \
     if (!(call).To(&dst)) {                                               \
-      DCHECK((isolate)->has_pending_exception());                         \
+      DCHECK((isolate)->has_exception());                                 \
       return value;                                                       \
     }                                                                     \
   } while (false)
@@ -428,7 +427,7 @@ class WasmCodeLookupCache;
   do {                                                               \
     Isolate* __isolate__ = (isolate);                                \
     if (!(call).To(&dst)) {                                          \
-      DCHECK(__isolate__->has_pending_exception());                  \
+      DCHECK(__isolate__->has_exception());                          \
       return ReadOnlyRoots(__isolate__).exception();                 \
     }                                                                \
   } while (false)
@@ -812,12 +811,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return thread_local_top()->try_catch_handler_;
   }
 
-  // Interface to pending exception.
-  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_exception)
-  inline Tagged<Object> pending_exception();
-  inline void set_pending_exception(Tagged<Object> exception_obj);
-  inline void clear_pending_exception();
-  inline bool has_pending_exception();
+  // Interface to exception.
+  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, exception)
+  inline Tagged<Object> exception();
+  inline void set_exception(Tagged<Object> exception_obj);
+  inline void clear_exception();
+  inline bool has_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_message)
   inline void clear_pending_message();
@@ -931,7 +930,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
    private:
     Isolate* isolate_;
-    Handle<Object> pending_exception_;
+    Handle<Object> exception_;
   };
 
   void SetCaptureStackTraceForUncaughtExceptions(
@@ -972,7 +971,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address GetAbstractPC(int* line, int* column);
 
   // Returns if the given context may access the given global object. If
-  // the result is false, the pending exception is guaranteed to be
+  // the result is false, the exception is guaranteed to be
   // set.
   bool MayAccess(Handle<NativeContext> accessing_context,
                  Handle<JSObject> receiver);
@@ -1030,8 +1029,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Tagged<Object> ReThrow(Tagged<Object> exception);
   Tagged<Object> ReThrow(Tagged<Object> exception, Tagged<Object> message);
 
-  // Find the correct handler for the current pending exception. This also
-  // clears and returns the current pending exception.
+  // Find the correct handler for the current exception. This also
+  // clears and returns the current exception.
   Tagged<Object> UnwindAndFindHandler();
 
   // Tries to predict whether an exception will be caught. Note that this can
@@ -2251,11 +2250,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void FillCache();
 
-  // Propagate pending exception message to the v8::TryCatch.
+  // Propagate exception message to the v8::TryCatch.
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
-  bool PropagatePendingExceptionToExternalTryCatch(
-      ExceptionHandlerType top_handler);
+  bool PropagateExceptionToExternalTryCatch(ExceptionHandlerType top_handler);
 
   bool HasIsolatePromiseHooks() const {
     return PromiseHookFields::HasIsolatePromiseHook::decode(
@@ -2376,7 +2374,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // import() and returns them in a FixedArray, sorted by code point order of
   // the keys, in the form [key1, value1, key2, value2, ...]. Returns an empty
   // MaybeHandle if an error was thrown.  In this case, the host callback should
-  // not be called and instead the caller should use the pending exception to
+  // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
   MaybeHandle<FixedArray> GetImportAssertionsFromArgument(
       MaybeHandle<Object> maybe_import_assertions_argument);

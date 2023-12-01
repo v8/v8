@@ -77,7 +77,7 @@ class ThreadLocalTop {
     last_api_entry_ = reinterpret_cast<i::Address>(stack_allocated_scope);
 #endif
     if constexpr (clear_exception) {
-      pending_exception_ = Tagged<Object>(
+      exception_ = Tagged<Object>(
           Internals::GetRoot(reinterpret_cast<v8::Isolate*>(isolate_),
                              Internals::kTheHoleValueRootIndex));
     }
@@ -106,7 +106,7 @@ class ThreadLocalTop {
   static_assert(sizeof(Context) == kSystemPointerSize);
   Tagged<Context> context_;
   std::atomic<ThreadId> thread_id_;
-  Tagged<Object> pending_exception_ = Smi::zero();
+  Tagged<Object> exception_ = Smi::zero();
 
   // Communication channel between Isolate::FindHandler and the CEntry.
   Tagged<Context> pending_handler_context_;

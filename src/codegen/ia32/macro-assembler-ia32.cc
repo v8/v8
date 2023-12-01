@@ -2330,7 +2330,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
     __ mov(scratch, __ ExternalReferenceAsOperand(
-                        ER::pending_exception_address(isolate), no_reg));
+                        ER::exception_address(isolate), no_reg));
     __ CompareRoot(scratch, RootIndex::kTheHoleValue);
     __ j(not_equal, &propagate_exception);
   }

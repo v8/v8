@@ -4624,7 +4624,7 @@ TEST(DebugEvaluateNoSideEffect) {
     failed = !isolate->debug()->PerformSideEffectCheck(
         fun, v8::Utils::OpenHandle(*env->Global()));
     isolate->debug()->StopSideEffectCheckMode();
-    if (failed) isolate->clear_pending_exception();
+    if (failed) isolate->clear_exception();
   }
   DisableDebugger(env->GetIsolate());
 }

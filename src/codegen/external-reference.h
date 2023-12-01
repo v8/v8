@@ -56,7 +56,7 @@ class StatsCounter;
   V(handle_scope_level_address, "HandleScope::level")                          \
   V(handle_scope_next_address, "HandleScope::next")                            \
   V(handle_scope_limit_address, "HandleScope::limit")                          \
-  V(pending_exception_address, "Isolate::pending_exception")                   \
+  V(exception_address, "Isolate::exception")                                   \
   V(address_of_pending_message, "address_of_pending_message")                  \
   V(promise_hook_flags_address, "Isolate::promise_hook_flags_address()")       \
   V(promise_hook_address, "Isolate::promise_hook_address()")                   \

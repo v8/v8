@@ -740,7 +740,7 @@ Maybe<ComparisonResult> BigInt::CompareToString(Isolate* isolate,
   // b. If ny is NaN, return undefined.
   Handle<BigInt> ny;
   if (!maybe_ny.ToHandle(&ny)) {
-    if (isolate->has_pending_exception()) {
+    if (isolate->has_exception()) {
       return Nothing<ComparisonResult>();
     } else {
       return Just(ComparisonResult::kUndefined);
@@ -757,7 +757,7 @@ Maybe<bool> BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
   // b. If n is NaN, return false.
   Handle<BigInt> n;
   if (!maybe_n.ToHandle(&n)) {
-    if (isolate->has_pending_exception()) {
+    if (isolate->has_exception()) {
       return Nothing<bool>();
     } else {
       return Just(false);
@@ -1090,7 +1090,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (IsString(*obj)) {
     Handle<BigInt> n;
     if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
-      if (isolate->has_pending_exception()) {
+      if (isolate->has_exception()) {
         return MaybeHandle<BigInt>();
       } else {
         Handle<String> str = Handle<String>::cast(obj);

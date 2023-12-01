@@ -480,17 +480,15 @@ MaybeHandle<Object> JSWrappedFunction::Create(
 
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    Handle<Object> pending_exception =
-        Handle<Object>(isolate->pending_exception(), isolate);
-    isolate->clear_pending_exception();
+    DCHECK(isolate->has_exception());
+    Handle<Object> exception = Handle<Object>(isolate->exception(), isolate);
+    isolate->clear_exception();
 
     // The TypeError thrown is created with creation Realm's TypeError
     // constructor instead of the executing Realm's.
     Handle<JSFunction> type_error_function =
         Handle<JSFunction>(creation_context->type_error_function(), isolate);
-    Handle<String> string =
-        Object::NoSideEffectsToString(isolate, pending_exception);
+    Handle<String> string = Object::NoSideEffectsToString(isolate, exception);
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewError(type_error_function, MessageTemplate::kCannotWrap, string),

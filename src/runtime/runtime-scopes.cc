@@ -260,7 +260,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
                       &init_flag, &mode);
   DCHECK(holder.is_null() || !IsSourceTextModule(*holder));
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
 
   Handle<JSObject> object;
 
@@ -644,8 +644,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // If the slot was not found the result is true.
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
     return ReadOnlyRoots(isolate).true_value();
   }
 
@@ -677,7 +676,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   Handle<Context> context(isolate->context(), isolate);
   Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
                                           &attributes, &flag, &mode);
-  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+  if (isolate->has_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -774,7 +773,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
   Handle<Object> value;
   if (!LoadLookupSlot(isolate, name, kThrowOnError, &receiver)
            .ToHandle(&value)) {
-    DCHECK((isolate)->has_pending_exception());
+    DCHECK((isolate)->has_exception());
     value_ret.store(ReadOnlyRoots(isolate).exception());
     receiver_ret.store(Tagged<Object>());
     return ReadOnlyRoots(isolate).exception();
@@ -800,7 +799,7 @@ MaybeHandle<Object> StoreLookupSlot(
                       &flag, &mode, &is_sloppy_function_name);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+    if (isolate->has_exception()) return MaybeHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
     if ((attributes & READ_ONLY) == 0) {
       SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),

@@ -323,7 +323,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       }
 
       if (maybe.IsNothing()) return Handle<Object>();
-      DCHECK(!isolate->has_pending_exception());
+      DCHECK(!isolate->has_exception());
       *attributes = maybe.FromJust();
 
       if (maybe.FromJust() != ABSENT) {
@@ -645,15 +645,15 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
     failed = Execution::Call(isolate, hook, receiver, argc, argv).is_null();
   }
   if (failed) {
-    DCHECK(isolate->has_pending_exception());
-    Handle<Object> exception(isolate->pending_exception(), isolate);
+    DCHECK(isolate->has_exception());
+    Handle<Object> exception(isolate->exception(), isolate);
 
     MessageLocation* no_location = nullptr;
     Handle<JSMessageObject> message =
         isolate->CreateMessageOrAbort(exception, no_location);
     MessageHandler::ReportMessage(isolate, no_location, message);
 
-    isolate->clear_pending_exception();
+    isolate->clear_exception();
   }
 }
 #endif

@@ -85,9 +85,7 @@ class ValueSerializerTest : public TestWithIsolate {
     isolate_ = reinterpret_cast<i::Isolate*>(isolate());
   }
 
-  ~ValueSerializerTest() override {
-    DCHECK(!isolate_->has_pending_exception());
-  }
+  ~ValueSerializerTest() override { DCHECK(!isolate_->has_exception()); }
 
   const Local<Context>& serialization_context() {
     return serialization_context_;

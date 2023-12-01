@@ -667,7 +667,7 @@ void WasmEngine::AsyncInstantiate(
   ErrorThrower thrower(isolate, "WebAssembly.instantiate()");
   TRACE_EVENT0("v8.wasm", "wasm.AsyncInstantiate");
   // Instantiate a TryCatch so that caught exceptions won't progagate out.
-  // They will still be set as pending exceptions on the isolate.
+  // They will still be set as exceptions on the isolate.
   // TODO(clemensb): Avoid TryCatch, use Execution::TryCall internally to invoke
   // start function and report thrown exception explicitly via out argument.
   v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
@@ -682,11 +682,11 @@ void WasmEngine::AsyncInstantiate(
     return;
   }
 
-  if (isolate->has_pending_exception()) {
+  if (isolate->has_exception()) {
     // The JS code executed during instantiation has thrown an exception.
     // We have to move the exception to the promise chain.
-    Handle<Object> exception(isolate->pending_exception(), isolate);
-    isolate->clear_pending_exception();
+    Handle<Object> exception(isolate->exception(), isolate);
+    isolate->clear_exception();
     resolver->OnInstantiationFailed(exception);
     thrower.Reset();
   } else {

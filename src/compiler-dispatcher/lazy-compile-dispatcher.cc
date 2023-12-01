@@ -285,7 +285,7 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
       job->task.get(), isolate_, Compiler::KEEP_EXCEPTION);
   job->state = Job::State::kFinalized;
 
-  DCHECK_NE(success, isolate_->has_pending_exception());
+  DCHECK_NE(success, isolate_->has_exception());
   DeleteJob(job);
 
   // Opportunistically finalize all other jobs for a maximum time of

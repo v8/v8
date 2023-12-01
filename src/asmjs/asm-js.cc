@@ -409,9 +409,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   MaybeHandle<WasmInstanceObject> maybe_instance =
       wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_instance.is_null()) {
-    // An exception caused by the module start function will be set as pending
-    // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
-    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+    // Clear a possible stack overflow from function entry that would have
+    // bypassed the {ErrorThrower}.
+    if (isolate->has_exception()) isolate->clear_exception();
     if (thrower.error()) {
       base::ScopedVector<char> error_reason(100);
       SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());

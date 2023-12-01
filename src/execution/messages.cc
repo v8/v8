@@ -118,8 +118,8 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
 
   // We pass the exception object into the message handler callback though.
   Handle<Object> exception = isolate->factory()->undefined_value();
-  if (isolate->has_pending_exception()) {
-    exception = handle(isolate->pending_exception(), isolate);
+  if (isolate->has_exception()) {
+    exception = handle(isolate->exception(), isolate);
   }
 
   Isolate::ExceptionScope exception_scope(isolate);
@@ -144,6 +144,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     }
 
     if (!maybe_stringified.ToHandle(&stringified)) {
+      isolate->clear_pending_message();
       stringified = isolate->factory()->exception_string();
     }
     message->set_argument(*stringified);
@@ -163,8 +164,8 @@ void MessageHandler::ReportMessageNoExceptions(
   int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
-    if (isolate->has_pending_exception()) {
-      isolate->clear_pending_exception();
+    if (isolate->has_exception()) {
+      isolate->clear_exception();
     }
   } else {
     for (int i = 0; i < global_length; i++) {
@@ -188,8 +189,8 @@ void MessageHandler::ReportMessageNoExceptions(
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));
       }
-      if (isolate->has_pending_exception()) {
-        isolate->clear_pending_exception();
+      if (isolate->has_exception()) {
+        isolate->clear_exception();
       }
     }
   }
@@ -244,23 +245,22 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     // Error.toString threw. Try to return a string representation of the thrown
     // exception instead.
 
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     if (isolate->is_execution_terminating()) {
       return {};
     }
-    Handle<Object> pending_exception =
-        handle(isolate->pending_exception(), isolate);
-    isolate->clear_pending_exception();
+    Handle<Object> exception = handle(isolate->exception(), isolate);
+    isolate->clear_exception();
     isolate->clear_pending_message();
 
-    err_str = ErrorUtils::ToString(isolate, pending_exception);
+    err_str = ErrorUtils::ToString(isolate, exception);
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
-      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->has_exception());
       if (isolate->is_execution_terminating()) {
         return {};
       }
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
       isolate->clear_pending_message();
       builder->AppendCStringLiteral("<error>");
     } else {
@@ -378,20 +378,21 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     builder.AppendCStringLiteral("\n    at ");
 
     Handle<CallSiteInfo> frame(CallSiteInfo::cast(elems->get(i)), isolate);
+
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     SerializeCallSiteInfo(isolate, frame, &builder);
 
-    if (isolate->has_pending_exception()) {
+    if (isolate->has_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been
       // stringified already regardless. Still, try to append a string
       // representation of the thrown exception.
 
-      Handle<Object> pending_exception =
-          handle(isolate->pending_exception(), isolate);
-      isolate->clear_pending_exception();
+      Handle<Object> exception = handle(isolate->exception(), isolate);
+      isolate->clear_exception();
       isolate->clear_pending_message();
 
       MaybeHandle<String> exception_string =
-          ErrorUtils::ToString(isolate, pending_exception);
+          ErrorUtils::ToString(isolate, exception);
       if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
 
@@ -422,8 +423,8 @@ Handle<String> MessageFormatter::Format(
       isolate, index, base::VectorOf(arg_strings, args.size()));
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     isolate->clear_pending_message();
     return isolate->factory()->InternalizeString(
         base::StaticCharVector("<error>"));
@@ -616,7 +617,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
       Maybe<bool> has_cause =
           JSObject::HasProperty(isolate, js_options, cause_string);
       if (has_cause.IsNothing()) {
-        DCHECK((isolate)->has_pending_exception());
+        DCHECK((isolate)->has_exception());
         return MaybeHandle<JSObject>();
       }
       if (has_cause.ToChecked()) {
@@ -725,9 +726,9 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     base::Vector<const Handle<Object>> args, FrameSkipMode mode) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
-    // clears any pending exceptions - so whenever we'd call this from C++,
-    // pending exceptions would be cleared. Preserve this behavior.
-    isolate->clear_pending_exception();
+    // clears any exceptions - so whenever we'd call this from C++,
+    // exceptions would be cleared. Preserve this behavior.
+    isolate->clear_exception();
     isolate->clear_pending_message();
   }
   Handle<String> msg = MessageFormatter::Format(isolate, index, args);

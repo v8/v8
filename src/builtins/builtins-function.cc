@@ -232,7 +232,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
           isolate, function, target, isolate->factory()->bound__string(),
           argv.length());
   if (result.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
   return *function;

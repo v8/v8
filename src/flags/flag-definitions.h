@@ -2126,7 +2126,7 @@ DEFINE_INT(max_stack_trace_source_length, 300,
 
 // execution.cc, messages.cc
 DEFINE_BOOL(clear_exceptions_on_js_entry, false,
-            "clear pending exceptions when entering JavaScript")
+            "clear exceptions when entering JavaScript")
 
 // counters.cc
 DEFINE_INT(histogram_interval, 600000,

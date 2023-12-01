@@ -155,7 +155,7 @@ ExceptionStatus KeyAccumulator::AddKey(Handle<Object> key,
       OrderedHashSet::Add(isolate(), keys(), key);
   Handle<OrderedHashSet> new_set;
   if (!new_set_candidate.ToHandle(&new_set)) {
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     return ExceptionStatus::kException;
   }
   if (*new_set != *keys_) {
@@ -457,7 +457,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
     if (GetKeysFast(keys_conversion).ToHandle(&keys)) {
       return keys;
     }
-    if (isolate_->has_pending_exception()) return MaybeHandle<FixedArray>();
+    if (isolate_->has_exception()) return MaybeHandle<FixedArray>();
   }
 
   if (try_prototype_info_cache_) {
@@ -742,8 +742,7 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
       result = enum_args.CallNamedEnumerator(interceptor);
     }
   }
-  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate_, enum_args,
-                                             Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, enum_args, Nothing<bool>());
   if (result.is_null()) return Just(true);
 
   // Request was successfully intercepted, so accept potential side effects

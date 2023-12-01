@@ -32,7 +32,7 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
   }
   *success = Object::ToName(isolate, key).ToHandle(&name_);
   if (!*success) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     index_ = LookupIterator::kInvalidIndex;
     return;
   }

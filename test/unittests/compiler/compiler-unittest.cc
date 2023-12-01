@@ -196,7 +196,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
                   .is_null());
-  EXPECT_EQ(42.0, Object::Number(isolate->pending_exception()));
+  EXPECT_EQ(42.0, Object::Number(isolate->exception()));
 }
 
 using CompilerC2JSFramesTest = WithPrintExtensionMixin<v8::TestWithIsolate>;

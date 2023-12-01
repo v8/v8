@@ -363,7 +363,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
       LookupIterator it(isolate, js_obj, key, js_obj, c);
       Maybe<bool> maybe = JSReceiver::HasProperty(&it);
       if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-      DCHECK(!isolate->has_pending_exception());
+      DCHECK(!isolate->has_exception());
       if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
     }
 
@@ -379,7 +379,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     LookupIterator it(isolate, js_obj, key, js_obj, LookupIterator::OWN);
     Maybe<bool> maybe = JSReceiver::HasProperty(&it);
     if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-    DCHECK(!isolate->has_pending_exception());
+    DCHECK(!isolate->has_exception());
     return isolate->heap()->ToBoolean(maybe.FromJust());
 
   } else if (IsJSProxy(*object)) {
@@ -1168,7 +1168,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
       &it, value, PropertyAttributes::NONE, Just(kDontThrow));
   // Cannot fail since this should only be called when
   // creating an object literal.
-  RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
   DCHECK(result.IsJust());
   USE(result);
 

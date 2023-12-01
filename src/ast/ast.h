@@ -801,13 +801,13 @@ class TryCatchStatement final : public TryStatement {
   }
 
   // Indicates whether or not code should be generated to clear the pending
-  // exception. The pending exception is cleared for cases where the exception
+  // exception. The exception is cleared for cases where the exception
   // is not guaranteed to be rethrown, indicated by the value
   // HandlerTable::UNCAUGHT. If both the current and surrounding catch handler's
   // are predicted uncaught, the exception is not cleared.
   //
   // If this handler is not going to simply rethrow the exception, this method
-  // indicates that the isolate's pending exception message should be cleared
+  // indicates that the isolate's exception message should be cleared
   // before executing the catch_block.
   // In the normal use case, this flag is always on because the message object
   // is not needed anymore when entering the catch block and should not be
@@ -822,7 +822,7 @@ class TryCatchStatement final : public TryStatement {
   // For scripts in repl mode there is exactly one catch block with
   // UNCAUGHT_ASYNC_AWAIT prediction. This catch block needs to preserve
   // the exception so it can be re-used later by the inspector.
-  inline bool ShouldClearPendingException(
+  inline bool ShouldClearException(
       HandlerTable::CatchPrediction outer_catch_prediction) const {
     if (catch_prediction_ == HandlerTable::UNCAUGHT_ASYNC_AWAIT) {
       DCHECK_EQ(outer_catch_prediction, HandlerTable::UNCAUGHT);

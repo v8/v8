@@ -69,7 +69,7 @@ class Execution final : public AllStatic {
 #if V8_ENABLE_WEBASSEMBLY
   // Call a Wasm function identified by {wasm_call_target} through the
   // provided {wrapper_code}, which must match the function's signature.
-  // Upon return, either isolate->has_pending_exception() is true, or
+  // Upon return, either isolate->has_exception() is true, or
   // the function's return values are in {packed_args}.
   V8_EXPORT_PRIVATE static void CallWasm(Isolate* isolate,
                                          Handle<Code> wrapper_code,

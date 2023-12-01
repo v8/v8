@@ -988,7 +988,7 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
             i::v8_flags.expose_inspector_scripts ? i::NOT_NATIVES_CODE
                                                  : i::INSPECTOR_CODE,
             &compilation_details);
-    has_pending_exception = !maybe_function_info.ToHandle(&result);
+    has_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
@@ -1174,7 +1174,7 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
     isolate->debug()->StartSideEffectCheckMode();
   }
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::Execution::Call(isolate, self, recv_obj, argc, args), &result);
   if (throw_on_side_effect) {
     isolate->debug()->StopSideEffectCheckMode();
@@ -1190,7 +1190,7 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*source), mode,
                                repl_mode),
       &result);
@@ -1205,7 +1205,7 @@ v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
-  has_pending_exception = !ToLocal<Value>(
+  has_exception = !ToLocal<Value>(
       i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*function), mode,
                                repl_mode),
       &result);
@@ -1449,7 +1449,7 @@ Maybe<bool> DebugPropertyIterator::Advance() {
   CallDepthScope<false> call_depth_scope(isolate_, context);
 
   if (!AdvanceInternal()) {
-    DCHECK(isolate_->has_pending_exception());
+    DCHECK(isolate_->has_exception());
     return Nothing<bool>();
   }
   return Just(true);

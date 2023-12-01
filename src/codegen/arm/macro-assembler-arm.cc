@@ -3174,7 +3174,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                             "Check if the function scheduled an exception.");
     __ LoadRoot(scratch, RootIndex::kTheHoleValue);
     __ ldr(scratch2, __ ExternalReferenceAsOperand(
-                         ER::pending_exception_address(isolate), no_reg));
+                         ER::exception_address(isolate), no_reg));
     __ cmp(scratch, scratch2);
     __ b(ne, &propagate_exception);
   }

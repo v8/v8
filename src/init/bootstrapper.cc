@@ -6527,7 +6527,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
     return false;
   }
 
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   extension_states->set_state(current, INSTALLED);
   return true;
 }
@@ -6573,8 +6573,8 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
       ApiNatives::InstantiateObject(object->GetIsolate(), object_template);
   Handle<JSObject> instantiated_template;
   if (!maybe_obj.ToHandle(&instantiated_template)) {
-    DCHECK(isolate()->has_pending_exception());
-    isolate()->clear_pending_exception();
+    DCHECK(isolate()->has_exception());
+    isolate()->clear_exception();
     return false;
   }
   TransferObject(instantiated_template, object);

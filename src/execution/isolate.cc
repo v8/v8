@@ -566,7 +566,7 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kStackRoots, nullptr,
-                      FullObjectSlot(&thread->pending_exception_));
+                      FullObjectSlot(&thread->exception_));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(&thread->pending_message_));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
@@ -1569,7 +1569,7 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
     thread_local_top()->failed_access_check_callback_(
         v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
   }
-  RETURN_VALUE_IF_PENDING_EXCEPTION(this, {});
+  RETURN_VALUE_IF_EXCEPTION(this, {});
   // Throw exception even the callback forgot to do so.
   THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
 }
@@ -1699,7 +1699,7 @@ Tagged<Object> Isolate::TerminateExecution() {
 
 void Isolate::CancelTerminateExecution() {
   if (is_execution_terminating()) {
-    clear_pending_exception();
+    clear_exception();
     if (try_catch_handler()) try_catch_handler()->Reset();
   }
 }
@@ -1836,7 +1836,7 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
 
 Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
                               MessageLocation* location) {
-  DCHECK(!has_pending_exception());
+  DCHECK(!has_exception());
   IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
           !trap_handler::IsThreadInWasm());
 
@@ -1922,23 +1922,22 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   }
 
   // Set the exception being thrown.
-  set_pending_exception(*exception);
-  PropagatePendingExceptionToExternalTryCatch(
-      TopExceptionHandlerType(*exception));
+  set_exception(*exception);
+  PropagateExceptionToExternalTryCatch(TopExceptionHandlerType(*exception));
   return ReadOnlyRoots(heap()).exception();
 }
 
 Tagged<Object> Isolate::ReThrow(Tagged<Object> exception) {
-  DCHECK(!has_pending_exception());
+  DCHECK(!has_exception());
 
   // Set the exception being re-thrown.
-  set_pending_exception(exception);
+  set_exception(exception);
   return ReadOnlyRoots(heap()).exception();
 }
 
 Tagged<Object> Isolate::ReThrow(Tagged<Object> exception,
                                 Tagged<Object> message) {
-  DCHECK(!has_pending_exception());
+  DCHECK(!has_exception());
   DCHECK(!has_pending_message());
 
   set_pending_message(message);
@@ -1981,7 +1980,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // handler handles such non-wasm exceptions.
   SetThreadInWasmFlagScope set_thread_in_wasm_flag_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Tagged<Object> exception = pending_exception();
+  Tagged<Object> exception = this->exception();
 
   auto FoundHandler = [&](Tagged<Context> context, Address instruction_start,
                           intptr_t handler_offset,
@@ -1997,13 +1996,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     thread_local_top()->num_frames_above_pending_handler_ =
         num_frames_above_handler;
 
-    // Return and clear pending exception. The contract is that:
-    // (1) the pending exception is stored in one place (no duplication), and
+    // Return and clear exception. The contract is that:
+    // (1) the exception is stored in one place (no duplication), and
     // (2) within generated-code land, that one place is the return register.
     // If/when we unwind back into C++ (returning to the JSEntry stub,
     // or to Execution::CallWasm), the returned exception will be sent
-    // back to isolate->set_pending_exception(...).
-    clear_pending_exception();
+    // back to isolate->set_exception(...).
+    clear_exception();
     return exception;
   };
 
@@ -2710,14 +2709,13 @@ void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
 }
 
 void Isolate::ReportPendingMessages(bool report) {
-  Tagged<Object> exception_obj = pending_exception();
+  Tagged<Object> exception_obj = exception();
   ExceptionHandlerType top_handler = TopExceptionHandlerType(exception_obj);
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
   // propagation was unsuccessful, then we will get another chance at reporting
   // the pending message if the exception is re-thrown.
-  bool has_been_propagated =
-      PropagatePendingExceptionToExternalTryCatch(top_handler);
+  bool has_been_propagated = PropagateExceptionToExternalTryCatch(top_handler);
   if (!has_been_propagated) return;
   if (!report) return;
 
@@ -4066,7 +4064,7 @@ void Isolate::InitializeThreadLocal() {
   // to let the checks work.
   i::PtrComprCageAccessScope ptr_compr_cage_access_scope(this);
 #endif  // DEBUG
-  clear_pending_exception();
+  clear_exception();
   clear_pending_message();
 }
 
@@ -4079,9 +4077,9 @@ void Isolate::SetTerminationOnExternalTryCatch() {
       ReadOnlyRoots(heap()).termination_exception().ptr());
 }
 
-bool Isolate::PropagatePendingExceptionToExternalTryCatch(
+bool Isolate::PropagateExceptionToExternalTryCatch(
     ExceptionHandlerType top_handler) {
-  Tagged<Object> exception = pending_exception();
+  Tagged<Object> exception = this->exception();
 
   if (top_handler == ExceptionHandlerType::kJavaScriptHandler) return false;
   if (top_handler == ExceptionHandlerType::kNone) return true;
@@ -4845,7 +4843,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (v8_flags.print_builtin_size) builtins()->PrintBuiltinSize();
 
   // Finish initialization of ThreadLocal after deserialization is done.
-  clear_pending_exception();
+  clear_exception();
   clear_pending_message();
 
   // Quiet the heap NaN if needed on target platform.
@@ -5447,11 +5445,11 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
                                           v8::Local<v8::Context> api_context,
                                           Handle<Object> exception) {
   v8::Local<v8::Promise::Resolver> resolver;
-  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
-      isolate, resolver, v8::Promise::Resolver::New(api_context),
-      MaybeHandle<JSPromise>());
+  API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, resolver,
+                                       v8::Promise::Resolver::New(api_context),
+                                       MaybeHandle<JSPromise>());
 
-  RETURN_ON_PENDING_EXCEPTION_VALUE(
+  MAYBE_RETURN_ON_EXCEPTION_VALUE(
       isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
       MaybeHandle<JSPromise>());
 
@@ -5480,11 +5478,11 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
-    Handle<Object> exception(pending_exception(), this);
-    clear_pending_exception();
+    Handle<Object> exception(this->exception(), this);
+    clear_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
-  DCHECK(!has_pending_exception());
+  DCHECK(!has_exception());
 
   v8::Local<v8::Promise> promise;
   Handle<FixedArray> import_assertions_array;
@@ -5493,8 +5491,8 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
-    Handle<Object> exception(pending_exception(), this);
-    clear_pending_exception();
+    Handle<Object> exception(this->exception(), this);
+    clear_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
   Handle<FixedArray> host_defined_options;
@@ -5509,7 +5507,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   }
 
   if (host_import_module_dynamically_callback_) {
-    ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
+    API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         this, promise,
         host_import_module_dynamically_callback_(
             api_context, v8::Utils::ToLocal(host_defined_options),
@@ -5523,7 +5521,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         this->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
     script_or_module->set_resource_name(*resource_name);
     script_or_module->set_host_defined_options(*host_defined_options);
-    ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
+    API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         this, promise,
         host_import_module_dynamically_with_import_assertions_callback_(
             api_context, v8::Utils::ToLocal(script_or_module),
@@ -5666,7 +5664,7 @@ MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     host_initialize_import_meta_object_callback_(
         api_context, Utils::ToLocal(Handle<Module>::cast(module)),
         v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
-    if (has_pending_exception()) return {};
+    if (has_exception()) return {};
   }
   return import_meta;
 }
@@ -5691,7 +5689,7 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
 
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   v8::Local<v8::Context> shadow_realm_context;
-  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
+  API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       this, shadow_realm_context,
       host_create_shadow_realm_context_callback_(api_context),
       MaybeHandle<NativeContext>());
@@ -5709,7 +5707,7 @@ MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
 
   v8::Local<v8::Value> stack;
-  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
+  API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       this, stack,
       prepare_stack_trace_callback_(api_context, Utils::ToLocal(error),
                                     Utils::ToLocal(sites)),

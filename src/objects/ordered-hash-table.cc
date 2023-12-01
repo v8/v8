@@ -195,7 +195,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
-    CHECK(isolate->has_pending_exception());
+    CHECK(isolate->has_exception());
     return table_candidate;
   }
   DisallowGarbageCollection no_gc;

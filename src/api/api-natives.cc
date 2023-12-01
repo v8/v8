@@ -24,7 +24,7 @@ class V8_NODISCARD InvokeScope {
   explicit InvokeScope(Isolate* isolate)
       : isolate_(isolate), save_context_(isolate) {}
   ~InvokeScope() {
-    bool has_exception = isolate_->has_pending_exception();
+    bool has_exception = isolate_->has_exception();
     if (has_exception) {
       isolate_->ReportPendingMessages();
     } else {

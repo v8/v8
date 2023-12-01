@@ -105,7 +105,7 @@ class V8_NODISCARD ClearThreadInWasmScope {
   ~ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
                    !trap_handler::IsThreadInWasm());
-    if (!isolate_->has_pending_exception() && is_thread_in_wasm_) {
+    if (!isolate_->has_exception() && is_thread_in_wasm_) {
       trap_handler::SetThreadInWasm();
     }
     // Otherwise we only want to set the flag if the exception is caught in
@@ -201,7 +201,7 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
                            ? *result
                            : isolate->Throw(*isolate->factory()->NewTypeError(
                                  MessageTemplate::kWasmTrapJSTypeError));
-  if (thread_in_wasm && !isolate->has_pending_exception()) {
+  if (thread_in_wasm && !isolate->has_exception()) {
     trap_handler::SetThreadInWasm();
   }
   return ret;
@@ -222,7 +222,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->has_exception());
   return Smi::FromInt(ret);
 }
 
@@ -391,7 +391,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
     AllowHeapAllocation throwing_unwinds_the_stack;
     wasm::ThrowLazyCompilationError(
         isolate, instance->module_object()->native_module(), func_index);
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
@@ -1231,9 +1231,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   do {                                                                         \
     Handle<Object> result;                                                     \
     if (!(call).ToHandle(&result)) {                                           \
-      DCHECK(isolate->has_pending_exception());                                \
+      DCHECK(isolate->has_exception());                                        \
       /* Mark any exception as uncatchable by Wasm. */                         \
-      Handle<JSObject> exception(JSObject::cast(isolate->pending_exception()), \
+      Handle<JSObject> exception(JSObject::cast(isolate->exception()),         \
                                  isolate);                                     \
       Handle<Name> uncatchable =                                               \
           isolate->factory()->wasm_uncatchable_symbol();                       \
@@ -1244,7 +1244,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       }                                                                        \
       return ReadOnlyRoots(isolate).exception();                               \
     }                                                                          \
-    DCHECK(!isolate->has_pending_exception());                                 \
+    DCHECK(!isolate->has_exception());                                         \
     return *result;                                                            \
   } while (false)
 
@@ -1306,7 +1306,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   MaybeHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_pending_exception());
+    DCHECK(!isolate->has_exception());
     if (result_string.is_null()) {
       return *isolate->factory()->wasm_null();
     }
@@ -1331,7 +1331,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
   MaybeHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_pending_exception());
+    DCHECK(!isolate->has_exception());
     if (result_string.is_null()) {
       return *isolate->factory()->wasm_null();
     }

@@ -76,11 +76,11 @@ struct Input {
     (info)->pending_error_handler()->ReportErrors((isolate), (script));       \
                                                                               \
     i::Handle<i::JSObject> exception_handle(                                  \
-        i::JSObject::cast((isolate)->pending_exception()), (isolate));        \
+        i::JSObject::cast((isolate)->exception()), (isolate));                \
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(         \
         i::JSReceiver::GetProperty((isolate), exception_handle, "message")    \
             .ToHandleChecked());                                              \
-    (isolate)->clear_pending_exception();                                     \
+    (isolate)->clear_exception();                                             \
                                                                               \
     Tagged<String> script_source = String::cast((script)->source());          \
                                                                               \
@@ -272,13 +272,13 @@ class ParsingTest : public TestWithContextAndZone {
     // Check that preparsing fails iff parsing fails.
     if (function == nullptr) {
       // Extract exception from the parser.
-      CHECK(isolate->has_pending_exception());
+      CHECK(isolate->has_exception());
       i::Handle<i::JSObject> exception_handle(
-          i::JSObject::cast(isolate->pending_exception()), isolate);
+          i::JSObject::cast(isolate->exception()), isolate);
       i::Handle<i::String> message_string = i::Handle<i::String>::cast(
           i::JSReceiver::GetProperty(isolate, exception_handle, "message")
               .ToHandleChecked());
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
 
       if (result == kSuccess) {
         FATAL(

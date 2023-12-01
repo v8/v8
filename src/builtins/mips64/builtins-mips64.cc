@@ -589,7 +589,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ push(s3);
 
   // Jump to a faked try block that does the invoke, with a faked catch
-  // block that sets the pending exception.
+  // block that sets the exception.
   __ jmp(&invoke);
   __ bind(&handler_entry);
 
@@ -597,12 +597,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // handler table.
   masm->isolate()->builtins()->SetJSEntryHandlerOffset(handler_entry.pos());
 
-  // Caught exception: Store result (exception) in the pending exception
+  // Caught exception: Store result (exception) in the exception
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(s1, ExternalReference::Create(
-                IsolateAddressId::kPendingExceptionAddress, masm->isolate()));
+  __ li(s1, ExternalReference::Create(IsolateAddressId::kExceptionAddress,
+                                      masm->isolate()));
   __ Sd(v0, MemOperand(s1));  // We come back from 'invoke'. result is in v0.
   __ LoadRoot(v0, RootIndex::kException);
   __ b(&exit);  // b exposes branch delay slot.
@@ -3052,13 +3052,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ LoadRoot(a4, RootIndex::kException);
   __ Branch(&exception_returned, eq, a4, Operand(v0));
 
-  // Check that there is no pending exception, otherwise we
+  // Check that there is no exception, otherwise we
   // should have returned the exception sentinel.
   if (v8_flags.debug_code) {
     Label okay;
-    ExternalReference pending_exception_address = ExternalReference::Create(
-        IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-    __ li(a2, pending_exception_address);
+    ExternalReference exception_address = ExternalReference::Create(
+        IsolateAddressId::kExceptionAddress, masm->isolate());
+    __ li(a2, exception_address);
     __ Ld(a2, MemOperand(a2));
     __ LoadRoot(a4, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
@@ -3092,7 +3092,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
   // Ask the runtime for help to determine the handler. This will set v0 to
-  // contain the current pending exception, don't clobber it.
+  // contain the current exception, don't clobber it.
   ExternalReference find_handler =
       ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
   {

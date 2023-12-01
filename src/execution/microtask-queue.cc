@@ -182,7 +182,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   }
 
   if (isolate->is_execution_terminating()) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     DCHECK(maybe_result.is_null());
     delete[] ring_buffer_;
     ring_buffer_ = nullptr;

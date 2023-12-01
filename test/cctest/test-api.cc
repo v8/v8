@@ -24944,7 +24944,7 @@ TEST(StackCheckTermination) {
   };
   while (should_continue()) {
   }
-  if (i_isolate->has_pending_exception()) i_isolate->ReportPendingMessages();
+  if (i_isolate->has_exception()) i_isolate->ReportPendingMessages();
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }

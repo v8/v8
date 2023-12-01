@@ -550,7 +550,7 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskException) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_FALSE(i_isolate()->has_pending_exception());
+  ASSERT_FALSE(i_isolate()->has_exception());
   dispatcher.AbortAll();
 }
 
@@ -639,9 +639,9 @@ TEST_F(LazyCompileDispatcherTest, FinishNowException) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_TRUE(i_isolate()->has_pending_exception());
+  ASSERT_TRUE(i_isolate()->has_exception());
 
-  i_isolate()->clear_pending_exception();
+  i_isolate()->clear_exception();
   ASSERT_FALSE(platform.IdleTaskPending());
   dispatcher.AbortAll();
 }

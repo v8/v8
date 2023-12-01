@@ -63,7 +63,7 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK(try_catch.HasCaught());
-  isolate->clear_pending_exception();
+  isolate->clear_exception();
 }
 
 void ExportAsMain(WasmFunctionBuilder* f) {
@@ -663,7 +663,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
       testing::CallWasmFunctionForTesting(isolate, instance, "main",
                                           base::ArrayVector(params));
       CHECK(try_catch.HasCaught());
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
     }
 
     Handle<Object> params[1] = {handle(Smi::FromInt(1), isolate)};
@@ -712,7 +712,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
       testing::CallWasmFunctionForTesting(isolate, instance, "main",
                                           base::ArrayVector(params));
       CHECK(try_catch.HasCaught());
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
     }
 
     for (int i = 1; i < 5; i++) {
@@ -728,7 +728,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     testing::CallWasmFunctionForTesting(isolate, instance, "main",
                                         base::ArrayVector(params));
     CHECK(try_catch.HasCaught());
-    isolate->clear_pending_exception();
+    isolate->clear_exception();
   }
   Cleanup();
 }

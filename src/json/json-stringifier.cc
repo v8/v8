@@ -455,11 +455,11 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
                                                Handle<Object> replacer,
                                                Handle<Object> gap) {
   if (!InitializeReplacer(replacer)) {
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     return MaybeHandle<Object>();
   }
   if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     return MaybeHandle<Object>();
   }
   Result result = SerializeObject(object);
@@ -484,7 +484,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
     }
   }
   DCHECK(result == EXCEPTION);
-  CHECK(isolate_->has_pending_exception());
+  CHECK(isolate_->has_exception());
   return MaybeHandle<Object>();
 }
 
@@ -526,7 +526,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       MaybeHandle<OrderedHashSet> set_candidate =
           OrderedHashSet::Add(isolate_, set, key);
       if (!set_candidate.ToHandle(&set)) {
-        CHECK(isolate_->has_pending_exception());
+        CHECK(isolate_->has_exception());
         return false;
       }
     }
