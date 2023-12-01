@@ -90,9 +90,18 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
 
 #ifdef DEBUG
 bool TimedHistogram::ToggleRunningState(bool expect_to_run) const {
-  bool is_running = active_timer_[ThreadId::Current().ToInteger()];
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
+  static thread_local std::unordered_map<const TimedHistogram*, bool>
+      active_timer;
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+  bool is_running = active_timer[this];
   DCHECK_NE(is_running, expect_to_run);
-  active_timer_[ThreadId::Current().ToInteger()] = !is_running;
+  active_timer[this] = !is_running;
   return true;
 }
 #endif
