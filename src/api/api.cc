@@ -908,8 +908,8 @@ i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
 }
 
 #ifdef V8_ENABLE_DIRECT_LOCAL
-/ THROW_NEW_ERROR_RETURN_VALUE i::Address*
-    HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
+
+i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
   i::Isolate* i_isolate = i::Isolate::Current();
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
