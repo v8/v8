@@ -82,7 +82,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
-#include "src/compiler/turboshaft/dead-code-elimination-phase.h"
+#include "src/compiler/turboshaft/code-elimination-and-simplification-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
@@ -3078,7 +3078,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       Run<turboshaft::TypeAssertionsPhase>();
     }
 
-    Run<turboshaft::DeadCodeEliminationPhase>();
+    // Perform dead code elimination, reduce stack checks, simplify loads on
+    // platforms where required, ...
+    Run<turboshaft::CodeEliminationAndSimplificationPhase>();
 
 #ifdef V8_ENABLE_DEBUG_CODE
     if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
@@ -3090,7 +3092,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     Run<turboshaft::DecompressionOptimizationPhase>();
 
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_TARGET_ARCH_X64) or defined(V8_TARGET_ARCH_ARM64)
     if (v8_flags.turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!SelectInstructionsTurboshaft(linkage)) {
@@ -3101,7 +3103,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       data->DeleteGraphZone();
       return AllocateRegisters(linkage->GetIncomingDescriptor(), false);
     }
-#endif  // defined(V8_TARGET_ARCH_X64)
+#endif  // defined(V8_TARGET_ARCH_X64) or defined(V8_TARGET_ARCH_ARM64)
 
     // Otherwise, translate back to Turbofan and run instruction selection on
     // the sea of nodes graph.

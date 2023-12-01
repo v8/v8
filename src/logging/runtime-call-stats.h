@@ -375,7 +375,8 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBuildGraph)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDeadCodeElimination)     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
+                              TurboshaftCodeEliminationAndSimplification)     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDebugFeatureLowering)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDecompressionOpt)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftInstructionSelection)    \
