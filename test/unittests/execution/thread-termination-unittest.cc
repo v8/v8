@@ -888,7 +888,6 @@ class TerminatorSleeperThread : public base::Thread {
         sleep_ms_(sleep_ms) {}
   void Run() override {
     base::OS::Sleep(base::TimeDelta::FromMilliseconds(sleep_ms_));
-    CHECK(!isolate_->IsExecutionTerminating());
     isolate_->TerminateExecution();
   }
 
@@ -914,6 +913,7 @@ TEST_F(ThreadTerminationTest, TerminateRegExp) {
   TryCatch try_catch(isolate());
   CHECK(!isolate()->IsExecutionTerminating());
   CHECK(!RunJS("var re = /(x+)+y$/; re.test('x');").IsEmpty());
+  CHECK(!isolate()->IsExecutionTerminating());
   TerminatorSleeperThread terminator(isolate(), 100);
   CHECK(terminator.Start());
   CHECK(TryRunJS("re.test('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); fail();")

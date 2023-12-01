@@ -244,7 +244,7 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                                  \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
-  F(PromoteScheduledException, 0, 1)                       \
+  F(PropagateException, 0, 1)                              \
   F(ReportMessageFromMicrotask, 1, 1)                      \
   F(ReThrow, 1, 1)                                         \
   F(ReThrowWithMessage, 2, 1)                              \

@@ -24,9 +24,8 @@ void Test(v8::Isolate* isolate, i::Handle<i::JSRegExp> regexp,
           i::Handle<i::RegExpMatchInfo> results_array) {
   v8::TryCatch try_catch(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (i::RegExp::Exec(i_isolate, regexp, subject, 0, results_array).is_null()) {
-    i_isolate->OptionalRescheduleException(true);
-  }
+  // Exceptions will be swallowed by the try/catch above.
+  USE(i::RegExp::Exec(i_isolate, regexp, subject, 0, results_array));
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

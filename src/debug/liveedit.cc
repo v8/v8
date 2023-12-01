@@ -534,7 +534,6 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     }
   }
   if (!success) {
-    isolate->OptionalRescheduleException(false);
     DCHECK(try_catch.HasCaught());
     result->message = try_catch.Message()->Get();
     i::Handle<i::JSMessageObject> msg = Utils::OpenHandle(*try_catch.Message());

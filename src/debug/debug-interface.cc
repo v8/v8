@@ -1432,13 +1432,8 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
   }
   CallDepthScope<false> call_depth_scope(isolate, context);
 
-  auto result = i::DebugPropertyIterator::Create(
-      isolate, Utils::OpenHandle(*object), skip_indices);
-  if (!result) {
-    DCHECK(isolate->has_pending_exception());
-    call_depth_scope.Escape();
-  }
-  return result;
+  return i::DebugPropertyIterator::Create(isolate, Utils::OpenHandle(*object),
+                                          skip_indices);
 }
 
 }  // namespace debug
@@ -1455,7 +1450,6 @@ Maybe<bool> DebugPropertyIterator::Advance() {
 
   if (!AdvanceInternal()) {
     DCHECK(isolate_->has_pending_exception());
-    call_depth_scope.Escape();
     return Nothing<bool>();
   }
   return Just(true);

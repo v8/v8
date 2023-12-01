@@ -2489,6 +2489,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
   DCHECK(!isolate->has_pending_exception());
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);

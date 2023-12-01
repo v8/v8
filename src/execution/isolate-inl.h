@@ -90,38 +90,13 @@ void Isolate::clear_pending_exception() {
 }
 
 bool Isolate::has_pending_exception() {
-  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
-  return !IsTheHole(thread_local_top()->pending_exception_, this);
-}
-
-Tagged<Object> Isolate::scheduled_exception() {
-  DCHECK(has_scheduled_exception());
-  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
-  return thread_local_top()->scheduled_exception_;
-}
-
-bool Isolate::has_scheduled_exception() {
-  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
-  return thread_local_top()->scheduled_exception_ !=
-         ReadOnlyRoots(this).the_hole_value();
-}
-
-void Isolate::clear_scheduled_exception() {
-  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
-  set_scheduled_exception(ReadOnlyRoots(this).the_hole_value());
-}
-
-void Isolate::set_scheduled_exception(Tagged<Object> exception) {
-  thread_local_top()->scheduled_exception_ = exception;
-}
-
-bool Isolate::is_execution_termination_pending() {
-  return thread_local_top()->pending_exception_ ==
-         i::ReadOnlyRoots(this).termination_exception();
+  ThreadLocalTop* top = thread_local_top();
+  DCHECK(!IsException(top->pending_exception_, this));
+  return !IsTheHole(top->pending_exception_, this);
 }
 
 bool Isolate::is_execution_terminating() {
-  return thread_local_top()->scheduled_exception_ ==
+  return thread_local_top()->pending_exception_ ==
          i::ReadOnlyRoots(this).termination_exception();
 }
 
@@ -194,7 +169,9 @@ Handle<JSGlobalProxy> Isolate::global_proxy() {
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
     : isolate_(isolate),
-      pending_exception_(isolate_->pending_exception(), isolate_) {}
+      pending_exception_(isolate_->pending_exception(), isolate_) {
+  isolate_->clear_pending_exception();
+}
 
 Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);

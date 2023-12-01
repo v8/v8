@@ -4905,6 +4905,21 @@ void Genesis::InitializeExperimentalGlobal() {
   InitializeGlobal_sharedarraybuffer();
 }
 
+namespace {
+class TryCallScope {
+ public:
+  explicit TryCallScope(Isolate* isolate) : top(isolate->thread_local_top()) {
+    top->IncrementCallDepth<true>(this);
+  }
+  ~TryCallScope() { top->DecrementCallDepth(this); }
+
+ private:
+  friend class i::ThreadLocalTop;
+  ThreadLocalTop* top;
+  Address previous_stack_height_;
+};
+}  // namespace
+
 bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
@@ -4947,9 +4962,8 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   Handle<Object> receiver = isolate->global_object();
   Handle<FixedArray> host_defined_options =
       isolate->factory()->empty_fixed_array();
-  return !Execution::TryCallScript(isolate, fun, receiver, host_defined_options,
-                                   Execution::MessageHandling::kKeepPending,
-                                   nullptr)
+  TryCallScope try_call_scope(isolate);
+  return !Execution::TryCallScript(isolate, fun, receiver, host_defined_options)
               .is_null();
 }
 
@@ -6504,25 +6518,16 @@ bool Genesis::InstallExtension(Isolate* isolate,
     }
   }
   if (!CompileExtension(isolate, extension)) {
-    // If this failed, it either threw an exception, or the isolate is
-    // terminating.
-    DCHECK(isolate->has_pending_exception() ||
-           (isolate->has_scheduled_exception() &&
-            isolate->is_execution_terminating()));
-    if (isolate->has_pending_exception()) {
-      // We print out the name of the extension that fail to install.
-      // When an error is thrown during bootstrapping we automatically print
-      // the line number at which this happened to the console in the isolate
-      // error throwing functionality.
-      base::OS::PrintError("Error installing extension '%s'.\n",
-                           current->extension()->name());
-      isolate->clear_pending_exception();
-    }
+    // We print out the name of the extension that fail to install.
+    // When an error is thrown during bootstrapping we automatically print
+    // the line number at which this happened to the console in the isolate
+    // error throwing functionality.
+    base::OS::PrintError("Error installing extension '%s'.\n",
+                         current->extension()->name());
     return false;
   }
 
-  DCHECK(!isolate->has_pending_exception() &&
-         !isolate->has_scheduled_exception());
+  DCHECK(!isolate->has_pending_exception());
   extension_states->set_state(current, INSTALLED);
   return true;
 }

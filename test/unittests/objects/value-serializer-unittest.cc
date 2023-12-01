@@ -86,13 +86,7 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   ~ValueSerializerTest() override {
-    // In some cases unhandled scheduled exceptions from current test produce
-    // that Context::New(isolate()) from next test's constructor returns NULL.
-    // In order to prevent that, we added destructor which will clear scheduled
-    // exceptions just for the current test from test case.
-    if (isolate_->has_scheduled_exception()) {
-      isolate_->clear_scheduled_exception();
-    }
+    DCHECK(!isolate_->has_pending_exception());
   }
 
   const Local<Context>& serialization_context() {

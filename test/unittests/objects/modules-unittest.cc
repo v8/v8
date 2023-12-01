@@ -736,11 +736,7 @@ TEST_F(ModuleTest, ModuleNamespace) {
   // radio
   {
     v8::TryCatch inner_try_catch(isolate());
-    // https://bugs.chromium.org/p/v8/issues/detail?id=7235
-    // CHECK(nsobj->Get(context(), NewString("radio")).IsEmpty());
-    CHECK(nsobj->Get(context(), NewString("radio"))
-              .ToLocalChecked()
-              ->IsUndefined());
+    CHECK(nsobj->Get(context(), NewString("radio")).IsEmpty());
     CHECK(inner_try_catch.HasCaught());
     CHECK(inner_try_catch.Exception()
               ->InstanceOf(context(), ReferenceError)

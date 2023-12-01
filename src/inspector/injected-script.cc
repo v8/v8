@@ -953,8 +953,12 @@ Response InjectedScript::wrapEvaluateResult(
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::Local<v8::Value> resultValue;
   if (!tryCatch.HasCaught()) {
-    if (!maybeResultValue.ToLocal(&resultValue))
+    if (!maybeResultValue.ToLocal(&resultValue)) {
+      if (!tryCatch.CanContinue()) {
+        return Response::ServerError("Execution was terminated");
+      }
       return Response::InternalError();
+    }
     Response response =
         wrapObject(resultValue, objectGroup, wrapOptions, result);
     if (!response.IsSuccess()) return response;

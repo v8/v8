@@ -55,14 +55,12 @@ class Execution final : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCall(
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[], MessageHandling message_handling,
-      MaybeHandle<Object>* exception_out, bool reschedule_terminate = true);
+      MaybeHandle<Object>* exception_out);
   // Same as Execute::TryCall but for scripts which need an explicit
   // host-defined options object. See Execution:CallScript
   V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCallScript(
       Isolate* isolate, Handle<JSFunction> script_function,
-      Handle<Object> receiver, Handle<FixedArray> host_defined_options,
-      MessageHandling message_handling, MaybeHandle<Object>* exception_out,
-      bool reschedule_terminate = true);
+      Handle<Object> receiver, Handle<FixedArray> host_defined_options);
 
   // Convenience method for performing RunMicrotasks
   static MaybeHandle<Object> TryRunMicrotasks(Isolate* isolate,

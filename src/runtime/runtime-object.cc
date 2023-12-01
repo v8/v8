@@ -1168,7 +1168,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
       &it, value, PropertyAttributes::NONE, Just(kDontThrow));
   // Cannot fail since this should only be called when
   // creating an object literal.
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   DCHECK(result.IsJust());
   USE(result);
 

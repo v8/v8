@@ -94,7 +94,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   MicrotaskCallback callback = ToCData<MicrotaskCallback>(microtask_callback);
   void* data = ToCData<void*>(microtask_data);
   callback(data);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -111,7 +111,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   Handle<JSPromise> promise = args.at<JSPromise>(0);
   Handle<Object> parent = args.at(1);
   isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   Handle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseBefore(Handle<JSPromise>::cast(promise));
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -132,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   Handle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseAfter(Handle<JSPromise>::cast(promise));
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

@@ -61,15 +61,11 @@
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
   bool has_pending_exception = false
 
-#define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
-                                           HandleScopeClass, do_callback)      \
-  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());       \
-  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name,      \
-                           HandleScopeClass, do_callback);
-
-#define PREPARE_FOR_EXECUTION(context, class_name, function_name)        \
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
-                                     InternalEscapableScope, false)
+#define PREPARE_FOR_EXECUTION(context, class_name, function_name)         \
+  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());  \
+  i_isolate->clear_pending_exception();                                   \
+  ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name, \
+                           InternalEscapableScope, false);
 
 #define ENTER_V8(i_isolate, context, class_name, function_name,           \
                  HandleScopeClass)                                        \
@@ -113,12 +109,7 @@
 #endif  // DEBUG
 
 #define EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, value) \
-  do {                                                              \
-    if (has_pending_exception) {                                    \
-      call_depth_scope.Escape();                                    \
-      return value;                                                 \
-    }                                                               \
-  } while (false)
+  if (has_pending_exception) return value;
 
 #define RETURN_ON_FAILED_EXECUTION(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, MaybeLocal<T>())

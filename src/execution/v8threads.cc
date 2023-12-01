@@ -287,7 +287,6 @@ void ThreadManager::FreeThreadResources() {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
 #endif  // DEBUG
   DCHECK(!isolate_->has_pending_exception());
-  DCHECK(!isolate_->external_caught_exception());
   DCHECK_NULL(isolate_->try_catch_handler());
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();

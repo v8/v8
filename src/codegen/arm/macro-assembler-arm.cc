@@ -3131,7 +3131,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ StoreReturnAddressAndCall(function_address);
   __ bind(&done_api_call);
 
-  Label promote_scheduled_exception;
+  Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -3174,9 +3174,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                             "Check if the function scheduled an exception.");
     __ LoadRoot(scratch, RootIndex::kTheHoleValue);
     __ ldr(scratch2, __ ExternalReferenceAsOperand(
-                         ER::scheduled_exception_address(isolate), no_reg));
+                         ER::pending_exception_address(isolate), no_reg));
     __ cmp(scratch, scratch2);
-    __ b(ne, &promote_scheduled_exception);
+    __ b(ne, &propagate_exception);
   }
 
   {
@@ -3205,9 +3205,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ b(&done_api_call);
   }
 
-  __ RecordComment("Re-throw by promoting a scheduled exception.");
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
+  __ RecordComment("An exception was thrown. Propagate it.");
+  __ bind(&propagate_exception);
+  __ TailCallRuntime(Runtime::kPropagateException);
   {
     ASM_CODE_COMMENT_STRING(
         masm, "HandleScope limit has changed. Delete allocated extensions.");

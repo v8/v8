@@ -4460,7 +4460,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ StoreReturnAddressAndCall(function_address);
   __ Bind(&done_api_call);
 
-  Label promote_scheduled_exception;
+  Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -4501,10 +4501,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    __ Mov(scratch, ER::scheduled_exception_address(isolate));
+    __ Mov(scratch, ER::pending_exception_address(isolate));
     __ Ldr(scratch, MemOperand(scratch));
-    __ JumpIfNotRoot(scratch, RootIndex::kTheHoleValue,
-                     &promote_scheduled_exception);
+    __ JumpIfNotRoot(scratch, RootIndex::kTheHoleValue, &propagate_exception);
   }
 
   {
@@ -4541,9 +4540,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ B(&done_api_call);
   }
 
-  __ RecordComment("Re-throw by promoting a scheduled exception.");
-  __ Bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
+  __ RecordComment("An exception was thrown. Propagate it.");
+  __ Bind(&propagate_exception);
+  __ TailCallRuntime(Runtime::kPropagateException);
 
   {
     ASM_CODE_COMMENT_STRING(

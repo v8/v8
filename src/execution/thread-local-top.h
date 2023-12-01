@@ -29,7 +29,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 28 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -68,7 +68,7 @@ class ThreadLocalTop {
   // level as an integer, we store the stack height of the last API entry. This
   // additional information is used when we decide whether to trigger a debug
   // break at a function entry.
-  template <typename Scope>
+  template <bool clear_exception, typename Scope>
   void IncrementCallDepth(Scope* stack_allocated_scope) {
     stack_allocated_scope->previous_stack_height_ = last_api_entry_;
 #if defined(USE_SIMULATOR) || defined(V8_USE_ADDRESS_SANITIZER)
@@ -76,6 +76,11 @@ class ThreadLocalTop {
 #else
     last_api_entry_ = reinterpret_cast<i::Address>(stack_allocated_scope);
 #endif
+    if constexpr (clear_exception) {
+      pending_exception_ = Tagged<Object>(
+          Internals::GetRoot(reinterpret_cast<v8::Isolate*>(isolate_),
+                             Internals::kTheHoleValueRootIndex));
+    }
   }
 
 #if defined(USE_SIMULATOR) || defined(V8_USE_ADDRESS_SANITIZER)
@@ -109,19 +114,18 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
+
+  // TODO(all): Combine into a bitfield.
   uintptr_t num_frames_above_pending_handler_;
+  // Wasm Stack Switching: The central stack.
+  // If set, then we are currently executing code on the central stack.
+  uint8_t is_on_central_stack_flag_;
+  uint8_t rethrowing_message_;
 
   Address last_api_entry_;
 
   // Communication channel between Isolate::Throw and message consumers.
   Tagged<Object> pending_message_ = Smi::zero();
-  bool rethrowing_message_;
-
-  // Use a separate value for scheduled exceptions to preserve the
-  // invariants that hold about pending_exception.  We may want to
-  // unify them later.
-  bool external_caught_exception_;
-  Tagged<Object> scheduled_exception_ = Smi::zero();
 
   // Stack.
   // The frame pointer of the top c entry frame.
@@ -147,9 +151,6 @@ class ThreadLocalTop {
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_;
 
-  // Wasm Stack Switching: The central stack.
-  // If set, then we are currently executing code on the central stack.
-  uint8_t is_on_central_stack_flag_;
   // On switching from the central stack these fields are set
   // to the central stack's SP and stack limit accordingly,
   // to use for switching from secondary stacks.

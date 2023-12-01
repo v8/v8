@@ -6003,7 +6003,6 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
         CHECK(result.IsEmpty());
-        CHECK(!CcTest::i_isolate()->has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
       }
@@ -10933,7 +10932,6 @@ THREADED_TEST(SetPrototypeThrows) {
   v8::TryCatch try_catch(isolate);
   CHECK(o1->SetPrototype(context.local(), o0).IsNothing());
   CHECK(!try_catch.HasCaught());
-  CHECK(!CcTest::i_isolate()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")
                    ->Int32Value(context.local())
@@ -12051,8 +12049,6 @@ static void ThrowingCallbackWithTryCatch(
   try_catch.SetVerbose(true);
   CompileRun("throw 'from JS';");
   CHECK(try_catch.HasCaught());
-  CHECK(!CcTest::i_isolate()->has_pending_exception());
-  CHECK(!CcTest::i_isolate()->has_scheduled_exception());
 }
 
 
@@ -24176,10 +24172,9 @@ TEST(ImportFromSyntheticModuleThrow) {
   Local<v8::Promise> promise(
       Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
   CHECK_EQ(promise->State(), v8::Promise::kRejected);
-  CHECK_EQ(promise->Result(), try_catch.Exception());
 
   CHECK_EQ(module->GetStatus(), Module::kErrored);
-  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.HasCaught());
 }
 
 namespace {

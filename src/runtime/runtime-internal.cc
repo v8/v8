@@ -207,10 +207,11 @@ RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   return isolate->UnwindAndFindHandler();
 }
 
-RUNTIME_FUNCTION(Runtime_PromoteScheduledException) {
+RUNTIME_FUNCTION(Runtime_PropagateException) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->PromoteScheduledException();
+  DCHECK(isolate->has_pending_exception());
+  return ReadOnlyRoots(isolate).exception();
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {

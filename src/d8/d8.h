@@ -508,7 +508,7 @@ class Shell : public i::AllStatic {
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
                               Local<Value> exception);
-  static void ReportException(Isolate* isolate, TryCatch* try_catch);
+  static void ReportException(Isolate* isolate, const TryCatch& try_catch);
   static MaybeLocal<String> ReadFile(Isolate* isolate, const char* name,
                                      bool should_throw = true);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,

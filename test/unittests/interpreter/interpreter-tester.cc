@@ -48,7 +48,6 @@ Local<Message> InterpreterTester::CheckThrowsReturnMessage() {
   CHECK(isolate_->has_pending_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate_->OptionalRescheduleException(true);
   CHECK(!try_catch.Message().IsEmpty());
   return try_catch.Message();
 }

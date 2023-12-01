@@ -1223,8 +1223,8 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
     result = args.CallNamedGetter(interceptor, it->name());
   }
 
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, args,
-                                               MaybeHandle<Object>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args,
+                                             MaybeHandle<Object>());
   if (result.is_null()) return isolate->factory()->undefined_value();
   *done = true;
   args.AcceptSideEffects();
@@ -1283,8 +1283,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     }
   }
 
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, args,
-                                               Nothing<PropertyAttributes>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args,
+                                             Nothing<PropertyAttributes>());
   return Just(ABSENT);
 }
 
@@ -1318,8 +1318,8 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
     result = !args.CallNamedSetter(interceptor, it->name(), value).is_null();
   }
 
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(it->isolate(), args,
-                                               Nothing<bool>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(it->isolate(), args,
+                                             Nothing<bool>());
   if (result) args.AcceptSideEffects();
   return Just(result);
 }
@@ -1393,8 +1393,8 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
         !args.CallNamedDefiner(interceptor, it->name(), *descriptor).is_null();
   }
 
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(it->isolate(), args,
-                                               Nothing<bool>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(it->isolate(), args,
+                                             Nothing<bool>());
   if (result) args.AcceptSideEffects();
   return Just(result);
 }
@@ -1852,7 +1852,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
     result = args.CallNamedDescriptor(interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
   if (!result.is_null()) {
     // Request was successfully intercepted, try to set the property
     // descriptor.
@@ -4037,7 +4037,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
     result = args.CallNamedDeleter(interceptor, it->name());
   }
 
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
   if (result.is_null()) return Nothing<bool>();
 
   DCHECK(IsBoolean(*result));

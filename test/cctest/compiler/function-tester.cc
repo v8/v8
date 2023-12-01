@@ -55,7 +55,6 @@ void FunctionTester::CheckThrows(Handle<Object> a) {
   CHECK(isolate->has_pending_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
 }
 
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
@@ -64,7 +63,6 @@ void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
   CHECK(isolate->has_pending_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
 }
 
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
@@ -74,7 +72,6 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
   CHECK(isolate->has_pending_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
   CHECK(!try_catch.Message().IsEmpty());
   return try_catch.Message();
 }

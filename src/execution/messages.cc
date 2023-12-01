@@ -123,9 +123,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
   }
 
   Isolate::ExceptionScope exception_scope(isolate);
-  isolate->clear_pending_exception();
   isolate->clear_pending_message();
-  isolate->set_external_caught_exception(false);
 
   // Turn the exception on the message into a string if it is an object.
   if (IsJSObject(message->argument())) {
@@ -146,10 +144,6 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     }
 
     if (!maybe_stringified.ToHandle(&stringified)) {
-      DCHECK(isolate->has_pending_exception());
-      isolate->clear_pending_exception();
-      isolate->clear_pending_message();
-      isolate->set_external_caught_exception(false);
       stringified = isolate->factory()->exception_string();
     }
     message->set_argument(*stringified);
@@ -169,8 +163,8 @@ void MessageHandler::ReportMessageNoExceptions(
   int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
-    if (isolate->has_scheduled_exception()) {
-      isolate->clear_scheduled_exception();
+    if (isolate->has_pending_exception()) {
+      isolate->clear_pending_exception();
     }
   } else {
     for (int i = 0; i < global_length; i++) {
@@ -194,8 +188,8 @@ void MessageHandler::ReportMessageNoExceptions(
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));
       }
-      if (isolate->has_scheduled_exception()) {
-        isolate->clear_scheduled_exception();
+      if (isolate->has_pending_exception()) {
+        isolate->clear_pending_exception();
       }
     }
   }
@@ -251,25 +245,23 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     // exception instead.
 
     DCHECK(isolate->has_pending_exception());
-    if (isolate->is_execution_termination_pending()) {
+    if (isolate->is_execution_terminating()) {
       return {};
     }
     Handle<Object> pending_exception =
         handle(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
     isolate->clear_pending_message();
-    isolate->set_external_caught_exception(false);
 
     err_str = ErrorUtils::ToString(isolate, pending_exception);
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_pending_exception());
-      if (isolate->is_execution_termination_pending()) {
+      if (isolate->is_execution_terminating()) {
         return {};
       }
       isolate->clear_pending_exception();
       isolate->clear_pending_message();
-      isolate->set_external_caught_exception(false);
       builder->AppendCStringLiteral("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
@@ -397,7 +389,6 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
       isolate->clear_pending_message();
-      isolate->set_external_caught_exception(false);
 
       MaybeHandle<String> exception_string =
           ErrorUtils::ToString(isolate, pending_exception);

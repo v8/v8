@@ -186,62 +186,54 @@ namespace wasm {
 class WasmCodeLookupCache;
 }
 
-#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
-  do {                                                 \
-    Isolate* __isolate__ = (isolate);                  \
-    DCHECK(!__isolate__->has_pending_exception());     \
-    if (__isolate__->has_scheduled_exception()) {      \
-      return __isolate__->PromoteScheduledException(); \
-    }                                                  \
+#define RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate) \
+  do {                                               \
+    Isolate* __isolate__ = (isolate);                \
+    if (__isolate__->has_pending_exception()) {      \
+      return ReadOnlyRoots(__isolate__).exception(); \
+    }                                                \
   } while (false)
 
-#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector) \
-  do {                                                                    \
-    Isolate* __isolate__ = (isolate);                                     \
-    DCHECK(!__isolate__->has_pending_exception());                        \
-    if (__isolate__->has_scheduled_exception()) {                         \
-      detector.AcceptSideEffects();                                       \
-      return __isolate__->PromoteScheduledException();                    \
-    }                                                                     \
+#define RETURN_FAILURE_IF_PENDING_EXCEPTION_DETECTOR(isolate, detector) \
+  do {                                                                  \
+    Isolate* __isolate__ = (isolate);                                   \
+    if (__isolate__->has_pending_exception()) {                         \
+      detector.AcceptSideEffects();                                     \
+      return ReadOnlyRoots(__isolate__).exception();                    \
+    }                                                                   \
   } while (false)
 
 // Macros for MaybeHandle.
 
-#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, value) \
-  do {                                                      \
-    Isolate* __isolate__ = (isolate);                       \
-    DCHECK(!__isolate__->has_pending_exception());          \
-    if (__isolate__->has_scheduled_exception()) {           \
-      __isolate__->PromoteScheduledException();             \
-      return value;                                         \
-    }                                                       \
+#define RETURN_VALUE_IF_PENDING_EXCEPTION(isolate, value) \
+  do {                                                    \
+    Isolate* __isolate__ = (isolate);                     \
+    if (__isolate__->has_pending_exception()) {           \
+      return value;                                       \
+    }                                                     \
   } while (false)
 
-#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector, value) \
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate,                                 \
-                                      (detector.AcceptSideEffects(), value))
+#define RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate, detector, value) \
+  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate,                                 \
+                                    (detector.AcceptSideEffects(), value))
 
-#define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
+#define RETURN_EXCEPTION_IF_PENDING_EXCEPTION(isolate, T) \
+  RETURN_VALUE_IF_PENDING_EXCEPTION(isolate, MaybeHandle<T>())
 
-#define ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                        \
-    Isolate* __isolate__ = (isolate);                                         \
-    if (!(call).ToLocal(&dst)) {                                              \
-      DCHECK(__isolate__->has_scheduled_exception());                         \
-      __isolate__->PromoteScheduledException();                               \
-      return value;                                                           \
-    }                                                                         \
+#define ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                      \
+    if (!(call).ToLocal(&dst)) {                                            \
+      DCHECK((isolate)->has_pending_exception());                           \
+      return value;                                                         \
+    }                                                                       \
   } while (false)
 
-#define RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                            \
-    Isolate* __isolate__ = (isolate);                             \
-    if ((call).IsNothing()) {                                     \
-      DCHECK(__isolate__->has_scheduled_exception());             \
-      __isolate__->PromoteScheduledException();                   \
-      return value;                                               \
-    }                                                             \
+#define RETURN_ON_PENDING_EXCEPTION_VALUE(isolate, call, value) \
+  do {                                                          \
+    if ((call).IsNothing()) {                                   \
+      DCHECK((isolate)->has_pending_exception());               \
+      return value;                                             \
+    }                                                           \
   } while (false)
 
 /**
@@ -816,13 +808,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_sp)
   THREAD_LOCAL_TOP_ADDRESS(uintptr_t, num_frames_above_pending_handler)
 
-  THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
-
   v8::TryCatch* try_catch_handler() {
     return thread_local_top()->try_catch_handler_;
   }
-
-  THREAD_LOCAL_TOP_ADDRESS(bool, external_caught_exception)
 
   // Interface to pending exception.
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_exception)
@@ -836,12 +824,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Tagged<Object> pending_message();
   inline bool has_pending_message();
   inline void set_pending_message(Tagged<Object> message_obj);
-
-  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, scheduled_exception)
-  inline Tagged<Object> scheduled_exception();
-  inline bool has_scheduled_exception();
-  inline void clear_scheduled_exception();
-  inline void set_scheduled_exception(Tagged<Object> exception);
 
 #ifdef DEBUG
   inline Tagged<Object> VerifyBuiltinsResult(Tagged<Object> result);
@@ -859,7 +841,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline bool is_catchable_by_javascript(Tagged<Object> exception);
   inline bool is_catchable_by_wasm(Tagged<Object> exception);
   inline bool is_execution_terminating();
-  inline bool is_execution_termination_pending();
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -922,12 +903,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top()->Free(); }
-
-  // This method is called by the api after operations that may throw
-  // exceptions.  If an exception was thrown and not handled by an external
-  // handler the exception is scheduled to be rethrown when we return to running
-  // JavaScript code.  If an exception is scheduled true is returned.
-  bool OptionalRescheduleException(bool clear_exception);
 
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
@@ -1006,11 +981,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReportFailedAccessCheck(
       Handle<JSObject> receiver);
 
-  // Exception throwing support. The caller should use the result
-  // of Throw() as its return value.
-  Tagged<Object> Throw(Tagged<Object> exception) {
-    return ThrowInternal(exception, nullptr);
-  }
+  // Exception throwing support. The caller should use the result of Throw() as
+  // its return value. Returns the Exception sentinel.
+  Tagged<Object> Throw(Tagged<Object> exception,
+                       MessageLocation* location = nullptr);
   Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
 
@@ -1073,16 +1047,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   CatchType PredictExceptionCatcher();
   CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
 
-  void ScheduleThrow(Tagged<Object> exception);
-  // Re-set pending message, script and positions reported to the TryCatch
-  // back to the TLS for re-use when rethrowing.
-  void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
-  // Un-schedule an exception that was caught by a TryCatch handler.
-  void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
-  void ReportPendingMessages();
-
-  // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Tagged<Object> PromoteScheduledException();
+  void ReportPendingMessages(bool report = true);
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter. The source location is attached to a
@@ -2318,9 +2283,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void AddCrashKeysForIsolateAndHeapPointers();
 
-  // Returns the Exception sentinel.
-  Tagged<Object> ThrowInternal(Tagged<Object> exception,
-                               MessageLocation* location);
 #if V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack(Address addr);
 #else

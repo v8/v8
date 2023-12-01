@@ -155,11 +155,11 @@ namespace {
   Local<type> var;                                       \
   do {                                                   \
     if (!expr.ToLocal(&var)) {                           \
-      DCHECK(i_isolate->has_scheduled_exception());      \
+      DCHECK(i_isolate->has_pending_exception());        \
       return;                                            \
     } else {                                             \
       if (i_isolate->is_execution_terminating()) return; \
-      DCHECK(!i_isolate->has_scheduled_exception());     \
+      DCHECK(!i_isolate->has_pending_exception());       \
     }                                                    \
   } while (false)
 
@@ -865,7 +865,7 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::JSObject> instance_obj;
   if (!maybe_instance_obj.ToHandle(&instance_obj)) {
-    DCHECK(i_isolate->has_scheduled_exception());
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
 
@@ -1232,7 +1232,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0,
                                    i::wasm::max_table_init_entries())) {
-    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
   // The descriptor's 'maximum'.
@@ -1242,7 +1242,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                   v8_str(isolate, "maximum"), &has_maximum,
                                   &maximum, initial,
                                   std::numeric_limits<uint32_t>::max())) {
-    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
 
@@ -1325,7 +1325,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Value> index_value;
   if (!descriptor->Get(context, v8_str(isolate, "index"))
            .ToLocal(&index_value)) {
-    DCHECK(i_isolate->has_scheduled_exception());
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
 
@@ -1333,7 +1333,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!index_value->IsUndefined()) {
     v8::Local<v8::String> index;
     if (!index_value->ToString(context).ToLocal(&index)) {
-      DCHECK(i_isolate->has_scheduled_exception());
+      DCHECK(i_isolate->has_pending_exception());
       return;
     }
     if (index->StringEquals(v8_str(isolate, "i64"))) {
@@ -1351,7 +1351,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
                                    &initial, 0, max_supported_pages)) {
-    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
 
@@ -1360,14 +1360,14 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
                                   initial, max_supported_pages)) {
-    DCHECK(i_isolate->has_scheduled_exception() || thrower.error());
+    DCHECK(i_isolate->has_pending_exception() || thrower.error());
     return;
   }
 
   // Parse the 'shared' property of the descriptor.
   v8::Local<v8::Value> value;
   if (!descriptor->Get(context, v8_str(isolate, "shared")).ToLocal(&value)) {
-    DCHECK(i_isolate->has_scheduled_exception());
+    DCHECK(i_isolate->has_pending_exception());
     return;
   }
 
@@ -1542,7 +1542,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (maybe.ToLocal(&value)) {
       is_mutable = value->BooleanValue(isolate);
     } else {
-      DCHECK(i_isolate->has_scheduled_exception());
+      DCHECK(i_isolate->has_pending_exception());
       return;
     }
   }
@@ -1804,7 +1804,7 @@ void EncodeExceptionValues(v8::Isolate* isolate,
   for (int i = 0; i < signature->length(); ++i) {
     MaybeLocal<Value> maybe_value = values->Get(context, i);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    if (i_isolate->has_scheduled_exception()) return;
+    if (i_isolate->has_pending_exception()) return;
     Local<Value> value = maybe_value.ToLocalChecked();
     i::wasm::ValueType type = signature->get(i);
     switch (type.kind()) {

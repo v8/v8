@@ -2362,20 +2362,16 @@ bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
 base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
-  // Temporarily clear any scheduled_exception to allow evaluating
+  // Temporarily clear any pending_exception to allow evaluating
   // JavaScript from the debug event handler.
   HandleScope scope(isolate_);
-  Handle<Object> scheduled_exception;
-  if (isolate_->has_scheduled_exception()) {
-    scheduled_exception = handle(isolate_->scheduled_exception(), isolate_);
-    isolate_->clear_scheduled_exception();
-  }
-  Handle<Object> maybe_promise = isolate_->GetPromiseOnStackOnThrow();
-  OnException(exception, maybe_promise,
-              IsJSPromise(*maybe_promise) ? v8::debug::kPromiseRejection
-                                          : v8::debug::kException);
-  if (!scheduled_exception.is_null()) {
-    isolate_->set_scheduled_exception(*scheduled_exception);
+  {
+    base::Optional<Isolate::ExceptionScope> exception_scope;
+    if (isolate_->has_pending_exception()) exception_scope.emplace(isolate_);
+    Handle<Object> maybe_promise = isolate_->GetPromiseOnStackOnThrow();
+    OnException(exception, maybe_promise,
+                IsJSPromise(*maybe_promise) ? v8::debug::kPromiseRejection
+                                            : v8::debug::kException);
   }
   PrepareStepOnThrow();
   // If the OnException handler requested termination, then indicated this to
@@ -3006,7 +3002,7 @@ void Debug::StopSideEffectCheckMode() {
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
     DCHECK_IMPLIES(v8_flags.strict_termination_checks,
-                   isolate_->is_execution_termination_pending());
+                   isolate_->is_execution_terminating());
     // Convert the termination exception into a regular exception.
     isolate_->CancelTerminateExecution();
     isolate_->Throw(*isolate_->factory()->NewEvalError(
@@ -3124,7 +3120,6 @@ bool Debug::PerformSideEffectCheckForAccessor(
     case SideEffectType::kHasSideEffectToReceiver:
       DCHECK(!receiver.is_null());
       if (PerformSideEffectCheckForObject(receiver)) return true;
-      isolate_->OptionalRescheduleException(false);
       return false;
 
     case SideEffectType::kHasSideEffect:
@@ -3139,7 +3134,6 @@ bool Debug::PerformSideEffectCheckForAccessor(
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
   isolate_->TerminateExecution();
-  isolate_->OptionalRescheduleException(false);
   return false;
 }
 
@@ -3179,7 +3173,6 @@ bool Debug::PerformSideEffectCheckForCallback(
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
   isolate_->TerminateExecution();
-  isolate_->OptionalRescheduleException(false);
   return false;
 }
 
@@ -3199,7 +3192,6 @@ bool Debug::PerformSideEffectCheckForInterceptor(
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
   isolate_->TerminateExecution();
-  isolate_->OptionalRescheduleException(false);
   return false;
 }
 

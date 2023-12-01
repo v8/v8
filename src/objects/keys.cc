@@ -742,8 +742,8 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
       result = enum_args.CallNamedEnumerator(interceptor);
     }
   }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate_, enum_args,
-                                               Nothing<bool>());
+  RETURN_VALUE_IF_PENDING_EXCEPTION_DETECTOR(isolate_, enum_args,
+                                             Nothing<bool>());
   if (result.is_null()) return Just(true);
 
   // Request was successfully intercepted, so accept potential side effects

@@ -905,8 +905,8 @@ i::Address* HandleScope::CreateHandle(i::Isolate* i_isolate, i::Address value) {
 }
 
 #ifdef V8_ENABLE_DIRECT_LOCAL
-
-i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
+/ THROW_NEW_ERROR_RETURN_VALUE i::Address*
+    HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
   i::Isolate* i_isolate = i::Isolate::Current();
   return i::HandleScope::CreateHandle(i_isolate, value);
 }
@@ -2992,8 +2992,7 @@ v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
-      rethrow_(false),
-      has_terminated_(false) {
+      rethrow_(false) {
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ = static_cast<internal::Address>(
@@ -3001,34 +3000,36 @@ v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
   i_isolate_->RegisterTryCatchHandler(this);
 }
 
+namespace {
+
+i::Tagged<i::Object> ToObject(void* object) {
+  return i::Tagged<i::Object>(reinterpret_cast<i::Address>(object));
+}
+
+}  // namespace
+
 v8::TryCatch::~TryCatch() {
-  if (rethrow_) {
-    v8::Isolate* v8_isolate = reinterpret_cast<Isolate*>(i_isolate_);
-    v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Value> exc =
-        v8::Local<v8::Value>::New(v8_isolate, Exception());
-    if (HasCaught() && capture_message_) {
-      // If an exception was caught and rethrow_ is indicated, the saved
-      // message, script, and location need to be restored to Isolate TLS
-      // for reuse.  capture_message_ needs to be disabled so that Throw()
-      // does not create a new message.
-      i_isolate_->thread_local_top()->rethrowing_message_ = true;
-      i_isolate_->RestorePendingMessageFromTryCatch(this);
+  if (HasCaught()) {
+    if (rethrow_ || (V8_UNLIKELY(HasTerminated()) &&
+                     !i_isolate_->thread_local_top()->CallDepthIsZero())) {
+      if (capture_message_) {
+        // If an exception was caught and rethrow_ is indicated, the saved
+        // message, script, and location need to be restored to Isolate TLS
+        // for reuse.  capture_message_ needs to be disabled so that Throw()
+        // does not create a new message.
+        i_isolate_->thread_local_top()->rethrowing_message_ = true;
+        i_isolate_->set_pending_message(ToObject(message_obj_));
+      }
+      i_isolate_->UnregisterTryCatchHandler(this);
+      i_isolate_->clear_pending_exception();
+      i_isolate_->Throw(ToObject(exception_));
+      return;
     }
-    i_isolate_->UnregisterTryCatchHandler(this);
-    i::SimulatorStack::UnregisterJSStackComparableAddress(i_isolate_);
-    reinterpret_cast<v8::Isolate*>(i_isolate_)->ThrowException(exc);
-    DCHECK(!i_isolate_->thread_local_top()->rethrowing_message_);
-  } else {
-    if (HasCaught() && i_isolate_->has_scheduled_exception()) {
-      // If an exception was caught but is still scheduled because no API call
-      // promoted it, then it is canceled to prevent it from being propagated.
-      // Note that this will not cancel termination exceptions.
-      i_isolate_->CancelScheduledExceptionFromTryCatch(this);
-    }
-    i_isolate_->UnregisterTryCatchHandler(this);
-    i::SimulatorStack::UnregisterJSStackComparableAddress(i_isolate_);
+    Reset();
   }
+  i_isolate_->UnregisterTryCatchHandler(this);
+  DCHECK_IMPLIES(rethrow_,
+                 !i_isolate_->thread_local_top()->rethrowing_message_);
 }
 
 void* v8::TryCatch::operator new(size_t) { base::OS::Abort(); }
@@ -3037,14 +3038,15 @@ void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 void v8::TryCatch::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
-  return !IsTheHole(
-      i::Tagged<i::Object>(reinterpret_cast<i::Address>(exception_)),
-      i_isolate_);
+  return !IsTheHole(ToObject(exception_), i_isolate_);
 }
 
 bool v8::TryCatch::CanContinue() const { return can_continue_; }
 
-bool v8::TryCatch::HasTerminated() const { return has_terminated_; }
+bool v8::TryCatch::HasTerminated() const {
+  return ToObject(exception_) ==
+         i::ReadOnlyRoots(i_isolate_).termination_exception();
+}
 
 v8::Local<v8::Value> v8::TryCatch::ReThrow() {
   if (!HasCaught()) return v8::Local<v8::Value>();
@@ -3053,13 +3055,11 @@ v8::Local<v8::Value> v8::TryCatch::ReThrow() {
 }
 
 v8::Local<Value> v8::TryCatch::Exception() const {
-  if (HasCaught()) {
-    // Check for out of memory exception.
-    i::Tagged<i::Object> exception(reinterpret_cast<i::Address>(exception_));
-    return v8::Utils::ToLocal(i::Handle<i::Object>(exception, i_isolate_));
-  } else {
-    return v8::Local<Value>();
+  if (!HasCaught()) return v8::Local<Value>();
+  if (HasTerminated()) {
+    return v8::Utils::ToLocal(i::ReadOnlyRoots(i_isolate_).null_value_handle());
   }
+  return v8::Utils::ToLocal(i::handle(ToObject(exception_), i_isolate_));
 }
 
 MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
@@ -3086,7 +3086,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
 }
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
-  i::Tagged<i::Object> message(reinterpret_cast<i::Address>(message_obj_));
+  i::Tagged<i::Object> message = ToObject(message_obj_);
   DCHECK(IsJSMessageObject(message) || IsTheHole(message, i_isolate_));
   if (HasCaught() && !IsTheHole(message, i_isolate_)) {
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, i_isolate_));
@@ -3096,12 +3096,13 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 }
 
 void v8::TryCatch::Reset() {
-  if (!rethrow_ && HasCaught() && i_isolate_->has_scheduled_exception()) {
-    // If an exception was caught but is still scheduled because no API call
-    // promoted it, then it is canceled to prevent it from being propagated.
-    // Note that this will not cancel termination exceptions.
-    i_isolate_->CancelScheduledExceptionFromTryCatch(this);
+  if (rethrow_) return;
+  if (V8_UNLIKELY(i_isolate_->is_execution_terminating()) &&
+      !i_isolate_->thread_local_top()->CallDepthIsZero()) {
+    return;
   }
+  i_isolate_->clear_pending_exception();
+  i_isolate_->clear_pending_message();
   ResetInternal();
 }
 
@@ -3475,10 +3476,11 @@ SharedValueConveyor::SharedValueConveyor(Isolate* v8_isolate)
 Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
                                                        Local<Object> object) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
-      i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
-      Utils::OpenHandle(*object)));
-  return Nothing<bool>();
+  THROW_NEW_ERROR_RETURN_VALUE(
+      i_isolate,
+      NewError(i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
+               Utils::OpenHandle(*object)),
+      Nothing<bool>());
 }
 
 bool ValueSerializer::Delegate::HasCustomHostObject(Isolate* v8_isolate) {
@@ -3497,7 +3499,7 @@ Maybe<bool> ValueSerializer::Delegate::IsHostObject(Isolate* v8_isolate,
 Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
     Isolate* v8_isolate, Local<SharedArrayBuffer> shared_array_buffer) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
       Utils::OpenHandle(*shared_array_buffer)));
   return Nothing<uint32_t>();
@@ -3511,7 +3513,7 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
 bool ValueSerializer::Delegate::AdoptSharedValueConveyor(
     Isolate* v8_isolate, SharedValueConveyor&& conveyor) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
       i_isolate->factory()->NewStringFromAsciiChecked("shared value")));
   return false;
@@ -3590,7 +3592,7 @@ void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
 MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
     Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return MaybeLocal<Object>();
@@ -3599,7 +3601,7 @@ MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
 MaybeLocal<WasmModuleObject> ValueDeserializer::Delegate::GetWasmModuleFromId(
     Isolate* v8_isolate, uint32_t id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return MaybeLocal<WasmModuleObject>();
@@ -3609,7 +3611,7 @@ MaybeLocal<SharedArrayBuffer>
 ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
                                                         uint32_t id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return MaybeLocal<SharedArrayBuffer>();
@@ -3618,7 +3620,7 @@ ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
 const SharedValueConveyor* ValueDeserializer::Delegate::GetSharedValueConveyor(
     Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+  i_isolate->Throw(*i_isolate->factory()->NewError(
       i_isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return nullptr;
@@ -4834,11 +4836,8 @@ Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     auto result =
         i::JSObject::SetPrototype(i_isolate, i::Handle<i::JSObject>::cast(self),
-                                  value_obj, false, i::kThrowOnError);
-    if (result.IsNothing()) {
-      i_isolate->clear_pending_exception();
-      return Nothing<bool>();
-    }
+                                  value_obj, false, i::kDontThrow);
+    if (!result.FromJust()) return Nothing<bool>();
   }
   return Just(true);
 }
@@ -6716,11 +6715,7 @@ Local<Context> NewContext(
   i::Handle<i::NativeContext> env = CreateEnvironment<i::NativeContext>(
       i_isolate, extensions, global_template, global_object,
       context_snapshot_index, embedder_fields_deserializer, microtask_queue);
-  if (env.is_null()) {
-    if (i_isolate->has_pending_exception())
-      i_isolate->clear_pending_exception();
-    return Local<Context>();
-  }
+  if (env.is_null()) return Local<Context>();
   return Utils::ToLocal(scope.CloseAndEscape(env));
 }
 
@@ -7385,9 +7380,6 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
   if (!i::ApiNatives::InstantiateRemoteObject(
            Utils::OpenHandle(*InstanceTemplate()))
            .ToHandle(&object)) {
-    if (i_isolate->has_pending_exception()) {
-      i_isolate->OptionalRescheduleException(true);
-    }
     return MaybeLocal<Object>();
   }
   return Utils::ToLocal(scope.CloseAndEscape(object));
@@ -8082,10 +8074,8 @@ MaybeLocal<v8::Array> v8::Array::New(
     MaybeLocal<v8::Value> maybe_value = next_value_callback();
     // The embedder may signal to abort creation on exception via an empty
     // local.
-    DCHECK(!i_isolate->has_pending_exception());
     if (!maybe_value.ToLocal(&value)) {
-      CHECK(!i_isolate->has_pending_exception());
-      CHECK(i_isolate->has_scheduled_exception());
+      CHECK(i_isolate->has_pending_exception());
       return {};
     }
     backing->set(i, *Utils::OpenDirectHandle(*value));
@@ -8798,7 +8788,6 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
   if (maybe_compiled.is_null()) {
-    i_isolate->OptionalRescheduleException(false);
     return MaybeLocal<WasmModuleObject>();
   }
   return Local<WasmModuleObject>::Cast(
@@ -9429,12 +9418,13 @@ v8::Local<Value> Isolate::ThrowError(v8::Local<v8::String> message) {
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_BASIC(i_isolate);
+  i_isolate->clear_pending_exception();
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    i_isolate->ScheduleThrow(i::ReadOnlyRoots(i_isolate).undefined_value());
+    i_isolate->Throw(i::ReadOnlyRoots(i_isolate).undefined_value());
   } else {
-    i_isolate->ScheduleThrow(*Utils::OpenDirectHandle(*value));
+    i_isolate->Throw(*Utils::OpenDirectHandle(*value));
   }
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
 }
@@ -9823,7 +9813,7 @@ Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
       microtask_queue_(microtask_queue
                            ? static_cast<i::MicrotaskQueue*>(microtask_queue)
                            : i_isolate_->default_microtask_queue()) {
-  i_isolate_->thread_local_top()->IncrementCallDepth(this);
+  i_isolate_->thread_local_top()->IncrementCallDepth<true>(this);
   microtask_queue_->IncrementMicrotasksSuppressions();
 }
 
@@ -10429,9 +10419,6 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
                                           Utils::OpenHandle(*context));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->OptionalRescheduleException(false);
-  }
 }
 
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
@@ -10608,10 +10595,10 @@ MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
     if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy() &&
-        !i_isolate_->has_scheduled_exception()) {
+        !i_isolate_->has_pending_exception()) {
       microtask_queue_->PerformCheckpoint(
           reinterpret_cast<Isolate*>(i_isolate_));
-      DCHECK_IMPLIES(i_isolate_->has_scheduled_exception(),
+      DCHECK_IMPLIES(i_isolate_->has_pending_exception(),
                      i_isolate_->is_execution_terminating());
     }
   }
@@ -11699,12 +11686,9 @@ void InvokeFinalizationRegistryCleanupFromTask(
   CallDepthScope<true> call_depth_scope(i_isolate, api_context);
   VMState<OTHER> state(i_isolate);
   Handle<Object> argv[] = {callback};
-  if (Execution::CallBuiltin(i_isolate,
+  USE(Execution::CallBuiltin(i_isolate,
                              i_isolate->finalization_registry_cleanup_some(),
-                             finalization_registry, arraysize(argv), argv)
-          .is_null()) {
-    call_depth_scope.Escape();
-  }
+                             finalization_registry, arraysize(argv), argv));
 }
 
 template <>

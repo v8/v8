@@ -3381,7 +3381,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
                                       Nothing<ShouldThrow>());
   arguments.CallAccessorSetter(info, name, value);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_PENDING_EXCEPTION(isolate);
   return *value;
 }
 
@@ -3408,7 +3408,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
     Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
 
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+    RETURN_FAILURE_IF_PENDING_EXCEPTION_DETECTOR(isolate, arguments);
 
     if (!result.is_null()) {
       arguments.AcceptSideEffects();
@@ -3474,7 +3474,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
                                         *receiver, Just(kDontThrow));
 
     Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+    RETURN_FAILURE_IF_PENDING_EXCEPTION_DETECTOR(isolate, arguments);
     if (!result.is_null()) return *value;
     // If the interceptor didn't handle the request, then there must be no
     // side effects.
@@ -3508,7 +3508,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
                                       *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+  RETURN_FAILURE_IF_PENDING_EXCEPTION_DETECTOR(isolate, arguments);
 
   if (result.is_null()) {
     LookupIterator it(isolate, receiver, index, receiver);

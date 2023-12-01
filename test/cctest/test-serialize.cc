@@ -4582,6 +4582,7 @@ UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
     v8::TryCatch try_catch(isolate);
     CompileRun("str = 'this.#nonexistent'; (new ClassWithEval()).field");
     CHECK(try_catch.HasCaught());
+    try_catch.Reset();
     ExpectInt32("str = 'this.#field'; (new ClassWithPrivateAndEval()).field",
                 42);
   }

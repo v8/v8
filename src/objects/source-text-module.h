@@ -215,7 +215,8 @@ class SourceTextModule
       Handle<JSPromise> capability);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
-      Isolate* isolate, Handle<SourceTextModule> module);
+      Isolate* isolate, Handle<SourceTextModule> module,
+      MaybeHandle<Object>* exception_out);
 
   // Implementation of spec ExecuteAsyncModule. Return Nothing if the execution
   // is been terminated.

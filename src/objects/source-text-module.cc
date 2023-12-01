@@ -339,7 +339,6 @@ bool SourceTextModule::PrepareInstantiate(
                     v8::Utils::FixedArrayToLocal(import_assertions),
                     v8::Utils::ToLocal(Handle<Module>::cast(module)))
                .ToLocal(&api_requested_module)) {
-        isolate->PromoteScheduledException();
         return false;
       }
     } else {
@@ -347,7 +346,6 @@ bool SourceTextModule::PrepareInstantiate(
                context, v8::Utils::ToLocal(specifier),
                v8::Utils::ToLocal(Handle<Module>::cast(module)))
                .ToLocal(&api_requested_module)) {
-        isolate->PromoteScheduledException();
         return false;
       }
     }
@@ -729,14 +727,13 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
 
   // 8. Let result be InnerModuleEvaluation(module, stack, 0).
   // 9. If result is an abrupt completion, then
-  Handle<Object> unused_result;
-  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)
-           .ToHandle(&unused_result)) {
+  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  // TODO(verwaest): Return a bool from InnerModuleEvaluation instead?
+  if (InnerModuleEvaluation(isolate, module, &stack, &dfs_index).is_null()) {
     if (!module->MaybeHandleEvaluationException(isolate, &stack)) return {};
-    CHECK_EQ(module->exception(), isolate->pending_exception());
+    CHECK(try_catch.HasCaught());
     //  d. Perform ! Call(capability.[[Reject]], undefined,
     //                    «result.[[Value]]»).
-    isolate->clear_pending_exception();
     JSPromise::Reject(capability, handle(module->exception(), isolate));
   } else {
     // 10. Otherwise,
@@ -830,11 +827,10 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
       //   a. Let _result_ be m.ExecuteModule().
       Handle<Object> unused_result;
       //   b. If _result_ is an abrupt completion,
-      if (!ExecuteModule(isolate, m).ToHandle(&unused_result)) {
+      MaybeHandle<Object> exception;
+      if (!ExecuteModule(isolate, m, &exception).ToHandle(&unused_result)) {
         //    1. Perform ! AsyncModuleExecutionRejected(m, result.[[Value]]).
-        Handle<Object> exception(isolate->pending_exception(), isolate);
-        isolate->clear_pending_exception();
-        AsyncModuleExecutionRejected(isolate, m, exception);
+        AsyncModuleExecutionRejected(isolate, m, exception.ToHandleChecked());
       } else {
         //   c. Otherwise,
         //    1. Set m.[[AsyncEvaluating]] to false.
@@ -981,7 +977,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
     // The evaluation of async module can not throwing a JavaScript observable
     // exception.
     DCHECK_IMPLIES(v8_flags.strict_termination_checks,
-                   isolate->is_execution_termination_pending());
+                   isolate->is_execution_terminating());
     return Nothing<bool>();
   }
 
@@ -1001,17 +997,13 @@ MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
   Handle<JSFunction> resume(
       isolate->native_context()->async_module_evaluate_internal(), isolate);
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::TryCall(isolate, resume, async_function_object, 0, nullptr,
-                         Execution::MessageHandling::kKeepPending, nullptr,
-                         false),
-      Object);
-  return result;
+  return Execution::TryCall(isolate, resume, async_function_object, 0, nullptr,
+                            Execution::MessageHandling::kKeepPending, nullptr);
 }
 
 MaybeHandle<Object> SourceTextModule::ExecuteModule(
-    Isolate* isolate, Handle<SourceTextModule> module) {
+    Isolate* isolate, Handle<SourceTextModule> module,
+    MaybeHandle<Object>* exception_out) {
   // Synchronous modules have an associated JSGeneratorObject.
   Handle<JSGeneratorObject> generator(JSGeneratorObject::cast(module->code()),
                                       isolate);
@@ -1019,12 +1011,12 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
       isolate->native_context()->generator_next_internal(), isolate);
   Handle<Object> result;
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::TryCall(isolate, resume, generator, 0, nullptr,
-                         Execution::MessageHandling::kKeepPending, nullptr,
-                         false),
-      Object);
+  if (!Execution::TryCall(isolate, resume, generator, 0, nullptr,
+                          Execution::MessageHandling::kKeepPending,
+                          exception_out)
+           .ToHandle(&result)) {
+    return {};
+  }
   DCHECK(
       Object::BooleanValue(JSIteratorResult::cast(*result)->done(), isolate));
   return handle(JSIteratorResult::cast(*result)->value(), isolate);
@@ -1191,8 +1183,14 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     }
   } else {
     // 15. Otherwise, perform ? module.ExecuteModule().
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, ExecuteModule(isolate, module),
-                               Object);
+    MaybeHandle<Object> exception;
+    Handle<Object> result;
+    if (!ExecuteModule(isolate, module, &exception).ToHandle(&result)) {
+      if (!isolate->is_execution_terminating()) {
+        isolate->Throw(*exception.ToHandleChecked());
+      }
+      return result;
+    }
   }
 
   CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));

@@ -571,8 +571,6 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
                       FullObjectSlot(&thread->pending_message_));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(&thread->context_));
-  v->VisitRootPointer(Root::kStackRoots, nullptr,
-                      FullObjectSlot(&thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->try_catch_handler_; block != nullptr;
        block = block->next_) {
@@ -624,8 +622,9 @@ void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
 }
 
 void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  DCHECK(thread_local_top()->try_catch_handler_ == that);
+  DCHECK_EQ(thread_local_top()->try_catch_handler_, that);
   thread_local_top()->try_catch_handler_ = that->next_;
+  SimulatorStack::UnregisterJSStackComparableAddress(this);
 }
 
 Handle<String> Isolate::StackTraceString() {
@@ -1570,7 +1569,7 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
     thread_local_top()->failed_access_check_callback_(
         v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
   }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(this, {});
+  RETURN_VALUE_IF_PENDING_EXCEPTION(this, {});
   // Throw exception even the callback forgot to do so.
   THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
 }
@@ -1691,7 +1690,7 @@ Tagged<Object> Isolate::ThrowAt(Handle<JSObject> exception,
                       Just(ShouldThrow::kThrowOnError))
       .Check();
 
-  return ThrowInternal(*exception, location);
+  return Throw(*exception, location);
 }
 
 Tagged<Object> Isolate::TerminateExecution() {
@@ -1699,16 +1698,9 @@ Tagged<Object> Isolate::TerminateExecution() {
 }
 
 void Isolate::CancelTerminateExecution() {
-  if (try_catch_handler()) {
-    try_catch_handler()->has_terminated_ = false;
-  }
-  if (has_pending_exception() && is_execution_termination_pending()) {
-    thread_local_top()->external_caught_exception_ = false;
+  if (is_execution_terminating()) {
     clear_pending_exception();
-  }
-  if (has_scheduled_exception() && is_execution_terminating()) {
-    thread_local_top()->external_caught_exception_ = false;
-    clear_scheduled_exception();
+    if (try_catch_handler()) try_catch_handler()->Reset();
   }
 }
 
@@ -1842,8 +1834,8 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
   return message_obj;
 }
 
-Tagged<Object> Isolate::ThrowInternal(Tagged<Object> raw_exception,
-                                      MessageLocation* location) {
+Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
+                              MessageLocation* location) {
   DCHECK(!has_pending_exception());
   IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
           !trap_handler::IsThreadInWasm());
@@ -1931,6 +1923,8 @@ Tagged<Object> Isolate::ThrowInternal(Tagged<Object> raw_exception,
 
   // Set the exception being thrown.
   set_pending_exception(*exception);
+  PropagatePendingExceptionToExternalTryCatch(
+      TopExceptionHandlerType(*exception));
   return ReadOnlyRoots(heap()).exception();
 }
 
@@ -2065,6 +2059,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     // Optimized frames take a detour via the deoptimizer before also jumping
     // to the `RestartFrameTrampoline` builtin.
     if (debug()->ShouldRestartFrame(frame->id())) {
+      CancelTerminateExecution();
       CHECK(!catchable_by_js);
       CHECK(frame->is_java_script());
 
@@ -2514,58 +2509,6 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
   return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
 
-void Isolate::ScheduleThrow(Tagged<Object> exception) {
-  // When scheduling a throw we first throw the exception to get the
-  // error reporting if it is uncaught before rescheduling it.
-  Throw(exception);
-  PropagatePendingExceptionToExternalTryCatch(
-      TopExceptionHandlerType(pending_exception()));
-  if (has_pending_exception()) {
-    set_scheduled_exception(pending_exception());
-    thread_local_top()->external_caught_exception_ = false;
-    clear_pending_exception();
-  }
-}
-
-void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
-  DCHECK(handler == try_catch_handler());
-  DCHECK(handler->HasCaught());
-  DCHECK(handler->rethrow_);
-  DCHECK(handler->capture_message_);
-  Tagged<Object> message(reinterpret_cast<Address>(handler->message_obj_));
-  DCHECK(IsJSMessageObject(message) || IsTheHole(message, this));
-  set_pending_message(message);
-}
-
-void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
-  DCHECK(has_scheduled_exception());
-  if (reinterpret_cast<void*>(scheduled_exception().ptr()) ==
-      handler->exception_) {
-    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
-                   !is_execution_terminating());
-    clear_scheduled_exception();
-  } else {
-    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
-                   is_execution_terminating());
-    // Clear termination once we returned from all V8 frames.
-    if (thread_local_top()->CallDepthIsZero()) {
-      thread_local_top()->external_caught_exception_ = false;
-      clear_scheduled_exception();
-    }
-  }
-  if (reinterpret_cast<void*>(thread_local_top()->pending_message_.ptr()) ==
-      handler->message_obj_) {
-    clear_pending_message();
-  }
-}
-
-Tagged<Object> Isolate::PromoteScheduledException() {
-  Tagged<Object> thrown = scheduled_exception();
-  clear_scheduled_exception();
-  // Re-throw the exception to avoid getting repeated error reporting.
-  return ReThrow(thrown);
-}
-
 void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   Handle<FixedArray> frames = CaptureSimpleStackTrace(
       this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
@@ -2766,12 +2709,7 @@ void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
   code_pages_.store(new_code_pages, std::memory_order_release);
 }
 
-void Isolate::ReportPendingMessages() {
-  DCHECK(AllowExceptions::IsAllowed(this));
-
-  // The embedder might run script in response to an exception.
-  AllowJavascriptExecutionDebugOnly allow_script(this);
-
+void Isolate::ReportPendingMessages(bool report) {
   Tagged<Object> exception_obj = pending_exception();
   ExceptionHandlerType top_handler = TopExceptionHandlerType(exception_obj);
 
@@ -2781,6 +2719,12 @@ void Isolate::ReportPendingMessages() {
   bool has_been_propagated =
       PropagatePendingExceptionToExternalTryCatch(top_handler);
   if (!has_been_propagated) return;
+  if (!report) return;
+
+  DCHECK(AllowExceptions::IsAllowed(this));
+
+  // The embedder might run script in response to an exception.
+  AllowJavascriptExecutionDebugOnly allow_script(this);
 
   // Clear the pending message object early to avoid endless recursion.
   Tagged<Object> message_obj = pending_message();
@@ -2807,55 +2751,18 @@ void Isolate::ReportPendingMessages() {
   if (!IsTheHole(message_obj, this) && should_report_exception) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
-    Handle<Object> exception(exception_obj, this);
     Handle<Script> script(message->script(), this);
     // Clear the exception and restore it afterwards, otherwise
     // CollectSourcePositions will abort.
-    clear_pending_exception();
-    JSMessageObject::EnsureSourcePositionsAvailable(this, message);
-    set_pending_exception(*exception);
+    {
+      ExceptionScope exception_scope(this);
+      JSMessageObject::EnsureSourcePositionsAvailable(this, message);
+    }
     int start_pos = message->GetStartPosition();
     int end_pos = message->GetEndPosition();
     MessageLocation location(script, start_pos, end_pos);
     MessageHandler::ReportMessage(this, &location, message);
   }
-}
-
-bool Isolate::OptionalRescheduleException(bool clear_exception) {
-  DCHECK(has_pending_exception());
-  PropagatePendingExceptionToExternalTryCatch(
-      TopExceptionHandlerType(pending_exception()));
-
-  if (is_execution_termination_pending()) {
-    if (clear_exception) {
-      thread_local_top()->external_caught_exception_ = false;
-      clear_pending_exception();
-      return false;
-    }
-  } else if (thread_local_top()->external_caught_exception_) {
-    // If the exception is externally caught, clear it if there are no
-    // JavaScript frames on the way to the C++ frame that has the
-    // external handler.
-    DCHECK_NE(thread_local_top()->try_catch_handler_address(), kNullAddress);
-    Address external_handler_address =
-        thread_local_top()->try_catch_handler_address();
-    JavaScriptStackFrameIterator it(this);
-    if (it.done() || (it.frame()->sp() > external_handler_address)) {
-      clear_exception = true;
-    }
-  }
-
-  // Clear the exception if needed.
-  if (clear_exception) {
-    thread_local_top()->external_caught_exception_ = false;
-    clear_pending_exception();
-    return false;
-  }
-
-  // Reschedule the exception.
-  set_scheduled_exception(pending_exception());
-  clear_pending_exception();
-  return true;
 }
 
 void Isolate::PushPromise(Handle<JSObject> promise) {
@@ -4161,36 +4068,25 @@ void Isolate::InitializeThreadLocal() {
 #endif  // DEBUG
   clear_pending_exception();
   clear_pending_message();
-  clear_scheduled_exception();
 }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
-  DCHECK_IMPLIES(
-      v8_flags.strict_termination_checks,
-      is_execution_termination_pending() || is_execution_terminating());
+  DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                 is_execution_terminating());
   if (try_catch_handler() == nullptr) return;
   try_catch_handler()->can_continue_ = false;
-  try_catch_handler()->has_terminated_ = true;
-  try_catch_handler()->exception_ =
-      reinterpret_cast<void*>(ReadOnlyRoots(heap()).null_value().ptr());
+  try_catch_handler()->exception_ = reinterpret_cast<void*>(
+      ReadOnlyRoots(heap()).termination_exception().ptr());
 }
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch(
     ExceptionHandlerType top_handler) {
   Tagged<Object> exception = pending_exception();
 
-  if (top_handler == ExceptionHandlerType::kJavaScriptHandler) {
-    thread_local_top()->external_caught_exception_ = false;
-    return false;
-  }
-
-  if (top_handler == ExceptionHandlerType::kNone) {
-    thread_local_top()->external_caught_exception_ = false;
-    return true;
-  }
+  if (top_handler == ExceptionHandlerType::kJavaScriptHandler) return false;
+  if (top_handler == ExceptionHandlerType::kNone) return true;
 
   DCHECK_EQ(ExceptionHandlerType::kExternalTryCatch, top_handler);
-  thread_local_top()->external_caught_exception_ = true;
   if (!is_catchable_by_javascript(exception)) {
     SetTerminationOnExternalTryCatch();
   } else {
@@ -4198,7 +4094,6 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch(
     DCHECK(IsJSMessageObject(pending_message()) ||
            IsTheHole(pending_message(), this));
     handler->can_continue_ = true;
-    handler->has_terminated_ = false;
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
     if (!has_pending_message()) return true;
@@ -4952,7 +4847,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
   clear_pending_message();
-  clear_scheduled_exception();
 
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects)
@@ -5553,11 +5447,11 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
                                           v8::Local<v8::Context> api_context,
                                           Handle<Object> exception) {
   v8::Local<v8::Promise::Resolver> resolver;
-  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
       isolate, resolver, v8::Promise::Resolver::New(api_context),
       MaybeHandle<JSPromise>());
 
-  RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+  RETURN_ON_PENDING_EXCEPTION_VALUE(
       isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
       MaybeHandle<JSPromise>());
 
@@ -5571,7 +5465,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
     MaybeHandle<Object> maybe_import_assertions_argument) {
   DCHECK(!is_execution_terminating());
-  DCHECK(!is_execution_termination_pending());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   if (host_import_module_dynamically_with_import_assertions_callback_ ==
           nullptr &&
@@ -5584,7 +5477,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   Handle<String> specifier_str;
   MaybeHandle<String> maybe_specifier = Object::ToString(this, specifier);
   if (!maybe_specifier.ToHandle(&specifier_str)) {
-    if (is_execution_termination_pending()) {
+    if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
     Handle<Object> exception(pending_exception(), this);
@@ -5597,7 +5490,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   Handle<FixedArray> import_assertions_array;
   if (!GetImportAssertionsFromArgument(maybe_import_assertions_argument)
            .ToHandle(&import_assertions_array)) {
-    if (is_execution_termination_pending()) {
+    if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
     Handle<Object> exception(pending_exception(), this);
@@ -5616,7 +5509,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   }
 
   if (host_import_module_dynamically_callback_) {
-    ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
         this, promise,
         host_import_module_dynamically_callback_(
             api_context, v8::Utils::ToLocal(host_defined_options),
@@ -5630,7 +5523,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         this->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
     script_or_module->set_resource_name(*resource_name);
     script_or_module->set_host_defined_options(*host_defined_options);
-    ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
         this, promise,
         host_import_module_dynamically_with_import_assertions_callback_(
             api_context, v8::Utils::ToLocal(script_or_module),
@@ -5773,10 +5666,7 @@ MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     host_initialize_import_meta_object_callback_(
         api_context, Utils::ToLocal(Handle<Module>::cast(module)),
         v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
-    if (has_scheduled_exception()) {
-      PromoteScheduledException();
-      return {};
-    }
+    if (has_pending_exception()) return {};
   }
   return import_meta;
 }
@@ -5801,7 +5691,7 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
 
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   v8::Local<v8::Context> shadow_realm_context;
-  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
       this, shadow_realm_context,
       host_create_shadow_realm_context_callback_(api_context),
       MaybeHandle<NativeContext>());
@@ -5819,7 +5709,7 @@ MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
 
   v8::Local<v8::Value> stack;
-  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_PENDING_EXCEPTION_VALUE(
       this, stack,
       prepare_stack_trace_callback_(api_context, Utils::ToLocal(error),
                                     Utils::ToLocal(sites)),

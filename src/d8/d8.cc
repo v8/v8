@@ -936,7 +936,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   // frames, the stack check in the called frame might be too late.
   if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
     i_isolate->StackOverflow();
-    i_isolate->OptionalRescheduleException(false);
     return false;
   }
 
@@ -1448,7 +1447,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
                   .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     if (isolate->IsExecutionTerminating()) {
-      Shell::ReportException(isolate, &try_catch);
+      Shell::ReportException(isolate, try_catch);
     } else {
       resolver->Reject(realm, try_catch.Exception()).ToChecked();
     }
@@ -1514,7 +1513,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
                               ModuleType::kJavaScript)
                   .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
@@ -1530,7 +1529,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
@@ -1554,7 +1553,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     } else {
       DCHECK_EQ(try_catch.Exception(), result_promise->Result());
     }
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
@@ -1598,7 +1597,7 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
       Local<Value> value;
       if (!maybe_value.ToLocal(&value)) {
         DCHECK(try_catch.HasCaught());
-        ReportException(isolate, &try_catch);
+        ReportException(isolate, try_catch);
         return false;
       }
     }
@@ -3149,9 +3148,6 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
-  // Using ErrorPrototypeToString for converting the error to string will fail
-  // if there's a pending exception.
-  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception());
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   bool enter_context = context.IsEmpty();
@@ -3212,11 +3208,12 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
   if (enter_context) context->Exit();
 }
 
-void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
+void Shell::ReportException(v8::Isolate* isolate,
+                            const v8::TryCatch& try_catch) {
   if (isolate->IsExecutionTerminating()) {
     printf("Got Execution Termination Exception\n");
   } else {
-    ReportException(isolate, try_catch->Message(), try_catch->Exception());
+    ReportException(isolate, try_catch.Message(), try_catch.Exception());
   }
 }
 

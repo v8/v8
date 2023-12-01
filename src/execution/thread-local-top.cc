@@ -28,7 +28,6 @@ void ThreadLocalTop::Clear() {
   last_api_entry_ = kNullAddress;
   pending_message_ = Tagged<Object>();
   rethrowing_message_ = false;
-  external_caught_exception_ = false;
   c_entry_fp_ = kNullAddress;
   handler_ = kNullAddress;
   c_function_ = kNullAddress;

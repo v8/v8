@@ -177,7 +177,7 @@ void MeasureMemoryDelegate::MeasurementComplete(Result result) {
 
   Handle<JSObject> jsresult = result_builder.Build();
   if (JSPromise::Resolve(promise_, jsresult).is_null()) {
-    CHECK(isolate_->is_execution_termination_pending());
+    CHECK(isolate_->is_execution_terminating());
   }
 }
 

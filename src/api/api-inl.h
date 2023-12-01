@@ -181,7 +181,6 @@ class V8_NODISCARD CallDepthScope {
       : isolate_(isolate),
         context_(context),
         did_enter_context_(false),
-        escaped_(false),
         safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
         interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
                           isolate_->only_terminate_in_safe_scope()
@@ -189,7 +188,7 @@ class V8_NODISCARD CallDepthScope {
                                      ? i::InterruptsScope::kRunInterrupts
                                      : i::InterruptsScope::kPostponeInterrupts)
                               : i::InterruptsScope::kNoop) {
-    isolate_->thread_local_top()->IncrementCallDepth(this);
+    isolate_->thread_local_top()->IncrementCallDepth<do_callback>(this);
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
       i::DisallowGarbageCollection no_gc;
@@ -215,7 +214,16 @@ class V8_NODISCARD CallDepthScope {
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
       microtask_queue = env->native_context()->microtask_queue();
     }
-    if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
+    isolate_->thread_local_top()->DecrementCallDepth(this);
+    // Clear the pending exception when exiting V8 to avoid memory leaks.
+    // Also clear termination exceptions iff there's no TryCatch handler.
+    // TODO(verwaest): Drop this once we propagate exceptions to external
+    // TryCatch on Throw. This should be debug-only.
+    if (isolate_->thread_local_top()->CallDepthIsZero() &&
+        (isolate_->thread_local_top()->try_catch_handler_ == nullptr ||
+         !isolate_->is_execution_terminating())) {
+      isolate_->clear_pending_exception();
+    }
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 #ifdef DEBUG
     if (do_callback) {
@@ -233,16 +241,6 @@ class V8_NODISCARD CallDepthScope {
   CallDepthScope(const CallDepthScope&) = delete;
   CallDepthScope& operator=(const CallDepthScope&) = delete;
 
-  void Escape() {
-    DCHECK(!escaped_);
-    escaped_ = true;
-    auto thread_local_top = isolate_->thread_local_top();
-    thread_local_top->DecrementCallDepth(this);
-    bool clear_exception = thread_local_top->CallDepthIsZero() &&
-                           thread_local_top->try_catch_handler_ == nullptr;
-    isolate_->OptionalRescheduleException(clear_exception);
-  }
-
  private:
 #ifdef DEBUG
   bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
@@ -259,8 +257,8 @@ class V8_NODISCARD CallDepthScope {
 
   i::Isolate* const isolate_;
   Local<Context> context_;
+
   bool did_enter_context_ : 1;
-  bool escaped_ : 1;
   bool safe_for_termination_ : 1;
   i::InterruptsScope interrupts_scope_;
   i::Address previous_stack_height_;

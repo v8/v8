@@ -316,10 +316,7 @@ class FastCApiObject {
       v8::MaybeLocal<v8::Value> maybe_element =
           seq_arg->Get(isolate->GetCurrentContext(),
                        v8::Integer::NewFromUnsigned(isolate, i));
-      if (maybe_element.IsEmpty()) {
-        isolate->ThrowError("invalid element in JSArray");
-        return;
-      }
+      if (maybe_element.IsEmpty()) return;
 
       v8::Local<v8::Value> element = maybe_element.ToLocalChecked();
       if (element->IsNumber()) {
