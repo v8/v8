@@ -90,12 +90,9 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
 
 #ifdef DEBUG
 bool TimedHistogram::ToggleRunningState(bool expect_to_run) const {
-  #pragma GCC diagnostic ignored "-Wexit-time-destructors"
-  static thread_local std::unordered_map<const TimedHistogram*, bool>
-      active_timer;
-  bool is_running = active_timer[this];
+  bool is_running = active_timer_[ThreadId::Current().ToInteger()];
   DCHECK_NE(is_running, expect_to_run);
-  active_timer[this] = !is_running;
+  active_timer_[ThreadId::Current().ToInteger()] = !is_running;
   return true;
 }
 #endif
