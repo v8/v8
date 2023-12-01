@@ -1142,8 +1142,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kFastNewObject:
     case Builtin::kFindOrderedHashMapEntry:
     case Builtin::kFindOrderedHashSetEntry:
-    case Builtin::kFlatMapIntoArray:
-    case Builtin::kFlattenIntoArray:
+    case Builtin::kFlattenIntoArrayWithMapFn:
+    case Builtin::kFlattenIntoArrayWithoutMapFn:
     case Builtin::kGenericArrayToReversed:
     case Builtin::kGenericArrayWith:
     case Builtin::kGetProperty:

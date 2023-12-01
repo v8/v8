@@ -433,15 +433,6 @@ namespace internal {
   TFJ(ArrayPrototypeValues, kJSArgcReceiverSlots, kReceiver)                   \
   /* ES6 #sec-%arrayiteratorprototype%.next */                                 \
   TFJ(ArrayIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)             \
-  /* https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray */          \
-  TFS(FlattenIntoArray, NeedsContext::kYes, kTarget, kSource, kSourceLength,   \
-      kStart, kDepth)                                                          \
-  TFS(FlatMapIntoArray, NeedsContext::kYes, kTarget, kSource, kSourceLength,   \
-      kStart, kDepth, kMapperFunction, kThisArg)                               \
-  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat */      \
-  TFJ(ArrayPrototypeFlat, kDontAdaptArgumentsSentinel)                         \
-  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap */   \
-  TFJ(ArrayPrototypeFlatMap, kDontAdaptArgumentsSentinel)                      \
                                                                                \
   /* ArrayBuffer */                                                            \
   /* ES #sec-arraybuffer-constructor */                                        \

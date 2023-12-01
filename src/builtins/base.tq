@@ -468,6 +468,7 @@ extern enum MessageTemplate {
   kGeneratorRunning,
   kFirstArgumentAsyncIteratorSymbolNonCallable,
   kIteratorResultNotAnObject,
+  kFlattenPastSafeLength,
   ...
 }
 
