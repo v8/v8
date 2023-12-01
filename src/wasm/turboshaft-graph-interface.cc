@@ -3252,10 +3252,16 @@ class TurboshaftGraphBuildingInterface {
                                              Operator::kEliminatable);
   }
 
+  V<Word32> LoadStringLength(V<Tagged> string) {
+    // TODO(jkummerow): Support immutable fields in {AccessBuilder}, and use
+    // AccessBuilder::ForStringLength here.
+    return __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::Uint32(), String::kLengthOffset);
+  }
+
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    result->op = __ Load(NullCheck(str), LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::Uint32(), String::kLengthOffset);
+    result->op = LoadStringLength(NullCheck(str));
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
@@ -3405,8 +3411,7 @@ class TurboshaftGraphBuildingInterface {
         __ Projection(prepare, 2, RegisterRepresentation::Word32());
 
     // Bounds check.
-    V<Word32> length = __ template LoadField<Word32>(
-        string, compiler::AccessBuilder::ForStringLength());
+    V<Word32> length = LoadStringLength(string);
     __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
@@ -3472,8 +3477,7 @@ class TurboshaftGraphBuildingInterface {
         __ Projection(prepare, 2, RegisterRepresentation::Word32());
 
     // Bounds check.
-    V<Word32> length = __ template LoadField<Word32>(
-        string, compiler::AccessBuilder::ForStringLength());
+    V<Word32> length = LoadStringLength(string);
     __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
