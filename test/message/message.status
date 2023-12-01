@@ -139,4 +139,11 @@
   'wasm-finish-compilation': [PASS, FAIL],
 }],  # 'verify_predictable'
 
+##############################################################################
+['variant == future', {
+  # Turboshaft and Turbofan outputs do not match.
+  # TODO(14108): Update output and reenable test.
+  'wasm-recognize-imports': [FAIL],
+}],  # variant == future
+
 ]
