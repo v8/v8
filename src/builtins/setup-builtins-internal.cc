@@ -4,7 +4,7 @@
 
 #include <fstream>
 
-#include "src/builtins/builtins.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"

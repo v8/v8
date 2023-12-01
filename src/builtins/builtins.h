@@ -126,35 +126,12 @@ class Builtins {
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
-  static constexpr Builtin GetRecordWriteStub(SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kRecordWriteIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kRecordWriteSaveFP;
-    }
-  }
-
-  static constexpr Builtin GetIndirectPointerBarrierStub(
-      SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kIndirectPointerBarrierIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kIndirectPointerBarrierSaveFP;
-    }
-  }
-
-  static constexpr Builtin GetEphemeronKeyBarrierStub(SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kEphemeronKeyBarrierIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kEphemeronKeyBarrierSaveFP;
-    }
-  }
-
   // Convenience wrappers.
+  static inline constexpr Builtin RecordWrite(SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin IndirectPointerBarrier(
+      SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
+
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> NonPrimitiveToPrimitive(
@@ -244,17 +221,7 @@ class Builtins {
   static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
-  static bool IsJSEntryVariant(Builtin builtin) {
-    switch (builtin) {
-      case Builtin::kJSEntry:
-      case Builtin::kJSConstructEntry:
-      case Builtin::kJSRunMicrotasksEntry:
-        return true;
-      default:
-        return false;
-    }
-    UNREACHABLE();
-  }
+  static inline constexpr bool IsJSEntryVariant(Builtin builtin);
 
   int js_entry_handler_offset() const {
     DCHECK_NE(js_entry_handler_offset_, 0);

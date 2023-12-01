@@ -1201,6 +1201,7 @@ filegroup(
         "src/builtins/accessors.cc",
         "src/builtins/accessors.h",
         "src/builtins/builtins.cc",
+        "src/builtins/builtins-inl.h",
         "src/builtins/builtins.h",
         "src/builtins/builtins-api.cc",
         "src/builtins/builtins-array.cc",

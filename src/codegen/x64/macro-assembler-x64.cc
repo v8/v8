@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/cpu-features.h"
@@ -634,9 +635,7 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object,
       WriteBarrierDescriptor::SlotAddressRegister();
   MovePair(slot_address_parameter, slot_address, object_parameter, object);
 
-  Call(isolate()->builtins()->code_handle(
-            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
-        RelocInfo::CODE_TARGET);
+  CallBuiltin(Builtins::EphemeronKeyBarrier(fp_mode));
   PopAll(registers);
 }
 
@@ -665,7 +664,7 @@ void MacroAssembler::CallIndirectPointerBarrier(Register object,
       IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister();
   Move(tag_parameter, tag);
 
-  CallBuiltin(Builtins::GetIndirectPointerBarrierStub(fp_mode));
+  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
   PopAll(registers);
 }
 
@@ -705,8 +704,7 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   if (false) {
 #endif
   } else {
-    Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
-    CallBuiltin(builtin);
+    CallBuiltin(Builtins::RecordWrite(fp_mode));
   }
 }
 
@@ -731,9 +729,7 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   MovePair(address_parameter, address, value_parameter, value);
 
   if (isolate()) {
-    Builtin builtin = CodeFactory::GetTSANStoreStub(fp_mode, size, order);
-    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
-    Call(code_target, RelocInfo::CODE_TARGET);
+    CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
   }
 #if V8_ENABLE_WEBASSEMBLY
   // There are two different kinds of wasm-to-js functions: one lives in the
@@ -773,9 +769,7 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
   Move(address_parameter, address);
 
   if (isolate()) {
-    Builtin builtin = CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size);
-    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
-    Call(code_target, RelocInfo::CODE_TARGET);
+    CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
   }
 #if V8_ENABLE_WEBASSEMBLY
   // There are two different kinds of wasm-to-js functions: one lives in the

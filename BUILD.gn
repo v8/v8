@@ -3172,6 +3172,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
+    "src/builtins/builtins-inl.h",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-utils-inl.h",
     "src/builtins/builtins-utils.h",
