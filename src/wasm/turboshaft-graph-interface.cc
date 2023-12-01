@@ -1796,9 +1796,10 @@ class TurboshaftGraphBuildingInterface {
         V<Tagged> inlined_func_ref =
             __ LoadFixedArrayElement(internal_functions, inlined_index);
         TSBlock* inline_block = __ NewBlock();
-        __ Branch(
-            {__ TaggedEqual(func_ref.op, inlined_func_ref), BranchHint::kTrue},
-            inline_block, case_blocks[i + 1]);
+        bool is_last_case = (i == feedback_cases.size() - 1);
+        BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+        __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
+                  inline_block, case_blocks[i + 1]);
 
         __ Bind(inline_block);
         SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
