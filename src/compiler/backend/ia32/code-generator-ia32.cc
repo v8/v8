@@ -669,8 +669,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
 
   Label skip;
   __ j(zero, &skip, Label::kNear);
-  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-          RelocInfo::CODE_TARGET);
+  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode);
   __ bind(&skip);
 }
 

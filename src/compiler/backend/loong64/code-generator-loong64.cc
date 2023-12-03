@@ -617,8 +617,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
                      MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-          RelocInfo::CODE_TARGET, ne, scratch, Operand(zero_reg));
+  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, scratch,
+                     Operand(zero_reg));
 }
 
 // Assembles an instruction after register allocation, producing machine code.

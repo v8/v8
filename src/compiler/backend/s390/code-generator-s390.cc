@@ -1139,8 +1139,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
                      r0);
   __ LoadU32(ip, FieldMemOperand(ip, Code::kFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
-  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-          RelocInfo::CODE_TARGET, ne);
+  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne);
 }
 
 // Assembles an instruction after register allocation, producing machine code.

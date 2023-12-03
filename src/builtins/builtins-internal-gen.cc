@@ -1388,13 +1388,13 @@ void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
 
 #if !defined(V8_TARGET_ARCH_ARM)
 void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
+  masm->CallBuiltin(Builtin::kIllegal);
 }
 #endif  // !defined(V8_TARGET_ARCH_ARM)
 
 #ifndef V8_TARGET_ARCH_IA32
 void Builtins::Generate_MemMove(MacroAssembler* masm) {
-  masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
+  masm->CallBuiltin(Builtin::kIllegal);
 }
 #endif  // V8_TARGET_ARCH_IA32
 
