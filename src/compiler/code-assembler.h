@@ -1218,9 +1218,36 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   //
+  // If context passed to CallBuiltin is nullptr, it won't be passed to the
+  // builtin.
+  //
+  template <typename T = Object, class... TArgs>
+  TNode<T> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    return CallStub<T>(callable.descriptor(), target, context, args...);
+  }
+
+  template <class... TArgs>
+  void CallBuiltinVoid(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
+  }
+
+  template <class... TArgs>
+  void TailCallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    TailCallStub(callable.descriptor(), target, context, args...);
+  }
+
+  //
   // If context passed to CallStub is nullptr, it won't be passed to the stub.
   //
 
+  // TODO(ishell): remove once all usages are migrated to CallBuiltin.
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
@@ -1235,6 +1262,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       target, context, args...));
   }
 
+  // TODO(ishell): remove once all usages are migrated to TailCallBuiltinVoid.
   template <class... TArgs>
   void CallStubVoid(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
@@ -1251,6 +1279,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       descriptor, target, context, args...));
   }
 
+  // TODO(ishell): remove once all usages are migrated to TailCallBuiltin.
   template <class... TArgs>
   void TailCallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {

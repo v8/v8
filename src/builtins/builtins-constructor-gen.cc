@@ -7,8 +7,8 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
@@ -21,20 +21,17 @@ namespace v8 {
 namespace internal {
 
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructVarargs(masm,
-                                  BUILTIN_CODE(masm->isolate(), Construct));
+  Generate_CallOrConstructVarargs(masm, Builtin::kConstruct);
 }
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructForwardVarargs(
-      masm, CallOrConstructMode::kConstruct,
-      BUILTIN_CODE(masm->isolate(), Construct));
+  Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kConstruct,
+                                         Builtin::kConstruct);
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructForwardVarargs(
-      masm, CallOrConstructMode::kConstruct,
-      BUILTIN_CODE(masm->isolate(), ConstructFunction));
+  Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kConstruct,
+                                         Builtin::kConstructFunction);
 }
 
 // static

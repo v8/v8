@@ -5,6 +5,7 @@
 #include "src/codegen/code-factory.h"
 
 #include "src/builtins/builtins-descriptors.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
@@ -132,7 +133,7 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 
 // static
 Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
-  return Callable(isolate->builtins()->Call(mode), CallTrampolineDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::Call(mode));
 }
 
 // static
@@ -164,8 +165,7 @@ Callable CodeFactory::CallWithSpread(Isolate* isolate) {
 
 // static
 Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
-  return Callable(isolate->builtins()->CallFunction(mode),
-                  CallTrampolineDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::CallFunction(mode));
 }
 
 // static

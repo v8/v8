@@ -132,8 +132,11 @@ class Builtins {
       SaveFPRegsMode fp_mode);
   static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
 
-  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  static inline constexpr Builtin CallFunction(
+      ConvertReceiverMode = ConvertReceiverMode::kAny);
+  static inline constexpr Builtin Call(
+      ConvertReceiverMode = ConvertReceiverMode::kAny);
+
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
@@ -263,11 +266,11 @@ class Builtins {
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
 
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                              Handle<Code> code);
+                                              Builtin target_builtin);
   enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
-                                                     Handle<Code> code);
+                                                     Builtin target_builtin);
 
   static void Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
                                                      bool save_new_target);

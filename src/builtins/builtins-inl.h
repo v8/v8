@@ -41,6 +41,32 @@ constexpr Builtin Builtins::EphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
 }
 
 // static
+constexpr Builtin Builtins::CallFunction(ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return Builtin::kCallFunction_ReceiverIsNullOrUndefined;
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return Builtin::kCallFunction_ReceiverIsNotNullOrUndefined;
+    case ConvertReceiverMode::kAny:
+      return Builtin::kCallFunction_ReceiverIsAny;
+  }
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::Call(ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return Builtin::kCall_ReceiverIsNullOrUndefined;
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return Builtin::kCall_ReceiverIsNotNullOrUndefined;
+    case ConvertReceiverMode::kAny:
+      return Builtin::kCall_ReceiverIsAny;
+  }
+  UNREACHABLE();
+}
+
+// static
 constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   switch (builtin) {
     case Builtin::kJSEntry:

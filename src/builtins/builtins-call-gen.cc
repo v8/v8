@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-call-gen.h"
 
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -50,18 +50,17 @@ void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructVarargs(masm, masm->isolate()->builtins()->Call());
+  Generate_CallOrConstructVarargs(masm, Builtins::Call());
 }
 
 void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kCall,
-                                         masm->isolate()->builtins()->Call());
+                                         Builtins::Call());
 }
 
 void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
-  Generate_CallOrConstructForwardVarargs(
-      masm, CallOrConstructMode::kCall,
-      masm->isolate()->builtins()->CallFunction());
+  Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kCall,
+                                         Builtins::CallFunction());
 }
 
 void Builtins::Generate_CallApiCallbackGeneric(MacroAssembler* masm) {

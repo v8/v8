@@ -122,29 +122,6 @@ const char* Builtins::Lookup(Address pc) {
   return nullptr;
 }
 
-Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
-  switch (mode) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      return code_handle(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      return code_handle(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
-    case ConvertReceiverMode::kAny:
-      return code_handle(Builtin::kCallFunction_ReceiverIsAny);
-  }
-  UNREACHABLE();
-}
-
-Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
-  switch (mode) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      return code_handle(Builtin::kCall_ReceiverIsNullOrUndefined);
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      return code_handle(Builtin::kCall_ReceiverIsNotNullOrUndefined);
-    case ConvertReceiverMode::kAny:
-      return code_handle(Builtin::kCall_ReceiverIsAny);
-  }
-  UNREACHABLE();
-}
 
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
