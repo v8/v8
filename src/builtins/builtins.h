@@ -8,6 +8,7 @@
 #include "src/base/flags.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/common/globals.h"
+#include "src/objects/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -126,7 +127,9 @@ class Builtins {
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
+  //
   // Convenience wrappers.
+  //
   static inline constexpr Builtin RecordWrite(SaveFPRegsMode fp_mode);
   static inline constexpr Builtin IndirectPointerBarrier(
       SaveFPRegsMode fp_mode);
@@ -137,9 +140,17 @@ class Builtins {
   static inline constexpr Builtin Call(
       ConvertReceiverMode = ConvertReceiverMode::kAny);
 
-  Handle<Code> NonPrimitiveToPrimitive(
+  static inline constexpr Builtin NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  static inline constexpr Builtin OrdinaryToPrimitive(
+      OrdinaryToPrimitiveHint hint);
+
+  static inline constexpr Builtin StringAdd(
+      StringAddFlags flags = STRING_ADD_CHECK_NONE);
+
+  static inline constexpr Builtin LoadGlobalIC(TypeofMode typeof_mode);
+  static inline constexpr Builtin LoadGlobalICInOptimizedCode(
+      TypeofMode typeof_mode);
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Tagged<Code> code);

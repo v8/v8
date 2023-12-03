@@ -61,19 +61,14 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
-  return typeof_mode == TypeofMode::kNotInside
-             ? Builtins::CallableFor(isolate, Builtin::kLoadGlobalICTrampoline)
-             : Builtins::CallableFor(
-                   isolate, Builtin::kLoadGlobalICInsideTypeofTrampoline);
+  return Builtins::CallableFor(isolate, Builtins::LoadGlobalIC(typeof_mode));
 }
 
 // static
 Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
-  return typeof_mode == TypeofMode::kNotInside
-             ? Builtins::CallableFor(isolate, Builtin::kLoadGlobalIC)
-             : Builtins::CallableFor(isolate,
-                                     Builtin::kLoadGlobalICInsideTypeof);
+  return Builtins::CallableFor(
+      isolate, Builtins::LoadGlobalICInOptimizedCode(typeof_mode));
 }
 
 Callable CodeFactory::DefineNamedOwnIC(Isolate* isolate) {
@@ -85,30 +80,8 @@ Callable CodeFactory::DefineNamedOwnICInOptimizedCode(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::NonPrimitiveToPrimitive(Isolate* isolate,
-                                              ToPrimitiveHint hint) {
-  return Callable(isolate->builtins()->NonPrimitiveToPrimitive(hint),
-                  TypeConversionDescriptor{});
-}
-
-// static
-Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
-                                          OrdinaryToPrimitiveHint hint) {
-  return Callable(isolate->builtins()->OrdinaryToPrimitive(hint),
-                  TypeConversionDescriptor{});
-}
-
-// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
-  switch (flags) {
-    case STRING_ADD_CHECK_NONE:
-      return Builtins::CallableFor(isolate, Builtin::kStringAdd_CheckNone);
-    case STRING_ADD_CONVERT_LEFT:
-      return Builtins::CallableFor(isolate, Builtin::kStringAddConvertLeft);
-    case STRING_ADD_CONVERT_RIGHT:
-      return Builtins::CallableFor(isolate, Builtin::kStringAddConvertRight);
-  }
-  UNREACHABLE();
+  return Builtins::CallableFor(isolate, Builtins::StringAdd(flags));
 }
 
 // static
@@ -169,11 +142,6 @@ Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
 }
 
 // static
-Callable CodeFactory::CallVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kCallVarargs);
-}
-
-// static
 Callable CodeFactory::CallForwardVarargs(Isolate* isolate) {
   return Builtins::CallableFor(isolate, Builtin::kCallForwardVarargs);
 }
@@ -191,16 +159,6 @@ Callable CodeFactory::Construct(Isolate* isolate) {
 // static
 Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
   return Builtins::CallableFor(isolate, Builtin::kConstructWithSpread);
-}
-
-// static
-Callable CodeFactory::ConstructFunction(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kConstructFunction);
-}
-
-// static
-Callable CodeFactory::ConstructVarargs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kConstructVarargs);
 }
 
 // static
@@ -261,11 +219,6 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 Callable CodeFactory::InterpreterForwardAllArgsThenConstruct(Isolate* isolate) {
   return Builtins::CallableFor(
       isolate, Builtin::kInterpreterForwardAllArgsThenConstruct);
-}
-
-// static
-Callable CodeFactory::ConstructForwardAllArgs(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kConstructForwardAllArgs);
 }
 
 // static

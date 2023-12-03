@@ -203,8 +203,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
     CSA_DCHECK(this, IsConstructor(CAST(target)));
 
     // 6.b. Return ? Construct(target, argumentsList, newTarget).
-    TailCallStub(CodeFactory::Construct(isolate()), context, target, new_target,
-                 argc);
+    TailCallBuiltin(Builtin::kConstruct, context, target, new_target, argc);
   }
 
   BIND(&throw_proxy_handler_revoked);

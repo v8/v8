@@ -122,29 +122,6 @@ const char* Builtins::Lookup(Address pc) {
   return nullptr;
 }
 
-
-Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
-  switch (hint) {
-    case ToPrimitiveHint::kDefault:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_Default);
-    case ToPrimitiveHint::kNumber:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_Number);
-    case ToPrimitiveHint::kString:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_String);
-  }
-  UNREACHABLE();
-}
-
-Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
-  switch (hint) {
-    case OrdinaryToPrimitiveHint::kNumber:
-      return code_handle(Builtin::kOrdinaryToPrimitive_Number);
-    case OrdinaryToPrimitiveHint::kString:
-      return code_handle(Builtin::kOrdinaryToPrimitive_String);
-  }
-  UNREACHABLE();
-}
-
 FullObjectSlot Builtins::builtin_slot(Builtin builtin) {
   Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
   return FullObjectSlot(location);

@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/ic/handler-configuration.h"
@@ -4380,9 +4381,8 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  Callable callable =
-      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
-  TailCallStub(callable, context, name, slot, vector);
+  TailCallBuiltin(Builtins::LoadGlobalICInOptimizedCode(typeof_mode), context,
+                  name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadGlobalICBaseline(TypeofMode typeof_mode) {
@@ -4393,9 +4393,8 @@ void AccessorAssembler::GenerateLoadGlobalICBaseline(TypeofMode typeof_mode) {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  Callable callable =
-      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
-  TailCallStub(callable, context, name, slot, vector);
+  TailCallBuiltin(Builtins::LoadGlobalICInOptimizedCode(typeof_mode), context,
+                  name, slot, vector);
 }
 
 void AccessorAssembler::LookupContext(LazyNode<Object> lazy_name,
@@ -4457,10 +4456,8 @@ void AccessorAssembler::LookupGlobalIC(
 
   // Fast path does a normal load global
   {
-    Callable callable =
-        CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
-    TailCallStub(callable, context, lazy_name(), lazy_slot(),
-                 lazy_feedback_vector());
+    TailCallBuiltin(Builtins::LoadGlobalICInOptimizedCode(typeof_mode), context,
+                    lazy_name(), lazy_slot(), lazy_feedback_vector());
   }
 
   // Slow path when we have to call out to the runtime

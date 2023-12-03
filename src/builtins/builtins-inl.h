@@ -67,6 +67,58 @@ constexpr Builtin Builtins::Call(ConvertReceiverMode mode) {
 }
 
 // static
+constexpr Builtin Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
+  switch (hint) {
+    case ToPrimitiveHint::kDefault:
+      return Builtin::kNonPrimitiveToPrimitive_Default;
+    case ToPrimitiveHint::kNumber:
+      return Builtin::kNonPrimitiveToPrimitive_Number;
+    case ToPrimitiveHint::kString:
+      return Builtin::kNonPrimitiveToPrimitive_String;
+  }
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
+  switch (hint) {
+    case OrdinaryToPrimitiveHint::kNumber:
+      return Builtin::kOrdinaryToPrimitive_Number;
+    case OrdinaryToPrimitiveHint::kString:
+      return Builtin::kOrdinaryToPrimitive_String;
+  }
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::StringAdd(StringAddFlags flags) {
+  switch (flags) {
+    case STRING_ADD_CHECK_NONE:
+      return Builtin::kStringAdd_CheckNone;
+    case STRING_ADD_CONVERT_LEFT:
+      return Builtin::kStringAddConvertLeft;
+    case STRING_ADD_CONVERT_RIGHT:
+      return Builtin::kStringAddConvertRight;
+  }
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::LoadGlobalIC(TypeofMode typeof_mode) {
+  return typeof_mode == TypeofMode::kNotInside
+             ? Builtin::kLoadGlobalICTrampoline
+             : Builtin::kLoadGlobalICInsideTypeofTrampoline;
+}
+
+// static
+constexpr Builtin Builtins::LoadGlobalICInOptimizedCode(
+    TypeofMode typeof_mode) {
+  return typeof_mode == TypeofMode::kNotInside
+             ? Builtin::kLoadGlobalIC
+             : Builtin::kLoadGlobalICInsideTypeof;
+}
+
+// static
 constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   switch (builtin) {
     case Builtin::kJSEntry:

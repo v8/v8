@@ -278,12 +278,11 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
     compiler::ScopedExceptionHandler handler(this, &call_exception,
                                              &var_exception);
     TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
-    Callable callable = CodeFactory::CallVarargs(isolate());
 
     // 9. Let result be the Completion Record of Call(target,
     // wrappedThisArgument, wrappedArgs).
-    result = CallStub(callable, target_context, target, args_count, argc,
-                      wrapped_args);
+    result = CallBuiltin(Builtin::kCallVarargs, target_context, target,
+                         args_count, argc, wrapped_args);
   }
 
   // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
