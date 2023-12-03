@@ -615,12 +615,12 @@ class ExitPoint {
   }
 
   template <class... TArgs>
-  void ReturnCallStub(Callable const& callable, TNode<Context> context,
-                      TArgs... args) {
+  void ReturnCallBuiltin(Builtin builtin, TNode<Context> context,
+                         TArgs... args) {
     if (IsDirect()) {
-      asm_->TailCallStub(callable, context, args...);
+      asm_->TailCallBuiltin(builtin, context, args...);
     } else {
-      indirect_return_handler_(asm_->CallStub(callable, context, args...));
+      indirect_return_handler_(asm_->CallBuiltin(builtin, context, args...));
     }
   }
 

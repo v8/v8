@@ -3971,12 +3971,11 @@ void TestCallJumpBuiltin(CallJumpMode mode,
 
     TNode<Smi> index = m.SmiConstant(2);
 
-    Callable callable = Builtins::CallableFor(isolate, Builtin::kStringRepeat);
     if (mode == kCall) {
-      m.Return(m.CallStub(callable, context, str, index));
+      m.Return(m.CallBuiltin(Builtin::kStringRepeat, context, str, index));
     } else {
       DCHECK_EQ(mode, kTailCall);
-      m.TailCallStub(callable, context, str, index);
+      m.TailCallBuiltin(Builtin::kStringRepeat, context, str, index);
     }
   }
   AssemblerOptions options = AssemblerOptions::Default(isolate);

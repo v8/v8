@@ -744,49 +744,44 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   BIND(&if_smi);
   {
-    Callable callable = Builtins::CallableFor(
-        isolate(), (variant == kIncludes) ? Builtin::kArrayIncludesSmi
-                                          : Builtin::kArrayIndexOfSmi);
-    TNode<Object> result = CallStub(callable, context, elements, search_element,
-                                    array_length, SmiTag(index_var.value()));
+    Builtin builtin = (variant == kIncludes) ? Builtin::kArrayIncludesSmi
+                                             : Builtin::kArrayIndexOfSmi;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, elements, search_element, array_length,
+                    SmiTag(index_var.value()));
     args.PopAndReturn(result);
   }
 
   BIND(&if_smiorobjects);
   {
-    Callable callable = (variant == kIncludes)
-                            ? Builtins::CallableFor(
-                                  isolate(), Builtin::kArrayIncludesSmiOrObject)
-                            : Builtins::CallableFor(
-                                  isolate(), Builtin::kArrayIndexOfSmiOrObject);
-    TNode<Object> result = CallStub(callable, context, elements, search_element,
-                                    array_length, SmiTag(index_var.value()));
+    Builtin builtin = (variant == kIncludes)
+                          ? Builtin::kArrayIncludesSmiOrObject
+                          : Builtin::kArrayIndexOfSmiOrObject;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, elements, search_element, array_length,
+                    SmiTag(index_var.value()));
     args.PopAndReturn(result);
   }
 
   BIND(&if_packed_doubles);
   {
-    Callable callable =
-        (variant == kIncludes)
-            ? Builtins::CallableFor(isolate(),
-                                    Builtin::kArrayIncludesPackedDoubles)
-            : Builtins::CallableFor(isolate(),
-                                    Builtin::kArrayIndexOfPackedDoubles);
-    TNode<Object> result = CallStub(callable, context, elements, search_element,
-                                    array_length, SmiTag(index_var.value()));
+    Builtin builtin = (variant == kIncludes)
+                          ? Builtin::kArrayIncludesPackedDoubles
+                          : Builtin::kArrayIndexOfPackedDoubles;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, elements, search_element, array_length,
+                    SmiTag(index_var.value()));
     args.PopAndReturn(result);
   }
 
   BIND(&if_holey_doubles);
   {
-    Callable callable =
-        (variant == kIncludes)
-            ? Builtins::CallableFor(isolate(),
-                                    Builtin::kArrayIncludesHoleyDoubles)
-            : Builtins::CallableFor(isolate(),
-                                    Builtin::kArrayIndexOfHoleyDoubles);
-    TNode<Object> result = CallStub(callable, context, elements, search_element,
-                                    array_length, SmiTag(index_var.value()));
+    Builtin builtin = (variant == kIncludes)
+                          ? Builtin::kArrayIncludesHoleyDoubles
+                          : Builtin::kArrayIndexOfHoleyDoubles;
+    TNode<Object> result =
+        CallBuiltin(builtin, context, elements, search_element, array_length,
+                    SmiTag(index_var.value()));
     args.PopAndReturn(result);
   }
 

@@ -63,8 +63,8 @@ void GeneratorBuiltinsAssembler::InnerResume(
   {
     compiler::ScopedExceptionHandler handler(this, &if_exception,
                                              &var_exception);
-    result = CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
-                      receiver);
+    result = CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
+                         receiver);
   }
 
   // If the generator is not suspended (i.e., its state is 'executing'),

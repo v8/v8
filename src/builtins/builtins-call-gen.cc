@@ -788,10 +788,9 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   TNode<CallHandlerInfo> call_handler_info = CAST(call_code);
   switch (mode) {
     case CallFunctionTemplateMode::kGeneric:
-      TailCallStub(
-          Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackGeneric),
-          context, TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-          call_handler_info, holder);
+      TailCallBuiltin(Builtin::kCallApiCallbackGeneric, context,
+                      TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
+                      call_handler_info, holder);
       break;
 
     case CallFunctionTemplateMode::kCheckAccess:
@@ -801,11 +800,10 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
           LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
       TNode<Object> call_data =
           LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-      TailCallStub(
-          Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackOptimized),
-          context, callback_address,
-          TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()), call_data,
-          holder);
+      TailCallBuiltin(Builtin::kCallApiCallbackOptimized, context,
+                      callback_address,
+                      TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
+                      call_data, holder);
       break;
     }
   }

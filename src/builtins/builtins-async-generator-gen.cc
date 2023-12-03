@@ -246,8 +246,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
   }
   BIND(&if_instrumentation_done);
 
-  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
-           async_generator_object);
+  CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
+              async_generator_object);
 
   TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context,
                   async_generator_object);
@@ -523,8 +523,8 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     }
     BIND(&if_instrumentation_done);
 
-    CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-             LoadValueFromAsyncGeneratorRequest(next), generator);
+    CallBuiltin(Builtin::kResumeGeneratorTrampoline, context,
+                LoadValueFromAsyncGeneratorRequest(next), generator);
     var_state = LoadGeneratorState(generator);
     var_next = LoadFirstAsyncGeneratorRequestFromQueue(generator);
     Goto(&start);

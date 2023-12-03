@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-object-gen.h"
 
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
@@ -56,10 +56,10 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(TNode<Context> context,
   TNode<String> lhs = StringConstant("[object ");
   TNode<String> rhs = StringConstant("]");
 
-  Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE);
+  Builtin builtin = Builtins::StringAdd(STRING_ADD_CHECK_NONE);
 
-  Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
-                  rhs));
+  Return(CallBuiltin(builtin, context,
+                     CallBuiltin(builtin, context, lhs, string), rhs));
 }
 
 TNode<JSObject> ObjectBuiltinsAssembler::ConstructAccessorDescriptor(

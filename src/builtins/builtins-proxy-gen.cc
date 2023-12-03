@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-proxy-gen.h"
 
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins-utils.h"
-#include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-proxy.h"
@@ -133,7 +133,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   BIND(&trap_undefined);
   {
     // 6.a. Return Call(target, thisArgument, argumentsList).
-    TailCallStub(CodeFactory::Call(isolate()), context, target, argc);
+    TailCallBuiltin(Builtins::Call(), context, target, argc);
   }
 
   BIND(&throw_proxy_handler_revoked);

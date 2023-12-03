@@ -41,9 +41,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable DefineNamedOwnIC(Isolate* isolate);
   static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
 
-  static Callable ResumeGenerator(Isolate* isolate);
-
-  static Callable ApiGetter(Isolate* isolate);
   static Callable CallApiCallback(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate,

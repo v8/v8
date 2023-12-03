@@ -55,11 +55,6 @@ Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
 }
 
 // static
-Callable CodeFactory::ApiGetter(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kCallApiGetter);
-}
-
-// static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   return Builtins::CallableFor(isolate, Builtins::LoadGlobalIC(typeof_mode));
 }
@@ -82,11 +77,6 @@ Callable CodeFactory::DefineNamedOwnICInOptimizedCode(Isolate* isolate) {
 // static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
   return Builtins::CallableFor(isolate, Builtins::StringAdd(flags));
-}
-
-// static
-Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kResumeGeneratorTrampoline);
 }
 
 // static

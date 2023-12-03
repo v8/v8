@@ -258,12 +258,11 @@ void AccessorAssembler::HandleLoadCallbackProperty(
   TNode<IntPtrT> descriptor =
       Signed(DecodeWordFromWord32<LoadHandler::DescriptorBits>(handler_word));
 
-  Callable callable = CodeFactory::ApiGetter(isolate());
   TNode<AccessorInfo> accessor_info =
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
 
-  exit_point->ReturnCallStub(callable, p->context(), p->receiver(), holder,
-                             accessor_info);
+  exit_point->ReturnCallBuiltin(Builtin::kCallApiGetter, p->context(),
+                                p->receiver(), holder, accessor_info);
 }
 
 void AccessorAssembler::HandleLoadAccessor(
@@ -777,10 +776,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                 &to_name_failed);
 
       BIND(&if_unique_name);
-      exit_point->ReturnCallStub(
-          Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
-          p->context(), holder, var_unique.value(), p->receiver(),
-          SmiConstant(on_nonexistent));
+      exit_point->ReturnCallBuiltin(Builtin::kProxyGetProperty, p->context(),
+                                    holder, var_unique.value(), p->receiver(),
+                                    SmiConstant(on_nonexistent));
 
       BIND(&if_index);
       // TODO(mslekova): introduce TryToName that doesn't try to compute
@@ -794,10 +792,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                     p->context(), holder, p->name(),
                                     p->receiver(), SmiConstant(on_nonexistent));
     } else {
-      exit_point->ReturnCallStub(
-          Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
-          p->context(), holder, p->name(), p->receiver(),
-          SmiConstant(on_nonexistent));
+      exit_point->ReturnCallBuiltin(Builtin::kProxyGetProperty, p->context(),
+                                    holder, p->name(), p->receiver(),
+                                    SmiConstant(on_nonexistent));
     }
   }
 
@@ -910,9 +907,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
                         Word32Or(Word32Equal(handler_kind, LOAD_KIND(kProxy)),
                                  Word32Equal(handler_kind,
                                              LOAD_KIND(kModuleExport)))));
-    exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtin::kHasProperty), p->context(),
-        p->receiver(), p->name());
+    exit_point->ReturnCallBuiltin(Builtin::kHasProperty, p->context(),
+                                  p->receiver(), p->name());
   }
 
   BIND(&normal);
@@ -2859,10 +2855,9 @@ void AccessorAssembler::GenericPropertyLoad(
     // Private field/symbol lookup is not supported.
     GotoIf(IsPrivateSymbol(name), slow);
 
-    direct_exit.ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtin::kProxyGetProperty),
-        p->context(), lookup_start_object, name, p->receiver(),
-        SmiConstant(OnNonExistent::kReturnUndefined));
+    direct_exit.ReturnCallBuiltin(Builtin::kProxyGetProperty, p->context(),
+                                  lookup_start_object, name, p->receiver(),
+                                  SmiConstant(OnNonExistent::kReturnUndefined));
   }
 }
 
@@ -3040,21 +3035,18 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
     Comment("LoadIC_BytecodeHandler_noninlined");
 
     // Call into the stub that implements the non-inlined parts of LoadIC.
-    Callable ic = Builtins::CallableFor(isolate(), Builtin::kLoadIC_Noninlined);
-    TNode<Code> code_target = HeapConstantNoHole(ic.code());
-    exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context(),
-                               p->receiver_and_lookup_start_object(), p->name(),
-                               p->slot(), p->vector());
+    exit_point->ReturnCallBuiltin(Builtin::kLoadIC_Noninlined, p->context(),
+                                  p->receiver_and_lookup_start_object(),
+                                  p->name(), p->slot(), p->vector());
   }
 
   BIND(&no_feedback);
   {
     Comment("LoadIC_BytecodeHandler_nofeedback");
     // Call into the stub that implements the non-inlined parts of LoadIC.
-    exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
-        p->context(), p->receiver(), p->name(),
-        SmiConstant(FeedbackSlotKind::kLoadProperty));
+    exit_point->ReturnCallBuiltin(Builtin::kLoadIC_NoFeedback, p->context(),
+                                  p->receiver(), p->name(),
+                                  SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
 
   BIND(&miss);
@@ -3115,10 +3107,9 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     Comment("LoadIC_nofeedback");
     // Call into the stub that implements the non-inlined parts of LoadIC.
-    direct_exit.ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
-        p->context(), p->receiver(), p->name(),
-        SmiConstant(FeedbackSlotKind::kLoadProperty));
+    direct_exit.ReturnCallBuiltin(Builtin::kLoadIC_NoFeedback, p->context(),
+                                  p->receiver(), p->name(),
+                                  SmiConstant(FeedbackSlotKind::kLoadProperty));
   }
 
   BIND(&miss);
@@ -3310,9 +3301,9 @@ void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
         static_cast<int>((typeof_mode == TypeofMode::kInside)
                              ? FeedbackSlotKind::kLoadGlobalInsideTypeof
                              : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtin::kLoadGlobalIC_NoFeedback),
-        lazy_context(), lazy_name(), SmiConstant(ic_kind));
+    exit_point->ReturnCallBuiltin(Builtin::kLoadGlobalIC_NoFeedback,
+                                  lazy_context(), lazy_name(),
+                                  SmiConstant(ic_kind));
   }
 }
 
@@ -3438,8 +3429,8 @@ void AccessorAssembler::LoadGlobalIC_NoFeedback(TNode<Context> context,
   BIND(&regular_load);
   TNode<JSGlobalObject> global_object =
       CAST(LoadContextElement(native_context, Context::EXTENSION_INDEX));
-  TailCallStub(Builtins::CallableFor(isolate(), Builtin::kLoadIC_NoFeedback),
-               context, global_object, name, smi_typeof_mode);
+  TailCallBuiltin(Builtin::kLoadIC_NoFeedback, context, global_object, name,
+                  smi_typeof_mode);
 }
 
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
