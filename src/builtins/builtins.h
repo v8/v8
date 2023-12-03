@@ -152,6 +152,15 @@ class Builtins {
   static inline constexpr Builtin LoadGlobalICInOptimizedCode(
       TypeofMode typeof_mode);
 
+  static inline constexpr Builtin CEntry(int result_size, ArgvMode argv_mode,
+                                         bool builtin_exit_frame = false,
+                                         bool switch_to_central_stack = false);
+
+  static inline constexpr Builtin RuntimeCEntry(
+      int result_size, bool switch_to_central_stack = false);
+
+  static inline constexpr Builtin InterpreterCEntry(int result_size);
+
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Tagged<Code> code);
 

@@ -119,6 +119,50 @@ constexpr Builtin Builtins::LoadGlobalICInOptimizedCode(
 }
 
 // static
+constexpr Builtin Builtins::CEntry(int result_size, ArgvMode argv_mode,
+                                   bool builtin_exit_frame,
+                                   bool switch_to_central_stack) {
+  // Aliases for readability below.
+  const int rs = result_size;
+  const ArgvMode am = argv_mode;
+  const bool be = builtin_exit_frame;
+
+  if (switch_to_central_stack) {
+    DCHECK_EQ(result_size, 1);
+    DCHECK_EQ(argv_mode, ArgvMode::kStack);
+    DCHECK_EQ(builtin_exit_frame, false);
+    return Builtin::kWasmCEntry;
+  }
+
+  if (rs == 1 && am == ArgvMode::kStack && !be) {
+    return Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit;
+  } else if (rs == 1 && am == ArgvMode::kStack && be) {
+    return Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit;
+  } else if (rs == 1 && am == ArgvMode::kRegister && !be) {
+    return Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit;
+  } else if (rs == 2 && am == ArgvMode::kStack && !be) {
+    return Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit;
+  } else if (rs == 2 && am == ArgvMode::kStack && be) {
+    return Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit;
+  } else if (rs == 2 && am == ArgvMode::kRegister && !be) {
+    return Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit;
+  }
+
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::RuntimeCEntry(int result_size,
+                                          bool switch_to_central_stack) {
+  return CEntry(result_size, ArgvMode::kStack, false, switch_to_central_stack);
+}
+
+// static
+constexpr Builtin Builtins::InterpreterCEntry(int result_size) {
+  return CEntry(result_size, ArgvMode::kRegister);
+}
+
+// static
 constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   switch (builtin) {
     case Builtin::kJSEntry:

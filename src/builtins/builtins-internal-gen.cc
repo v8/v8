@@ -4,8 +4,8 @@
 
 #include "src/api/api.h"
 #include "src/baseline/baseline.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -1281,18 +1281,18 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
-  TNode<Code> code = HeapConstantNoHole(
-      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame));
+  const bool switch_to_central_stack = false;
+  Builtin centry = Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame,
+                                    switch_to_central_stack);
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
-  TailCallStub(CEntry1ArgvOnStackDescriptor{},  // descriptor
-               code, context,       // standard arguments for TailCallStub
-               argc, c_function,    // register arguments
-               TheHoleConstant(),   // additional stack argument 1 (padding)
-               SmiFromInt32(argc),  // additional stack argument 2
-               target,              // additional stack argument 3
-               new_target);         // additional stack argument 4
+  TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
+                  argc, c_function,    // register arguments
+                  TheHoleConstant(),   // additional stack argument 1 (padding)
+                  SmiFromInt32(argc),  // additional stack argument 2
+                  target,              // additional stack argument 3
+                  new_target);         // additional stack argument 4
 }
 
 TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {

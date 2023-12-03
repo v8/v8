@@ -25,33 +25,9 @@ Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size,
 Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
                                  ArgvMode argv_mode, bool builtin_exit_frame,
                                  bool switch_to_central_stack) {
-  // Aliases for readability below.
-  const int rs = result_size;
-  const ArgvMode am = argv_mode;
-  const bool be = builtin_exit_frame;
-
-  if (switch_to_central_stack) {
-    DCHECK_EQ(result_size, 1);
-    DCHECK_EQ(argv_mode, ArgvMode::kStack);
-    DCHECK_EQ(builtin_exit_frame, false);
-    return BUILTIN_CODE(isolate, WasmCEntry);
-  }
-
-  if (rs == 1 && am == ArgvMode::kStack && !be) {
-    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvOnStack_NoBuiltinExit);
-  } else if (rs == 1 && am == ArgvMode::kStack && be) {
-    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvOnStack_BuiltinExit);
-  } else if (rs == 1 && am == ArgvMode::kRegister && !be) {
-    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvInRegister_NoBuiltinExit);
-  } else if (rs == 2 && am == ArgvMode::kStack && !be) {
-    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvOnStack_NoBuiltinExit);
-  } else if (rs == 2 && am == ArgvMode::kStack && be) {
-    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvOnStack_BuiltinExit);
-  } else if (rs == 2 && am == ArgvMode::kRegister && !be) {
-    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvInRegister_NoBuiltinExit);
-  }
-
-  UNREACHABLE();
+  Builtin builtin = Builtins::CEntry(result_size, argv_mode, builtin_exit_frame,
+                                     switch_to_central_stack);
+  return isolate->builtins()->code_handle(builtin);
 }
 
 // static
@@ -209,18 +185,6 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 Callable CodeFactory::InterpreterForwardAllArgsThenConstruct(Isolate* isolate) {
   return Builtins::CallableFor(
       isolate, Builtin::kInterpreterForwardAllArgsThenConstruct);
-}
-
-// static
-Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate, result_size, ArgvMode::kRegister);
-  if (result_size == 1) {
-    return Callable(code, InterpreterCEntry1Descriptor{});
-  } else {
-    DCHECK_EQ(result_size, 2);
-    return Callable(code, InterpreterCEntry2Descriptor{});
-  }
 }
 
 // static

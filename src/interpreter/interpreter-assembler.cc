@@ -7,6 +7,7 @@
 #include <limits>
 #include <ostream>
 
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
@@ -1036,8 +1037,6 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                                             int return_count) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
-  Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
-  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
@@ -1049,9 +1048,9 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   TNode<RawPtrT> function_entry = Load<RawPtrT>(
       function, IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStub<T>(callable.descriptor(), code_target, context,
-                     args.reg_count(), args.base_reg_location(),
-                     function_entry);
+  Builtin centry = Builtins::InterpreterCEntry(return_count);
+  return CallBuiltin<T>(centry, context, args.reg_count(),
+                        args.base_reg_location(), function_entry);
 }
 
 template V8_EXPORT_PRIVATE TNode<Object> InterpreterAssembler::CallRuntimeN(
