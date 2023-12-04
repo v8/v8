@@ -654,9 +654,9 @@ void StraightForwardRegisterAllocator::UpdateUse(
 }
 
 void StraightForwardRegisterAllocator::AllocateEagerDeopt(
-    const EagerDeoptInfo& deopt_info) {
+    EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
-      &deopt_info, [&](ValueNode* node, InputLocation* input) {
+      &deopt_info, [&](ValueNode*& node, InputLocation* input) {
         if (node->Is<Identity>()) {
           node = node->input(0).node();
         }
@@ -670,9 +670,9 @@ void StraightForwardRegisterAllocator::AllocateEagerDeopt(
 }
 
 void StraightForwardRegisterAllocator::AllocateLazyDeopt(
-    const LazyDeoptInfo& deopt_info) {
+    LazyDeoptInfo& deopt_info) {
   detail::DeepForEachInput(&deopt_info,
-                           [&](ValueNode* node, InputLocation* input) {
+                           [&](ValueNode*& node, InputLocation* input) {
                              if (node->Is<Identity>()) {
                                node = node->input(0).node();
                              }
