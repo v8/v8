@@ -69,7 +69,7 @@ v8_builder(
             "reviewers": [
                 "syg@chromium.org",
             ],
-            "bug": "v8:7834",
+            "bugs": "v8:7834",
         },
     },
 )
