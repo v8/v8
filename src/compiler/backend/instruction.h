@@ -1930,7 +1930,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                                     const InstructionSequence&);
 
-  using SourcePositionMap = ZoneMap<const Instruction*, SourcePosition>;
+  using SourcePositionMap =
+      ZoneAbslFlatHashMap<const Instruction*, SourcePosition>;
 
   static const RegisterConfiguration* RegisterConfigurationForTesting();
   static const RegisterConfiguration* registerConfigurationForTesting_;
