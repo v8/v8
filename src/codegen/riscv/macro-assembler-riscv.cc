@@ -401,7 +401,7 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object,
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  CallBuiltin(Builtins::GetEphemeronKeyBarrierStub(fp_mode));
+  CallBuiltin(Builtins::EphemeronKeyBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -6696,7 +6696,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ StoreReturnAddressAndCall(function_address);
   __ bind(&done_api_call);
 
-  Label promote_scheduled_exception;
+  Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
@@ -6739,11 +6739,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
-    __ LoadRoot(scratch2, RootIndex::kTheHoleValue);
-    __ LoadWord(scratch, __ ExternalReferenceAsOperand(
-                             ER::scheduled_exception_address(isolate), no_reg));
-    __ Branch(&promote_scheduled_exception, ne, scratch2, Operand(scratch),
-              Label::Distance::kNear);
+    __ LoadRoot(scratch, RootIndex::kTheHoleValue);
+    __ LoadWord(scratch2, __ ExternalReferenceAsOperand(
+                              ER::exception_address(isolate), no_reg));
+    __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
   }
   {
     ASM_CODE_COMMENT_STRING(masm, "Convert return value");
@@ -6770,9 +6769,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ Branch(&done_api_call);
   }
 
-  __ RecordComment("Re-throw by promoting a scheduled exception.");
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
+  __ RecordComment("An exception was thrown. Propagate it.");
+  __ bind(&propagate_exception);
+  __ TailCallRuntime(Runtime::kPropagateException);
 
   {
     ASM_CODE_COMMENT_STRING(
