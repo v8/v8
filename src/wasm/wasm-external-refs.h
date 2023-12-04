@@ -132,9 +132,9 @@ void sync_stack_limit(Isolate* isolate);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);
-intptr_t switch_to_the_central_stack_for_js(Address callable,
+intptr_t switch_to_the_central_stack_for_js(Address receiver,
                                             uintptr_t* stack_limit_slot);
-void switch_from_the_central_stack_for_js(Address callable,
+void switch_from_the_central_stack_for_js(Address receiver,
                                           uintptr_t stack_limit);
 
 }  // namespace wasm

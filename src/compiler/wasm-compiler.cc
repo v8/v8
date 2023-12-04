@@ -7786,10 +7786,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     auto* then_call_desc = GetBuiltinCallDescriptor(
         Builtin::kPerformPromiseThen, zone_, StubCallMode::kCallBuiltinPointer);
-    Node* then_target =
-        gasm_->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
-    gasm_->Call(then_call_desc, then_target, value, on_fulfilled, on_rejected,
-                UndefinedValue(), native_context);
+    Node* target = gasm_->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
+    base::SmallVector<Node*, 16> args(8);
+    int pos = 0;
+    args[pos++] = target;
+    args[pos++] = value;
+    args[pos++] = on_fulfilled;
+    args[pos++] = on_rejected;
+    args[pos++] = UndefinedValue();
+    args[pos++] = native_context;
+    BuildCallOnCentralStack(args, pos, then_call_desc, suspender);
 
     Node* resolved = gasm_->Call(call_descriptor, call_target, suspender);
     gasm_->Goto(&resume, resolved);
@@ -7827,7 +7833,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return old_sp;
   }
 
-  void BuildSwitchBackFromCentralStack(Node* old_sp, Node* callable_node) {
+  void BuildSwitchBackFromCentralStack(Node* old_sp, Node* receiver) {
     Node* stack_limit = gasm_->Load(
         MachineType::Pointer(), gasm_->LoadFramePointer(),
         WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
@@ -7836,7 +7842,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         ExternalReference::wasm_switch_from_the_central_stack_for_js());
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
     MachineSignature sig(0, 2, reps);
-    BuildCCall(&sig, do_switch, callable_node, stack_limit);
+    BuildCCall(&sig, do_switch, receiver, stack_limit);
     gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                      kNoWriteBarrier),
                  gasm_->LoadFramePointer(),

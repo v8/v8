@@ -697,10 +697,10 @@ void switch_from_the_central_stack(Isolate* isolate) {
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
 }
 
-intptr_t switch_to_the_central_stack_for_js(Address raw_callable,
+intptr_t switch_to_the_central_stack_for_js(Address raw_receiver,
                                             uintptr_t* stack_limit_slot) {
-  Tagged<JSReceiver> callable = JSReceiver::cast(Tagged<Object>(raw_callable));
-  Isolate* isolate = callable->GetIsolate();
+  Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
+  Isolate* isolate = receiver->GetIsolate();
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
   *stack_limit_slot = stack_guard->real_jslimit();
@@ -710,10 +710,10 @@ intptr_t switch_to_the_central_stack_for_js(Address raw_callable,
   return thread_local_top->central_stack_sp_;
 }
 
-void switch_from_the_central_stack_for_js(Address raw_callable,
+void switch_from_the_central_stack_for_js(Address raw_receiver,
                                           uintptr_t stack_limit) {
-  Tagged<JSReceiver> callable = JSReceiver::cast(Tagged<Object>(raw_callable));
-  Isolate* isolate = callable->GetIsolate();
+  Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
+  Isolate* isolate = receiver->GetIsolate();
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;
   StackGuard* stack_guard = isolate->stack_guard();
