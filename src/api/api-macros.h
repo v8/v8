@@ -54,10 +54,11 @@
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
   bool has_exception = false
 
-#define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, T)       \
+#define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, context, \
+                                                           T)                  \
   DCHECK(!i_isolate->is_execution_terminating());                              \
   InternalEscapableScope handle_scope(i_isolate);                              \
-  CallDepthScope<false> call_depth_scope(i_isolate, v8::Local<v8::Context>()); \
+  CallDepthScope<false> call_depth_scope(i_isolate, context);                  \
   i::VMState<v8::OTHER> __state__((i_isolate));                                \
   bool has_exception = false
 

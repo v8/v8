@@ -974,7 +974,9 @@ void GetLoadedScripts(Isolate* v8_isolate,
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
                                                  Local<String> source) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, UnboundScript);
+  v8::Local<v8::Context> context = Utils::ToLocal(isolate->native_context());
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context,
+                                                     UnboundScript);
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Handle<i::SharedFunctionInfo> result;
   {
@@ -1163,7 +1165,7 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  int argc, Global<Value> argv[],
                                  bool throw_on_side_effect) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, Value);
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context, Value);
   auto self = Utils::OpenHandle(*function);
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
@@ -1187,7 +1189,8 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                      v8::Local<v8::String> source,
                                      EvaluateGlobalMode mode, bool repl) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
+  v8::Local<v8::Context> context = Utils::ToLocal(i_isolate->native_context());
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, context, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
   has_exception = !ToLocal<Value>(
@@ -1202,7 +1205,8 @@ v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
     v8::Isolate* isolate, v8::Local<v8::Script> function,
     v8::debug::EvaluateGlobalMode mode, bool repl) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
+  v8::Local<v8::Context> context = Utils::ToLocal(i_isolate->native_context());
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, context, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
   has_exception = !ToLocal<Value>(

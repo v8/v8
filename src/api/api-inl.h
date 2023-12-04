@@ -190,30 +190,31 @@ class V8_NODISCARD CallDepthScope {
                               : i::InterruptsScope::kNoop) {
     isolate_->thread_local_top()->IncrementCallDepth<do_callback>(this);
     isolate_->set_next_v8_call_is_safe_for_termination(false);
-    if (!context.IsEmpty()) {
-      i::DisallowGarbageCollection no_gc;
-      i::Tagged<i::Context> env = *Utils::OpenHandle(*context);
-      i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-      if (isolate->context().is_null() ||
-          isolate->context()->native_context() != env->native_context()) {
-        impl->SaveContext(isolate->context());
-        isolate->set_context(env);
-        did_enter_context_ = true;
-      }
+    DCHECK(!context.IsEmpty());
+    i::DisallowGarbageCollection no_gc;
+    i::Tagged<i::Context> env = *Utils::OpenHandle(*context);
+    i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+    if (isolate->context().is_null() ||
+        isolate->context()->native_context() != env->native_context()) {
+      impl->SaveContext(isolate->context());
+      isolate->set_context(env);
+      did_enter_context_ = true;
     }
+
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
     i::MicrotaskQueue* microtask_queue = isolate_->default_microtask_queue();
-    if (!context_.IsEmpty()) {
-      if (did_enter_context_) {
-        i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
-        isolate_->set_context(impl->RestoreContext());
-      }
+    DCHECK(!context_.IsEmpty());
 
-      i::Handle<i::Context> env = Utils::OpenHandle(*context_);
-      microtask_queue = env->native_context()->microtask_queue();
+    if (did_enter_context_) {
+      i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
+      isolate_->set_context(impl->RestoreContext());
     }
+
+    i::Handle<i::Context> env = Utils::OpenHandle(*context_);
+    microtask_queue = env->native_context()->microtask_queue();
+
     isolate_->thread_local_top()->DecrementCallDepth(this);
     // Clear the exception when exiting V8 to avoid memory leaks.
     // Also clear termination exceptions iff there's no TryCatch handler.
