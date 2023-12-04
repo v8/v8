@@ -2542,6 +2542,13 @@ class TurboshaftGraphBuildingInterface {
 
     AtomicOpInfo info = AtomicOpInfo::Get(opcode);
 
+#if defined(V8_TARGET_BIG_ENDIAN)
+    // TODO(14108): Implement for big endian.
+    if (info.op_type == kLoad || info.op_type == kStore) {
+      Bailout(decoder);
+    }
+#endif
+
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;
     std::tie(index, bounds_check_result) = CheckBoundsAndAlignment(
