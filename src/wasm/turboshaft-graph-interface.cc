@@ -103,6 +103,9 @@ size_t GetTypeSize(DataViewOp op_type) {
 }  // namespace
 
 class TurboshaftGraphBuildingInterface {
+ private:
+  class InstanceCache;
+
  public:
   enum Mode { kRegular, kInlinedUnhandled, kInlinedWithCatch };
   using ValidationTag = Decoder::FullValidationTag;
@@ -138,6 +141,8 @@ class TurboshaftGraphBuildingInterface {
       : mode_(kRegular),
         block_phis_(zone),
         asm_(assembler),
+        owned_instance_cache_(std::make_unique<InstanceCache>(assembler)),
+        instance_cache_(*owned_instance_cache_.get()),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
         func_index_(func_index),
@@ -145,13 +150,15 @@ class TurboshaftGraphBuildingInterface {
         return_phis_(zone) {}
 
   TurboshaftGraphBuildingInterface(
-      Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
+      Zone* zone, Assembler& assembler, InstanceCache& instance_cache,
+      AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
       TSBlock* return_block, TSBlock* catch_block)
       : mode_(catch_block == nullptr ? kInlinedUnhandled : kInlinedWithCatch),
         block_phis_(zone),
         asm_(assembler),
+        instance_cache_(instance_cache),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
         func_index_(func_index),
@@ -179,6 +186,7 @@ class TurboshaftGraphBuildingInterface {
         ssa_env_[index] = __ Parameter(
             index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
       }
+      instance_cache_.Initialize(instance_node, decoder->module_);
     } else {
       instance_node = real_parameters_[0];
       for (; index < decoder->sig_->parameter_count(); index++) {
@@ -204,7 +212,6 @@ class TurboshaftGraphBuildingInterface {
         ssa_env_[index++] = op;
       }
     }
-    instance_cache_.Initialize(instance_node, decoder->module_);
 
     if (inlining_enabled(decoder)) {
       if (mode_ == kRegular) {
@@ -6576,8 +6583,8 @@ class TurboshaftGraphBuildingInterface {
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
                         decoder->detected_, inlinee_body, decoder->zone_, asm_,
-                        assumptions_, inlining_positions_, func_index,
-                        wire_bytes_, base::VectorOf(inlinee_args),
+                        instance_cache_, assumptions_, inlining_positions_,
+                        func_index, wire_bytes_, base::VectorOf(inlinee_args),
                         callee_return_block, callee_catch_block);
     size_t inlining_id = inlining_positions_->size();
     SourcePosition call_position = SourcePosition(
@@ -6769,7 +6776,10 @@ class TurboshaftGraphBuildingInterface {
   Mode mode_;
   ZoneAbslFlatHashMap<TSBlock*, BlockPhis> block_phis_;
   Assembler& asm_;
-  InstanceCache instance_cache_{asm_};
+  // Only used for "top-level" instantiations, not for inlining.
+  std::unique_ptr<InstanceCache> owned_instance_cache_;
+  // The instance cache to use (may be owned or passed in).
+  InstanceCache& instance_cache_;
   AssumptionsJournal* assumptions_;
   ZoneVector<WasmInliningPosition>* inlining_positions_;
   uint8_t inlining_id_ = kNoInliningId;
