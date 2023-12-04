@@ -114,6 +114,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   } else if (strcmp(v8_flags.mcpu, "atom") == 0) {
     SetSupported(INTEL_ATOM);
   }
+  if (cpu.has_intel_jcc_erratum() && v8_flags.intel_jcc_erratum_mitigation)
+    SetSupported(INTEL_JCC_ERRATUM_MITIGATION);
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the

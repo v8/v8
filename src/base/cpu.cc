@@ -399,6 +399,7 @@ CPU::CPU()
       has_sse41_(false),
       has_sse42_(false),
       is_atom_(false),
+      has_intel_jcc_erratum_(false),
       has_osxsave_(false),
       has_avx_(false),
       has_avx2_(false),
@@ -499,6 +500,34 @@ CPU::CPU()
         case 0x4C:  // AMT
         case 0x6E:
           is_atom_ = true;
+      }
+
+      // CPUs that are affected by Intel JCC erratum:
+      // https://www.intel.com/content/dam/support/us/en/documents/processors/mitigations-jump-conditional-code-erratum.pdf
+      switch (model_) {
+        case 0x4E:
+          has_intel_jcc_erratum_ = stepping_ == 0x3;
+          break;
+        case 0x55:
+          has_intel_jcc_erratum_ = stepping_ == 0x4 || stepping_ == 0x7;
+          break;
+        case 0x5E:
+          has_intel_jcc_erratum_ = stepping_ == 0x3;
+          break;
+        case 0x8E:
+          has_intel_jcc_erratum_ = stepping_ == 0x9 || stepping_ == 0xA ||
+                                   stepping_ == 0xB || stepping_ == 0xC;
+          break;
+        case 0x9E:
+          has_intel_jcc_erratum_ = stepping_ == 0x9 || stepping_ == 0xA ||
+                                   stepping_ == 0xB || stepping_ == 0xD;
+          break;
+        case 0xA6:
+          has_intel_jcc_erratum_ = stepping_ == 0x0;
+          break;
+        case 0xAE:
+          has_intel_jcc_erratum_ = stepping_ == 0xA;
+          break;
       }
     }
   }
