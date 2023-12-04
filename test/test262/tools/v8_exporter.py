@@ -10,7 +10,7 @@ from blinkpy.w3c.wpt_github import GitHubError
 class V8TestExporter(TestExporter):
 
     def merge_pull_request(self, pull_request):
-        self.approve(pull_request)
+        self.approve(pull_request.number)
         super().merge_pull_request(pull_request)
 
 
