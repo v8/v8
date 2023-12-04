@@ -1116,6 +1116,15 @@ class VectorBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
 
+    // Strings representing integer indices are not valid identifiers (and
+    // therefore not valid capture names).
+    {
+      size_t unused;
+      if (name->AsIntegerIndex(&unused)) {
+        *state = UNMATCHED;
+        return isolate_->factory()->empty_string();
+      }
+    }
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
                                Object::GetProperty(isolate_, groups_obj_, name),
