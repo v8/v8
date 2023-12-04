@@ -176,6 +176,14 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
   bool is_mutable = field_info.type->mutability(field_info.field_index);
 
+  if (!NodeProperties::IsTyped(input_struct)) {
+    // The input should always be typed.  https://crbug.com/1507106 reported
+    // that we can end up with Type None here instead of a wasm type.
+    // In the worst case this only means that we miss a potential optimization,
+    // still the assumption is that all inputs into StructGet should be typed.
+    DCHECK_WITH_MSG(false, "Untyped input node for struct.get");
+    return NoChange();
+  }
   // Skip reduction if the input type is nullref. in this case, the struct get
   // will always trap.
   wasm::ValueType struct_type =
