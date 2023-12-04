@@ -31,13 +31,3 @@ luci.gitiles_poller(
         "refs/heads/\\d+\\.\\d+\\.\\d+",
     ],
 )
-
-luci.gitiles_poller(
-    name = "test262-export-trigger",
-    bucket = "ci",
-    repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/heads/main"],
-    path_regexps = [
-        "test/test262/local-tests/test/staging/.+",
-    ],
-)
