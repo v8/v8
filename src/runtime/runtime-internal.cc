@@ -484,7 +484,7 @@ class SaveAndClearThreadInWasmFlag {};
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
   DCHECK(isolate->IsOnCentralStack());
 #endif
   DCHECK_EQ(2, args.length());

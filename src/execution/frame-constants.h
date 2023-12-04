@@ -263,7 +263,7 @@ class WasmFrameConstants : public TypedFrameConstants {
 
 class WasmImportWrapperFrameConstants : public WasmFrameConstants {
  public:
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
   // FP-relative.
   static constexpr int kCentralStackSPOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);

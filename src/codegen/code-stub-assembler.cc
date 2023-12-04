@@ -17816,7 +17816,7 @@ TNode<Object> CodeStubAssembler::CallOnCentralStack(TNode<Context> context,
   // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
   // that the graph structure does not depend on the value of the predicate
   // (BoolConstant uses cached nodes).
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
   auto is_supported_arch = UniqueInt32Constant(1);
 #else
   auto is_supported_arch = UniqueInt32Constant(0);

@@ -7807,7 +7807,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return resume.PhiAt(0);
   }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
   Node* BuildSwitchToTheCentralStack(Node* callable_node) {
     Node* stack_limit_slot = gasm_->IntPtrAdd(
         gasm_->LoadFramePointer(),
@@ -7855,7 +7855,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildCallOnCentralStack(base::SmallVector<Node*, 16>& args, int& pos,
                                 CallDescriptor* call_descriptor,
                                 Node* callable_node) {
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
     // If the current stack is a secondary stack, switch, perform the call and
     // switch back. Otherwise, just do the call.
     // Return the Phi of the calls in the two branches.
@@ -7885,7 +7885,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->Bind(&end);
     return end.PhiAt(0);
 #else
-    // TODO(thibaudm): Port to other archs.
+    // TODO(thibaudm): Port to arm.
     args[pos++] = effect();
     args[pos++] = control();
     DCHECK_EQ(pos, args.size());

@@ -1490,7 +1490,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 
   // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM
   Address central_stack_sp = Memory<Address>(
       fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
   FullObjectSlot parameters_limit(
@@ -1499,7 +1499,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
           ? central_stack_sp
           : frame_header_base.address() - spill_slot_space);
 #else
-  // TODO(thibaudm): Support switching to the central stack on other archs.
+  // TODO(thibaudm): Support switching to the central stack on arm.
   FullObjectSlot parameters_limit(frame_header_base.address() -
                                   spill_slot_space);
   USE(type);

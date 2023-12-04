@@ -3736,8 +3736,9 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
 
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  // TODO(thibaudm): Implement.
-  UNREACHABLE();
+  OperandGenerator g(this);
+  auto input = g.UseAny(node->InputAt(0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 #else

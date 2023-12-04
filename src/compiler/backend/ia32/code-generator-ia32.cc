@@ -911,9 +911,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
+      __ mov(i.OutputRegister(), esp);
+      break;
     case kArchSetStackPointer:
-      UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
+      if (instr->InputAt(0)->IsRegister()) {
+        __ mov(esp, i.InputRegister(0));
+      } else {
+        __ mov(esp, i.InputOperand(0));
+      }
+      break;
+#endif
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
       // comparison to consider the size difference of an optimized frame versus
@@ -4033,7 +4040,17 @@ void CodeGenerator::AssembleConstructFrame() {
         // accessors.
         __ push(kWasmInstanceRegister);
       }
-      if (call_descriptor->IsWasmCapiFunction()) {
+      if (call_descriptor->IsWasmImportWrapper()) {
+        // If the wrapper is running on a secondary stack, it will switch to the
+        // central stack and fill these slots with the central stack pointer and
+        // secondary stack limit. Otherwise the slots remain empty.
+        static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
+                      -12);
+        static_assert(
+            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset == -16);
+        __ push(Immediate(0));
+        __ push(Immediate(0));
+      } else if (call_descriptor->IsWasmCapiFunction()) {
         // Reserve space for saving the PC later.
         __ AllocateStackSpace(kSystemPointerSize);
       }
