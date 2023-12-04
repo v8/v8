@@ -2300,7 +2300,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(
   }
   BIND(&if_array);
   {
-    var_length = SmiUntag(LoadFastJSArrayLength(CAST(object)));
+    var_length = PositiveSmiUntag(LoadFastJSArrayLength(CAST(object)));
     Goto(&length_loaded);
   }
   BIND(&length_loaded);
