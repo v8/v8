@@ -136,6 +136,7 @@ class TurboshaftGraphBuildingInterface {
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes)
       : mode_(kRegular),
+        block_phis_(zone),
         asm_(assembler),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
@@ -150,6 +151,7 @@ class TurboshaftGraphBuildingInterface {
       const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
       TSBlock* return_block, TSBlock* catch_block)
       : mode_(catch_block == nullptr ? kInlinedUnhandled : kInlinedWithCatch),
+        block_phis_(zone),
         asm_(assembler),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
@@ -3941,7 +3943,8 @@ class TurboshaftGraphBuildingInterface {
                                 Merge<Value>* merge,
                                 OpIndex* exception = nullptr) {
     __ Bind(tsblock);
-    BlockPhis& block_phis = block_phis_.at(tsblock);
+    auto block_phis_it = block_phis_.find(tsblock);
+    BlockPhis& block_phis = block_phis_it->second;
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
       ssa_env_[i] = MaybePhi(base::VectorOf(block_phis.phi_inputs[i]),
                              block_phis.phi_types[i]);
@@ -3966,7 +3969,7 @@ class TurboshaftGraphBuildingInterface {
       *exception = MaybePhi(base::VectorOf(block_phis.incoming_exception),
                             kWasmExternRef);
     }
-    block_phis_.erase(tsblock);
+    block_phis_.erase(block_phis_it);
   }
 
   OpIndex DefaultValue(ValueType type) {
@@ -6489,7 +6492,7 @@ class TurboshaftGraphBuildingInterface {
   V<WasmInstanceObject> instance_node() { return instance_cache_.instance(); }
 
   Mode mode_;
-  std::unordered_map<TSBlock*, BlockPhis> block_phis_;
+  ZoneAbslFlatHashMap<TSBlock*, BlockPhis> block_phis_;
   Assembler& asm_;
   InstanceCache instance_cache_{asm_};
   AssumptionsJournal* assumptions_;
