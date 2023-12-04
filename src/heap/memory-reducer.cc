@@ -68,8 +68,8 @@ void MemoryReducer::TimerTask::RunInternal() {
 
 
 void MemoryReducer::NotifyTimer(const Event& event) {
+  if (state_.id() != kWait) return;
   DCHECK_EQ(kTimer, event.type);
-  DCHECK_EQ(kWait, state_.id());
   state_ = Step(state_, event);
   if (state_.id() == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
