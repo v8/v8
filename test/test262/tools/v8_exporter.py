@@ -35,7 +35,7 @@ class V8TestExporter(TestExporter):
             'comments': [],
         }
 
-        response = self.request(path, method='POST', body=body)
+        response = self.github.request(path, method='POST', body=body)
 
         if response.status_code != 200:
             raise GitHubError(200, response.status_code,
