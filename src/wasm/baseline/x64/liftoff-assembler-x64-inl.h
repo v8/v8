@@ -3860,38 +3860,8 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  // NAN->0, negative->0.
-  Pxor(kScratchDoubleReg, kScratchDoubleReg);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vmaxps(dst.fp(), src.fp(), kScratchDoubleReg);
-  } else {
-    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    maxps(dst.fp(), kScratchDoubleReg);
-  }
-  // scratch: float representation of max_signed.
-  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-  Psrld(kScratchDoubleReg, uint8_t{1});            // 0x7fffffff
-  Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
-  // scratch2: convert (src-max_signed).
-  // Set positive overflow lanes to 0x7FFFFFFF.
-  // Set negative lanes to 0.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vsubps(liftoff::kScratchDoubleReg2, dst.fp(), kScratchDoubleReg);
-  } else {
-    movaps(liftoff::kScratchDoubleReg2, dst.fp());
-    subps(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
-  }
-  Cmpleps(kScratchDoubleReg, liftoff::kScratchDoubleReg2);
-  Cvttps2dq(liftoff::kScratchDoubleReg2, liftoff::kScratchDoubleReg2);
-  Pxor(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
-  Pxor(kScratchDoubleReg, kScratchDoubleReg);
-  Pmaxsd(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
-  // Convert to int. Overflow lanes above max_signed will be 0x80000000.
-  Cvttps2dq(dst.fp(), dst.fp());
-  // Add (src-max_signed) for overflow lanes.
-  Paddd(dst.fp(), liftoff::kScratchDoubleReg2);
+  I32x4TruncF32x4U(dst.fp(), src.fp(), kScratchDoubleReg,
+                   liftoff::kScratchDoubleReg2);
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,

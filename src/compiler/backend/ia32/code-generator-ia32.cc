@@ -2337,27 +2337,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp = i.TempSimd128Register(0);
-      // NAN->0, negative->0
-      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-      __ maxps(dst, kScratchDoubleReg);
-      // scratch: float representation of max_signed
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrld(kScratchDoubleReg, 1);                     // 0x7fffffff
-      __ cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
-      // tmp: convert (src-max_signed).
-      // Positive overflow lanes -> 0x7FFFFFFF
-      // Negative lanes -> 0
-      __ movaps(tmp, dst);
-      __ subps(tmp, kScratchDoubleReg);
-      __ cmpleps(kScratchDoubleReg, tmp);
-      __ cvttps2dq(tmp, tmp);
-      __ xorps(tmp, kScratchDoubleReg);
-      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-      __ pmaxsd(tmp, kScratchDoubleReg);
-      // convert. Overflow lanes above max_signed will be 0x80000000
-      __ cvttps2dq(dst, dst);
-      // Add (src-max_signed) for overflow lanes.
-      __ paddd(dst, tmp);
+      XMMRegister tmp2 = i.TempSimd128Register(1);
+      __ I32x4TruncF32x4U(dst, dst, tmp, tmp2);
       break;
     }
     case kAVXI32x4UConvertF32x4: {
@@ -3496,7 +3477,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I32x4TruncF32x4U: {
       __ I32x4TruncF32x4U(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.TempRegister(0), kScratchDoubleReg);
+                          kScratchDoubleReg, i.TempSimd128Register(0));
       break;
     }
     case kIA32Cvttps2dq: {

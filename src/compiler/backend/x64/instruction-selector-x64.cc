@@ -6833,7 +6833,16 @@ void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4S(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
   DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64I32x4TruncF32x4U);
+  X64OperandGeneratorT<Adapter> g(this);
+  node_t input = this->input_at(node, 0);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  if (IsSupported(AVX)) {
+    Emit(kX64I32x4TruncF32x4U, g.DefineAsRegister(node), g.UseRegister(input),
+         arraysize(temps), temps);
+  } else {
+    Emit(kX64I32x4TruncF32x4U, g.DefineSameAsFirst(node), g.UseRegister(input),
+         arraysize(temps), temps);
+  }
 }
 
 template <typename Adapter>

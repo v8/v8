@@ -4294,41 +4294,9 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   static constexpr RegClass tmp_rc = reg_class_for(kS128);
-  DoubleRegister tmp = GetUnusedRegister(tmp_rc, LiftoffRegList{dst, src}).fp();
-  // NAN->0, negative->0.
-  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vmaxps(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    maxps(dst.fp(), liftoff::kScratchDoubleReg);
-  }
-  // scratch: float representation of max_signed.
-  Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-  Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg,
-        uint8_t{1});  // 0x7fffffff
-  Cvtdq2ps(liftoff::kScratchDoubleReg,
-           liftoff::kScratchDoubleReg);  // 0x4f000000
-  // tmp: convert (src-max_signed).
-  // Set positive overflow lanes to 0x7FFFFFFF.
-  // Set negative lanes to 0.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vsubps(tmp, dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    movaps(tmp, dst.fp());
-    subps(tmp, liftoff::kScratchDoubleReg);
-  }
-  Cmpleps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, tmp);
-  Cvttps2dq(tmp, tmp);
-  Pxor(tmp, liftoff::kScratchDoubleReg);
-  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-  Pmaxsd(tmp, tmp, liftoff::kScratchDoubleReg);
-  // Convert to int. Overflow lanes above max_signed will be 0x80000000.
-  Cvttps2dq(dst.fp(), dst.fp());
-  // Add (src-max_signed) for overflow lanes.
-  Paddd(dst.fp(), dst.fp(), tmp);
+  DoubleRegister scratch2 =
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, src}).fp();
+  I32x4TruncF32x4U(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, scratch2);
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,

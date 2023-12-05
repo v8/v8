@@ -3156,7 +3156,8 @@ template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI32x4UConvertF32x4(
     Node* node) {
   IA32OperandGeneratorT<TurbofanAdapter> g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
   InstructionCode opcode =
       IsSupported(AVX) ? kAVXI32x4UConvertF32x4 : kSSEI32x4UConvertF32x4;
   Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
@@ -3985,7 +3986,17 @@ void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4S(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
-  VisitFloatUnop(this, node, this->input_at(node, 0), kIA32I32x4TruncF32x4U);
+  IA32OperandGeneratorT<Adapter> g(this);
+  node_t input = this->input_at(node, 0);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  // No need for unique because inputs are float but temp is general.
+  if (IsSupported(AVX)) {
+    Emit(kIA32I32x4TruncF32x4U, g.DefineAsRegister(node), g.UseRegister(input),
+         arraysize(temps), temps);
+  } else {
+    Emit(kIA32I32x4TruncF32x4U, g.DefineSameAsFirst(node), g.UseRegister(input),
+         arraysize(temps), temps);
+  }
 }
 
 template <>
