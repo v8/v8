@@ -549,18 +549,42 @@ bool TryMatchAnyExtend(Arm64OperandGeneratorT<TurboshaftAdapter>* g,
   using namespace turboshaft;  // NOLINT(build/namespaces)
   if (!selector->CanCover(node, right_node)) return false;
 
-  const Operation& right = selector->Get(node);
-  if (right.Is<Opmask::kWord32BitwiseAnd>()) {
-    UNIMPLEMENTED();  // TODO(mliedtke)
-  } else if (right.Is<Opmask::kWord32ShiftRightArithmetic>()) {
-    UNIMPLEMENTED();  // TODO(mliedtke)
-  } else if (const ChangeOp* change_op = right.TryCast<ChangeOp>()) {
-    // IsChangeInt32ToInt64
-    if (change_op->kind == ChangeOp::Kind::kSignExtend &&
-        change_op->from == WordRepresentation::Word32() &&
-        change_op->to == WordRepresentation::Word64()) {
-      UNIMPLEMENTED();  // TODO(mliedtke)
+  const Operation& right = selector->Get(right_node);
+  if (const WordBinopOp* bitwise_and =
+          right.TryCast<Opmask::kWord32BitwiseAnd>()) {
+    int32_t mask;
+    if (selector->MatchIntegralWord32Constant(bitwise_and->right(), &mask) &&
+        (mask == 0xFF || mask == 0xFFFF)) {
+      *left_op = g->UseRegister(left_node);
+      *right_op = g->UseRegister(bitwise_and->left());
+      *opcode |= AddressingModeField::encode(
+          (mask == 0xFF) ? kMode_Operand2_R_UXTB : kMode_Operand2_R_UXTH);
+      return true;
     }
+  } else if (const ShiftOp* sar =
+                 right.TryCast<Opmask::kWord32ShiftRightArithmetic>()) {
+    const Operation& sar_lhs = selector->Get(sar->left());
+    if (sar_lhs.Is<Opmask::kWord32ShiftLeft>() &&
+        selector->CanCover(right_node, sar->left())) {
+      const ShiftOp& shl = sar_lhs.Cast<ShiftOp>();
+      int32_t sar_by, shl_by;
+      if (selector->MatchIntegralWord32Constant(sar->right(), &sar_by) &&
+          selector->MatchIntegralWord32Constant(shl.right(), &shl_by) &&
+          sar_by == shl_by && (sar_by == 16 || sar_by == 24)) {
+        *left_op = g->UseRegister(left_node);
+        *right_op = g->UseRegister(shl.left());
+        *opcode |= AddressingModeField::encode(
+            (sar_by == 24) ? kMode_Operand2_R_SXTB : kMode_Operand2_R_SXTH);
+        return true;
+      }
+    }
+  } else if (const ChangeOp* change_op =
+                 right.TryCast<Opmask::kChangeInt32ToInt64>()) {
+    // Use extended register form.
+    *opcode |= AddressingModeField::encode(kMode_Operand2_R_SXTW);
+    *left_op = g->UseRegister(left_node);
+    *right_op = g->UseRegister(change_op->input());
+    return true;
   }
   return false;
 }
