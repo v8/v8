@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --no-liftoff --no-wasm-lazy-compilation --experimental-wasm-stringref
-// Flags: --turboshaft-wasm --turboshaft-wasm-instruction-selection
+// Flags: --turboshaft-wasm --turboshaft-wasm-instruction-selection-experimental
+// Flags: --turboshaft-wasm-instruction-selection-staged
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -382,4 +383,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     0b11111111_11111111_01010101_00000000n));
   assertEquals(0b101n, wasm.maskAfterShift(0b1010101010101010n));
   assertEquals(0b101n, wasm.shiftAfterMask(0b1010101010101010n));
+})();
+
+(function SignedExtendRightShiftValue() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("shrsExtend", makeSig([kWasmI32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32Const, 11,
+      kExprI32ShrS,
+      kExprI64SConvertI32,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(42n, wasm.shrsExtend(42 << 11));
+  assertEquals(-41n, wasm.shrsExtend(-41 << 11));
 })();
