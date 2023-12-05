@@ -728,6 +728,8 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
   // 8. Let result be InnerModuleEvaluation(module, stack, 0).
   // 9. If result is an abrupt completion, then
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  try_catch.SetVerbose(false);
+  try_catch.SetCaptureMessage(false);
   // TODO(verwaest): Return a bool from InnerModuleEvaluation instead?
   if (InnerModuleEvaluation(isolate, module, &stack, &dfs_index).is_null()) {
     if (!module->MaybeHandleEvaluationException(isolate, &stack)) return {};
