@@ -51,27 +51,11 @@ v8_builder(
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_IMPORT_ACCOUNT,
-    executable = "recipe:v8/auto_roll_incoming_deps",
+    executable = "recipe:v8/test262_import",
     schedule = "0 2 * * *",
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
-    properties = {
-        "autoroller_config": {
-            "target_config": {
-                "solution_name": "v8",
-                "project_name": "v8/v8",
-                "account": V8_TEST262_IMPORT_ACCOUNT,
-            },
-            "subject": "[test262] Roll test262",
-            "roll_test262": True,
-            "regular_deps_roller": False,
-            "reviewers": [
-                "syg@chromium.org",
-            ],
-            "bugs": "v8:7834",
-        },
-    },
 )
 
 v8_builder(
