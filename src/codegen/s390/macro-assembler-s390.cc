@@ -1012,7 +1012,7 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object,
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  CallBuiltin(Builtins::GetEphemeronKeyBarrierStub(fp_mode));
+  CallBuiltin(Builtins::EphemeronKeyBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
