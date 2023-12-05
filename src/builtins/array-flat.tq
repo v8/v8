@@ -26,14 +26,17 @@ transitioning macro FlattenIntoArrayFast(
 
   // 2. Let sourceIndex be 0.
   let smiSourceIndex: Smi = 0;
-  const smiSourceLength = Cast<Smi>(sourceLength)
-      otherwise goto Bailout(targetIndex, smiSourceIndex);
   const fastSource = Cast<FastJSArray>(source)
       otherwise goto Bailout(targetIndex, smiSourceIndex);
   let fastOW = NewFastJSArrayWitness(fastSource);
+
   // 3. Repeat, while sourceIndex < sourceLen
-  for (; smiSourceIndex < smiSourceLength; smiSourceIndex++) {
+  for (; true; smiSourceIndex++) {
     fastOW.Recheck() otherwise goto Bailout(targetIndex, smiSourceIndex);
+    // Ensure that we haven't walked beyond a possibly updated length.
+    if (smiSourceIndex >= fastOW.Get().length)
+      goto Bailout(targetIndex, smiSourceIndex);
+
     // a. Let P be ! ToString(sourceIndex).
     // b. Let exists be ? HasProperty(source, P).
     //   i. Let element be ? Get(source, P).
