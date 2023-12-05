@@ -234,6 +234,18 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // object could actually have aliases.
     non_aliasing_objects_.Set(*key, false);
   }
+  if (const FrameStateOp* frame_state =
+          graph_.Get(op_idx).TryCast<FrameStateOp>()) {
+    // We also mark the arguments of FrameState passed on to calls as
+    // potentially-aliasing, because they could be accessed by the caller with a
+    // function_name.arguments[index].
+    // TODO(dmercadier): this is more conservative that we'd like, since only a
+    // few functions use .arguments. Using a native-context-specific protector
+    // for .arguments might allow to avoid invalidating frame states' content.
+    for (OpIndex input : frame_state->inputs()) {
+      InvalidateIfAlias(input);
+    }
+  }
 }
 
 void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
