@@ -175,23 +175,15 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   const auto slot_count = RememberedSet<OLD_TO_NEW>::IterateTyped(
       typed_slot_set_, [this, visitor, record_old_to_shared_slots](
                            SlotType slot_type, Address slot_address) {
-        return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap(), slot_type, slot_address,
-            [this, visitor, record_old_to_shared_slots, slot_address,
-             slot_type](FullMaybeObjectSlot slot) {
-              SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
-              if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-                MaybeObject object;
-                if constexpr (Visitor::EnableConcurrentVisitation()) {
-                  object = slot.Relaxed_Load(visitor->cage_base());
-                } else {
-                  object = *slot;
-                }
-                CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot_address,
-                                                object);
-              }
-              return result;
-            });
+        Tagged<HeapObject> object = UpdateTypedSlotHelper::GetTargetObject(
+            heap(), slot_type, slot_address);
+        FullMaybeObjectSlot slot(&object);
+        SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
+        if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+          CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot_address,
+                                          MaybeObject::FromObject(object));
+        }
+        return result;
       });
   if (slot_count == 0) {
     delete typed_slot_set_;
