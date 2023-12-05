@@ -181,8 +181,8 @@ class StraightForwardRegisterAllocator {
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);
   void AllocateNodeResult(ValueNode* node);
-  void AllocateEagerDeopt(EagerDeoptInfo& deopt_info);
-  void AllocateLazyDeopt(LazyDeoptInfo& deopt_info);
+  void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
+  void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);
   void AssignFixedInput(Input& input);
   void AssignArbitraryRegisterInput(NodeBase* result_node, Input& input);
   void AssignAnyInput(Input& input);
