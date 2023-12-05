@@ -143,13 +143,8 @@ bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
 bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;
-  // We don't allocate, but the LookupIterator interface expects a handle.
-  DisallowGarbageCollection no_gc;
-  HandleScope handle_scope(this);
-  LookupIterator it(this, handle(JSReceiver::cast(exception), this),
-                    factory()->wasm_uncatchable_symbol(),
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  return !JSReceiver::HasProperty(&it).FromJust();
+  return !LookupIterator::HasInternalMarkerProperty(
+      this, JSReceiver::cast(exception), factory()->wasm_uncatchable_symbol());
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

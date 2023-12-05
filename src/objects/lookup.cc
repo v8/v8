@@ -1349,6 +1349,33 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   UNREACHABLE();
 }
 
+// This is a specialization of function LookupInRegularHolder above
+// which is tailored to test whether an object has an internal marker
+// property.
+// static
+bool LookupIterator::HasInternalMarkerProperty(Isolate* isolate,
+                                               Tagged<JSReceiver> const holder,
+                                               Handle<Symbol> const marker) {
+  DisallowGarbageCollection no_gc;
+  Tagged<Map> map = holder->map(isolate);
+  if (map->is_dictionary_map()) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      Tagged<SwissNameDictionary> dict =
+          holder->property_dictionary_swiss(isolate);
+      InternalIndex entry = dict->FindEntry(isolate, marker);
+      return entry.is_found();
+    } else {
+      Tagged<NameDictionary> dict = holder->property_dictionary(isolate);
+      InternalIndex entry = dict->FindEntry(isolate, marker);
+      return entry.is_found();
+    }
+  } else {
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
+    InternalIndex entry = descriptors->SearchWithCache(isolate, *marker, map);
+    return entry.is_found();
+  }
+}
+
 Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     const {
   DCHECK_EQ(ACCESS_CHECK, state_);
