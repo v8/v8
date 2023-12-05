@@ -195,8 +195,8 @@ class V8_NODISCARD CallDepthScope {
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
-    i::Handle<i::NativeContext> env = isolate_->native_context();
-    i::MicrotaskQueue* microtask_queue = env->microtask_queue();
+    i::MicrotaskQueue* microtask_queue =
+        i::NativeContext::cast(isolate_->context())->microtask_queue();
 
     isolate_->thread_local_top()->DecrementCallDepth(this);
     // Clear the exception when exiting V8 to avoid memory leaks.
