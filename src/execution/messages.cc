@@ -164,9 +164,6 @@ void MessageHandler::ReportMessageNoExceptions(
   int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
-    if (isolate->has_exception()) {
-      isolate->clear_exception();
-    }
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
@@ -188,9 +185,6 @@ void MessageHandler::ReportMessageNoExceptions(
         callback(api_message_obj, IsUndefined(*callback_data, isolate)
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));
-      }
-      if (isolate->has_exception()) {
-        isolate->clear_exception();
       }
     }
   }
@@ -239,6 +233,9 @@ MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
 
 MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
                                       IncrementalStringBuilder* builder) {
+  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  try_catch.SetVerbose(false);
+  try_catch.SetCaptureMessage(false);
   MaybeHandle<String> err_str =
       ErrorUtils::ToString(isolate, Handle<Object>::cast(error));
   if (err_str.is_null()) {
@@ -250,18 +247,13 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
       return {};
     }
     Handle<Object> exception = handle(isolate->exception(), isolate);
-    isolate->clear_exception();
-    isolate->clear_pending_message();
+    try_catch.Reset();
 
     err_str = ErrorUtils::ToString(isolate, exception);
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_exception());
-      if (isolate->is_execution_terminating()) {
-        return {};
-      }
-      isolate->clear_exception();
-      isolate->clear_pending_message();
+      if (isolate->is_execution_terminating()) return {};
       builder->AppendCStringLiteral("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
@@ -387,9 +379,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       // stringified already regardless. Still, try to append a string
       // representation of the thrown exception.
 
-      Handle<Object> exception = handle(isolate->exception(), isolate);
-      isolate->clear_exception();
-      isolate->clear_pending_message();
+      Handle<Object> exception(isolate->exception(), isolate);
+      try_catch.Reset();
 
       MaybeHandle<String> exception_string =
           ErrorUtils::ToString(isolate, exception);
@@ -419,13 +410,14 @@ Handle<String> MessageFormatter::Format(
     DCHECK(!args[i].is_null());
     arg_strings[i] = Object::NoSideEffectsToString(isolate, args[i]);
   }
+  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  try_catch.SetVerbose(false);
+  try_catch.SetCaptureMessage(false);
   MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
       isolate, index, base::VectorOf(arg_strings, args.size()));
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_exception());
-    isolate->clear_exception();
-    isolate->clear_pending_message();
     return isolate->factory()->InternalizeString(
         base::StaticCharVector("<error>"));
   }

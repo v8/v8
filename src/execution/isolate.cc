@@ -1698,10 +1698,7 @@ Tagged<Object> Isolate::TerminateExecution() {
 }
 
 void Isolate::CancelTerminateExecution() {
-  if (is_execution_terminating()) {
-    clear_exception();
-    if (try_catch_handler()) try_catch_handler()->Reset();
-  }
+  if (is_execution_terminating()) clear_exception();
 }
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
@@ -2002,7 +1999,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     // If/when we unwind back into C++ (returning to the JSEntry stub,
     // or to Execution::CallWasm), the returned exception will be sent
     // back to isolate->set_exception(...).
-    clear_exception();
+    clear_internal_exception();
     return exception;
   };
 

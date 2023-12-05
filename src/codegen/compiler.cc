@@ -1408,7 +1408,7 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
 }
 
 bool FailAndClearException(Isolate* isolate) {
-  isolate->clear_exception();
+  isolate->clear_internal_exception();
   return false;
 }
 

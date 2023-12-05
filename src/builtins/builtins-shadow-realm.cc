@@ -191,7 +191,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   if (result.is_null()) {
     DCHECK(isolate->has_exception());
     Handle<Object> exception = Handle<Object>(isolate->exception(), isolate);
-    isolate->clear_exception();
+    isolate->clear_internal_exception();
     if (is_parse_failed) {
       Handle<JSObject> error_object = Handle<JSObject>::cast(exception);
       Handle<String> message = Handle<String>::cast(JSReceiver::GetDataProperty(

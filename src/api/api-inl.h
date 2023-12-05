@@ -206,7 +206,7 @@ class V8_NODISCARD CallDepthScope {
     if (isolate_->thread_local_top()->CallDepthIsZero() &&
         (isolate_->thread_local_top()->try_catch_handler_ == nullptr ||
          !isolate_->is_execution_terminating())) {
-      isolate_->clear_exception();
+      isolate_->clear_internal_exception();
     }
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 #ifdef DEBUG

@@ -815,7 +815,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, exception)
   inline Tagged<Object> exception();
   inline void set_exception(Tagged<Object> exception_obj);
+  // Clear thrown exception from V8 and a possible TryCatch.
   inline void clear_exception();
+
+  // Clear the exception only from V8, not from a possible external try-catch.
+  inline void clear_internal_exception();
   inline bool has_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_message)

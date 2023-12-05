@@ -3022,7 +3022,7 @@ v8::TryCatch::~TryCatch() {
         i_isolate_->set_pending_message(ToObject(message_obj_));
       }
       i_isolate_->UnregisterTryCatchHandler(this);
-      i_isolate_->clear_exception();
+      i_isolate_->clear_internal_exception();
       i_isolate_->Throw(ToObject(exception_));
       return;
     }
@@ -3102,7 +3102,7 @@ void v8::TryCatch::Reset() {
       !i_isolate_->thread_local_top()->CallDepthIsZero()) {
     return;
   }
-  i_isolate_->clear_exception();
+  i_isolate_->clear_internal_exception();
   i_isolate_->clear_pending_message();
   ResetInternal();
 }
@@ -9418,7 +9418,7 @@ v8::Local<Value> Isolate::ThrowError(v8::Local<v8::String> message) {
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_BASIC(i_isolate);
-  i_isolate->clear_exception();
+  i_isolate->clear_internal_exception();
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {

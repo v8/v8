@@ -84,9 +84,14 @@ void Isolate::set_exception(Tagged<Object> exception_obj) {
   thread_local_top()->exception_ = exception_obj;
 }
 
-void Isolate::clear_exception() {
+void Isolate::clear_internal_exception() {
   DCHECK(!IsException(thread_local_top()->exception_, this));
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
+}
+
+void Isolate::clear_exception() {
+  clear_internal_exception();
+  if (try_catch_handler()) try_catch_handler()->Reset();
 }
 
 bool Isolate::has_exception() {
@@ -163,7 +168,7 @@ Handle<JSGlobalProxy> Isolate::global_proxy() {
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
     : isolate_(isolate), exception_(isolate_->exception(), isolate_) {
-  isolate_->clear_exception();
+  isolate_->clear_internal_exception();
 }
 
 Isolate::ExceptionScope::~ExceptionScope() {

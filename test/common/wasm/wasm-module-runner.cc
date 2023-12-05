@@ -133,7 +133,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
           isolate, handle(isolate->exception(), isolate));
       *exception = exception_string->ToCString();
     }
-    isolate->clear_exception();
+    isolate->clear_internal_exception();
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();

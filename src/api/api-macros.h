@@ -58,7 +58,7 @@
 
 #define PREPARE_FOR_EXECUTION(context, class_name, function_name)         \
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());  \
-  i_isolate->clear_exception();                                           \
+  i_isolate->clear_internal_exception();                                  \
   ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name, function_name, \
                            InternalEscapableScope, false);
 
