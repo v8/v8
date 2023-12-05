@@ -217,6 +217,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin, Condition cond, Register type,
+                       Operand range);
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination,

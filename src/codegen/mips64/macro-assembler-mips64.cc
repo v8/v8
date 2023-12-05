@@ -4442,6 +4442,14 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
   }
 }
 
+void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
+                                     Register type, Operand range) {
+  Label done;
+  Branch(&done, NegateCondition(cond), type, range);
+  TailCallBuiltin(builtin);
+  bind(&done);
+}
+
 void MacroAssembler::TailCallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
