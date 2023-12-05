@@ -3690,7 +3690,15 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
     }
     if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
         CanCover(node, change_op.input())) {
-      UNIMPLEMENTED();  // TODO(mliedtke)
+      const ShiftOp& sar = input_op.Cast<ShiftOp>();
+      if (this->is_integer_constant(sar.right())) {
+        Arm64OperandGeneratorT<Adapter> g(this);
+        // Mask the shift amount, to keep the same semantics as Word32Sar.
+        int right = this->integer_constant(sar.right()) & 0x1F;
+        Emit(kArm64Sbfx, g.DefineAsRegister(node), g.UseRegister(sar.left()),
+             g.TempImmediate(right), g.TempImmediate(32 - right));
+        return;
+      }
     }
     VisitRR(this, kArm64Sxtw, node);
   } else {
