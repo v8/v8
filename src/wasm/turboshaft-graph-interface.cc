@@ -142,8 +142,7 @@ class TurboshaftGraphBuildingInterface {
         inlining_positions_(inlining_positions),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
-        return_phis_(zone),
-        return_exception_phis_(zone) {}
+        return_phis_(zone) {}
 
   TurboshaftGraphBuildingInterface(
       Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
@@ -160,8 +159,7 @@ class TurboshaftGraphBuildingInterface {
         real_parameters_(real_parameters),
         return_block_(return_block),
         return_phis_(zone),
-        return_catch_block_(catch_block),
-        return_exception_phis_(zone) {
+        return_catch_block_(catch_block) {
     DCHECK_NOT_NULL(return_block);
   }
 
@@ -188,10 +186,7 @@ class TurboshaftGraphBuildingInterface {
         // instance.
         ssa_env_[index] = real_parameters_[index + 1];
       }
-      return_phis_ = BlockPhis(decoder->zone_, decoder->sig_->return_count());
-      for (size_t i = 0; i < decoder->sig_->return_count(); i++) {
-        return_phis_.phi_types[i] = decoder->sig_->GetReturn(i);
-      }
+      return_phis_.InitReturnPhis(decoder->sig_->returns());
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
@@ -581,7 +576,7 @@ class TurboshaftGraphBuildingInterface {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
       for (size_t i = 0; i < return_values.size(); i++) {
-        return_phis_.phi_inputs[i].push_back(return_values[i]);
+        return_phis_.AddInputForPhi(i, return_values[i]);
       }
       __ Goto(return_block_);
     }
@@ -3707,29 +3702,6 @@ class TurboshaftGraphBuildingInterface {
   bool did_bailout() { return did_bailout_; }
 
  private:
-  // Holds phi inputs for a specific block. These include SSA values as well as
-  // stack merge values.
-  struct BlockPhis {
-    // TODO(14108): Consider unifying the next three fields into a single
-    // vector of pairs.
-    size_t total_arity;
-    // Pointers into array of size `total_arity`. The first element corresponds
-    // to elements of the first phi etc.
-    SmallZoneVector<OpIndex, 2>* phi_inputs;
-    // Pointer into array of size `total_arity`.
-    ValueType* phi_types;
-    SmallZoneVector<OpIndex, 2> incoming_exception;
-
-    BlockPhis(Zone* zone, size_t total_arity)
-        : total_arity(total_arity),
-          phi_inputs(zone->NewVector<SmallZoneVector<OpIndex, 2>>(
-                             total_arity, SmallZoneVector<OpIndex, 2>(zone))
-                         .data()),
-          phi_types(zone->AllocateArray<ValueType>(total_arity)),
-          incoming_exception(zone) {}
-    explicit BlockPhis(Zone* zone) : BlockPhis(zone, 0) {}
-  };
-
   // The InstanceCache caches commonly used fields of the WasmInstanceObject.
   // We can extend the set of cached fields as needed.
   // This caching serves two purposes:
@@ -3888,6 +3860,202 @@ class TurboshaftGraphBuildingInterface {
 
   enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
 
+  // Holds phi inputs for a specific block. These include SSA values, stack
+  // merge values, and cached fields from the instance..
+  // Conceptually, this is a two-dimensional, rectangular array of size
+  // `phi_count * inputs_per_phi`, since each phi has the same number of inputs,
+  // namely the number of incoming edges for this block.
+  class BlockPhis {
+   public:
+    // Ctor for regular blocks.
+    V8_INLINE BlockPhis(FullDecoder* decoder, Merge<Value>* merge,
+                        InstanceCache& instance_cache)
+        : incoming_exceptions_(decoder->zone()) {
+      // Allocate space and initialize the types of all phis.
+      uint32_t num_locals = decoder->num_locals();
+      uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
+      uint32_t cached_fields = instance_cache.num_mutable_fields();
+
+      phi_count_ = num_locals + merge_arity + cached_fields;
+      phi_types_ = decoder->zone()->AllocateArray<ValueType>(phi_count_);
+
+      base::Vector<ValueType> locals = decoder->local_types();
+      std::uninitialized_copy(locals.begin(), locals.end(), phi_types_);
+      for (uint32_t i = 0; i < merge_arity; i++) {
+        new (&phi_types_[num_locals + i]) ValueType((*merge)[i].type);
+      }
+      for (uint32_t i = 0; i < cached_fields; i++) {
+        new (&phi_types_[num_locals + merge_arity + i])
+            ValueType(instance_cache.mutable_field_type(i));
+      }
+
+      // Only reserve some space for the inputs to be added later.
+      phi_inputs_capacity_total_ = phi_count_ * input_capacity_per_phi_;
+      phi_inputs_ =
+          decoder->zone()->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
+
+#ifdef DEBUG
+      constexpr uint32_t kNoInputs = 0;
+      input_count_per_phi_ = std::vector(phi_count_, kNoInputs);
+#endif
+    }
+
+    // Default ctor and later initialization for function returns.
+    explicit BlockPhis(Zone* zone) : incoming_exceptions_(zone) {}
+    void InitReturnPhis(base::iterator_range<const ValueType*> return_types) {
+      // For `return_phis_`, nobody should have inserted into `this` before
+      // calling `InitReturnPhis`.
+      DCHECK_EQ(phi_count_, 0);
+      DCHECK_EQ(inputs_per_phi_, 0);
+
+      phi_count_ = static_cast<uint32_t>(return_types.size());
+      phi_types_ = zone()->AllocateArray<ValueType>(phi_count_);
+
+      std::uninitialized_copy(return_types.begin(), return_types.end(),
+                              phi_types_);
+
+      phi_inputs_capacity_total_ = phi_count_ * input_capacity_per_phi_;
+      phi_inputs_ = zone()->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
+
+#ifdef DEBUG
+      constexpr uint32_t kNoInputs = 0;
+      input_count_per_phi_ = std::vector(phi_count_, kNoInputs);
+#endif
+    }
+
+    void AddInputForPhi(size_t phi_i, OpIndex input) {
+      if (V8_UNLIKELY(phi_inputs_total_ >= phi_inputs_capacity_total_)) {
+        GrowInputsVector();
+      }
+
+#ifdef DEBUG
+      // We rely on adding inputs in the order of phis, i.e.,
+      // `AddInputForPhi(0, ...); AddInputForPhi(1, ...); ...`.
+      size_t phi_inputs_start = phi_i * input_capacity_per_phi_;
+      size_t phi_input_offset_from_start = inputs_per_phi_;
+      CHECK_EQ(input_count_per_phi_[phi_i]++, phi_input_offset_from_start);
+      size_t phi_input_offset = phi_inputs_start + phi_input_offset_from_start;
+      CHECK_EQ(next_phi_input_add_offset_, phi_input_offset);
+#endif
+      new (&phi_inputs_[next_phi_input_add_offset_]) OpIndex(input);
+
+      phi_inputs_total_++;
+      next_phi_input_add_offset_ += input_capacity_per_phi_;
+      if (next_phi_input_add_offset_ >= phi_inputs_capacity_total_) {
+        // We have finished adding the last input for all phis.
+        inputs_per_phi_++;
+        next_phi_input_add_offset_ = inputs_per_phi_;
+#ifdef DEBUG
+        EnsureAllPhisHaveSameInputCount();
+#endif
+      }
+    }
+
+    uint32_t phi_count() const { return phi_count_; }
+
+    ValueType phi_type(size_t phi_i) const { return phi_types_[phi_i]; }
+    base::Vector<const OpIndex> phi_inputs(size_t phi_i) const {
+#ifdef DEBUG
+      EnsureAllPhisHaveSameInputCount();
+#endif
+      size_t phi_inputs_start = phi_i * input_capacity_per_phi_;
+      return base::VectorOf(&phi_inputs_[phi_inputs_start], inputs_per_phi_);
+    }
+
+    void AddIncomingException(OpIndex exception) {
+      incoming_exceptions_.push_back(exception);
+    }
+
+    base::Vector<const OpIndex> incoming_exceptions() const {
+      return base::VectorOf(incoming_exceptions_);
+    }
+
+   private:
+    // Invariants:
+    // The number of phis for a given block (e.g., locals, merged stack values,
+    // and cached instance fields) is known when constructing the `BlockPhis`
+    // and doesn't grow afterwards.
+    // The number of _inputs_ for each phi is however _not_ yet known when
+    // constructing this, but grows over time as new incoming edges for a given
+    // block are created.
+    // After such an edge is created, each phi has the same number of inputs.
+    // When eventually creating a phi, we also need all inputs layed out
+    // contiguously.
+    // Due to those requirements, we write our own little container, see below.
+
+    // First the backing storage:
+    // Of size `phi_count_`, one type per phi.
+    ValueType* phi_types_ = nullptr;
+    // Of size `phi_inputs_capacity_total_ == phi_count_ *
+    // input_capacity_per_phi_`, of which `phi_inputs_total_ == phi_count_ *
+    // inputs_per_phi_` are set/initialized. All inputs for a given phi are
+    // stored contiguously, but between them are uninitialized elements for
+    // adding new inputs without reallocating.
+    OpIndex* phi_inputs_ = nullptr;
+
+    // Stored explicitly to save multiplications in the hot `AddInputForPhi()`.
+    // Also pulled up to be in the same cache-line as `phi_inputs_`.
+    uint32_t phi_inputs_capacity_total_ = 0;  // Updated with `phi_inputs_`.
+    uint32_t phi_inputs_total_ = 0;
+    uint32_t next_phi_input_add_offset_ = 0;
+
+    // The dimensions.
+    uint32_t phi_count_ = 0;
+    uint32_t inputs_per_phi_ = 0;
+    static constexpr uint32_t kInitialInputCapacityPerPhi = 2;
+    uint32_t input_capacity_per_phi_ = kInitialInputCapacityPerPhi;
+
+#ifdef DEBUG
+    std::vector<uint32_t> input_count_per_phi_;
+    void EnsureAllPhisHaveSameInputCount() const {
+      CHECK_EQ(phi_inputs_total_, phi_count() * inputs_per_phi_);
+      CHECK_EQ(phi_count(), input_count_per_phi_.size());
+      CHECK(std::all_of(input_count_per_phi_.begin(),
+                        input_count_per_phi_.end(), [=](uint32_t input_count) {
+                          return input_count == inputs_per_phi_;
+                        }));
+    }
+#endif
+
+    // The number of `incoming_exceptions` is also not known when constructing
+    // the block, but at least it is only one-dimensional, so we can use a
+    // simple `ZoneVector`.
+    ZoneVector<OpIndex> incoming_exceptions_;
+
+    Zone* zone() { return incoming_exceptions_.zone(); }
+
+    V8_NOINLINE V8_PRESERVE_MOST void GrowInputsVector() {
+      // We should have always initialized some storage, see
+      // `kInititalInputCapacityPerPhi`.
+      DCHECK_NOT_NULL(phi_inputs_);
+      DCHECK_NE(phi_inputs_capacity_total_, 0);
+
+      OpIndex* old_phi_inputs = phi_inputs_;
+      uint32_t old_input_capacity_per_phi = input_capacity_per_phi_;
+      uint32_t old_phi_inputs_capacity_total = phi_inputs_capacity_total_;
+
+      input_capacity_per_phi_ *= 2;
+      phi_inputs_capacity_total_ *= 2;
+      phi_inputs_ = zone()->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
+
+      // This is essentially a strided copy, where we expand the storage by
+      // "inserting" unitialized elements in between contiguous stretches of
+      // inputs belonging to the same phi.
+      for (size_t phi_i = 0; phi_i < phi_count(); ++phi_i) {
+#ifdef DEBUG
+        EnsureAllPhisHaveSameInputCount();
+#endif
+        const OpIndex* old_begin =
+            &old_phi_inputs[phi_i * old_input_capacity_per_phi];
+        const OpIndex* old_end = old_begin + inputs_per_phi_;
+        OpIndex* begin = &phi_inputs_[phi_i * input_capacity_per_phi_];
+        std::uninitialized_copy(old_begin, old_end, begin);
+      }
+
+      zone()->DeleteArray(old_phi_inputs, old_phi_inputs_capacity_total);
+    }
+  };
+
   void Bailout(FullDecoder* decoder) {
     decoder->errorf("Unsupported Turboshaft operation: %s",
                     decoder->SafeOpcodeNameAt(decoder->pc()));
@@ -3909,21 +4077,7 @@ class TurboshaftGraphBuildingInterface {
   // for that merge.
   TSBlock* NewBlockWithPhis(FullDecoder* decoder, Merge<Value>* merge) {
     TSBlock* block = __ NewBlock();
-    uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
-    uint32_t cached_fields = instance_cache_.num_mutable_fields();
-    BlockPhis block_phis(decoder->zone_,
-                         decoder->num_locals() + merge_arity + cached_fields);
-    for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      block_phis.phi_types[i] = decoder->local_type(i);
-    }
-    for (uint32_t i = 0; i < merge_arity; i++) {
-      block_phis.phi_types[decoder->num_locals() + i] = (*merge)[i].type;
-    }
-    for (uint32_t i = 0; i < cached_fields; i++) {
-      block_phis.phi_types[decoder->num_locals() + merge_arity + i] =
-          instance_cache_.mutable_field_type(i);
-    }
-    block_phis_.emplace(block, std::move(block_phis));
+    block_phis_.emplace(block, BlockPhis(decoder, merge, instance_cache_));
     return block;
   }
 
@@ -3938,10 +4092,11 @@ class TurboshaftGraphBuildingInterface {
     // It is guaranteed that this element exists.
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
-    uint32_t merge_arity = static_cast<uint32_t>(phis_for_block.total_arity) -
+    uint32_t merge_arity = static_cast<uint32_t>(phis_for_block.phi_count()) -
                            decoder->num_locals() - cached_fields;
+
     for (size_t i = 0; i < ssa_env_.size(); i++) {
-      phis_for_block.phi_inputs[i].emplace_back(ssa_env_[i]);
+      phis_for_block.AddInputForPhi(i, ssa_env_[i]);
     }
     // We never drop values from an explicit merge.
     DCHECK_IMPLIES(stack_values != nullptr, drop_values == 0);
@@ -3951,19 +4106,19 @@ class TurboshaftGraphBuildingInterface {
                             : decoder->stack_value(merge_arity + drop_values);
     for (size_t i = 0; i < merge_arity; i++) {
       DCHECK(stack_base[i].op.valid());
-      phis_for_block.phi_inputs[decoder->num_locals() + i].emplace_back(
-          stack_base[i].op);
+      phis_for_block.AddInputForPhi(decoder->num_locals() + i,
+                                    stack_base[i].op);
     }
     for (uint32_t i = 0; i < cached_fields; i++) {
-      phis_for_block.phi_inputs[decoder->num_locals() + merge_arity + i]
-          .emplace_back(instance_cache_.mutable_field_value(i));
+      phis_for_block.AddInputForPhi(decoder->num_locals() + merge_arity + i,
+                                    instance_cache_.mutable_field_value(i));
     }
     if (exception.valid()) {
-      phis_for_block.incoming_exception.push_back(exception);
+      phis_for_block.AddIncomingException(exception);
     }
   }
 
-  OpIndex MaybePhi(base::Vector<OpIndex> elements, ValueType type) {
+  OpIndex MaybePhi(base::Vector<const OpIndex> elements, ValueType type) {
     if (elements.empty()) return OpIndex::Invalid();
     for (size_t i = 1; i < elements.size(); i++) {
       if (elements[i] != elements[0]) {
@@ -3981,30 +4136,32 @@ class TurboshaftGraphBuildingInterface {
                                 OpIndex* exception = nullptr) {
     __ Bind(tsblock);
     auto block_phis_it = block_phis_.find(tsblock);
+    DCHECK_NE(block_phis_it, block_phis_.end());
     BlockPhis& block_phis = block_phis_it->second;
-    for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      ssa_env_[i] = MaybePhi(base::VectorOf(block_phis.phi_inputs[i]),
-                             block_phis.phi_types[i]);
-    }
+
     uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
     uint32_t cached_fields = instance_cache_.num_mutable_fields();
     DCHECK_EQ(decoder->num_locals() + merge_arity + cached_fields,
-              block_phis.total_arity);
+              block_phis.phi_count());
+
+    for (uint32_t i = 0; i < decoder->num_locals(); i++) {
+      ssa_env_[i] = MaybePhi(block_phis.phi_inputs(i), block_phis.phi_type(i));
+    }
     for (uint32_t i = 0; i < merge_arity; i++) {
-      (*merge)[i].op = MaybePhi(
-          base::VectorOf(block_phis.phi_inputs[decoder->num_locals() + i]),
-          block_phis.phi_types[decoder->num_locals() + i]);
+      uint32_t phi_index = decoder->num_locals() + i;
+      (*merge)[i].op = MaybePhi(block_phis.phi_inputs(phi_index),
+                                block_phis.phi_type(phi_index));
     }
     for (uint32_t i = 0; i < cached_fields; i++) {
       uint32_t phi_index = decoder->num_locals() + merge_arity + i;
       instance_cache_.set_mutable_field_value(
-          i, MaybePhi(base::VectorOf(block_phis.phi_inputs[phi_index]),
-                      block_phis.phi_types[phi_index]));
+          i, MaybePhi(block_phis.phi_inputs(phi_index),
+                      block_phis.phi_type(phi_index)));
     }
-    DCHECK_IMPLIES(exception == nullptr, block_phis.incoming_exception.empty());
+    DCHECK_IMPLIES(exception == nullptr,
+                   block_phis.incoming_exceptions().empty());
     if (exception != nullptr && !exception->valid()) {
-      *exception = MaybePhi(base::VectorOf(block_phis.incoming_exception),
-                            kWasmExternRef);
+      *exception = MaybePhi(block_phis.incoming_exceptions(), kWasmExternRef);
     }
     block_phis_.erase(block_phis_it);
   }
@@ -5687,7 +5844,7 @@ class TurboshaftGraphBuildingInterface {
       BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
                     CheckForException::kCatchInParentFrame);
       for (size_t i = 0; i < sig->return_count(); i++) {
-        return_phis_.phi_inputs[i].push_back(returns[i].op);
+        return_phis_.AddInputForPhi(i, returns[i].op);
       }
       __ Goto(return_block_);
     }
@@ -5783,7 +5940,7 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, catch_block, 0, exception);
     } else {
       DCHECK_EQ(mode_, kInlinedWithCatch);
-      if (exception.valid()) return_exception_phis_.push_back(exception);
+      if (exception.valid()) return_phis_.AddIncomingException(exception);
     }
     __ Goto(catch_block);
 
@@ -6387,16 +6544,18 @@ class TurboshaftGraphBuildingInterface {
     DCHECK_IMPLIES(!inlinee_decoder.ok(),
                    inlinee_decoder.interface().did_bailout());
 
+    base::Vector<const OpIndex> inlinee_return_exception_phis =
+        inlinee_decoder.interface().return_phis().incoming_exceptions();
     DCHECK_IMPLIES(inlinee_mode == kInlinedUnhandled,
-                   inlinee_decoder.interface().return_exception_phis().empty());
+
+                   inlinee_return_exception_phis.empty());
 
     if (inlinee_mode == kInlinedWithCatch &&
-        !inlinee_decoder.interface().return_exception_phis().empty()) {
+        !inlinee_return_exception_phis.empty()) {
       // We need to handle exceptions in the inlined call.
       __ Bind(callee_catch_block);
-      OpIndex exception = MaybePhi(
-          base::VectorOf(inlinee_decoder.interface().return_exception_phis()),
-          kWasmExternRef);
+      OpIndex exception =
+          MaybePhi(inlinee_return_exception_phis, kWasmExternRef);
       bool handled_in_this_frame = decoder->current_catch() != -1;
       TSBlock* catch_block;
       if (handled_in_this_frame) {
@@ -6410,7 +6569,7 @@ class TurboshaftGraphBuildingInterface {
       if (handled_in_this_frame) {
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
       } else {
-        if (exception.valid()) return_exception_phis_.emplace_back(exception);
+        if (exception.valid()) return_phis_.AddIncomingException(exception);
       }
       __ Goto(catch_block);
     }
@@ -6418,8 +6577,8 @@ class TurboshaftGraphBuildingInterface {
     __ Bind(callee_return_block);
     BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
     for (size_t i = 0; i < inlinee.sig->return_count(); i++) {
-      returns[i].op = MaybePhi(base::VectorOf(return_phis.phi_inputs[i]),
-                               return_phis.phi_types[i]);
+      returns[i].op =
+          MaybePhi(return_phis.phi_inputs(i), return_phis.phi_type(i));
     }
 
     if (!v8_flags.liftoff) {
@@ -6523,9 +6682,6 @@ class TurboshaftGraphBuildingInterface {
   }
 
   BlockPhis& return_phis() { return return_phis_; }
-  ZoneVector<OpIndex>& return_exception_phis() {
-    return return_exception_phis_;
-  }
   void set_inlining_id(uint8_t inlining_id) {
     DCHECK_NE(inlining_id, kNoInliningId);
     inlining_id_ = inlining_id;
@@ -6567,15 +6723,12 @@ class TurboshaftGraphBuildingInterface {
   base::Vector<OpIndex> real_parameters_;
   // The block where this function returns its values (passed by the caller).
   TSBlock* return_block_ = nullptr;
-  // The return values for this function. The caller will reconstruct each one
-  // with a Phi.
+  // The return values and exception values for this function.
+  // The caller will reconstruct each one with a Phi.
   BlockPhis return_phis_;
   // The block where exceptions from this function are caught (passed by the
   // caller).
   TSBlock* return_catch_block_ = nullptr;
-  // The exception values for this function (will be reconstructed in the caller
-  // with a Phi).
-  ZoneVector<OpIndex> return_exception_phis_;
   // The position of the call that is being inlined.
   SourcePosition parent_position_;
 };

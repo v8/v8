@@ -1489,6 +1489,9 @@ class WasmDecoder : public Decoder {
 
   uint32_t num_locals() const { return num_locals_; }
 
+  base::Vector<ValueType> local_types() const {
+    return base::VectorOf(local_types_, num_locals_);
+  }
   ValueType local_type(uint32_t index) const {
     DCHECK_GE(num_locals_, index);
     return local_types_[index];
