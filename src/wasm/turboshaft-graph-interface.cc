@@ -2183,9 +2183,19 @@ class TurboshaftGraphBuildingInterface {
     __ Unreachable();
   }
 
-  // TODO(14108): Optimize in case of unreachable catch block?
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    if (!block->false_or_loop_or_catch_block->HasPredecessors()) {
+      // TODO(14108): We should call
+      //   decoder->SetSucceedingCodeDynamicallyUnreachable();
+      // instead (same for Liftoff and Turbofan).
+      block->reachability = kSpecOnlyReachable;
+      return;
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     V<NativeContext> native_context = instance_cache_.native_context();
@@ -2280,6 +2290,15 @@ class TurboshaftGraphBuildingInterface {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
+
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    if (!block->false_or_loop_or_catch_block->HasPredecessors()) {
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
+      return;
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
   }
@@ -2288,6 +2307,14 @@ class TurboshaftGraphBuildingInterface {
 
   void CatchCase(FullDecoder* decoder, Control* block,
                  const CatchCase& catch_case, base::Vector<Value> values) {
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    if (!block->false_or_loop_or_catch_block->HasPredecessors()) {
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
+      return;
+    }
+
     // If this is the first catch case, {block->false_or_loop_or_catch_block} is
     // the block that was created on block entry, and is where all throwing
     // instructions in the try-table jump to if they throw.
@@ -6273,6 +6300,18 @@ class TurboshaftGraphBuildingInterface {
                       const FunctionSig* sig, uint32_t feedback_case,
                       const Value args[], Value returns[]) {
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
+    DCHECK_EQ(inlinee.sig->return_count(), sig->return_count());
+    DCHECK_EQ(inlinee.sig->parameter_count(), sig->parameter_count());
+#ifdef DEBUG
+    for (size_t i = 0; i < sig->return_count(); ++i) {
+      DCHECK(IsSubtypeOf(inlinee.sig->GetReturn(i), sig->GetReturn(i),
+                         decoder->module_));
+    }
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      DCHECK(IsSubtypeOf(sig->GetParam(i), inlinee.sig->GetParam(i),
+                         decoder->module_));
+    }
+#endif
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
