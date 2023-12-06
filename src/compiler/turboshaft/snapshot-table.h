@@ -394,9 +394,7 @@ void SnapshotTable<Value, KeyData>::RecordMergeValue(
              std::numeric_limits<uint32_t>::max());
     entry.merge_offset = static_cast<uint32_t>(merge_values_.size());
     merging_entries_.push_back(&entry);
-    for (size_t i = 0; i < predecessor_count; ++i) {
-      merge_values_.push_back(entry.value);
-    }
+    merge_values_.insert(merge_values_.end(), predecessor_count, entry.value);
   }
   merge_values_[entry.merge_offset + predecessor_index] = value;
   entry.last_merged_predecessor = predecessor_index;
