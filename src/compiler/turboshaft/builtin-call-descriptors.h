@@ -204,7 +204,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
