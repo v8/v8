@@ -27,6 +27,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -528,9 +529,6 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
          op.rep == WordRepresentation::Word64());
   bool word64 = op.rep == WordRepresentation::Word64();
   Node* right = GetNode(op.right());
-  // TODO(chromium:1489500, nicohartmann@): Reenable once turboshaft csa
-  // pipeline crashes are fixed.
-#if 0
   if (word64) {
     // In Turboshaft's ShiftOp, the right hand side always has Word32
     // representation, so for 64 bit shifts, we have to zero-extend when
@@ -543,7 +541,6 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
       right = AddNode(machine.ChangeUint32ToUint64(), {right});
     }
   }
-#endif
   const Operator* o;
   switch (op.kind) {
     case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
