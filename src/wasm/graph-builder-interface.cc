@@ -1068,6 +1068,7 @@ class WasmGraphBuildingInterface {
 
     for (uint32_t i = 0; i < sig->return_count(); i++) {
       std::vector<TFNode*> phi_args;
+      phi_args.reserve(num_cases + 2);
       for (int j = 0; j < num_cases; j++) {
         phi_args.push_back(returns_values[j][i].node);
       }
