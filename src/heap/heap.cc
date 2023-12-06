@@ -7400,7 +7400,7 @@ CodePageMemoryModificationScopeForDebugging::
                                                 VirtualMemory* reservation,
                                                 base::AddressRegion region)
     : rwx_write_scope_("Write access for zapping.") {
-#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+#if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #endif
 }
@@ -7408,7 +7408,7 @@ CodePageMemoryModificationScopeForDebugging::
 CodePageMemoryModificationScopeForDebugging::
     CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk)
     : rwx_write_scope_("Write access for zapping.") {
-#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+#if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #endif
 }
@@ -7423,7 +7423,7 @@ CodePageMemoryModificationScopeForDebugging::
     CodePageMemoryModificationScopeForDebugging(Heap* heap,
                                                 VirtualMemory* reservation,
                                                 base::AddressRegion region) {
-#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+#if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #else
   if (heap->write_protect_code_memory()) {
@@ -7439,7 +7439,7 @@ CodePageMemoryModificationScopeForDebugging::
 CodePageMemoryModificationScopeForDebugging::
     CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk)
     : memory_modification_scope_(chunk) {
-#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+#if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #endif
 }
