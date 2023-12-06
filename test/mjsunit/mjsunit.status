@@ -1927,6 +1927,7 @@
   'math-floor-part1': [SKIP],
   'compiler/regress-1125145': [SKIP],
   'compiler/regress-crbug-1399627': [SKIP],
+  'json2': [SKIP],
   'es6/typedarray-of': [PASS, SLOW],
 
   # TODO(victorgomes):
