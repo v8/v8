@@ -595,7 +595,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   Page* last_lab_page_ = nullptr;
 
   bool force_allocation_success_ = false;
-  bool should_exceed_target_capacity_ = false;
 
   friend class PagedNewSpaceAllocatorPolicy;
 };

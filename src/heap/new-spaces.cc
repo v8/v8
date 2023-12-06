@@ -909,9 +909,8 @@ void PagedSpaceForNewSpace::FinishShrinking() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_IMPLIES(!should_exceed_target_capacity_,
+  DCHECK_IMPLIES(!force_allocation_success_,
                  UsableCapacity() <= TotalCapacity());
-  should_exceed_target_capacity_ = false;
   return PagedSpaceBase::AddPage(page);
 }
 
@@ -942,10 +941,8 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
   DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
   // Allocate another page is `force_allocation_success_` is true,
   // `UsableCapacity()` is below `TotalCapacity()` and allocating another page
-  // won't exceed `TotalCapacity()`, or `ShouldOptimizeForLoadTime()` is true.
-  should_exceed_target_capacity_ =
-      force_allocation_success_ || heap_->ShouldOptimizeForLoadTime();
-  if (should_exceed_target_capacity_ ||
+  // won't exceed `TotalCapacity()`.
+  if (force_allocation_success_ ||
       ((UsableCapacity() < TotalCapacity()) &&
        (TotalCapacity() - UsableCapacity() >= Page::kPageSize))) {
     if (!heap()->CanExpandOldGeneration(
