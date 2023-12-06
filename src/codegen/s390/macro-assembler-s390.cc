@@ -2149,9 +2149,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_S390X
-  CallBuiltin(Builtins::CEntry(f->result_size));
+  CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
 #else
-  CallBuiltin(Builtins::CEntry(1));
+  CallBuiltin(Builtins::RuntimeCEntry(1));
 #endif
 }
 
@@ -2167,8 +2167,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  TailCallBuiltin(Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame),
-                  RelocInfo::CODE_TARGET);
+  TailCallBuiltin(Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame));
 }
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,

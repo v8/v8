@@ -2151,9 +2151,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(r3, Operand(num_arguments));
   Move(r4, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_PPC64
-  CallBuiltin(Builtins::CEntry(f->result_size));
+  CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
 #else
-  CallBuiltin(Builtins::CEntry(1));
+  CallBuiltin(Builtins::RuntimeCEntry(1));
 #endif
 }
 
