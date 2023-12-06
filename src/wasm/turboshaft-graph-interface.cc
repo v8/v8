@@ -1058,7 +1058,8 @@ class TurboshaftGraphBuildingInterface {
     BuildModifyThreadInWasmFlag(decoder, false);
     V<Smi> result_value = CallBuiltinThroughJumptable(
         decoder, Builtin::kStringIndexOf, {string, search, start_smi},
-        OpEffects().CanReadMemory(), Operator::kEliminatable);
+        OpEffects().CanReadMemory().CanAllocateWithoutIdentity(),
+        Operator::kEliminatable);
     BuildModifyThreadInWasmFlag(decoder, true);
 
     return __ UntagSmi(result_value);
@@ -1401,7 +1402,8 @@ class TurboshaftGraphBuildingInterface {
         V<Tagged> b_string = ExternRefToString(args[1]);
         result = __ UntagSmi(CallBuiltinThroughJumptable(
             decoder, Builtin::kStringCompare, {a_string, b_string},
-            OpEffects().CanReadMemory(), Operator::kEliminatable));
+            OpEffects().CanReadMemory().CanAllocateWithoutIdentity(),
+            Operator::kEliminatable));
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -3341,9 +3343,10 @@ class TurboshaftGraphBuildingInterface {
       GOTO_IF(__ IsNull(b, b_type), done, __ Word32Constant(0));
     }
     // TODO(jkummerow): Call Builtin::kStringEqual directly.
-    GOTO(done, CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringEqual,
-                                           {a, b}, OpEffects().CanReadMemory(),
-                                           Operator::kEliminatable));
+    GOTO(done, CallBuiltinThroughJumptable(
+                   decoder, Builtin::kWasmStringEqual, {a, b},
+                   OpEffects().CanReadMemory().CanAllocateWithoutIdentity(),
+                   Operator::kEliminatable));
     BIND(done, eq_result);
     return eq_result;
   }
@@ -3626,7 +3629,7 @@ class TurboshaftGraphBuildingInterface {
     V<Tagged> rhs_val = NullCheck(rhs);
     result->op = __ UntagSmi(CallBuiltinThroughJumptable(
         decoder, Builtin::kStringCompare, {lhs_val, rhs_val},
-        OpEffects().CanReadMemory().CanWriteHeapMemory(),
+        OpEffects().CanReadMemory().CanAllocateWithoutIdentity(),
         Operator::kEliminatable));
   }
 

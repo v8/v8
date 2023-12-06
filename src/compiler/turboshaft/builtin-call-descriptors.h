@@ -181,7 +181,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
@@ -193,7 +193,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct SameValue : public Descriptor<SameValue> {
@@ -230,7 +230,7 @@ struct BuiltinCallDescriptor {
     // This will only write in a fresh object, so the writes are not visible
     // from Turboshaft, and CanAllocate is enough.
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct StringEqual : public Descriptor<StringEqual> {
@@ -244,7 +244,7 @@ struct BuiltinCallDescriptor {
     // If the strings aren't flat, StringEqual could flatten them, which will
     // allocate new strings.
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
@@ -256,7 +256,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct StringIndexOf : public Descriptor<StringIndexOf> {
@@ -270,7 +270,7 @@ struct BuiltinCallDescriptor {
     // StringIndexOf does a ToString on the receiver, which can allocate a new
     // string.
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   template <Builtin B>
@@ -283,7 +283,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
   using StringLessThan = StringComparison<Builtin::kStringLessThan>;
   using StringLessThanOrEqual =
@@ -298,7 +298,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
 #ifdef V8_INTL_SUPPORT
@@ -312,7 +312,7 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 #endif  // V8_INTL_SUPPORT
 
@@ -325,7 +325,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct ToBoolean : public Descriptor<ToBoolean> {
