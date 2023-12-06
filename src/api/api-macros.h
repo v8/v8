@@ -27,6 +27,12 @@
  * PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE
  *
  * in a similar fashion to ENTER_V8.
+ *
+ * Don't use macros with DO_NOT_USE in their name.
+ *
+ * TODO(cbruni): Document LOG_API and other RuntimeCallStats macros.
+ * TODO(verwaest): All API methods should invoke one of the ENTER_V8* macros.
+ * TODO(verwaest): Remove calls form API methods to DO_NOT_USE macros.
  */
 
 #define API_RCS_SCOPE(i_isolate, class_name, function_name) \
@@ -103,10 +109,13 @@
   i::VMState<v8::OTHER> __state__((i_isolate));
 #endif  // DEBUG
 
+#define EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, value) \
+  if (has_exception) return value;
+
 #define RETURN_ON_FAILED_EXECUTION(T) \
-  if (has_exception) return MaybeLocal<T>();
+  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, MaybeLocal<T>())
 
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
-  if (has_exception) return Nothing<T>();
+  EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(i_isolate, Nothing<T>())
 
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
