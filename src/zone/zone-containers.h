@@ -798,7 +798,7 @@ class ZoneAbslFlatHashMap
                                  ZoneAllocator<std::pair<const K, V>>> {
  public:
   // Constructs an empty map.
-  explicit ZoneAbslFlatHashMap(Zone* zone, size_t bucket_count = 100)
+  explicit ZoneAbslFlatHashMap(Zone* zone, size_t bucket_count = 0)
       : absl::flat_hash_map<K, V, Hash, KeyEqual,
                             ZoneAllocator<std::pair<const K, V>>>(
             bucket_count, Hash(), KeyEqual(),
@@ -815,7 +815,7 @@ class ZoneAbslFlatHashSet
     : public absl::flat_hash_set<K, Hash, KeyEqual, ZoneAllocator<K>> {
  public:
   // Constructs an empty map.
-  explicit ZoneAbslFlatHashSet(Zone* zone, size_t bucket_count = 100)
+  explicit ZoneAbslFlatHashSet(Zone* zone, size_t bucket_count = 0)
       : absl::flat_hash_set<K, Hash, KeyEqual, ZoneAllocator<K>>(
             bucket_count, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
 };
