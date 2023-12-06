@@ -3002,7 +3002,6 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
 
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
-  GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
   // Inlined fast path.
   {
@@ -3071,7 +3070,6 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 
   TNode<Map> lookup_start_object_map =
       LoadReceiverMap(p->receiver_and_lookup_start_object());
-  GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
   GotoIf(IsUndefined(p->vector()), &no_feedback);
 
@@ -3177,9 +3175,7 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
                                           TVariable<MaybeObject>* var_handler,
                                           Label* if_handler, Label* miss,
                                           ExitPoint* exit_point) {
-  // Neither deprecated map nor monomorphic. These cases are handled in the
-  // bytecode handler.
-  CSA_DCHECK(this, Word32BinaryNot(IsDeprecatedMap(lookup_start_object_map)));
+  // Not monomorphic -- this cases is handled in the bytecode handler.
   CSA_DCHECK(this, TaggedNotEqual(lookup_start_object_map, feedback));
   CSA_DCHECK(this, Word32BinaryNot(IsWeakFixedArrayMap(LoadMap(feedback))));
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
