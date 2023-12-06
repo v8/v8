@@ -302,9 +302,7 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
                             uint32_t index) {
     Handle<WasmModuleObject> module(instance->module_object(), isolate);
     return WasmValueObject::New(
-        isolate,
-        WasmInstanceObject::GetGlobalValue(instance,
-                                           instance->module()->globals[index]),
+        isolate, instance->GetGlobalValue(instance->module()->globals[index]),
         module);
   }
 

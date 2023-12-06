@@ -1685,50 +1685,40 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
       ->Set(entry_index, canonical_sig_index, kNullAddress, *instance);
 }
 
-// static
-uint8_t* WasmInstanceObject::GetGlobalStorage(
-    Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
+uint8_t* WasmInstanceObject::GetGlobalStorage(const wasm::WasmGlobal& global) {
   DCHECK(!global.type.is_reference());
   if (global.mutability && global.imported) {
     return reinterpret_cast<uint8_t*>(
-        instance->imported_mutable_globals()->get_sandboxed_pointer(
-            global.index));
-  } else {
-    return instance->globals_start() + global.offset;
+        imported_mutable_globals()->get_sandboxed_pointer(global.index));
   }
+  return globals_start() + global.offset;
 }
 
-// static
-std::pair<Handle<FixedArray>, uint32_t>
-WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
-                                            const wasm::WasmGlobal& global) {
+std::pair<Tagged<FixedArray>, uint32_t>
+WasmInstanceObject::GetGlobalBufferAndIndex(const wasm::WasmGlobal& global) {
+  DisallowGarbageCollection no_gc;
   DCHECK(global.type.is_reference());
-  Isolate* isolate = instance->GetIsolate();
   if (global.mutability && global.imported) {
-    Handle<FixedArray> buffer(
-        FixedArray::cast(
-            instance->imported_mutable_globals_buffers()->get(global.index)),
-        isolate);
-    Address idx = instance->imported_mutable_globals()->get(global.index);
+    Tagged<FixedArray> buffer =
+        FixedArray::cast(imported_mutable_globals_buffers()->get(global.index));
+    Address idx = imported_mutable_globals()->get(global.index);
     DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
     return {buffer, static_cast<uint32_t>(idx)};
   }
-  return {handle(instance->tagged_globals_buffer(), isolate), global.offset};
+  return {tagged_globals_buffer(), global.offset};
 }
 
-// static
 wasm::WasmValue WasmInstanceObject::GetGlobalValue(
-    Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
-  Isolate* isolate = instance->GetIsolate();
+    const wasm::WasmGlobal& global) {
+  DisallowGarbageCollection no_gc;
   if (global.type.is_reference()) {
-    Handle<FixedArray> global_buffer;  // The buffer of the global.
+    Tagged<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
-    std::tie(global_buffer, global_index) =
-        GetGlobalBufferAndIndex(instance, global);
-    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate),
-                           global.type);
+    std::tie(global_buffer, global_index) = GetGlobalBufferAndIndex(global);
+    return wasm::WasmValue(
+        handle(global_buffer->get(global_index), GetIsolate()), global.type);
   }
-  Address ptr = reinterpret_cast<Address>(GetGlobalStorage(instance, global));
+  Address ptr = reinterpret_cast<Address>(GetGlobalStorage(global));
   using wasm::Simd128;
   switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \

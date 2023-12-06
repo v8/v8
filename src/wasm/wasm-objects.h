@@ -561,17 +561,15 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
-  static uint8_t* GetGlobalStorage(Handle<WasmInstanceObject>,
-                                   const wasm::WasmGlobal&);
+  uint8_t* GetGlobalStorage(const wasm::WasmGlobal&);
 
   // Get the FixedArray and the index in that FixedArray for the given global,
   // which must be a reference type.
-  static std::pair<Handle<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
-      Handle<WasmInstanceObject>, const wasm::WasmGlobal&);
+  std::pair<Tagged<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
+      const wasm::WasmGlobal&);
 
   // Get the value of a global in the given instance.
-  static wasm::WasmValue GetGlobalValue(Handle<WasmInstanceObject>,
-                                        const wasm::WasmGlobal&);
+  wasm::WasmValue GetGlobalValue(const wasm::WasmGlobal&);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
