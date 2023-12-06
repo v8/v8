@@ -588,6 +588,7 @@ UTEST_R1_FORM_WITH_RES_F(fabs_d, double, -23.5, 23.5)
 UTEST_R1_FORM_WITH_RES_F(fneg_d, double, 23.5, -23.5)
 
 // -- Bit-Manipulation ISA-extensions --
+// BR : UTEST_R2; BI : UTEST_I; BIH : UTEST_R1
 // -- Zba --
 
 // -- Zbb: basic --
