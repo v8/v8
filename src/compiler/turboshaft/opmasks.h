@@ -141,6 +141,10 @@ using kWord32UnsignedMulOverflownBits =
 
 using kWord32BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
                                              WordRepresentation::Word32()>;
+using kWord32BitwiseOr = WordBinopMask::For<WordBinopOp::Kind::kBitwiseOr,
+                                            WordRepresentation::Word32()>;
+using kWord32BitwiseXor = WordBinopMask::For<WordBinopOp::Kind::kBitwiseXor,
+                                             WordRepresentation::Word32()>;
 using kWord64Add =
     WordBinopMask::For<WordBinopOp::Kind::kAdd, WordRepresentation::Word64()>;
 using kWord64Sub =
@@ -187,6 +191,8 @@ using kWord32ShiftRightArithmetic =
 using kWord32ShiftRightLogical =
     ShiftMask::For<ShiftOp::Kind::kShiftRightLogical,
                    WordRepresentation::Word32()>;
+using kWord32RotateRight =
+    ShiftMask::For<ShiftOp::Kind::kRotateRight, WordRepresentation::Word32()>;
 using kWord64ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word64()>;

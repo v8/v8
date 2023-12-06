@@ -574,6 +574,8 @@ class InstructionSelectorT final : public Adapter {
     return instr_origins_;
   }
 
+  node_t FindProjection(node_t node, size_t projection_index);
+
  private:
   friend class OperandGeneratorT<Adapter>;
 
@@ -718,8 +720,6 @@ class InstructionSelectorT final : public Adapter {
   // Visit the node and generate code for IEEE 754 functions.
   void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
   void VisitFloat64Ieee754Unop(node_t, InstructionCode code);
-
-  node_t FindProjection(node_t node, size_t projection_index);
 
 #define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
   DECLARE_GENERATOR_T(Word32And)

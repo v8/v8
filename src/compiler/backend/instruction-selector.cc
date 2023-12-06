@@ -2250,7 +2250,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const ProjectionOp& projection = this->Get(node).Cast<ProjectionOp>();
   const Operation& value_op = this->Get(projection.input());
-  if (value_op.Is<OverflowCheckedBinopOp>() || value_op.Is<TryChangeOp>()) {
+  if (value_op.Is<OverflowCheckedBinopOp>() || value_op.Is<TryChangeOp>() ||
+      value_op.Is<Word32PairBinopOp>()) {
     if (projection.index == 0u) {
       EmitIdentity(node);
     } else {
