@@ -129,7 +129,10 @@ class Decoder {
   void DecodeCSType(Instruction* instr);
   void DecodeCJType(Instruction* instr);
   void DecodeCBType(Instruction* instr);
-  bool DecodeIHType(Instruction* instr);  // (B)itmanip extension
+  // (B)itmanip extension
+  bool DecodeBRType();
+  bool DecodeBIType();
+  bool DecodeBIHType();
 
   void DecodeVType(Instruction* instr);
   void DecodeRvvIVV(Instruction* instr);
@@ -866,6 +869,9 @@ void Decoder::Unknown(Instruction* instr) { Format(instr, "unknown"); }
 
 // RISCV Instruction Decode Routine
 void Decoder::DecodeRType(Instruction* instr) {
+  if (v8_flags.riscv_bitmanip) {
+    if (DecodeBRType(instr)) return;
+  }
   switch (instr->InstructionBits() & kRTypeMask) {
     case RO_ADD:
       Format(instr, "add       'rd, 'rs1, 'rs2");
@@ -1418,7 +1424,8 @@ void Decoder::DecodeR4Type(Instruction* instr) {
 
 void Decoder::DecodeIType(Instruction* instr) {
   if (v8_flags.riscv_bitmanip) {
-    if (DecodeIHType()) return;
+    if (DecodeBIType(instr)) return;
+    if (DecodeBIHType(instr)) return;
   }
   switch (instr->InstructionBits() & kITypeMask) {
     case RO_JALR:
@@ -1970,7 +1977,34 @@ void Decoder::DecodeCBType(Instruction* instr) {
 }
 
 // (B)itmanip extension
-bool Decoder::DecodeIHType(Instruction* instr) {
+// use `return true` instead of `break` in cases
+bool Decoder::DecodeBRType() {
+  switch (instr->InstructionBits() & kRTypeMask) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
+  }
+}
+
+bool Decoder::DecodeBIType() {
+  switch (instr->InstructionBits() & kITypeMask) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
+  }
+}
+
+bool Decoder::DecodeBIHType(Instruction* instr) {
   switch (instr->InstructionBits() & (kITypeMask | kImm12Mask)) {
     // Zba
 

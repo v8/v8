@@ -3472,6 +3472,9 @@ void Simulator::SignalException(Exception e) {
 
 // RISCV Instruction Decode Routine
 void Simulator::DecodeRVRType() {
+  if (v8_flags.riscv_bitmanip) {
+    if (DecodeBRType()) return;
+  }
   switch (instr_.InstructionBits() & kRTypeMask) {
     case RO_ADD: {
       set_rd(sext_xlen(rs1() + rs2()));
@@ -4832,7 +4835,8 @@ Builtin Simulator::LookUp(Address pc) {
 
 void Simulator::DecodeRVIType() {
   if (v8_flags.riscv_bitmanip) {
-    if (DecodeRVIHType()) return;
+    if (DecodeBIType()) return;
+    if (DecodeBIHType()) return;
   }
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
@@ -5474,8 +5478,35 @@ void Simulator::DecodeCBType() {
 }
 
 // (B)itmanip extension
-bool Simulator::DecodeRVIHType() {
-  switch (instr->InstructionBits() & (kITypeMask | kImm12Mask)) {
+// use `return true` instead of `break` in cases
+bool Simulator::DecodeBRType() {
+  switch (instr_.InstructionBits() & kRTypeMask) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
+  }
+}
+
+bool Simulator::DecodeBIType() {
+  switch (instr_.InstructionBits() & kITypeMask) {
+    // Zba
+
+    // Zbb: basic
+
+    // Zbb: bitwise rotation
+
+    default:
+      return false;
+  }
+}
+
+bool Simulator::DecodeBIHType() {
+  switch (instr_.InstructionBits() & (kITypeMask | kImm12Mask)) {
     // Zba
 
     // Zbb: basic
