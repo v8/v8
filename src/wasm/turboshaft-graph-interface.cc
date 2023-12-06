@@ -287,6 +287,11 @@ class TurboshaftGraphBuildingInterface {
           static_cast<int>(inlining_decisions_->function_calls().size()) - 1);
     }
     if (mode_ == kRegular) {
+      // Just accessing `source_positions` at the maximum `OpIndex` already
+      // pre-allocates the underlying storage such that we avoid repeatedly
+      // resizing/copying in the following loop.
+      __ output_graph().source_positions()[__ output_graph().EndIndex()];
+
       for (OpIndex index : __ output_graph().AllOperationIndices()) {
         SourcePosition position = OpIndexToSourcePosition(
             __ output_graph().operation_origins()[index]);
