@@ -43,9 +43,7 @@ class V8_EXPORT EmbedderRootsHandler {
    * |TracedReference|.
    *
    * Note that the `handle` is different from the handle that the embedder holds
-   * for retaining the object. The embedder may use |WrapperClassId()| to
-   * distinguish cases where it wants handles to be treated as roots from not
-   * being treated as roots.
+   * for retaining the object.
    *
    * The concrete implementations must be thread-safe.
    */
