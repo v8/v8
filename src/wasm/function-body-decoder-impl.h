@@ -1615,6 +1615,7 @@ class WasmDecoder : public Decoder {
         case kExprIf:
         case kExprBlock:
         case kExprTry:
+        case kExprTryTable:
           depth++;
           break;
         case kExprLocalSet:
