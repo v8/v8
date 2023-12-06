@@ -1310,29 +1310,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
                                    IndirectPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                            IndirectPointerSlot slot) final {
-#ifdef V8_ENABLE_SANDBOX
-    DCHECK(IsValidIndirectPointerTag(slot.tag()));
-
-    // When an object with a "self" indirect pointer is relocated, it needs to
-    // update the pointer table entry to point to its new location.
-    // TODO(saelo): This is probably not quite the right place for this code,
-    // since this visitor is for recording slots, not updating them. Figure
-    // out if there's a better place for this logic.
-    IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-    DCHECK_NE(handle, kNullIndirectPointerHandle);
-
-    if (slot.tag() == kCodeIndirectPointerTag) {
-      DCHECK(IsCode(host));
-      GetProcessWideCodePointerTable()->SetCodeObject(handle, host.address());
-    } else {
-      TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
-      table.Set(handle, host.address(), slot.tag());
-    }
-#else
-    UNREACHABLE();
-#endif
-  }
+                                            IndirectPointerSlot slot) final {}
 
  protected:
   inline void RecordMigratedSlot(Tagged<HeapObject> host, MaybeObject value,
@@ -4998,6 +4976,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     heap_->ProcessWeakListRoots(&evacuation_object_retainer);
   }
 
+  {
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES);
+    UpdatePointersInPointerTables();
+  }
+
   // Flush the inner_pointer_to_code_cache which may now have stale contents.
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 }
@@ -5041,6 +5025,46 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     if (typed_slot_count == 0 || chunk->InYoungGeneration())
       chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
   }
+}
+
+void MarkCompactCollector::UpdatePointersInPointerTables() {
+#ifdef V8_ENABLE_SANDBOX
+  // Process an entry of a pointer table, returning either the relocated object
+  // or a null pointer if the object wasn't relocated.
+  auto process_entry = [&](Address content) -> Tagged<ExposedTrustedObject> {
+    Tagged<HeapObject> heap_obj = HeapObject::cast(Tagged<Object>(content));
+    MapWord map_word = heap_obj->map_word(kRelaxedLoad);
+    if (!map_word.IsForwardingAddress()) return {};
+    Tagged<HeapObject> relocated_object =
+        map_word.ToForwardingAddress(heap_obj);
+    DCHECK(IsExposedTrustedObject(relocated_object));
+    return ExposedTrustedObject::cast(relocated_object);
+  };
+
+  TrustedPointerTable* const tpt = &heap_->isolate()->trusted_pointer_table();
+  tpt->IterateActiveEntriesIn(
+      heap_->trusted_pointer_space(),
+      [&](TrustedPointerHandle handle, Address content) {
+        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
+        if (!relocated_object.is_null()) {
+          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+          auto instance_type = relocated_object->map()->instance_type();
+          auto tag = IndirectPointerTagFromInstanceType(instance_type);
+          tpt->Set(handle, relocated_object.address(), tag);
+        }
+      });
+
+  CodePointerTable* const cpt = GetProcessWideCodePointerTable();
+  cpt->IterateActiveEntriesIn(
+      heap_->code_pointer_space(),
+      [&](CodePointerHandle handle, Address content) {
+        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
+        if (!relocated_object.is_null()) {
+          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+          cpt->SetCodeObject(handle, relocated_object.address());
+        }
+      });
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(

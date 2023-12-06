@@ -958,14 +958,17 @@ Tagged<HeapObject> MapWord::ToForwardingAddress(
     Tagged<HeapObject> map_word_host) {
   DCHECK(IsForwardingAddress());
 #ifdef V8_EXTERNAL_CODE_SPACE
-  // When external code space is enabled forwarding pointers are encoded as
-  // Smi representing a diff from the source object address in kObjectAlignment
-  // chunks.
+  // When the sandbox or the external code space is enabled, forwarding
+  // pointers are encoded as Smi representing a diff from the source object
+  // address in kObjectAlignment chunks. This is required as we are using
+  // multiple pointer compression cages in these scenarios.
   intptr_t diff =
       static_cast<intptr_t>(Tagged<Smi>(value_).value()) * kObjectAlignment;
   Address address = map_word_host.address() + diff;
   return HeapObject::FromAddress(address);
 #else
+  // The sandbox requires the external code space.
+  DCHECK(!V8_ENABLE_SANDBOX_BOOL);
   return HeapObject::FromAddress(value_);
 #endif  // V8_EXTERNAL_CODE_SPACE
 }

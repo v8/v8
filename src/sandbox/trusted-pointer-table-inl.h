@@ -108,6 +108,16 @@ void TrustedPointerTable::Mark(Space* space, TrustedPointerHandle handle) {
   at(index).Mark();
 }
 
+template <typename Callback>
+void TrustedPointerTable::IterateActiveEntriesIn(Space* space,
+                                                 Callback callback) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    if (!at(index).IsFreelistEntry()) {
+      callback(IndexToHandle(index), at(index).GetContent());
+    }
+  });
+}
+
 uint32_t TrustedPointerTable::HandleToIndex(TrustedPointerHandle handle) const {
   uint32_t index = handle >> kTrustedPointerHandleShift;
   DCHECK_EQ(handle, index << kTrustedPointerHandleShift);

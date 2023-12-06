@@ -147,6 +147,14 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Returns the number of live entries after sweeping.
   uint32_t Sweep(Space* space, Counters* counters);
 
+  // Iterate over all active entries in the given space.
+  //
+  // The callback function will be invoked once for every entry that is
+  // currently in use, i.e. has been allocated and not yet freed, and will
+  // receive the handle and content of that entry.
+  template <typename Callback>
+  void IterateActiveEntriesIn(Space* space, Callback callback);
+
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 

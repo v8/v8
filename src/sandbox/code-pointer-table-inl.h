@@ -128,6 +128,15 @@ void CodePointerTable::Mark(Space* space, CodePointerHandle handle) {
   at(index).Mark();
 }
 
+template <typename Callback>
+void CodePointerTable::IterateActiveEntriesIn(Space* space, Callback callback) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    if (!at(index).IsFreelistEntry()) {
+      callback(IndexToHandle(index), at(index).GetCodeObject());
+    }
+  });
+}
+
 uint32_t CodePointerTable::HandleToIndex(CodePointerHandle handle) const {
   uint32_t index = handle >> kCodePointerHandleShift;
   DCHECK_EQ(handle,

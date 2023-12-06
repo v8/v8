@@ -82,7 +82,7 @@ class ExposedTrustedObject : public TrustedObject {
   // This indirect pointer references a pointer table entry (either in the
   // trusted pointer table or the code pointer table for Code objects) through
   // which this object can be referenced from inside the sandbox.
-  inline IndirectPointerHandle self_indirect_pointer() const;
+  inline IndirectPointerHandle self_indirect_pointer_handle() const;
 
   DECL_CAST(ExposedTrustedObject)
   DECL_VERIFIER(ExposedTrustedObject)

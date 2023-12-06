@@ -286,6 +286,13 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // The memory of this segment will afterwards be inaccessible.
   void FreeTableSegment(Segment segment);
 
+  // Iterate over all entries in the given space.
+  //
+  // The callback function will be invoked for every entry and be passed the
+  // index of that entry as argument.
+  template <typename Callback>
+  void IterateEntriesIn(Space* space, Callback callback);
+
   // Marker value for the freelist_head_ member to indicate that entry
   // allocation is currently forbidden, for example because the table is being
   // swept as part of a mark+sweep garbage collection. This value should never

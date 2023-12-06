@@ -211,6 +211,9 @@ class MarkCompactCollector final {
   void UpdatePointersInClientHeaps();
   void UpdatePointersInClientHeap(Isolate* client);
 
+  // Update pointers in sandbox-related pointer tables.
+  void UpdatePointersInPointerTables();
+
   // Marks object reachable from harmony weak maps and wrapper tracing.
   void MarkTransitiveClosure();
   void VerifyEphemeronMarking();
