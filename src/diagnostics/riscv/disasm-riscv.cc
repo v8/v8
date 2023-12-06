@@ -130,9 +130,9 @@ class Decoder {
   void DecodeCJType(Instruction* instr);
   void DecodeCBType(Instruction* instr);
   // (B)itmanip extension
-  bool DecodeBRType();
-  bool DecodeBIType();
-  bool DecodeBIHType();
+  bool DecodeBRType(Instruction* instr);
+  bool DecodeBIType(Instruction* instr);
+  bool DecodeBIHType(Instruction* instr);
 
   void DecodeVType(Instruction* instr);
   void DecodeRvvIVV(Instruction* instr);
@@ -1978,7 +1978,7 @@ void Decoder::DecodeCBType(Instruction* instr) {
 
 // (B)itmanip extension
 // use `return true` instead of `break` in cases
-bool Decoder::DecodeBRType() {
+bool Decoder::DecodeBRType(Instruction* instr) {
   switch (instr->InstructionBits() & kRTypeMask) {
     // Zba
 
@@ -1991,7 +1991,7 @@ bool Decoder::DecodeBRType() {
   }
 }
 
-bool Decoder::DecodeBIType() {
+bool Decoder::DecodeBIType(Instruction* instr) {
   switch (instr->InstructionBits() & kITypeMask) {
     // Zba
 
