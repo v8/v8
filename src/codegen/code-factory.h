@@ -65,15 +65,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ConstructForwardVarargs(Isolate* isolate);
   static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
 
-  static Callable InterpreterPushArgsThenCall(Isolate* isolate,
-                                              ConvertReceiverMode receiver_mode,
-                                              InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsThenConstruct(
-      Isolate* isolate, InterpreterPushArgsMode mode);
-  static Callable InterpreterForwardAllArgsThenConstruct(Isolate* isolate);
-  static Callable InterpreterOnStackReplacement(Isolate* isolate);
-  static Callable InterpreterOnStackReplacement_ToBaseline(Isolate* isolate);
-
   static Callable ArrayNoArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode);

@@ -139,68 +139,6 @@ Callable CodeFactory::ConstructFunctionForwardVarargs(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsThenCall(
-    Isolate* isolate, ConvertReceiverMode receiver_mode,
-    InterpreterPushArgsMode mode) {
-  switch (mode) {
-    case InterpreterPushArgsMode::kArrayFunction:
-      // There is no special-case handling of calls to Array. They will all go
-      // through the kOther case below.
-      UNREACHABLE();
-    case InterpreterPushArgsMode::kWithFinalSpread:
-      return Builtins::CallableFor(
-          isolate, Builtin::kInterpreterPushArgsThenCallWithFinalSpread);
-    case InterpreterPushArgsMode::kOther:
-      switch (receiver_mode) {
-        case ConvertReceiverMode::kNullOrUndefined:
-          return Builtins::CallableFor(
-              isolate, Builtin::kInterpreterPushUndefinedAndArgsThenCall);
-        case ConvertReceiverMode::kNotNullOrUndefined:
-        case ConvertReceiverMode::kAny:
-          return Builtins::CallableFor(isolate,
-                                       Builtin::kInterpreterPushArgsThenCall);
-      }
-  }
-  UNREACHABLE();
-}
-
-// static
-Callable CodeFactory::InterpreterPushArgsThenConstruct(
-    Isolate* isolate, InterpreterPushArgsMode mode) {
-  switch (mode) {
-    case InterpreterPushArgsMode::kArrayFunction:
-      return Builtins::CallableFor(
-          isolate, Builtin::kInterpreterPushArgsThenConstructArrayFunction);
-    case InterpreterPushArgsMode::kWithFinalSpread:
-      return Builtins::CallableFor(
-          isolate, Builtin::kInterpreterPushArgsThenConstructWithFinalSpread);
-    case InterpreterPushArgsMode::kOther:
-      return Builtins::CallableFor(isolate,
-                                   Builtin::kInterpreterPushArgsThenConstruct);
-  }
-  UNREACHABLE();
-}
-
-// static
-Callable CodeFactory::InterpreterForwardAllArgsThenConstruct(Isolate* isolate) {
-  return Builtins::CallableFor(
-      isolate, Builtin::kInterpreterForwardAllArgsThenConstruct);
-}
-
-// static
-Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
-  return Builtins::CallableFor(isolate,
-                               Builtin::kInterpreterOnStackReplacement);
-}
-
-// static
-Callable CodeFactory::InterpreterOnStackReplacement_ToBaseline(
-    Isolate* isolate) {
-  return Builtins::CallableFor(
-      isolate, Builtin::kInterpreterOnStackReplacement_ToBaseline);
-}
-
-// static
 Callable CodeFactory::ArrayNoArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {

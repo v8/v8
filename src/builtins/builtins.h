@@ -160,6 +160,10 @@ class Builtins {
       int result_size, bool switch_to_central_stack = false);
 
   static inline constexpr Builtin InterpreterCEntry(int result_size);
+  static inline constexpr Builtin InterpreterPushArgsThenCall(
+      ConvertReceiverMode receiver_mode, InterpreterPushArgsMode mode);
+  static inline constexpr Builtin InterpreterPushArgsThenConstruct(
+      InterpreterPushArgsMode mode);
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Tagged<Code> code);

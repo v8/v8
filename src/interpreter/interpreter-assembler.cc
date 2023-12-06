@@ -736,13 +736,11 @@ void InterpreterAssembler::CallJSAndDispatch(
     args_count = Int32Add(args_count, Int32Constant(kJSArgcReceiverSlots));
   }
 
-  Callable callable = CodeFactory::InterpreterPushArgsThenCall(
-      isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<Code> code_target = HeapConstantNoHole(callable.code());
+  Builtin builtin = Builtins::InterpreterPushArgsThenCall(
+      receiver_mode, InterpreterPushArgsMode::kOther);
 
-  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   args_count, args.base_reg_location(),
-                                   function);
+  TailCallBuiltinThenBytecodeDispatch(builtin, context, args_count,
+                                      args.base_reg_location(), function);
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
       implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
@@ -758,18 +756,16 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
-  Callable callable = CodeFactory::Call(isolate());
-  TNode<Code> code_target = HeapConstantNoHole(callable.code());
+  Builtin builtin = Builtins::Call();
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count, args...,
-                                     UndefinedConstant());
+    TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
+                                        args..., UndefinedConstant());
   } else {
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count, args...);
+    TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
+                                        args...);
   }
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
@@ -806,15 +802,12 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
 #endif  // !V8_JITLESS
 
   Comment("call using CallWithSpread builtin");
-  Callable callable = CodeFactory::InterpreterPushArgsThenCall(
-      isolate(), ConvertReceiverMode::kAny,
-      InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstantNoHole(callable.code());
+  Builtin builtin = Builtins::InterpreterPushArgsThenCall(
+      ConvertReceiverMode::kAny, InterpreterPushArgsMode::kWithFinalSpread);
 
   TNode<Word32T> args_count = args.reg_count();
-  TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   args_count, args.base_reg_location(),
-                                   function);
+  TailCallBuiltinThenBytecodeDispatch(builtin, context, args_count,
+                                      args.base_reg_location(), function);
   // TailCallStubThenDispatch updates accumulator with result.
   implicit_register_use_ =
       implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
@@ -840,11 +833,10 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using FastConstruct builtin");
     GotoIf(TaggedIsSmi(target), &construct_generic);
     GotoIfNot(IsJSFunction(CAST(target)), &construct_generic);
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtin::kInterpreterPushArgsThenFastConstructFunction);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, UndefinedConstant());
+        CallBuiltin(Builtin::kInterpreterPushArgsThenFastConstructFunction,
+                    context, args_count, args.base_reg_location(), target,
+                    new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -852,11 +844,11 @@ TNode<Object> InterpreterAssembler::Construct(
   {
     // TODO(bmeurer): Remove the generic type_info parameter from the Construct.
     Comment("call using Construct builtin");
-    Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kOther);
+    Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+        InterpreterPushArgsMode::kOther);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, UndefinedConstant());
+        CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                    target, new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -865,11 +857,11 @@ TNode<Object> InterpreterAssembler::Construct(
     // TODO(bmeurer): Introduce a dedicated builtin to deal with the Array
     // constructor feedback collection inside of Ignition.
     Comment("call using ConstructArray builtin");
-    Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kArrayFunction);
+    Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+        InterpreterPushArgsMode::kArrayFunction);
     var_result =
-        CallStub(callable, context, args_count, args.base_reg_location(),
-                 target, new_target, var_site.value());
+        CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                    target, new_target, var_site.value());
     Goto(&return_result);
   }
 
@@ -997,11 +989,11 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   BIND(&construct);
 #endif  // !V8_JITLESS
   Comment("call using ConstructWithSpread builtin");
-  Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-      isolate(), InterpreterPushArgsMode::kWithFinalSpread);
+  Builtin builtin = Builtins::InterpreterPushArgsThenConstruct(
+      InterpreterPushArgsMode::kWithFinalSpread);
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
-  return CallStub(callable, context, args_count, args.base_reg_location(),
-                  target, new_target, UndefinedConstant());
+  return CallBuiltin(builtin, context, args_count, args.base_reg_location(),
+                     target, new_target, UndefinedConstant());
 }
 
 // TODO(v8:13249): Add a FastConstruct variant to avoid pushing arguments twice
@@ -1025,9 +1017,8 @@ TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
   BIND(&construct);
 #endif  // !V8_JITLESS
 
-  Callable callable =
-      CodeFactory::InterpreterForwardAllArgsThenConstruct(isolate());
-  return CallStub(callable, context, target, new_target);
+  return CallBuiltin(Builtin::kInterpreterForwardAllArgsThenConstruct, context,
+                     target, new_target);
 }
 
 template <class T>
@@ -1454,21 +1445,20 @@ void InterpreterAssembler::OnStackReplacement(
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
-    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    CallStub(callable, context, maybe_target_code.value());
+    CallBuiltin(Builtin::kInterpreterOnStackReplacement, context,
+                maybe_target_code.value());
     UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 
   BIND(&osr_to_sparkplug);
   {
-    Callable callable =
-        CodeFactory::InterpreterOnStackReplacement_ToBaseline(isolate());
     // We already compiled the baseline code, so we don't need to handle failed
     // compilation as in the Ignition -> Turbofan case. Therefore we can just
     // tailcall to the OSR builtin.
     SaveBytecodeOffset();
-    TailCallStub(callable, context);
+    TailCallBuiltin(Builtin::kInterpreterOnStackReplacement_ToBaseline,
+                    context);
   }
 }
 

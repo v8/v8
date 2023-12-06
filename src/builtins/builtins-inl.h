@@ -163,6 +163,42 @@ constexpr Builtin Builtins::InterpreterCEntry(int result_size) {
 }
 
 // static
+constexpr Builtin Builtins::InterpreterPushArgsThenCall(
+    ConvertReceiverMode receiver_mode, InterpreterPushArgsMode mode) {
+  switch (mode) {
+    case InterpreterPushArgsMode::kArrayFunction:
+      // There is no special-case handling of calls to Array. They will all go
+      // through the kOther case below.
+      UNREACHABLE();
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return Builtin::kInterpreterPushArgsThenCallWithFinalSpread;
+    case InterpreterPushArgsMode::kOther:
+      switch (receiver_mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return Builtin::kInterpreterPushUndefinedAndArgsThenCall;
+        case ConvertReceiverMode::kNotNullOrUndefined:
+        case ConvertReceiverMode::kAny:
+          return Builtin::kInterpreterPushArgsThenCall;
+      }
+  }
+  UNREACHABLE();
+}
+
+// static
+constexpr Builtin Builtins::InterpreterPushArgsThenConstruct(
+    InterpreterPushArgsMode mode) {
+  switch (mode) {
+    case InterpreterPushArgsMode::kArrayFunction:
+      return Builtin::kInterpreterPushArgsThenConstructArrayFunction;
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return Builtin::kInterpreterPushArgsThenConstructWithFinalSpread;
+    case InterpreterPushArgsMode::kOther:
+      return Builtin::kInterpreterPushArgsThenConstruct;
+  }
+  UNREACHABLE();
+}
+
+// static
 constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   switch (builtin) {
     case Builtin::kJSEntry:

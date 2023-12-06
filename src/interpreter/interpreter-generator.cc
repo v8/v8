@@ -593,7 +593,7 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
                                        OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void SetNamedProperty(Callable ic, NamedPropertyType property_type) {
+  void SetNamedProperty(Builtin ic_bultin, NamedPropertyType property_type) {
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -601,8 +601,8 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TNode<Object> result =
-        CallStub(ic, context, object, name, value, slot, maybe_vector);
+    TNode<Object> result = CallBuiltin(ic_bultin, context, object, name, value,
+                                       slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we clobber the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
@@ -624,8 +624,7 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
   // the paths are controlled by feedback.
   // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can be
   // called here.
-  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
-  SetNamedProperty(ic, NamedPropertyType::kNotOwn);
+  SetNamedProperty(Builtin::kStoreIC, NamedPropertyType::kNotOwn);
 }
 
 // DefineNamedOwnProperty <object> <name_index> <slot>
@@ -634,8 +633,7 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtin::kDefineNamedOwnIC);
-  SetNamedProperty(ic, NamedPropertyType::kOwn);
+  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
 }
 
 // SetKeyedProperty <object> <key> <slot>

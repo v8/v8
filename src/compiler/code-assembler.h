@@ -1298,10 +1298,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                 TNode<RawPtrT> target, TArgs... args);
 
   template <class... TArgs>
-  void TailCallStubThenBytecodeDispatch(
-      const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
-      TArgs... args) {
-    TailCallStubThenBytecodeDispatchImpl(descriptor, target, context,
+  void TailCallBuiltinThenBytecodeDispatch(Builtin builtin, Node* context,
+                                           TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    TailCallStubThenBytecodeDispatchImpl(callable.descriptor(), target, context,
                                          {args...});
   }
 
