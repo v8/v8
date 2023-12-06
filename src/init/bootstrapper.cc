@@ -80,6 +80,10 @@
 #include "src/snapshot/snapshot.h"
 #include "src/zone/zone-hashmap.h"
 
+#ifdef V8_FUZZILLI
+#include "src/fuzzilli/fuzzilli.h"
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-js.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -152,6 +156,9 @@ static bool isValidCpuTraceMarkFunctionName() {
 
 void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(std::make_unique<GCExtension>(GCFunctionName()));
+#ifdef V8_FUZZILLI
+  v8::RegisterExtension(std::make_unique<FuzzilliExtension>("fuzzilli"));
+#endif
   v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
   v8::RegisterExtension(std::make_unique<StatisticsExtension>());
   v8::RegisterExtension(std::make_unique<TriggerFailureExtension>());
@@ -6453,6 +6460,9 @@ bool Genesis::InstallExtensions(Isolate* isolate,
                            &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
+#ifdef V8_FUZZILLI
+         InstallExtension(isolate, "v8/fuzzilli", &extension_states) &&
+#endif
 #ifdef ENABLE_VTUNE_TRACEMARK
          (!v8_flags.enable_vtune_domain_support ||
           InstallExtension(isolate, "v8/vtunedomain", &extension_states)) &&

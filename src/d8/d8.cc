@@ -86,7 +86,8 @@
 #endif  // V8_OS_POSIX
 
 #ifdef V8_FUZZILLI
-#include "src/d8/cov.h"
+#include "src/fuzzilli/cov.h"
+#include "src/fuzzilli/fuzzilli.h"
 #endif  // V8_FUZZILLI
 
 #ifdef V8_USE_PERFETTO
@@ -128,13 +129,6 @@ namespace {
 thread_local Worker* current_worker_ = nullptr;
 
 #ifdef V8_FUZZILLI
-// REPRL = read-eval-print-reset-loop
-// These file descriptors are being opened when Fuzzilli uses fork & execve to
-// run V8.
-#define REPRL_CRFD 100  // Control read file decriptor
-#define REPRL_CWFD 101  // Control write file decriptor
-#define REPRL_DRFD 102  // Data read file decriptor
-#define REPRL_DWFD 103  // Data write file decriptor
 bool fuzzilli_reprl = true;
 #else
 bool fuzzilli_reprl = false;
@@ -3049,103 +3043,6 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& info) {
           .ToLocalChecked());
 }
 
-#ifdef V8_FUZZILLI
-
-// We have to assume that the fuzzer will be able to call this function e.g. by
-// enumerating the properties of the global object and eval'ing them. As such
-// this function is implemented in a way that requires passing some magic value
-// as first argument (with the idea being that the fuzzer won't be able to
-// generate this value) which then also acts as a selector for the operation
-// to perform.
-void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  HandleScope handle_scope(info.GetIsolate());
-
-  String::Utf8Value operation(info.GetIsolate(), info[0]);
-  if (*operation == nullptr) {
-    return;
-  }
-  if (strcmp(*operation, "FUZZILLI_CRASH") == 0) {
-    auto arg = info[1]
-                   ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                   .FromMaybe(0);
-    switch (arg) {
-      case 0:
-        IMMEDIATE_CRASH();
-        break;
-      case 1:
-        CHECK(false);
-        break;
-      case 2:
-        DCHECK(false);
-        break;
-      case 3: {
-        // Access an invalid address.
-        // We want to use an "interesting" address for the access (instead of
-        // e.g. nullptr). In the (unlikely) case that the address is actually
-        // mapped, simply increment the pointer until it crashes.
-        char* ptr = reinterpret_cast<char*>(0x414141414141ull);
-        for (int i = 0; i < 1024; i++) {
-          *ptr = 'A';
-          ptr += 1 * i::GB;
-        }
-        break;
-      }
-      case 4: {
-        // Use-after-free, likely only crashes in ASan builds.
-        auto* vec = new std::vector<int>(4);
-        delete vec;
-        USE(vec->at(0));
-        break;
-      }
-      case 5: {
-        // Out-of-bounds access (1), likely only crashes in ASan or
-        // "hardened"/"safe" libc++ builds.
-        std::vector<int> vec(5);
-        USE(vec[5]);
-        break;
-      }
-      case 6: {
-        // Out-of-bounds access (2), likely only crashes in ASan builds.
-        std::vector<int> vec(6);
-        memset(vec.data(), 42, 0x100);
-        break;
-      }
-      case 7: {
-        if (i::v8_flags.hole_fuzzing) {
-          // This should crash with a segmentation fault only
-          // when --hole-fuzzing is used.
-          char* ptr = reinterpret_cast<char*>(0x414141414141ull);
-          for (int i = 0; i < 1024; i++) {
-            *ptr = 'A';
-            ptr += 1 * i::GB;
-          }
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  } else if (strcmp(*operation, "FUZZILLI_PRINT") == 0) {
-    static FILE* fzliout = fdopen(REPRL_DWFD, "w");
-    if (!fzliout) {
-      fprintf(
-          stderr,
-          "Fuzzer output channel not available, printing to stdout instead\n");
-      fzliout = stdout;
-    }
-
-    String::Utf8Value string(info.GetIsolate(), info[1]);
-    if (*string == nullptr) {
-      return;
-    }
-    fprintf(fzliout, "%s\n", *string);
-    fflush(fzliout);
-  }
-}
-
-#endif  // V8_FUZZILLI
-
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
   HandleScope handle_scope(isolate);
@@ -3424,13 +3321,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
     global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
   }
   global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
-
-#ifdef V8_FUZZILLI
-  global_template->Set(
-      String::NewFromUtf8(isolate, "fuzzilli", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Fuzzilli), PropertyAttribute::DontEnum);
-#endif  // V8_FUZZILLI
 
   if (i::v8_flags.expose_async_hooks) {
     global_template->Set(isolate, "async_hooks",
