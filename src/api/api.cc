@@ -8826,9 +8826,22 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   i::Isolate* i_isolate = obj->GetIsolate();
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
-  ENTER_V8_NO_SCRIPT(
-      i_isolate, reinterpret_cast<v8::Isolate*>(i_isolate)->GetCurrentContext(),
-      ArrayBuffer, Detach, i::HandleScope);
+  Local<Context> context =
+      reinterpret_cast<v8::Isolate*>(i_isolate)->GetCurrentContext();
+  // TODO(verwaest): Remove this case after forcing the embedder to enter the
+  // context.
+  if (context.IsEmpty()) {
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    if (key.IsEmpty()) {
+      i::JSArrayBuffer::Detach(obj).Check();
+    } else {
+      auto i_key = Utils::OpenHandle(*key);
+      constexpr bool kForceForWasmMemory = false;
+      i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key).Check();
+    }
+    return Just(true);
+  }
+  ENTER_V8_NO_SCRIPT(i_isolate, context, ArrayBuffer, Detach, i::HandleScope);
   if (!key.IsEmpty()) {
     auto i_key = Utils::OpenHandle(*key);
     constexpr bool kForceForWasmMemory = false;
