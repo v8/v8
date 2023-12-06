@@ -30,9 +30,13 @@ transitioning macro FlattenIntoArrayFast(
       otherwise goto Bailout(targetIndex, smiSourceIndex);
   let fastOW = NewFastJSArrayWitness(fastSource);
 
+  dcheck(TaggedEqual(sourceLength, fastSource.length));
+  const smiSourceLength = UnsafeCast<Smi>(sourceLength);
+
   // 3. Repeat, while sourceIndex < sourceLen
-  for (; true; smiSourceIndex++) {
+  for (; smiSourceIndex < smiSourceLength; smiSourceIndex++) {
     fastOW.Recheck() otherwise goto Bailout(targetIndex, smiSourceIndex);
+
     // Ensure that we haven't walked beyond a possibly updated length.
     if (smiSourceIndex >= fastOW.Get().length)
       goto Bailout(targetIndex, smiSourceIndex);
