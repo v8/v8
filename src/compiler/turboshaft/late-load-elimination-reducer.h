@@ -704,7 +704,7 @@ class LateLoadEliminationReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   void Analyze() {
-    if (v8_flags.turboshaft_load_elimination) {
+    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
       DCHECK(AllowHandleDereference::IsAllowed());
       analyzer_.Run();
     }
@@ -712,7 +712,7 @@ class LateLoadEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (v8_flags.turboshaft_load_elimination) {
+    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
@@ -736,6 +736,7 @@ class LateLoadEliminationReducer : public Next {
   }
 
  private:
+  const bool is_wasm_ = PipelineData::Get().is_wasm();
   LateLoadEliminationAnalyzer analyzer_{Asm().modifiable_input_graph(),
                                         Asm().phase_zone(),
                                         PipelineData::Get().broker()};

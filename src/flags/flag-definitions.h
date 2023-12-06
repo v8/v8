@@ -1241,7 +1241,6 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
 DEFINE_BOOL(turboshaft_wasm, false,
             "enable TurboFan's Turboshaft phases for wasm")
 DEFINE_WEAK_IMPLICATION(future, turboshaft_wasm)
-DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_load_elimination)
 DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
@@ -1259,8 +1258,9 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
             "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
                             "run the CSA pipeline with turboshaft")
-DEFINE_BOOL(turboshaft_load_elimination, false,
-            "enable Turboshaft's low-level load elimination")
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_load_elimination,
+    "enable Turboshaft's low-level load elimination for JS")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
                             "enable MachineOptimization during MachineLowering")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_peeling,
