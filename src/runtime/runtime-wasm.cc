@@ -619,8 +619,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     int table_count = instance->indirect_function_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
-      Handle<WasmIndirectFunctionTable> table =
-          instance->GetIndirectFunctionTable(isolate, table_index);
+      Tagged<WasmIndirectFunctionTable> table =
+          instance->indirect_function_table(table_index);
       if (table->refs()->get(entry_index) == *ref) {
         table->targets()
             ->set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(

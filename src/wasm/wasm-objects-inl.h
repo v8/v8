@@ -283,6 +283,12 @@ size_t WasmInstanceObject::memory_size(int memory_index) const {
   return memory_bases_and_sizes()->get(2 * memory_index + 1);
 }
 
+Tagged<WasmIndirectFunctionTable> WasmInstanceObject::indirect_function_table(
+    uint32_t table_index) {
+  return WasmIndirectFunctionTable::cast(
+      indirect_function_tables()->get(table_index));
+}
+
 ImportedFunctionEntry::ImportedFunctionEntry(
     Handle<WasmInstanceObject> instance, int index)
     : instance_(instance), index_(index) {

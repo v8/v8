@@ -245,8 +245,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
 
-    DCHECK_EQ(old_size,
-              instance->GetIndirectFunctionTable(isolate, table_index)->size());
+    DCHECK_EQ(old_size, instance->indirect_function_table(table_index)->size());
     WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
         instance, table_index, new_size);
   }
@@ -280,7 +279,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
                                             int entry_index,
                                             Handle<Object> entry) {
   if (IsWasmNull(*entry, isolate)) {
-    ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
+    table->ClearDispatchTables(entry_index);  // Degenerate case.
     entries->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
     return;
   }
@@ -555,7 +554,7 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    instance->GetIndirectFunctionTable(isolate, table_index)
+    instance->indirect_function_table(table_index)
         ->Set(entry_index, canonical_type_index, wasm_code->instruction_start(),
               capi_function->shared()
                   ->wasm_capi_function_data()
@@ -564,26 +563,23 @@ void WasmTableObject::UpdateDispatchTables(
   }
 }
 
-void WasmTableObject::ClearDispatchTables(Isolate* isolate,
-                                          Handle<WasmTableObject> table,
-                                          int index) {
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
-  for (int i = 0; i < dispatch_tables->length();
-       i += kDispatchTableNumElements) {
+void WasmTableObject::ClearDispatchTables(int index) {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> tables = dispatch_tables();
+  DCHECK_EQ(0, tables->length() % kDispatchTableNumElements);
+  for (int i = 0, e = tables->length(); i < e; i += kDispatchTableNumElements) {
     int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    Handle<WasmInstanceObject> target_instance(
-        WasmInstanceObject::cast(
-            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-        isolate);
-    Handle<WasmIndirectFunctionTable> function_table =
-        target_instance->GetIndirectFunctionTable(isolate, table_index);
+        Smi::cast(tables->get(i + kDispatchTableIndexOffset)).value();
+    Tagged<WasmInstanceObject> target_instance =
+        WasmInstanceObject::cast(tables->get(i + kDispatchTableInstanceOffset));
+    Tagged<WasmIndirectFunctionTable> function_table =
+        target_instance->indirect_function_table(table_index);
     DCHECK_LT(index, function_table->size());
     function_table->Clear(index);
   }
 }
 
+// static
 void WasmTableObject::SetFunctionTablePlaceholder(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     Handle<WasmInstanceObject> instance, int func_index) {
@@ -598,6 +594,7 @@ void WasmTableObject::SetFunctionTablePlaceholder(
   table->entries()->set(entry_index, *tuple);
 }
 
+// static
 void WasmTableObject::GetFunctionTableEntry(
     Isolate* isolate, const WasmModule* module, Handle<WasmTableObject> table,
     int entry_index, bool* is_valid, bool* is_null,
@@ -1134,8 +1131,8 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
     uint32_t minimum_size) {
   Isolate* isolate = instance->GetIsolate();
   DCHECK_LT(table_index, instance->indirect_function_tables()->length());
-  Handle<WasmIndirectFunctionTable> table =
-      instance->GetIndirectFunctionTable(isolate, table_index);
+  Handle<WasmIndirectFunctionTable> table{
+      instance->indirect_function_table(table_index), isolate};
   WasmIndirectFunctionTable::Resize(isolate, table, minimum_size);
   if (table_index == 0) {
     instance->SetIndirectFunctionTableShortcuts(isolate);
@@ -1326,20 +1323,11 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
          JumpTableOffset(native_module->module(), func_index);
 }
 
-Handle<WasmIndirectFunctionTable> WasmInstanceObject::GetIndirectFunctionTable(
-    Isolate* isolate, uint32_t table_index) {
-  DCHECK_LT(table_index, indirect_function_tables()->length());
-  return handle(WasmIndirectFunctionTable::cast(
-                    indirect_function_tables()->get(table_index)),
-                isolate);
-}
-
 void WasmInstanceObject::SetIndirectFunctionTableShortcuts(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
   if (indirect_function_tables()->length() > 0 &&
       IsWasmIndirectFunctionTable(indirect_function_tables()->get(0))) {
-    HandleScope scope(isolate);
-    Handle<WasmIndirectFunctionTable> table0 =
-        GetIndirectFunctionTable(isolate, 0);
+    Tagged<WasmIndirectFunctionTable> table0 = indirect_function_table(0);
     set_indirect_function_table_size(table0->size());
     set_indirect_function_table_refs(table0->refs());
     set_indirect_function_table_sig_ids(table0->sig_ids());

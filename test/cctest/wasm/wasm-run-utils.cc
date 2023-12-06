@@ -272,7 +272,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(instance, function.func_index);
-      instance->GetIndirectFunctionTable(isolate_, table_index)
+      instance->indirect_function_table(table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, instance_object_, function_indexes[i]);

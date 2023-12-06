@@ -1923,7 +1923,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     uint32_t canonicalized_sig_index =
         target_module->isorecursive_canonical_type_ids[function.sig_index];
 
-    instance->GetIndirectFunctionTable(isolate_, table_index)
+    instance->indirect_function_table(table_index)
         ->Set(i, canonicalized_sig_index, entry.call_target(), *ref);
   }
   return true;
@@ -2687,8 +2687,8 @@ V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
 V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
                                          Handle<WasmTableObject> table_object,
                                          uint32_t entry_index) {
-  table_object->entries()->set(entry_index, *isolate->factory()->wasm_null());
-  WasmTableObject::ClearDispatchTables(isolate, table_object, entry_index);
+  table_object->entries()->set(entry_index, ReadOnlyRoots{isolate}.wasm_null());
+  table_object->ClearDispatchTables(entry_index);
 }
 }  // namespace
 

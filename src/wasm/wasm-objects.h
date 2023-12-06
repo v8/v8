@@ -233,8 +233,7 @@ class WasmTableObject
                                    int entry_index,
                                    Handle<WasmCapiFunction> capi_function);
 
-  static void ClearDispatchTables(Isolate* isolate,
-                                  Handle<WasmTableObject> table, int index);
+  void ClearDispatchTables(int index);
 
   V8_EXPORT_PRIVATE static void SetFunctionTablePlaceholder(
       Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
@@ -513,8 +512,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 
   Address GetCallTarget(uint32_t func_index);
 
-  Handle<WasmIndirectFunctionTable> GetIndirectFunctionTable(
-      Isolate*, uint32_t table_index);
+  inline Tagged<WasmIndirectFunctionTable> indirect_function_table(
+      uint32_t table_index);
 
   void SetIndirectFunctionTableShortcuts(Isolate* isolate);
 
