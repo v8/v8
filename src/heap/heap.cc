@@ -47,7 +47,6 @@
 #include "src/heap/code-stats.h"
 #include "src/heap/collection-barrier.h"
 #include "src/heap/combined-heap.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
@@ -64,7 +63,7 @@
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier-inl.h"
@@ -5555,6 +5554,74 @@ void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   heap_allocator_->SetReadOnlySpace(read_only_space_);
 }
 
+class StressConcurrentAllocationTask : public CancelableTask {
+ public:
+  explicit StressConcurrentAllocationTask(Isolate* isolate)
+      : CancelableTask(isolate), isolate_(isolate) {}
+
+  void RunInternal() override {
+    Heap* heap = isolate_->heap();
+    LocalHeap local_heap(heap, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
+
+    const int kNumIterations = 2000;
+    const int kSmallObjectSize = 10 * kTaggedSize;
+    const int kMediumObjectSize = 8 * KB;
+    const int kLargeObjectSize =
+        static_cast<int>(MemoryChunk::kPageSize -
+                         MemoryChunkLayout::ObjectStartOffsetInDataPage());
+
+    for (int i = 0; i < kNumIterations; i++) {
+      // Isolate tear down started, stop allocation...
+      if (heap->gc_state() == Heap::TEAR_DOWN) return;
+
+      AllocationResult result = local_heap.AllocateRaw(
+          kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kTaggedAligned);
+      if (!result.IsFailure()) {
+        heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                             kSmallObjectSize);
+      } else {
+        heap->CollectGarbageFromAnyThread(&local_heap);
+      }
+
+      result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
+                                      AllocationOrigin::kRuntime,
+                                      AllocationAlignment::kTaggedAligned);
+      if (!result.IsFailure()) {
+        heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                             kMediumObjectSize);
+      } else {
+        heap->CollectGarbageFromAnyThread(&local_heap);
+      }
+
+      result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
+                                      AllocationOrigin::kRuntime,
+                                      AllocationAlignment::kTaggedAligned);
+      if (!result.IsFailure()) {
+        heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                             kLargeObjectSize);
+      } else {
+        heap->CollectGarbageFromAnyThread(&local_heap);
+      }
+      local_heap.Safepoint();
+    }
+
+    Schedule(isolate_);
+  }
+
+  // Schedules task on background thread
+  static void Schedule(Isolate* isolate) {
+    auto task = std::make_unique<StressConcurrentAllocationTask>(isolate);
+    const double kDelayInSeconds = 0.1;
+    V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(std::move(task),
+                                                        kDelayInSeconds);
+  }
+
+ private:
+  Isolate* isolate_;
+};
+
 class StressConcurrentAllocationObserver : public AllocationObserver {
  public:
   explicit StressConcurrentAllocationObserver(Heap* heap)
@@ -5565,7 +5632,7 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
     if (v8_flags.stress_concurrent_allocation) {
       // Only schedule task if --stress-concurrent-allocation is enabled. This
       // allows tests to disable flag even when Isolate was already initialized.
-      StressConcurrentAllocatorTask::Schedule(heap_->isolate());
+      StressConcurrentAllocationTask::Schedule(heap_->isolate());
     }
     heap_->RemoveAllocationObserversFromAllSpaces(this, this);
     heap_->need_to_remove_stress_concurrent_allocation_observer_ = false;

@@ -7,7 +7,6 @@
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/logging/local-logger.h"

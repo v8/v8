@@ -17,7 +17,6 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-callbacks.h"
 
 namespace v8 {
@@ -366,7 +365,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   MarkingBarrier* saved_marking_barrier_ = nullptr;
 
   friend class CollectionBarrier;
-  friend class ConcurrentAllocator;
   friend class GlobalSafepoint;
   friend class Heap;
   friend class Isolate;

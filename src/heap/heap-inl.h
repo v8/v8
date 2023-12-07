@@ -18,8 +18,6 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
-#include "src/heap/concurrent-allocator-inl.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"

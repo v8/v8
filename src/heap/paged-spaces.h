@@ -383,7 +383,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return !is_compaction_space() && (identity() != NEW_SPACE);
   }
 
-  friend class ConcurrentAllocator;
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class PagedSpaceAllocatorPolicy;

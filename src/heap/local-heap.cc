@@ -14,7 +14,6 @@
 #include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/collection-barrier.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"

@@ -14,7 +14,6 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"

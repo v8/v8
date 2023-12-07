@@ -7,9 +7,9 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
