@@ -1402,7 +1402,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ TailCallBuiltin(Builtin::kCallWithSpread);
   } else {
-    __ TailCallBuiltin(Builtins::Call(receiver_mode);
+    __ TailCallBuiltin(Builtins::Call(receiver_mode));
   }
 
   __ bind(&stack_overflow);
