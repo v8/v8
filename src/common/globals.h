@@ -1125,6 +1125,9 @@ static_assert(FIRST_SPACE == 0);
 constexpr bool IsAnyCodeSpace(AllocationSpace space) {
   return space == CODE_SPACE || space == CODE_LO_SPACE;
 }
+constexpr bool IsAnyTrustedSpace(AllocationSpace space) {
+  return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE;
+}
 
 constexpr const char* ToString(AllocationSpace space) {
   switch (space) {

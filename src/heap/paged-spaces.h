@@ -9,6 +9,7 @@
 #include <limits>
 #include <memory>
 #include <utility>
+#include <variant>
 
 #include "src/base/bounds.h"
 #include "src/base/macros.h"
@@ -556,26 +557,25 @@ class OldGenerationMemoryChunkIterator {
   template <typename Callback>
   static void ForAll(Heap* heap, Callback callback) {
     OldGenerationMemoryChunkIterator it(heap);
-    MemoryChunk* chunk;
-    while ((chunk = it.next()) != nullptr) {
+    while (MemoryChunk* chunk = it.next()) {
       callback(chunk);
     }
   }
 
  private:
   enum State {
-    kOldSpaceState,
-    kCodeState,
-    kLargeObjectState,
-    kCodeLargeObjectState,
-    kFinishedState
+    kOldSpace,
+    kCodeSpace,
+    kLargeObjectSpace,
+    kCodeLargeObjectSpace,
+    kTrustedSpace,
+    kTrustedLargeObjectSpace,
+    kFinished
   };
   Heap* const heap_;
   State state_;
-  PageIterator old_iterator_;
-  PageIterator code_iterator_;
-  LargePageIterator lo_iterator_;
-  LargePageIterator code_lo_iterator_;
+  // The current type of {iterator_} depends on {state_}.
+  std::variant<PageIterator, LargePageIterator> iterator_;
 };
 
 }  // namespace internal

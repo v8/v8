@@ -21,15 +21,15 @@
 namespace v8 {
 namespace internal {
 
-template <class PAGE_TYPE>
-PageIteratorImpl<PAGE_TYPE>& PageIteratorImpl<PAGE_TYPE>::operator++() {
+template <class PageType>
+PageIteratorImpl<PageType>& PageIteratorImpl<PageType>::operator++() {
   p_ = p_->next_page();
   return *this;
 }
 
-template <class PAGE_TYPE>
-PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
-  PageIteratorImpl<PAGE_TYPE> tmp(*this);
+template <class PageType>
+PageIteratorImpl<PageType> PageIteratorImpl<PageType>::operator++(int) {
+  PageIteratorImpl<PageType> tmp(*this);
   operator++();
   return tmp;
 }
@@ -64,43 +64,54 @@ ConstPageRange::ConstPageRange(const Page* page)
     : ConstPageRange(page, page->next_page()) {}
 
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
-    : heap_(heap),
-      state_(kOldSpaceState),
-      old_iterator_(heap->old_space()->begin()),
-      code_iterator_(heap->code_space()->begin()),
-      lo_iterator_(heap->lo_space()->begin()),
-      code_lo_iterator_(heap->code_lo_space()->begin()) {}
+    : heap_(heap), state_(kOldSpace), iterator_(heap->old_space()->begin()) {}
 
 MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
-    case kOldSpaceState: {
-      if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
-      state_ = kCodeState;
+    case kOldSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->old_space()->end()) return *(iterator++);
+      state_ = kCodeSpace;
+      iterator_ = heap_->code_space()->begin();
       V8_FALLTHROUGH;
     }
-    case kCodeState: {
-      if (code_iterator_ != heap_->code_space()->end())
-        return *(code_iterator_++);
-      state_ = kLargeObjectState;
+    case kCodeSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->code_space()->end()) return *(iterator++);
+      state_ = kLargeObjectSpace;
+      iterator_ = heap_->lo_space()->begin();
       V8_FALLTHROUGH;
     }
-    case kLargeObjectState: {
-      if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
-      state_ = kCodeLargeObjectState;
+    case kLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->lo_space()->end()) return *(iterator++);
+      state_ = kCodeLargeObjectSpace;
+      iterator_ = heap_->code_lo_space()->begin();
       V8_FALLTHROUGH;
     }
-    case kCodeLargeObjectState: {
-      if (code_lo_iterator_ != heap_->code_lo_space()->end())
-        return *(code_lo_iterator_++);
-      state_ = kFinishedState;
+    case kCodeLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->code_lo_space()->end()) return *(iterator++);
+      state_ = kTrustedSpace;
+      iterator_ = heap_->trusted_space()->begin();
       V8_FALLTHROUGH;
     }
-    case kFinishedState:
+    case kTrustedSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->trusted_space()->end()) return *(iterator++);
+      state_ = kTrustedLargeObjectSpace;
+      iterator_ = heap_->trusted_lo_space()->begin();
+      V8_FALLTHROUGH;
+    }
+    case kTrustedLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->trusted_lo_space()->end()) return *(iterator++);
+      state_ = kFinished;
+      V8_FALLTHROUGH;
+    }
+    case kFinished:
       return nullptr;
-    default:
-      break;
   }
-  UNREACHABLE();
 }
 
 bool MemoryChunkIterator::HasNext() {

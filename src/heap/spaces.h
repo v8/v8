@@ -149,24 +149,26 @@ class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
   virtual Tagged<HeapObject> Next() = 0;
 };
 
-template <class PAGE_TYPE>
+template <class PageType>
 class PageIteratorImpl
-    : public base::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+    : public base::iterator<std::forward_iterator_tag, PageType> {
  public:
-  explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
-  PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
-  PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
+  explicit PageIteratorImpl(PageType* p) : p_(p) {}
+  PageIteratorImpl(const PageIteratorImpl&) V8_NOEXCEPT = default;
+  PageIteratorImpl& operator=(const PageIteratorImpl&) V8_NOEXCEPT = default;
+
+  PageType* operator*() { return p_; }
+  bool operator==(const PageIteratorImpl<PageType>& rhs) const {
     return rhs.p_ == p_;
   }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
+  bool operator!=(const PageIteratorImpl<PageType>& rhs) const {
     return rhs.p_ != p_;
   }
-  inline PageIteratorImpl<PAGE_TYPE>& operator++();
-  inline PageIteratorImpl<PAGE_TYPE> operator++(int);
+  inline PageIteratorImpl<PageType>& operator++();
+  inline PageIteratorImpl<PageType> operator++(int);
 
  private:
-  PAGE_TYPE* p_;
+  PageType* p_;
 };
 
 using PageIterator = PageIteratorImpl<Page>;
