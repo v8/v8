@@ -135,7 +135,7 @@ class GraphVisitor : public Next {
 
     // Similarly as VisitBlock does, we visit the Phis first, then update all of
     // the Phi mappings at once and visit the rest of the block.
-    base::SmallVector<OpIndex, 16> new_phi_values;
+    base::SmallVector<OpIndex, 64> new_phi_values;
     // Emitting new phis and recording mapping.
     DCHECK_NOT_NULL(Asm().current_block());
     for (OpIndex index : Asm().input_graph().OperationIndices(*input_block)) {
@@ -333,7 +333,7 @@ class GraphVisitor : public Next {
       // the other operations will use the new mapping (as they should).
 
       // Visiting Phis and collecting their new OpIndices.
-      base::SmallVector<OpIndex, 16> new_phi_values;
+      base::SmallVector<OpIndex, 64> new_phi_values;
       for (OpIndex index : Asm().input_graph().OperationIndices(*input_block)) {
         DCHECK_NOT_NULL(Asm().current_block());
         if (Asm().input_graph().Get(index).template Is<PhiOp>()) {
@@ -538,7 +538,7 @@ class GraphVisitor : public Next {
     }
 
     base::Vector<const OpIndex> old_inputs = op.inputs();
-    base::SmallVector<OpIndex, 8> new_inputs;
+    base::SmallVector<OpIndex, 64> new_inputs;
     int predecessor_count = Asm().current_block()->PredecessorCount();
     Block* old_pred = current_input_block_->LastPredecessor();
     Block* new_pred = Asm().current_block()->LastPredecessor();
