@@ -1491,11 +1491,16 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
     }
-    base::Optional<CodePageMemoryModificationScope> memory_modification_scope;
+
     if (dest == CODE_SPACE) {
-      memory_modification_scope.emplace(InstructionStream::cast(src));
+      WritableJitAllocation jit_allocation =
+          WritableJitAllocation::ForInstructionStream(
+              InstructionStream::cast(src));
+      jit_allocation.WriteHeaderSlot<MapWord, HeapObject::kMapOffset>(
+          MapWord::FromForwardingAddress(src, dst));
+    } else {
+      src->set_map_word_forwarded(dst, kRelaxedStore);
     }
-    src->set_map_word_forwarded(dst, kRelaxedStore);
   }
 
   EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,

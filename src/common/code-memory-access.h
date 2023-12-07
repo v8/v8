@@ -405,6 +405,9 @@ class WritableJitAllocation {
   WritableJitAllocation& operator=(const WritableJitAllocation&) = delete;
   V8_INLINE ~WritableJitAllocation();
 
+  static V8_INLINE WritableJitAllocation
+  ForInstructionStream(Tagged<InstructionStream> istream);
+
   // WritableJitAllocations are used during reloc iteration. But in some
   // cases, we relocate code off-heap, e.g. when growing AssemblerBuffers.
   // This function creates a WritableJitAllocation that doesn't unlock the

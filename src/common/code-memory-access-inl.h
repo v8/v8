@@ -7,6 +7,7 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
+#include "src/objects/instruction-stream-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
@@ -55,6 +56,15 @@ WritableJitAllocation WritableJitAllocation::ForNonExecutableMemory(
   return WritableJitAllocation(addr, size, type);
 }
 
+// static
+WritableJitAllocation WritableJitAllocation::ForInstructionStream(
+    Tagged<InstructionStream> istream) {
+  return WritableJitAllocation(
+      istream->address(), istream->Size(),
+      ThreadIsolation::JitAllocationType::kInstructionStream,
+      JitAllocationSource::kLookup);
+}
+
 WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
                                              size_t jump_table_size,
                                              Address far_jump_table_address,
@@ -74,12 +84,16 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {
-  // These asserts are no strict requirements, they just guard against
+  // This assert is no strict requirement, it just guards against
   // non-implemented functionality.
   static_assert(!is_taggable_v<T>);
-  static_assert(offset != HeapObject::kMapOffset);
 
-  WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(
+        HeapObject::FromAddress(address_), value);
+  } else {
+    WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  }
 }
 
 template <typename T, size_t offset>
