@@ -483,6 +483,17 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type, const char* name,
   return &entries_.back();
 }
 
+void HeapSnapshot::AddScriptLineEnds(int script_id,
+                                     String::LineEndsVector&& line_ends) {
+  scripts_line_ends_map_.emplace(script_id, std::move(line_ends));
+}
+
+String::LineEndsVector& HeapSnapshot::GetScriptLineEnds(int script_id) {
+  DCHECK(scripts_line_ends_map_.find(script_id) !=
+         scripts_line_ends_map_.end());
+  return scripts_line_ends_map_[script_id];
+}
+
 void HeapSnapshot::FillChildren() {
   DCHECK(children().empty());
   int children_index = 0;
@@ -833,10 +844,8 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   if (script->has_line_ends()) {
     script->GetPositionInfo(start, &info);
   } else {
-    DCHECK(scripts_line_ends_map_.find(script->id()) !=
-           scripts_line_ends_map_.end());
-    script->GetPositionInfoWithLineEnds(start, &info,
-                                        scripts_line_ends_map_[script->id()]);
+    script->GetPositionInfoWithLineEnds(
+        start, &info, snapshot_->GetScriptLineEnds(script->id()));
   }
   snapshot_->AddLocation(entry, scriptId, info.line, info.column);
 }
@@ -1072,8 +1081,8 @@ void V8HeapExplorer::PopulateLineEnds() {
   }
 
   for (auto& script : scripts) {
-    scripts_line_ends_map_.emplace(script->id(),
-                                   Script::GetLineEnds(isolate(), script));
+    snapshot_->AddScriptLineEnds(script->id(),
+                                 Script::GetLineEnds(isolate(), script));
   }
 }
 
