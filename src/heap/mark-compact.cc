@@ -4641,14 +4641,15 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
   }
 
-  inline void CheckSlotForOldToSharedTyped(MemoryChunk* chunk,
-                                           SlotType slot_type, Address addr) {
+  inline void CheckSlotForOldToSharedTyped(
+      MemoryChunk* chunk, SlotType slot_type, Address addr,
+      WritableJitAllocation& jit_allocation) {
     Tagged<HeapObject> heap_object =
         UpdateTypedSlotHelper::GetTargetObject(chunk->heap(), slot_type, addr);
 
 #if DEBUG
     UpdateTypedSlotHelper::UpdateTypedSlot(
-        chunk->heap(), slot_type, addr,
+        jit_allocation, chunk->heap(), slot_type, addr,
         [heap_object](FullMaybeObjectSlot slot) {
           DCHECK_EQ((*slot).GetHeapObjectAssumeStrong(), heap_object);
           return KEEP_SLOT;
@@ -4767,11 +4768,19 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateTypedPointers() {
-    UpdateTypedOldToNewPointers();
-    UpdateTypedOldToOldPointers();
+    if (!chunk_->executable()) {
+      DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_NEW>()));
+      DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_OLD>()));
+      return;
+    }
+
+    WritableJitPage jit_page = ThreadIsolation::LookupWritableJitPage(
+        chunk_->area_start(), chunk_->area_size());
+    UpdateTypedOldToNewPointers(jit_page);
+    UpdateTypedOldToOldPointers(jit_page);
   }
 
-  void UpdateTypedOldToNewPointers() {
+  void UpdateTypedOldToNewPointers(WritableJitPage& jit_page) {
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() == nullptr)
       return;
     const PtrComprCageBase cage_base = heap_->isolate();
@@ -4780,15 +4789,20 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           CheckAndUpdateOldToNewSlot(slot, cage_base);
           return KEEP_SLOT;
         };
+
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_, [this, &check_and_update_old_to_new_slot_fn](SlotType slot_type,
-                                                             Address slot) {
+        chunk_, [this, &check_and_update_old_to_new_slot_fn, &jit_page](
+                    SlotType slot_type, Address slot) {
+          WritableJitAllocation jit_allocation =
+              jit_page.LookupAllocationContaining(slot);
           UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
+              jit_allocation, heap_, slot_type, slot,
+              check_and_update_old_to_new_slot_fn);
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (record_old_to_shared_slots_) {
-            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
+            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot,
+                                         jit_allocation);
           }
           // Always keep slot since all slots are dropped at once after
           // iteration.
@@ -4800,16 +4814,19 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     DCHECK_NULL(chunk_->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
-  void UpdateTypedOldToOldPointers() {
+  void UpdateTypedOldToOldPointers(WritableJitPage& jit_page) {
     if (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() == nullptr)
       return;
     PtrComprCageBase cage_base = heap_->isolate();
     RememberedSet<OLD_TO_OLD>::IterateTyped(
-        chunk_, [this, cage_base](SlotType slot_type, Address slot) {
+        chunk_, [this, cage_base, &jit_page](SlotType slot_type, Address slot) {
           // Using UpdateStrongSlot is OK here, because there are no weak
           // typed slots.
+          WritableJitAllocation jit_allocation =
+              jit_page.LookupAllocationContaining(slot);
           SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+              jit_allocation, heap_, slot_type, slot,
+              [cage_base](FullMaybeObjectSlot slot) {
                 UpdateStrongSlot(cage_base, slot);
                 // Always keep slot since all slots are dropped at once after
                 // iteration.
@@ -4817,7 +4834,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
               });
           // A string might have been promoted into the shared heap during GC.
           if (record_old_to_shared_slots_) {
-            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
+            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot,
+                                         jit_allocation);
           }
           return result;
         });
@@ -4999,7 +5017,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
   while (chunk_iterator.HasNext()) {
     MemoryChunk* chunk = chunk_iterator.Next();
-    CodePageMemoryModificationScope unprotect_code_page(chunk);
 
     const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
@@ -5011,13 +5028,23 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     if (slot_count == 0 || chunk->InYoungGeneration())
       chunk->ReleaseSlotSet(OLD_TO_SHARED);
 
+    if (!chunk->executable()) {
+      DCHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
+      continue;
+    }
+
+    WritableJitPage jit_page = ThreadIsolation::LookupWritableJitPage(
+        chunk->area_start(), chunk->area_size());
     const auto typed_slot_count = RememberedSet<OLD_TO_SHARED>::IterateTyped(
-        chunk, [this](SlotType slot_type, Address slot) {
+        chunk, [this, &jit_page](SlotType slot_type, Address slot) {
           // Using UpdateStrongSlot is OK here, because there are no weak
           // typed slots.
           PtrComprCageBase cage_base = heap_->isolate();
+          WritableJitAllocation jit_allocation =
+              jit_page.LookupAllocationContaining(slot);
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+              jit_allocation, heap_, slot_type, slot,
+              [cage_base](FullMaybeObjectSlot slot) {
                 return UpdateStrongOldToSharedSlot(cage_base, slot);
               });
         });
