@@ -6112,9 +6112,6 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
       // and advance marking if incremental marking is active.
       job->ScheduleTask();
     }
-    if (auto* job = heap()->minor_gc_job()) {
-      job->SchedulePreviouslyRequestedTask();
-    }
   }
   if (v8_flags.trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
