@@ -129,8 +129,8 @@ namespace {
 // (simulator) builds.
 void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
                                    Heap* heap) {
-  CodePageMemoryModificationScope scope(
-      MemoryChunk::FromAddress(reinterpret_cast<Address>(instr)));
+  CodePageMemoryModificationScopeForDebugging scope(
+      BasicMemoryChunk::FromAddress(reinterpret_cast<Address>(instr)));
   instr->SetInstructionBits(value);
 }
 }  // namespace
