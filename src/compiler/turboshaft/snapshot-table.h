@@ -278,10 +278,13 @@ class SnapshotTable {
   SnapshotData* root_snapshot_;
   SnapshotData* current_snapshot_;
 
-  // The following members are only used during a merge operation. They are
-  // declared here to recycle the memory, avoiding repeated Zone-allocation.
+  // The following members are only used temporarily during a merge operation
+  // or when creating a new snapshot.
+  // They are declared here to recycle the memory, avoiding repeated
+  // Zone-allocation.
   ZoneVector<TableEntry*> merging_entries_{zone_};
   ZoneVector<Value> merge_values_{zone_};
+  ZoneVector<SnapshotData*> path_{zone_};
 
 #ifdef DEBUG
   bool snapshot_was_created_with_merge = false;
@@ -446,11 +449,11 @@ SnapshotTable<Value, KeyData>::MoveToNewSnapshot(
   }
   {
     // Replay to common_ancestor.
-    base::SmallVector<SnapshotData*, 16> path;
+    path_.clear();
     for (SnapshotData* s = common_ancestor; s != go_back_to; s = s->parent) {
-      path.push_back(s);
+      path_.push_back(s);
     }
-    for (SnapshotData* s : base::Reversed(path)) {
+    for (SnapshotData* s : base::Reversed(path_)) {
       ReplaySnapshot(s, change_callback);
     }
   }
