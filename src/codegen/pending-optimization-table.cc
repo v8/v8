@@ -50,7 +50,7 @@ void ManualOptimizationTable::CheckMarkedForManualOptimization(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "
         "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
-        "%%OptimizeOSR ");
+        "%%OptimizeOsr ");
     UNREACHABLE();
   }
 }

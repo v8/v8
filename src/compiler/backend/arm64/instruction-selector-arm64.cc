@@ -2048,8 +2048,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
       CanCover(node, bitwise_and.left()) &&
       this->is_integer_constant(bitwise_and.right())) {
     int64_t constant_rhs = this->integer_constant(bitwise_and.right());
-    DCHECK(base::IsInRange(constant_rhs, uint32_t{0},
-                           std::numeric_limits<uint32_t>::max()));
+    DCHECK(base::IsInRange(constant_rhs, std::numeric_limits<int32_t>::min(),
+                           std::numeric_limits<int32_t>::max()));
     uint32_t mask = static_cast<uint32_t>(constant_rhs);
     uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
