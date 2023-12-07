@@ -828,16 +828,18 @@ class WasmLoweringReducer : public Next {
 
   OpIndex LowerGlobalSetOrGet(OpIndex instance, OpIndex value,
                               const wasm::WasmGlobal* global, GlobalMode mode) {
-    if (global->mutability && global->imported) {
+    bool is_mutable = global->mutability;
+    DCHECK_IMPLIES(!is_mutable, mode == GlobalMode::kLoad);
+    if (is_mutable && global->imported) {
       OpIndex imported_mutable_globals =
-          LOAD_INSTANCE_FIELD(instance, ImportedMutableGlobals,
-                              MemoryRepresentation::TaggedPointer());
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobals,
+                                        MemoryRepresentation::TaggedPointer());
       int field_offset =
           FixedAddressArray::kHeaderSize + global->index * kSystemPointerSize;
       if (global->type.is_reference()) {
-        OpIndex buffers =
-            LOAD_INSTANCE_FIELD(instance, ImportedMutableGlobalsBuffers,
-                                MemoryRepresentation::TaggedPointer());
+        OpIndex buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
+            instance, ImportedMutableGlobalsBuffers,
+            MemoryRepresentation::TaggedPointer());
         int offset_in_buffers =
             FixedArray::kHeaderSize + global->offset * kTaggedSize;
         OpIndex base =
@@ -874,12 +876,15 @@ class WasmLoweringReducer : public Next {
         }
       }
     } else if (global->type.is_reference()) {
-      OpIndex base = LOAD_INSTANCE_FIELD(instance, TaggedGlobalsBuffer,
-                                         MemoryRepresentation::TaggedPointer());
+      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
       int offset = FixedArray::kHeaderSize + global->offset * kTaggedSize;
       if (mode == GlobalMode::kLoad) {
-        return __ Load(base, LoadOp::Kind::TaggedBase(),
-                       MemoryRepresentation::AnyTagged(), offset);
+        LoadOp::Kind load_kind = is_mutable
+                                     ? LoadOp::Kind::TaggedBase()
+                                     : LoadOp::Kind::TaggedBase().Immutable();
+        return __ Load(base, load_kind, MemoryRepresentation::AnyTagged(),
+                       offset);
       } else {
         __ Store(base, value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),
@@ -887,11 +892,14 @@ class WasmLoweringReducer : public Next {
         return OpIndex::Invalid();
       }
     } else {
-      OpIndex base =
-          LOAD_INSTANCE_FIELD(instance, GlobalsStart, kMaybeSandboxedPointer);
+      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(instance, GlobalsStart,
+                                                   kMaybeSandboxedPointer);
       if (mode == GlobalMode::kLoad) {
-        return __ Load(base, LoadOp::Kind::RawAligned(),
-                       RepresentationFor(global->type, true), global->offset);
+        LoadOp::Kind load_kind = is_mutable
+                                     ? LoadOp::Kind::RawAligned()
+                                     : LoadOp::Kind::RawAligned().Immutable();
+        return __ Load(base, load_kind, RepresentationFor(global->type, true),
+                       global->offset);
       } else {
         __ Store(base, value, StoreOp::Kind::RawAligned(),
                  RepresentationFor(global->type, true),
