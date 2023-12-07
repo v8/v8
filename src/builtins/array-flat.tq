@@ -30,7 +30,8 @@ transitioning macro FlattenIntoArrayFast(
       otherwise goto Bailout(targetIndex, smiSourceIndex);
   let fastOW = NewFastJSArrayWitness(fastSource);
 
-  dcheck(TaggedEqual(sourceLength, fastSource.length));
+  // The source is a FastJSArray, thus its length must be a Smi.
+  dcheck(Is<Smi>(sourceLength));
   const smiSourceLength = UnsafeCast<Smi>(sourceLength);
 
   // 3. Repeat, while sourceIndex < sourceLen
