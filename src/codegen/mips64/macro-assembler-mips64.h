@@ -1110,7 +1110,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
 
   // ---------------------------------------------------------------------------

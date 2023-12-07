@@ -4444,10 +4444,14 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
                                      Register type, Operand range) {
-  Label done;
-  Branch(&done, NegateCondition(cond), type, range);
-  TailCallBuiltin(builtin);
-  bind(&done);
+  if (cond != cc_always) {
+    Label done;
+    Branch(&done, NegateCondition(cond), type, range);
+    TailCallBuiltin(builtin);
+    bind(&done);
+  } else {
+    TailCallBuiltin(builtin);
+  }
 }
 
 void MacroAssembler::TailCallBuiltin(Builtin builtin) {
@@ -5252,7 +5256,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
-  CallBuiltin(Builtins::CEntry(f->result_size));
+  CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
@@ -5266,11 +5270,9 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 }
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
-                                             BranchDelaySlot bd,
                                              bool builtin_exit_frame) {
   PrepareCEntryFunction(builtin);
-  TailCallBuiltin(Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame), al,
-                  zero_reg, Operand(zero_reg), bd);
+  TailCallBuiltin(Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame));
 }
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
