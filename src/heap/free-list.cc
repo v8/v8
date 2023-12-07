@@ -113,6 +113,11 @@ void FreeListCategory::Relink(FreeList* owner) {
 // ------------------------------------------------
 // Generic FreeList methods (alloc/free related)
 
+FreeList::FreeList(int number_of_categories, size_t min_block_size)
+    : number_of_categories_(number_of_categories),
+      last_category_(number_of_categories - 1),
+      min_block_size_(min_block_size) {}
+
 std::unique_ptr<FreeList> FreeList::CreateFreeList() {
   return std::make_unique<FreeListManyCachedOrigin>();
 }
@@ -181,13 +186,9 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
 
 constexpr unsigned int FreeListMany::categories_min[kNumberOfCategories];
 
-FreeListMany::FreeListMany() {
+FreeListMany::FreeListMany() : FreeList(kNumberOfCategories, kMinBlockSize) {
   // Initializing base (FreeList) fields
-  number_of_categories_ = kNumberOfCategories;
-  last_category_ = number_of_categories_ - 1;
-  min_block_size_ = kMinBlockSize;
   categories_ = new FreeListCategory*[number_of_categories_]();
-
   Reset();
 }
 

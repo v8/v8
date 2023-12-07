@@ -34,8 +34,8 @@ class SemiSpace;
 
 using FreeListCategoryType = int32_t;
 
-static const FreeListCategoryType kFirstCategory = 0;
-static const FreeListCategoryType kInvalidCategory = -1;
+static constexpr FreeListCategoryType kFirstCategory = 0;
+static constexpr FreeListCategoryType kInvalidCategory = -1;
 
 enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
@@ -90,7 +90,7 @@ class FreeListCategory {
  private:
   // For debug builds we accurately compute free lists lengths up until
   // {kVeryLongFreeList} by manually walking the list.
-  static const int kVeryLongFreeList = 500;
+  static constexpr int kVeryLongFreeList = 500;
 
   // Updates |available_|, |length_| and free_list_->Available() after an
   // allocation of size |allocation_size|.
@@ -137,6 +137,7 @@ class FreeList {
   V8_EXPORT_PRIVATE static std::unique_ptr<FreeList>
   CreateFreeListForNewSpace();
 
+  FreeList(int number_of_categories, size_t min_block_size);
   virtual ~FreeList() = default;
 
   // Returns how much memory can be allocated after freeing maximum_freed
@@ -259,8 +260,8 @@ class FreeList {
 
   inline Page* GetPageForCategoryType(FreeListCategoryType type);
 
-  int number_of_categories_ = 0;
-  FreeListCategoryType last_category_ = 0;
+  const int number_of_categories_ = 0;
+  const FreeListCategoryType last_category_ = 0;
   size_t min_block_size_ = 0;
 
   FreeListCategory** categories_ = nullptr;
@@ -298,14 +299,14 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
       AllocationOrigin origin) override;
 
  protected:
-  static const size_t kMinBlockSize = 3 * kTaggedSize;
+  static constexpr size_t kMinBlockSize = 3 * kTaggedSize;
 
   // This is a conservative upper bound. The actual maximum block size takes
   // padding and alignment of data and code pages into account.
-  static const size_t kMaxBlockSize = MemoryChunk::kPageSize;
+  static constexpr size_t kMaxBlockSize = MemoryChunk::kPageSize;
   // Largest size for which categories are still precise, and for which we can
   // therefore compute the category in constant time.
-  static const size_t kPreciseCategoryMaxSize = 256;
+  static constexpr size_t kPreciseCategoryMaxSize = 256;
 
   // Categories boundaries generated with:
   // perl -E '
@@ -315,7 +316,7 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   //      }
   //      say join ", ", @cat;
   //      say "\n", scalar @cat'
-  static const int kNumberOfCategories = 24;
+  static constexpr int kNumberOfCategories = 24;
   static constexpr unsigned int categories_min[kNumberOfCategories] = {
       24,  32,  48,  64,  80,  96,   112,  128,  144,  160,   176,   192,
       208, 224, 240, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536};
