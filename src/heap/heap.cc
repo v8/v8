@@ -2101,7 +2101,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
       incremental_marking()->CanBeStarted()) {
     switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
-        if (local_heap->is_main_thread() && local_heap->heap() == this) {
+        if (local_heap->is_main_thread_for(this)) {
           StartIncrementalMarking(
               gc_flags,
               OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
@@ -2124,7 +2124,8 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
         // This is a fallback case where no appropriate limits have been
         // configured yet.
-        if (memory_reducer() != nullptr) {
+        if (local_heap->is_main_thread_for(this) &&
+            memory_reducer() != nullptr) {
           memory_reducer()->NotifyPossibleGarbage();
         }
         break;
