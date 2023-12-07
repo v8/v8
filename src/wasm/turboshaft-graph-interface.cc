@@ -145,6 +145,7 @@ class TurboshaftGraphBuildingInterface {
         instance_cache_(*owned_instance_cache_.get()),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
+        ssa_env_(zone),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         return_phis_(zone) {}
@@ -161,6 +162,7 @@ class TurboshaftGraphBuildingInterface {
         instance_cache_(instance_cache),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
+        ssa_env_(zone),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         real_parameters_(real_parameters),
@@ -6788,7 +6790,7 @@ class TurboshaftGraphBuildingInterface {
   AssumptionsJournal* assumptions_;
   ZoneVector<WasmInliningPosition>* inlining_positions_;
   uint8_t inlining_id_ = kNoInliningId;
-  std::vector<OpIndex> ssa_env_;
+  ZoneVector<OpIndex> ssa_env_;
   bool did_bailout_ = false;
   compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
