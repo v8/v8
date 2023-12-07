@@ -1497,10 +1497,6 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
       EmitLoad(this, change_op.input(), opcode, node);
       return;
     }
-    if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
-        CanCover(node, change_op.input())) {
-      UNIMPLEMENTED();  // TODO(riscv)
-    }
     EmitSignExtendWord(this, node);
   } else {
     Node* value = node->InputAt(0);
