@@ -1258,9 +1258,8 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
             "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
                             "run the CSA pipeline with turboshaft")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_load_elimination,
-    "enable Turboshaft's low-level load elimination for JS")
+DEFINE_BOOL(turboshaft_load_elimination, false,
+            "enable Turboshaft's low-level load elimination for JS")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
                             "enable MachineOptimization during MachineLowering")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_peeling,
