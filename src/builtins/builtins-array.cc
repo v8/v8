@@ -385,18 +385,20 @@ BUILTIN(ArrayPush) {
     return GenericArrayPush(isolate, &args);
   }
 
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  bool has_read_only_length = JSArray::HasReadOnlyLength(array);
+
+  if (has_read_only_length) {
+    return GenericArrayPush(isolate, &args);
+  }
+
   // Fast Elements Path
   int to_add = args.length() - 1;
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
   if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
   DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
-
-  if (JSArray::HasReadOnlyLength(array)) {
-    return GenericArrayPush(isolate, &args);
-  }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
