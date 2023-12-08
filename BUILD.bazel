@@ -48,6 +48,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_builtins_profiling
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
+# v8_enable_builtins_reordering
 # v8_enable_external_code_space
 # v8_postmortem_support
 # v8_use_siphash
