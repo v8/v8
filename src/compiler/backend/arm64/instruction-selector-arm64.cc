@@ -4575,9 +4575,9 @@ void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
   Arm64OperandGeneratorT<Adapter> g(selector);
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
-    const Operation& op = selector->Get(node);
-    OpIndex left = op.input(0);
-    OpIndex right = op.input(1);
+    const ComparisonOp& op = selector->Get(node).template Cast<ComparisonOp>();
+    OpIndex left = op.left();
+    OpIndex right = op.right();
     if (selector->MatchZero(right)) {
       VisitCompare(selector, kArm64Float32Cmp, g.UseRegister(left),
                    g.UseImmediate(right), cont);

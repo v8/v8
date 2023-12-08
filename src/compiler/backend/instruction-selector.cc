@@ -5070,7 +5070,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kBitcastWord32PairToFloat64:
-      return VisitBitcastWord32PairToFloat64(node);
+      return MarkAsFloat64(node), VisitBitcastWord32PairToFloat64(node);
     case Opcode::kAtomicRMW: {
       const AtomicRMWOp& atomic_op = op.Cast<AtomicRMWOp>();
       MarkAsRepresentation(atomic_op.input_rep.ToRegisterRepresentation(),

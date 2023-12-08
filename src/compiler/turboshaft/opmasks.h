@@ -188,6 +188,9 @@ using kWord32ShiftLeft =
 using kWord32ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word32()>;
+using kWord32ShiftRightArithmeticShiftOutZeros =
+    ShiftMask::For<ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros,
+                   WordRepresentation::Word32()>;
 using kWord32ShiftRightLogical =
     ShiftMask::For<ShiftOp::Kind::kShiftRightLogical,
                    WordRepresentation::Word32()>;

@@ -240,6 +240,7 @@ struct TurbofanAdapter {
              node->opcode() == IrOpcode::kProtectedStore ||
              node->opcode() == IrOpcode::kStoreTrapOnNull ||
              node->opcode() == IrOpcode::kStoreIndirectPointer ||
+             node->opcode() == IrOpcode::kUnalignedStore ||
              node->opcode() == IrOpcode::kWord32AtomicStore ||
              node->opcode() == IrOpcode::kWord64AtomicStore);
     }
@@ -251,6 +252,9 @@ struct TurbofanAdapter {
         case IrOpcode::kStoreTrapOnNull:
         case IrOpcode::kStoreIndirectPointer:
           return StoreRepresentationOf(node_->op());
+        case IrOpcode::kUnalignedStore:
+          return {UnalignedStoreRepresentationOf(node_->op()),
+                  WriteBarrierKind::kNoWriteBarrier};
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
           return AtomicStoreParametersOf(node_->op()).store_representation();
@@ -264,6 +268,7 @@ struct TurbofanAdapter {
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
         case IrOpcode::kStoreIndirectPointer:
+        case IrOpcode::kUnalignedStore:
           return base::nullopt;
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
@@ -276,6 +281,7 @@ struct TurbofanAdapter {
       switch (node_->opcode()) {
         case IrOpcode::kStore:
         case IrOpcode::kStoreIndirectPointer:
+        case IrOpcode::kUnalignedStore:
           return MemoryAccessKind::kNormal;
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
@@ -458,6 +464,7 @@ struct TurbofanAdapter {
       case IrOpcode::kLoadTrapOnNull:
       case IrOpcode::kWord32AtomicLoad:
       case IrOpcode::kWord64AtomicLoad:
+      case IrOpcode::kUnalignedLoad:
 #if V8_ENABLE_WEBASSEMBLY
       case IrOpcode::kLoadTransform:
       case IrOpcode::kF64x2PromoteLowF32x4:

@@ -305,7 +305,11 @@ bool TryMatchASR(InstructionSelectorT<TurboshaftAdapter>* selector,
                  InstructionOperand* shift_return) {
   return TryMatchShift<turboshaft::Opmask::kWord32ShiftRightArithmetic, 1, 32,
                        kMode_Operand2_R_ASR_I, kMode_Operand2_R_ASR_R>(
-      selector, opcode_return, node, value_return, shift_return);
+             selector, opcode_return, node, value_return, shift_return) ||
+         TryMatchShift<
+             turboshaft::Opmask::kWord32ShiftRightArithmeticShiftOutZeros, 1,
+             32, kMode_Operand2_R_ASR_I, kMode_Operand2_R_ASR_R>(
+             selector, opcode_return, node, value_return, shift_return);
 }
 
 template <typename Adapter>
@@ -488,41 +492,32 @@ template <typename Adapter>
 void VisitDiv(InstructionSelectorT<Adapter>* selector,
               typename Adapter::node_t node, ArchOpcode div_opcode,
               ArchOpcode f64i32_opcode, ArchOpcode i32f64_opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     ArmOperandGeneratorT<Adapter> g(selector);
-    Int32BinopMatcher m(node);
     EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode,
-            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-            g.UseRegister(m.right().node()));
-  }
+            g.DefineAsRegister(node),
+            g.UseRegister(selector->input_at(node, 0)),
+            g.UseRegister(selector->input_at(node, 1)));
 }
 
 template <typename Adapter>
 void VisitMod(InstructionSelectorT<Adapter>* selector,
               typename Adapter::node_t node, ArchOpcode div_opcode,
               ArchOpcode f64i32_opcode, ArchOpcode i32f64_opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+  ArmOperandGeneratorT<Adapter> g(selector);
+  InstructionOperand div_operand = g.TempRegister();
+  InstructionOperand result_operand = g.DefineAsRegister(node);
+  InstructionOperand left_operand = g.UseRegister(selector->input_at(node, 0));
+  InstructionOperand right_operand = g.UseRegister(selector->input_at(node, 1));
+  EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
+          left_operand, right_operand);
+  if (selector->IsSupported(ARMv7)) {
+    selector->Emit(kArmMls, result_operand, div_operand, right_operand,
+                   left_operand);
   } else {
-    ArmOperandGeneratorT<Adapter> g(selector);
-    Int32BinopMatcher m(node);
-    InstructionOperand div_operand = g.TempRegister();
-    InstructionOperand result_operand = g.DefineAsRegister(node);
-    InstructionOperand left_operand = g.UseRegister(m.left().node());
-    InstructionOperand right_operand = g.UseRegister(m.right().node());
-    EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
-            left_operand, right_operand);
-    if (selector->IsSupported(ARMv7)) {
-      selector->Emit(kArmMls, result_operand, div_operand, right_operand,
-                     left_operand);
-    } else {
-      InstructionOperand mul_operand = g.TempRegister();
-      selector->Emit(kArmMul, mul_operand, div_operand, right_operand);
-      selector->Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_R),
-                     result_operand, left_operand, mul_operand);
-    }
+    InstructionOperand mul_operand = g.TempRegister();
+    selector->Emit(kArmMul, mul_operand, div_operand, right_operand);
+    selector->Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_R),
+                   result_operand, left_operand, mul_operand);
   }
 }
 
@@ -1080,91 +1075,83 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    MachineRepresentation load_rep =
-        LoadRepresentationOf(node->op()).representation();
-    ArmOperandGeneratorT<Adapter> g(this);
-    Node* base = node->InputAt(0);
-    Node* index = node->InputAt(1);
+  auto load = this->load_view(node);
+  MachineRepresentation load_rep = load.loaded_rep().representation();
+  ArmOperandGeneratorT<Adapter> g(this);
+  node_t base = this->input_at(node, 0);
+  node_t index = this->input_at(node, 1);
 
-    InstructionCode opcode = kArmLdr;
-    // Only floating point loads need to be specially handled; integer loads
-    // support unaligned access. We support unaligned FP loads by loading to
-    // integer registers first, then moving to the destination FP register. If
-    // NEON is supported, we use the vld1.8 instruction.
-    switch (load_rep) {
-      case MachineRepresentation::kFloat32: {
-        InstructionOperand temp = g.TempRegister();
-        EmitLoad(this, opcode, &temp, base, index);
-        Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
-        return;
-      }
-      case MachineRepresentation::kFloat64: {
-        // Compute the address of the least-significant byte of the FP value.
-        // We assume that the base node is unlikely to be an encodable immediate
-        // or the result of a shift operation, so only consider the addressing
-        // mode that should be used for the index node.
-        InstructionCode add_opcode = kArmAdd;
-        InstructionOperand inputs[3];
-        inputs[0] = g.UseRegister(base);
-
-        size_t input_count;
-        if (TryMatchImmediateOrShift(this, &add_opcode, index, &input_count,
-                                     &inputs[1])) {
-          // input_count has been set by TryMatchImmediateOrShift(), so
-          // increment it to account for the base register in inputs[0].
-          input_count++;
-        } else {
-          add_opcode |= AddressingModeField::encode(kMode_Operand2_R);
-          inputs[1] = g.UseRegister(index);
-          input_count = 2;  // Base register and index.
-        }
-
-        InstructionOperand addr = g.TempRegister();
-        Emit(add_opcode, 1, &addr, input_count, inputs);
-
-        if (CpuFeatures::IsSupported(NEON)) {
-          // With NEON we can load directly from the calculated address.
-          InstructionCode op = kArmVld1F64;
-          op |= AddressingModeField::encode(kMode_Operand2_R);
-          Emit(op, g.DefineAsRegister(node), addr);
-        } else {
-          // Load both halves and move to an FP register.
-          InstructionOperand fp_lo = g.TempRegister();
-          InstructionOperand fp_hi = g.TempRegister();
-          opcode |= AddressingModeField::encode(kMode_Offset_RI);
-          Emit(opcode, fp_lo, addr, g.TempImmediate(0));
-          Emit(opcode, fp_hi, addr, g.TempImmediate(4));
-          Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), fp_lo, fp_hi);
-        }
-        return;
-      }
-      default:
-        // All other cases should support unaligned accesses.
-        UNREACHABLE();
+  InstructionCode opcode = kArmLdr;
+  // Only floating point loads need to be specially handled; integer loads
+  // support unaligned access. We support unaligned FP loads by loading to
+  // integer registers first, then moving to the destination FP register. If
+  // NEON is supported, we use the vld1.8 instruction.
+  switch (load_rep) {
+    case MachineRepresentation::kFloat32: {
+      InstructionOperand temp = g.TempRegister();
+      EmitLoad(this, opcode, &temp, base, index);
+      Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
+      return;
     }
+    case MachineRepresentation::kFloat64: {
+      // Compute the address of the least-significant byte of the FP value.
+      // We assume that the base node is unlikely to be an encodable immediate
+      // or the result of a shift operation, so only consider the addressing
+      // mode that should be used for the index node.
+      InstructionCode add_opcode = kArmAdd;
+      InstructionOperand inputs[3];
+      inputs[0] = g.UseRegister(base);
+
+      size_t input_count;
+      if (TryMatchImmediateOrShift(this, &add_opcode, index, &input_count,
+                                   &inputs[1])) {
+        // input_count has been set by TryMatchImmediateOrShift(), so
+        // increment it to account for the base register in inputs[0].
+        input_count++;
+      } else {
+        add_opcode |= AddressingModeField::encode(kMode_Operand2_R);
+        inputs[1] = g.UseRegister(index);
+        input_count = 2;  // Base register and index.
+      }
+
+      InstructionOperand addr = g.TempRegister();
+      Emit(add_opcode, 1, &addr, input_count, inputs);
+
+      if (CpuFeatures::IsSupported(NEON)) {
+        // With NEON we can load directly from the calculated address.
+        InstructionCode op = kArmVld1F64;
+        op |= AddressingModeField::encode(kMode_Operand2_R);
+        Emit(op, g.DefineAsRegister(node), addr);
+      } else {
+        // Load both halves and move to an FP register.
+        InstructionOperand fp_lo = g.TempRegister();
+        InstructionOperand fp_hi = g.TempRegister();
+        opcode |= AddressingModeField::encode(kMode_Offset_RI);
+        Emit(opcode, fp_lo, addr, g.TempImmediate(0));
+        Emit(opcode, fp_hi, addr, g.TempImmediate(4));
+        Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), fp_lo, fp_hi);
+      }
+      return;
+    }
+    default:
+      // All other cases should support unaligned accesses.
+      UNREACHABLE();
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitUnalignedStore(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitUnalignedStore(Node* node) {
-  ArmOperandGeneratorT<TurbofanAdapter> g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
+  auto store_view = this->store_view(node);
+  node_t base = store_view.base();
+  node_t index = this->value(store_view.index());
+  node_t value = store_view.value();
 
   InstructionOperand inputs[4];
   size_t input_count = 0;
 
   UnalignedStoreRepresentation store_rep =
-      UnalignedStoreRepresentationOf(node->op());
+      store_view.stored_rep().representation();
 
   // Only floating point stores need to be specially handled; integer stores
   // support unaligned access. We support unaligned FP stores by moving the
@@ -1490,10 +1477,28 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& bitwise_xor =
+        this->Get(node).template Cast<WordBinopOp>();
+    int32_t mask;
+    if (this->MatchIntegralWord32Constant(bitwise_xor.right(), &mask) &&
+        mask == -1) {
+      InstructionCode opcode = kArmMvn;
+      InstructionOperand value_operand;
+      InstructionOperand shift_operand;
+      if (TryMatchShift(this, &opcode, bitwise_xor.left(), &value_operand,
+                        &shift_operand)) {
+        Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
+        return;
+      }
+      Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+           g.DefineAsRegister(node), g.UseRegister(bitwise_xor.left()));
+      return;
+    }
+    VisitBinop(this, node, kArmEor, kArmEor);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (m.right().Is(-1)) {
       InstructionCode opcode = kArmMvn;
@@ -1633,10 +1638,30 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(shr.left());
+    if (IsSupported(ARMv7) && lhs.Is<Opmask::kWord32BitwiseAnd>() &&
+        this->is_integer_constant(shr.right()) &&
+        base::IsInRange(this->integer_constant(shr.right()), 0, 31)) {
+      uint32_t lsb = this->integer_constant(shr.right());
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      if (this->is_integer_constant(bitwise_and.right())) {
+        uint32_t value = static_cast<uint32_t>(
+                             this->integer_constant(bitwise_and.right())) >>
+                         lsb << lsb;
+        uint32_t width = base::bits::CountPopulation(value);
+        uint32_t msb = base::bits::CountLeadingZeros32(value);
+        if ((width != 0) && (msb + width + lsb == 32)) {
+          DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));
+          return EmitUbfx(this, node, bitwise_and.left(), lsb, width);
+        }
+      }
+    }
+    VisitShift(this, node, TryMatchLSR<Adapter>);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (IsSupported(ARMv7) && m.left().IsWord32And() &&
         m.right().IsInRange(0, 31)) {
@@ -1659,10 +1684,34 @@ void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& sar = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(sar.left());
+    if (CanCover(node, sar.left()) && lhs.Is<Opmask::kWord32ShiftLeft>()) {
+      const ShiftOp& shl = lhs.Cast<ShiftOp>();
+      if (this->is_integer_constant(sar.right()) &&
+          this->is_integer_constant(shl.right())) {
+        uint32_t sar_by = this->integer_constant(sar.right());
+        uint32_t shl_by = this->integer_constant(shl.right());
+        if ((sar_by == shl_by) && (sar_by == 16)) {
+          Emit(kArmSxth, g.DefineAsRegister(node), g.UseRegister(shl.left()),
+               g.TempImmediate(0));
+          return;
+        } else if ((sar_by == shl_by) && (sar_by == 24)) {
+          Emit(kArmSxtb, g.DefineAsRegister(node), g.UseRegister(shl.left()),
+               g.TempImmediate(0));
+          return;
+        } else if (IsSupported(ARMv7) && (sar_by >= shl_by)) {
+          Emit(kArmSbfx, g.DefineAsRegister(node), g.UseRegister(shl.left()),
+               g.TempImmediate(sar_by - shl_by), g.TempImmediate(32 - sar_by));
+          return;
+        }
+      }
+    }
+    VisitShift(this, node, TryMatchASR<Adapter>);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
       Int32BinopMatcher mleft(m.left().node());
@@ -1807,11 +1856,7 @@ void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
 }  // namespace
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWord32PairShift(this, kArmLslPair, node);
-  }
+  VisitWord32PairShift(this, kArmLslPair, node);
 }
 
 template <typename Adapter>
@@ -1821,11 +1866,7 @@ void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWord32PairShift(this, kArmAsrPair, node);
-  }
+  VisitWord32PairShift(this, kArmAsrPair, node);
 }
 
 template <typename Adapter>
@@ -2320,10 +2361,26 @@ RRR_OP_T_LIST(RRR_VISITOR)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const FloatBinopOp& add = this->Get(node).template Cast<FloatBinopOp>();
+    const Operation& lhs = this->Get(add.left());
+    if (lhs.Is<Opmask::kFloat32Mul>() && CanCover(node, add.left())) {
+      const FloatBinopOp& mul = lhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlaF32, g.DefineSameAsFirst(node), g.UseRegister(add.right()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    const Operation& rhs = this->Get(add.right());
+    if (rhs.Is<Opmask::kFloat32Mul>() && CanCover(node, add.right())) {
+      const FloatBinopOp& mul = rhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlaF32, g.DefineSameAsFirst(node), g.UseRegister(add.left()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    VisitRRR(this, kArmVaddF32, node);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Float32BinopMatcher m(node);
     if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
       Float32BinopMatcher mleft(m.left().node());
@@ -2345,10 +2402,26 @@ void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Add(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const FloatBinopOp& add = this->Get(node).template Cast<FloatBinopOp>();
+    const Operation& lhs = this->Get(add.left());
+    if (lhs.Is<Opmask::kFloat64Mul>() && CanCover(node, add.left())) {
+      const FloatBinopOp& mul = lhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlaF64, g.DefineSameAsFirst(node), g.UseRegister(add.right()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    const Operation& rhs = this->Get(add.right());
+    if (rhs.Is<Opmask::kFloat64Mul>() && CanCover(node, add.right())) {
+      const FloatBinopOp& mul = rhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlaF64, g.DefineSameAsFirst(node), g.UseRegister(add.left()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    VisitRRR(this, kArmVaddF64, node);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Float64BinopMatcher m(node);
     if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
       Float64BinopMatcher mleft(m.left().node());
@@ -2370,10 +2443,19 @@ void InstructionSelectorT<Adapter>::VisitFloat64Add(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Sub(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const FloatBinopOp& sub = this->Get(node).template Cast<FloatBinopOp>();
+    const Operation& rhs = this->Get(sub.right());
+    if (rhs.Is<Opmask::kFloat32Mul>() && CanCover(node, sub.right())) {
+      const FloatBinopOp& mul = rhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlsF32, g.DefineSameAsFirst(node), g.UseRegister(sub.left()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    VisitRRR(this, kArmVsubF32, node);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Float32BinopMatcher m(node);
     if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
       Float32BinopMatcher mright(m.right().node());
@@ -2388,10 +2470,19 @@ void InstructionSelectorT<Adapter>::VisitFloat32Sub(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
+  ArmOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const FloatBinopOp& sub = this->Get(node).template Cast<FloatBinopOp>();
+    const Operation& rhs = this->Get(sub.right());
+    if (rhs.Is<Opmask::kFloat64Mul>() && CanCover(node, sub.right())) {
+      const FloatBinopOp& mul = rhs.Cast<FloatBinopOp>();
+      Emit(kArmVmlsF64, g.DefineSameAsFirst(node), g.UseRegister(sub.left()),
+           g.UseRegister(mul.left()), g.UseRegister(mul.right()));
+      return;
+    }
+    VisitRRR(this, kArmVsubF64, node);
   } else {
-    ArmOperandGeneratorT<Adapter> g(this);
     Float64BinopMatcher m(node);
     if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
       Float64BinopMatcher mright(m.right().node());
@@ -2416,32 +2507,22 @@ void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Binop(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
     node_t node, InstructionCode opcode) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
-    Node* node, InstructionCode opcode) {
-  ArmOperandGeneratorT<TurbofanAdapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0),
-       g.UseFixed(node->InputAt(1), d1))
+  ArmOperandGeneratorT<Adapter> g(this);
+  Emit(opcode, g.DefineAsFixed(node, d0),
+       g.UseFixed(this->input_at(node, 0), d0),
+       g.UseFixed(this->input_at(node, 1), d1))
       ->MarkAsCall();
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
     node_t node, InstructionCode opcode) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
-    Node* node, InstructionCode opcode) {
-  ArmOperandGeneratorT<TurbofanAdapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
+  ArmOperandGeneratorT<Adapter> g(this);
+  Emit(opcode, g.DefineAsFixed(node, d0),
+       g.UseFixed(this->input_at(node, 0), d0))
       ->MarkAsCall();
 }
 
@@ -2534,10 +2615,22 @@ template <typename Adapter>
 void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node,
                          FlagsContinuationT<Adapter>* cont) {
+  ArmOperandGeneratorT<Adapter> g(selector);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ComparisonOp& cmp = selector->Get(node).template Cast<ComparisonOp>();
+    if (selector->MatchZero(cmp.right())) {
+      VisitCompare(selector, kArmVcmpF32, g.UseRegister(cmp.left()),
+                   g.UseImmediate(cmp.right()), cont);
+    } else if (selector->MatchZero(cmp.left())) {
+      cont->Commute();
+      VisitCompare(selector, kArmVcmpF32, g.UseRegister(cmp.right()),
+                   g.UseImmediate(cmp.left()), cont);
+    } else {
+      VisitCompare(selector, kArmVcmpF32, g.UseRegister(cmp.left()),
+                   g.UseRegister(cmp.right()), cont);
+    }
   } else {
-    ArmOperandGeneratorT<Adapter> g(selector);
     Float32BinopMatcher m(node);
     if (m.right().Is(0.0f)) {
       VisitCompare(selector, kArmVcmpF32, g.UseRegister(m.left().node()),
@@ -3078,46 +3171,46 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    ArmOperandGeneratorT<Adapter> g(this);
-    InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  ArmOperandGeneratorT<Adapter> g(this);
+  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
 
-    // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-    if (enable_switch_jump_table_ ==
-        InstructionSelector::kEnableSwitchJumpTable) {
-      static const size_t kMaxTableSwitchValueRange = 2 << 16;
-      size_t table_space_cost = 4 + sw.value_range();
-      size_t table_time_cost = 3;
-      size_t lookup_space_cost = 3 + 2 * sw.case_count();
-      size_t lookup_time_cost = sw.case_count();
-      if (sw.case_count() > 0 &&
-          table_space_cost + 3 * table_time_cost <=
-              lookup_space_cost + 3 * lookup_time_cost &&
-          sw.min_value() > std::numeric_limits<int32_t>::min() &&
-          sw.value_range() <= kMaxTableSwitchValueRange) {
-        InstructionOperand index_operand = value_operand;
-        if (sw.min_value()) {
-          index_operand = g.TempRegister();
-          Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_I),
-               index_operand, value_operand, g.TempImmediate(sw.min_value()));
-        }
-        // Generate a table lookup.
-        return EmitTableSwitch(sw, index_operand);
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
+  if (enable_switch_jump_table_ ==
+      InstructionSelector::kEnableSwitchJumpTable) {
+    static const size_t kMaxTableSwitchValueRange = 2 << 16;
+    size_t table_space_cost = 4 + sw.value_range();
+    size_t table_time_cost = 3;
+    size_t lookup_space_cost = 3 + 2 * sw.case_count();
+    size_t lookup_time_cost = sw.case_count();
+    if (sw.case_count() > 0 &&
+        table_space_cost + 3 * table_time_cost <=
+            lookup_space_cost + 3 * lookup_time_cost &&
+        sw.min_value() > std::numeric_limits<int32_t>::min() &&
+        sw.value_range() <= kMaxTableSwitchValueRange) {
+      InstructionOperand index_operand = value_operand;
+      if (sw.min_value()) {
+        index_operand = g.TempRegister();
+        Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_I),
+             index_operand, value_operand, g.TempImmediate(sw.min_value()));
       }
+      // Generate a table lookup.
+      return EmitTableSwitch(sw, index_operand);
     }
-
-    // Generate a tree of conditional jumps.
-    return EmitBinarySearchSwitch(sw, value_operand);
   }
+
+  // Generate a tree of conditional jumps.
+  return EmitBinarySearchSwitch(sw, value_operand);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ComparisonOp& equal = this->Get(node).template Cast<ComparisonOp>();
+    if (this->MatchIntegralZero(equal.right())) {
+      return VisitWordCompareZero(node, equal.left(), &cont);
+    }
   } else {
     Int32BinopMatcher m(node);
     if (m.right().Is(0)) {
@@ -3280,7 +3373,19 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastWord32PairToFloat64(
     node_t node) {
-  UNIMPLEMENTED();
+  if constexpr (Adapter::IsTurbofan) {
+    // The Turbofan implementation is split across VisitFloat64InsertLowWord32
+    // and VisitFloat64InsertHighWord32.
+    UNREACHABLE();
+  } else {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    ArmOperandGeneratorT<TurboshaftAdapter> g(this);
+    const BitcastWord32PairToFloat64Op& cast_op =
+        this->Get(node).template Cast<BitcastWord32PairToFloat64Op>();
+    Emit(kArmVmovF64U32U32, g.DefineAsRegister(node),
+         g.UseRegister(cast_op.low_word32()),
+         g.UseRegister(cast_op.high_word32()));
+  }
 }
 
 template <typename Adapter>
@@ -3290,23 +3395,17 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
   Emit(kArmDmbIsh, g.NoOutput());
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicLoad(
-    node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicLoad(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
   // The memory order is ignored as both acquire and sequentially consistent
   // loads can emit LDR; DMB ISH.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  ArmOperandGeneratorT<TurbofanAdapter> g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
+  ArmOperandGeneratorT<Adapter> g(this);
+  auto load = this->load_view(node);
+  node_t base = load.base();
+  node_t index = load.index();
   ArchOpcode opcode;
+  LoadRepresentation load_rep = load.loaded_rep();
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
       opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
@@ -3329,13 +3428,13 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicLoad(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-    VisitStoreCommon(this, node, store_params.store_representation(),
-                     store_params.order());
-  }
+  auto store = this->store_view(node);
+  AtomicStoreParameters store_params(store.stored_rep().representation(),
+                                     store.stored_rep().write_barrier_kind(),
+                                     store.memory_order().value(),
+                                     store.access_kind());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 template <>
