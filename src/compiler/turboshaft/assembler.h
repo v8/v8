@@ -3185,8 +3185,8 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex ArrayGet(V<HeapObject> array, V<Word32> index,
-                   wasm::ValueType element_type, bool is_signed) {
-    return ReduceIfReachableArrayGet(array, index, element_type, is_signed);
+                   const wasm::ArrayType* array_type, bool is_signed) {
+    return ReduceIfReachableArrayGet(array, index, array_type, is_signed);
   }
 
   void ArraySet(V<HeapObject> array, V<Word32> index, OpIndex value,

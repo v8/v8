@@ -2863,8 +2863,7 @@ class TurboshaftGraphBuildingInterface {
                 const ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
     BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    result->op = __ ArrayGet(array_obj.op, index.op,
-                             imm.array_type->element_type(), is_signed);
+    result->op = __ ArrayGet(array_obj.op, index.op, imm.array_type, is_signed);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -2937,7 +2936,8 @@ class TurboshaftGraphBuildingInterface {
       LoopLabel<Word32, Word32> loop_label(&asm_);
       GOTO(loop_label, src_index.op, dst_index.op);
       LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value = __ ArrayGet(src.op, src_index_loop, element_type, true);
+        OpIndex value =
+            __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
         __ ArraySet(dst.op, dst_index_loop, value, element_type);
 
         V<Word32> condition = __ Uint32LessThan(src_index_loop, src_end_index);
@@ -2958,7 +2958,8 @@ class TurboshaftGraphBuildingInterface {
       LoopLabel<Word32, Word32> loop_label(&asm_);
       GOTO(loop_label, src_end_index, dst_end_index);
       LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value = __ ArrayGet(src.op, src_index_loop, element_type, true);
+        OpIndex value =
+            __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
         __ ArraySet(dst.op, dst_index_loop, value, element_type);
 
         V<Word32> condition = __ Uint32LessThan(src_index.op, src_index_loop);

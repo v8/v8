@@ -1178,7 +1178,7 @@ class GraphVisitor : public Next {
 
   OpIndex AssembleOutputGraphArrayGet(const ArrayGetOp& op) {
     return Asm().ReduceArrayGet(MapToNewGraph(op.array()),
-                                MapToNewGraph(op.index()), op.element_type,
+                                MapToNewGraph(op.index()), op.array_type,
                                 op.is_signed);
   }
 

@@ -483,7 +483,7 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const ArrayGetOp& op) {
-    return callback_(op.array(), op.index(), op.element_type, op.is_signed);
+    return callback_(op.array(), op.index(), op.array_type, op.is_signed);
   }
 
   OpIndex operator()(const ArraySetOp& op) {

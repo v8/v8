@@ -73,7 +73,7 @@ class WasmLoweringReducer : public Next {
           static_assert(WasmStruct::kHeaderSize > kTaggedSize);
           static_assert(WasmArray::kHeaderSize > kTaggedSize);
           static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
-          __ Load(object, LoadOp::Kind::TrapOnNull(),
+          __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
                   MemoryRepresentation::Int32(), kTaggedSize);
         }
       }
@@ -215,6 +215,9 @@ class WasmLoweringReducer : public Next {
 
     LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
                                                  : LoadOp::Kind::TaggedBase();
+    if (!type->mutability(field_index)) {
+      load_kind = load_kind.Immutable();
+    }
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), is_signed);
 
@@ -247,11 +250,15 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(ArrayGet)(OpIndex array, OpIndex index,
-                           wasm::ValueType element_type, bool is_signed) {
-    return __ Load(array, __ ChangeInt32ToIntPtr(index),
-                   LoadOp::Kind::TaggedBase(),
-                   RepresentationFor(element_type, is_signed),
-                   WasmArray::kHeaderSize, element_type.value_kind_size_log2());
+                           const wasm::ArrayType* array_type, bool is_signed) {
+    bool is_mutable = array_type->mutability();
+    LoadOp::Kind load_kind = is_mutable
+                                 ? LoadOp::Kind::TaggedBase()
+                                 : LoadOp::Kind::TaggedBase().Immutable();
+    return __ Load(array, __ ChangeInt32ToIntPtr(index), load_kind,
+                   RepresentationFor(array_type->element_type(), is_signed),
+                   WasmArray::kHeaderSize,
+                   array_type->element_type().value_kind_size_log2());
   }
 
   OpIndex REDUCE(ArraySet)(OpIndex array, OpIndex index, OpIndex value,
@@ -276,8 +283,9 @@ class WasmLoweringReducer : public Next {
                 TrapId::kTrapNullDereference);
     }
 
-    LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
-                                                 : LoadOp::Kind::TaggedBase();
+    LoadOp::Kind load_kind = implicit_null_check
+                                 ? LoadOp::Kind::TrapOnNull().Immutable()
+                                 : LoadOp::Kind::TaggedBase().Immutable();
 
     return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
                    WasmArray::kLengthOffset);

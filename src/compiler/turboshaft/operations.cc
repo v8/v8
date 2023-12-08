@@ -1571,6 +1571,12 @@ void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
   os << '[' << array_type->element_type() << "]";
 }
 
+void ArrayGetOp::PrintOptions(std::ostream& os) const {
+  os << "[" << (is_signed ? "signed " : "")
+     << (array_type->mutability() ? "" : "immutable ")
+     << array_type->element_type() << "]";
+}
+
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

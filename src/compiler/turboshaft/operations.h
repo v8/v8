@@ -6266,7 +6266,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
 };
 
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
-  wasm::ValueType element_type;
+  const wasm::ArrayType* array_type;
   bool is_signed;
 
   // ArrayGetOp may never trap as it is always protected by a length check.
@@ -6276,15 +6276,15 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  ArrayGetOp(OpIndex array, OpIndex index, wasm::ValueType element_type,
+  ArrayGetOp(OpIndex array, OpIndex index, const wasm::ArrayType* array_type,
              bool is_signed)
-      : Base(array, index), element_type(element_type), is_signed(is_signed) {}
+      : Base(array, index), array_type(array_type), is_signed(is_signed) {}
 
   OpIndex array() const { return input(0); }
   OpIndex index() const { return input(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&RepresentationFor(element_type), 1);
+    return base::VectorOf(&RepresentationFor(array_type->element_type()), 1);
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -6296,7 +6296,8 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   void Validate(const Graph& graph) const {
   }
 
-  auto options() const { return std::tuple{element_type, is_signed}; }
+  auto options() const { return std::tuple{array_type, is_signed}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
