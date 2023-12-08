@@ -81,7 +81,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class StructuralOptimizationReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
 
   OpIndex ReduceInputGraphBranch(OpIndex input_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {
@@ -101,6 +101,13 @@ class StructuralOptimizationReducer : public Next {
 
     OpIndex switch_var = OpIndex::Invalid();
     while (true) {
+      // The "false" destination will be inlined before the switch is emitted,
+      // so it should only contain pure operations.
+      if (!ContainsOnlyPureOps(current_branch->if_false, Asm().input_graph())) {
+        TRACE("\t [break] End of only-pure-ops cascade reached.\n");
+        break;
+      }
+
       // If we encounter a condition that is not equality, we can't turn it
       // into a switch case.
       const ComparisonOp* equal = Asm()
@@ -117,17 +124,11 @@ class StructuralOptimizationReducer : public Next {
       // MachineOptimizationReducer should normalize equality to put constants
       // right.
       const Operation& right_op = Asm().input_graph().Get(equal->right());
-      if (!right_op.Is<ConstantOp>()) {
-        TRACE("\t [bailout] No constant on the right side of Equal.\n");
+      if (!right_op.Is<Opmask::kWord32Constant>()) {
+        TRACE("\t [bailout] No Word32 constant on the right side of Equal.\n");
         break;
       }
-
-      // We can only turn Word32 constant equals to switch cases.
       const ConstantOp& const_op = right_op.Cast<ConstantOp>();
-      if (const_op.kind != ConstantOp::Kind::kWord32) {
-        TRACE("\t [bailout] Constant is not of type Word32.\n");
-        break;
-      }
 
       // If we encounter equal to a different value, we can't introduce
       // a switch.
@@ -199,13 +200,6 @@ class StructuralOptimizationReducer : public Next {
 
       // Iterate to the next if_false block in the cascade.
       current_branch = &maybe_branch.template Cast<BranchOp>();
-
-      // As long as the else blocks contain only pure ops, we can keep
-      // traversing the if-else cascade.
-      if (!ContainsOnlyPureOps(current_branch->if_false, Asm().input_graph())) {
-        TRACE("\t [break] End of only-pure-ops cascade reached.\n");
-        break;
-      }
     }
 
     // Probably better to keep short if-else cascades as they are.
@@ -221,7 +215,7 @@ class StructuralOptimizationReducer : public Next {
       InlineAllOperationsWithoutLast(block);
     }
 
-    TRACE("[reduce] Successfully emit a Switch with %z cases.", cases.size());
+    TRACE("[reduce] Successfully emit a Switch with %zu cases.", cases.size());
 
     // The last current_if_true block that ends the cascade becomes the default
     // case.
