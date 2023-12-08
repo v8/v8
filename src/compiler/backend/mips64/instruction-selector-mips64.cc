@@ -1000,26 +1000,20 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord64And(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitBinop(this, node, kMips64Or32, true, kMips64Or32);
-  }
+  VisitBinop(this, node, kMips64Or32, true, kMips64Or32);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitBinop(this, node, kMips64Or, true, kMips64Or);
-  }
+  VisitBinop(this, node, kMips64Or, true, kMips64Or);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    // TODO(MIPS_dev): May could be optimized like in Turbofan.
+    VisitBinop(this, node, kMips64Xor32, true, kMips64Xor32);
   } else {
     Int32BinopMatcher m(node);
     if (m.left().IsWord32Or() && CanCover(node, m.left().node()) &&
@@ -1047,7 +1041,9 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    // TODO(MIPS_dev): May could be optimized like in Turbofan.
+    VisitBinop(this, node, kMips64Xor, true, kMips64Xor);
   } else {
     Int64BinopMatcher m(node);
     if (m.left().IsWord64Or() && CanCover(node, m.left().node()) &&
@@ -1111,7 +1107,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shl(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Shr(node_t node) {
-  UNIMPLEMENTED();
+  // TODO(MIPS_dev): May could be optimized like in Turbofan.
+  VisitRRO(this, kMips64Shr, node);
 }
 
 template <>
@@ -1142,8 +1139,9 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shr(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Sar(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
+    turboshaft::OpIndex node) {
+  // TODO(MIPS_dev): May could be optimized like in Turbofan.
+  VisitRRO(this, kMips64Sar, node);
 }
 
 template <>
