@@ -78,7 +78,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:1ea45c1829514ff20c476f083462e7b8fdfaf9ae',
+  'luci_go': 'git_revision:0ffd60c8bd4fa542fb8d7c6a60ead9b96dc4387a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5adaf343655ca79b6f845fc5a3323bb8478bf9f8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6fdac9cc5eac1d59c208601c03c183007310bca2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9a7b2358106026b412e3233c280b58a98280a024',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '05a55efaa9d4bda7247efac74c4cda68527d8eec',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7cd5059e92719392932e11a78c73eda7f14b0175',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '93e031cd9e2503bf6f1f2d9e6fd643785bdce6e8',
     'condition': 'checkout_fuchsia',
@@ -306,7 +306,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dd5fc1316c9bfe87091c4f418e427633590a84a4',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '28cba3ec325c9ff378264198cef20fda89519c5d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3ccfff74a0d0cda8ddf2612cc09217278fb018bc',
   'tools/luci-go': {
       'packages': [
         {
@@ -322,7 +322,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '025aa883df36d96e43b551dab5e96042e11b50d3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'a70c66177008cb2610df388345a9003ffc550559',
     'condition': 'not build_with_chromium',
   }
 }
