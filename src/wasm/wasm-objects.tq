@@ -54,10 +54,11 @@ extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
     WasmInternalFunction): RawPtr;
 
 extern class WasmFunctionData extends HeapObject {
+  // Used for calling this function from JavaScript.
+  @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
   // The wasm-internal representation of this function object.
   internal: WasmInternalFunction;
-  // Used for calling this function from JavaScript.
-  wrapper_code: Code;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
 }

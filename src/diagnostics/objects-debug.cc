@@ -2158,12 +2158,12 @@ void WasmExceptionPackage::WasmExceptionPackageVerify(Isolate* isolate) {
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
-  CHECK(
-      wrapper_code()->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-      wrapper_code()->kind() == CodeKind::C_WASM_ENTRY ||
-      (wrapper_code()->is_builtin() &&
-       (wrapper_code()->builtin_id() == Builtin::kJSToWasmWrapper ||
-        wrapper_code()->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
+  Tagged<Code> wrapper = wrapper_code(isolate);
+  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
+        (wrapper->is_builtin() &&
+         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+          wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

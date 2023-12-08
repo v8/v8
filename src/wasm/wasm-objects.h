@@ -763,6 +763,8 @@ class WasmIndirectFunctionTable
 class WasmFunctionData
     : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
  public:
+  DECL_CODE_POINTER_ACCESSORS(wrapper_code)
+
   DECL_ACCESSORS(internal, Tagged<WasmInternalFunction>)
 
   DECL_PRINTER(WasmFunctionData)

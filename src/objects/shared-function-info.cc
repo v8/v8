@@ -102,13 +102,13 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
   if (IsWasmExportedFunctionData(data)) {
     // Having a WasmExportedFunctionData means the code is in there.
     DCHECK(HasWasmExportedFunctionData());
-    return wasm_exported_function_data()->wrapper_code();
+    return wasm_exported_function_data()->wrapper_code(isolate);
   }
   if (IsWasmJSFunctionData(data)) {
-    return wasm_js_function_data()->wrapper_code();
+    return wasm_js_function_data()->wrapper_code(isolate);
   }
   if (IsWasmCapiFunctionData(data)) {
-    return wasm_capi_function_data()->wrapper_code();
+    return wasm_capi_function_data()->wrapper_code(isolate);
   }
   if (IsWasmResumeData(data)) {
     if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==

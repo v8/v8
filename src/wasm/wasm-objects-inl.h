@@ -312,9 +312,12 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kWasmInternalFunctionCallTargetTag)
 
 // WasmFunctionData
+CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
+
 ACCESSORS(WasmFunctionData, internal, Tagged<WasmInternalFunction>,
           kInternalOffset)
 
+// WasmExportedFunctionData
 EXTERNAL_POINTER_ACCESSORS(WasmExportedFunctionData, sig, wasm::FunctionSig*,
                            kSigOffset, kWasmExportedFunctionDataSignatureTag)
 
