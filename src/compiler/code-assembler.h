@@ -1221,6 +1221,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // If context passed to CallBuiltin is nullptr, it won't be passed to the
   // builtin.
   //
+
   template <typename T = Object, class... TArgs>
   TNode<T> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
     Callable callable = Builtins::CallableFor(isolate(), id);
@@ -1247,28 +1248,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // If context passed to CallStub is nullptr, it won't be passed to the stub.
   //
 
-  // TODO(ishell): remove once all usages are migrated to CallBuiltin.
-  template <class T = Object, class... TArgs>
-  TNode<T> CallStub(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallStub<T>(callable.descriptor(), target, context, args...);
-  }
-
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
                     TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       target, context, args...));
-  }
-
-  // TODO(ishell): remove once all usages are migrated to TailCallBuiltinVoid.
-  template <class... TArgs>
-  void CallStubVoid(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstantNoHole(callable.code());
-    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
-              context, args...);
   }
 
   template <class T = Object, class... TArgs>
@@ -1277,14 +1261,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                               TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallBuiltinPointer,
                                       descriptor, target, context, args...));
-  }
-
-  // TODO(ishell): remove once all usages are migrated to TailCallBuiltin.
-  template <class... TArgs>
-  void TailCallStub(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstantNoHole(callable.code());
-    TailCallStub(callable.descriptor(), target, context, args...);
   }
 
   template <class... TArgs>
@@ -1318,31 +1294,41 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                       TNode<Int32T> arg_count);
 
   template <class... TArgs>
-  TNode<Object> CallJS(Callable const& callable, Node* context, Node* function,
-                       Node* receiver, TArgs... args) {
+  TNode<Object> CallJS(Builtin builtin, TNode<Context> context,
+                       TNode<Object> function,
+                       base::Optional<TNode<Object>> new_target,
+                       TNode<Object> receiver, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    // CallTrampolineDescriptor doesn't have |new_target| parameter.
+    DCHECK_IMPLIES(callable.descriptor() == CallTrampolineDescriptor{},
+                   !new_target.has_value());
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                               CAST(function), {}, arity, {receiver, args...}));
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, {receiver, args...}));
   }
 
   template <class... TArgs>
-  Node* ConstructJSWithTarget(Callable const& callable, Node* context,
-                              Node* function, Node* new_target, TArgs... args) {
+  TNode<Object> ConstructJSWithTarget(Builtin builtin, TNode<Context> context,
+                                      TNode<Object> function,
+                                      TNode<Object> new_target, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    // Only descriptors with |new_target| parameter are allowed here.
+    DCHECK_EQ(callable.descriptor(), JSTrampolineDescriptor{});
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                          CAST(function), CAST(new_target), arity,
-                          {receiver, args...});
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, {receiver, args...}));
   }
+
   template <class... TArgs>
-  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
-                    TArgs... args) {
-    return ConstructJSWithTarget(callable, context, new_target, new_target,
-                                 args...);
+  TNode<Object> ConstructJS(Builtin builtin, TNode<Context> context,
+                            TNode<Object> target, TArgs... args) {
+    return CallOrConstructJSWithTarget(builtin, context, target, target,
+                                       args...);
   }
 
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,

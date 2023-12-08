@@ -5,7 +5,7 @@
 #include "src/ic/keyed-store-generic.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/execution/isolate.h"
 #include "src/ic/accessor-assembler.h"

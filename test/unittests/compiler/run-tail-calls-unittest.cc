@@ -4,7 +4,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/objects/code-inl.h"
 #include "test/common/code-assembler-tester.h"

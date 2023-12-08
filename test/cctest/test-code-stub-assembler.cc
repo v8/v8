@@ -11,7 +11,7 @@
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"

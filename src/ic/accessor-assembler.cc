@@ -8,7 +8,7 @@
 #include "src/base/optional.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
-#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"

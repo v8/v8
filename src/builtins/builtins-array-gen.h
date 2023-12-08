@@ -5,12 +5,11 @@
 #ifndef V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARRAY_GEN_H_
 
+#include "src/codegen/code-factory.h"  // for enum AllocationSiteOverrideMode
 #include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-enum AllocationSiteOverrideMode;
 
 class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:

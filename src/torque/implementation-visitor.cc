@@ -92,6 +92,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
       for (const std::string& include_path : GlobalContext::CppIncludes()) {
         file << "#include " << StringLiteralQuote(include_path) << "\n";
       }
+      file << "#include \"src/codegen/code-stub-assembler-inl.h\"\n";
 
       file << "// Required Builtins:\n";
       file << "#include \"torque-generated/" +

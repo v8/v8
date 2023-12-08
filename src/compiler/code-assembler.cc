@@ -7,7 +7,6 @@
 #include <ostream>
 
 #include "src/builtins/builtins-inl.h"
-#include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector.h"

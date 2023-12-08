@@ -3331,6 +3331,7 @@ filegroup(
         "src/builtins/setup-builtins-internal.cc",
         "src/builtins/torque-csa-header-includes.h",
         "src/codegen/code-stub-assembler.cc",
+        "src/codegen/code-stub-assembler-inl.h",
         "src/codegen/code-stub-assembler.h",
         "src/heap/setup-heap-internal.cc",
         "src/ic/accessor-assembler.cc",

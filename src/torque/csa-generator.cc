@@ -575,14 +575,12 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
       stack->Push(name);
     }
     if (result_types.empty()) {
-      out() << "ca_.CallStubVoid("
-               "Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltinVoid(Builtin::k"
+            << instruction.builtin->ExternalName();
     } else {
       out() << "    " << lhs_name << " = ";
-      out() << "ca_.CallStub<" << lhs_type
-            << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
-            << instruction.builtin->ExternalName() << ")";
+      out() << "ca_.CallBuiltin<" << lhs_type << ">(Builtin::k"
+            << instruction.builtin->ExternalName();
     }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.
@@ -629,11 +627,9 @@ void CSAGenerator::EmitInstruction(
   out() << stack->Top() << " = ";
   if (generated_type != "Object") out() << "TORQUE_CAST(";
   out() << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
-           "CallableFor(ca_."
-           "isolate(),"
+           "CallInterfaceDescriptorFor("
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
-        << function;
+        << instruction.type->function_pointer_type_id() << ")), " << function;
   if (!instruction.type->HasContextParameter()) {
     // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
     out() << ", TNode<Object>()";

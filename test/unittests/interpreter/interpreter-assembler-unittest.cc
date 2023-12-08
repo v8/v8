@@ -5,7 +5,7 @@
 #include "test/unittests/interpreter/interpreter-assembler-unittest.h"
 
 #include "src/builtins/builtins-inl.h"
-#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"

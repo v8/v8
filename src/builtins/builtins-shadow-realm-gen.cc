@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/module.h"
