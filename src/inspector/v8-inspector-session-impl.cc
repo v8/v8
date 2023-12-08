@@ -7,6 +7,8 @@
 #include "../../third_party/inspector_protocol/crdtp/cbor.h"
 #include "../../third_party/inspector_protocol/crdtp/dispatch.h"
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-context.h"
+#include "include/v8-microtask-queue.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
@@ -510,6 +512,42 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
   m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+}
+
+V8InspectorSession::EvaluateResult V8InspectorSessionImpl::evaluate(
+    v8::Local<v8::Context> context, StringView expression,
+    bool includeCommandLineAPI) {
+  v8::EscapableHandleScope handleScope(m_inspector->isolate());
+  InjectedScript::ContextScope scope(this,
+                                     InspectedContext::contextId(context));
+  if (!scope.initialize().IsSuccess()) {
+    return {EvaluateResult::ResultType::kNotRun, v8::Local<v8::Value>()};
+  }
+
+  // Temporarily allow eval.
+  scope.allowCodeGenerationFromStrings();
+  scope.setTryCatchVerbose();
+  if (includeCommandLineAPI) {
+    scope.installCommandLineAPI();
+  }
+  v8::MaybeLocal<v8::Value> maybeResultValue;
+  {
+    v8::MicrotasksScope microtasksScope(scope.context(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    const v8::Local<v8::String> source =
+        toV8String(m_inspector->isolate(), expression);
+    maybeResultValue = v8::debug::EvaluateGlobal(
+        m_inspector->isolate(), source, v8::debug::EvaluateGlobalMode::kDefault,
+        /*repl_mode=*/false);
+  }
+
+  if (scope.tryCatch().HasCaught()) {
+    return {EvaluateResult::ResultType::kException,
+            handleScope.Escape(scope.tryCatch().Exception())};
+  }
+  v8::Local<v8::Value> result;
+  CHECK(maybeResultValue.ToLocal(&result));
+  return {EvaluateResult::ResultType::kSuccess, handleScope.Escape(result)};
 }
 
 void V8InspectorSessionImpl::stop() { m_debuggerAgent->stop(); }

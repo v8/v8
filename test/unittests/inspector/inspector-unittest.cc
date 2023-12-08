@@ -311,5 +311,55 @@ TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
   CHECK_EQ(console->AllConsoleTasksForTest().size(), 0);
 }
 
+TEST_F(InspectorTest, Evaluate) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  TestChannel channel;
+  std::unique_ptr<V8InspectorSession> trusted_session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  {
+    auto result =
+        trusted_session->evaluate(v8_context(), toStringView("21 + 21"));
+    CHECK_EQ(
+        result.type,
+        v8_inspector::V8InspectorSession::EvaluateResult::ResultType::kSuccess);
+    CHECK_EQ(result.value->IntegerValue(v8_context()).FromJust(), 42);
+  }
+  {
+    auto result = trusted_session->evaluate(
+        v8_context(), toStringView("throw new Error('foo')"));
+    CHECK_EQ(result.type, v8_inspector::V8InspectorSession::EvaluateResult::
+                              ResultType::kException);
+    CHECK(result.value->IsNativeError());
+  }
+  {
+    // Unknown context.
+    v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate());
+    auto result = trusted_session->evaluate(ctx, toStringView("21 + 21"));
+    CHECK_EQ(
+        result.type,
+        v8_inspector::V8InspectorSession::EvaluateResult::ResultType::kNotRun);
+  }
+  {
+    // CommandLine API
+    auto result = trusted_session->evaluate(v8_context(),
+                                            toStringView("debug(console.log)"),
+                                            /*includeCommandLineAPI=*/true);
+    CHECK_EQ(
+        result.type,
+        v8_inspector::V8InspectorSession::EvaluateResult::ResultType::kSuccess);
+    CHECK(result.value->IsUndefined());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -213,6 +213,22 @@ class V8_EXPORT V8InspectorSession {
   virtual void releaseObjectGroup(StringView) = 0;
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 
+  struct V8_EXPORT EvaluateResult {
+    enum class ResultType {
+      kNotRun,
+      kSuccess,
+      kException,
+    };
+
+    ResultType type;
+    v8::Local<v8::Value> value;
+  };
+  // Evalaute 'expression' in the provided context. Does the same as
+  // Runtime#evaluate under-the-hood but exposed on the C++ side.
+  virtual EvaluateResult evaluate(v8::Local<v8::Context> context,
+                                  StringView expression,
+                                  bool includeCommandLineAPI = false) = 0;
+
   // Prepare for shutdown (disables debugger pausing, etc.).
   virtual void stop() = 0;
 };
