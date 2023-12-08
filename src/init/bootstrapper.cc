@@ -627,7 +627,7 @@ V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
 
 V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
                                            Handle<JSObject> base,
-                                           Handle<String> name,
+                                           Handle<Name> name,
                                            Builtin call_getter,
                                            Builtin call_setter) {
   Handle<String> getter_name =
@@ -5369,14 +5369,16 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
   SimpleInstallFunction(isolate(), iterator_prototype, "find",
                         Builtin::kIteratorPrototypeFind, 1, true);
 
-  // Add @@toStringTag to Iterator.prototype
-  // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype-@@tostringtag
-  // We cannot use `InstallToStringTag` because this toStringTag, unlike other
-  // toStringTag values, is writable.
-  JSObject::AddProperty(isolate(), iterator_prototype,
-                        isolate()->factory()->to_string_tag_symbol(),
-                        isolate()->factory()->InternalizeUtf8String("Iterator"),
-                        static_cast<PropertyAttributes>(DONT_ENUM));
+  // https://github.com/tc39/proposal-iterator-helpers/pull/287
+  SimpleInstallGetterSetter(isolate(), iterator_prototype,
+                            isolate()->factory()->to_string_tag_symbol(),
+                            Builtin::kIteratorPrototypeGetToStringTag,
+                            Builtin::kIteratorPrototypeSetToStringTag);
+
+  SimpleInstallGetterSetter(isolate(), iterator_prototype,
+                            isolate()->factory()->constructor_string(),
+                            Builtin::kIteratorPrototypeGetConstructor,
+                            Builtin::kIteratorPrototypeSetConstructor);
 
   // --- Helper maps
 #define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \

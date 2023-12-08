@@ -189,6 +189,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(Infinity_string, Infinity_string, InfinityString)                        \
   V(is_concat_spreadable_symbol, is_concat_spreadable_symbol,                \
     IsConcatSpreadableSymbol)                                                \
+  V(Iterator_string, Iterator_string, IteratorString)                        \
   V(iterator_symbol, iterator_symbol, IteratorSymbol)                        \
   V(keys_string, keys_string, KeysString)                                    \
   V(async_iterator_symbol, async_iterator_symbol, AsyncIteratorSymbol)       \
@@ -211,6 +212,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(number_string, number_string, NumberString)                              \
   V(number_to_string, number_to_string, NumberToString)                      \
   V(Object_string, Object_string, ObjectString)                              \
+  V(object_string, object_string, objectString)                              \
   V(object_to_string, object_to_string, ObjectToString)                      \
   V(SeqOneByteStringMap, seq_one_byte_string_map, SeqOneByteStringMap)       \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)              \

@@ -316,6 +316,7 @@
   V(_, isoNanosecond_string, "isoNanosecond")                                 \
   V(_, isoSecond_string, "isoSecond")                                         \
   V(_, isoYear_string, "isoYear")                                             \
+  V(_, Iterator_string, "Iterator")                                           \
   V(_, jsMemoryEstimate_string, "jsMemoryEstimate")                           \
   V(_, jsMemoryRange_string, "jsMemoryRange")                                 \
   V(_, keys_string, "keys")                                                   \

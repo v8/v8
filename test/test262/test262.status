@@ -2045,6 +2045,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=14303
   'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.1': [FAIL],
 
+  # https://github.com/tc39/proposal-iterator-helpers/pull/287
+  'built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],

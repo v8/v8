@@ -129,6 +129,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   REGEXP_LAST_MATCH_INFO_INDEX: Slot<NativeContext, RegExpMatchInfo>,
   INITIAL_STRING_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
   INITIAL_ARRAY_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ITERATOR_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
   SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: Slot<NativeContext, Map>,
   STRICT_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
