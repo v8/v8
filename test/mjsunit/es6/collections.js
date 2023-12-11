@@ -1464,3 +1464,14 @@ TestConstructorOrderOfAdderIterator(Map, 'set');
 TestConstructorOrderOfAdderIterator(Set, 'add');
 TestConstructorOrderOfAdderIterator(WeakMap, 'set');
 TestConstructorOrderOfAdderIterator(WeakSet, 'add');
+
+function TestSetCopyConstructor() {
+  const arr = new Array(1000).fill(0).map((_, i) => i);
+  const c = new Set(arr);
+  const d = new Set(c);
+  assertEquals(c.size, d.size);
+  for (const v of c) {
+    assertTrue(d.has(v));
+  }
+}
+TestSetCopyConstructor();

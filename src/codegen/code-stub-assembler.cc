@@ -4370,6 +4370,11 @@ TNode<OrderedHashSet> CodeStubAssembler::AllocateOrderedHashSet() {
       IntPtrConstant(OrderedHashSet::kInitialCapacity));
 }
 
+TNode<OrderedHashSet> CodeStubAssembler::AllocateOrderedHashSet(
+    TNode<IntPtrT> capacity) {
+  return AllocateOrderedHashTableWithCapacity<OrderedHashSet>(capacity);
+}
+
 TNode<OrderedHashMap> CodeStubAssembler::AllocateOrderedHashMap() {
   return AllocateOrderedHashTableWithCapacity<OrderedHashMap>(
       IntPtrConstant(OrderedHashMap::kInitialCapacity));

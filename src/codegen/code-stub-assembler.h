@@ -165,6 +165,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(EmptyArrayList, empty_array_list, EmptyArrayList)                        \
   V(EmptyByteArray, empty_byte_array, EmptyByteArray)                        \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
+  V(EmptyOrderedHashSet, empty_ordered_hash_set, EmptyOrderedHashSet)        \
   V(EmptyScopeInfo, empty_scope_info, EmptyScopeInfo)                        \
   V(EmptyPropertyDictionary, empty_property_dictionary,                      \
     EmptyPropertyDictionary)                                                 \
@@ -2175,6 +2176,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            Label* large_object_fallback);
 
   TNode<OrderedHashSet> AllocateOrderedHashSet();
+  TNode<OrderedHashSet> AllocateOrderedHashSet(TNode<IntPtrT> capacity);
 
   TNode<OrderedHashMap> AllocateOrderedHashMap();
 
