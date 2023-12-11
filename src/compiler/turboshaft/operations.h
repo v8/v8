@@ -5895,13 +5895,13 @@ struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    // TODO(mliedtke): What's the type of value()? Right now it could be
-    // anything and the operation doesn't know it.
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+    storage.resize(2);
+    storage[0] = MaybeRegisterRepresentation::Tagged();
+    storage[1] = MaybeRegisterRepresentation(RepresentationFor(global->type));
+    return base::VectorOf(storage);
   }
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const { DCHECK(global->mutability); }
 
   auto options() const { return std::tuple{global}; }
 };
