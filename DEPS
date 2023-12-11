@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e2ef5faece175f255d53f9f1d0d9c58ff5e00d7c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7d13bd8a25fb4ef06e5667975d1330a3ab7157e9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '48eb5d0b338fad2151025f7d33ae85eef73c5665',
   'buildtools/linux64': {
