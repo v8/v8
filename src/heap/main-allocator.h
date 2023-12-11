@@ -75,15 +75,11 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   void FreeLinearAllocationArea() final;
 
  private:
-  bool RefillLabMain(int size_in_bytes, AllocationOrigin origin);
+  bool RefillLab(int size_in_bytes, AllocationOrigin origin);
 
-  bool ContributeToSweepingMain(int required_freed_bytes, int max_pages,
-                                int size_in_bytes, AllocationOrigin origin,
-                                GCTracer::Scope::ScopeId sweeping_scope_id,
-                                ThreadKind sweeping_scope_kind);
+  void ContributeToSweeping(int max_pages);
 
-  bool TryAllocationFromFreeListMain(size_t size_in_bytes,
-                                     AllocationOrigin origin);
+  bool TryAllocationFromFreeList(size_t size_in_bytes, AllocationOrigin origin);
 
   bool TryExpandAndAllocate(size_t size_in_bytes, AllocationOrigin origin);
 

@@ -140,10 +140,6 @@ class FreeList {
   FreeList(int number_of_categories, size_t min_block_size);
   virtual ~FreeList() = default;
 
-  // Returns how much memory can be allocated after freeing maximum_freed
-  // memory.
-  virtual size_t GuaranteedAllocatable(size_t maximum_freed) = 0;
-
   // Adds a node on the free list. The block of size {size_in_bytes} starting
   // at {start} is placed on the free list. The return value is the number of
   // bytes that were not added to the free list, because the freed memory block
@@ -287,8 +283,6 @@ class FreeList {
 // consumption should be lower (since fragmentation should be lower).
 class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
  public:
-  size_t GuaranteedAllocatable(size_t maximum_freed) override;
-
   Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListMany();

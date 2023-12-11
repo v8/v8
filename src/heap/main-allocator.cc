@@ -573,14 +573,14 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
   }
   space_->paged_space()->RefillFreeList();
   DCHECK(!sweeper->ShouldRefillFreelistForSpace(NEW_SPACE));
-  return paged_space_allocator_policy_->TryAllocationFromFreeListMain(
+  return paged_space_allocator_policy_->TryAllocationFromFreeList(
       static_cast<size_t>(size_in_bytes), origin);
 }
 
 bool PagedNewSpaceAllocatorPolicy::AddPageBeyondCapacity(
     int size_in_bytes, AllocationOrigin origin) {
   if (space_->paged_space()->AddPageBeyondCapacity(size_in_bytes, origin)) {
-    return paged_space_allocator_policy_->TryAllocationFromFreeListMain(
+    return paged_space_allocator_policy_->TryAllocationFromFreeList(
         size_in_bytes, origin);
   }
 
@@ -618,52 +618,37 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
       allocator_->allocation_info().limit()) {
     return true;
   }
-  return RefillLabMain(size_in_bytes, origin);
+  return RefillLab(size_in_bytes, origin);
 }
 
-bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
-                                              AllocationOrigin origin) {
+bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
+                                          AllocationOrigin origin) {
   // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
 
   if (TryExtendLAB(size_in_bytes)) return true;
 
-  static constexpr int kMaxPagesToSweep = 1;
+  if (TryAllocationFromFreeList(size_in_bytes, origin)) return true;
 
-  if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
-
-  const bool is_main_thread =
-      allocator_->is_main_thread() ||
-      (allocator_->in_gc() && isolate_heap()->IsMainThread());
-  const auto sweeping_scope_kind =
-      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
-  const auto sweeping_scope_id = space_heap()->sweeper()->GetTracingScope(
-      allocator_->identity(), is_main_thread);
   // Sweeping is still in progress.
   if (space_heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     if (space_heap()->sweeper()->ShouldRefillFreelistForSpace(
             allocator_->identity())) {
-      {
-        TRACE_GC_EPOCH_WITH_FLOW(
-            isolate_heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
-            isolate_heap()->sweeper()->GetTraceIdForFlowEvent(
-                sweeping_scope_id),
-            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-        space_->RefillFreeList();
-      }
+      space_->RefillFreeList();
 
       // Retry the free list allocation.
-      if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                        origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
         return true;
     }
 
-    if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
-                                 origin, sweeping_scope_id,
-                                 sweeping_scope_kind))
+    static constexpr int kMaxPagesToSweep = 1;
+    ContributeToSweeping(kMaxPagesToSweep);
+
+    if (TryAllocationFromFreeList(size_in_bytes, origin)) {
       return true;
+    }
   }
 
   if (space_->is_compaction_space()) {
@@ -675,8 +660,7 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
     Page* page = main_space->RemovePageSafe(size_in_bytes);
     if (page != nullptr) {
       space_->AddPage(page);
-      if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                        origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
         return true;
     }
   }
@@ -691,9 +675,10 @@ bool PagedSpaceAllocatorPolicy::RefillLabMain(int size_in_bytes,
   }
 
   // Try sweeping all pages.
-  if (ContributeToSweepingMain(0, 0, size_in_bytes, origin, sweeping_scope_id,
-                               sweeping_scope_kind))
+  ContributeToSweeping(0);
+  if (TryAllocationFromFreeList(size_in_bytes, origin)) {
     return true;
+  }
 
   if (allocator_->identity() != NEW_SPACE && allocator_->in_gc() &&
       !space_heap()->force_oom()) {
@@ -711,22 +696,26 @@ bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
   // Run in a loop because concurrent threads might allocate from the new free
   // list entries before this thread gets a chance.
   while (space_->TryExpand(allocator_->local_heap(), origin)) {
-    if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                      origin)) {
+    if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin)) {
       return true;
     }
   }
   return false;
 }
 
-bool PagedSpaceAllocatorPolicy::ContributeToSweepingMain(
-    int required_freed_bytes, int max_pages, int size_in_bytes,
-    AllocationOrigin origin, GCTracer::Scope::ScopeId sweeping_scope_id,
-    ThreadKind sweeping_scope_kind) {
+void PagedSpaceAllocatorPolicy::ContributeToSweeping(int max_pages) {
   if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity()))
-    return false;
+    return;
   if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
-    return false;
+    return;
+
+  const bool is_main_thread =
+      allocator_->is_main_thread() ||
+      (allocator_->in_gc() && isolate_heap()->IsMainThread());
+  const auto sweeping_scope_kind =
+      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
+  const auto sweeping_scope_id = space_heap()->sweeper()->GetTracingScope(
+      allocator_->identity(), is_main_thread);
 
   TRACE_GC_EPOCH_WITH_FLOW(
       isolate_heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
@@ -738,10 +727,9 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweepingMain(
       allocator_->in_gc_for_space() ? Sweeper::SweepingMode::kEagerDuringGC
                                     : Sweeper::SweepingMode::kLazyOrConcurrent;
 
-  space_heap()->sweeper()->ParallelSweepSpace(
-      allocator_->identity(), sweeping_mode, required_freed_bytes, max_pages);
+  space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
+                                              sweeping_mode, max_pages);
   space_->RefillFreeList();
-  return TryAllocationFromFreeListMain(size_in_bytes, origin);
 }
 
 void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,
@@ -785,7 +773,7 @@ void PagedSpaceAllocatorPolicy::DecreaseLimit(Address new_limit) {
   }
 }
 
-bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeListMain(
+bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
     size_t size_in_bytes, AllocationOrigin origin) {
   PagedSpace::ConcurrentAllocationMutex guard(space_);
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));

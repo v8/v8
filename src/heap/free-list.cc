@@ -194,18 +194,6 @@ FreeListMany::FreeListMany() : FreeList(kNumberOfCategories, kMinBlockSize) {
 
 FreeListMany::~FreeListMany() { delete[] categories_; }
 
-size_t FreeListMany::GuaranteedAllocatable(size_t maximum_freed) {
-  if (maximum_freed < categories_min[0]) {
-    return 0;
-  }
-  for (int cat = kFirstCategory + 1; cat <= last_category_; cat++) {
-    if (maximum_freed < categories_min[cat]) {
-      return categories_min[cat - 1];
-    }
-  }
-  return maximum_freed;
-}
-
 Page* FreeListMany::GetPageForSize(size_t size_in_bytes) {
   FreeListCategoryType minimum_category =
       SelectFreeListCategoryType(size_in_bytes);
