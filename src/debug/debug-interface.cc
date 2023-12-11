@@ -1201,22 +1201,6 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
   RETURN_ESCAPED(result);
 }
 
-v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
-    v8::Isolate* isolate, v8::Local<v8::Script> function,
-    v8::debug::EvaluateGlobalMode mode, bool repl) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::Local<v8::Context> context = Utils::ToLocal(i_isolate->native_context());
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, context, Value);
-  i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
-  Local<Value> result;
-  has_exception = !ToLocal<Value>(
-      i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*function), mode,
-                               repl_mode),
-      &result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
-}
-
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
                              std::vector<v8::Global<v8::String>>* names) {
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);

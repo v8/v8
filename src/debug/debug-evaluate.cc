@@ -52,25 +52,14 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   }
 
   Handle<NativeContext> context = isolate->native_context();
-  Handle<JSFunction> fun =
+  Handle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, shared_info, context}.Build();
 
-  return Global(isolate, fun, mode, repl_mode);
-}
-
-MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
-                                          Handle<JSFunction> function,
-                                          debug::EvaluateGlobalMode mode,
-                                          REPLMode repl_mode) {
-  // Disable breaks in side-effect free mode.
   DisableBreak disable_break_scope(
       isolate->debug(),
       mode == debug::EvaluateGlobalMode::kDisableBreaks ||
           mode ==
               debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect);
-
-  Handle<NativeContext> context = isolate->native_context();
-  CHECK_EQ(function->native_context(), *context);
 
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StartSideEffectCheckMode();

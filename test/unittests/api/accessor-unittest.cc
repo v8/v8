@@ -304,8 +304,8 @@ static void CheckSideEffectFreeAccesses(v8::Isolate* isolate,
   // Check getter. Run enough number of times to ensure IC creates data handler.
   for (int i = 0; i < kIterationsCountForICProgression; i++) {
     v8::TryCatch try_catch(isolate);
-    CHECK(EvaluateGlobalForTesting(
-              isolate, func,
+    CHECK(EvaluateGlobal(
+              isolate, call_getter,
               v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect,
               true)
               .IsEmpty());
@@ -320,8 +320,8 @@ static void CheckSideEffectFreeAccesses(v8::Isolate* isolate,
   // Check setter. Run enough number of times to ensure IC creates data handler.
   for (int i = 0; i < kIterationsCountForICProgression; i++) {
     v8::TryCatch try_catch(isolate);
-    CHECK(EvaluateGlobalForTesting(
-              isolate, func,
+    CHECK(EvaluateGlobal(
+              isolate, call_setter,
               v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect,
               true)
               .IsEmpty());
@@ -367,8 +367,11 @@ TEST_F(AccessorTest, AccessorsWithSideEffects) {
       templ_with_sideffect->GetFunction(context()).ToLocalChecked(),
       v8::PropertyAttribute::None);
 
-  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
-                              NewString("obj.set = 123;"));
+  RunJS(
+      "function callGetter() { obj.get; }"
+      "function callSetter() { obj.set = 123; }");
+  CheckSideEffectFreeAccesses(isolate(), NewString("callGetter()"),
+                              NewString("callSetter()"));
 }
 
 TEST_F(AccessorTest, TemplateAccessorsWithSideEffects) {
@@ -396,8 +399,11 @@ TEST_F(AccessorTest, TemplateAccessorsWithSideEffects) {
   v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
   CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
-  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
-                              NewString("obj.set = 123;"));
+  RunJS(
+      "function callGetter() { obj.get; }"
+      "function callSetter() { obj.set = 123; }");
+  CheckSideEffectFreeAccesses(isolate(), NewString("callGetter()"),
+                              NewString("callSetter()"));
 }
 
 TEST_F(AccessorTest, NativeTemplateAccessorWithSideEffects) {
@@ -419,8 +425,11 @@ TEST_F(AccessorTest, NativeTemplateAccessorWithSideEffects) {
   v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
   CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
-  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
-                              NewString("obj.set = 123;"));
+  RunJS(
+      "function callGetter() { obj.get; }"
+      "function callSetter() { obj.set = 123; }");
+  CheckSideEffectFreeAccesses(isolate(), NewString("callGetter()"),
+                              NewString("callSetter()"));
 }
 
 TEST_F(AccessorTest, NativeAccessorsWithSideEffects) {
@@ -441,8 +450,11 @@ TEST_F(AccessorTest, NativeAccessorsWithSideEffects) {
                              v8::SideEffectType::kHasSideEffect)
       .ToChecked();
 
-  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
-                              NewString("obj.set = 123;"));
+  RunJS(
+      "function callGetter() { obj.get; }"
+      "function callSetter() { obj.set = 123; }");
+  CheckSideEffectFreeAccesses(isolate(), NewString("callGetter()"),
+                              NewString("callSetter()"));
 }
 
 // Accessors can be allowlisted as side-effect-free via SetNativeDataProperty.

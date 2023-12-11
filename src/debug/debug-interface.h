@@ -559,10 +559,6 @@ V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
     v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
     bool repl_mode = false);
 
-V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
-    v8::Isolate* isolate, v8::Local<v8::Script> function,
-    v8::debug::EvaluateGlobalMode mode, bool repl);
-
 int GetDebuggingId(v8::Local<v8::Function> function);
 
 V8_EXPORT_PRIVATE bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
