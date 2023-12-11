@@ -5,6 +5,7 @@
 #include "src/compiler/wasm-graph-assembler.h"
 
 #include "src/common/globals.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -492,7 +493,7 @@ void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
 Node* WasmGraphAssembler::LoadStringLength(Node* string) {
   return LoadImmutableFromObject(
       MachineType::Int32(), string,
-      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+      wasm::ObjectAccess::ToTagged(AccessBuilder::ForStringLength().offset));
 }
 
 Node* WasmGraphAssembler::StringAsWtf16(Node* string) {

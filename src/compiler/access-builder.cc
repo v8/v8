@@ -645,6 +645,7 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
                         MachineType::TaggedSigned(),
                         kNoWriteBarrier,
                         "FixedArrayLength"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -658,6 +659,7 @@ FieldAccess AccessBuilder::ForWeakFixedArrayLength() {
                         MachineType::TaggedSigned(),
                         kNoWriteBarrier,
                         "WeakFixedArrayLength"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -755,6 +757,7 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
       kTaggedBase,      Map::kInstanceTypeOffset,  Handle<Name>(),
       OptionalMapRef(), TypeCache::Get()->kUint16, MachineType::Uint16(),
       kNoWriteBarrier,  "MapInstanceType"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -825,6 +828,7 @@ FieldAccess AccessBuilder::ForStringLength() {
                         MachineType::Uint32(),
                         kNoWriteBarrier,
                         "StringLength"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -834,6 +838,8 @@ FieldAccess AccessBuilder::ForConsStringFirst() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ConsStringFirst"};
+  // Not immutable since flattening can mutate.
+  access.is_immutable = false;
   return access;
 }
 
@@ -843,6 +849,8 @@ FieldAccess AccessBuilder::ForConsStringSecond() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ConsStringSecond"};
+  // Not immutable since flattening can mutate.
+  access.is_immutable = false;
   return access;
 }
 
@@ -852,6 +860,7 @@ FieldAccess AccessBuilder::ForThinStringActual() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ThinStringActual"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -861,6 +870,7 @@ FieldAccess AccessBuilder::ForSlicedStringOffset() {
                         Handle<Name>(),      OptionalMapRef(),
                         Type::SignedSmall(), MachineType::TaggedSigned(),
                         kNoWriteBarrier,     "SlicedStringOffset"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -870,6 +880,7 @@ FieldAccess AccessBuilder::ForSlicedStringParent() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "SlicedStringParent"};
+  access.is_immutable = true;
   return access;
 }
 

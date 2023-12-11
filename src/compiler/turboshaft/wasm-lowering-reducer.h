@@ -419,21 +419,17 @@ class WasmLoweringReducer : public Next {
 
       // Sliced string.
       V<Word32> new_offset = __ Word32Add(
-          offset,
-          __ UntagSmi(__ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
-                              MemoryRepresentation::TaggedSigned(),
-                              SlicedString::kOffsetOffset)));
-      V<Tagged> parent = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
-                                 MemoryRepresentation::TaggedPointer(),
-                                 SlicedString::kParentOffset);
+          offset, __ UntagSmi(__ template LoadField<Smi>(
+                      string, AccessBuilder::ForSlicedStringOffset())));
+      V<Tagged> parent = __ template LoadField<Tagged>(
+          string, AccessBuilder::ForSlicedStringParent());
       V<Word32> parent_type = __ LoadInstanceTypeField(__ LoadMapField(parent));
       GOTO(dispatch, parent, parent_type, new_offset);
 
       // Thin string.
       BIND(thin_string);
-      V<Tagged> actual = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
-                                 MemoryRepresentation::TaggedPointer(),
-                                 ThinString::kActualOffset);
+      V<Tagged> actual = __ template LoadField<Tagged>(
+          string, AccessBuilder::ForThinStringActual());
       V<Word32> actual_type = __ LoadInstanceTypeField(__ LoadMapField(actual));
       // ThinStrings always reference (internalized) direct strings.
       GOTO(direct_string, actual, actual_type, offset);
@@ -441,9 +437,8 @@ class WasmLoweringReducer : public Next {
       // Flat cons string. (Non-flat cons strings are ruled out by
       // string.as_wtf16.)
       BIND(cons_string);
-      V<Tagged> first = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
-                                MemoryRepresentation::TaggedPointer(),
-                                ConsString::kFirstOffset);
+      V<Tagged> first = __ template LoadField<Tagged>(
+          string, AccessBuilder::ForConsStringFirst());
       V<Word32> first_type = __ LoadInstanceTypeField(__ LoadMapField(first));
       GOTO(dispatch, first, first_type, offset);
     }
@@ -464,10 +459,12 @@ class WasmLoweringReducer : public Next {
               external);
 
       // Sequential string.
-      static_assert(SeqOneByteString::kCharsOffset ==
-                    SeqTwoByteString::kCharsOffset);
+      DCHECK_EQ(AccessBuilder::ForSeqOneByteStringCharacter().header_size,
+                AccessBuilder::ForSeqTwoByteStringCharacter().header_size);
+      const int chars_start_offset =
+          AccessBuilder::ForSeqOneByteStringCharacter().header_size;
       V<Word32> final_offset =
-          __ Word32Add(SeqOneByteString::kCharsOffset - kHeapObjectTag,
+          __ Word32Add(chars_start_offset - kHeapObjectTag,
                        __ Word32ShiftLeft(offset, charwidth_shift));
       GOTO(done, string, __ ChangeInt32ToIntPtr(final_offset), charwidth_shift);
 
@@ -476,8 +473,7 @@ class WasmLoweringReducer : public Next {
       GOTO_IF(__ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
               done, string, /*offset*/ 0, kCharWidthBailoutSentinel);
       V<WordPtr> resource = BuildLoadExternalPointerFromObject(
-          string, ExternalString::kResourceDataOffset,
-          kExternalStringResourceDataTag);
+          string, AccessBuilder::ForExternalStringResourceData());
       V<Word32> shifted_offset = __ Word32ShiftLeft(offset, charwidth_shift);
       V<WordPtr> final_offset_external =
           __ WordPtrAdd(resource, __ ChangeInt32ToIntPtr(shifted_offset));
@@ -528,16 +524,15 @@ class WasmLoweringReducer : public Next {
   }
 
   V<WordPtr> BuildLoadExternalPointerFromObject(V<Tagged> object,
-                                                int field_offset,
-                                                ExternalPointerTag tag) {
+                                                FieldAccess access) {
 #ifdef V8_ENABLE_SANDBOX
-    DCHECK_NE(tag, kExternalPointerNullTag);
+    DCHECK_NE(access.external_pointer_tag, kExternalPointerNullTag);
     V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(), field_offset);
-    return __ DecodeExternalPointer(handle, tag);
+                               MemoryRepresentation::Uint32(), access.offset);
+    return __ DecodeExternalPointer(handle, access.external_pointer_tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::PointerSized(), field_offset);
+                   MemoryRepresentation::PointerSized(), access.offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 

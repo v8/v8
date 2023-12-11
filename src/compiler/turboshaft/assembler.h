@@ -2086,8 +2086,11 @@ class TurboshaftAssemblerOpInterface
       rep = MemoryRepresentation::Uint32();
     }
 #endif  // V8_ENABLE_SANDBOX
-    V<Rep> value = Load(object, LoadOp::Kind::Aligned(access.base_is_tagged),
-                        rep, access.offset);
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+    if (access.is_immutable) {
+      kind = kind.Immutable();
+    }
+    V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
       value = DecodeExternalPointer(value, access.external_pointer_tag);
@@ -2174,6 +2177,12 @@ class TurboshaftAssemblerOpInterface
                                  V<WordPtr> index) {
     return LoadElement<T>(object, access, index, false);
   }
+  template <typename Base>
+  V<WordPtr> GetElementStartPointer(V<Base> object,
+                                    const ElementAccess& access) {
+    return WordPtrAdd(BitcastTaggedToWord(object),
+                      access.header_size - access.tag());
+  }
 
   template <typename Base>
   void StoreArrayBufferElement(V<Base> object, const ElementAccess& access,
@@ -2184,6 +2193,19 @@ class TurboshaftAssemblerOpInterface
   void StoreNonArrayBufferElement(V<Base> object, const ElementAccess& access,
                                   V<WordPtr> index, V<Any> value) {
     return StoreElement(object, access, index, value, false);
+  }
+
+  template <typename Base>
+  void InitializeArrayBufferElement(Uninitialized<Base>& object,
+                                    const ElementAccess& access,
+                                    V<WordPtr> index, V<Any> value) {
+    StoreArrayBufferElement(object.object(), access, index, value);
+  }
+  template <typename Base>
+  void InitializeNonArrayBufferElement(Uninitialized<Base>& object,
+                                       const ElementAccess& access,
+                                       V<WordPtr> index, V<Any> value) {
+    StoreNonArrayBufferElement(object.object(), access, index, value);
   }
 
   template <typename T = HeapObject>

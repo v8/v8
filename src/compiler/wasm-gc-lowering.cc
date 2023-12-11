@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
@@ -23,6 +24,13 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
+int TaggedOffset(FieldAccess access) {
+  DCHECK(access.base_is_tagged);
+  return wasm::ObjectAccess::ToTagged(access.offset);
+}
+}  // namespace
 
 WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
                                const wasm::WasmModule* module,
@@ -928,13 +936,12 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
 
     // Sliced string.
     Node* new_offset = gasm_.Int32Add(
-        offset,
-        gasm_.BuildChangeSmiToInt32(gasm_.LoadImmutableFromObject(
-            MachineType::TaggedSigned(), string,
-            wasm::ObjectAccess::ToTagged(SlicedString::kOffsetOffset))));
+        offset, gasm_.BuildChangeSmiToInt32(gasm_.LoadImmutableFromObject(
+                    MachineType::TaggedSigned(), string,
+                    TaggedOffset(AccessBuilder::ForSlicedStringOffset()))));
     Node* parent = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), string,
-        wasm::ObjectAccess::ToTagged(SlicedString::kParentOffset));
+        TaggedOffset(AccessBuilder::ForSlicedStringParent()));
     Node* parent_type = gasm_.LoadInstanceType(gasm_.LoadMap(parent));
     gasm_.Goto(&next, parent, parent_type, new_offset);
 
@@ -942,7 +949,7 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
     gasm_.Bind(&thin_string);
     Node* actual = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), string,
-        wasm::ObjectAccess::ToTagged(ThinString::kActualOffset));
+        TaggedOffset(AccessBuilder::ForThinStringActual()));
     Node* actual_type = gasm_.LoadInstanceType(gasm_.LoadMap(actual));
     // ThinStrings always reference (internalized) direct strings.
     gasm_.Goto(&direct_string, actual, actual_type, offset);
@@ -952,7 +959,7 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
     gasm_.Bind(&cons_string);
     Node* first = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), string,
-        wasm::ObjectAccess::ToTagged(ConsString::kFirstOffset));
+        TaggedOffset(AccessBuilder::ForConsStringFirst()));
     Node* first_type = gasm_.LoadInstanceType(gasm_.LoadMap(first));
     gasm_.Goto(&next, first, first_type, offset);
 
@@ -982,11 +989,12 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
                  &external);
 
     // Sequential string.
-    static_assert(SeqOneByteString::kCharsOffset ==
-                  SeqTwoByteString::kCharsOffset);
+    DCHECK_EQ(AccessBuilder::ForSeqOneByteStringCharacter().header_size,
+              AccessBuilder::ForSeqTwoByteStringCharacter().header_size);
+    const int chars_start_offset =
+        AccessBuilder::ForSeqOneByteStringCharacter().header_size;
     Node* final_offset = gasm_.Int32Add(
-        gasm_.Int32Constant(
-            wasm::ObjectAccess::ToTagged(SeqOneByteString::kCharsOffset)),
+        gasm_.Int32Constant(wasm::ObjectAccess::ToTagged(chars_start_offset)),
         gasm_.Word32Shl(offset, charwidth_shift));
     gasm_.Goto(&done, string, gasm_.BuildChangeInt32ToIntPtr(final_offset),
                charwidth_shift);

@@ -3325,10 +3325,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<Word32> LoadStringLength(V<Tagged> string) {
-    // TODO(jkummerow): Support immutable fields in {AccessBuilder}, and use
-    // AccessBuilder::ForStringLength here.
-    return __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::Uint32(), String::kLengthOffset);
+    return __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
@@ -3707,9 +3705,8 @@ class TurboshaftGraphBuildingInterface {
     Label<> runtime_label(&Asm());
     Label<Word32> end_label(&Asm());
 
-    V<Word32> raw_hash =
-        __ Load(string_val, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Int32(), Name::kRawHashFieldOffset);
+    V<Word32> raw_hash = __ template LoadField<Word32>(
+        string_val, compiler::AccessBuilder::ForNameRawHashField());
     V<Word32> hash_not_computed_mask =
         __ Word32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
     static_assert(Name::HashFieldTypeBits::kShift == 0);

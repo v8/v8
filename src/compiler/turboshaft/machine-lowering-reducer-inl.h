@@ -816,9 +816,13 @@ class MachineLoweringReducer : public Next {
                              __ Word32Constant(Name::kEmptyHashField));
           __ InitializeField(string, AccessBuilder::ForStringLength(),
                              __ Word32Constant(2));
-          __ Initialize(string, code, MemoryRepresentation::Uint32(),
-                        WriteBarrierKind::kNoWriteBarrier,
-                        SeqTwoByteString::kHeaderSize);
+          // Write the code as a single 32-bit value by adapting the elements
+          // access to SeqTwoByteString characters.
+          ElementAccess char_access =
+              AccessBuilder::ForSeqTwoByteStringCharacter();
+          char_access.machine_type = MachineType::Uint32();
+          __ InitializeNonArrayBufferElement(string, char_access,
+                                             __ IntPtrConstant(0), code);
           GOTO(done, __ FinishInitialization(std::move(string)));
         }
 
@@ -859,9 +863,9 @@ class MachineLoweringReducer : public Next {
                                __ Word32Constant(Name::kEmptyHashField));
             __ InitializeField(string, AccessBuilder::ForStringLength(),
                                __ Word32Constant(1));
-            __ Initialize(string, code, MemoryRepresentation::Uint16(),
-                          WriteBarrierKind::kNoWriteBarrier,
-                          SeqTwoByteString::kHeaderSize);
+            __ InitializeNonArrayBufferElement(
+                string, AccessBuilder::ForSeqTwoByteStringCharacter(),
+                __ IntPtrConstant(0), code);
             GOTO(done, __ FinishInitialization(std::move(string)));
           }
           END_IF

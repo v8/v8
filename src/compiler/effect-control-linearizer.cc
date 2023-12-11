@@ -5540,7 +5540,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord16, kNoWriteBarrier),
         vfalse1,
-        __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        __ IntPtrConstant(
+            AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+            kHeapObjectTag),
         code);
     __ Goto(&done, vfalse1);
   }
@@ -5644,7 +5646,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
       __ Store(
           StoreRepresentation(MachineRepresentation::kWord16, kNoWriteBarrier),
           vfalse1,
-          __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+          __ IntPtrConstant(
+              AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+              kHeapObjectTag),
           code);
       __ Goto(&done, vfalse1);
     }
@@ -5689,7 +5693,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         vfalse0,
-        __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        __ IntPtrConstant(
+            AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+            kHeapObjectTag),
         code);
     __ Goto(&done, vfalse0);
   }
@@ -6875,10 +6881,11 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
 
             Node* length_in_bytes =
                 __ LoadField(AccessBuilder::ForStringLength(), node);
-            Node* data_ptr =
-                __ IntPtrAdd(__ BitcastTaggedToWord(node),
-                             __ IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                               kHeapObjectTag));
+            Node* data_ptr = __ IntPtrAdd(
+                __ BitcastTaggedToWord(node),
+                __ IntPtrConstant(
+                    AccessBuilder::ForSeqOneByteStringCharacter().header_size -
+                    kHeapObjectTag));
 
             constexpr int kAlign = alignof(FastOneByteString);
             constexpr int kSize = sizeof(FastOneByteString);
