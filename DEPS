@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd129e3a8b80eab0bdab99db6b3aab3ce90ac0a18',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e2ef5faece175f255d53f9f1d0d9c58ff5e00d7c',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1b3ee6019d54794a660487f124626b3056056416',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '48eb5d0b338fad2151025f7d33ae85eef73c5665',
   'buildtools/linux64': {
     'packages': [
       {
@@ -218,7 +218,7 @@ deps = {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
-        'version': 'XSjN84pHxBPX13CrUj3fQjEroncvFGGeJY9wDVEDswoC',
+        'version': 'NSOM616pOQCfRfDAhC72ltgjyUQp9lAWCMzlmgB18dAC',
       },
     ],
     'condition': 'checkout_android',
@@ -276,7 +276,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '88a63fd37939d08d64521a3c39c7ec501f4d1bfa',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '16665d119a630ebc4dc49d9eafaba608f00a5f18',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd5e7c425e0497efe2800b8a42b3e0bac0b1d3134',
   'third_party/libunwind/src':
