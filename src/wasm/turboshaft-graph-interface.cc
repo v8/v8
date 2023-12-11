@@ -1784,6 +1784,17 @@ class TurboshaftGraphBuildingInterface {
         case_blocks.push_back(__ NewBlock());
       }
       TSBlock* merge = __ NewBlock();
+      // For the control flow between the case blocks, we don't use the usual
+      // NewBlockWithPhis / SetupControlFlowEdge / BindBlockAndGeneratePhis
+      // helpers, because we don't need all their functionality. Instead, we
+      // inline trimmed-down copies of them, doing only what we need, which is
+      // handling the mutable fields cached on the InstanceCache.
+      uint32_t cached_fields = instance_cache_.num_mutable_fields();
+      BlockPhis merge_phis(decoder->zone_, cached_fields);
+      for (uint32_t i = 0; i < cached_fields; i++) {
+        merge_phis.phi_types[i] = instance_cache_.mutable_field_type(i);
+      }
+      InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
       __ Goto(case_blocks[0]);
       for (size_t i = 0; i < feedback_cases.size(); i++) {
         __ Bind(case_blocks[i]);
@@ -1802,6 +1813,7 @@ class TurboshaftGraphBuildingInterface {
                   inline_block, case_blocks[i + 1]);
 
         __ Bind(inline_block);
+        instance_cache_.RestoreFromSnapshot(saved_cache);
         SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
@@ -1815,11 +1827,16 @@ class TurboshaftGraphBuildingInterface {
         for (size_t ret = 0; ret < direct_returns.size(); ret++) {
           case_returns[ret].push_back(direct_returns[ret].op);
         }
+        for (uint32_t i = 0; i < cached_fields; i++) {
+          merge_phis.phi_inputs[i].emplace_back(
+              instance_cache_.mutable_field_value(i));
+        }
         __ Goto(merge);
       }
 
       TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
       __ Bind(no_inline_block);
+      instance_cache_.RestoreFromSnapshot(saved_cache);
       auto [target, ref] =
           BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
       SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
@@ -1827,12 +1844,21 @@ class TurboshaftGraphBuildingInterface {
       for (size_t ret = 0; ret < ref_returns.size(); ret++) {
         case_returns[ret].push_back(ref_returns[ret].op);
       }
+      for (uint32_t i = 0; i < cached_fields; i++) {
+        merge_phis.phi_inputs[i].emplace_back(
+            instance_cache_.mutable_field_value(i));
+      }
       __ Goto(merge);
 
       __ Bind(merge);
       for (size_t i = 0; i < case_returns.size(); i++) {
         returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
                                RepresentationFor(sig->GetReturn(i)));
+      }
+      for (uint32_t i = 0; i < cached_fields; i++) {
+        OpIndex phi = MaybePhi(base::VectorOf(merge_phis.phi_inputs[i]),
+                               merge_phis.phi_types[i]);
+        instance_cache_.set_mutable_field_value(i, phi);
       }
     } else {
       auto [target, ref] =
@@ -3780,6 +3806,23 @@ class TurboshaftGraphBuildingInterface {
           memory_start_index_ = num_mutable_fields_++;
         }
         mem_start_ = LoadMemStart();
+      }
+    }
+
+    using Snapshot = base::SmallVector<OpIndex, 2>;
+
+    Snapshot SaveState() {
+      Snapshot snapshot(num_mutable_fields_);
+      for (uint32_t i = 0; i < num_mutable_fields_; i++) {
+        snapshot[i] = mutable_field_value(i);
+      }
+      return snapshot;
+    }
+
+    void RestoreFromSnapshot(Snapshot& snapshot) {
+      DCHECK_EQ(snapshot.size(), num_mutable_fields_);
+      for (uint32_t i = 0; i < num_mutable_fields_; i++) {
+        set_mutable_field_value(i, snapshot[i]);
       }
     }
 
@@ -5774,10 +5817,20 @@ class TurboshaftGraphBuildingInterface {
     __ Bind(exception_block);
     OpIndex exception = __ CatchBlockBegin();
     if (handled_in_this_frame) {
+      // The exceptional operation could have modified memory size; we need
+      // to reload the memory context into the exceptional control path.
+      // Saving and restoring the InstanceCache's state makes sure that once
+      // we get back to handling the success path, the cache correctly
+      // reflects the values available on that path.
+      InstanceCache::Snapshot saved = instance_cache_.SaveState();
+      instance_cache_.ReloadCachedMemory();
       SetupControlFlowEdge(decoder, catch_block, 0, exception);
+      instance_cache_.RestoreFromSnapshot(saved);
     } else {
       DCHECK_EQ(mode_, kInlinedWithCatch);
       if (exception.valid()) return_exception_phis_.push_back(exception);
+      // Reloading the InstanceCache will happen when {return_exception_phis_}
+      // are retrieved.
     }
     __ Goto(catch_block);
 
@@ -6402,9 +6455,19 @@ class TurboshaftGraphBuildingInterface {
         catch_block = return_catch_block_;
       }
       if (handled_in_this_frame) {
+        // The exceptional operation could have modified memory size; we need
+        // to reload the memory context into the exceptional control path.
+        // Saving and restoring the InstanceCache's state makes sure that once
+        // we get back to handling the success path, the cache correctly
+        // reflects the values available on that path.
+        InstanceCache::Snapshot saved = instance_cache_.SaveState();
+        instance_cache_.ReloadCachedMemory();
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
+        instance_cache_.RestoreFromSnapshot(saved);
       } else {
         if (exception.valid()) return_exception_phis_.emplace_back(exception);
+        // Reloading the InstanceCache will happen when {return_exception_phis_}
+        // are retrieved.
       }
       __ Goto(catch_block);
     }
