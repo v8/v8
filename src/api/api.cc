@@ -3735,13 +3735,13 @@ bool Value::FullIsNull() const {
   return result;
 }
 
-bool Value::IsTrue() const {
+bool Value::FullIsTrue() const {
   auto object = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(object)) return false;
   return i::IsTrue(object);
 }
 
-bool Value::IsFalse() const {
+bool Value::FullIsFalse() const {
   i::Tagged<i::Object> object = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(object)) return false;
   return i::IsFalse(object);
