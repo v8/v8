@@ -1088,14 +1088,10 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
         JSFunction::cast(native_context->get(index)), isolate);
     prototype = handle(realm_constructor->prototype(), isolate);
   }
-
-  Handle<Map> map = Map::CopyInitialMap(isolate, constructor_initial_map);
-  map->set_new_target_is_base(false);
-  CHECK(IsJSReceiver(*prototype));
-  if (map->prototype() != *prototype)
-    Map::SetPrototype(isolate, map, Handle<HeapObject>::cast(prototype));
-  map->SetConstructor(*constructor);
-  return map;
+  DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
+            *constructor);
+  return Map::GetDerivedMap(isolate, constructor_initial_map,
+                            Handle<JSReceiver>::cast(prototype));
 }
 
 namespace {

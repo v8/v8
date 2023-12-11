@@ -75,6 +75,13 @@ macro WeakToStrong<T: type>(x: Weak<T>): T labels ClearedWeakPointer {
   return %RawDownCast<T>(x);
 }
 
+macro MaybeObjectToStrong(maybeObject: MaybeObject):
+    HeapObject labels IfCleared {
+  dcheck(IsWeakOrCleared(maybeObject));
+  const weakObject = %RawDownCast<Weak<HeapObject>>(maybeObject);
+  return WeakToStrong(weakObject) otherwise IfCleared;
+}
+
 // Defined to coincide with https://tc39.es/ecma262/#sec-ispropertykey
 // Doesn't include PrivateSymbol.
 type PropertyKey = String|PublicSymbol;

@@ -1092,9 +1092,15 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       TNode<PrototypeInfo> prototype_info =
           LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
-      TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
-          prototype_info, PrototypeInfo::kObjectCreateMapOffset);
-      GotoIf(TaggedEqual(maybe_map, UndefinedConstant()), &call_runtime);
+      TNode<HeapObject> derived_maps = CAST(
+          LoadObjectField(prototype_info, PrototypeInfo::kDerivedMapsOffset));
+      // In case it exists, derived maps is a weak array list where the first
+      // element is the object create map.
+      GotoIf(TaggedEqual(derived_maps, UndefinedConstant()), &call_runtime);
+      CSA_DCHECK(this, InstanceTypeEqual(LoadInstanceType(derived_maps),
+                                         WEAK_ARRAY_LIST_TYPE));
+      TNode<MaybeObject> maybe_map = UncheckedCast<MaybeObject>(LoadObjectField(
+          derived_maps, IntPtrConstant(WeakArrayList::kHeaderSize)));
       map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
       Goto(&instantiate_map);
     }

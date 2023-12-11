@@ -2064,6 +2064,14 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   } else {
     CHECK(IsSmi(prototype_users()));
   }
+  Tagged<HeapObject> derived = derived_maps(isolate);
+  if (!IsUndefined(derived)) {
+    auto derived_list = WeakArrayList::cast(derived);
+    CHECK_GT(derived_list->length(), 0);
+    for (int i = 0; i < derived_list->length(); ++i) {
+      derived_list->Get(i)->IsWeakOrCleared();
+    }
+  }
 }
 
 void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {

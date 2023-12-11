@@ -894,17 +894,57 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     Handle<PrototypeInfo> info =
         Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
     // TODO(verwaest): Use inobject slack tracking for this map.
-    if (info->HasObjectCreateMap()) {
-      map = handle(info->ObjectCreateMap(), isolate);
+    Tagged<HeapObject> map_obj;
+    if (info->ObjectCreateMap()->GetHeapObjectIfWeak(&map_obj)) {
+      map = handle(Tagged<Map>::cast(map_obj), isolate);
     } else {
       map = Map::CopyInitialMap(isolate, map);
       Map::SetPrototype(isolate, map, prototype);
-      PrototypeInfo::SetObjectCreateMap(info, map);
+      PrototypeInfo::SetObjectCreateMap(info, map, isolate);
     }
     return map;
   }
 
   return Map::TransitionToPrototype(isolate, map, prototype);
+}
+
+// static
+Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
+                               Handle<JSReceiver> prototype) {
+  auto CreateDerivedMap = [&]() {
+    Handle<Map> map = Map::CopyInitialMap(isolate, from);
+    map->set_new_target_is_base(false);
+    if (map->prototype() != *prototype) {
+      Map::SetPrototype(isolate, map, prototype);
+    }
+    return map;
+  };
+
+  if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
+    Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+    if (!js_prototype->map()->is_prototype_map()) {
+      JSObject::OptimizeAsPrototype(js_prototype);
+    }
+    Handle<PrototypeInfo> info =
+        Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+    Tagged<HeapObject> map_obj;
+    Handle<Map> map;
+    if (info->GetDerivedMap(from).GetHeapObjectIfWeak(&map_obj)) {
+      map = handle(Tagged<Map>::cast(map_obj), isolate);
+    } else {
+      map = CreateDerivedMap();
+      PrototypeInfo::AddDerivedMap(info, map, isolate);
+    }
+    return map;
+  }
+
+  CHECK(IsJSProxy(*prototype));
+
+  // The TransitionToPrototype map will not have new_target_is_base reset. But
+  // we don't need it to for proxies.
+  // TODO(olivf): If we never create objects with `this` map (instead of the
+  // derived map) then slack tracking will never finish.
+  return Map::TransitionToPrototype(isolate, from, prototype);
 }
 
 static bool ContainsMap(MapHandles const& maps, Tagged<Map> map) {

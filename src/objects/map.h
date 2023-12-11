@@ -820,6 +820,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> GetObjectCreateMap(Isolate* isolate,
                                         Handle<HeapObject> prototype);
 
+  // Returns the map to be used for instances when the given {prototype} is
+  // passed to Reflect.construct or proxy constructors.
+  static Handle<Map> GetDerivedMap(Isolate* isolate, Handle<Map> from,
+                                   Handle<JSReceiver> prototype);
+
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
