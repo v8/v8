@@ -4563,7 +4563,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return (types_unrelated &&
             (!null_succeeds || !obj.type.is_nullable() ||
              obj.type.is_string_view() || expected_type.is_string_view())) ||
-           (!null_succeeds &&
+           ((!null_succeeds || !obj.type.is_nullable()) &&
             (expected_type.representation() == HeapType::kNone ||
              expected_type.representation() == HeapType::kNoFunc ||
              expected_type.representation() == HeapType::kNoExtern));
