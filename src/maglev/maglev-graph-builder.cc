@@ -8503,8 +8503,7 @@ void MaglevGraphBuilder::VisitToObject() {
 
 void MaglevGraphBuilder::VisitToString() {
   // ToString
-  ValueNode* value = GetAccumulatorTagged();
-  SetAccumulator(BuildToString(value, ToString::kThrowOnSymbol));
+  SetAccumulator(BuildToString(GetRawAccumulator(), ToString::kThrowOnSymbol));
 }
 
 void MaglevGraphBuilder::VisitToBoolean() {
