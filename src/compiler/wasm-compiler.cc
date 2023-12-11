@@ -7859,27 +7859,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // If the current stack is a secondary stack, switch, perform the call and
     // switch back. Otherwise, just do the call.
     // Return the Phi of the calls in the two branches.
-    auto no_switch = gasm_->MakeLabel();
+    auto do_switch = gasm_->MakeDeferredLabel();
     auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
     Node* isolate_root = BuildLoadIsolateRoot();
     Node* is_on_central_stack_flag =
         gasm_->Load(MachineType::Uint8(), isolate_root,
                     IsolateData::is_on_central_stack_flag_offset());
-    gasm_->GotoIf(is_on_central_stack_flag, &no_switch);
+    gasm_->GotoIfNot(is_on_central_stack_flag, &do_switch);
 
-    Node* old_sp = BuildSwitchToTheCentralStack(callable_node);
     args[pos++] = effect();
     args[pos++] = control();
     DCHECK_EQ(pos, args.size());
-
     Node* call = gasm_->Call(call_descriptor, pos, args.begin());
-    BuildSwitchBackFromCentralStack(old_sp, callable_node);
     gasm_->Goto(&end, call);
 
-    gasm_->Bind(&no_switch);
+    gasm_->Bind(&do_switch);
+    Node* old_sp = BuildSwitchToTheCentralStack(callable_node);
     args[pos - 2] = effect();
     args[pos - 1] = control();
+
     call = gasm_->Call(call_descriptor, pos, args.begin());
+    BuildSwitchBackFromCentralStack(old_sp, callable_node);
     gasm_->Goto(&end, call);
 
     gasm_->Bind(&end);
