@@ -1864,7 +1864,7 @@ class DateFormatCache {
     }
     std::unique_ptr<icu::SimpleDateFormat> instance(
         CreateICUDateFormat(icu_locale, skeleton, generator, hc));
-    if (instance.get() == nullptr) return nullptr;
+    if (instance == nullptr) return nullptr;
     map_[key] = std::move(instance);
     return static_cast<icu::SimpleDateFormat*>(map_[key]->clone());
   }
@@ -2037,7 +2037,7 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
                                               icu_locale)));
       // For instance without time, we do not need to worry about the hour cycle
       // impact so we can return directly.
-      if (result.get() != nullptr) {
+      if (result != nullptr) {
         return result;
       }
     }

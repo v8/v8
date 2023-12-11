@@ -123,14 +123,14 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
   bool success =
       CreateICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules);
-  if (!success || icu_plural_rules.get() == nullptr) {
+  if (!success || icu_plural_rules == nullptr) {
     // Remove extensions and try again.
     icu::Locale no_extension_locale(icu_locale.getBaseName());
     success = CreateICUPluralRules(isolate, no_extension_locale, type,
                                    &icu_plural_rules);
     icu_locale = no_extension_locale;
 
-    if (!success || icu_plural_rules.get() == nullptr) {
+    if (!success || icu_plural_rules == nullptr) {
       THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                       JSPluralRules);
     }

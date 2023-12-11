@@ -4336,7 +4336,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     DCHECK_LE(0, position);
     wasm::NativeModule* native_module = wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
-    if (module->functions.size() == 0) return false;
+    if (module->functions.empty()) return false;
     info->line = 0;
     info->column = position;
     info->line_start = module->functions[0].code.offset();

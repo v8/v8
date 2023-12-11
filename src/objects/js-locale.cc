@@ -104,7 +104,7 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
-  if (status == U_ILLEGAL_ARGUMENT_ERROR || value == "") {
+  if (status == U_ILLEGAL_ARGUMENT_ERROR || value.empty()) {
     return isolate->factory()->undefined_value();
   }
   if (value == "yes") {
@@ -208,7 +208,7 @@ bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {
   while (std::getline(token_stream, token, '-')) {
     tokens.push_back(token);
   }
-  if (tokens.size() == 0) return false;
+  if (tokens.empty()) return false;
 
   // length >= 1
   if (!IsUnicodeLanguageSubtag(tokens[0])) return false;

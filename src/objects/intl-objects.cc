@@ -669,7 +669,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                            const std::string& locale_in) {
   std::string locale = locale_in;
 
-  if (locale.length() == 0 ||
+  if (locale.empty() ||
       !String::IsAscii(locale.data(), static_cast<int>(locale.length()))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -875,7 +875,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales)) {
     return MaybeHandle<String>();
   }
-  std::string requested_locale = requested_locales.size() == 0
+  std::string requested_locale = requested_locales.empty()
                                      ? isolate->DefaultLocale()
                                      : requested_locales[0];
   size_t dash = requested_locale.find('-');
@@ -2387,7 +2387,7 @@ bool Intl::IsValidNumberingSystem(const std::string& value) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
-  return U_SUCCESS(status) && numbering_system.get() != nullptr &&
+  return U_SUCCESS(status) && numbering_system != nullptr &&
          !numbering_system->isAlgorithmic();
 }
 
