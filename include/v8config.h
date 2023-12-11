@@ -13,6 +13,7 @@ path. Add it with -I<path> to the command line
 #include "v8-gn.h"  // NOLINT(build/include_directory)
 #endif
 
+#include <memory>
 // clang-format off
 
 // Platform headers for feature detection below.
@@ -480,13 +481,16 @@ path. Add it with -I<path> to the command line
 # define V8_ASSUME USE
 #endif
 
-#if V8_HAS_BUILTIN_ASSUME_ALIGNED
+// Prefer c++20 std::assume_aligned
+#if __cplusplus >= 202002L
+# define V8_ASSUME_ALIGNED(ptr, alignment) \
+  std::assume_aligned<(alignment)>(ptr)
+#elif V8_HAS_BUILTIN_ASSUME_ALIGNED
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   __builtin_assume_aligned((ptr), (alignment))
 #else
 # define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
-
 
 // A macro to mark functions whose values don't change (e.g. across calls)
 // and thereby compiler is free to hoist and fold multiple calls together.
