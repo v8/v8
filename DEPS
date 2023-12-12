@@ -83,7 +83,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:16.20231129.1.1',
+  'fuchsia_version': 'version:17.20231211.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7d13bd8a25fb4ef06e5667975d1330a3ab7157e9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2711b553c360c071757a04029049bf6319fc658f',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '48eb5d0b338fad2151025f7d33ae85eef73c5665',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7e0ec130696bf72ecf03ce0cd1c372f19214ce3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6edbd6b5ca136a765dedf7f17c0b52ce3972465c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd3f7f448d3d29d95a01a54b8fd6873da3608f596',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,9 +239,9 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1714cc6e5ae38710150329dc4222a11be492e994',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eddb1eed5ea4158159252a6ee4bd0b961be691c5',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '93e031cd9e2503bf6f1f2d9e6fd643785bdce6e8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '6ad82eadcb1a4404964a8d86c544fda1dab7af94',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
@@ -276,7 +276,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '16665d119a630ebc4dc49d9eafaba608f00a5f18',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'a88e6d6daa3e091f662c8a198b5d3a0d3a723705',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd5e7c425e0497efe2800b8a42b3e0bac0b1d3134',
   'third_party/libunwind/src':
