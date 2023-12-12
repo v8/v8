@@ -275,7 +275,7 @@ class InjectedScript::ProtocolPromiseHandler {
 
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions.get(), &wrappedValue);
+        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
@@ -298,7 +298,7 @@ class InjectedScript::ProtocolPromiseHandler {
     if (!response.IsSuccess()) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions.get(), &wrappedValue);
+        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);

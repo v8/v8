@@ -120,7 +120,6 @@ void IteratorBuiltinsAssembler::IteratorComplete(
   }
 
   BIND(&return_result);
-  return;
 }
 
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(

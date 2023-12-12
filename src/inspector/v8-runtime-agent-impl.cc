@@ -202,7 +202,7 @@ void innerCallFunctionOn(
 
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup, *wrapOptions.get(),
+                            scope.tryCatch(), objectGroup, *wrapOptions,
                             throwOnSideEffect, callback.get());
     return;
   }
@@ -436,8 +436,8 @@ void V8RuntimeAgentImpl::evaluate(
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
-                            *wrapOptions.get(),
-                            throwOnSideEffect.value_or(false), callback.get());
+                            *wrapOptions, throwOnSideEffect.value_or(false),
+                            callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
@@ -594,7 +594,7 @@ Response V8RuntimeAgentImpl::getProperties(
   response = scope.injectedScript()->getProperties(
       object, scope.objectGroupName(), ownProperties.value_or(false),
       accessorPropertiesOnly.value_or(false),
-      nonIndexedPropertiesOnly.value_or(false), *wrapOptions.get(), result,
+      nonIndexedPropertiesOnly.value_or(false), *wrapOptions, result,
       exceptionDetails);
   if (!response.IsSuccess()) return response;
   if (exceptionDetails->isJust()) return Response::Success();
@@ -783,7 +783,7 @@ void V8RuntimeAgentImpl::runScript(
   if (!awaitPromise.value_or(false) || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
-                            *wrapOptions.get(), false /* throwOnSideEffect */,
+                            *wrapOptions, false /* throwOnSideEffect */,
                             callback.get());
     return;
   }

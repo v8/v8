@@ -2070,7 +2070,7 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
   if (m_debuggerBreakpointIdToBreakpointId.find(instrumentationId) !=
       m_debuggerBreakpointIdToBreakpointId.end()) {
     DCHECK_GT(protocolCallFrames->size(), 0);
-    if (protocolCallFrames->size() > 0) {
+    if (!protocolCallFrames->empty()) {
       m_instrumentationFinished = false;
       breakReason = protocol::Debugger::Paused::ReasonEnum::Instrumentation;
       const String16 scriptId =

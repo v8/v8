@@ -104,7 +104,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   DCHECK(isolate_->IsGeneratingEmbeddedBuiltins());
 
   // An empty map means there's nothing to do.
-  if (map_.size() == 0) return;
+  if (map_.empty()) return;
 
   Handle<FixedArray> table =
       isolate_->factory()->NewFixedArray(map_.size(), AllocationType::kOld);

@@ -270,7 +270,7 @@ RegExpTree* RegExpTextBuilder::PopLastAtom() {
     characters_ = nullptr;
     atom = zone()->New<RegExpAtom>(char_vector);
     return atom;
-  } else if (text_.size() > 0) {
+  } else if (!text_.empty()) {
     atom = text_.back();
     text_.pop_back();
     return atom;
@@ -3083,7 +3083,7 @@ bool RegExpBuilder::AddQuantifierToAtom(
   RegExpTree* atom = text_builder().PopLastAtom();
   if (atom != nullptr) {
     FlushText();
-  } else if (terms_.size() > 0) {
+  } else if (!terms_.empty()) {
     atom = terms_.back();
     terms_.pop_back();
     if (atom->IsLookaround()) {
