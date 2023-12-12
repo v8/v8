@@ -785,6 +785,8 @@ class WasmExportedFunctionData
     : public TorqueGeneratedWasmExportedFunctionData<WasmExportedFunctionData,
                                                      WasmFunctionData> {
  public:
+  DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
+
   DECL_EXTERNAL_POINTER_ACCESSORS(sig, wasm::FunctionSig*)
 
   // Dispatched behavior.

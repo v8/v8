@@ -320,6 +320,9 @@ ACCESSORS(WasmFunctionData, internal, Tagged<WasmInternalFunction>,
           kInternalOffset)
 
 // WasmExportedFunctionData
+CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
+                       kCWrapperCodeOffset)
+
 EXTERNAL_POINTER_ACCESSORS(WasmExportedFunctionData, sig, wasm::FunctionSig*,
                            kSigOffset, kWasmExportedFunctionDataSignatureTag)
 

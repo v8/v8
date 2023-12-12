@@ -1559,7 +1559,8 @@ void PrepareFunctionData(i::Isolate* isolate,
                          const i::wasm::FunctionSig* sig,
                          const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
-  if (function_data->c_wrapper_code() != *BUILTIN_CODE(isolate, Illegal)) {
+  if (function_data->c_wrapper_code(isolate) !=
+      *BUILTIN_CODE(isolate, Illegal)) {
     return;
   }
   // Compile wrapper code.
@@ -1701,7 +1702,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   const i::wasm::FunctionSig* sig =
       instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig, instance->module());
-  i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(), isolate);
+  i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(isolate),
+                                  isolate);
   i::Address call_target = function_data->internal()->call_target(isolate);
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
