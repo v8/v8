@@ -2090,7 +2090,6 @@ if (v8_enable_i18n_support) {
 
 if (v8_enable_webassembly) {
   torque_files += [
-    "src/builtins/js-to-js.tq",
     "src/builtins/js-to-wasm.tq",
     "src/builtins/wasm.tq",
     "src/builtins/wasm-strings.tq",

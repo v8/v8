@@ -81,7 +81,6 @@ extern enum HeapType extends int32
   kArray,
   kAny,
   kNone,
-  kFunc,
   kNoFunc,
   kExn,
   kNoExn,
