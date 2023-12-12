@@ -1507,30 +1507,33 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   MaybeObject entry =
       isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
 
-  Handle<Code> wrapper;
-  // {entry} can be cleared, {undefined}, or a ready {Code}.
-  if (entry.IsStrongOrWeak() && IsCode(entry.GetHeapObject())) {
-    wrapper = handle(Code::cast(entry.GetHeapObject()), isolate);
+  Handle<Code> wrapper_code;
+  // {entry} can be cleared, {undefined}, or a ready {CodeWrapper}.
+  DCHECK(entry.IsCleared() || IsUndefined(entry.GetHeapObject()) ||
+         IsCodeWrapper(entry.GetHeapObject()));
+  if (entry.IsStrongOrWeak() && IsCodeWrapper(entry.GetHeapObject())) {
+    wrapper_code = handle(
+        CodeWrapper::cast(entry.GetHeapObject())->code(isolate), isolate);
   } else if (!function.imported &&
              CanUseGenericJsToWasmWrapper(module, function.sig)) {
-    wrapper = isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
+    wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
     // later use.
-    wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+    wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
         isolate, function.sig, canonical_sig_index, instance->module(),
         function.imported);
   }
-  if (!wrapper->is_builtin()) {
+  if (!wrapper_code->is_builtin()) {
     // Store the wrapper in the isolate, or make its reference weak now that we
     // have a function referencing it.
     isolate->heap()->js_to_wasm_wrappers()->Set(
-        wrapper_index, HeapObjectReference::Weak(*wrapper));
+        wrapper_index, HeapObjectReference::Weak(wrapper_code->wrapper()));
   }
   auto result = WasmExportedFunction::New(
       isolate, instance, internal, internal->function_index(),
-      static_cast<int>(function.sig->parameter_count()), wrapper);
+      static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
   internal->set_external(*result);
   return result;

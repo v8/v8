@@ -1658,6 +1658,7 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
           isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
       if (existing_wrapper.IsStrongOrWeak() &&
           !IsUndefined(existing_wrapper.GetHeapObject())) {
+        DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
         // Skip wrapper compilation as the wrapper is already cached.
         // Note that this does not guarantee that the wrapper is still cached
         // at the moment at which the WasmInternalFunction is instantiated.
@@ -3642,8 +3643,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
     DCHECK(!code->is_builtin());
     uint32_t index =
         GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
-    isolate->heap()->js_to_wasm_wrappers()->Set(index,
-                                                MaybeObject::FromObject(*code));
+    isolate->heap()->js_to_wasm_wrappers()->Set(
+        index, MaybeObject::FromObject(code->wrapper()));
     RecordStats(*code, isolate->counters());
     isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
   }
@@ -4119,6 +4120,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
         isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
         !IsUndefined(existing_wrapper.GetHeapObject())) {
+      DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
       continue;
     }
 
@@ -4159,7 +4161,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     DCHECK(!code->is_builtin());
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
     isolate->heap()->js_to_wasm_wrappers()->Set(
-        wrapper_index, HeapObjectReference::Strong(*code));
+        wrapper_index, HeapObjectReference::Strong(code->wrapper()));
     // Do not increase code stats for non-jitted wrappers.
     RecordStats(*code, isolate->counters());
     isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
