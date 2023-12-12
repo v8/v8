@@ -505,6 +505,37 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(
+      WasmExternalFunction::IsWasmExternalFunction(args[0]));
+}
+
+RUNTIME_FUNCTION(Runtime_TierUpJSToJSWrapper) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<WasmApiFunctionRef> ref(WasmApiFunctionRef::cast(args[0]), isolate);
+  Handle<WasmFunctionData> function_data(WasmFunctionData::cast(args[1]),
+                                         isolate);
+
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(ref->native_context());
+
+  std::unique_ptr<wasm::ValueType[]> reps;
+  wasm::FunctionSig sig =
+      wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
+
+  Handle<Code> wrapper =
+      compiler::CompileJSToJSWrapper(isolate, &sig, nullptr).ToHandleChecked();
+
+  Handle<JSFunction> exported_function =
+      WasmInternalFunction::GetOrCreateExternal(
+          handle(function_data->internal(), isolate));
+  exported_function->set_code(*wrapper);
+  function_data->set_wrapper_code(*wrapper);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

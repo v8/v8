@@ -1045,6 +1045,7 @@ filegroup(
         "third_party/v8/builtins/array-sort.tq",
     ] + select({
         ":is_v8_enable_webassembly": [
+            "src/builtins/js-to-js.tq",
             "src/builtins/js-to-wasm.tq",
             "src/builtins/wasm.tq",
             "src/builtins/wasm-strings.tq",

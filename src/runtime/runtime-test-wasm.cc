@@ -203,6 +203,35 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
                                     wrapper->instruction_start());
 }
 
+RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<Object> param = args.at<Object>(0);
+  if (!WasmJSFunction::IsWasmJSFunction(*param)) {
+    return isolate->heap()->ToBoolean(false);
+  }
+  Handle<WasmJSFunction> wasm_js_function = Handle<WasmJSFunction>::cast(param);
+  Handle<WasmJSFunctionData> function_data =
+      handle(wasm_js_function->shared()->wasm_js_function_data(), isolate);
+
+  Handle<JSFunction> external_function =
+      WasmInternalFunction::GetOrCreateExternal(
+          handle(function_data->internal(), isolate));
+  Handle<Code> external_function_code =
+      handle(external_function->code(isolate), isolate);
+  Handle<Code> function_data_code =
+      handle(function_data->wrapper_code(isolate), isolate);
+  Tagged<Code> wrapper = isolate->builtins()->code(Builtin::kJSToJSWrapper);
+  if (wrapper != *external_function_code) {
+    return isolate->heap()->ToBoolean(false);
+  }
+  if (wrapper != *function_data_code) {
+    return isolate->heap()->ToBoolean(false);
+  }
+
+  return isolate->heap()->ToBoolean(true);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   HandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
