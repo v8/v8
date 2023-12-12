@@ -5619,7 +5619,16 @@ void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    OpIndex ovf = FindProjection(node, 1);
+    if (ovf.valid()) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, RegisterRepresentation::Word64(), kArm64Add,
+                        kArithmeticImm, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, RegisterRepresentation::Word64(), kArm64Add,
+               kArithmeticImm, &cont);
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
@@ -5635,7 +5644,16 @@ void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    OpIndex ovf = FindProjection(node, 1);
+    if (ovf.valid()) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, RegisterRepresentation::Word64(), kArm64Sub,
+                        kArithmeticImm, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, RegisterRepresentation::Word64(), kArm64Sub,
+               kArithmeticImm, &cont);
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
@@ -5650,21 +5668,18 @@ void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      // ARM64 doesn't set the overflow flag for multiplication, so we need to
-      // test on kNotEqual. Here is the code sequence used:
-      //   mul result, left, right
-      //   smulh high, left, right
-      //   cmp high, result, asr 63
-      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-      return EmitInt64MulWithOverflow(this, node, &cont);
-    }
-    FlagsContinuation cont;
-    EmitInt64MulWithOverflow(this, node, &cont);
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    // ARM64 doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   mul result, left, right
+    //   smulh high, left, right
+    //   cmp high, result, asr 63
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
   }
+  FlagsContinuation cont;
+  EmitInt64MulWithOverflow(this, node, &cont);
 }
 
 template <typename Adapter>
