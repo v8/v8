@@ -196,7 +196,7 @@ class TurboshaftGraphBuildingInterface {
         // instance.
         ssa_env_[index] = real_parameters_[index + 1];
       }
-      return_phis_.InitReturnPhis(decoder->sig_->returns());
+      return_phis_.InitReturnPhis(decoder->sig_->returns(), instance_cache_);
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
@@ -589,8 +589,13 @@ class TurboshaftGraphBuildingInterface {
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
-      for (size_t i = 0; i < return_values.size(); i++) {
+      for (size_t i = 0; i < return_count; i++) {
         return_phis_.AddInputForPhi(i, return_values[i]);
+      }
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        return_phis_.AddInputForPhi(return_count + i,
+                                    instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -3974,17 +3979,22 @@ class TurboshaftGraphBuildingInterface {
 
     // Default ctor and later initialization for function returns.
     explicit BlockPhis(Zone* zone) : incoming_exceptions_(zone) {}
-    void InitReturnPhis(base::iterator_range<const ValueType*> return_types) {
+    void InitReturnPhis(base::iterator_range<const ValueType*> return_types,
+                        InstanceCache& instance_cache) {
       // For `return_phis_`, nobody should have inserted into `this` before
       // calling `InitReturnPhis`.
       DCHECK_EQ(phi_count_, 0);
       DCHECK_EQ(inputs_per_phi_, 0);
 
-      phi_count_ = static_cast<uint32_t>(return_types.size());
+      uint32_t return_count = static_cast<uint32_t>(return_types.size());
+      phi_count_ = return_count + instance_cache.num_mutable_fields();
       phi_types_ = zone()->AllocateArray<ValueType>(phi_count_);
 
       std::uninitialized_copy(return_types.begin(), return_types.end(),
                               phi_types_);
+      for (uint32_t i = 0; i < instance_cache.num_mutable_fields(); i++) {
+        phi_types_[return_count + i] = instance_cache.mutable_field_type(i);
+      }
       AllocatePhiInputs(zone());
     }
 
@@ -5905,14 +5915,20 @@ class TurboshaftGraphBuildingInterface {
       // and return the return values to the caller.
       // TODO(14108): This can remain a tail call if the inlined call is also a
       // tail call.
-      SmallZoneVector<Value, 16> returns(sig->return_count(), decoder->zone_);
+      size_t return_count = sig->return_count();
+      SmallZoneVector<Value, 16> returns(return_count, decoder->zone_);
       // Since an exception in a tail call cannot be caught in this frame, we
       // should only catch exceptions in the generated call if this is a
       // recursively inlined function, and the parent frame provides a handler.
       BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
                     CheckForException::kCatchInParentFrame);
-      for (size_t i = 0; i < sig->return_count(); i++) {
+      for (size_t i = 0; i < return_count; i++) {
         return_phis_.AddInputForPhi(i, returns[i].op);
+      }
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        return_phis_.AddInputForPhi(return_count + i,
+                                    instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -6664,9 +6680,16 @@ class TurboshaftGraphBuildingInterface {
 
     __ Bind(callee_return_block);
     BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
-    for (size_t i = 0; i < inlinee.sig->return_count(); i++) {
+    size_t return_count = inlinee.sig->return_count();
+    for (size_t i = 0; i < return_count; i++) {
       returns[i].op =
           MaybePhi(return_phis.phi_inputs(i), return_phis.phi_type(i));
+    }
+    uint32_t cached_values = instance_cache_.num_mutable_fields();
+    for (uint32_t i = 0; i < cached_values; i++) {
+      OpIndex phi = MaybePhi(return_phis.phi_inputs(i + return_count),
+                             instance_cache_.mutable_field_type(i));
+      instance_cache_.set_mutable_field_value(i, phi);
     }
 
     if (!v8_flags.liftoff) {
