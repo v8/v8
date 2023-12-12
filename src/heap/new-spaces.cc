@@ -909,8 +909,6 @@ void PagedSpaceForNewSpace::FinishShrinking() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_IMPLIES(!force_allocation_success_,
-                 UsableCapacity() <= TotalCapacity());
   return PagedSpaceBase::AddPage(page);
 }
 
@@ -934,27 +932,6 @@ bool PagedSpaceForNewSpace::AddFreshPage() {
 
 bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
   return current_capacity_ > target_capacity_;
-}
-
-bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
-                                                  AllocationOrigin origin) {
-  DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-  // Allocate another page is `force_allocation_success_` is true,
-  // `UsableCapacity()` is below `TotalCapacity()` and allocating another page
-  // won't exceed `TotalCapacity()`.
-  if (force_allocation_success_ ||
-      ((UsableCapacity() < TotalCapacity()) &&
-       (TotalCapacity() - UsableCapacity() >= Page::kPageSize))) {
-    if (!heap()->CanExpandOldGeneration(
-            Size() + heap()->new_lo_space()->Size() + Page::kPageSize)) {
-      // Assuming all of new space is alive, doing a full GC and promoting all
-      // objects should still succeed. Don't let new space grow if it means it
-      // will exceed the available size of old space.
-      return false;
-    }
-    return AllocatePage();
-  }
-  return false;
 }
 
 bool PagedSpaceForNewSpace::AllocatePage() {

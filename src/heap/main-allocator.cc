@@ -526,7 +526,7 @@ bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
 
   if (!paged_space_allocator_policy_->EnsureAllocation(size_in_bytes, alignment,
                                                        origin)) {
-    if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
+    if (!TryAllocateNewPage(size_in_bytes, origin)) {
       if (!WaitForSweepingForAllocation(size_in_bytes, origin)) {
         return false;
       }
@@ -577,14 +577,27 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
       static_cast<size_t>(size_in_bytes), origin);
 }
 
-bool PagedNewSpaceAllocatorPolicy::AddPageBeyondCapacity(
-    int size_in_bytes, AllocationOrigin origin) {
-  if (space_->paged_space()->AddPageBeyondCapacity(size_in_bytes, origin)) {
-    return paged_space_allocator_policy_->TryAllocationFromFreeList(
-        size_in_bytes, origin);
+namespace {
+bool IsPagedNewSpaceAtFullCapacity(const PagedNewSpace* space) {
+  const auto* paged_space = space->paged_space();
+  if ((paged_space->UsableCapacity() < paged_space->TotalCapacity()) &&
+      (paged_space->TotalCapacity() - paged_space->UsableCapacity() >=
+       Page::kPageSize)) {
+    // Adding another page would exceed the target capacity of the space.
+    return false;
   }
+  return true;
+}
+}  // namespace
 
-  return false;
+bool PagedNewSpaceAllocatorPolicy::TryAllocateNewPage(int size_in_bytes,
+                                                      AllocationOrigin origin) {
+  if (IsPagedNewSpaceAtFullCapacity(space_) &&
+      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation())
+    return false;
+  if (!space_->paged_space()->AllocatePage()) return false;
+  return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
+                                                                  origin);
 }
 
 void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
