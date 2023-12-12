@@ -23,6 +23,28 @@ namespace internal {
 
 class Isolate;
 
+#if V8_HOST_ARCH_64_BIT
+// No padding is currently required for fast_c_call_XXX and wasm64_oob_offset_
+// fields.
+#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)
+#define ISOLATE_DATA_WASM64_OOB_PADDING(V)
+
+#else
+// Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
+#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)               \
+  V(kFastCCallAlignmentPaddingOffset, kSystemPointerSize, \
+    fast_c_call_alignment_padding)
+
+// Aligns wasm64_oob_offset_ field to 8 bytes to avoid issues with different
+// field alignment vs cross-compilation.
+// The wasm64_oob_offset_ is currently aligned, so don't add the padding.
+#define ISOLATE_DATA_WASM64_OOB_PADDING(V)
+// #define ISOLATE_DATA_WASM64_OOB_PADDING(V)                      \
+//   V(kWasm64OOBOffsetAlignmentPaddingOffset, kSystemPointerSize, \
+//     wasm64_oob_offset_alignment_padding)
+
+#endif  // V8_HOST_ARCH_64_BIT
+
 // IsolateData fields, defined as: V(Offset, Size, Name)
 #define ISOLATE_DATA_FIELDS(V)                                                \
   /* Misc. fields. */                                                         \
@@ -47,6 +69,7 @@ class Isolate;
     new_allocation_info)                                                      \
   V(kOldAllocationInfoOffset, LinearAllocationArea::kSize,                    \
     old_allocation_info)                                                      \
+  ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                         \
   V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)      \
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
@@ -59,9 +82,10 @@ class Isolate;
   ISOLATE_DATA_FIELDS_SANDBOX(V)                                              \
   V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
     api_callback_thunk_argument)                                              \
-  V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                          \
   V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,             \
     continuation_preserved_embedder_data)                                     \
+  ISOLATE_DATA_WASM64_OOB_PADDING(V)                                          \
+  V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                          \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -266,14 +290,20 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
+#if !V8_HOST_ARCH_64_BIT
+  // Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
+  Address fast_c_call_alignment_padding_;
+#endif
+
   // Stores the state of the caller for MacroAssembler::CallCFunction so that
   // the sampling CPU profiler can iterate the stack during such calls. These
   // are stored on IsolateData so that they can be stored to with only one move
   // instruction in compiled code.
-  //
-  // The FP and PC that are saved right before MacroAssembler::CallCFunction.
-  Address fast_c_call_caller_fp_ = kNullAddress;
-  Address fast_c_call_caller_pc_ = kNullAddress;
+  struct {
+    // The FP and PC that are saved right before MacroAssembler::CallCFunction.
+    Address fast_c_call_caller_fp_ = kNullAddress;
+    Address fast_c_call_caller_pc_ = kNullAddress;
+  };
   // The address of the fast API callback right before it's executed from
   // generated code.
   Address fast_api_call_target_ = kNullAddress;
@@ -304,13 +334,18 @@ class IsolateData final {
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
 
+  // This is data that should be preserved on newly created continuations.
+  Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();
+
+#if !V8_HOST_ARCH_64_BIT
+  // Aligns wasm64_oob_offset_ field to 8 bytes to avoid cross-compilation
+  // issues on some 32-bit configurations.
+  // Address wasm64_oob_offset_alignment_padding_;
+#endif
   // An offset that always generates an invalid address when added to any
   // start address of a Wasm memory. This is used to force an out-of-bounds
   // access on Wasm memory64.
   int64_t wasm64_oob_offset_ = 0xf000'0000'0000'0000;
-
-  // This is data that should be preserved on newly created continuations.
-  Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
@@ -356,6 +391,11 @@ void IsolateData::AssertPredictableLayout() {
   static_assert(offsetof(IsolateData, Name##_) == Offset);
   ISOLATE_DATA_FIELDS(V)
 #undef V
+  // Some C++ compilers on some 32-bits configurations want to align |int64_t|
+  // field to 8 while normally, Clang aligns this field to 4. In particular,
+  // when building for Android/arm or Windows/ia32. Catch this issue early.
+  static_assert(IsAligned(offsetof(IsolateData, wasm64_oob_offset_),
+                          sizeof(IsolateData::wasm64_oob_offset_)));
   static_assert(sizeof(IsolateData) == IsolateData::kSize);
 }
 

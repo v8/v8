@@ -688,8 +688,12 @@ class Internals {
       kBuiltinTier0TableOffset + kBuiltinTier0TableSize;
   static const int kOldAllocationInfoOffset =
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
+
+  static const int kFastCCallAlignmentPaddingSize =
+      kApiSystemPointerSize == 8 ? 0 : kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerFpOffset =
-      kOldAllocationInfoOffset + kLinearAllocationAreaSize;
+      kOldAllocationInfoOffset + kLinearAllocationAreaSize +
+      kFastCCallAlignmentPaddingSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateFastApiCallTargetOffset =
@@ -720,12 +724,15 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kWasm64OOBOffsetOffset =
-      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
-      kWasm64OOBOffsetOffset + sizeof(int64_t);
+      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+
+  static const int kWasm64OOBOffsetAlignmentPaddingSize = 0;
+  static const int kWasm64OOBOffsetOffset =
+      kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize +
+      kWasm64OOBOffsetAlignmentPaddingSize;
   static const int kIsolateRootsOffset =
-      kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
+      kWasm64OOBOffsetOffset + sizeof(int64_t);
 
 #if V8_STATIC_ROOTS_BOOL
 

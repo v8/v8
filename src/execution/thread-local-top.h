@@ -40,13 +40,6 @@ class ThreadLocalTop {
   // Initialize the thread data.
   void Initialize(Isolate*);
 
-  // The top C++ try catch handler or nullptr if none are registered.
-  //
-  // This field is not guaranteed to hold an address that can be
-  // used for comparison with addresses into the JS stack. If such
-  // an address is needed, use try_catch_handler_address.
-  v8::TryCatch* try_catch_handler_;
-
   // Get the address of the top C++ try catch handler or nullptr if
   // none are registered.
   //
@@ -96,16 +89,27 @@ class ThreadLocalTop {
 
   void Free();
 
-  Isolate* isolate_;
-  // The context where the current execution method is created and for variable
-  // lookups.
-  // TODO(3770): This field is read/written from generated code, so it would
-  // be cleaner to make it an "Address raw_context_", and construct a Context
-  // object in the getter. Same for {pending_handler_context_} below. In the
-  // meantime, assert that the memory layout is the same.
-  static_assert(sizeof(Context) == kSystemPointerSize);
-  Tagged<Context> context_;
-  std::atomic<ThreadId> thread_id_;
+  // Fields updated on every CEntry/CallApiCallback/CallApiGetter call must
+  // be groupped together. See MacroAssembler::EnterExitFram/LeaveExitFrame.
+  struct {
+    // The frame pointer of the top c entry frame.
+    Address c_entry_fp_;
+    // C function that was called at c entry.
+    Address c_function_;
+    // The context where the current execution method is created and for
+    // variable lookups.
+    // TODO(3770): This field is read/written from generated code, so it would
+    // be cleaner to make it an "Address raw_context_", and construct a Context
+    // object in the getter. Same for {pending_handler_context_} below. In the
+    // meantime, assert that the memory layout is the same.
+    static_assert(sizeof(Tagged<Context>) == kSystemPointerSize);
+    Tagged<Context> context_;
+
+    // This field is updated along with context_ on every operation triggered
+    // via V8 Api.
+    Address last_api_entry_;
+  };
+
   Tagged<Object> exception_ = Smi::zero();
 
   // Communication channel between Isolate::FindHandler and the CEntry.
@@ -115,6 +119,17 @@ class ThreadLocalTop {
   Address pending_handler_fp_;
   Address pending_handler_sp_;
 
+  // The top C++ try catch handler or nullptr if none are registered.
+  //
+  // This field is not guaranteed to hold an address that can be
+  // used for comparison with addresses into the JS stack. If such
+  // an address is needed, use try_catch_handler_address.
+  v8::TryCatch* try_catch_handler_;
+
+  // These two fields are updated rarely (on every thread restore).
+  Isolate* isolate_;
+  std::atomic<ThreadId> thread_id_;
+
   // TODO(all): Combine into a bitfield.
   uintptr_t num_frames_above_pending_handler_;
   // Wasm Stack Switching: The central stack.
@@ -122,18 +137,11 @@ class ThreadLocalTop {
   uint8_t is_on_central_stack_flag_;
   uint8_t rethrowing_message_;
 
-  Address last_api_entry_;
-
   // Communication channel between Isolate::Throw and message consumers.
   Tagged<Object> pending_message_ = Smi::zero();
 
-  // Stack.
-  // The frame pointer of the top c entry frame.
-  Address c_entry_fp_;
   // Try-blocks are chained through the stack.
   Address handler_;
-  // C function that was called at c entry.
-  Address c_function_;
 
   // Simulator field is always present to get predictable layout.
   Simulator* simulator_;

@@ -18,6 +18,8 @@ namespace internal {
 void ThreadLocalTop::Clear() {
   try_catch_handler_ = nullptr;
   isolate_ = nullptr;
+  c_entry_fp_ = kNullAddress;
+  c_function_ = kNullAddress;
   context_ = Context();
   thread_id_ = ThreadId();
   pending_handler_entrypoint_ = kNullAddress;
@@ -28,9 +30,7 @@ void ThreadLocalTop::Clear() {
   last_api_entry_ = kNullAddress;
   pending_message_ = Tagged<Object>();
   rethrowing_message_ = false;
-  c_entry_fp_ = kNullAddress;
   handler_ = kNullAddress;
-  c_function_ = kNullAddress;
   simulator_ = nullptr;
   js_entry_sp_ = kNullAddress;
   external_callback_scope_ = nullptr;

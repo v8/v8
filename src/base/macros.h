@@ -355,10 +355,13 @@ constexpr inline bool IsAligned(T value, U alignment) {
 }
 
 inline void* AlignedAddress(void* address, size_t alignment) {
-  // The alignment must be a power of two.
-  DCHECK_EQ(alignment & (alignment - 1), 0u);
-  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address) &
-                                 ~static_cast<uintptr_t>(alignment - 1));
+  return reinterpret_cast<void*>(
+      RoundDown(reinterpret_cast<uintptr_t>(address), alignment));
+}
+
+inline void* RoundUpAddress(void* address, size_t alignment) {
+  return reinterpret_cast<void*>(
+      RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
 // Bounds checks for float to integer conversions, which does truncation. Hence,

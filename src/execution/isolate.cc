@@ -3706,15 +3706,59 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
            Internals::kIsolateApiCallbackThunkArgumentOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(
+               Isolate, isolate_data_.continuation_preserved_embedder_data_)),
+           Internals::kContinuationPreservedEmbedderDataOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.wasm64_oob_offset_)),
+      Internals::kWasm64OOBOffsetOffset);
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
+
+  CHECK(IsAligned(reinterpret_cast<Address>(&isolate_data_),
+                  kIsolateDataAlignment));
 
   static_assert(Internals::kStackGuardSize == sizeof(StackGuard));
   static_assert(Internals::kBuiltinTier0TableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
   static_assert(Internals::kBuiltinTier0EntryTableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
+
+  // Ensure that certain hot IsolateData fields fall into the same CPU cache
+  // line.
+  constexpr size_t kCacheLineSize = 64;
+  static_assert(OFFSET_OF(Isolate, isolate_data_) == 0);
+
+  // Fields written on every CEntry/CallApiCallback/CallApiGetter call.
+  // See MacroAssembler::EnterExitFrame/LeaveExitFrame.
+  constexpr size_t kCEntryFPCacheLine = RoundDown<kCacheLineSize>(
+      OFFSET_OF(IsolateData, thread_local_top_.c_entry_fp_));
+  static_assert(kCEntryFPCacheLine ==
+                RoundDown<kCacheLineSize>(
+                    OFFSET_OF(IsolateData, thread_local_top_.c_function_)));
+  static_assert(kCEntryFPCacheLine ==
+                RoundDown<kCacheLineSize>(
+                    OFFSET_OF(IsolateData, thread_local_top_.context_)));
+  static_assert(kCEntryFPCacheLine ==
+                RoundDown<kCacheLineSize>(
+                    OFFSET_OF(IsolateData, thread_local_top_.last_api_entry_)));
+
+  // Fields written on every MacroAssembler::CallCFunction call.
+  static_assert(RoundDown<kCacheLineSize>(
+                    OFFSET_OF(IsolateData, fast_c_call_caller_fp_)) ==
+                RoundDown<kCacheLineSize>(
+                    OFFSET_OF(IsolateData, fast_c_call_caller_pc_)));
+
+  // LinearAllocationArea objects must not cross cache line boundary.
+  static_assert(
+      RoundDown<kCacheLineSize>(OFFSET_OF(IsolateData, new_allocation_info_)) ==
+      RoundDown<kCacheLineSize>(OFFSET_OF(IsolateData, new_allocation_info_) +
+                                sizeof(LinearAllocationArea) - 1));
+  static_assert(
+      RoundDown<kCacheLineSize>(OFFSET_OF(IsolateData, old_allocation_info_)) ==
+      RoundDown<kCacheLineSize>(OFFSET_OF(IsolateData, old_allocation_info_) +
+                                sizeof(LinearAllocationArea) - 1));
 }
 
 void Isolate::ClearSerializerData() {

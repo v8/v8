@@ -5,6 +5,7 @@
 #include "src/init/isolate-allocator.h"
 
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/platform/memory.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
@@ -107,15 +108,15 @@ IsolateAllocator::IsolateAllocator() {
   page_allocator_ = GetPlatformPageAllocator();
 #endif  // V8_COMPRESS_POINTERS
 
-  // Allocate Isolate in C++ heap.
-  isolate_memory_ = ::operator new(sizeof(Isolate));
+  // Allocate Isolate in C++ heap taking into account required alignment.
+  isolate_memory_ = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
 
   CHECK_NOT_NULL(page_allocator_);
 }
 
 IsolateAllocator::~IsolateAllocator() {
   // The memory was allocated in C++ heap.
-  ::operator delete(isolate_memory_);
+  base::AlignedFree(isolate_memory_);
 }
 
 VirtualMemoryCage* IsolateAllocator::GetPtrComprCage() {
