@@ -55,7 +55,8 @@ class GraphVisitor : public Next {
                     Asm().phase_zone(), &Asm().input_graph()),
         block_mapping_(Asm().input_graph().block_count(), nullptr,
                        Asm().phase_zone()),
-        blocks_needing_variables_(Asm().phase_zone()),
+        blocks_needing_variables_(Asm().input_graph().block_count(),
+                                  Asm().phase_zone()),
         old_opindex_to_variables(Asm().input_graph().op_id_count(),
                                  Asm().phase_zone(), &Asm().input_graph()) {
     Asm().output_graph().Reset();
@@ -129,7 +130,7 @@ class GraphVisitor : public Next {
     // normally, Variables are used when emitting its content, so that
     // they can later be merged when control flow merges with the current
     // version of {input_block} that we just cloned.
-    blocks_needing_variables_.insert(input_block->index());
+    blocks_needing_variables_.Add(input_block->index().id());
 
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
 
@@ -256,7 +257,7 @@ class GraphVisitor : public Next {
     Asm().Goto(start);
     // Visiting `sub_graph`.
     for (Block* block : sub_graph) {
-      blocks_needing_variables_.insert(block->index());
+      blocks_needing_variables_.Add(block->index().id());
       VisitBlock<false>(block);
     }
 
@@ -305,8 +306,7 @@ class GraphVisitor : public Next {
   void VisitBlock(const Block* input_block) {
     current_input_block_ = input_block;
     current_block_needs_variables_ =
-        blocks_needing_variables_.find(input_block->index()) !=
-        blocks_needing_variables_.end();
+        blocks_needing_variables_.Contains(input_block->index().id());
     if constexpr (trace_reduction) {
       std::cout << "\nold " << PrintAsBlockHeader{*input_block} << "\n";
       std::cout << "new "
@@ -1368,7 +1368,7 @@ class GraphVisitor : public Next {
 
   // Set of Blocks for which Variables should be used rather than
   // {op_mapping}.
-  ZoneSet<BlockIndex> blocks_needing_variables_;
+  BitVector blocks_needing_variables_;
 
   // Mapping from old OpIndex to Variables.
   FixedOpIndexSidetable<MaybeVariable> old_opindex_to_variables;
