@@ -5230,9 +5230,8 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
 
   if (ShouldOptimizeForLoadTime()) return true;
 
-  if (incremental_marking()->IsMajorMarking() &&
-      AllocationLimitOvershotByLargeMargin()) {
-    return false;
+  if (IsMajorMarkingComplete(local_heap)) {
+    return !AllocationLimitOvershotByLargeMargin();
   }
 
   if (incremental_marking()->IsStopped() &&
