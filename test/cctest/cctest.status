@@ -1182,4 +1182,13 @@
   # Needs --predictable.
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
 }],  # conservative_stack_scanning
+
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
+  'test-serialize/ContextSerializerContext': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+}],  # 'clang_coverage and mode == debug'
 ]
