@@ -19,13 +19,12 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
   // 3. Let otherRec be ? GetSetRecord(other).
   let otherRec = GetSetRecord(other, methodName);
 
-  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
-
   // 4. Let keysIter be ? GetKeysIterator(otherRec).
   let keysIter =
       GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
 
   // 5. Let resultSetData be a copy of O.[[SetData]].
+  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
   const resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
       table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
   let resultAndNumberOfElements = OrderedHashSetAndNumberOfElements{

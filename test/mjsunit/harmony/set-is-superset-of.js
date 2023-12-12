@@ -187,3 +187,44 @@
 
   assertEquals(firstSet.isSupersetOf(otherSet), false);
 })();
+
+(function TestIsSupersetOfAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(43);
+
+  otherSet.keys =
+      () => {
+        firstSet.clear();
+        return otherSet[Symbol.iterator]();
+      }
+
+  assertEquals(firstSet.isSupersetOf(otherSet), false);
+})();
+
+(function TestIsSupersetOfAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+
+  const setLike = {
+    arr: [42, 43],
+    size: 3,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  setLike.keys =
+      () => {
+        firstSet.clear();
+        return setLike.arr[Symbol.iterator]();
+      }
+
+  assertEquals(firstSet.isSupersetOf(setLike), false);
+})();
