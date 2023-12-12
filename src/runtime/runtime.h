@@ -652,6 +652,8 @@ namespace internal {
   F(WasmCompileLazy, 2, 1)                    \
   F(WasmAllocateFeedbackVector, 3, 1)         \
   F(WasmCompileWrapper, 1, 1)                 \
+  F(TierUpJSToJSWrapper, 1, 1)                \
+  F(IsWasmExternalFunction, 1, 1)             \
   F(TierUpWasmToJSWrapper, 1, 1)              \
   F(WasmTriggerTierUp, 1, 1)                  \
   F(WasmDebugBreak, 0, 1)                     \
@@ -688,6 +690,7 @@ namespace internal {
   F(GetWasmExceptionValues, 1, 1)           \
   F(GetWasmRecoveredTrapCount, 0, 1)        \
   F(HasUnoptimizedWasmToJSWrapper, 1, 1)    \
+  F(HasUnoptimizedJSToJSWrapper, 1, 1)      \
   F(IsAsmWasmCode, 1, 1)                    \
   F(IsLiftoffFunction, 1, 1)                \
   F(IsTurboFanFunction, 1, 1)               \
