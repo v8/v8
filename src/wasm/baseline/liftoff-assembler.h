@@ -763,6 +763,10 @@ class LiftoffAssembler : public MacroAssembler {
                                 bool offset_reg_needs_shift = false);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
+#ifdef V8_ENABLE_SANDBOX
+  inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
+                                               int offset_imm);
+#endif
   enum SkipWriteBarrier : bool {
     kSkipWriteBarrier = true,
     kNoSkipWriteBarrier = false

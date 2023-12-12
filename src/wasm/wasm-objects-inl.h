@@ -311,6 +311,8 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kCallTargetOffset,
                            kWasmInternalFunctionCallTargetTag)
 
+CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
+
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
 

@@ -5817,16 +5817,19 @@ class TurboshaftGraphBuildingInterface {
     // probably also cache that somehow.
     // TODO(manoskouk): Figure out how to improve the situation.
     IF (UNLIKELY(__ WordPtrEqual(target, 0))) {
-      V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::TaggedPointer(),
-                                     WasmInternalFunction::kCodeOffset);
 #ifdef V8_ENABLE_SANDBOX
+      // In this case we can use a shortcut: the code pointer table (CPT) entry
+      // through which we reference the Code object also directly contains the
+      // entrypoint, so we don't have to load it from the Code object.
       V<Word32> call_target_handle = __ Load(
-          wrapper_code, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::Uint32(), Code::kSelfIndirectPointerOffset);
+          func_ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
+          WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target =
           BuildDecodeExternalCodePointer(call_target_handle);
 #else
+      V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
+                                     WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target = __ Load(wrapper_code, LoadOp::Kind::TaggedBase(),
                                        MemoryRepresentation::PointerSized(),
                                        Code::kInstructionStartOffset);

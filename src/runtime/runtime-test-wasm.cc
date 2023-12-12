@@ -197,7 +197,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   Tagged<Code> wrapper =
       isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm);
   if (!internal->call_target()) {
-    return isolate->heap()->ToBoolean(internal->code() == wrapper);
+    return isolate->heap()->ToBoolean(internal->code(isolate) == wrapper);
   }
   return isolate->heap()->ToBoolean(internal->call_target() ==
                                     wrapper->instruction_start());

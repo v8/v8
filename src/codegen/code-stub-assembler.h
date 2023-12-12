@@ -1277,6 +1277,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         kWasmInternalFunctionCallTargetTag);
   }
 
+  TNode<RawPtrT> LoadWasmInternalFunctionInstructionStart(
+      TNode<WasmInternalFunction> object) {
+#ifdef V8_ENABLE_SANDBOX
+    return LoadCodeEntrypointViaCodePointerField(
+        object, WasmInternalFunction::kCodeOffset);
+#else
+    TNode<Code> code =
+        LoadObjectField<Code>(object, WasmInternalFunction::kCodeOffset);
+    return LoadCodeInstructionStart(code);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
   TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {
     return LoadExternalPointerFromObject(
         object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);

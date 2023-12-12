@@ -574,6 +574,10 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg8_type = type_tagged;
     TNode<JSRegExp> arg8 = regexp;
 
+    // TODO(saelo): if we refactor RegExp objects to contain a code pointer
+    // instead of referencing the CodeWrapper object, we could directly load
+    // the entrypoint from that via LoadCodeEntrypointViaCodePointerField. This
+    // will save an indirection when the sandbox is enabled.
     TNode<RawPtrT> code_entry = LoadCodeInstructionStart(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case

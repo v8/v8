@@ -540,7 +540,8 @@ builtin WasmI64AtomicWait(
 
 // Type feedback collection support for `call_ref`.
 
-extern macro LoadCodeInstructionStart(Code): RawPtr;
+extern macro LoadWasmInternalFunctionInstructionStart(WasmInternalFunction):
+    RawPtr;
 
 struct TargetAndInstance {
   target: RawPtr;
@@ -552,7 +553,7 @@ macro GetTargetAndInstance(funcref: WasmInternalFunction):
   const ref = funcref.ref;
   let target = funcref.call_target_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
-    target = LoadCodeInstructionStart(funcref.code);
+    target = LoadWasmInternalFunctionInstructionStart(funcref);
   }
   return TargetAndInstance{target: target, instance: ref};
 }

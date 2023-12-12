@@ -2438,7 +2438,7 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   os << "\n - call target: " << reinterpret_cast<void*>(call_target(isolate));
   os << "\n - ref: " << Brief(ref());
   os << "\n - external: " << Brief(external());
-  os << "\n - code: " << Brief(code());
+  os << "\n - code: " << Brief(code(isolate));
   os << "\n";
 }
 

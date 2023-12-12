@@ -841,6 +841,8 @@ class WasmInternalFunction
 
   DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address)
 
+  DECL_CODE_POINTER_ACCESSORS(code)
+
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
 

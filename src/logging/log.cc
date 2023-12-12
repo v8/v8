@@ -2047,11 +2047,11 @@ EnumerateCompiledFunctions(Heap* heap) {
         record(function->shared(), AbstractCode::cast(function->code(isolate)));
 #if V8_ENABLE_WEBASSEMBLY
       } else if (WasmJSFunction::IsWasmJSFunction(function)) {
-        record(function->shared(),
-               AbstractCode::cast(function->shared()
-                                      ->wasm_js_function_data()
-                                      ->internal()
-                                      ->code()));
+        record(
+            function->shared(),
+            AbstractCode::cast(
+                function->shared()->wasm_js_function_data()->internal()->code(
+                    isolate)));
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
     }

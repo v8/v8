@@ -3075,26 +3075,31 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadCodeEntrypoint(Node* code_object) {
+Node* WasmGraphBuilder::BuildLoadCodeEntrypointViaCodePointer(Node* object,
+                                                              int offset) {
 #ifdef V8_ENABLE_SANDBOX
-  // In this case, the entrypoint is stored in the code pointer table entry
-  // referenced via the Code object's 'self' indirect pointer.
-  Node* handle = gasm_->LoadFromObject(
-      MachineType::Uint32(), code_object,
-      wasm::ObjectAccess::ToTagged(Code::kSelfIndirectPointerOffset));
+  // In this case we can take a shortcut: the entrypoint is stored alongside
+  // the pointer to the Code object in the code pointer table (CPT), so we
+  // don't have to access the Code object at all.
+  Node* handle = gasm_->LoadFromObject(MachineType::Uint32(), object,
+                                       wasm::ObjectAccess::ToTagged(offset));
   Node* index =
       gasm_->Word32Shr(handle, gasm_->Int32Constant(kCodePointerHandleShift));
-  Node* offset = gasm_->ChangeUint32ToUint64(gasm_->Word32Shl(
+  Node* table_offset = gasm_->ChangeUint32ToUint64(gasm_->Word32Shl(
       index, gasm_->Int32Constant(kCodePointerTableEntrySizeLog2)));
   Node* table =
       gasm_->ExternalConstant(ExternalReference::code_pointer_table_address());
 
-  return gasm_->Load(MachineType::Pointer(), table, offset);
+  return gasm_->Load(MachineType::Pointer(), table, table_offset);
 #else
+  // In this case we have to load the Code object, then load its entrypoint.
+  Node* code_object =
+      gasm_->LoadImmutableFromObject(MachineType::TaggedPointer(), object,
+                                     wasm::ObjectAccess::ToTagged(offset));
   return gasm_->LoadFromObject(
       MachineType::Pointer(), code_object,
       wasm::ObjectAccess::ToTagged(Code::kInstructionStartOffset));
-#endif  // V8_ENABLE_SANDBOX
+#endif
 }
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
@@ -3146,10 +3151,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   {
     // Compute the call target from the (on-heap) wrapper code. The cached
     // target can only be null for WasmJSFunctions.
-    Node* wrapper_code = gasm_->LoadImmutableFromObject(
-        MachineType::TaggedPointer(), function,
-        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-    Node* call_target = BuildLoadCodeEntrypoint(wrapper_code);
+    Node* call_target = BuildLoadCodeEntrypointViaCodePointer(
+        function, WasmInternalFunction::kCodeOffset);
     gasm_->Goto(&end_label, call_target);
   }
 

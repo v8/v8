@@ -8063,10 +8063,18 @@ class LiftoffCompiler {
       __ emit_cond_jump(kNotEqual, &perform_call, kIntPtrKind, target.gp(),
                         null_address.gp(), frozen);
       // The cached target can only be null for WasmJSFunctions.
+#ifdef V8_ENABLE_SANDBOX
+      // In this case, we can use a shortcut and load the entrypoint directly
+      // from the code pointer table without going through the Code object.
+      __ LoadCodeEntrypointViaCodePointer(
+          target.gp(), func_ref.gp(),
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
+#else
       __ LoadTaggedPointer(
           target.gp(), func_ref.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
       __ LoadCodeInstructionStart(target.gp(), target.gp());
+#endif
       // Fall through to {perform_call}.
 
       __ bind(&perform_call);
