@@ -15,11 +15,16 @@
 namespace v8::internal::compiler::turboshaft {
 
 void LoopUnrollingPhase::Run(Zone* temp_zone) {
-  turboshaft::CopyingPhase<turboshaft::LoopUnrollingReducer,
-                           turboshaft::VariableReducer,
-                           turboshaft::MachineOptimizationReducer,
-                           turboshaft::RequiredOptimizationReducer,
-                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
+  LoopUnrollingAnalyzer analyzer(temp_zone, &PipelineData::Get().graph());
+  if (analyzer.CanUnrollAtLeastOneLoop()) {
+    PipelineData::Get().set_loop_unrolling_analyzer(&analyzer);
+    turboshaft::CopyingPhase<turboshaft::LoopUnrollingReducer,
+                             turboshaft::VariableReducer,
+                             turboshaft::MachineOptimizationReducer,
+                             turboshaft::RequiredOptimizationReducer,
+                             turboshaft::ValueNumberingReducer>::Run(temp_zone);
+    PipelineData::Get().clear_loop_unrolling_analyzer();
+  }
 }
 
 }  // namespace v8::internal::compiler::turboshaft

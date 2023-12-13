@@ -15,6 +15,9 @@ void LoopUnrollingAnalyzer::DetectUnrollableLoops() {
       int iter_count;
       if (CanFullyUnrollLoop(info, &iter_count)) {
         loop_iteration_count_.insert({start, iter_count});
+        can_unroll_at_least_one_loop_ = true;
+      } else if (ShouldPartiallyUnrollLoop(start)) {
+        can_unroll_at_least_one_loop_ = true;
       }
     }
   }

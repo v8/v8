@@ -36,6 +36,8 @@ enum class TurboshaftPipelineKind {
   kCSA,
 };
 
+class LoopUnrollingAnalyzer;
+
 class PipelineData : public base::ContextualClass<PipelineData> {
  public:
   explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
@@ -121,6 +123,17 @@ class PipelineData : public base::ContextualClass<PipelineData> {
     }
   }
 
+  void set_loop_unrolling_analyzer(
+      LoopUnrollingAnalyzer* loop_unrolling_analyzer) {
+    DCHECK_NULL(loop_unrolling_analyzer_);
+    loop_unrolling_analyzer_ = loop_unrolling_analyzer;
+  }
+  void clear_loop_unrolling_analyzer() { loop_unrolling_analyzer_ = nullptr; }
+  LoopUnrollingAnalyzer* loop_unrolling_analyzer() const {
+    DCHECK_NOT_NULL(loop_unrolling_analyzer_);
+    return loop_unrolling_analyzer_;
+  }
+
  private:
   // Turbofan's PipelineData owns most of these objects. We only hold references
   // to them.
@@ -150,6 +163,8 @@ class PipelineData : public base::ContextualClass<PipelineData> {
 #else
   static constexpr bool is_wasm_ = false;
 #endif
+
+  LoopUnrollingAnalyzer* loop_unrolling_analyzer_ = nullptr;
 
   std::unique_ptr<turboshaft::Graph> graph_;
 };

@@ -151,6 +151,8 @@ class LoopUnrollingAnalyzer {
     return loop_finder_.GetLoopHeader(block);
   }
 
+  bool CanUnrollAtLeastOneLoop() const { return can_unroll_at_least_one_loop_; }
+
   // TODO(dmercadier): consider tweaking these value for a better size-speed
   // trade-off. In particular, having the number of iterations to unroll be a
   // function of the loop's size and a MaxLoopSize could make sense.
@@ -176,6 +178,7 @@ class LoopUnrollingAnalyzer {
   const size_t kMaxLoopSizeForPartialUnrolling =
       PipelineData::Get().is_wasm() ? kWasmMaxLoopSizeForPartialUnrolling
                                     : kJSMaxLoopSizeForPartialUnrolling;
+  bool can_unroll_at_least_one_loop_ = false;
 };
 
 template <class Next>
@@ -323,8 +326,10 @@ class LoopUnrollingReducer : public Next {
                    Block* backedge_block);
 
   ZoneUnorderedSet<Block*> loop_body_{__ phase_zone()};
-  LoopUnrollingAnalyzer analyzer_{__ phase_zone(),
-                                  &__ modifiable_input_graph()};
+  // The analysis should be ran ahead of time so that the LoopUnrollingPhase
+  // doesn't trigger the CopyingPhase if there are no loops to unroll.
+  LoopUnrollingAnalyzer& analyzer_ =
+      *PipelineData::Get().loop_unrolling_analyzer();
   // {unrolling_} is true if a loop is currently being unrolled.
   UnrollingStatus unrolling_ = UnrollingStatus::kNotUnrolling;
   void* current_loop_header_ = nullptr;
