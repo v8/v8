@@ -260,6 +260,7 @@ void BuiltinsSorter::ProcessBuiltinDensityLineInfo(
   std::getline(line_stream, token, ',');
   CHECK(line_stream.eof());
   char* end = nullptr;
+  errno = 0;
   int density = static_cast<int>(strtol(token.c_str(), &end, 0));
   CHECK(errno == 0 && end != token.c_str());
 
