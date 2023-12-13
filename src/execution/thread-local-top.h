@@ -89,26 +89,28 @@ class ThreadLocalTop {
 
   void Free();
 
-  // Fields updated on every CEntry/CallApiCallback/CallApiGetter call must
-  // be groupped together. See MacroAssembler::EnterExitFram/LeaveExitFrame.
-  struct {
-    // The frame pointer of the top c entry frame.
-    Address c_entry_fp_;
-    // C function that was called at c entry.
-    Address c_function_;
-    // The context where the current execution method is created and for
-    // variable lookups.
-    // TODO(3770): This field is read/written from generated code, so it would
-    // be cleaner to make it an "Address raw_context_", and construct a Context
-    // object in the getter. Same for {pending_handler_context_} below. In the
-    // meantime, assert that the memory layout is the same.
-    static_assert(sizeof(Tagged<Context>) == kSystemPointerSize);
-    Tagged<Context> context_;
+  // Group fields updated on every CEntry/CallApiCallback/CallApiGetter call
+  // together. See MacroAssembler::EnterExitFram/LeaveExitFrame.
+  // [ CEntry/CallApiCallback/CallApiGetter
 
-    // This field is updated along with context_ on every operation triggered
-    // via V8 Api.
-    Address last_api_entry_;
-  };
+  // The frame pointer of the top c entry frame.
+  Address c_entry_fp_;
+  // C function that was called at c entry.
+  Address c_function_;
+  // The context where the current execution method is created and for
+  // variable lookups.
+  // TODO(3770): This field is read/written from generated code, so it would
+  // be cleaner to make it an "Address raw_context_", and construct a Context
+  // object in the getter. Same for {pending_handler_context_} below. In the
+  // meantime, assert that the memory layout is the same.
+  static_assert(sizeof(Tagged<Context>) == kSystemPointerSize);
+  Tagged<Context> context_;
+
+  // This field is updated along with context_ on every operation triggered
+  // via V8 Api.
+  Address last_api_entry_;
+
+  // ] CEntry/CallApiCallback/CallApiGetter fields.
 
   Tagged<Object> exception_ = Smi::zero();
 
