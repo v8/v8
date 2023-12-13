@@ -850,6 +850,13 @@ class MachineOptimizationReducer : public Next {
               if (matcher.MatchConstantLeftShift(y, &y1, rep, &K2) && K2 == K) {
                 return __ WordAdd(__ WordBitwiseAnd(x, right, rep), y, rep);
               }
+            } else if (matcher.MatchWordMul(left, &x, &y, rep)) {
+              // (x * (M << K)) & (-1 << K) => x * (M << K)
+              uint64_t L;  // L == (M << K) iff (L & mask) == L.
+              if (matcher.MatchIntegralWordConstant(y, rep, &L) &&
+                  (L & mask) == L) {
+                return left;
+              }
             }
           }
           break;
