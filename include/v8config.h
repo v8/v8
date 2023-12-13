@@ -482,7 +482,7 @@ path. Add it with -I<path> to the command line
 #endif
 
 // Prefer c++20 std::assume_aligned
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L && defined(__cpp_lib_assume_aligned)
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   std::assume_aligned<(alignment)>(ptr)
 #elif V8_HAS_BUILTIN_ASSUME_ALIGNED
