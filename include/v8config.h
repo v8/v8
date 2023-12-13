@@ -306,6 +306,8 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
 //                                      - [[no_unique_address]] supported
+//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
+//  V8_HAS_BUILTIN_BIT_CAST             - __builtin_bit_cast() supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -313,14 +315,13 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_CTZ                  - __builtin_ctz() supported
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
-//  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
-//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
-//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
 //  V8_HAS_BUILTIN_MUL_OVERFLOW         - __builtin_mul_overflow() supported
+//  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
-//  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
-//  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_BUILTIN_SMUL_OVERFLOW        - __builtin_smul_overflow() supported
+//  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
+//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
+//  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
 //                                        supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
@@ -378,8 +379,10 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 
+# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
+# define V8_HAS_BUILTIN_BIT_CAST (__has_builtin(__builtin_bit_cast))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
 # define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
@@ -387,14 +390,13 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_CTZ (__has_builtin(__builtin_ctz))
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
-# define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
-# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
-# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
 # define V8_HAS_BUILTIN_MUL_OVERFLOW (__has_builtin(__builtin_mul_overflow))
+# define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
-# define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
-# define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 # define V8_HAS_BUILTIN_SMUL_OVERFLOW (__has_builtin(__builtin_smul_overflow))
+# define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
+# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
+# define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 # define V8_HAS_BUILTIN_UNREACHABLE (__has_builtin(__builtin_unreachable))
 
 // Clang has no __has_feature for computed gotos.
@@ -430,6 +432,7 @@ path. Add it with -I<path> to the command line
 // for V8_HAS_CPP_ATTRIBUTE_NODISCARD. See https://crbug.com/v8/11707.
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
+# define V8_HAS_BUILTIN_BIT_CAST 1
 # define V8_HAS_BUILTIN_CLZ 1
 # define V8_HAS_BUILTIN_CTZ 1
 # define V8_HAS_BUILTIN_EXPECT 1

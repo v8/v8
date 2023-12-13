@@ -169,7 +169,7 @@ DeoptimizationFrameTranslation::Iterator::Iterator(
 
     CHECK_EQ(zlib_internal::UncompressHelper(
                  zlib_internal::ZRAW,
-                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
+                 reinterpret_cast<Bytef*>(uncompressed_contents_.data()),
                  &uncompressed_size, buffer_->begin() + kCompressedDataOffset,
                  buffer_->DataSize()),
              Z_OK);
