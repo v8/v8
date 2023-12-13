@@ -16,7 +16,7 @@
  */
 namespace v8 {
 
-class Primiitive;
+class Primitive;
 class Numeric;
 class BigInt;
 class Int32;

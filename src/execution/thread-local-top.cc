@@ -36,6 +36,7 @@ void ThreadLocalTop::Clear() {
   external_callback_scope_ = nullptr;
   current_vm_state_ = EXTERNAL;
   current_embedder_state_ = nullptr;
+  top_backup_incumbent_scope_ = nullptr;
   failed_access_check_callback_ = nullptr;
   thread_in_wasm_flag_address_ = kNullAddress;
   central_stack_limit_ = kNullAddress;

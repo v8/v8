@@ -95,6 +95,7 @@ using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
 using ::v8::Extension;
+using ::v8::External;
 using ::v8::FixedArray;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
@@ -165,6 +166,7 @@ static void IncrementingSignatureCallback(
 }
 
 static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(42);
 }
 
@@ -377,7 +379,13 @@ THREADED_TEST(ReceiverSignature) {
   }
 }
 
-static void DoNothingCallback(const v8::FunctionCallbackInfo<v8::Value>&) {}
+namespace {
+
+void DoNothingCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+}
+
+}  // namespace
 
 // Regression test for issue chromium:1188563.
 THREADED_TEST(Regress1188563) {
@@ -1065,7 +1073,9 @@ THREADED_TEST(GlobalProperties) {
 
 static void handle_callback_impl(const v8::FunctionCallbackInfo<Value>& info,
                                  i::Address callback) {
+  CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
+  CHECK(i::ValidateCallbackInfo(info));
   CheckReturnValue(info, callback);
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(v8_num(102));
@@ -25518,20 +25528,25 @@ THREADED_TEST(ImmutableProto) {
             .FromJust());
 }
 
+namespace {
+
 v8::Global<v8::Context> call_eval_context_global;
 v8::Global<v8::Function> call_eval_bound_function_global;
 
-static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void CallEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   Local<v8::Context> call_eval_context = call_eval_context_global.Get(isolate);
   Local<v8::Function> call_eval_bound_function =
       call_eval_bound_function_global.Get(isolate);
   v8::Context::Scope scope(call_eval_context);
-  args.GetReturnValue().Set(
+  info.GetReturnValue().Set(
       call_eval_bound_function
           ->Call(call_eval_context, call_eval_context->Global(), 0, nullptr)
           .ToLocalChecked());
 }
+
+}  // namespace
 
 TEST(CrossActivationEval) {
   LocalContext env;
@@ -27284,7 +27299,8 @@ static v8::Isolate* isolate_2;
 v8::Persistent<v8::Context> context_1;
 v8::Persistent<v8::Context> context_2;
 
-static void CallIsolate1(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void CallIsolate1(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate::Scope isolate_scope(isolate_1);
   v8::HandleScope handle_scope(isolate_1);
   v8::Local<v8::Context> context =
@@ -27293,7 +27309,8 @@ static void CallIsolate1(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CompileRun("f1() //# sourceURL=isolate1b");
 }
 
-static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate::Scope isolate_scope(isolate_2);
   v8::HandleScope handle_scope(isolate_2);
   v8::Local<v8::Context> context =
@@ -27502,6 +27519,7 @@ struct BasicApiChecker {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     Impl::SlowCallback(info);
   }
 
@@ -27600,6 +27618,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     v8::Object* receiver = v8::Object::Cast(*info.Holder());
     if (!IsValidUnwrapObject(receiver)) {
       info.GetIsolate()->ThrowException(v8_str("Called with a non-object."));
@@ -27642,6 +27661,7 @@ struct UnexpectedObjectChecker
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     UnexpectedObjectChecker* receiver_ptr =
         GetInternalField<UnexpectedObjectChecker>(receiver_obj);
@@ -27676,6 +27696,7 @@ struct ApiObjectChecker
     argument_ptr->data = receiver_ptr->initial_data_;
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     ApiObjectChecker* receiver_ptr =
         GetInternalField<ApiObjectChecker>(receiver_obj);
@@ -27935,6 +27956,7 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
     ReturnValueChecker<T>* receiver_ptr =
         GetInternalField<ReturnValueChecker<T>>(receiver_obj);
@@ -28687,9 +28709,10 @@ void FastCallback4Scalar(v8::Local<v8::Object> receiver, int arg0, float arg1) {
 void FastCallback5DifferentArity(v8::Local<v8::Object> receiver, int arg0,
                                  v8::Local<v8::Array> arg1, float arg2) {}
 
-void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  Trivial* self = UnwrapTrivialObject(args.This());
+void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Trivial* self = UnwrapTrivialObject(info.This());
   if (!self) {
     isolate->ThrowError("This method is not defined on the given receiver.");
     return;
@@ -28698,24 +28721,24 @@ void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   HandleScope handle_scope(isolate);
 
-  if (args.Length() < 2 || !args[0]->IsNumber()) {
+  if (info.Length() < 2 || !info[0]->IsNumber()) {
     isolate->ThrowError(
         "This method expects at least 2 arguments,"
         " first one a number.");
     return;
   }
-  int64_t len = args[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
-  if (args[1]->IsTypedArray()) {
-    v8::Local<v8::TypedArray> typed_array_arg = args[1].As<v8::TypedArray>();
+  int64_t len = info[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
+  if (info[1]->IsTypedArray()) {
+    v8::Local<v8::TypedArray> typed_array_arg = info[1].As<v8::TypedArray>();
     size_t length = typed_array_arg->Length();
     CHECK_EQ(len, length);
     return;
   }
-  if (!args[1]->IsArray()) {
+  if (!info[1]->IsArray()) {
     isolate->ThrowError("This method expects an array as a second argument.");
     return;
   }
-  v8::Local<v8::Array> seq_arg = args[1].As<v8::Array>();
+  v8::Local<v8::Array> seq_arg = info[1].As<v8::Array>();
   uint32_t length = seq_arg->Length();
   CHECK_EQ(len, length);
   return;
@@ -29053,6 +29076,7 @@ TEST(CodeLikeEval) {
   // One code-like, one not, and otherwise identical.
   auto string_fn = v8::FunctionTemplate::New(
       isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
         info.GetReturnValue().Set(v8_str("2+2"));
       });
   SetupCodeLike(&env, "CodeLike", string_fn, true);
@@ -29118,6 +29142,7 @@ TEST(CodeLikeFunction) {
   // One code kind, one not, and otherwise identical.
   auto string_fn = v8::FunctionTemplate::New(
       isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
         info.GetReturnValue().Set(v8_str("return 2+2"));
       });
   SetupCodeLike(&env, "CodeLike", string_fn, true);
@@ -29229,9 +29254,10 @@ TEST(TestSetSabConstructorEnabledCallback) {
 }
 
 namespace {
-void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(v8::Number::New(isolate, 1));
+void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  info.GetReturnValue().Set(v8::Number::New(isolate, 1));
 }
 }  // namespace
 
@@ -29614,7 +29640,6 @@ TEST(DeepFreezeAllowsSyntax) {
 }
 
 namespace {
-void DoNothing(const v8::FunctionCallbackInfo<v8::Value>& ignored) {}
 
 class AllowEmbedderObjects : public v8::Context::DeepFreezeDelegate {
  public:
@@ -29672,7 +29697,7 @@ TEST(DeepFreezesJSApiObjectWithDelegate) {
     v8::Local<v8::ObjectTemplate> global_template =
         v8::ObjectTemplate::New(isolate);
     v8::Local<v8::FunctionTemplate> v8_template =
-        v8::FunctionTemplate::New(isolate, &DoNothing);
+        v8::FunctionTemplate::New(isolate, &DoNothingCallback);
     v8_template->RemovePrototype();
     global_template->Set(v8_str("jsApiObject"), v8_template);
 
@@ -29760,7 +29785,7 @@ TEST(DeepFreezeDoesntFreezeJSApiObjectFunctionData) {
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   v8::Local<v8::FunctionTemplate> v8_template =
-      v8::FunctionTemplate::New(isolate, &DoNothing, /*data=*/v8_foo);
+      v8::FunctionTemplate::New(isolate, &DoNothingCallback, /*data=*/v8_foo);
   v8_template->RemovePrototype();
   global_template->Set(v8_str("jsApiObject"), v8_template);
 
