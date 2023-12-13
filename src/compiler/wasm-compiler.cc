@@ -2748,11 +2748,8 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
 Node* WasmGraphBuilder::BuildCallNode(const wasm::FunctionSig* sig,
                                       base::Vector<Node*> args,
                                       wasm::WasmCodePosition position,
-                                      Node* instance_node, const Operator* op,
-                                      Node* frame_state) {
-  if (instance_node == nullptr) {
-    instance_node = GetInstance();
-  }
+                                      Node* implicit_first_arg,
+                                      const Operator* op, Node* frame_state) {
   needs_stack_check_ = true;
   const size_t params = sig->parameter_count();
   const size_t has_frame_state = frame_state != nullptr ? 1 : 0;
@@ -2763,9 +2760,9 @@ Node* WasmGraphBuilder::BuildCallNode(const wasm::FunctionSig* sig,
   base::SmallVector<Node*, 16 + extra> inputs(count);
   DCHECK_EQ(1 + params, args.size());
 
-  // Make room for the instance_node parameter at index 1, just after code.
+  // Make room for the first argument at index 1, just after code.
   inputs[0] = args[0];  // code
-  inputs[1] = instance_node;
+  inputs[1] = implicit_first_arg;
   if (params > 0) memcpy(&inputs[2], &args[1], params * sizeof(Node*));
 
   // Add effect and control inputs.
@@ -2786,12 +2783,13 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
                                       base::Vector<Node*> args,
                                       base::Vector<Node*> rets,
                                       wasm::WasmCodePosition position,
-                                      Node* instance_node, Node* frame_state) {
+                                      Node* implicit_first_arg,
+                                      Node* frame_state) {
   CallDescriptor* call_descriptor = GetWasmCallDescriptor(
       mcgraph()->zone(), sig, kWasmFunction, frame_state != nullptr);
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call =
-      BuildCallNode(sig, args, position, instance_node, op, frame_state);
+      BuildCallNode(sig, args, position, implicit_first_arg, op, frame_state);
   // TODO(manoskouk): These assume the call has control and effect outputs.
   DCHECK_GT(op->ControlOutputCount(), 0);
   DCHECK_GT(op->EffectOutputCount(), 0);
@@ -2817,11 +2815,11 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
 Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
                                             base::Vector<Node*> args,
                                             wasm::WasmCodePosition position,
-                                            Node* instance_node) {
+                                            Node* implicit_first_arg) {
   CallDescriptor* call_descriptor =
       GetWasmCallDescriptor(mcgraph()->zone(), sig);
   const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
-  Node* call = BuildCallNode(sig, args, position, instance_node, op);
+  Node* call = BuildCallNode(sig, args, position, implicit_first_arg, op);
 
   // TODO(manoskouk): If we have kNoThrow calls, do not merge them to end.
   DCHECK_GT(call->op()->ControlOutputCount(), 0);
@@ -2890,7 +2888,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmCall(sig, args, rets, position, nullptr);
+  return BuildWasmCall(sig, args, rets, position, GetInstance());
 }
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
@@ -2905,7 +2903,7 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
                                                  Node** ift_size,
                                                  Node** ift_sig_ids,
                                                  Node** ift_targets,
-                                                 Node** ift_instances) {
+                                                 Node** ift_refs) {
   bool needs_dynamic_size = true;
   const wasm::WasmTable& table = env_->module->tables[table_index];
   if (table.has_maximum_size && table.maximum_size == table.initial_size) {
@@ -2922,8 +2920,8 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
                                                MachineType::TaggedPointer());
     *ift_targets = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableTargets,
                                                MachineType::TaggedPointer());
-    *ift_instances = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableRefs,
-                                                 MachineType::TaggedPointer());
+    *ift_refs = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableRefs,
+                                            MachineType::TaggedPointer());
     return;
   }
 
@@ -2945,7 +2943,7 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
       MachineType::TaggedPointer(), ift_table,
       wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kTargetsOffset));
 
-  *ift_instances = gasm_->LoadFromObject(
+  *ift_refs = gasm_->LoadFromObject(
       MachineType::TaggedPointer(), ift_table,
       wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
 }
@@ -2963,9 +2961,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* ift_size;
   Node* ift_sig_ids;
   Node* ift_targets;
-  Node* ift_instances;
+  Node* ift_refs;
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
-                            &ift_instances);
+                            &ift_refs);
 
   Node* key = args[0];
   Node* key_intptr = gasm_->BuildChangeUint32ToUintPtr(key);
@@ -3057,8 +3055,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
   }
 
-  Node* target_instance = gasm_->LoadFixedArrayElement(
-      ift_instances, key_intptr, MachineType::TaggedPointer());
+  Node* target_ref = gasm_->LoadFixedArrayElement(ift_refs, key_intptr,
+                                                  MachineType::TaggedPointer());
 
   Node* target = gasm_->LoadExternalPointerArrayElement(
       ift_targets, key_intptr, kWasmIndirectFunctionTargetTag,
@@ -3069,9 +3067,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, target_instance);
+      return BuildWasmCall(sig, args, rets, position, target_ref);
     case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, target_instance);
+      return BuildWasmReturnCall(sig, args, position, target_ref);
   }
 }
 
@@ -3222,7 +3220,7 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmReturnCall(sig, args, position, nullptr);
+  return BuildWasmReturnCall(sig, args, position, GetInstance());
 }
 
 Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,

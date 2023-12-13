@@ -7936,19 +7936,19 @@ class LiftoffCompiler {
     {
       CODE_COMMENT("Execute indirect call");
 
-      Register function_instance = tmp1;
+      Register function_ref = tmp1;
       Register function_target = tmp2;
 
-      // Load the instance from {instance->ift_instances[key]}
+      // Load the ref from {instance->ift_refs[key]}.
       if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_instance,
-                                       IndirectFunctionTableRefs, pinned);
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_ref, IndirectFunctionTableRefs,
+                                       pinned);
       } else {
-        __ LoadTaggedPointer(function_instance, indirect_function_table, no_reg,
+        __ LoadTaggedPointer(function_ref, indirect_function_table, no_reg,
                              wasm::ObjectAccess::ToTagged(
                                  WasmIndirectFunctionTable::kRefsOffset));
       }
-      __ LoadTaggedPointer(function_instance, function_instance, index,
+      __ LoadTaggedPointer(function_ref, function_ref, index,
                            ObjectAccess::ElementOffsetInTaggedFixedArray(0),
                            true);
 
@@ -7969,8 +7969,7 @@ class LiftoffCompiler {
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-      __ PrepareCall(&sig, call_descriptor, &function_target,
-                     function_instance);
+      __ PrepareCall(&sig, call_descriptor, &function_target, function_ref);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -7997,7 +7996,8 @@ class LiftoffCompiler {
         compiler::GetWasmCallDescriptor(zone_, type_sig);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-    Register target_reg = no_reg, instance_reg = no_reg;
+    Register target_reg = no_reg;
+    Register ref_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
       LiftoffRegList pinned;
@@ -8023,7 +8023,7 @@ class LiftoffCompiler {
                   {vector_var, index_var, func_ref_var}, decoder->position());
 
       target_reg = LiftoffRegister(kReturnRegister0).gp();
-      instance_reg = LiftoffRegister(kReturnRegister1).gp();
+      ref_reg = LiftoffRegister(kReturnRegister1).gp();
 
     } else {  // inlining_enabled(decoder)
       // Non-feedback-collecting version.
@@ -8081,10 +8081,10 @@ class LiftoffCompiler {
       // Now the call target is in {target}, and the right instance object
       // is in {instance}.
       target_reg = target.gp();
-      instance_reg = instance.gp();
+      ref_reg = instance.gp();
     }  // inlining_enabled(decoder)
 
-    __ PrepareCall(&sig, call_descriptor, &target_reg, instance_reg);
+    __ PrepareCall(&sig, call_descriptor, &target_reg, ref_reg);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
