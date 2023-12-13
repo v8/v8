@@ -1707,6 +1707,12 @@ class MachineOptimizationReducer : public Next {
       const WordBinopOp& base = matcher.Cast<WordBinopOp>(base_idx);
       base_idx = base.left();
       index = base.right();
+      // We go through the Store stack again, which might merge {index} into
+      // {offset}, or just do other optimizations on this Store.
+      __ Store(base_idx, index, value, kind, stored_rep, write_barrier, offset,
+               element_scale, maybe_initializing_or_transitioning,
+               maybe_indirect_pointer_tag);
+      return OpIndex::Invalid();
     }
 
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
@@ -1779,6 +1785,10 @@ class MachineOptimizationReducer : public Next {
       const WordBinopOp& base = matcher.Cast<WordBinopOp>(base_idx);
       base_idx = base.left();
       index = base.right();
+      // We go through the Load stack again, which might merge {index} into
+      // {offset}, or just do other optimizations on this Load.
+      return __ Load(base_idx, index, kind, loaded_rep, result_rep, offset,
+                     element_scale);
     }
 
     return Next::ReduceLoad(base_idx, index, kind, loaded_rep, result_rep,
