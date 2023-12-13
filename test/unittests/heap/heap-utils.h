@@ -184,6 +184,19 @@ class V8_NODISCARD ManualGCScope final {
   const bool flag_cppheap_concurrent_marking_;
 };
 
+// DisableHandleChecksForMockingScope disables the checks for v8::Local and
+// internal::DirectHandle, so that such handles can be allocated off-stack.
+// This is required for mocking functions that take such handles as parameters
+// and/or return them as results. For correctness (with direct handles), when
+// this scope is used, it is important to ensure that the objects stored in
+// handles used for mocking are retained by other means, so that they will not
+// be reclaimed by a garbage collection.
+class V8_NODISCARD DisableHandleChecksForMockingScope final
+    : public StackAllocatedCheck::Scope {
+ public:
+  DisableHandleChecksForMockingScope() : StackAllocatedCheck::Scope(false) {}
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -13,6 +13,7 @@
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
+#include "src/base/contextual.h"
 #include "src/execution/isolate.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
@@ -526,6 +527,8 @@ bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
+
+DECLARE_CONTEXTUAL_VARIABLE_WITH_DEFAULT(StackAllocatedCheck, const bool, true);
 
 }  // namespace internal
 }  // namespace v8

@@ -722,6 +722,14 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
+namespace api_internal {
+void StackAllocated<true>::VerifyOnStack() const {
+  if (internal::StackAllocatedCheck::Get()) {
+    internal::HandleHelper::VerifyOnStack(this);
+  }
+}
+}  // namespace api_internal
+
 namespace internal {
 
 void VerifyHandleIsNonEmpty(bool is_empty) {
@@ -11871,5 +11879,7 @@ std::string SourceLocation::ToString() const {
 }
 
 }  // namespace v8
+
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::StackAllocatedCheck)
 
 #include "src/api/api-macros-undef.h"

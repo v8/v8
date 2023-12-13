@@ -7,7 +7,44 @@
 
 #include "v8-internal.h"  // NOLINT(build/include_directory)
 
-namespace v8 {
+namespace v8::api_internal {
+
+template <bool check_statically_enabled>
+class StackAllocated {
+ public:
+  V8_INLINE StackAllocated() = default;
+
+ protected:
+  struct no_checking_tag {};
+  static constexpr no_checking_tag do_not_check;
+
+  V8_INLINE explicit StackAllocated(no_checking_tag) {}
+  V8_INLINE explicit StackAllocated(const StackAllocated& other,
+                                    no_checking_tag) {}
+
+  V8_INLINE void VerifyOnStack() const {}
+};
+
+template <>
+class V8_TRIVIAL_ABI StackAllocated<true> : public StackAllocated<false> {
+ public:
+  V8_INLINE StackAllocated() { VerifyOnStack(); }
+
+#if V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, StackAllocated becomes not trivially copyable.
+  V8_INLINE StackAllocated(const StackAllocated& other) { VerifyOnStack(); }
+  StackAllocated& operator=(const StackAllocated&) = default;
+#endif
+
+ protected:
+  V8_INLINE explicit StackAllocated(no_checking_tag tag)
+      : StackAllocated<false>(tag) {}
+  V8_INLINE explicit StackAllocated(const StackAllocated& other,
+                                    no_checking_tag tag)
+      : StackAllocated<false>(other, tag) {}
+
+  V8_EXPORT void VerifyOnStack() const;
+};
 
 /**
  * A base class for abstract handles containing indirect pointers.
@@ -95,6 +132,6 @@ class DirectHandleBase {
 
 #endif  // V8_ENABLE_DIRECT_LOCAL
 
-}  // namespace v8
+}  // namespace v8::api_internal
 
 #endif  // INCLUDE_V8_HANDLE_BASE_H_

@@ -53,7 +53,7 @@ V8_EXPORT void DisposeTracedReference(internal::Address* global_handle);
  * An indirect handle, where the indirect pointer points to a GlobalHandles
  * node.
  */
-class TracedReferenceBase : public IndirectHandleBase {
+class TracedReferenceBase : public api_internal::IndirectHandleBase {
  public:
   /**
    * If non-empty, destroy the underlying storage cell. |IsEmpty| will return

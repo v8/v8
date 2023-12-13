@@ -12,9 +12,9 @@ namespace v8 {
 // Local handles should be trivially copyable, so that they can be efficiently
 // passed by value. If they are not trivially copyable, they cannot be passed in
 // registers.
-ASSERT_TRIVIALLY_COPYABLE(IndirectHandleBase);
+ASSERT_TRIVIALLY_COPYABLE(api_internal::IndirectHandleBase);
 #ifdef V8_ENABLE_DIRECT_LOCAL
-ASSERT_TRIVIALLY_COPYABLE(DirectHandleBase);
+ASSERT_TRIVIALLY_COPYABLE(api_internal::DirectHandleBase);
 #endif
 ASSERT_TRIVIALLY_COPYABLE(LocalBase<Object>);
 

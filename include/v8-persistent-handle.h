@@ -44,7 +44,7 @@ V8_EXPORT void MoveGlobalReference(internal::Address** from,
  * isolate.
  */
 template <class T>
-class Eternal : public IndirectHandleBase {
+class Eternal : public api_internal::IndirectHandleBase {
  public:
   V8_INLINE Eternal() = default;
 
@@ -88,7 +88,7 @@ V8_EXPORT void MakeWeak(internal::Address* location, void* data,
  *
  */
 template <class T>
-class PersistentBase : public IndirectHandleBase {
+class PersistentBase : public api_internal::IndirectHandleBase {
  public:
   /**
    * If non-empty, destroy the underlying storage cell
