@@ -2182,6 +2182,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // stack.
   void PrepareForSuddenShutdown();
 
+  bool battery_saver_mode_enabled() const {
+    return battery_saver_mode_enabled_;
+  }
+
+  void set_battery_saver_mode_enabled(bool battery_saver_mode_enabled) {
+    battery_saver_mode_enabled_ = battery_saver_mode_enabled;
+  }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -2373,6 +2381,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
   std::atomic<debug::CoverageMode> code_coverage_mode_{
       debug::CoverageMode::kBestEffort};
+
+  std::atomic<bool> battery_saver_mode_enabled_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import assertions, if present, from the second argument to dynamic

@@ -702,6 +702,14 @@ class V8_EXPORT Isolate {
   void MemoryPressureNotification(MemoryPressureLevel level);
 
   /**
+   * Optional request from the embedder to tune v8 towards energy efficiency
+   * rather than speed if `battery_saver_mode_enabled` is true, because the
+   * embedder is in battery saver mode. If false, the correct tuning is left
+   * to v8 to decide.
+   */
+  void SetBatterySaverMode(bool battery_saver_mode_enabled);
+
+  /**
    * Drop non-essential caches. Should only be called from testing code.
    * The method can potentially block for a long time and does not necessarily
    * trigger GC.

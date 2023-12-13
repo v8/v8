@@ -10267,6 +10267,11 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   i_isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
 }
 
+void Isolate::SetBatterySaverMode(bool battery_saver_mode_enabled) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->set_battery_saver_mode_enabled(battery_saver_mode_enabled);
+}
+
 void Isolate::ClearCachesForTesting() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);

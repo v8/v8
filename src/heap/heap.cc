@@ -523,7 +523,8 @@ bool Heap::ShouldUseBackgroundThreads() const {
 }
 
 bool Heap::ShouldOptimizeForBattery() const {
-  return v8_flags.optimize_gc_for_battery;
+  return v8_flags.optimize_gc_for_battery ||
+         isolate()->battery_saver_mode_enabled();
 }
 
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
