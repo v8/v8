@@ -152,6 +152,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   wrapped_export = ToPromising(instance.exports.test);
   combined_promise = wrapped_export();
   assertPromiseResult(combined_promise, v => assertEquals(42, v));
+  %CheckIsOnCentralStack();
 })();
 
 // Check that we can suspend back out of a resumed computation.
@@ -664,6 +665,7 @@ function TestNestedSuspenders(suspend) {
     fn();
     return %WasmSwitchToTheCentralStackCount() - beforeCall;
   }
+
   // Calling exported functions from the central stack.
   assertEquals(0, switchesToCS(() => instance.exports.test({})));
   assertEquals(0, switchesToCS(() => instance.exports.test2({})));
@@ -678,6 +680,7 @@ function TestNestedSuspenders(suspend) {
   switchesToCS(wrapper3);
   // Runtime call for array.new.
   switchesToCS(wrapper4);
+  %CheckIsOnCentralStack();
 })();
 
 (function TestSwitchingToTheCentralStackForJS() {

@@ -146,6 +146,27 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
   return MemOperand(scratch, 0);
 }
 
+void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
+  // This should be just a
+  //    add(dest, pc, branch_offset(target));
+  // but current implementation of Assembler::bind_to()/target_at_put() add
+  // (InstructionStream::kHeaderSize - kHeapObjectTag) to a position of a label
+  // in a "linked" state and thus making it usable only for mov_label_offset().
+  // TODO(ishell): fix branch_offset() and re-implement
+  // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
+  mov_label_offset(dest, target);
+  // mov_label_offset computes offset of the |target| relative to the "current
+  // InstructionStream object pointer" which is essentally pc_offset() of the
+  // label added with (InstructionStream::kHeaderSize - kHeapObjectTag).
+  // Compute "current InstructionStream object pointer" and add it to the
+  // offset in |lr| register.
+  int current_instr_code_object_relative_offset =
+      pc_offset() + Instruction::kPcLoadDelta +
+      (InstructionStream::kHeaderSize - kHeapObjectTag);
+  add(dest, pc, dest);
+  sub(dest, dest, Operand(current_instr_code_object_relative_offset));
+}
+
 void MacroAssembler::Jump(Register target, Condition cond) { bx(target, cond); }
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
@@ -397,6 +418,15 @@ void MacroAssembler::Drop(int count, Condition cond) {
 
 void MacroAssembler::Drop(Register count, Condition cond) {
   add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC, cond);
+}
+
+// Enforce alignment of sp.
+void MacroAssembler::EnforceStackAlignment() {
+  int frame_alignment = ActivationFrameAlignment();
+  DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+
+  uint32_t frame_alignment_mask = ~(static_cast<uint32_t>(frame_alignment) - 1);
+  and_(sp, sp, Operand(frame_alignment_mask));
 }
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
@@ -682,6 +712,24 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
               save_fp, SmiCheck::kOmit);
 
   bind(&done);
+}
+
+void MacroAssembler::Zero(const MemOperand& dest) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  mov(scratch, Operand::Zero());
+  str(scratch, dest);
+}
+void MacroAssembler::Zero(const MemOperand& dest1, const MemOperand& dest2) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  mov(scratch, Operand::Zero());
+  str(scratch, dest1);
+  str(scratch, dest2);
 }
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
@@ -1465,12 +1513,8 @@ void MacroAssembler::EnterExitFrame(int stack_space,
 
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
-  const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   AllocateStackSpace((stack_space + 1) * kPointerSize);
-  if (frame_alignment > 0) {
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    and_(sp, sp, Operand(-frame_alignment));
-  }
+  EnforceStackAlignment();
 
   // Set the exit frame sp value to point just before the return address
   // location.
@@ -2648,8 +2692,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     // and the original value of sp.
     mov(scratch, sp);
     AllocateStackSpace((stack_passed_arguments + 1) * kPointerSize);
-    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    and_(sp, sp, Operand(-frame_alignment));
+    EnforceStackAlignment();
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else if (stack_passed_arguments > 0) {
     AllocateStackSpace(stack_passed_arguments * kPointerSize);

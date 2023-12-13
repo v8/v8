@@ -3502,7 +3502,6 @@ void SyncStackLimit(MacroAssembler* masm, const CPURegister& keep1 = NoReg,
                     const CPURegister& keep2 = padreg,
                     const CPURegister& keep3 = NoReg) {
   using ER = ExternalReference;
-#if V8_ENABLE_WEBASSEMBLY
   __ Push(keep1, keep2);
   if (keep3 != NoReg) {
     __ Push(keep3, padreg);
@@ -3516,7 +3515,6 @@ void SyncStackLimit(MacroAssembler* masm, const CPURegister& keep1 = NoReg,
     __ Pop(padreg, keep3);
   }
   __ Pop(keep2, keep1);
-#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
@@ -3599,6 +3597,7 @@ void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   __ Str(xzr, MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
 }
 
+// TODO(irezvov): Consolidate with arm RegisterAllocator.
 class RegisterAllocator {
  public:
   class Scoped {
@@ -4399,9 +4398,6 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   JSToWasmWrapperHelper(masm, true);
 }
 
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-#if V8_ENABLE_WEBASSEMBLY
 namespace {
 void SwitchSimulatorStackLimit(MacroAssembler* masm) {
   if (masm->options().enable_simulator_code) {
