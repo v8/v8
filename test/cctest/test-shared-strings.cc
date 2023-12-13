@@ -363,25 +363,28 @@ class ConcurrentInternalizationThread final
 
 namespace {
 
-Handle<String> CreateSharedOneByteString(Isolate* isolate, Factory* factory,
-                                         int length, bool internalize) {
+std::pair<Handle<String>, MaybeHandle<String>> CreateSharedOneByteString(
+    Isolate* isolate, Factory* factory, int length, bool internalize) {
   char* ascii = new char[length + 1];
   // Don't make single character strings, which will end up deduplicating to
   // an RO string and mess up the string table hit test.
   CHECK_GT(length, 1);
   for (int j = 0; j < length; j++) ascii[j] = 'a';
   ascii[length] = '\0';
+  MaybeHandle<String> internalized;
   if (internalize) {
     // When testing concurrent string table hits, pre-internalize a string
     // of the same contents so all subsequent internalizations are hits.
-    factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+    internalized =
+        factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+    CHECK(IsInternalizedString(*internalized.ToHandleChecked()));
   }
   Handle<String> string = String::Share(
       isolate, factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
   delete[] ascii;
   CHECK(string->IsShared());
   string->EnsureHash();
-  return string;
+  return std::make_pair(string, internalized);
 }
 
 Handle<FixedArray> CreateSharedOneByteStrings(Isolate* isolate,
@@ -390,22 +393,34 @@ Handle<FixedArray> CreateSharedOneByteStrings(Isolate* isolate,
                                               bool internalize = false) {
   Handle<FixedArray> shared_strings =
       factory->NewFixedArray(count + lo_count, AllocationType::kSharedOld);
+  // Buffer to keep internalized strings alive in the current scope.
+  Handle<FixedArray> internalized_handles;
+  if (internalize) {
+    internalized_handles =
+        factory->NewFixedArray(count + lo_count, AllocationType::kOld);
+  }
   {
     // Create strings in their own scope to be able to delete and GC them.
     HandleScope scope(isolate);
     for (int i = 0; i < count; i++) {
       int length = i + min_length + 1;
-      Handle<String> string =
+      auto strings =
           CreateSharedOneByteString(isolate, factory, length, internalize);
-      shared_strings->set(i, *string);
+      shared_strings->set(i, *strings.first);
+      if (internalize) {
+        internalized_handles->set(i, *strings.second.ToHandleChecked());
+      }
     }
     int min_lo_length =
         isolate->heap()->MaxRegularHeapObjectSize(AllocationType::kOld) + 1;
     for (int i = 0; i < lo_count; i++) {
       int length = i + min_lo_length + 1;
-      Handle<String> string =
+      auto strings =
           CreateSharedOneByteString(isolate, factory, length, internalize);
-      shared_strings->set(count + i, *string);
+      shared_strings->set(count + i, *strings.first);
+      if (internalize) {
+        internalized_handles->set(count + i, *strings.second.ToHandleChecked());
+      }
     }
   }
   return shared_strings;
@@ -1093,11 +1108,20 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
   }
 }
 
+namespace {
+
+void TriggerGCWithTransitions(Heap* heap) {
+  v8_flags.transition_strings_during_gc_with_stack = true;
+  heap::CollectSharedGarbage(heap);
+  v8_flags.transition_strings_during_gc_with_stack = false;
+}
+
+}  // namespace
+
 UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   constexpr int kStrings = 4096;
   constexpr int kLOStrings = 16;
@@ -1125,7 +1149,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
     }
 
     // Trigger garbage collection on the shared isolate.
-    heap::CollectSharedGarbage(i_isolate->heap());
+    TriggerGCWithTransitions(i_isolate->heap());
 
     // Check that GC cleared the forwarding table.
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
@@ -1242,7 +1266,6 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1278,8 +1301,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
     }
 
     // Trigger garbage collection on the shared isolate.
-    i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
-                                            GarbageCollectionReason::kTesting);
+    TriggerGCWithTransitions(i_isolate->heap());
 
     // Check that GC cleared the forwarding table.
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
@@ -1360,7 +1382,6 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1390,8 +1411,8 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   CHECK(shared_two_byte->HasExternalForwardingIndex(kAcquireLoad));
 
   // Trigger GC to externalize the shared string.
-  i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
-                                           GarbageCollectionReason::kTesting);
+  TriggerGCWithTransitions(i_isolate1->heap());
+
   CHECK(shared_one_byte->IsShared());
   CHECK(IsExternalString(*shared_one_byte));
   CHECK(shared_two_byte->IsShared());
@@ -1426,8 +1447,8 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   // Another GC should create an externalized internalized string of the cached
   // (one byte) string and turn the uncached (two byte) string into a
   // ThinString, disposing the external resource.
-  i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
-                                           GarbageCollectionReason::kTesting);
+  TriggerGCWithTransitions(i_isolate1->heap());
+
   CHECK_EQ(shared_one_byte->map()->instance_type(),
            InstanceType::EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE);
   if (is_uncached) {
@@ -1671,7 +1692,6 @@ void TestConcurrentExternalization(bool share_resources) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1726,8 +1746,7 @@ void TestConcurrentExternalization(bool share_resources) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
-                                          GarbageCollectionReason::kTesting);
+  TriggerGCWithTransitions(i_isolate->heap());
 
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
@@ -1753,7 +1772,6 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = transition_with_stack;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1766,6 +1784,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   Factory* factory = i_isolate->factory();
 
   ManualGCScope manual_gc_scope(i_isolate);
+  DisableConservativeStackScanningScopeForTesting no_css(i_isolate->heap());
 
   HandleScope scope(i_isolate);
 
@@ -1823,6 +1842,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     }
   }
 
+  v8_flags.transition_strings_during_gc_with_stack = transition_with_stack;
   i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
                                           GarbageCollectionReason::kTesting);
 
@@ -1880,7 +1900,6 @@ void TestConcurrentExternalizationAndInternalization(
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1934,8 +1953,7 @@ void TestConcurrentExternalizationAndInternalization(
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
-                                          GarbageCollectionReason::kTesting);
+  TriggerGCWithTransitions(i_isolate->heap());
 
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
