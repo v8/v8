@@ -221,7 +221,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
 
   // Depending on whether the inlinee produces a value, we either replace value
   // uses with said value or kill value uses if no value can be returned.
-  if (values.size() > 0) {
+  if (!values.empty()) {
     int const input_count = static_cast<int>(controls.size());
     Node* control_output = graph()->NewNode(common()->Merge(input_count),
                                             input_count, &controls.front());

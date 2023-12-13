@@ -1714,7 +1714,6 @@ class RepresentationSelector {
         ChangeToInt32OverflowOp(node);
       }
     }
-    return;
   }
 
   template <Phase T>
@@ -1738,7 +1737,6 @@ class RepresentationSelector {
     if (lower<T>()) {
       ChangeToPureOp(node, Float64Op(node));
     }
-    return;
   }
 
   template <Phase T>
@@ -1853,7 +1851,6 @@ class RepresentationSelector {
     VisitBinop<T>(node, lhs_use, rhs_use, MachineRepresentation::kFloat64,
                   Type::Number());
     if (lower<T>()) ChangeToPureOp(node, Float64Op(node));
-    return;
   }
 
   // Just assert for Propagate and Retype. Lower specialized below.

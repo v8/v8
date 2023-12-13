@@ -374,7 +374,7 @@ NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
                                         const Operator* op, int input_count,
                                         Node** inputs, Type type)
     : node_cache_(cache), from_(nullptr) {
-  if (node_cache_->temp_nodes_.size() > 0) {
+  if (!node_cache_->temp_nodes_.empty()) {
     tmp_ = node_cache_->temp_nodes_.back();
     node_cache_->temp_nodes_.pop_back();
     int tmp_input_count = tmp_->InputCount();

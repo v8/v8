@@ -1029,7 +1029,7 @@ TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
 }
 
 void CodeAssembler::HandleException(Node* node) {
-  if (state_->exception_handler_labels_.size() == 0) return;
+  if (state_->exception_handler_labels_.empty()) return;
   CodeAssemblerExceptionHandlerLabel* label =
       state_->exception_handler_labels_.back();
 
@@ -1446,7 +1446,7 @@ Factory* CodeAssembler::factory() const { return isolate()->factory(); }
 Zone* CodeAssembler::zone() const { return raw_assembler()->zone(); }
 
 bool CodeAssembler::IsExceptionHandlerActive() const {
-  return state_->exception_handler_labels_.size() != 0;
+  return !state_->exception_handler_labels_.empty();
 }
 
 RawMachineAssembler* CodeAssembler::raw_assembler() const {

@@ -1409,7 +1409,6 @@ void CompilationDependencies::DependOnConsistentJSFunctionView(
 void CompilationDependencies::DependOnNoSlackTrackingChange(MapRef map) {
   if (map.construction_counter() == 0) return;
   RecordDependency(zone_->New<NoSlackTrackingChangeDependency>(map));
-  return;
 }
 
 SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,

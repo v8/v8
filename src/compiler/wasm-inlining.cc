@@ -423,7 +423,7 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
     }
   }
 
-  if (return_nodes.size() > 0) {
+  if (!return_nodes.empty()) {
     /* 4) Collect all return site value, effect, and control inputs into phis
      * and merges. */
     int const return_count = static_cast<int>(return_nodes.size());

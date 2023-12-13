@@ -405,7 +405,7 @@ class BytecodeGraphBuilder {
     return frame_state_function_info_;
   }
   SourcePositionTableIterator& source_position_iterator() {
-    return *source_position_iterator_.get();
+    return *source_position_iterator_;
   }
   interpreter::BytecodeArrayIterator const& bytecode_iterator() const {
     return bytecode_iterator_;
