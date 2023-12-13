@@ -548,16 +548,6 @@ struct TargetAndInstance {
   instance: HeapObject;  // WasmInstanceObject or WasmApiFunctionRef
 }
 
-macro GetTargetAndInstance(funcref: WasmInternalFunction):
-    TargetAndInstance {
-  const ref = funcref.ref;
-  let target = funcref.call_target_ptr;
-  if (Signed(target) == IntPtrConstant(0)) {
-    target = LoadWasmInternalFunctionInstructionStart(funcref);
-  }
-  return TargetAndInstance{target: target, instance: ref};
-}
-
 // Vector format:
 // Two slots per call_ref instruction. These slots' values can be:
 // - uninitialized: (0, <unused>). Note: we use {0} as the sentinel because
@@ -570,15 +560,14 @@ macro GetTargetAndInstance(funcref: WasmInternalFunction):
 //
 // TODO(rstz): The counter might overflow if it exceeds the range of a Smi.
 // This can lead to incorrect inlining decisions.
-builtin CallRefIC(
-    vector: FixedArray, index: intptr,
-    funcref: WasmInternalFunction): TargetAndInstance {
+macro UpdateIC(
+    vector: FixedArray, index: intptr, funcref: WasmInternalFunction): void {
   const value = vector.objects[index];
   if (value == funcref) {
     // Monomorphic hit. Check for this case first to maximize its performance.
     const count = UnsafeCast<Smi>(vector.objects[index + 1]) + SmiConstant(1);
     vector.objects[index + 1] = count;
-    return GetTargetAndInstance(funcref);
+    return;
   }
   // Check for polymorphic hit; its performance is second-most-important.
   if (Is<FixedArray>(value)) {
@@ -588,13 +577,11 @@ builtin CallRefIC(
         // Polymorphic hit.
         const count = UnsafeCast<Smi>(entries.objects[i + 1]) + SmiConstant(1);
         entries.objects[i + 1] = count;
-        return GetTargetAndInstance(funcref);
+        return;
       }
     }
   }
-  // All other cases are some sort of miss and must compute the target/
-  // instance. They all fall through to returning the computed data.
-  const result = GetTargetAndInstance(funcref);
+  // All other cases are some sort of miss.
   if (TaggedEqual(value, SmiConstant(0))) {
     // Was uninitialized.
     vector.objects[index] = funcref;
@@ -630,9 +617,23 @@ builtin CallRefIC(
     // Clear the first entry's counter; the specific value we write doesn't
     // matter.
     vector.objects[index + 1] = Undefined;
+  } else {
+    // The "ic::IsMegamorphic(value)" case doesn't need to do anything.
+    dcheck(value == ic::kMegamorphicSymbol);
   }
-  // The "ic::IsMegamorphic(value)" case doesn't need to do anything.
-  return result;
+}
+
+builtin CallRefIC(
+    vector: FixedArray, index: intptr,
+    funcref: WasmInternalFunction): TargetAndInstance {
+  UpdateIC(vector, index, funcref);
+
+  const ref = funcref.ref;
+  let target = funcref.call_target_ptr;
+  if (Signed(target) == IntPtrConstant(0)) {
+    target = LoadWasmInternalFunctionInstructionStart(funcref);
+  }
+  return TargetAndInstance{target: target, instance: ref};
 }
 
 extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
