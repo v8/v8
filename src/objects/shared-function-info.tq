@@ -15,7 +15,8 @@ extern class InterpreterData extends ExposedTrustedObject {
   // always directly reference the BytecodeArray through a tagged pointer.
   @if(V8_ENABLE_SANDBOX) bytecode_array: IndirectPointer<BytecodeArray>;
   @ifnot(V8_ENABLE_SANDBOX) bytecode_array: BytecodeArray;
-  interpreter_trampoline: Code;
+  @if(V8_ENABLE_SANDBOX) interpreter_trampoline: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) interpreter_trampoline: Code;
 }
 
 type FunctionKind extends uint8 constexpr 'FunctionKind';

@@ -2026,7 +2026,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                   kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
 
-  __ LoadTaggedField(
+  __ LoadCodePointerField(
       x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
   __ LoadCodeInstructionStart(x1, x1);
   __ B(&trampoline_loaded);

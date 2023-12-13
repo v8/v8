@@ -103,7 +103,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 TRUSTED_POINTER_ACCESSORS(InterpreterData, bytecode_array, BytecodeArray,
-                          kBytecodeArrayOffset, kUnknownIndirectPointerTag)
+                          kBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
+CODE_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline,
+                       kInterpreterTrampolineOffset)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
@@ -785,7 +788,7 @@ void SharedFunctionInfo::overwrite_bytecode_array(
 Tagged<Code> SharedFunctionInfo::InterpreterTrampoline(
     IsolateForSandbox isolate) const {
   DCHECK(HasInterpreterData(isolate));
-  return interpreter_data(isolate)->interpreter_trampoline();
+  return interpreter_data(isolate)->interpreter_trampoline(isolate);
 }
 
 bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {

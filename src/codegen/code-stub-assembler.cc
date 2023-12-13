@@ -16281,8 +16281,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   CSA_DCHECK(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   {
-    TNode<Code> trampoline =
-        LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
+    TNode<Code> trampoline = LoadCodePointerFromObject(
+        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset);
     sfi_code = trampoline;
   }
   Goto(&done);

@@ -1708,8 +1708,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
-  __ LoadTaggedField(
-      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadCodePointerField(
+      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset),
+      kScratchRegister);
   __ LoadCodeInstructionStart(rbx, rbx);
   __ jmp(&trampoline_loaded, Label::kNear);
 
