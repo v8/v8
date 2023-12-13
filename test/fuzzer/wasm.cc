@@ -30,6 +30,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_flags.wasm_max_mem_pages = 32;
   v8_flags.wasm_max_table_size = 100;
 
+  // Disable lazy compilation to find compiler bugs easier.
+  v8_flags.wasm_lazy_compilation = false;
+
+  // Choose one of Liftoff or TurboFan, depending on the size of the input (we
+  // can't use a dedicated byte from the input, because we want to be able to
+  // pass Wasm modules unmodified to this fuzzer).
+  v8_flags.liftoff = size & 1;
+
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);
