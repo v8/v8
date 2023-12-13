@@ -114,6 +114,9 @@ class V8_EXPORT MemorySpan {
 
   constexpr T& operator[](size_t i) const { return data_[i]; }
 
+  /** Returns true if the buffer is empty. */
+  constexpr bool empty() const { return size() == 0; }
+
   class Iterator {
    public:
     using iterator_category = std::forward_iterator_tag;
