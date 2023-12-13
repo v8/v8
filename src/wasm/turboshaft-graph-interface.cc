@@ -194,9 +194,15 @@ class TurboshaftGraphBuildingInterface {
         // instance.
         ssa_env_[index] = real_parameters_[index + 1];
       }
-      return_phis_ = BlockPhis(decoder->zone_, decoder->sig_->return_count());
-      for (size_t i = 0; i < decoder->sig_->return_count(); i++) {
+      size_t return_count = decoder->sig_->return_count();
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      return_phis_ = BlockPhis(decoder->zone_, return_count + cached_values);
+      for (size_t i = 0; i < return_count; i++) {
         return_phis_.phi_types[i] = decoder->sig_->GetReturn(i);
+      }
+      for (uint32_t i = 0; i < cached_values; i++) {
+        return_phis_.phi_types[return_count + i] =
+            instance_cache_.mutable_field_type(i);
       }
     }
     while (index < decoder->num_locals()) {
@@ -585,8 +591,13 @@ class TurboshaftGraphBuildingInterface {
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
-      for (size_t i = 0; i < return_values.size(); i++) {
+      for (size_t i = 0; i < return_count; i++) {
         return_phis_.phi_inputs[i].push_back(return_values[i]);
+      }
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        return_phis_.phi_inputs[return_count + i].push_back(
+            instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -5724,14 +5735,20 @@ class TurboshaftGraphBuildingInterface {
       // and return the return values to the caller.
       // TODO(14108): This can remain a tail call if the inlined call is also a
       // tail call.
-      SmallZoneVector<Value, 16> returns(sig->return_count(), decoder->zone_);
+      size_t return_count = sig->return_count();
+      SmallZoneVector<Value, 16> returns(return_count, decoder->zone_);
       // Since an exception in a tail call cannot be caught in this frame, we
       // should only catch exceptions in the generated call if this is a
       // recursively inlined function, and the parent frame provides a handler.
       BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
                     CheckForException::kCatchInParentFrame);
-      for (size_t i = 0; i < sig->return_count(); i++) {
+      for (size_t i = 0; i < return_count; i++) {
         return_phis_.phi_inputs[i].push_back(returns[i].op);
+      }
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        return_phis_.phi_inputs[return_count + i].push_back(
+            instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -6481,9 +6498,17 @@ class TurboshaftGraphBuildingInterface {
 
     __ Bind(callee_return_block);
     BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
-    for (size_t i = 0; i < inlinee.sig->return_count(); i++) {
+    size_t return_count = inlinee.sig->return_count();
+    for (size_t i = 0; i < return_count; i++) {
       returns[i].op = MaybePhi(base::VectorOf(return_phis.phi_inputs[i]),
                                return_phis.phi_types[i]);
+    }
+    uint32_t cached_values = instance_cache_.num_mutable_fields();
+    for (uint32_t i = 0; i < cached_values; i++) {
+      OpIndex phi =
+          MaybePhi(base::VectorOf(return_phis.phi_inputs[i + return_count]),
+                   instance_cache_.mutable_field_type(i));
+      instance_cache_.set_mutable_field_value(i, phi);
     }
 
     if (!v8_flags.liftoff) {
