@@ -1346,7 +1346,7 @@ DEFINE_BOOL(wasm_generic_wrapper, true,
 DEFINE_BOOL(wasm_to_js_generic_wrapper, false,
             "allow use of the generic wasm-to-js wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(wasm_js_js_generic_wrapper, false,
+DEFINE_BOOL(wasm_js_js_generic_wrapper, true,
             "allow use of the generic js-to-js wrapper instead of "
             "per-signature wrappers")
 DEFINE_WEAK_IMPLICATION(future, wasm_to_js_generic_wrapper)
