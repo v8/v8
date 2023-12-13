@@ -18,41 +18,42 @@ struct IteratorRecord {
 extern macro IteratorBuiltinsAssembler::FastIterableToList(
     implicit context: Context)(JSAny): JSArray labels Slow;
 
-extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
+extern transitioning macro IteratorBuiltinsAssembler::GetIteratorMethod(
     implicit context: Context)(JSAny): JSAny;
-extern macro IteratorBuiltinsAssembler::GetIterator(
+extern transitioning macro IteratorBuiltinsAssembler::GetIterator(
     implicit context: Context)(JSAny): IteratorRecord;
-extern macro IteratorBuiltinsAssembler::GetIterator(
+extern transitioning macro IteratorBuiltinsAssembler::GetIterator(
     implicit context: Context)(JSAny, JSAny): IteratorRecord;
 
-extern macro IteratorBuiltinsAssembler::IteratorStep(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorStep(
     implicit context: Context)(IteratorRecord): JSReceiver
     labels Done;
-extern macro IteratorBuiltinsAssembler::IteratorStep(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorStep(
     implicit context: Context)(IteratorRecord, Map): JSReceiver
     labels Done;
-extern macro IteratorBuiltinsAssembler::IteratorComplete(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorComplete(
     implicit context: Context)(JSReceiver): void labels Done;
-extern macro IteratorBuiltinsAssembler::IteratorComplete(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorComplete(
     implicit context: Context)(JSReceiver, Map): void labels Done;
 
-extern macro IteratorBuiltinsAssembler::IteratorValue(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorValue(
     implicit context: Context)(JSReceiver): JSAny;
-extern macro IteratorBuiltinsAssembler::IteratorValue(
+extern transitioning macro IteratorBuiltinsAssembler::IteratorValue(
     implicit context: Context)(JSReceiver, Map): JSAny;
 
-extern macro IteratorBuiltinsAssembler::IterableToList(
+extern transitioning macro IteratorBuiltinsAssembler::IterableToList(
     implicit context: Context)(JSAny, JSAny): JSArray;
 
-extern macro IteratorBuiltinsAssembler::StringListFromIterable(
+extern transitioning macro IteratorBuiltinsAssembler::StringListFromIterable(
     implicit context: Context)(JSAny): JSArray;
 
-extern builtin IterableToListWithSymbolLookup(
+extern transitioning builtin IterableToListWithSymbolLookup(
     implicit context: Context)(JSAny): JSArray;
-extern builtin IterableToFixedArrayWithSymbolLookupSlow(
+extern transitioning builtin IterableToFixedArrayWithSymbolLookupSlow(
     implicit context: Context)(JSAny): FixedArray;
 
-extern runtime ObjectHasOwnProperty(Context, JSAny, JSAny): Boolean;
+extern transitioning runtime ObjectHasOwnProperty(Context, JSAny, JSAny):
+    Boolean;
 
 transitioning builtin GetIteratorWithFeedback(
     context: Context, receiver: JSAny, loadSlot: TaggedIndex,
@@ -95,7 +96,7 @@ transitioning builtin GetIteratorBaseline(
       context, receiver, iteratorMethod, callSlotSmi, feedback);
 }
 
-extern macro CreateAsyncFromSyncIterator(Context, JSAny): JSAny;
+extern transitioning macro CreateAsyncFromSyncIterator(Context, JSAny): JSAny;
 
 transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
     JSAny {
