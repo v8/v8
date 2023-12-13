@@ -1794,7 +1794,11 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
 
 void Int32Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
-  UseRegister(right_input());
+  if (right_input().node()->Is<Int32Constant>()) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
   DefineAsRegister(this);
 }
 
@@ -1802,9 +1806,17 @@ void Int32Compare::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   Register result = ToRegister(this->result());
   Label is_true, end;
-  __ CompareInt32AndJumpIf(ToRegister(left_input()), ToRegister(right_input()),
-                           ConditionFor(operation()), &is_true,
-                           Label::Distance::kNear);
+  if (Int32Constant* constant =
+          right_input().node()->TryCast<Int32Constant>()) {
+    int32_t right_value = constant->value();
+    __ CompareInt32AndJumpIf(ToRegister(left_input()), right_value,
+                             ConditionFor(operation()), &is_true,
+                             Label::Distance::kNear);
+  } else {
+    __ CompareInt32AndJumpIf(
+        ToRegister(left_input()), ToRegister(right_input()),
+        ConditionFor(operation()), &is_true, Label::Distance::kNear);
+  }
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, RootIndex::kFalseValue);
