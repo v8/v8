@@ -213,7 +213,7 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
     CHECK_EQ(
         zlib_internal::CompressHelper(
             zlib_internal::ZRAW, compressed_data.data(), &compressed_data_size,
-            base::bit_cast<const Bytef*>(contents_for_compression_.data()),
+            reinterpret_cast<const Bytef*>(contents_for_compression_.data()),
             input_size, Z_DEFAULT_COMPRESSION, nullptr, nullptr),
         Z_OK);
 

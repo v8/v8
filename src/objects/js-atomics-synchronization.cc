@@ -91,7 +91,7 @@ class V8_NODISCARD WaiterQueueNode final {
     auto state =
         static_cast<typename T::StateT>(head->external_pointer_handle_);
 #else
-    auto state = base::bit_cast<typename T::StateT>(head);
+    auto state = reinterpret_cast<typename T::StateT>(head);
 #endif  // V8_COMPRESS_POINTERS
 
     DCHECK_EQ(0, state & T::kLockBitsMask);
@@ -113,7 +113,7 @@ class V8_NODISCARD WaiterQueueNode final {
         requester->shared_external_pointer_table().Exchange(
             handle, kNullAddress, kWaiterQueueNodeTag));
 #else
-    return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
+    return reinterpret_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
 #endif  // V8_COMPRESS_POINTERS
   }
 
