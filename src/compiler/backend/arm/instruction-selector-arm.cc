@@ -2619,14 +2619,11 @@ void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    ArmOperandGeneratorT<Adapter> g(this);
-    Emit(kArmVmodF64, g.DefineAsFixed(node, d0),
-         g.UseFixed(node->InputAt(0), d0), g.UseFixed(node->InputAt(1), d1))
-        ->MarkAsCall();
-  }
+  ArmOperandGeneratorT<Adapter> g(this);
+  Emit(kArmVmodF64, g.DefineAsFixed(node, d0),
+       g.UseFixed(this->input_at(node, 0), d0),
+       g.UseFixed(this->input_at(node, 1), d1))
+      ->MarkAsCall();
 }
 
 template <typename Adapter>
@@ -3373,48 +3370,39 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kArmAdd, kArmAdd, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kArmAdd, kArmAdd, &cont);
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kArmAdd, kArmAdd, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kArmAdd, kArmAdd, &cont);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kArmSub, kArmRsb, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kArmSub, kArmRsb, &cont);
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kArmSub, kArmRsb, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kArmSub, kArmRsb, &cont);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      // ARM doesn't set the overflow flag for multiplication, so we need to
-      // test on kNotEqual. Here is the code sequence used:
-      //   smull resultlow, resulthigh, left, right
-      //   cmp resulthigh, Operand(resultlow, ASR, 31)
-      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-      return EmitInt32MulWithOverflow(this, node, &cont);
-    }
-    FlagsContinuation cont;
-    EmitInt32MulWithOverflow(this, node, &cont);
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    // ARM doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   smull resultlow, resulthigh, left, right
+    //   cmp resulthigh, Operand(resultlow, ASR, 31)
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
   }
+  FlagsContinuation cont;
+  EmitInt32MulWithOverflow(this, node, &cont);
 }
 
 template <typename Adapter>
@@ -4265,7 +4253,8 @@ VISIT_SIMD_ADD(I32x4, I16x8, 16)
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2SplatI32Pair(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    // In turboshaft it gets lowered to an I32x4Splat.
+    UNREACHABLE();
   } else {
     ArmOperandGeneratorT<Adapter> g(this);
     InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
@@ -4277,7 +4266,8 @@ void InstructionSelectorT<Adapter>::VisitI64x2SplatI32Pair(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLaneI32Pair(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    // In turboshaft it gets lowered to an I32x4ReplaceLane.
+    UNREACHABLE();
   } else {
     ArmOperandGeneratorT<Adapter> g(this);
     InstructionOperand operand = g.UseRegister(node->InputAt(0));

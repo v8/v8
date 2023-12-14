@@ -27,7 +27,7 @@ void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
 #endif
                BranchConditionDuplicationReducer
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
                ,
                LoadStoreSimplificationReducer, ValueNumberingReducer
 #endif
