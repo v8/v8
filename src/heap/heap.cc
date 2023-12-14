@@ -2599,6 +2599,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
   HeapGrowingMode mode = CurrentHeapGrowingMode();
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
+    DCHECK_EQ(0, YoungGenerationSizeOfObjects());
+
     external_memory_.ResetAfterGC();
 
     size_t new_old_generation_allocation_limit =
@@ -2704,6 +2706,7 @@ void Heap::MarkCompact() {
   // This should be updated before PostGarbageCollectionProcessing, which
   // can cause another GC. Take into account the objects promoted during
   // GC.
+  DCHECK_EQ(0, YoungGenerationSizeOfObjects());
   old_generation_allocation_counter_at_last_gc_ +=
       static_cast<size_t>(promoted_objects_size_);
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
@@ -5143,12 +5146,19 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
+size_t Heap::YoungGenerationSizeOfObjects() const {
+  if (!v8_flags.minor_ms || !new_space()) return 0;
+  DCHECK_NOT_NULL(new_lo_space());
+  return new_space()->SizeOfObjects() + new_lo_space()->SizeOfObjects();
+}
+
 size_t Heap::EmbedderSizeOfObjects() const {
   return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
 }
 
 size_t Heap::GlobalSizeOfObjects() const {
-  return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects();
+  return OldGenerationSizeOfObjects() + YoungGenerationSizeOfObjects() +
+         EmbedderSizeOfObjects();
 }
 
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
@@ -5160,8 +5170,9 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
 
-  uint64_t size_now =
-      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+  uint64_t size_now = OldGenerationSizeOfObjects() +
+                      YoungGenerationSizeOfObjects() +
+                      AllocatedExternalMemorySinceMarkCompact();
 
   const size_t v8_overshoot = old_generation_allocation_limit() < size_now
                                   ? size_now - old_generation_allocation_limit()
@@ -5296,19 +5307,20 @@ base::Optional<size_t> Heap::GlobalMemoryAvailable() {
 
 double Heap::PercentToOldGenerationLimit() {
   double size_at_gc = old_generation_size_at_last_gc_;
-  double size_now =
-      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+  double size_now = OldGenerationSizeOfObjects() +
+                    YoungGenerationSizeOfObjects() +
+                    AllocatedExternalMemorySinceMarkCompact();
   double current_bytes = size_now - size_at_gc;
   double total_bytes = old_generation_allocation_limit() - size_at_gc;
   return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
 }
 
 double Heap::PercentToGlobalMemoryLimit() {
-  double size_at_gc = old_generation_size_at_last_gc_;
+  double size_at_gc = global_memory_at_last_gc_;
   double size_now =
-      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+      GlobalSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
   double current_bytes = size_now - size_at_gc;
-  double total_bytes = old_generation_allocation_limit() - size_at_gc;
+  double total_bytes = global_allocation_limit() - size_at_gc;
   return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
 }
 

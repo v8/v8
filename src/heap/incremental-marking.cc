@@ -122,7 +122,8 @@ bool IncrementalMarking::CanBeStarted() const {
 }
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
-  return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
+  return (heap_->OldGenerationSizeOfObjects() +
+          heap_->YoungGenerationSizeOfObjects()) <= kV8ActivationThreshold &&
          heap_->EmbedderSizeOfObjects() <= kEmbedderActivationThreshold;
 }
 

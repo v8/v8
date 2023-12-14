@@ -1389,6 +1389,11 @@ class Heap final {
   // Excludes external memory held by those objects.
   V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects() const;
 
+  // Returns the size of objects residing in new spaces.
+  // Excludes external memory held by those objects.
+  // Returns 0 when MinorMS is not used.
+  V8_EXPORT_PRIVATE size_t YoungGenerationSizeOfObjects() const;
+
   // Returns the size of objects held by the EmbedderHeapTracer.
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
@@ -1874,6 +1879,7 @@ class Heap final {
 
   inline size_t OldGenerationSpaceAvailable() {
     uint64_t bytes = OldGenerationSizeOfObjects() +
+                     YoungGenerationSizeOfObjects() +
                      AllocatedExternalMemorySinceMarkCompact();
 
     if (old_generation_allocation_limit() <= bytes) return 0;
