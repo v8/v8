@@ -156,6 +156,14 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC() {
   });
 }
 
+void HeapProfiler::TakeSnapshotToFile(
+    const v8::HeapProfiler::HeapSnapshotOptions options, std::string filename) {
+  HeapSnapshot* snapshot = TakeSnapshot(options);
+  FileOutputStream stream(filename.c_str());
+  HeapSnapshotJSONSerializer serializer(snapshot);
+  serializer.Serialize(&stream);
+}
+
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags) {

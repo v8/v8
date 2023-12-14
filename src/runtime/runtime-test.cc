@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 
-#include <fstream>
 #include <iomanip>
 #include <memory>
 
@@ -1194,22 +1193,6 @@ RUNTIME_FUNCTION(Runtime_ScheduleGCInStackCheck) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-class FileOutputStream : public v8::OutputStream {
- public:
-  explicit FileOutputStream(const char* filename) : os_(filename) {}
-  ~FileOutputStream() override { os_.close(); }
-
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override { os_.close(); }
-
- private:
-  std::ofstream os_;
-};
-
 RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   if (v8_flags.fuzzing) {
     // We don't want to create snapshots in fuzzers.
@@ -1231,10 +1214,7 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   v8::HeapProfiler::HeapSnapshotOptions options;
   options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
   options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(options);
-  FileOutputStream stream(filename.c_str());
-  HeapSnapshotJSONSerializer serializer(snapshot);
-  serializer.Serialize(&stream);
+  heap_profiler->TakeSnapshotToFile(options, filename);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
