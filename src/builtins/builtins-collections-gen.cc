@@ -67,9 +67,15 @@ void BaseCollectionsAssembler::AddConstructorEntries(
   BIND(&if_fast_js_array);
   {
     var_mode = Int32Constant(kFastJSArray);
-    static_assert(OrderedHashSet::kInitialCapacity ==
-                  OrderedHashMap::kInitialCapacity);
-    var_at_least_space_for = IntPtrConstant(OrderedHashSet::kInitialCapacity);
+    if (variant == kWeakSet || variant == kWeakMap) {
+      var_at_least_space_for =
+          PositiveSmiUntag(LoadFastJSArrayLength(CAST(initial_entries)));
+    } else {
+      // TODO(ishell): consider using array length for all collections
+      static_assert(OrderedHashSet::kInitialCapacity ==
+                    OrderedHashMap::kInitialCapacity);
+      var_at_least_space_for = IntPtrConstant(OrderedHashSet::kInitialCapacity);
+    }
     Goto(&allocate_table);
   }
   TVARIABLE(JSReceiver, var_iterator_object);
@@ -717,9 +723,10 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
 
 TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
-  if (variant == kMap || variant == kWeakMap) {
+  if (variant == kMap) {
     return AllocateOrderedHashMap();
   } else {
+    DCHECK_EQ(variant, kSet);
     TNode<IntPtrT> capacity = HashTableComputeCapacity(at_least_space_for);
     return AllocateOrderedHashSet(capacity);
   }
@@ -2568,6 +2575,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
 TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
   // See HashTable::New().
+  DCHECK(variant == kWeakSet || variant == kWeakMap);
   CSA_DCHECK(this,
              IntPtrLessThanOrEqual(IntPtrConstant(0), at_least_space_for));
   TNode<IntPtrT> capacity = HashTableComputeCapacity(at_least_space_for);
