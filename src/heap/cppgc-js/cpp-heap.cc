@@ -277,8 +277,6 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
 
   ~UnifiedHeapMarker() final = default;
 
-  void AddObject(void*);
-
   cppgc::internal::MarkingWorklists& GetMarkingWorklists() {
     return marking_worklists_;
   }
@@ -322,11 +320,6 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
       heap_, v8_heap, marking_worklists_, *schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
-}
-
-void UnifiedHeapMarker::AddObject(void* object) {
-  mutator_marking_state_.MarkAndPush(
-      cppgc::internal::HeapObjectHeader::FromObject(object));
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
