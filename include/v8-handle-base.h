@@ -16,7 +16,7 @@ class StackAllocated {
 
  protected:
   struct no_checking_tag {};
-  static constexpr no_checking_tag do_not_check;
+  static constexpr no_checking_tag do_not_check{};
 
   V8_INLINE explicit StackAllocated(no_checking_tag) {}
   V8_INLINE explicit StackAllocated(const StackAllocated& other,
