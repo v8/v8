@@ -257,6 +257,19 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
+  if (!NodeProperties::IsTyped(input_struct) ||
+      !NodeProperties::GetType(input_struct).IsWasm()) {
+    // Also see the same pattern in ReduceWasmStructGet. Note that this is
+    // reached for cases where the StructSet has a value input that is
+    // DeadValue(). Above we check for `object->opcode() == IrOpcode::kDead.
+    // As an alternative that check could be extended to also check for
+    // ... || object->opcode() == IrOpcode::kDeadValue.
+    // It seems that the DeadValue may be caused by
+    // DeadCodeElimination::ReducePureNode. If that finds any input that is a
+    // Dead() node, it will replace that input with a DeadValue().
+    return NoChange();
+  }
+
   // Skip reduction if the input type is nullref. in this case, the struct get
   // will always trap.
   wasm::ValueType struct_type =
