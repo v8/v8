@@ -4371,12 +4371,15 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     // Check boundaries.
     ValueNode* elements_array_length = nullptr;
     ValueNode* length;
+    ValueNode* length_int32;
     if (is_jsarray) {
-      length = GetInt32(BuildLoadJSArrayLength(object).value());
+      length = BuildLoadJSArrayLength(object).value();
+      length_int32 = GetInt32(length);
     } else {
-      length = elements_array_length =
-          AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
-              {elements_array}, FixedArray::kLengthOffset)});
+      length = AddNewNode<LoadTaggedField>({elements_array},
+                                           FixedArray::kLengthOffset);
+      length_int32 = elements_array_length =
+          AddNewNode<UnsafeSmiUntag>({length});
     }
     index = GetInt32ElementIndex(index_object);
     if (keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
@@ -4400,14 +4403,13 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       // Non-JSArray PACKED_*_ELEMENTS always grow by adding holes because they
       // lack the magical length property, which requires a map transition.
       // So we can assume that this did not happen if we did not see this map.
-      ValueNode* limit =
-          IsHoleyElementsKind(elements_kind)
-              ? AddNewNode<Int32AddWithOverflow>(
-                    {elements_array_length,
-                     GetInt32Constant(JSObject::kMaxGap)})
-          : is_jsarray
-              ? AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)})
-              : elements_array_length;
+      ValueNode* limit = IsHoleyElementsKind(elements_kind)
+                             ? AddNewNode<Int32AddWithOverflow>(
+                                   {elements_array_length,
+                                    GetInt32Constant(JSObject::kMaxGap)})
+                         : is_jsarray ? AddNewNode<Int32AddWithOverflow>(
+                                            {length_int32, GetInt32Constant(1)})
+                                      : elements_array_length;
       AddNewNode<CheckInt32Condition>({index, limit},
                                       AssertCondition::kUnsignedLessThan,
                                       DeoptimizeReason::kOutOfBounds);
@@ -4419,12 +4421,12 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
       // Update length if necessary.
       if (is_jsarray) {
-        AddNewNode<UpdateJSArrayLength>({object, index, length});
+        AddNewNode<UpdateJSArrayLength>({object, index, length_int32});
         RecordKnownProperty(object, broker()->length_string(), length, false,
                             compiler::AccessMode::kStore);
       }
     } else {
-      AddNewNode<CheckInt32Condition>({index, length},
+      AddNewNode<CheckInt32Condition>({index, length_int32},
                                       AssertCondition::kUnsignedLessThan,
                                       DeoptimizeReason::kOutOfBounds);
 
@@ -4725,6 +4727,7 @@ void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
                                              compiler::NameRef name,
                                              ValueNode* value, bool is_const,
                                              compiler::AccessMode access_mode) {
+  DCHECK(!value->properties().is_conversion());
   KnownNodeAspects::LoadedPropertyMap& loaded_properties =
       is_const ? known_node_aspects().loaded_constant_properties
                : known_node_aspects().loaded_properties;
