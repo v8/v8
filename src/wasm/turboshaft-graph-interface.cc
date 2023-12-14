@@ -3072,6 +3072,7 @@ class TurboshaftGraphBuildingInterface {
           __ WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1),
           1);
     }
+    result->op = __ AnnotateWasmType(result->op, kWasmI31Ref.AsNonNull());
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
