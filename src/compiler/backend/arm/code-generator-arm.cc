@@ -892,8 +892,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
+      // The register allocator expects an allocatable register for the output,
+      // we cannot use sp directly.
+      __ mov(i.OutputRegister(), sp);
+      break;
     case kArchSetStackPointer:
-      UNREACHABLE();
+      DCHECK(instr->InputAt(0)->IsRegister());
+      __ mov(sp, i.InputRegister(0));
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
@@ -3749,6 +3755,18 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmCapiFunction()) {
         // Reserve space for saving the PC later.
         __ AllocateStackSpace(kSystemPointerSize);
+      } else if (call_descriptor->IsWasmImportWrapper()) {
+        // If the wrapper is running on a secondary stack, it will switch to the
+        // central stack and fill these slots with the central stack pointer and
+        // secondary stack limit. Otherwise the slots remain empty.
+        static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
+                      -12);
+        static_assert(
+            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset == -16);
+        UseScratchRegisterScope tmp_scope(masm());
+        Register tmp = tmp_scope.Acquire();
+        __ mov(tmp, Operand(0));
+        __ Push(tmp, tmp);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }

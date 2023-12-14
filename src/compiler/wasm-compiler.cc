@@ -7810,7 +7810,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return resume.PhiAt(0);
   }
 
-#if !V8_TARGET_ARCH_ARM
   Node* BuildSwitchToTheCentralStack(Node* callable_node) {
     Node* stack_limit_slot = gasm_->IntPtrAdd(
         gasm_->LoadFramePointer(),
@@ -7853,12 +7852,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                  gasm_->IntPtrConstant(0));
     gasm_->SetStackPointer(old_sp, wasm::kLeaveFPRelativeOnlyScope);
   }
-#endif
 
   Node* BuildCallOnCentralStack(base::SmallVector<Node*, 16>& args, int& pos,
                                 CallDescriptor* call_descriptor,
                                 Node* callable_node) {
-#if !V8_TARGET_ARCH_ARM
     // If the current stack is a secondary stack, switch, perform the call and
     // switch back. Otherwise, just do the call.
     // Return the Phi of the calls in the two branches.
@@ -7887,13 +7884,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     gasm_->Bind(&end);
     return end.PhiAt(0);
-#else
-    // TODO(thibaudm): Port to arm.
-    args[pos++] = effect();
-    args[pos++] = control();
-    DCHECK_EQ(pos, args.size());
-    return gasm_->Call(call_descriptor, pos, args.begin());
-#endif
   }
 
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.

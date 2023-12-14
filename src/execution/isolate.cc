@@ -2167,7 +2167,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             DCHECK_LT(0, wasm_to_js_counter);
             suspender->set_wasm_to_js_counter(wasm_to_js_counter - 1);
 
-#if !V8_TARGET_ARCH_ARM
             // If the wasm-to-js wrapper was on a secondary stack and switched
             // to the central stack, handle the implicit switch back.
             Address central_stack_sp = *reinterpret_cast<Address*>(
@@ -2182,7 +2181,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
               stack_guard()->SetStackLimitForStackSwitching(
                   secondary_stack_limit);
             }
-#endif
           }
         }
         break;
@@ -2227,7 +2225,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #if DEBUG
         DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(this, frame->pc()));
 #endif
-#if !V8_TARGET_ARCH_ARM
         if (v8_flags.experimental_wasm_stack_switching) {
           Tagged<Code> code = stub_frame->LookupCode();
           if (code->builtin_id() == Builtin::kWasmToJsWrapperCSA) {
@@ -2246,7 +2243,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             }
           }
         }
-#endif  // !V8_TARGET_ARCH_ARM
 #endif  // V8_ENABLE_WEBASSEMBLY
 
         // The code might be a dynamically generated stub or a turbofanned
@@ -3281,10 +3277,6 @@ void Isolate::UpdateCentralStackInfo() {
   // only contain frames that use precise scanning.
   // Otherwise register the active secondary stack start and the bounds of the
   // inactive stacks in the Stack object.
-#if V8_TARGET_ARCH_ARM
-  stack().ClearStackSegments();
-  heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
-#endif
   current = WasmContinuationObject::cast(current)->parent();
   thread_local_top()->is_on_central_stack_flag_ =
       IsOnCentralStack(wasm_stack->base());
@@ -3296,11 +3288,6 @@ void Isolate::UpdateCentralStackInfo() {
     auto cont = WasmContinuationObject::cast(current);
     auto* wasm_stack =
         Managed<wasm::StackMemory>::cast(cont->stack())->get().get();
-#if V8_TARGET_ARCH_ARM
-    stack().AddStackSegment(
-        reinterpret_cast<const void*>(wasm_stack->base()),
-        reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
-#endif
     // On x64 and arm64 we don't need to record the stack segments for
     // conservative stack scanning. We switch to the central stack for foreign
     // calls, so secondary stacks only contain wasm frames which use the precise
