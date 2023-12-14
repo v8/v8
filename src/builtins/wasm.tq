@@ -543,11 +543,6 @@ builtin WasmI64AtomicWait(
 extern macro LoadWasmInternalFunctionInstructionStart(WasmInternalFunction):
     RawPtr;
 
-struct TargetAndInstance {
-  target: RawPtr;
-  instance: HeapObject;  // WasmInstanceObject or WasmApiFunctionRef
-}
-
 // Vector format:
 // Two slots per call_ref instruction. These slots' values can be:
 // - uninitialized: (0, <unused>). Note: we use {0} as the sentinel because
@@ -623,17 +618,23 @@ macro UpdateIC(
   }
 }
 
+// This is the return type of "CallRefIC". The type is not used anywhere else;
+// Liftoff uses the two returned values directly.
+struct TargetAndRef {
+  target: RawPtr;
+  ref: WasmInstanceObject|WasmApiFunctionRef;
+}
+
 builtin CallRefIC(
     vector: FixedArray, index: intptr,
-    funcref: WasmInternalFunction): TargetAndInstance {
+    funcref: WasmInternalFunction): TargetAndRef {
   UpdateIC(vector, index, funcref);
 
-  const ref = funcref.ref;
   let target = funcref.call_target_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
     target = LoadWasmInternalFunctionInstructionStart(funcref);
   }
-  return TargetAndInstance{target: target, instance: ref};
+  return TargetAndRef{target: target, ref: funcref.ref};
 }
 
 extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
