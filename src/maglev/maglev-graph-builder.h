@@ -1441,7 +1441,10 @@ class MaglevGraphBuilder {
         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
         std::is_same_v<NodeT, StoreDoubleField> ||
-        std::is_same_v<NodeT, UpdateJSArrayLength>;
+        std::is_same_v<NodeT, UpdateJSArrayLength> ||
+        std::is_same_v<NodeT, StoreFixedArrayElementWithWriteBarrier> ||
+        std::is_same_v<NodeT, StoreFixedArrayElementNoWriteBarrier> ||
+        std::is_same_v<NodeT, StoreFixedDoubleArrayElement>;
 
     // Don't change known node aspects for:
     //
