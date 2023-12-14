@@ -543,7 +543,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
     return ReinterpretCast<RawPtrT>(
-        IntPtrConstant(reinterpret_cast<intptr_t>(value)));
+        IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Tagged<Smi> value);

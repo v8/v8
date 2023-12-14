@@ -261,7 +261,7 @@ template <typename T, size_t N = kSimd128Size / sizeof(T)>
 std::array<uint8_t, kSimd128Size> as_uint8(const T* src) {
   std::array<uint8_t, kSimd128Size> arr;
   for (size_t i = 0; i < N; i++) {
-    WriteLittleEndianValue<T>(reinterpret_cast<T*>(&arr[0]) + i, src[i]);
+    WriteLittleEndianValue<T>(base::bit_cast<T*>(&arr[0]) + i, src[i]);
   }
   return arr;
 }
