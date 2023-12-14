@@ -67,7 +67,9 @@ void BaseCollectionsAssembler::AddConstructorEntries(
   BIND(&if_fast_js_array);
   {
     var_mode = Int32Constant(kFastJSArray);
-    var_at_least_space_for = IntPtrConstant(0);
+    static_assert(OrderedHashSet::kInitialCapacity ==
+                  OrderedHashMap::kInitialCapacity);
+    var_at_least_space_for = IntPtrConstant(OrderedHashSet::kInitialCapacity);
     Goto(&allocate_table);
   }
   TVARIABLE(JSReceiver, var_iterator_object);
