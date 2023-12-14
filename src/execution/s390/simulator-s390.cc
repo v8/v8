@@ -5581,7 +5581,7 @@ EVALUATE(LD) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t dbl_val = reinterpret_cast<int64_t>(addr);
+  int64_t dbl_val = *reinterpret_cast<int64_t*>(addr);
   set_fpr(r1, dbl_val);
   return length;
 }
@@ -5620,7 +5620,7 @@ EVALUATE(LE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  float float_val = base::bit_cast<float>(addr);
+  float float_val = *reinterpret_cast<float*>(addr);
   set_fpr(r1, float_val);
   return length;
 }
@@ -11325,7 +11325,7 @@ EVALUATE(LEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  float float_val = base::bit_cast<float>(addr);
+  float float_val = *reinterpret_cast<float*>(addr);
   set_fpr(r1, float_val);
   return length;
 }
@@ -11337,7 +11337,7 @@ EVALUATE(LDY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  uint64_t dbl_val = base::bit_cast<uint64_t>(addr);
+  uint64_t dbl_val = *reinterpret_cast<uint64_t*>(addr);
   set_fpr(r1, dbl_val);
   return length;
 }
