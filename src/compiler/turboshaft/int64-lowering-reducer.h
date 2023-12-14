@@ -282,6 +282,8 @@ class Int64LoweringReducer : public Next {
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
       if (kind.is_atomic) {
+        // Linear wasm doesn't use element_size_log2.
+        DCHECK_EQ(element_size_log2, 0);
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       return __ Tuple(

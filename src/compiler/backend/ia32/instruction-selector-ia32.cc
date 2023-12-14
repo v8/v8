@@ -2090,10 +2090,14 @@ void VisitAtomicBinOp(InstructionSelectorT<Adapter>* selector, Node* node,
                  arraysize(temp), temp);
 }
 
-template <typename Adapter>
-void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector, Node* node,
-                          ArchOpcode opcode) {
-  IA32OperandGeneratorT<Adapter> g(selector);
+void VisitPairAtomicBinOp(InstructionSelectorT<TurboshaftAdapter>* selector,
+                          turboshaft::OpIndex node, ArchOpcode opcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitPairAtomicBinOp(InstructionSelectorT<TurbofanAdapter>* selector,
+                          Node* node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -2604,8 +2608,14 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicPairLoad(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(node_t node) {
   // Both acquire and sequentially consistent loads can emit MOV.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
   IA32OperandGeneratorT<Adapter> g(this);
@@ -2641,8 +2651,14 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(Node* node) {
   }
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicPairStore(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(node_t node) {
   // Release pair stores emit a MOVQ via a double register, and sequentially
   // consistent stores emit CMPXCHG8B.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
@@ -2685,38 +2701,44 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAdd);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairSub);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAnd);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairOr);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairXor);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(node_t node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairExchange);
+}
+
+template <>
+void InstructionSelectorT<
+    TurboshaftAdapter>::VisitWord32AtomicPairCompareExchange(node_t node) {
+  UNIMPLEMENTED();
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
-    Node* node) {
+    node_t node) {
   IA32OperandGeneratorT<Adapter> g(this);
   Node* index = node->InputAt(1);
   AddressingMode addressing_mode;

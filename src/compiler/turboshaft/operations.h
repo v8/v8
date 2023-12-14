@@ -2628,12 +2628,12 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
 
   OpEffects Effects() const {
     OpEffects effects = OpEffects().CanDependOnChecks();
-    if (kind == Kind::kLoad) {
-      return effects.CanReadMemory();
-    }
     if (kind == Kind::kStore) {
       return effects.CanWriteMemory();
     }
+    // Atomic loads are marked as "can write memory" as they should not be
+    // reordered with other loads. Secondly, they may not be removed even if
+    // unused as they might make writes of other threads visible.
     return effects.CanReadMemory().CanWriteMemory();
   }
 

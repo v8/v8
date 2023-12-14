@@ -2085,48 +2085,48 @@ VISIT_UNSUPPORTED_OP(BitcastWord32PairToFloat64)
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(node_t node) {
   UNIMPLEMENTED();
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
-    Node* node) {
+    node_t node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
@@ -2263,6 +2263,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
   } else if (value_op.Is<CallOp>()) {
     // Call projections need to be behind the call's DidntThrow.
     UNREACHABLE();
+  } else if (value_op.Is<AtomicWord32PairOp>()) {
+    // Nothing to do here.
   } else {
     UNIMPLEMENTED();
   }
@@ -5069,6 +5071,33 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       UNREACHABLE();
     }
+    case Opcode::kAtomicWord32Pair: {
+      const AtomicWord32PairOp& atomic_op = op.Cast<AtomicWord32PairOp>();
+      if (atomic_op.kind != AtomicWord32PairOp::Kind::kStore) {
+        MarkAsWord32(node);
+        MarkPairProjectionsAsWord32(node);
+      }
+      switch (atomic_op.kind) {
+        case AtomicWord32PairOp::Kind::kAdd:
+          return VisitWord32AtomicPairAdd(node);
+        case AtomicWord32PairOp::Kind::kAnd:
+          return VisitWord32AtomicPairAnd(node);
+        case AtomicWord32PairOp::Kind::kCompareExchange:
+          return VisitWord32AtomicPairCompareExchange(node);
+        case AtomicWord32PairOp::Kind::kExchange:
+          return VisitWord32AtomicPairExchange(node);
+        case AtomicWord32PairOp::Kind::kLoad:
+          return VisitWord32AtomicPairLoad(node);
+        case AtomicWord32PairOp::Kind::kOr:
+          return VisitWord32AtomicPairOr(node);
+        case AtomicWord32PairOp::Kind::kSub:
+          return VisitWord32AtomicPairSub(node);
+        case AtomicWord32PairOp::Kind::kXor:
+          return VisitWord32AtomicPairXor(node);
+        case AtomicWord32PairOp::Kind::kStore:
+          return VisitWord32AtomicPairStore(node);
+      }
+    }
     case Opcode::kBitcastWord32PairToFloat64:
       return MarkAsFloat64(node), VisitBitcastWord32PairToFloat64(node);
     case Opcode::kAtomicRMW: {
@@ -5259,11 +5288,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
       TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
 #undef UNIMPLEMENTED_CASE
-    case Opcode::kAtomicWord32Pair: {
-      const std::string op_string = op.ToString();
-      PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
-      FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
-    }
 
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_JS_OPERATION_LIST(UNREACHABLE_CASE)

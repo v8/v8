@@ -54,6 +54,28 @@ class LoadStoreSimplificationReducer : public Next {
                              maybe_indirect_pointer_tag);
   }
 
+  OpIndex REDUCE(AtomicWord32Pair)(V<WordPtr> base, OptionalV<WordPtr> index,
+                                   OptionalV<Word32> value_low,
+                                   OptionalV<Word32> value_high,
+                                   OptionalV<Word32> expected_low,
+                                   OptionalV<Word32> expected_high,
+                                   AtomicWord32PairOp::Kind kind,
+                                   int32_t offset) {
+    if (kind == AtomicWord32PairOp::Kind::kStore ||
+        kind == AtomicWord32PairOp::Kind::kLoad) {
+      if (!index.valid()) {
+        index = __ IntPtrConstant(offset);
+        offset = 0;
+      } else if (offset != 0) {
+        index = __ WordPtrAdd(index.value(), offset);
+        offset = 0;
+      }
+    }
+    return Next::ReduceAtomicWord32Pair(base, index, value_low, value_high,
+                                        expected_low, expected_high, kind,
+                                        offset);
+  }
+
  private:
   void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
                          LoadOp::Kind& kind, int32_t& offset,
