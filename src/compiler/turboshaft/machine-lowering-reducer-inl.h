@@ -2210,6 +2210,7 @@ class MachineLoweringReducer : public Next {
         break;
       }
       case TransitionAndStoreArrayElementOp::Kind::kNumberElement: {
+        Label<> done(this);
         // Possibly transition array based on input and store.
         //
         //   -- TRANSITION PHASE -----------------
@@ -2217,7 +2218,11 @@ class MachineLoweringReducer : public Next {
         //   if kind == HOLEY_SMI_ELEMENTS {
         //     Transition array to HOLEY_DOUBLE_ELEMENTS
         //   } else if kind != HOLEY_DOUBLE_ELEMENTS {
-        //     This is UNREACHABLE, execute a debug break.
+        //     if kind == HOLEY_ELEMENTS {
+        //       Store value as a HeapNumber in array[index].
+        //     } else {
+        //       This is UNREACHABLE, execute a debug break.
+        //     }
         //   }
         //
         //   -- STORE PHASE ----------------------
@@ -2232,11 +2237,22 @@ class MachineLoweringReducer : public Next {
         }
         ELSE {
           // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
-          // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. Force a debug break
-          // if this assumption is broken. It also would be the case that
-          // loop peeling can break this assumption.
+          // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. However, loop
+          // peeling can break this assumption, because in the peeled iteration,
+          // the array might have transitioned to HOLEY_ELEMENTS kind, so we
+          // handle this as well.
           IF_NOT (LIKELY(
                       __ Word32Equal(elements_kind, HOLEY_DOUBLE_ELEMENTS))) {
+            IF (__ Word32Equal(elements_kind, HOLEY_ELEMENTS)) {
+              V<Object> elements = __ template LoadField<Object>(
+                  array, AccessBuilder::ForJSObjectElements());
+              // Our ElementsKind is HOLEY_ELEMENTS.
+              __ StoreNonArrayBufferElement(
+                  elements, AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS),
+                  index, AllocateHeapNumberWithValue(value));
+              GOTO(done);
+            }
+            END_IF
             __ Unreachable();
           }
           END_IF
@@ -2248,6 +2264,9 @@ class MachineLoweringReducer : public Next {
         __ StoreNonArrayBufferElement(
             elements, AccessBuilder::ForFixedDoubleArrayElement(), index,
             __ Float64SilenceNaN(value));
+        GOTO(done);
+
+        BIND(done);
         break;
       }
       case TransitionAndStoreArrayElementOp::Kind::kOddballElement:

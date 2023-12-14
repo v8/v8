@@ -7666,7 +7666,11 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   //   if kind == HOLEY_SMI_ELEMENTS {
   //     Transition array to HOLEY_DOUBLE_ELEMENTS
   //   } else if kind != HOLEY_DOUBLE_ELEMENTS {
-  //     This is UNREACHABLE, execute a debug break.
+  //     if kind == HOLEY_ELEMENTS {
+  //       Store value as a HeapNumber in array[index].
+  //     } else {
+  //       This is UNREACHABLE, execute a debug break.
+  //     }
   //   }
   //
   //   -- STORE PHASE ----------------------
@@ -7683,19 +7687,36 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   }
 
   auto do_store = __ MakeLabel();
+  auto done = __ MakeLabel();
 
   // {value} is a float64.
   auto transition_smi_array = __ MakeDeferredLabel();
   {
+    auto do_store_holey_elements = __ MakeDeferredLabel();
+
     __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                  &transition_smi_array);
     // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
-    // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. Force a debug break
-    // if this assumption is broken. It also would be the case that
-    // loop peeling can break this assumption.
+    // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. However, loop peeling can
+    // break this assumption, because in the peeled iteration, the array might
+    // have transitioned to HOLEY_ELEMENTS kind, so we handle this as well.
     __ GotoIf(__ Word32Equal(kind, __ Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
               &do_store);
+    __ GotoIf(__ Word32Equal(kind, __ Int32Constant(HOLEY_ELEMENTS)),
+              &do_store_holey_elements);
     __ Unreachable();
+
+    __ Bind(&do_store_holey_elements);  // deferred code.
+    {
+      Node* elements =
+          __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+      // Our ElementsKind is HOLEY_ELEMENTS.
+      ElementAccess access =
+          AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS);
+      __ StoreElement(access, elements, index,
+                      AllocateHeapNumberWithValue(value));
+      __ Goto(&done);
+    }
   }
 
   __ Bind(&transition_smi_array);  // deferred code.
@@ -7707,10 +7728,14 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   }
 
   __ Bind(&do_store);
+  {
+    Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+    __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
+                    index, __ Float64SilenceNaN(value));
+    __ Goto(&done);
+  }
 
-  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
-  __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements, index,
-                  __ Float64SilenceNaN(value));
+  __ Bind(&done);
 }
 
 void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
