@@ -300,3 +300,29 @@
 
   assertEquals(resultArray, symmetricDifferenceArray);
 })();
+
+(function TestEvilIterator() {
+  const firstSet = new Set([1,2,3,4]);
+
+  let i = 0;
+  const evil = {
+    has(v) { return v === 43; },
+    keys() {
+      return {
+        next() {
+          if (i++ === 0) {
+            firstSet.clear();
+            firstSet.add(43);
+            firstSet.add(42);
+            return { value: 43, done: false };
+          } else {
+            return { value: undefined, done: true };
+          }
+        }
+      };
+    },
+    get size() { return 1; }
+  };
+
+  assertEquals([1,2,3,4], Array.from(firstSet.symmetricDifference(evil)));
+})();

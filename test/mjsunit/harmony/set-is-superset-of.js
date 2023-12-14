@@ -228,3 +228,20 @@
 
   assertEquals(firstSet.isSupersetOf(setLike), false);
 })();
+
+(function TestEvilBiggerOther() {
+  const firstSet = new Set([1,2,3,4]);
+  const secondSet = new Set([43]);
+
+  const evil = {
+    has(v) { return secondSet.has(v); },
+    keys() {
+      firstSet.clear();
+      firstSet.add(43);
+      return secondSet.keys();
+    },
+    get size() { return secondSet.size; }
+  };
+
+  assertTrue(firstSet.isSupersetOf(evil));
+})();
