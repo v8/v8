@@ -78,7 +78,7 @@ void FunctionWithIncumbentCheck(
 // 6) The tests should setup a call chain in such a way that function "f" is
 //    called from each context, thus we can test that GetIncumbentContext
 //    works correctly for each compiler.
-std::vector<Local<Context>> SetupCrossContextTest(
+v8::LocalVector<Context> SetupCrossContextTest(
     Isolate* isolate, IncumbentTestExpectations* expected) {
   const int n = 4;  // Ignition, Sparkplug, Maglev, TurboFan.
 
@@ -87,7 +87,7 @@ std::vector<Local<Context>> SetupCrossContextTest(
   i::v8_flags.baseline_batch_compilation = false;
 #endif
 
-  std::vector<Local<Context>> contexts;
+  v8::LocalVector<Context> contexts(isolate);
 
   Local<String> token = v8_str("<security token>");
 
