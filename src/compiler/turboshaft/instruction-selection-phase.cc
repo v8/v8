@@ -104,11 +104,15 @@ class TurboshaftSpecialRPONumberer {
   ZoneVector<uint32_t> ComputeSpecialRPO() {
     ZoneVector<SpecialRPOStackFrame> stack(zone());
     ZoneVector<Backedge> backedges(zone());
+    // Determined empirically on a large Wasm module. Since they are allocated
+    // only once per function compilation, the memory usage is not critical.
+    stack.reserve(64);
+    backedges.reserve(32);
     size_t num_loops = 0;
 
     auto Push = [&](const Block* block) {
       auto succs = SuccessorBlocks(*block, *graph_);
-      stack.emplace_back(block, 0, succs);
+      stack.emplace_back(block, 0, std::move(succs));
       set_rpo_number(block, kBlockOnStack);
     };
 

@@ -959,7 +959,10 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
       ao_blocks_(nullptr),
-      source_positions_(zone()),
+      // Pre-allocate the hash map of source positions based on the block count.
+      // (The actual number of instructions is only known after instruction
+      // selection, but should at least correlate with the block count.)
+      source_positions_(zone(), instruction_blocks->size() * 2),
       // Avoid collisions for functions with 256 or less constant vregs.
       constants_(zone(), 256),
       immediates_(zone()),
