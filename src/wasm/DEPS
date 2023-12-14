@@ -15,6 +15,7 @@ specific_include_rules = {
   ],
   "turboshaft-graph-interface\.cc": [
     "+src/compiler/turboshaft/assembler.h",
+    "+src/compiler/turboshaft/builtin-call-descriptors.h",
     "+src/compiler/turboshaft/dataview-reducer.h",
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/graph.h",

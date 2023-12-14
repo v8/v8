@@ -134,6 +134,18 @@ auto ResolveAll(A& assembler, const ConstOrValues& const_or_values) {
       const_or_values);
 }
 
+template <typename T>
+struct IndexTypeFor {
+  using type = OpIndex;
+};
+template <typename T>
+struct IndexTypeFor<std::tuple<T>> {
+  using type = T;
+};
+
+template <typename T>
+using index_type_for_t = typename IndexTypeFor<T>::type;
+
 inline bool SuppressUnusedWarning(bool b) { return b; }
 }  // namespace detail
 
@@ -1634,7 +1646,7 @@ class TurboshaftAssemblerOpInterface
     return WordConstant(static_cast<uint64_t>(value),
                         WordRepresentation::PointerSized());
   }
-  V<Object> SmiConstant(i::Tagged<Smi> value) {
+  V<Smi> SmiConstant(i::Tagged<Smi> value) {
     return V<Smi>::Cast(UintPtrConstant(value.ptr()));
   }
   V<Float32> Float32Constant(float value) {
@@ -2318,7 +2330,7 @@ class TurboshaftAssemblerOpInterface
 
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   typename Descriptor::result_t>
+                   detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -2326,74 +2338,146 @@ class TurboshaftAssemblerOpInterface
     }
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
-    return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(isolate, Asm().output_graph().graph_zone()),
-        Descriptor::kEffects, frame_state, context, args);
+    auto arguments = std::apply(
+        [context](auto&&... as) {
+          return base::SmallVector<OpIndex,
+                                   std::tuple_size_v<decltype(args)> + 1>{
+              std::forward<decltype(as)>(as)..., context};
+        },
+        args);
+    return CallBuiltinImpl(
+        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallCodeObject,
+                           Asm().output_graph().graph_zone()),
+        Descriptor::kEffects);
   }
+
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   typename Descriptor::result_t>
+                   detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     DCHECK(context.valid());
-    return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(isolate, Asm().output_graph().graph_zone()),
-        Descriptor::kEffects, {}, context, args);
+    auto arguments = std::apply(
+        [context](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)..., context};
+        },
+        args);
+    return CallBuiltinImpl(
+        isolate, Descriptor::kFunction, OpIndex::Invalid(),
+        base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallCodeObject,
+                           Asm().output_graph().graph_zone()),
+        Descriptor::kEffects);
   }
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   typename Descriptor::result_t>
+                   detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, OpIndex frame_state,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     DCHECK(frame_state.valid());
-    return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(isolate, Asm().output_graph().graph_zone()),
-        Descriptor::kEffects, frame_state, {}, args);
+    auto arguments = std::apply(
+        [](auto&&... as) {
+          return base::SmallVector<OpIndex, std::tuple_size_v<decltype(args)>>{
+              std::forward<decltype(as)>(as)...};
+        },
+        args);
+    return CallBuiltinImpl(
+        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallCodeObject,
+                           Asm().output_graph().graph_zone()),
+        Descriptor::kEffects);
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   typename Descriptor::result_t>
+                   detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return CallBuiltinImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(isolate, Asm().output_graph().graph_zone()),
-        Descriptor::kEffects, {}, {}, args);
-  }
-
-  template <typename Ret, typename Args>
-  Ret CallBuiltinImpl(Isolate* isolate, Builtin function,
-                      const TSCallDescriptor* desc, OpEffects effects,
-                      OpIndex frame_state, V<Context> context,
-                      const Args& args) {
-    Callable callable = Builtins::CallableFor(isolate, function);
-    // Convert arguments from `args` tuple into a `SmallVector<OpIndex>`.
-    auto inputs = std::apply(
+    auto arguments = std::apply(
         [](auto&&... as) {
-          return base::SmallVector<OpIndex, std::tuple_size_v<Args> + 1>{
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t>>{
               std::forward<decltype(as)>(as)...};
         },
         args);
-    if (context.valid()) inputs.push_back(context);
+    return CallBuiltinImpl(
+        isolate, Descriptor::kFunction, OpIndex::Invalid(),
+        base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallCodeObject,
+                           Asm().output_graph().graph_zone()),
+        Descriptor::kEffects);
+  }
 
-    if constexpr (std::is_same_v<Ret, void>) {
-      Call(HeapConstant(callable.code()), frame_state, base::VectorOf(inputs),
-           desc, effects);
-    } else {
-      return Call(HeapConstant(callable.code()), frame_state,
-                  base::VectorOf(inputs), desc, effects);
+#if V8_ENABLE_WEBASSEMBLY
+
+  template <typename Descriptor>
+  std::enable_if_t<!Descriptor::kNeedsContext,
+                   detail::index_type_for_t<typename Descriptor::results_t>>
+  WasmCallBuiltinThroughJumptable(
+      const typename Descriptor::arguments_t& args) {
+    static_assert(!Descriptor::kNeedsFrameState);
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
     }
+    auto arguments = std::apply(
+        [](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t>>{
+              std::forward<decltype(as)>(as)...};
+        },
+        args);
+    V<WordPtr> call_target =
+        RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
+    return Call(call_target, OpIndex::Invalid(), base::VectorOf(arguments),
+                Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                                   Asm().output_graph().graph_zone()),
+                Descriptor::kEffects);
+  }
+
+  template <typename Descriptor>
+  std::enable_if_t<Descriptor::kNeedsContext,
+                   detail::index_type_for_t<typename Descriptor::results_t>>
+  WasmCallBuiltinThroughJumptable(
+      OpIndex context, const typename Descriptor::arguments_t& args) {
+    static_assert(!Descriptor::kNeedsFrameState);
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    DCHECK(context.valid());
+    auto arguments = std::apply(
+        [context](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)..., context};
+        },
+        args);
+    V<WordPtr> call_target =
+        RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
+    return Call(call_target, OpIndex::Invalid(), base::VectorOf(arguments),
+                Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                                   Asm().output_graph().graph_zone()),
+                Descriptor::kEffects);
+  }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  OpIndex CallBuiltinImpl(Isolate* isolate, Builtin builtin,
+                          OptionalOpIndex frame_state,
+                          base::Vector<const OpIndex> arguments,
+                          const TSCallDescriptor* desc, OpEffects effects) {
+    Callable callable = Builtins::CallableFor(isolate, builtin);
+    return Call(HeapConstant(callable.code()), frame_state.value_or_invalid(),
+                arguments, desc, effects);
   }
 
   void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,
@@ -3303,24 +3387,6 @@ class TurboshaftAssemblerOpInterface
   V<Simd128> Simd128Shuffle(V<Simd128> left, V<Simd128> right,
                             const uint8_t shuffle[kSimd128Size]) {
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
-  }
-
-  OpIndex CallBuiltin(Builtin builtin, std::initializer_list<OpIndex> args,
-                      Operator::Properties properties) {
-    CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin);
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetStubCallDescriptor(
-            Asm().output_graph().graph_zone(), interface_descriptor,
-            interface_descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, properties,
-            StubCallMode::kCallWasmRuntimeStub);
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kYes,
-                                 Asm().output_graph().graph_zone());
-    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(builtin);
-    return Call(call_target, OpIndex::Invalid(), base::VectorOf(args),
-                ts_call_descriptor);
   }
 
   V<WasmInstanceObject> WasmInstanceParameter() {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -142,8 +143,8 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Tagged> heap_number = __ CallBuiltin(Builtin::kWasmInt32ToHeapNumber,
-                                             {int_value}, Operator::kPure);
+      V<Tagged> heap_number = __ template WasmCallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
       GOTO(end_label, heap_number);
     }
 
@@ -351,8 +352,11 @@ class WasmLoweringReducer : public Next {
     Label<WasmInternalFunction> done(&Asm());
     IF (UNLIKELY(__ IsSmi(maybe_function))) {
       V<Word32> function_index_constant = __ Word32Constant(function_index);
-      V<WasmInternalFunction> from_builtin = __ CallBuiltin(
-          Builtin::kWasmRefFunc, {function_index_constant}, Operator::kNoThrow);
+
+      V<WasmInternalFunction> from_builtin =
+          __ template WasmCallBuiltinThroughJumptable<
+              BuiltinCallDescriptor::WasmRefFunc>({function_index_constant});
+
       GOTO(done, from_builtin);
     }
     ELSE {
@@ -369,8 +373,9 @@ class WasmLoweringReducer : public Next {
     V<Word32> string_representation = __ Word32BitwiseAnd(
         instance_type, __ Word32Constant(kStringRepresentationMask));
     GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
-    GOTO(done, __ CallBuiltin(Builtin::kWasmStringAsWtf16, {string},
-                              Operator::kPure));
+
+    GOTO(done, __ template WasmCallBuiltinThroughJumptable<
+                   BuiltinCallDescriptor::WasmStringAsWtf16>({string}));
     BIND(done, result);
     return result;
   }
