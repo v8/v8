@@ -3583,6 +3583,13 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
+    node_t node) {
+  // TODO(miladfarca): Implement.
+  UNREACHABLE();
+}
+
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
