@@ -502,7 +502,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::GotoIfFalse(
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Goto(Label* label) {
   if (builder_->current_block_ == nullptr) {
-    ReducePredecessorCount(label);
+    label->merge_state_->MergeDead(*compilation_unit_);
     return;
   }
 
@@ -1163,7 +1163,7 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
   UNREACHABLE();
 }
 
-ReduceResult MaglevGraphBuilder::GetSmiValue(
+ValueNode* MaglevGraphBuilder::GetSmiValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
     RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
@@ -1174,13 +1174,15 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) {
-    return BuildCheckSmi(value, !value->Is<Phi>());
+    BuildCheckSmi(value, !value->Is<Phi>());
+    return value;
   }
 
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.tagged()) {
-    return BuildCheckSmi(alt, !value->Is<Phi>());
+    BuildCheckSmi(alt, !value->Is<Phi>());
+    return alt;
   }
 
   switch (representation) {
@@ -2633,7 +2635,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
         RETURN_IF_ABORT(
             BuildCheckMaps(value, base::VectorOf({property_cell_value_map})));
       } else {
-        GET_VALUE_OR_ABORT(value, GetAccumulatorSmi());
+        value = GetAccumulatorSmi();
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       BuildStoreTaggedField(property_cell_node, value,
@@ -2995,9 +2997,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 }
 
 bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type,
-                                         NodeType* current_type) {
+                                         NodeType* old_type) {
   NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (current_type) *current_type = static_type;
+  if (old_type) *old_type = static_type;
   return NodeTypeIs(static_type, type);
 }
 
@@ -3032,11 +3034,11 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node,
 }
 
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
-                                   NodeType* current_type) {
-  if (CheckStaticType(node, type, current_type)) return true;
+                                   NodeType* old_type) {
+  if (CheckStaticType(node, type, old_type)) return true;
   auto it = known_node_aspects().FindInfo(node);
   if (!known_node_aspects().IsValid(it)) return false;
-  if (current_type) *current_type = it->second.type();
+  if (old_type) *old_type = it->second.type();
   return NodeTypeIs(it->second.type(), type);
 }
 
@@ -3081,15 +3083,10 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
   }
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
-                                               bool elidable) {
-  if (CheckStaticType(object, NodeType::kSmi)) return object;
-  if (CheckType(object, NodeType::kAnyHeapObject)) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
-  }
-  if (EnsureType(object, NodeType::kSmi) && elidable) return object;
+void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object, bool elidable) {
+  if (CheckStaticType(object, NodeType::kSmi)) return;
+  if (EnsureType(object, NodeType::kSmi) && elidable) return;
   AddNewNode<CheckSmi>({object});
-  return object;
 }
 
 void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
@@ -3731,7 +3728,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else {
     if (field_representation.IsSmi()) {
-      GET_VALUE_OR_ABORT(value, GetAccumulatorSmi());
+      value = GetAccumulatorSmi();
     } else {
       value = GetAccumulatorTagged();
       if (field_representation.IsHeapObject()) {
@@ -4335,8 +4332,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   return result;
 }
 
-ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
-                                                   ElementsKind kind) {
+ValueNode* MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
+                                                 ElementsKind kind) {
   if (IsDoubleElementsKind(kind)) {
     // Make sure we do not store signalling NaNs into double arrays.
     // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
@@ -4360,7 +4357,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   ValueNode* elements_array =
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
 
-  GET_VALUE_OR_ABORT(value, ConvertForStoring(value, elements_kind));
+  value = ConvertForStoring(value, elements_kind);
   ValueNode* index;
 
   // TODO(verwaest): Loop peeling will turn the first iteration index of spread
@@ -6323,7 +6320,7 @@ bool CanInlineArrayResizingBuiltin(
 
 template <typename MapKindsT, typename IndexToElementsKindFunc,
           typename BuildKindSpecificFunc>
-ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
+void MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
     ValueNode* receiver, const MapKindsT& map_kinds,
     MaglevSubGraphBuilder& sub_graph,
     base::Optional<MaglevSubGraphBuilder::Label>& do_return,
@@ -6334,7 +6331,6 @@ ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
   ValueNode* receiver_map =
       AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
   int emitted_kind_checks = 0;
-  bool any_successful = false;
   for (size_t kind_index = 0; kind_index < map_kinds.size(); kind_index++) {
     const auto& maps = map_kinds[kind_index];
     // Skip kinds we haven't observed.
@@ -6359,23 +6355,17 @@ ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
         sub_graph.Goto(&*do_push);
         sub_graph.Bind(&*do_push);
       }
-      if (!build_kind_specific(kind).IsDoneWithAbort()) {
-        any_successful = true;
-      }
+      build_kind_specific(kind);
       DCHECK(do_return.has_value());
       sub_graph.Goto(&*do_return);
       sub_graph.Bind(&check_next_map);
     } else {
-      if (!build_kind_specific(kind).IsDoneWithAbort()) {
-        any_successful = true;
-      }
+      build_kind_specific(kind);
       if (do_return.has_value()) {
         sub_graph.Goto(&*do_return);
       }
     }
   }
-  DCHECK_IMPLIES(!any_successful, !current_block_);
-  return any_successful ? ReduceResult::Done() : ReduceResult::DoneWithAbort();
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
@@ -6468,9 +6458,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     do_return.emplace(&sub_graph, unique_kind_count);
   }
 
-  ValueNode* old_array_length_smi;
-  GET_VALUE_OR_ABORT(old_array_length_smi,
-                     GetSmiValue(BuildLoadJSArrayLength(receiver).value()));
+  ValueNode* old_array_length_smi =
+      GetSmiValue(BuildLoadJSArrayLength(receiver).value());
   ValueNode* old_array_length =
       AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
   ValueNode* new_array_length_smi =
@@ -6484,8 +6473,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
           {elements_array}, FixedArray::kLengthOffset)});
 
   auto build_array_push = [&](ElementsKind kind) {
-    ValueNode* value;
-    GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
+    ValueNode* value = ConvertForStoring(args[0], kind);
 
     ValueNode* writable_elements_array =
         AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
@@ -6504,12 +6492,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       BuildStoreFixedArrayElement(writable_elements_array, old_array_length,
                                   value);
     }
-    return ReduceResult::Done();
   };
 
-  RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
+  BuildJSArrayBuiltinMapSwitchOnElementsKind(
       receiver, map_kinds, sub_graph, do_return, unique_kind_count,
-      index_to_elements_kind, build_array_push));
+      index_to_elements_kind, build_array_push);
 
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
@@ -6621,9 +6608,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
               &var_value, &var_new_array_length});
   MaglevSubGraphBuilder::Label empty_array(&sub_graph, 1);
 
-  ValueNode* old_array_length_smi;
-  GET_VALUE_OR_ABORT(old_array_length_smi,
-                     GetSmiValue(BuildLoadJSArrayLength(receiver).value()));
+  ValueNode* old_array_length_smi =
+      GetSmiValue(BuildLoadJSArrayLength(receiver).value());
 
   // If the array is empty, skip the pop and return undefined.
   sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
@@ -6672,12 +6658,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
       value = AddNewNode<ConvertHoleToUndefined>({value});
     }
     sub_graph.set(var_value, value);
-    return ReduceResult::Done();
   };
 
-  RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
+  BuildJSArrayBuiltinMapSwitchOnElementsKind(
       receiver, map_kinds, sub_graph, do_return, unique_kind_count,
-      index_to_elements_kind, build_array_pop));
+      index_to_elements_kind, build_array_pop);
 
   sub_graph.Bind(&empty_array);
   sub_graph.set(var_new_array_length, GetSmiConstant(0));
@@ -8474,7 +8459,7 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
   switch (broker()->GetFeedbackForBinaryOperation(
       compiler::FeedbackSource(feedback(), slot))) {
     case BinaryOperationHint::kSignedSmall:
-      RETURN_VOID_IF_ABORT(BuildCheckSmi(value));
+      BuildCheckSmi(value);
       break;
     case BinaryOperationHint::kSignedSmallInputs:
       UNREACHABLE();

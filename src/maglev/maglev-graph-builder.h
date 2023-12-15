@@ -215,16 +215,6 @@ struct FastField {
     }                                       \
   } while (false)
 
-#define GET_VALUE_OR_ABORT(variable, result) \
-  do {                                       \
-    ReduceResult res = (result);             \
-    if (res.IsDoneWithAbort()) {             \
-      return ReduceResult::DoneWithAbort();  \
-    }                                        \
-    DCHECK(res.IsDoneWithValue());           \
-    variable = res.value();                  \
-  } while (false)
-
 #define RETURN_VOID_IF_ABORT(result)  \
   do {                                \
     if ((result).IsDoneWithAbort()) { \
@@ -1149,13 +1139,13 @@ class MaglevGraphBuilder {
   ValueNode* GetTaggedValue(ValueNode* value,
                             UseReprHintRecording record_use_repr_hint =
                                 UseReprHintRecording::kRecord);
-  ReduceResult GetSmiValue(ValueNode* value,
-                           UseReprHintRecording record_use_repr_hint =
-                               UseReprHintRecording::kRecord);
+  ValueNode* GetSmiValue(ValueNode* value,
+                         UseReprHintRecording record_use_repr_hint =
+                             UseReprHintRecording::kRecord);
 
-  ReduceResult GetSmiValue(interpreter::Register reg,
-                           UseReprHintRecording record_use_repr_hint =
-                               UseReprHintRecording::kRecord) {
+  ValueNode* GetSmiValue(interpreter::Register reg,
+                         UseReprHintRecording record_use_repr_hint =
+                             UseReprHintRecording::kRecord) {
     ValueNode* value = current_interpreter_frame_.get(reg);
     return GetSmiValue(value, record_use_repr_hint);
   }
@@ -1250,8 +1240,8 @@ class MaglevGraphBuilder {
                           record_use_repr_hint);
   }
 
-  ReduceResult GetAccumulatorSmi(UseReprHintRecording record_use_repr_hint =
-                                     UseReprHintRecording::kRecord) {
+  ValueNode* GetAccumulatorSmi(UseReprHintRecording record_use_repr_hint =
+                                   UseReprHintRecording::kRecord) {
     return GetSmiValue(interpreter::Register::virtual_accumulator(),
                        record_use_repr_hint);
   }
@@ -1666,7 +1656,7 @@ class MaglevGraphBuilder {
 
   template <typename MapKindsT, typename IndexToElementsKindFunc,
             typename BuildKindSpecificFunc>
-  ReduceResult BuildJSArrayBuiltinMapSwitchOnElementsKind(
+  void BuildJSArrayBuiltinMapSwitchOnElementsKind(
       ValueNode* receiver, const MapKindsT& map_kinds,
       MaglevSubGraphBuilder& sub_graph,
       base::Optional<MaglevSubGraphBuilder::Label>& do_return,
@@ -1784,7 +1774,7 @@ class MaglevGraphBuilder {
   ValueNode* BuildNumberOrOddballToFloat64(
       ValueNode* node, TaggedToFloat64ConversionType conversion_type);
 
-  ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
+  void BuildCheckSmi(ValueNode* object, bool elidable = true);
   void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckJSReceiver(ValueNode* object);
@@ -1916,7 +1906,7 @@ class MaglevGraphBuilder {
 
   // Converts the input node to a representation that's valid to store into an
   // array with elements kind |kind|.
-  ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
+  ValueNode* ConvertForStoring(ValueNode* node, ElementsKind kind);
 
   enum InferHasInPrototypeChainResult {
     kMayBeInPrototypeChain,
