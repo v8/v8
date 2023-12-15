@@ -914,7 +914,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
   }
 
-  data->node = compiler.PreprocessRegExp(data, flags, is_one_byte);
+  data->node = compiler.PreprocessRegExp(data, is_one_byte);
   data->error = AnalyzeRegExp(isolate, is_one_byte, flags, data->node);
   if (data->error != RegExpError::kNone) {
     return false;
@@ -1321,6 +1321,14 @@ void RegExpResultsCache::Clear(Tagged<FixedArray> cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
     cache->set(i, Smi::zero());
   }
+}
+
+std::ostream& operator<<(std::ostream& os, RegExpFlags flags) {
+#define V(Lower, Camel, LowerCamel, Char, Bit) \
+  if (flags & RegExpFlag::k##Camel) os << Char;
+  REGEXP_FLAG_LIST(V)
+#undef V
+  return os;
 }
 
 }  // namespace internal

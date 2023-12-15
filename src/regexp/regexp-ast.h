@@ -630,8 +630,9 @@ class RegExpCapture final : public RegExpTree {
 
 class RegExpGroup final : public RegExpTree {
  public:
-  explicit RegExpGroup(RegExpTree* body)
+  explicit RegExpGroup(RegExpTree* body, RegExpFlags flags)
       : body_(body),
+        flags_(flags),
         min_match_(body->min_match()),
         max_match_(body->max_match()) {}
 
@@ -643,9 +644,11 @@ class RegExpGroup final : public RegExpTree {
   int max_match() override { return max_match_; }
   Interval CaptureRegisters() override { return body_->CaptureRegisters(); }
   RegExpTree* body() const { return body_; }
+  RegExpFlags flags() const { return flags_; }
 
  private:
   RegExpTree* body_;
+  const RegExpFlags flags_;
   int min_match_;
   int max_match_;
 };
@@ -701,9 +704,8 @@ class RegExpLookaround final : public RegExpTree {
 
 class RegExpBackReference final : public RegExpTree {
  public:
-  explicit RegExpBackReference(RegExpFlags flags) : flags_(flags) {}
-  RegExpBackReference(RegExpCapture* capture, RegExpFlags flags)
-      : capture_(capture), flags_(flags) {}
+  RegExpBackReference() = default;
+  explicit RegExpBackReference(RegExpCapture* capture) : capture_(capture) {}
 
   DECL_BOILERPLATE(BackReference);
 
@@ -720,7 +722,6 @@ class RegExpBackReference final : public RegExpTree {
  private:
   RegExpCapture* capture_ = nullptr;
   const ZoneVector<base::uc16>* name_ = nullptr;
-  const RegExpFlags flags_;
 };
 
 

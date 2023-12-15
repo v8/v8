@@ -277,7 +277,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_set_methods, "harmony Set Methods") \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
+  V(js_regexp_modifiers, "RegExp modifiers")
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
