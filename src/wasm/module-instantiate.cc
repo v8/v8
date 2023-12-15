@@ -1335,7 +1335,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Must happen before {InitGlobals} because globals can refer to these maps.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    if (module_->isorecursive_canonical_type_ids.size() > 0) {
+    if (!module_->isorecursive_canonical_type_ids.empty()) {
       // Make sure all canonical indices have been set.
       DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
       isolate_->heap()->EnsureWasmCanonicalRttsSize(
@@ -1438,7 +1438,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize the memory by loading data segments.
   //--------------------------------------------------------------------------
-  if (module_->data_segments.size() > 0) {
+  if (!module_->data_segments.empty()) {
     LoadDataSegments(instance);
     if (thrower_->error()) return {};
   }

@@ -2456,7 +2456,7 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
       result += names_provider_->EstimateCurrentMemoryConsumption();
     }
     if (cached_code_) {
-      result += ContentSize(*cached_code_.get());
+      result += ContentSize(*cached_code_);
     }
   }
 

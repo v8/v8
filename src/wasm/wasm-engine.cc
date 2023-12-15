@@ -172,7 +172,7 @@ class WeakScriptHandle {
     // Usually the destructor of this class is called after the weak callback,
     // because the Script keeps the NativeModule alive. In that case,
     // {location_} is already cleared, and there is nothing to do.
-    if (location_.get() == nullptr || *location_.get() == nullptr) return;
+    if (location_ == nullptr || *location_ == nullptr) return;
     // For asm.js modules, the Script usually outlives the NativeModule.
     // We must destroy the GlobalHandle before freeing the memory that's
     // backing {location_}, so that when the Script does die eventually, there
@@ -1015,8 +1015,7 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   base::MutexGuard guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
-    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_.get(),
-                                false}
+    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_, false}
        << std::endl;
   }
   compilation_stats_.reset();
@@ -1026,8 +1025,7 @@ void WasmEngine::DumpTurboStatistics() {
   base::MutexGuard guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
-    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_.get(),
-                                false}
+    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_, false}
        << std::endl;
   }
 }

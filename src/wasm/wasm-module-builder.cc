@@ -619,7 +619,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   buffer->write_u32(kWasmVersion);
 
   // == Emit types =============================================================
-  if (types_.size() > 0) {
+  if (!types_.empty()) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
     size_t type_count = types_.size();
     for (auto pair : recursive_groups_) {
@@ -706,7 +706,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
 
   // == Emit function signatures ===============================================
   uint32_t num_function_names = 0;
-  if (functions_.size() > 0) {
+  if (!functions_.empty()) {
     size_t start = EmitSection(kFunctionSectionCode, buffer);
     buffer->write_size(functions_.size());
     for (auto* function : functions_) {
@@ -717,7 +717,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == Emit tables ============================================================
-  if (tables_.size() > 0) {
+  if (!tables_.empty()) {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
@@ -754,7 +754,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // Emit event section.
-  if (tags_.size() > 0) {
+  if (!tags_.empty()) {
     size_t start = EmitSection(kTagSectionCode, buffer);
     buffer->write_size(tags_.size());
     for (int type : tags_) {
@@ -765,7 +765,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == Emit globals ===========================================================
-  if (globals_.size() > 0) {
+  if (!globals_.empty()) {
     size_t start = EmitSection(kGlobalSectionCode, buffer);
     buffer->write_size(globals_.size());
 
@@ -778,7 +778,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit exports ===========================================================
-  if (exports_.size() > 0) {
+  if (!exports_.empty()) {
     size_t start = EmitSection(kExportSectionCode, buffer);
     buffer->write_size(exports_.size());
     for (auto ex : exports_) {
@@ -812,7 +812,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit element segments ==================================================
-  if (element_segments_.size() > 0) {
+  if (!element_segments_.empty()) {
     size_t start = EmitSection(kElementSectionCode, buffer);
     buffer->write_size(element_segments_.size());
     for (const WasmElemSegment& segment : element_segments_) {
@@ -892,7 +892,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit code ==============================================================
-  if (functions_.size() > 0) {
+  if (!functions_.empty()) {
     size_t start = EmitSection(kCodeSectionCode, buffer);
     buffer->write_size(functions_.size());
     for (auto* function : functions_) {
@@ -902,7 +902,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit data segments =====================================================
-  if (data_segments_.size() > 0) {
+  if (!data_segments_.empty()) {
     size_t start = EmitSection(kDataSectionCode, buffer);
     buffer->write_size(data_segments_.size());
 

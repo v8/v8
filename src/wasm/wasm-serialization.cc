@@ -61,7 +61,7 @@ class Writer {
   void WriteVector(const base::Vector<T> v) {
     base::Vector<const uint8_t> bytes = base::Vector<const uint8_t>::cast(v);
     DCHECK_GE(current_size(), bytes.size());
-    if (bytes.size() > 0) {
+    if (!bytes.empty()) {
       memcpy(current_location(), bytes.begin(), bytes.size());
       pos_ += bytes.size();
     }

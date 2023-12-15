@@ -1306,7 +1306,7 @@ class TransitiveTypeFeedbackProcessor {
         // Don't recompute feedback that has already been processed.
         auto existing = feedback_for_function_.find(func);
         if (existing != feedback_for_function_.end() &&
-            existing->second.feedback_vector.size() > 0) {
+            !existing->second.feedback_vector.empty()) {
           continue;
         }
         queue_.insert(func);
