@@ -1836,8 +1836,14 @@ class TurboshaftGraphBuildingInterface {
         for (size_t ret = 0; ret < direct_returns.size(); ret++) {
           case_returns[ret].push_back(direct_returns[ret].op);
         }
-        merge_phis.AddPhiInputs(instance_cache_);
-        __ Goto(merge);
+        if (__ current_block() != nullptr) {
+          // Only add phi inputs and a Goto to {merge} if the current_block is
+          // not nullptr. If the current_block is nullptr, it means that the
+          // inlined body unconditionally exits early (likely an unconditional
+          // trap or throw).
+          merge_phis.AddPhiInputs(instance_cache_);
+          __ Goto(merge);
+        }
       }
 
       TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
@@ -3923,6 +3929,7 @@ class TurboshaftGraphBuildingInterface {
     void AddPhiInputs(InstanceCache& instance_cache) {
       DCHECK_EQ(phi_count_, instance_cache.num_mutable_fields());
       for (uint32_t i = 0; i < phi_count_; i++) {
+        DCHECK(instance_cache.mutable_field_value(i).valid());
         AddInputForPhi(i, instance_cache.mutable_field_value(i));
       }
     }
