@@ -8,6 +8,7 @@
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream-inl.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -115,6 +116,25 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
   } else {
     TaggedField<T, offset>::Relaxed_Store(HeapObject::FromAddress(address_),
                                           value);
+  }
+}
+
+template <typename T>
+V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
+                                                      RelaxedStoreTag tag) {
+  CHECK_EQ(allocation_.Type(),
+           ThreadIsolation::JitAllocationType::kInstructionStream);
+  size_t offset = address - address_;
+  Tagged<T> tagged(value);
+  switch (offset) {
+    case InstructionStream::kCodeOffset:
+      WriteHeaderSlot<T, InstructionStream::kCodeOffset>(tagged, tag);
+      break;
+    case InstructionStream::kRelocationInfoOffset:
+      WriteHeaderSlot<T, InstructionStream::kRelocationInfoOffset>(tagged, tag);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 

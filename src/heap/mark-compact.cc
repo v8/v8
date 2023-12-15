@@ -3650,6 +3650,13 @@ MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
 
 template <>
 Tagged<Object>
+MakeSlotValue<WriteProtectedSlot<ObjectSlot>, HeapObjectReferenceType::STRONG>(
+    Tagged<HeapObject> heap_object) {
+  return heap_object;
+}
+
+template <>
+Tagged<Object>
 MakeSlotValue<OffHeapObjectSlot, HeapObjectReferenceType::STRONG>(
     Tagged<HeapObject> heap_object) {
   return heap_object;
@@ -3691,14 +3698,16 @@ MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
 template <HeapObjectReferenceType reference_type, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                               Tagged<HeapObject> heap_obj) {
-  static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
-                    std::is_same<TSlot, ObjectSlot>::value ||
-                    std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-                    std::is_same<TSlot, MaybeObjectSlot>::value ||
-                    std::is_same<TSlot, OffHeapObjectSlot>::value ||
-                    std::is_same<TSlot, InstructionStreamSlot>::value,
-                "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot "
-                "or InstructionStreamSlot are expected here");
+  static_assert(
+      std::is_same<TSlot, FullObjectSlot>::value ||
+          std::is_same<TSlot, ObjectSlot>::value ||
+          std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+          std::is_same<TSlot, MaybeObjectSlot>::value ||
+          std::is_same<TSlot, OffHeapObjectSlot>::value ||
+          std::is_same<TSlot, InstructionStreamSlot>::value ||
+          std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value,
+      "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
+      "InstructionStreamSlot or WriteProtectedSlot are expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
   DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
@@ -3719,9 +3728,13 @@ template <typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   Tagged<HeapObject> heap_obj;
-  if (TSlot::kCanBeWeak && obj.GetHeapObjectIfWeak(&heap_obj)) {
-    UpdateSlot<HeapObjectReferenceType::WEAK>(cage_base, slot, heap_obj);
-  } else if (obj.GetHeapObjectIfStrong(&heap_obj)) {
+  if constexpr (TSlot::kCanBeWeak) {
+    if (obj.GetHeapObjectIfWeak(&heap_obj)) {
+      return UpdateSlot<HeapObjectReferenceType::WEAK>(cage_base, slot,
+                                                       heap_obj);
+    }
+  }
+  if (obj.GetHeapObjectIfStrong(&heap_obj)) {
     UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, heap_obj);
   }
 }
@@ -4625,7 +4638,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "RememberedSetUpdatingItem::Process");
-    CodePageMemoryModificationScope memory_modification_scope(chunk_);
+    CodePageHeaderModificationScope memory_modification_scope(
+        "Releasing slot sets requires header write access.");
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }
@@ -4729,10 +4743,21 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedOldToOldPointers() {
     if (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
       const PtrComprCageBase cage_base = heap_->isolate();
+      base::Optional<WritableJitPage> jit_page;
+      if (chunk_->executable()) {
+        jit_page.emplace(chunk_->area_start(), chunk_->area_size());
+      }
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [this, cage_base](MaybeObjectSlot slot) {
-            UpdateSlot(cage_base, slot);
+          [this, cage_base, &jit_page](MaybeObjectSlot slot) {
+            if (jit_page.has_value()) {
+              WritableJitAllocation jit_allocation =
+                  jit_page->LookupAllocationContaining(slot.address());
+              UpdateSlot(cage_base, WriteProtectedSlot<ObjectSlot>(
+                                        jit_allocation, slot.address()));
+            } else {
+              UpdateSlot(cage_base, slot);
+            }
             // A string might have been promoted into the shared heap during
             // GC.
             if (record_old_to_shared_slots_) {

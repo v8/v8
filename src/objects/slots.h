@@ -444,6 +444,29 @@ class IndirectPointerSlot
 #endif  // V8_ENABLE_SANDBOX
 };
 
+class WritableJitAllocation;
+
+template <typename SlotT>
+class WriteProtectedSlot : public SlotT {
+ public:
+  using TObject = typename SlotT::TObject;
+  using SlotT::kCanBeWeak;
+
+  explicit WriteProtectedSlot(WritableJitAllocation& jit_allocation,
+                              Address ptr)
+      : SlotT(ptr), jit_allocation_(jit_allocation) {}
+
+  inline TObject Relaxed_Load() const { return SlotT::Relaxed_Load(); }
+  inline TObject Relaxed_Load(PtrComprCageBase cage_base) const {
+    return SlotT::Relaxed_Load(cage_base);
+  }
+
+  inline void Relaxed_Store(TObject value) const;
+
+ private:
+  WritableJitAllocation& jit_allocation_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -365,6 +365,11 @@ Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
 }
 #endif  // V8_ENABLE_SANDBOX
 
+template <typename SlotT>
+void WriteProtectedSlot<SlotT>::Relaxed_Store(TObject value) const {
+  jit_allocation_.WriteHeaderSlot(this->address(), value, kRelaxedStore);
+}
+
 //
 // Utils.
 //

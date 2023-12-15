@@ -422,6 +422,8 @@ class WritableJitAllocation {
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
+  template <typename T>
+  V8_INLINE void WriteHeaderSlot(Address address, T value, RelaxedStoreTag);
 
   // CopyCode and CopyData have the same implementation at the moment, but
   // they will diverge once we implement validation.
