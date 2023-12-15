@@ -235,19 +235,35 @@ void WasmGraphBuilder::Start(unsigned params) {
   }
   // Initialize instance node.
   switch (parameter_mode_) {
-    case kInstanceMode:
-      instance_node_ = Param(wasm::kWasmInstanceParameterIndex);
+    case kInstanceMode: {
+      Node* param = Param(wasm::kWasmInstanceParameterIndex);
+      if (v8_flags.debug_code) {
+        Assert(gasm_->HasInstanceType(param, WASM_INSTANCE_OBJECT_TYPE),
+               AbortReason::kUnexpectedInstanceType);
+      }
+      instance_node_ = param;
       break;
-    case kNoSpecialParameterMode:
+    }
+    case kNoSpecialParameterMode: {
+      Node* param = Param(Linkage::kJSCallClosureParamIndex, "%closure");
+      if (v8_flags.debug_code) {
+        Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
+               AbortReason::kUnexpectedInstanceType);
+      }
       instance_node_ = gasm_->LoadExportedFunctionInstance(
-          gasm_->LoadFunctionDataFromJSFunction(
-              Param(Linkage::kJSCallClosureParamIndex, "%closure")));
+          gasm_->LoadFunctionDataFromJSFunction(param));
       break;
-    case kWasmApiFunctionRefMode:
+    }
+    case kWasmApiFunctionRefMode: {
+      Node* param = Param(0);
+      // TODO(clemensb): We should also check the instance type of {param} here,
+      // but this currently fails because we use this parameter mode
+      // inconsistently.
       instance_node_ = gasm_->Load(
-          MachineType::TaggedPointer(), Param(0),
+          MachineType::TaggedPointer(), param,
           wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kInstanceOffset));
       break;
+    }
   }
   graph()->SetEnd(graph()->NewNode(mcgraph()->common()->End(0)));
 }
@@ -6676,20 +6692,8 @@ void WasmGraphBuilder::BuildModifyThreadInWasmFlagHelper(
         gasm_->Load(MachineType::Int32(), thread_in_wasm_flag_address, 0);
     Node* check =
         gasm_->Word32Equal(flag_value, Int32Constant(new_value ? 0 : 1));
-
-    Diamond flag_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
-    flag_check.Chain(control());
-    SetControl(flag_check.if_false);
-    Node* message_id = gasm_->NumberConstant(static_cast<int32_t>(
-        new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                  : AbortReason::kUnexpectedThreadInWasmUnset));
-
-    Node* old_effect = effect();
-    Node* call = BuildCallToRuntimeWithContext(
-        Runtime::kAbort, NoContextConstant(), &message_id, 1);
-    flag_check.merge->ReplaceInput(1, call);
-    SetEffectControl(flag_check.EffectPhi(old_effect, effect()),
-                     flag_check.merge);
+    Assert(check, new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                            : AbortReason::kUnexpectedThreadInWasmUnset);
   }
 
   gasm_->Store({MachineRepresentation::kWord32, kNoWriteBarrier},
@@ -6706,6 +6710,20 @@ void WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
                   Isolate::thread_in_wasm_flag_address_offset());
 
   BuildModifyThreadInWasmFlagHelper(thread_in_wasm_flag_address, new_value);
+}
+
+void WasmGraphBuilder::Assert(Node* condition, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  Diamond check(graph(), mcgraph()->common(), condition, BranchHint::kTrue);
+  check.Chain(control());
+  SetControl(check.if_false);
+  Node* message_id = gasm_->NumberConstant(static_cast<int32_t>(abort_reason));
+  Node* old_effect = effect();
+  Node* call = BuildCallToRuntimeWithContext(
+      Runtime::kAbort, NoContextConstant(), &message_id, 1);
+  check.merge->ReplaceInput(1, call);
+  SetEffectControl(check.EffectPhi(old_effect, effect()), check.merge);
 }
 
 Node* WasmGraphBuilder::WellKnown_StringIndexOf(
@@ -8681,7 +8699,9 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
                            wasm::kNoDynamicTiering);
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
-                           source_positions);
+                           source_positions,
+                           WasmGraphBuilder::kWasmApiFunctionRefMode,
+                           nullptr /* isolate */, env.enabled_features);
 
   // Set up the graph start.
   builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
@@ -9043,7 +9063,9 @@ void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                MachineGraph* mcgraph) {
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, data.func_body.sig,
-                           data.source_positions);
+                           data.source_positions,
+                           WasmGraphBuilder::kInstanceMode,
+                           nullptr /* isolate */, env->enabled_features);
   auto* allocator = wasm::GetWasmEngine()->allocator();
   wasm::BuildTFGraph(allocator, env->enabled_features, env->module, &builder,
                      detected, data.func_body, data.loop_infos, nullptr,

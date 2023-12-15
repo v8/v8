@@ -955,6 +955,28 @@ class LiftoffCompiler {
       DCHECK(!max_steps_);
     }
 
+    // If debug code is enabled, assert that the first parameter is a
+    // WasmInstanceObject.
+    if (v8_flags.debug_code) {
+      SCOPED_CODE_COMMENT("Check instance parameter type");
+      LiftoffRegList pinned;
+      Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register instance = pinned.set(LoadInstanceIntoRegister(pinned, scratch));
+      // Load the map.
+      __ LoadMap(scratch, instance);
+      // Load the instance type.
+      __ Load(LiftoffRegister{scratch}, scratch, no_reg,
+              wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+              LoadType::kI32Load16U);
+      // If not WASM_INSTANCE_OBJECT_TYPE -> error.
+      Label ok;
+      FreezeCacheState frozen{asm_};
+      __ emit_i32_cond_jumpi(kEqual, &ok, scratch, WASM_INSTANCE_OBJECT_TYPE,
+                             frozen);
+      __ AssertUnreachable(AbortReason::kUnexpectedInstanceType);
+      __ bind(&ok);
+    }
+
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);

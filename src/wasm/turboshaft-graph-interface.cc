@@ -262,6 +262,17 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
+    if (v8_flags.debug_code) {
+      IF_NOT (LIKELY(__ HasInstanceType(instance_node,
+                                        WASM_INSTANCE_OBJECT_TYPE))) {
+        OpIndex message_id = __ TaggedIndexConstant(
+            static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
+        CallRuntime(decoder, Runtime::kAbort, {message_id});
+        __ Unreachable();
+      }
+      END_IF
+    }
+
     if (mode_ == kRegular) {
       StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
     }

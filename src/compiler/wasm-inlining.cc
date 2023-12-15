@@ -215,7 +215,9 @@ void WasmInliner::Finalize() {
     int inlining_position_id =
         static_cast<int>(inlining_positions_->size()) - 1;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
-                             data_.source_positions);
+                             data_.source_positions,
+                             WasmGraphBuilder::kInstanceMode,
+                             nullptr /* isolate */, env_->enabled_features);
     builder.set_inlining_id(inlining_position_id);
     {
       Graph::SubgraphScope scope(graph());

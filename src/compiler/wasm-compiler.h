@@ -31,9 +31,10 @@ namespace v8 {
 class CFunctionInfo;
 
 namespace internal {
+enum class AbortReason : uint8_t;
 struct AssemblerOptions;
-class TurbofanCompilationJob;
 enum class BranchHint : uint8_t;
+class TurbofanCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
@@ -177,13 +178,6 @@ class WasmGraphBuilder {
     kWasmApiFunctionRefMode,
     kNoSpecialParameterMode
   };
-
-  V8_EXPORT_PRIVATE WasmGraphBuilder(
-      wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-      const wasm::FunctionSig* sig,
-      compiler::SourcePositionTable* spt = nullptr)
-      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr,
-                         env->enabled_features) {}
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
                                      MachineGraph* mcgraph,
@@ -859,6 +853,8 @@ class WasmGraphBuilder {
 
   Node* StoreArgsInStackSlot(
       std::initializer_list<std::pair<MachineRepresentation, Node*>> args);
+
+  void Assert(Node* condition, AbortReason abort_reason);
 
   std::unique_ptr<WasmGraphAssembler> gasm_;
   Zone* const zone_;
