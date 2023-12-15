@@ -715,7 +715,7 @@ struct FloatOperationTyper {
         // 0 / r (r < 0)
         || (l.Contains(0) && r_min < 0)
         // -0.0..01 / r (r > 1)
-        || (l.Contains(0) && l_min < 0 && r_min > 1)
+        || (l.Contains(0) && l_min < 0 && r_max > 1)
         // 0.0..01 / r (r < -1)
         || (l.Contains(0) && l_max >= 0 && r_min < -1)
         // l / large (l < 0)
