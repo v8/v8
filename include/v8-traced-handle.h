@@ -80,16 +80,14 @@ class TracedReferenceBase : public api_internal::IndirectHandleBase {
   /**
    * Assigns a wrapper class ID to the handle.
    */
-  V8_DEPRECATE_SOON(
-      "Embedders need to maintain state for references themselves.")
+  V8_DEPRECATED("Embedders need to maintain state for references themselves.")
   V8_INLINE void SetWrapperClassId(uint16_t class_id);
 
   /**
    * Returns the class ID previously assigned to this handle or 0 if no class ID
    * was previously assigned.
    */
-  V8_DEPRECATE_SOON(
-      "Embedders need to maintain state for references themselves.")
+  V8_DEPRECATED("Embedders need to maintain state for references themselves.")
   V8_INLINE uint16_t WrapperClassId() const;
 
  protected:
