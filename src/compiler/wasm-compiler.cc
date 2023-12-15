@@ -1917,6 +1917,7 @@ Node* WasmGraphBuilder::BuildIntConvertFloat(Node* input,
       sat_d.Phi(int_ty.representation(), Min(this, int_ty), Max(this, int_ty));
   Node* nan_val =
       nan_d.Phi(int_ty.representation(), Zero(this, int_ty), sat_val);
+  SetControl(tl_d.merge);
   return tl_d.Phi(int_ty.representation(), nan_val, converted_value);
 }
 
