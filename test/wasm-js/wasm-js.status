@@ -19,6 +19,9 @@
   'proposals/js-types/function/constructor.tentative': [FAIL],
   'proposals/gc/gc/casts.tentative': [FAIL],
   'wpt/gc/casts.tentative': [FAIL],
+
+  # This is a spec test of the https://github.com/WebAssembly/esm-integration
+  # proposal which V8 does not implement yet.
   'wpt/module/moduleSource.tentative': [FAIL],
 
   # Outdated proposal tests.
