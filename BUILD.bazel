@@ -3046,6 +3046,8 @@ filegroup(
         "src/compiler/turboshaft/build-graph-phase.cc",
         "src/compiler/turboshaft/build-graph-phase.h",
         "src/compiler/turboshaft/builtin-call-descriptors.h",
+        "src/compiler/turboshaft/csa-optimize-phase.cc",
+        "src/compiler/turboshaft/csa-optimize-phase.h",
         "src/compiler/turboshaft/dataview-reducer.h",
         "src/compiler/turboshaft/code-elimination-and-simplification-phase.cc",
         "src/compiler/turboshaft/code-elimination-and-simplification-phase.h",

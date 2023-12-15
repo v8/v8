@@ -83,6 +83,7 @@
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/code-elimination-and-simplification-phase.h"
+#include "src/compiler/turboshaft/csa-optimize-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
@@ -3322,7 +3323,16 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
         pipeline.Run<turboshaft::BuildGraphPhase>(&linkage);
     CHECK(!bailout.has_value());
 
-    pipeline.Run<turboshaft::OptimizePhase>();
+    pipeline.Run<turboshaft::CsaLateEscapeAnalysisPhase>();
+    pipeline.Run<turboshaft::CsaBranchEliminationPhase>();
+    pipeline.Run<turboshaft::CsaOptimizePhase>();
+
+    pipeline.Run<turboshaft::CodeEliminationAndSimplificationPhase>();
+
+    // DecompressionOptimization has to run as the last phase because it
+    // constructs an (slightly) invalid graph that mixes Tagged and Compressed
+    // representations.
+    pipeline.Run<turboshaft::DecompressionOptimizationPhase>();
 
     auto [new_graph, new_schedule] =
         pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);

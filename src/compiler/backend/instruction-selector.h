@@ -939,12 +939,12 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word32AtomicPairCompareExchange)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
+  IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   DECLARE_GENERATOR(Simd128ReverseBytes)
-  IF_WASM(DECLARE_GENERATOR, LoadStackPointer)
-  IF_WASM(DECLARE_GENERATOR, SetStackPointer)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.

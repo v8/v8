@@ -66,6 +66,7 @@ struct MemoryAnalyzer {
   ZoneAbslFlatHashMap<const AllocateOp*, uint32_t> reserved_size{phase_zone};
   BlockIndex current_block = BlockIndex(0);
   BlockState state;
+  TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
 
   bool SkipWriteBarrier(const StoreOp& store) {
     const Operation& object = input_graph.Get(store.base());
@@ -73,6 +74,11 @@ struct MemoryAnalyzer {
 
     auto CannotEliminate = [&](WriteBarrierKind kind) {
       if (kind == WriteBarrierKind::kAssertNoWriteBarrier) {
+        // TODO(nicohartmann@): We should reenable this once we have no false
+        // positives anymore in the CSA pipeline.
+        if (pipeline_kind == TurboshaftPipelineKind::kCSA) {
+          return true;
+        }
         std::stringstream str;
         str << "MemoryOptimizationReducer could not remove write barrier for "
                "operation\n  #"
@@ -139,6 +145,9 @@ template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+#if defined(__clang__)
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+#endif
 
   void Analyze() {
     auto* info = PipelineData::Get().info();

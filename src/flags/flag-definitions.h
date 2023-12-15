@@ -1287,6 +1287,7 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
 DEFINE_WEAK_IMPLICATION(turboshaft_future,
                         turboshaft_wasm_instruction_selection_experimental)
+DEFINE_WEAK_IMPLICATION(turboshaft_csa, turboshaft_instruction_selection)
 #endif
 DEFINE_WEAK_IMPLICATION(turboshaft_future,
                         turboshaft_wasm_instruction_selection_staged)

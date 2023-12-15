@@ -1788,6 +1788,14 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
                  {GetNode(op.left()), GetNode(op.right())});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {
+  return AddNode(machine.LoadStackPointer(), {});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const SetStackPointerOp& op) {
+  return AddNode(machine.SetStackPointer(op.fp_scope), {GetNode(op.value())});
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace

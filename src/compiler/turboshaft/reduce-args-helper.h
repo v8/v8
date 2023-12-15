@@ -575,6 +575,12 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const WasmTypeAnnotationOp& op) {
     return callback_(op.value(), op.type);
   }
+
+  OpIndex operator()(const LoadStackPointerOp& op) { return callback_(); }
+
+  OpIndex operator()(const SetStackPointerOp& op) {
+    return callback_(op.value(), op.fp_scope);
+  }
 #endif
 
  private:

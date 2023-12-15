@@ -37,6 +37,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
@@ -2448,6 +2449,15 @@ OpIndex GraphBuilder::Process(
       SIMD128_REPLACE_LANE(F32x4)
       SIMD128_REPLACE_LANE(F64x2)
 #undef SIMD128_REPLACE_LANE
+
+    case IrOpcode::kLoadStackPointer:
+      return __ LoadStackPointer();
+
+    case IrOpcode::kSetStackPointer:
+      __ SetStackPointer(Map(node->InputAt(0)),
+                         OpParameter<wasm::FPRelativeScope>(node->op()));
+      return OpIndex::Invalid();
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kJSStackCheck: {

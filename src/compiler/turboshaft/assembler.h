@@ -34,6 +34,7 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 #include "src/compiler/turboshaft/utils.h"
+#include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
@@ -3421,6 +3422,11 @@ class TurboshaftAssemblerOpInterface
           FixedArray::kHeaderSize, kTaggedSizeLog2);
   }
 
+  OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }
+
+  void SetStackPointer(V<WordPtr> value, wasm::FPRelativeScope fp_scope) {
+    ReduceIfReachableSetStackPointer(value, fp_scope);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Rep>

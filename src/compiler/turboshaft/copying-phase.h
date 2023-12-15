@@ -1275,6 +1275,12 @@ class GraphVisitor : public Next {
     return Asm().ReduceSimd128Shuffle(MapToNewGraph(op.left()),
                                       MapToNewGraph(op.right()), op.shuffle);
   }
+  OpIndex AssembleOutputGraphLoadStackPointer(const LoadStackPointerOp& op) {
+    return Asm().ReduceLoadStackPointer();
+  }
+  OpIndex AssembleOutputGraphSetStackPointer(const SetStackPointerOp& op) {
+    return Asm().ReduceSetStackPointer(MapToNewGraph(op.value()), op.fp_scope);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

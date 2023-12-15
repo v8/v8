@@ -34,6 +34,7 @@
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/flags/flags.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
@@ -248,6 +249,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(FrameConstant)                           \
   V(DeoptimizeIf)                            \
   IF_WASM(V, TrapIf)                         \
+  IF_WASM(V, LoadStackPointer)               \
+  IF_WASM(V, SetStackPointer)                \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -7304,6 +7307,45 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
 
   auto options() const { return std::tuple{shuffle}; }
   void PrintOptions(std::ostream& os) const;
+};
+
+struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
+  // TODO(nicohartmann@): Review effects.
+  static constexpr OpEffects effects = OpEffects().CanReadMemory();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::PointerSized()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
+
+struct SetStackPointerOp : FixedArityOperationT<1, SetStackPointerOp> {
+  wasm::FPRelativeScope fp_scope;
+
+  // TODO(nicohartmann@): Review effects.
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  OpIndex value() const { return Base::input(0); }
+
+  SetStackPointerOp(OpIndex value, wasm::FPRelativeScope fp_scope)
+      : Base(value), fp_scope(fp_scope) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{fp_scope}; }
 };
 
 #endif  // V8_ENABLE_WEBASSEMBLY

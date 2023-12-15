@@ -269,14 +269,16 @@ class LoopUnrollingReducer : public Next {
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    if (unrolling_ == UnrollingStatus::kUnrolling) {
-      if (call.IsStackCheck(__ input_graph(), broker_,
-                            StackCheckKind::kJSIterationBody)) {
-        // When we unroll a loop, we get rid of its stack checks. (note that we
-        // don't do this for the 1st folded body of partially unrolled loops so
-        // that the loop keeps a stack check).
-        DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
-        return OpIndex::Invalid();
+    if (V8_LIKELY(!IsRunningBuiltinPipeline())) {
+      if (unrolling_ == UnrollingStatus::kUnrolling) {
+        if (call.IsStackCheck(__ input_graph(), broker_,
+                              StackCheckKind::kJSIterationBody)) {
+          // When we unroll a loop, we get rid of its stack checks. (note that
+          // we don't do this for the 1st folded body of partially unrolled
+          // loops so that the loop keeps a stack check).
+          DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
+          return OpIndex::Invalid();
+        }
       }
     }
 
@@ -291,6 +293,7 @@ class LoopUnrollingReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     if (unrolling_ == UnrollingStatus::kUnrolling) {
+      DCHECK(!IsRunningBuiltinPipeline());
       if (check.check_kind == StackCheckOp::CheckKind::kLoopCheck) {
         // When we unroll a loop, we get rid of its stack checks. (note that we
         // don't do this for the 1st folded body of partially unrolled loops so
@@ -324,6 +327,9 @@ class LoopUnrollingReducer : public Next {
   void PartiallyUnrollLoop(Block* header);
   void FixLoopPhis(Block* input_graph_loop, Block* output_graph_loop,
                    Block* backedge_block);
+  bool IsRunningBuiltinPipeline() const {
+    return PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA;
+  }
 
   ZoneUnorderedSet<Block*> loop_body_{__ phase_zone()};
   // The analysis should be ran ahead of time so that the LoopUnrollingPhase

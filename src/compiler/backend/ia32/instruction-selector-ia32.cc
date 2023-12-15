@@ -3774,6 +3774,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
 namespace {
 void VisitMinOrMax(InstructionSelectorT<TurboshaftAdapter>* selector,
                    turboshaft::OpIndex node, ArchOpcode opcode,

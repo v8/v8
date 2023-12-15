@@ -18,6 +18,9 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+template <typename>
+class VariableReducer;
+
 template <class Next>
 class BranchEliminationReducer : public Next {
   // # General overview
@@ -192,6 +195,9 @@ class BranchEliminationReducer : public Next {
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+#if defined(__clang__)
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+#endif
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);

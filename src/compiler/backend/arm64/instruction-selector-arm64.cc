@@ -15,6 +15,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -5882,11 +5883,10 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
     if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
         CanCover(node, left)) {
       Node* right_of_left = left->InputAt(1);
-      Emit(kArm64Bfi, g.DefineSameAsFirst(right), g.UseRegister(right),
+      Emit(kArm64Bfi, g.DefineSameAsFirst(left), g.UseRegister(right),
            g.UseRegister(right_of_left), g.TempImmediate(32),
            g.TempImmediate(32));
-      Emit(kArm64Float64MoveU64, g.DefineAsRegister(node),
-           g.UseRegister(right));
+      Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(left));
       return;
     }
     Emit(kArm64Float64InsertLowWord32, g.DefineSameAsFirst(node),
@@ -7502,11 +7502,17 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   OperandGenerator g(this);
-  auto input = g.UseRegister(node->InputAt(0));
-  auto fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
+  auto input = g.UseRegister(this->input_at(node, 0));
+  wasm::FPRelativeScope fp_scope;
+  if constexpr (Adapter::IsTurboshaft) {
+    fp_scope =
+        this->Get(node).template Cast<turboshaft::SetStackPointerOp>().fp_scope;
+  } else {
+    fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
+  }
   Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
        &input);
 }

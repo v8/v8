@@ -6955,10 +6955,11 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
        g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  OperandGenerator g(this);
-  auto input = g.UseAny(node->InputAt(0));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  auto input = g.UseAny(this->input_at(node, 0));
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 

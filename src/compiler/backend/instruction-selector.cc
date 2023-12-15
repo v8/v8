@@ -1831,8 +1831,8 @@ void InstructionSelectorT<Adapter>::VisitLoadFramePointer(node_t node) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitLoadStackPointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadStackPointer(node_t node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
@@ -5147,6 +5147,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 
     case Opcode::kComment:
       return VisitComment(node);
+
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Opcode::kSimd128Constant: {
       const Simd128ConstantOp& constant = op.Cast<Simd128ConstantOp>();
@@ -5283,15 +5284,19 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_TERNARY
       }
     }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
-#define UNIMPLEMENTED_CASE(op) case Opcode::k##op:
-      TURBOSHAFT_WASM_OPERATION_LIST(UNIMPLEMENTED_CASE)
-#undef UNIMPLEMENTED_CASE
+    case Opcode::kLoadStackPointer:
+      return VisitLoadStackPointer(node);
+
+    case Opcode::kSetStackPointer:
+      return VisitSetStackPointer(node);
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_JS_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)
+      TURBOSHAFT_WASM_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
       UNREACHABLE_CASE(PendingLoopPhi)
       UNREACHABLE_CASE(Tuple)

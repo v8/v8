@@ -4523,6 +4523,13 @@ void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
+    node_t node) {
+  // TODO(thibaudm): Implement.
+  UNREACHABLE();
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
     ArmOperandGeneratorT<Adapter> g(this);
