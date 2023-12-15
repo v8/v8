@@ -291,6 +291,12 @@ void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
   mov(destination, Operand(kRootRegister, offset));
 }
 
+void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(root_array_available());
+  mov(Operand(kRootRegister, offset), value);
+}
+
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   // TODO(jgruber): Add support for enable_root_relative_access.

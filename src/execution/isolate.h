@@ -780,6 +780,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void set_context(Tagged<Context> context);
   Tagged<Context>* context_address() { return &thread_local_top()->context_; }
 
+  // The "topmost script-having execution context" from the Web IDL spec
+  // (i.e. the context of the topmost user JavaScript code, see
+  // https://html.spec.whatwg.org/multipage/webappapis.html#topmost-script-having-execution-context)
+  // if known or Context::kNoContext otherwise.
+  Tagged<Context> topmost_script_having_context() const {
+    return thread_local_top()->topmost_script_having_context_;
+  }
+  inline void set_topmost_script_having_context(Tagged<Context> context);
+  inline void clear_topmost_script_having_context();
+  Tagged<Context>* topmost_script_having_context_address() {
+    return &thread_local_top()->topmost_script_having_context_;
+  }
+
   // Access to current thread id.
   inline void set_thread_id(ThreadId id) {
     thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);
@@ -1093,7 +1106,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Handle<NativeContext> native_context();
   inline Tagged<NativeContext> raw_native_context();
 
-  Handle<NativeContext> GetIncumbentContext();
+  inline Handle<NativeContext> GetIncumbentContext();
+  Handle<NativeContext> GetIncumbentContextSlow();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
@@ -2743,6 +2757,7 @@ class V8_EXPORT_PRIVATE SaveContext {
  private:
   Isolate* const isolate_;
   Handle<Context> context_;
+  Handle<Context> topmost_script_having_context_;
 };
 
 // Like SaveContext, but also switches the Context to a new one in the
@@ -2764,11 +2779,19 @@ class AssertNoContextChange {
 #ifdef DEBUG
  public:
   explicit AssertNoContextChange(Isolate* isolate);
-  ~AssertNoContextChange() { DCHECK(isolate_->context() == *context_); }
+  ~AssertNoContextChange() {
+    CHECK_EQ(isolate_->context(), *context_);
+    // The caller context is either cleared or not modified.
+    if (!isolate_->topmost_script_having_context().is_null()) {
+      CHECK_EQ(isolate_->topmost_script_having_context(),
+               *topmost_script_having_context_);
+    }
+  }
 
  private:
   Isolate* isolate_;
   Handle<Context> context_;
+  Handle<Context> topmost_script_having_context_;
 #else
  public:
   explicit AssertNoContextChange(Isolate* isolate) {}

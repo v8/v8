@@ -30,7 +30,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 29 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -106,6 +106,35 @@ class ThreadLocalTop {
   // meantime, assert that the memory layout is the same.
   static_assert(sizeof(Tagged<Context>) == kSystemPointerSize);
   Tagged<Context> context_;
+
+  // The "topmost script-having execution context" from the Web IDL spec
+  // (i.e. the context of the topmost user JavaScript code, see
+  // https://html.spec.whatwg.org/multipage/webappapis.html#topmost-script-having-execution-context)
+  // if known or Context::kNoContext otherwise. It's guaranteed to be valid
+  // only when read from within Api function callback or Api getter/setter
+  // callbacks. The caller context is set to the current context from generated
+  // code/builtins right before calling the Api callback when it's guaraneed
+  // that current context belongs to user JavaScript code:
+  //  - when an Api getter/setter function callback is called by IC system
+  //    from interpreter or baseline code,
+  //  - when an Api callback is called from optimized code (Maglev or TurboFan).
+  //
+  // Once the caller context value becomes outdated it's reset to kNoContext
+  // in order to enforce the slow mechanism involving stack iteration.
+  // This happens in the following cases:
+  //  - when an Api function is called as a regular JSFunction (it's not worth
+  //    the efforts of properly propagating the topmost user script-having
+  //    context through a potential sequence of builtin function calls),
+  //  - when execution crosses C++ to JS boundary (Execution::Call*/New),
+  //  - when execution crosses JS to Wasm boundary or Wasm to JS bounary
+  //    (it's not worth the efforts of propagating the caller context
+  //    through Wasm, especially with Wasm stack switching),
+  //  - when an optimized function is deoptimized (for simplicity),
+  //  - after stack unwinding because of thrown exception.
+  //
+  // GC treats this value as a weak reference and resets it back to kNoContext
+  // if the context dies.
+  Tagged<Context> topmost_script_having_context_;
 
   // This field is updated along with context_ on every operation triggered
   // via V8 Api.

@@ -42,6 +42,7 @@ namespace internal {
   V(BinarySmiOp_Baseline)                            \
   V(CallForwardVarargs)                              \
   V(CallFunctionTemplate)                            \
+  V(CallFunctionTemplateGeneric)                     \
   V(CallTrampoline)                                  \
   V(CallTrampoline_Baseline)                         \
   V(CallTrampoline_Baseline_Compact)                 \
@@ -1508,6 +1509,21 @@ class CallFunctionTemplateDescriptor
   static constexpr inline auto registers();
 };
 
+class CallFunctionTemplateGenericDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CallFunctionTemplateGenericDescriptor> {
+ public:
+  DEFINE_PARAMETERS_VARARGS(kFunctionTemplateInfo, kArgumentsCount,
+                            kTopmostScriptHavingContext)
+  DEFINE_PARAMETER_TYPES(
+      MachineType::AnyTagged(),  // kFunctionTemplateInfo
+      MachineType::Int32(),      // kArgumentsCount
+      MachineType::AnyTagged())  // kTopmostScriptHavingContext
+  DECLARE_DESCRIPTOR(CallFunctionTemplateGenericDescriptor)
+
+  static constexpr inline auto registers();
+};
+
 class CallWithSpreadDescriptor
     : public StaticCallInterfaceDescriptor<CallWithSpreadDescriptor> {
  public:
@@ -1909,15 +1925,19 @@ class CallApiCallbackOptimizedDescriptor
 class CallApiCallbackGenericDescriptor
     : public StaticCallInterfaceDescriptor<CallApiCallbackGenericDescriptor> {
  public:
-  DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kCallHandlerInfo, kHolder)
+  DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kTopmostScriptHavingContext,
+                            kCallHandlerInfo, kHolder)
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kActualArgumentsCount
-                         MachineType::AnyTagged(),  // kCallHandlerInfo
-                         MachineType::AnyTagged())  // kHolder
+  DEFINE_PARAMETER_TYPES(
+      MachineType::Int32(),      // kActualArgumentsCount
+      MachineType::AnyTagged(),  // kTopmostScriptHavingContext
+      MachineType::AnyTagged(),  // kCallHandlerInfo
+      MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(CallApiCallbackGenericDescriptor)
 
   static constexpr inline Register ActualArgumentsCountRegister();
+  static constexpr inline Register TopmostScriptHavingContextRegister();
   static constexpr inline Register CallHandlerInfoRegister();
   static constexpr inline Register HolderRegister();
 

@@ -518,6 +518,7 @@ TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
+// TODO(ishell): not used, consider removing.
 TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   base::Optional<TNode<Object>> new_target = base::nullopt;
@@ -698,7 +699,7 @@ constexpr bool CallOrConstructBuiltinsAssembler::IsAccessCheckRequired(
 void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     CallFunctionTemplateMode mode,
     TNode<FunctionTemplateInfo> function_template_info, TNode<Int32T> argc,
-    TNode<Context> context) {
+    TNode<Context> context, TNode<Object> topmost_script_having_context) {
   CodeStubArguments args(this, argc);
   Label throw_illegal_invocation(this, Label::kDeferred);
 
@@ -790,7 +791,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     case CallFunctionTemplateMode::kGeneric:
       TailCallBuiltin(Builtin::kCallApiCallbackGeneric, context,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      call_handler_info, holder);
+                      topmost_script_having_context, call_handler_info, holder);
       break;
 
     case CallFunctionTemplateMode::kCheckAccess:
@@ -814,8 +815,14 @@ TF_BUILTIN(CallFunctionTemplate_Generic, CallOrConstructBuiltinsAssembler) {
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
+  // This builtin is called from IC where the topmost script-having context is
+  // known precisely and from Builtin::kHandleApiCallOrConstruct where the
+  // caller context is not guranteed to be known.
+  auto topmost_script_having_context =
+      Parameter<Object>(Descriptor::kTopmostScriptHavingContext);
   CallFunctionTemplate(CallFunctionTemplateMode::kGeneric,
-                       function_template_info, argc, context);
+                       function_template_info, argc, context,
+                       topmost_script_having_context);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {
@@ -823,8 +830,13 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
+  // This builtin is called from optimized code where the topmost script-having
+  // context is always equal to the current context because we don't inline
+  // calls cross context.
+  auto topmost_script_having_context = context;
   CallFunctionTemplate(CallFunctionTemplateMode::kCheckAccess,
-                       function_template_info, argc, context);
+                       function_template_info, argc, context,
+                       topmost_script_having_context);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckCompatibleReceiver,
@@ -833,8 +845,13 @@ TF_BUILTIN(CallFunctionTemplate_CheckCompatibleReceiver,
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
+  // This builtin is called from optimized code where the topmost script-having
+  // context is always equal to the current context because we don't inline
+  // calls cross context.
+  auto topmost_script_having_context = context;
   CallFunctionTemplate(CallFunctionTemplateMode::kCheckCompatibleReceiver,
-                       function_template_info, argc, context);
+                       function_template_info, argc, context,
+                       topmost_script_having_context);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
@@ -843,9 +860,13 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
+  // This builtin is called from optimized code where the topmost script-having
+  // context is always equal to the current context because we don't inline
+  // calls cross context.
+  auto topmost_script_having_context = context;
   CallFunctionTemplate(
       CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver,
-      function_template_info, argc, context);
+      function_template_info, argc, context, topmost_script_having_context);
 }
 
 TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
@@ -864,10 +885,19 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
     TNode<FunctionTemplateInfo> function_template_info =
         CAST(LoadSharedFunctionInfoFunctionData(shared));
 
+    // The topmost script-having context is not guaranteed to be equal to
+    // current context at this point. For example, if target function was
+    // called via Function.prototype.call or other similar builtins, or if it
+    // was called directly from C++ via Execution::Call*(). So we pass
+    // kNoContext in order to ensure that Isolate::GetIncumbentContext()
+    // does the right thing (by taking a slow path).
+    TNode<Object> topmost_script_having_context = NoContextConstant();
+
     // Tail call to the stub while leaving all the incoming JS arguments on
     // the stack.
     TailCallBuiltin(Builtin::kCallFunctionTemplate_Generic, context,
-                    function_template_info, argc);
+                    function_template_info, argc,
+                    topmost_script_having_context);
   }
   BIND(&if_construct);
   {

@@ -1050,6 +1050,9 @@ Context::BackupIncumbentScope::BackupIncumbentScope(
 
   prev_ = i_isolate->top_backup_incumbent_scope();
   i_isolate->set_top_backup_incumbent_scope(this);
+  // Enforce slow incumbent computation in order to make it find this
+  // BackupIncumbentScope.
+  i_isolate->clear_topmost_script_having_context();
 }
 
 Context::BackupIncumbentScope::~BackupIncumbentScope() {
@@ -11760,7 +11763,7 @@ bool ConvertDouble(double d) {
 template <typename T>
 bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   CHECK_GE(info.Length(), 0);
-  // Theorticall args-length is unlimited, practically we run out of stack
+  // Theortically args-length is unlimited, practically we run out of stack
   // space. This should guard against accidentally used raw pointers.
   CHECK_LE(info.Length(), 0xFFFFF);
   if (info.Length() > 0) {
@@ -11769,6 +11772,7 @@ bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   }
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
+  CHECK(!i_isolate->GetIncumbentContext().is_null());
   CHECK(info.This()->IsValue());
   CHECK(info.Holder()->IsObject());
   CHECK(!info.Data().IsEmpty());

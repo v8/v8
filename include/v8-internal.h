@@ -667,7 +667,7 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
-  static const int kThreadLocalTopSize = 29 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
@@ -733,8 +733,7 @@ class Internals {
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
 
-  static const int kWasm64OOBOffsetAlignmentPaddingSize =
-      kApiSystemPointerSize == 8 ? 0 : kApiSystemPointerSize;
+  static const int kWasm64OOBOffsetAlignmentPaddingSize = 0;
   static const int kWasm64OOBOffsetOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize +
       kWasm64OOBOffsetAlignmentPaddingSize;

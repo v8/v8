@@ -43,6 +43,7 @@ class Code;
   V(kStrongRoots, "(Strong roots)")                            \
   V(kThreadManager, "(Thread manager)")                        \
   V(kTracedHandles, "(Traced handles)")                        \
+  V(kWeakRoots, "(Weak roots)")                                \
   V(kWriteBarrier, "(Write barrier)")
 
 class VisitorSynchronization : public AllStatic {

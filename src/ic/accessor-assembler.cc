@@ -192,9 +192,10 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
 
   // TODO(gsathya): This builtin throws an exception on interface check fail but
   // we should miss to the runtime.
+  TNode<Context> caller_context = context;
   exit_point->Return(CallBuiltin(Builtin::kCallFunctionTemplate_Generic,
                                  context, getter, Int32Constant(1),
-                                 lookup_start_object));
+                                 caller_context, lookup_start_object));
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(
@@ -293,10 +294,13 @@ void AccessorAssembler::HandleLoadAccessor(
   Goto(&load);
 
   BIND(&load);
-  TNode<Int32T> argc = Int32Constant(0);
-  exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
-                                 argc, call_handler_info, api_holder.value(),
-                                 p->receiver()));
+  {
+    TNode<Int32T> argc = Int32Constant(0);
+    TNode<Context> caller_context = p->context();
+    exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
+                                   argc, caller_context, call_handler_info,
+                                   api_holder.value(), p->receiver()));
+  }
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
@@ -1951,9 +1955,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       BIND(&store);
       {
         TNode<Int32T> argc = Int32Constant(1);
+        TNode<Context> caller_context = p->context();
         Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
-                           call_handler_info, api_holder.value(), p->receiver(),
-                           p->value()));
+                           caller_context, call_handler_info,
+                           api_holder.value(), p->receiver(), p->value()));
       }
     }
 

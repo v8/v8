@@ -2784,6 +2784,16 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
+  {
+    // Clear Isolate::topmost_script_having_context slot if it's not alive.
+    Tagged<Object> maybe_caller_context =
+        isolate->topmost_script_having_context();
+    if (maybe_caller_context.IsHeapObject() &&
+        !marking_state_->IsMarked(HeapObject::cast(maybe_caller_context))) {
+      isolate->clear_topmost_script_having_context();
+    }
+  }
+
   auto clearing_job = std::make_unique<ParallelClearingJob>(this);
   auto clear_string_table_job_item =
       std::make_unique<ClearStringTableJobItem>(isolate);

@@ -304,7 +304,7 @@ class Genesis {
                                v8::RegisteredExtension* current,
                                ExtensionStates* extension_states);
   static bool InstallSpecialObjects(Isolate* isolate,
-                                    Handle<Context> native_context);
+                                    Handle<NativeContext> native_context);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObject(
@@ -6386,18 +6386,18 @@ void Genesis::InitializeMapCaches() {
   }
 }
 
-bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
+bool Bootstrapper::InstallExtensions(Handle<NativeContext> native_context,
                                      v8::ExtensionConfiguration* extensions) {
   // Don't install extensions into the snapshot.
   if (isolate_->serializer_enabled()) return true;
   BootstrapperActive active(this);
-  SaveAndSwitchContext saved_context(isolate_, *native_context);
+  v8::Context::Scope context_scope(Utils::ToLocal(native_context));
   return Genesis::InstallExtensions(isolate_, native_context, extensions) &&
          Genesis::InstallSpecialObjects(isolate_, native_context);
 }
 
 bool Genesis::InstallSpecialObjects(Isolate* isolate,
-                                    Handle<Context> native_context) {
+                                    Handle<NativeContext> native_context) {
   HandleScope scope(isolate);
 
   // Error.stackTraceLimit.

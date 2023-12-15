@@ -38,9 +38,10 @@ class Isolate;
 // Aligns wasm64_oob_offset_ field to 8 bytes to avoid issues with different
 // field alignment vs cross-compilation.
 // The wasm64_oob_offset_ is currently aligned, so don't add the padding.
-#define ISOLATE_DATA_WASM64_OOB_PADDING(V)                      \
-  V(kWasm64OOBOffsetAlignmentPaddingOffset, kSystemPointerSize, \
-    wasm64_oob_offset_alignment_padding)
+#define ISOLATE_DATA_WASM64_OOB_PADDING(V)
+// #define ISOLATE_DATA_WASM64_OOB_PADDING(V)                      \
+//   V(kWasm64OOBOffsetAlignmentPaddingOffset, kSystemPointerSize, \
+//     wasm64_oob_offset_alignment_padding)
 
 #endif  // V8_HOST_ARCH_64_BIT
 
@@ -219,6 +220,7 @@ class IsolateData final {
                                  OFFSET_OF(ThreadLocalTop, Name##_));     \
   }
 
+  THREAD_LOCAL_TOP_MEMBER_OFFSET(topmost_script_having_context)
   THREAD_LOCAL_TOP_MEMBER_OFFSET(is_on_central_stack_flag)
 #undef THREAD_LOCAL_TOP_MEMBER_OFFSET
 
@@ -339,7 +341,7 @@ class IsolateData final {
 #if !V8_HOST_ARCH_64_BIT
   // Aligns wasm64_oob_offset_ field to 8 bytes to avoid cross-compilation
   // issues on some 32-bit configurations.
-  Address wasm64_oob_offset_alignment_padding_;
+  // Address wasm64_oob_offset_alignment_padding_;
 #endif
   // An offset that always generates an invalid address when added to any
   // start address of a Wasm memory. This is used to force an out-of-bounds

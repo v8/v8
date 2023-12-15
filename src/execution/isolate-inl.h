@@ -56,6 +56,35 @@ Tagged<NativeContext> Isolate::raw_native_context() {
   return context()->native_context();
 }
 
+void Isolate::set_topmost_script_having_context(Tagged<Context> context) {
+  DCHECK(context.is_null() || IsContext(context));
+  thread_local_top()->topmost_script_having_context_ = context;
+}
+
+void Isolate::clear_topmost_script_having_context() {
+  static_assert(Context::kNoContext == 0);
+  thread_local_top()->topmost_script_having_context_ = Context();
+}
+
+Handle<NativeContext> Isolate::GetIncumbentContext() {
+  Tagged<Context> maybe_topmost_script_having_context =
+      topmost_script_having_context();
+  if (V8_LIKELY(!maybe_topmost_script_having_context.is_null())) {
+    // The topmost script-having context value is guaranteed to be valid only
+    // inside the Api callback however direct calls of Api callbacks from
+    // builtins or optimized code do not change the current VM state, so we
+    // allow JS VM state too.
+    DCHECK(current_vm_state() == EXTERNAL ||  // called from C++ code
+           current_vm_state() == JS);         // called from JS code directly
+
+    Tagged<NativeContext> incumbent_context =
+        maybe_topmost_script_having_context->native_context();
+    DCHECK_EQ(incumbent_context, *GetIncumbentContextSlow());
+    return handle(incumbent_context, this);
+  }
+  return GetIncumbentContextSlow();
+}
+
 void Isolate::set_pending_message(Tagged<Object> message_obj) {
   DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;

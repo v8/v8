@@ -555,6 +555,11 @@ Address Isolate::get_address_from_id(IsolateAddressId id) {
 char* Isolate::Iterate(RootVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
+  // Normally, ThreadLocalTop::topmost_script_having_context_ is visited weakly
+  // but in order to simplify handling of frozen threads we just clear it.
+  // Otherwise, we'd need to traverse the thread_storage again just to find this
+  // one field.
+  thread->topmost_script_having_context_ = Context();
   return thread_storage + sizeof(ThreadLocalTop);
 }
 
@@ -1968,6 +1973,11 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // TODO(v8:12676): Fix gcmole failures in this function.
   DisableGCMole no_gcmole;
   DisallowGarbageCollection no_gc;
+
+  // The topmost_script_having_context value becomes outdated after frames
+  // unwinding.
+  clear_topmost_script_having_context();
+
 #if V8_ENABLE_WEBASSEMBLY
   // Create the {SetThreadInWasmFlagScope} first in this function so that its
   // destructor gets called after all the other destructors. It is important
@@ -3119,7 +3129,7 @@ bool Isolate::IsWasmImportedStringsEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-Handle<NativeContext> Isolate::GetIncumbentContext() {
+Handle<NativeContext> Isolate::GetIncumbentContextSlow() {
   JavaScriptStackFrameIterator it(this);
 
   // 1st candidate: most-recently-entered author function's context
@@ -3133,13 +3143,20 @@ Handle<NativeContext> Isolate::GetIncumbentContext() {
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
     Tagged<Context> context = Context::cast(it.frame()->context());
+    // If the topmost_script_having_context is set then it must be correct.
+    if (DEBUG_BOOL && !topmost_script_having_context().is_null()) {
+      DCHECK_EQ(topmost_script_having_context()->native_context(),
+                context->native_context());
+    }
     return Handle<NativeContext>(context->native_context(), this);
   }
+  DCHECK(topmost_script_having_context().is_null());
 
   // 2nd candidate: the last Context::Scope's incumbent context if any.
   if (top_backup_incumbent_scope()) {
-    return Utils::OpenHandle(
-        *top_backup_incumbent_scope()->backup_incumbent_context_);
+    v8::Local<v8::Context> incumbent_context =
+        top_backup_incumbent_scope()->backup_incumbent_context_;
+    return Utils::OpenHandle(*incumbent_context);
   }
 
   // Last candidate: the entered context or microtask context.
@@ -3727,6 +3744,10 @@ void Isolate::CheckIsolateLayout() {
   static_assert(kCEntryFPCacheLine ==
                 RoundDown<kCacheLineSize>(
                     OFFSET_OF(IsolateData, thread_local_top_.context_)));
+  static_assert(
+      kCEntryFPCacheLine ==
+      RoundDown<kCacheLineSize>(OFFSET_OF(
+          IsolateData, thread_local_top_.topmost_script_having_context_)));
   static_assert(kCEntryFPCacheLine ==
                 RoundDown<kCacheLineSize>(
                     OFFSET_OF(IsolateData, thread_local_top_.last_api_entry_)));
@@ -6319,10 +6340,18 @@ SaveContext::SaveContext(Isolate* isolate) : isolate_(isolate) {
   if (!isolate->context().is_null()) {
     context_ = Handle<Context>(isolate->context(), isolate);
   }
+  if (!isolate->topmost_script_having_context().is_null()) {
+    topmost_script_having_context_ =
+        Handle<Context>(isolate->topmost_script_having_context(), isolate);
+  }
 }
 
 SaveContext::~SaveContext() {
   isolate_->set_context(context_.is_null() ? Tagged<Context>() : *context_);
+  isolate_->set_topmost_script_having_context(
+      topmost_script_having_context_.is_null()
+          ? Tagged<Context>()
+          : *topmost_script_having_context_);
 }
 
 SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
@@ -6333,7 +6362,10 @@ SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
 
 #ifdef DEBUG
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
-    : isolate_(isolate), context_(isolate->context(), isolate) {}
+    : isolate_(isolate),
+      context_(isolate->context(), isolate),
+      topmost_script_having_context_(isolate->topmost_script_having_context(),
+                                     isolate) {}
 
 namespace {
 

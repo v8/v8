@@ -4548,6 +4548,13 @@ void Heap::VerifyCommittedPhysicalMemory() {
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
+  if (!options.contains(SkipRoot::kUnserializable)) {
+    // Isolate::topmost_script_having_context_address is treated weakly.
+    v->VisitRootPointer(
+        Root::kWeakRoots, nullptr,
+        FullObjectSlot(isolate()->topmost_script_having_context_address()));
+  }
+
   if (!options.contains(SkipRoot::kOldGeneration) &&
       !options.contains(SkipRoot::kUnserializable) &&
       isolate()->OwnsStringTables()) {
