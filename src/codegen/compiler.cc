@@ -1007,7 +1007,7 @@ class OptimizedCodeCache : public AllStatic {
     } else {
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           isolate, shared, "OptimizedCodeCache::Get");
-      code = feedback_vector->optimized_code();
+      code = feedback_vector->optimized_code(isolate);
     }
 
     if (code.is_null() || code->kind() != code_kind) return {};
@@ -1049,13 +1049,13 @@ class OptimizedCodeCache : public AllStatic {
       // sharing can occur. Make sure the optimized code cache is cleared.
       // Only do so if the specialized code's kind matches the cached code kind.
       if (feedback_vector->has_optimized_code() &&
-          feedback_vector->optimized_code()->kind() == code->kind()) {
+          feedback_vector->optimized_code(isolate)->kind() == code->kind()) {
         feedback_vector->ClearOptimizedCode();
       }
       return;
     }
 
-    feedback_vector->SetOptimizedCode(code);
+    feedback_vector->SetOptimizedCode(isolate, code);
   }
 };
 
@@ -4181,7 +4181,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
       // deoptimized code just before installing it on the funciton.
       function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
           isolate, *shared, "new function from shared function info");
-      Tagged<Code> code = function->feedback_vector()->optimized_code();
+      Tagged<Code> code = function->feedback_vector()->optimized_code(isolate);
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code->marked_for_deoptimization());

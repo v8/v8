@@ -354,16 +354,17 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
-void FeedbackVector::SetOptimizedCode(Tagged<Code> code) {
+void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
+                                      Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   int32_t state = flags();
   // Skip setting optimized code if it would cause us to tier down.
   if (!has_optimized_code()) {
     state = MaybeHasTurbofanCodeBit::update(state, false);
-  } else if (!CodeKindCanTierUp(optimized_code()->kind()) ||
-             optimized_code()->kind() > code->kind()) {
+  } else if (!CodeKindCanTierUp(optimized_code(isolate)->kind()) ||
+             optimized_code(isolate)->kind() > code->kind()) {
     if (!v8_flags.stress_concurrent_inlining_attach_code &&
-        !optimized_code()->marked_for_deoptimization()) {
+        !optimized_code(isolate)->marked_for_deoptimization()) {
       return;
     }
     // If we fall through, we may be tiering down. This is fine since we only do
@@ -376,7 +377,7 @@ void FeedbackVector::SetOptimizedCode(Tagged<Code> code) {
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
-  set_maybe_optimized_code(HeapObjectReference::Weak(code));
+  set_maybe_optimized_code(HeapObjectReference::Weak(code->wrapper()));
   // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
   // the callers doing so.
   state = TieringStateBits::update(state, TieringState::kNone);
@@ -453,7 +454,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Tagged<Code> code = Code::cast(slot.GetHeapObject());
+  Tagged<Code> code = CodeWrapper::cast(slot.GetHeapObject())->code(isolate);
   if (code->marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
     ClearOptimizedCode();

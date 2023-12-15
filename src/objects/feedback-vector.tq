@@ -50,7 +50,9 @@ extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
   parent_feedback_cell: FeedbackCell;
-  maybe_optimized_code: Weak<Code>;
+  // TODO(saelo): if we had support for weak indirect pointers, this field
+  // could become a code pointer, which would save one indirection.
+  maybe_optimized_code: Weak<CodeWrapper>;
   @cppRelaxedLoad raw_feedback_slots[length]: MaybeObject;
 }
 

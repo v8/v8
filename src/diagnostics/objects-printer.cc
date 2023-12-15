@@ -1346,7 +1346,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
 
   os << "\n - shared function info: " << Brief(shared_function_info());
   if (has_optimized_code()) {
-    os << "\n - optimized code: " << Brief(optimized_code());
+    os << "\n - optimized code: "
+       << Brief(optimized_code(GetIsolateForSandbox(*this)));
   } else {
     os << "\n - no optimized code";
   }

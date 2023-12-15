@@ -159,13 +159,13 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
   }
 }
 
-Tagged<Code> FeedbackVector::optimized_code() const {
+Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
   MaybeObject slot = maybe_optimized_code();
   DCHECK(slot->IsWeakOrCleared());
   Tagged<HeapObject> heap_object;
   Tagged<Code> code;
   if (slot.GetHeapObject(&heap_object)) {
-    code = Code::cast(heap_object);
+    code = CodeWrapper::cast(heap_object)->code(isolate);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
   // haven't been updated yet. We update them when we execute the function next
@@ -184,9 +184,10 @@ TieringState FeedbackVector::tiering_state() const {
 }
 
 bool FeedbackVector::has_optimized_code() const {
-  DCHECK_IMPLIES(!optimized_code().is_null(),
+  bool is_cleared = maybe_optimized_code()->IsCleared();
+  DCHECK_IMPLIES(!is_cleared,
                  maybe_has_maglev_code() || maybe_has_turbofan_code());
-  return !optimized_code().is_null();
+  return !is_cleared;
 }
 
 bool FeedbackVector::maybe_has_maglev_code() const {

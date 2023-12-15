@@ -1511,7 +1511,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
   if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
-    func->set_code(func->feedback_vector()->optimized_code());
+    func->set_code(func->feedback_vector()->optimized_code(isolate));
   }
   CHECK(func->shared()->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,

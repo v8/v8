@@ -1386,8 +1386,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   ldp(x29, x30, tos);  // fp, lr
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-                       // The context (stack pointer value) for authenticating
-                       // the LR here must
+  // The context (stack pointer value) for authenticating the LR here must
   // match the one used for signing it (see `PushCalleeSavedRegisters`).
   autibsp();
 #endif
@@ -1424,6 +1423,11 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // marker field.
   __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
                    &heal_optimized_code_slot);
+
+  // The entry references a CodeWrapper object. Unwrap it now.
+  __ LoadCodePointerField(
+      optimized_code_entry,
+      FieldMemOperand(optimized_code_entry, CodeWrapper::kCodeOffset));
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.

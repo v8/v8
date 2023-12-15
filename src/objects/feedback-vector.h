@@ -275,7 +275,7 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-  inline Tagged<Code> optimized_code() const;
+  inline Tagged<Code> optimized_code(IsolateForSandbox isolate) const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
@@ -289,7 +289,7 @@ class FeedbackVector
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
 
-  void SetOptimizedCode(Tagged<Code> code);
+  void SetOptimizedCode(IsolateForSandbox isolate, Tagged<Code> code);
   void EvictOptimizedCodeMarkedForDeoptimization(
       Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason);
   void ClearOptimizedCode();

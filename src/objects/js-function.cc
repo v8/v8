@@ -53,8 +53,10 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
 
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
-      !feedback_vector()->optimized_code()->marked_for_deoptimization()) {
-    Tagged<Code> code = feedback_vector()->optimized_code();
+      !feedback_vector()
+           ->optimized_code(isolate)
+           ->marked_for_deoptimization()) {
+    Tagged<Code> code = feedback_vector()->optimized_code(isolate);
     DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
     result |= CodeKindToCodeKindFlag(code->kind());
   }

@@ -64,8 +64,10 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
         feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset);
 
     // Optimized code slot is a weak reference to Code object.
-    TNode<Code> optimized_code = CAST(GetHeapObjectAssumeWeak(
+    TNode<CodeWrapper> code_wrapper = CAST(GetHeapObjectAssumeWeak(
         maybe_optimized_code_entry, &heal_optimized_code_slot));
+    TNode<Code> optimized_code =
+        LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
