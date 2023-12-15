@@ -95,11 +95,15 @@ class StructuralOptimizationReducer : public Next {
     base::SmallVector<SwitchOp::Case, 16> cases;
     base::SmallVector<const Block*, 16> false_blocks;
 
+    Block* current_if_true;
     Block* current_if_false;
     const BranchOp* current_branch = &branch;
+    BranchHint current_branch_hint;
     BranchHint next_hint = BranchHint::kNone;
 
     OpIndex switch_var = OpIndex::Invalid();
+    OpIndex current_var = OpIndex::Invalid();
+    uint32_t value;
     while (true) {
       // The "false" destination will be inlined before the switch is emitted,
       // so it should only contain pure operations.
@@ -110,38 +114,65 @@ class StructuralOptimizationReducer : public Next {
 
       // If we encounter a condition that is not equality, we can't turn it
       // into a switch case.
-      const ComparisonOp* equal = Asm()
-                                      .input_graph()
-                                      .Get(current_branch->condition())
-                                      .template TryCast<Opmask::kWord32Equal>();
-      if (!equal) {
-        TRACE(
-            "\t [bailout] Branch with different condition than Word32 "
-            "Equal.\n");
-        break;
+      const Operation& cond =
+          Asm().input_graph().Get(current_branch->condition());
+      if (!cond.template Is<ComparisonOp>()) {
+        // 'if(x==0)' may be optimized to 'if(x)', we should take this into
+        // consideration.
+        current_var = current_branch->condition();
+        if (!switch_var.valid()) {
+          switch_var = current_var;
+        } else if (switch_var != current_var) {
+          TRACE("\t [bailout] Not all branches compare the same variable.\n");
+          break;
+        }
+        value = 0;
+        // The true/false of 'if(x)' is reversed from 'if(x==0)'
+        current_if_true = current_branch->if_false;
+        current_if_false = current_branch->if_true;
+        const BranchHint hint = current_branch->hint;
+        current_branch_hint = hint == BranchHint::kNone   ? BranchHint::kNone
+                              : hint == BranchHint::kTrue ? BranchHint::kFalse
+                                                          : BranchHint::kTrue;
+      } else {
+        const ComparisonOp* equal =
+            cond.template TryCast<Opmask::kWord32Equal>();
+        if (!equal) {
+          TRACE(
+              "\t [bailout] Branch with different condition than Word32 "
+              "Equal.\n");
+          break;
+        }
+        // MachineOptimizationReducer should normalize equality to put constants
+        // right.
+        const Operation& right_op = Asm().input_graph().Get(equal->right());
+        if (!right_op.Is<ConstantOp>()) {
+          TRACE("\t [bailout] No constant on the right side of Equal.\n");
+          break;
+        }
+
+        // We can only turn Word32 constant equals to switch cases.
+        const ConstantOp& const_op = right_op.Cast<ConstantOp>();
+        if (const_op.kind != ConstantOp::Kind::kWord32) {
+          TRACE("\t [bailout] Constant is not of type Word32.\n");
+          break;
+        }
+        value = const_op.word32();
+
+        // If we encounter equal to a different value, we can't introduce
+        // a switch.
+        current_var = equal->left();
+        if (!switch_var.valid()) {
+          switch_var = current_var;
+        } else if (switch_var != current_var) {
+          TRACE("\t [bailout] Not all branches compare the same variable.\n");
+          break;
+        }
+        current_if_true = current_branch->if_true;
+        current_if_false = current_branch->if_false;
+        current_branch_hint = current_branch->hint;
       }
 
-      // MachineOptimizationReducer should normalize equality to put constants
-      // right.
-      const Operation& right_op = Asm().input_graph().Get(equal->right());
-      if (!right_op.Is<Opmask::kWord32Constant>()) {
-        TRACE("\t [bailout] No Word32 constant on the right side of Equal.\n");
-        break;
-      }
-      const ConstantOp& const_op = right_op.Cast<ConstantOp>();
-
-      // If we encounter equal to a different value, we can't introduce
-      // a switch.
-      OpIndex current_var = equal->left();
-      if (!switch_var.valid()) {
-        switch_var = current_var;
-      } else if (switch_var != current_var) {
-        TRACE("\t [bailout] Not all branches compare the same variable.\n");
-        break;
-      }
-
-      Block* current_if_true = current_branch->if_true;
-      current_if_false = current_branch->if_false;
       DCHECK(current_if_true && current_if_false);
 
       // We can't just use `current_branch->hint` for every case. Consider:
@@ -169,20 +200,19 @@ class StructuralOptimizationReducer : public Next {
       BranchHint hint = next_hint;
       if (cases.size() == 0) {
         // The 1st case gets its original hint.
-        hint = current_branch->hint;
-      } else if (current_branch->hint == BranchHint::kFalse) {
+        hint = current_branch_hint;
+      } else if (current_branch_hint == BranchHint::kFalse) {
         // For other cases, if the branch has a kFalse hint, we do use it,
         // regardless of `next_hint`.
         hint = BranchHint::kNone;
       }
-      if (current_branch->hint == BranchHint::kTrue) {
+      if (current_branch_hint == BranchHint::kTrue) {
         // This branch is likely true, which means that all subsequent cases are
         // unlikely.
         next_hint = BranchHint::kFalse;
       }
 
       // The current_if_true block becomes the corresponding switch case block.
-      uint32_t value = const_op.word32();
       cases.emplace_back(value, Asm().MapToNewGraph(current_if_true), hint);
 
       // All pure ops from the if_false block should be executed before
