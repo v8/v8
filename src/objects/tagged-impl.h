@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/common/ptr-compr.h"
 
 namespace v8 {
 namespace internal {

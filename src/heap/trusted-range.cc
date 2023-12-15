@@ -63,6 +63,8 @@ void InitProcessWideTrustedRange(size_t requested_size) {
         nullptr, "Failed to reserve virtual memory for TrustedRange");
   }
   process_wide_trusted_range_ = trusted_range;
+
+  TrustedSpaceCompressionScheme::InitBase(trusted_range->base());
 }
 }  // namespace
 

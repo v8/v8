@@ -6,14 +6,13 @@
 #define V8_OBJECTS_COMPRESSED_SLOTS_H_
 
 #include "include/v8config.h"
+#include "src/common/ptr-compr.h"
 #include "src/objects/slots.h"
 #include "src/objects/tagged-field.h"
 
 namespace v8::internal {
 
 #ifdef V8_COMPRESS_POINTERS
-
-class V8HeapCompressionScheme;
 
 // A CompressedObjectSlot instance describes a kTaggedSize-sized field ("slot")
 // holding a compressed tagged pointer (smi or heap object).
