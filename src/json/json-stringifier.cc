@@ -7,7 +7,9 @@
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
+#include "src/execution/protectors-inl.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-raw-json-inl.h"
@@ -209,6 +211,16 @@ class JsonStringifier {
 
   Result SerializeJSProxy(Handle<JSProxy> object, Handle<Object> key);
   Result SerializeJSReceiverSlow(Handle<JSReceiver> object);
+  template <ElementsKind kind>
+  V8_INLINE Result SerializeFixedArrayWithInterruptCheck(
+      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+  template <ElementsKind kind>
+  V8_INLINE Result SerializeFixedArrayWithPossibleTransitions(
+      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+  template <ElementsKind kind, typename T>
+  V8_INLINE Result SerializeFixedArrayElement(Tagged<T> elements, uint32_t i,
+                                              Tagged<JSArray> array,
+                                              bool can_treat_hole_as_undefined);
   Result SerializeArrayLikeSlow(Handle<JSReceiver> object, uint32_t start,
                                 uint32_t length);
 
@@ -978,6 +990,24 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   return SUCCESS;
 }
 
+namespace {
+
+bool CanTreatHoleAsUndefined(Isolate* isolate, Tagged<JSArray> object) {
+  // We can treat holes as undefined if the {object}s prototype is either the
+  // initial Object.prototype  or the initial Array.prototype, which are both
+  // guarded by the "no elements" protector.
+  if (!Protectors::IsNoElementsIntact(isolate)) return false;
+  Tagged<HeapObject> proto = object->map(isolate)->prototype();
+  if (!isolate->IsInAnyContext(proto, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
+      !isolate->IsInAnyContext(proto,
+                               Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
   uint32_t length = 0;
@@ -988,94 +1018,161 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     return SUCCESS;
   }
 
-  PtrComprCageBase cage_base(isolate_);
   Result stack_push = StackPush(object, key);
   if (stack_push != SUCCESS) return stack_push;
 
   AppendCharacter('[');
   Indent();
-  uint32_t i = 0;
+  uint32_t slow_path_index = 0;
+  Result result = UNCHANGED;
   if (replacer_function_.is_null()) {
-    StackLimitCheck interrupt_check(isolate_);
-    const uint32_t kInterruptLength = 4000;
-    uint32_t limit = std::min(length, kInterruptLength);
-    const uint32_t kMaxAllowedFastPackedLength =
-        std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
-    switch (object->GetElementsKind(cage_base)) {
-      case PACKED_SMI_ELEMENTS: {
-        Handle<FixedArray> elements(
-            FixedArray::cast(object->elements(cage_base)), isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeSmi(Smi::cast(elements->get(i)));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
-          if (interrupt_check.InterruptRequested() &&
-              IsException(isolate_->stack_guard()->HandleInterrupts(),
-                          isolate_)) {
-            return EXCEPTION;
-          }
-        }
-        break;
-      }
-      case PACKED_DOUBLE_ELEMENTS: {
-        Handle<FixedDoubleArray> elements(
-            FixedDoubleArray::cast(object->elements(cage_base)), isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeDouble(elements->get_scalar(i));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
-          if (interrupt_check.InterruptRequested() &&
-              IsException(isolate_->stack_guard()->HandleInterrupts(),
-                          isolate_)) {
-            return EXCEPTION;
-          }
-        }
-        break;
-      }
-      case PACKED_ELEMENTS: {
-        HandleScope handle_scope(isolate_);
-        Handle<Object> old_length(object->length(), isolate_);
-        for (i = 0; i < length; i++) {
-          if (object->length() != *old_length ||
-              object->GetElementsKind(cage_base) != PACKED_ELEMENTS) {
-            // Fall back to slow path.
-            break;
-          }
-          Separator(i == 0);
-          Result result = SerializeElement(
-              isolate_,
-              handle(FixedArray::cast(object->elements())->get(i), isolate_),
-              i);
-          if (result == UNCHANGED) {
-            AppendCStringLiteral("null");
-          } else if (result != SUCCESS) {
-            return result;
-          }
-        }
-        break;
-      }
+#define CASE_WITH_INTERRUPT(kind)                                           \
+  case kind:                                                                \
+    result = SerializeFixedArrayWithInterruptCheck<kind>(object, length,    \
+                                                         &slow_path_index); \
+    break;
+#define CASE_WITH_TRANSITION(kind)                             \
+  case kind:                                                   \
+    result = SerializeFixedArrayWithPossibleTransitions<kind>( \
+        object, length, &slow_path_index);                     \
+    break;
+
+    switch (object->GetElementsKind()) {
+      CASE_WITH_INTERRUPT(PACKED_SMI_ELEMENTS)
+      CASE_WITH_INTERRUPT(HOLEY_SMI_ELEMENTS)
+      CASE_WITH_TRANSITION(PACKED_ELEMENTS)
+      CASE_WITH_TRANSITION(HOLEY_ELEMENTS)
+      CASE_WITH_INTERRUPT(PACKED_DOUBLE_ELEMENTS)
+      CASE_WITH_INTERRUPT(HOLEY_DOUBLE_ELEMENTS)
       default:
         break;
     }
+
+#undef CASE_WITH_TRANSITION
+#undef CASE_WITH_INTERRUPT
   }
-  if (i < length) {
-    // Slow path for non-fast elements and fall-back in edge case.
-    Result result = SerializeArrayLikeSlow(object, i, length);
-    if (result != SUCCESS) return result;
+  if (result == UNCHANGED) {
+    // Slow path for non-fast elements and fall-back in edge cases.
+    result = SerializeArrayLikeSlow(object, slow_path_index, length);
   }
+  if (result != SUCCESS) return result;
   Unindent();
   NewLine();
   AppendCharacter(']');
   StackPop();
+  return SUCCESS;
+}
+
+template <ElementsKind kind>
+JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
+    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+  static_assert(IsSmiElementsKind(kind) || IsDoubleElementsKind(kind));
+  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
+                                           FixedDoubleArray, FixedArray>::type;
+
+  StackLimitCheck interrupt_check(isolate_);
+  constexpr uint32_t kInterruptLength = 4000;
+  uint32_t limit = std::min(length, kInterruptLength);
+  constexpr uint32_t kMaxAllowedFastPackedLength =
+      std::numeric_limits<uint32_t>::max() - kInterruptLength;
+  static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+
+  constexpr bool is_holey = IsHoleyElementsKind(kind);
+  bool bailout_on_hole =
+      is_holey ? !CanTreatHoleAsUndefined(isolate_, *array) : true;
+
+  uint32_t i = 0;
+  while (true) {
+    for (; i < limit; i++) {
+      Result result = SerializeFixedArrayElement<kind>(
+          ArrayT::cast(array->elements()), i, *array, bailout_on_hole);
+      if constexpr (is_holey) {
+        if (result != SUCCESS) {
+          *slow_path_index = i;
+          return result;
+        }
+      } else {
+        USE(result);
+        DCHECK_EQ(result, SUCCESS);
+      }
+    }
+    if (i >= length) return SUCCESS;
+    DCHECK_LT(limit, kMaxAllowedFastPackedLength);
+    limit = std::min(length, limit + kInterruptLength);
+    if (interrupt_check.InterruptRequested() &&
+        IsException(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+      return EXCEPTION;
+    }
+  }
+  return SUCCESS;
+}
+
+template <ElementsKind kind>
+JsonStringifier::Result
+JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
+    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+  static_assert(IsObjectElementsKind(kind));
+
+  HandleScope handle_scope(isolate_);
+  Handle<Object> old_length(array->length(), isolate_);
+  constexpr bool is_holey = IsHoleyElementsKind(kind);
+  bool should_check_treat_hole_as_undefined = true;
+  for (uint32_t i = 0; i < length; i++) {
+    if (array->length() != *old_length || kind != array->GetElementsKind()) {
+      // Array was modified during SerializeElement.
+      *slow_path_index = i;
+      return UNCHANGED;
+    }
+    Tagged<Object> current_element =
+        Tagged<FixedArray>::cast(array->elements())->get(i);
+    if (is_holey && IsTheHole(current_element)) {
+      if (should_check_treat_hole_as_undefined) {
+        if (!CanTreatHoleAsUndefined(isolate_, *array)) {
+          *slow_path_index = i;
+          return UNCHANGED;
+        }
+        should_check_treat_hole_as_undefined = false;
+      }
+      Separator(i == 0);
+      AppendCStringLiteral("null");
+    } else {
+      Separator(i == 0);
+      Result result =
+          SerializeElement(isolate_, handle(current_element, isolate_), i);
+      if (result == UNCHANGED) {
+        AppendCStringLiteral("null");
+      } else if (result != SUCCESS) {
+        return result;
+      }
+      if constexpr (is_holey) {
+        should_check_treat_hole_as_undefined = true;
+      }
+    }
+  }
+  return SUCCESS;
+}
+
+template <ElementsKind kind, typename T>
+JsonStringifier::Result JsonStringifier::SerializeFixedArrayElement(
+    Tagged<T> elements, uint32_t i, Tagged<JSArray> array,
+    bool bailout_on_hole) {
+  if constexpr (IsHoleyElementsKind(kind)) {
+    if (elements->is_the_hole(isolate_, i)) {
+      if (bailout_on_hole) return UNCHANGED;
+      Separator(i == 0);
+      AppendCStringLiteral("null");
+      return SUCCESS;
+    }
+  }
+  DCHECK(!elements->is_the_hole(isolate_, i));
+  Separator(i == 0);
+  if constexpr (IsSmiElementsKind(kind)) {
+    SerializeSmi(Smi::cast(elements->get(i)));
+  } else if constexpr (IsDoubleElementsKind(kind)) {
+    SerializeDouble(elements->get_scalar(i));
+  } else {
+    UNREACHABLE();
+  }
   return SUCCESS;
 }
 
