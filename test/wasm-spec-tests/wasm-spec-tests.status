@@ -198,6 +198,7 @@
   'proposals/js-types/linking': [SKIP],
   'proposals/multi-memory/simd_memory-multi': [SKIP],
   'proposals/tail-call/simd_lane': [SKIP],
+  'proposals/memory64/simd_address': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
