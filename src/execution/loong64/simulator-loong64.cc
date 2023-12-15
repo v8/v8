@@ -932,12 +932,12 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *base::bit_cast<float*>(&FPUregisters_[fpureg]) = value;
+  memcpy(&FPUregisters_[fpureg], &value, sizeof(value));
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  memcpy(&FPUregisters_[fpureg], &value, sizeof(value));
 }
 
 void Simulator::set_cf_register(int cfreg, bool value) {
@@ -990,12 +990,12 @@ int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return base::bit_cast<float>(get_fpu_register_word(fpureg));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
+  return base::bit_cast<double>(FPUregisters_[fpureg]);
 }
 
 bool Simulator::get_cf_register(int cfreg) const {
