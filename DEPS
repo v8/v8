@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'caa7a57c2190b8fab480bafc3e74c603d7fd6e58',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ad3bfe976940d569d19360f444346d6e9b02d47f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9325d4d5009fbc98d70833ce1c1dad29480de9d8',
   'buildtools/linux64': {
@@ -304,7 +304,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '90769c8b0cf26a1463223cd82c12eb1759426cdb',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '562a4372d17622e613cfe977e1f12286a8b92bda',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dbe34d7b760dc429ddc938fa19b92c2b330a72ec',
   'tools/luci-go': {
