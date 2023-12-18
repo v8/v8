@@ -174,12 +174,12 @@ class FullMarkingVerifier : public MarkingVerifierBase {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
-    CHECK(heap_object.InReadOnlySpace() ||
+    CHECK(i::InReadOnlySpace(heap_object) ||
           marking_state_->IsMarked(heap_object));
   }
 
   V8_INLINE bool ShouldVerifyObject(Tagged<HeapObject> heap_object) {
-    const bool in_shared_heap = heap_object.InWritableSharedSpace();
+    const bool in_shared_heap = i::InWritableSharedSpace(heap_object);
     return heap_->isolate()->is_shared_space_isolate() ? true : !in_shared_heap;
   }
 

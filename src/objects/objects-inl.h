@@ -280,6 +280,19 @@ bool Tagged<HeapObject>::InReadOnlySpace() const {
   return IsReadOnlyHeapObject(*this);
 }
 
+bool InAnySharedSpace(Tagged<HeapObject> obj) {
+  if (IsReadOnlyHeapObject(obj)) return V8_SHARED_RO_HEAP_BOOL;
+  return i::InWritableSharedSpace(obj);
+}
+
+bool InWritableSharedSpace(Tagged<HeapObject> obj) {
+  return BasicMemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
+}
+
+bool InReadOnlySpace(Tagged<HeapObject> obj) {
+  return IsReadOnlyHeapObject(obj);
+}
+
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
