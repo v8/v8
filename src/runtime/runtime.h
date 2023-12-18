@@ -580,6 +580,8 @@ namespace internal {
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(NoElementsProtector, 0, 1)                \
   F(NotifyContextDisposed, 0, 1)              \
+  F(NotifyIsolateForeground, 0, 1)            \
+  F(NotifyIsolateBackground, 0, 1)            \
   F(OptimizeMaglevOnNextCall, 1, 1)           \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
   F(OptimizeOsr, -1, 1)                       \

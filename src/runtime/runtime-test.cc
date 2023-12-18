@@ -2083,5 +2083,21 @@ RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
       EphemeronHashTable::cast(collection->table())->NumberOfElements());
 }
 
+RUNTIME_FUNCTION(Runtime_NotifyIsolateForeground) {
+  if (args.length() != 0) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  isolate->IsolateInForegroundNotification();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_NotifyIsolateBackground) {
+  if (args.length() != 0) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  isolate->IsolateInBackgroundNotification();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

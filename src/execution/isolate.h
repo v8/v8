@@ -1947,6 +1947,36 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
+  // When efficiency mode is enabled we can favor single core throughput without
+  // latency requirements. Any decision based on this flag must be quickly
+  // reversible as we have to expect to migrate out of efficiency mode on short
+  // notice. E.g., it would not be advisable to generate worse code in
+  // efficiency mode. The decision when to enable efficiency mode is steered by
+  // the embedder. Currently the only signal (potentially) being considered is
+  // if an isolate is in foreground or background mode.
+  bool UseEfficiencyMode() {
+    if (V8_UNLIKELY(v8_flags.efficiency_mode.value().has_value())) {
+      return *v8_flags.efficiency_mode.value();
+    }
+    return IsIsolateInBackground();
+  }
+  // This is a temporary api until we use it by default.
+  bool UseEfficiencyModeForTiering() {
+    if (!v8_flags.efficiency_mode_for_tiering_heuristics) return false;
+    return UseEfficiencyMode();
+  }
+
+  // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
+  // saver mode is opt-in by the embedder. As with efficiency mode we must
+  // expect that the mode is toggled off again and we should be able to ramp up
+  // quickly after that.
+  bool UseBatterySaverMode() {
+    if (V8_UNLIKELY(v8_flags.battery_saver_mode.value().has_value())) {
+      return *v8_flags.battery_saver_mode.value();
+    }
+    return V8_UNLIKELY(battery_saver_mode_enabled());
+  }
+
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }

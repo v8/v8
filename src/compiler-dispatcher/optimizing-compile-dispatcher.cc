@@ -228,6 +228,11 @@ void OptimizingCompileDispatcher::QueueForOptimization(
     input_queue_[InputQueueIndex(input_queue_length_)] = job;
     input_queue_length_++;
   }
+  if (job_handle_->UpdatePriorityEnabled()) {
+    job_handle_->UpdatePriority(isolate_->UseEfficiencyModeForTiering()
+                                    ? kEfficiencyTaskPriority
+                                    : kTaskPriority);
+  }
   job_handle_->NotifyConcurrencyIncrease();
 }
 
