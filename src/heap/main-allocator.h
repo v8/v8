@@ -86,7 +86,6 @@ class PagedSpaceAllocatorPolicy final : public AllocatorPolicy {
   V8_WARN_UNUSED_RESULT bool TryExtendLAB(int size_in_bytes);
 
   void SetLinearAllocationArea(Address top, Address limit, Address end);
-  void DecreaseLimit(Address new_limit);
 
   void FreeLinearAllocationAreaUnsynchronized();
 

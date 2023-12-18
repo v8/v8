@@ -39,8 +39,6 @@ static constexpr FreeListCategoryType kInvalidCategory = -1;
 
 enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
-enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
-
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
@@ -59,7 +57,7 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink(FreeList* owner);
 
-  void Free(Address start, size_t size_in_bytes, FreeMode mode,
+  void Free(const WritableFreeSpace& writable_free_space, FreeMode mode,
             FreeList* owner);
 
   // Performs a single try to pick a node of at least |minimum_size| from the
@@ -146,7 +144,7 @@ class FreeList {
   // was too small. Bookkeeping information will be written to the block, i.e.,
   // its contents will be destroyed. The start address should be word aligned,
   // and the size should be a non-zero multiple of the word size.
-  virtual size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
+  virtual size_t Free(const WritableFreeSpace& free_space, FreeMode mode);
 
   // Allocates a free space node from the free list of at least size_in_bytes
   // bytes. Returns the actual node size in node_size which can be bigger than
@@ -348,7 +346,7 @@ class V8_EXPORT_PRIVATE FreeListManyCached : public FreeListMany {
       size_t size_in_bytes, size_t* node_size,
       AllocationOrigin origin) override;
 
-  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
+  size_t Free(const WritableFreeSpace& free_space, FreeMode mode) override;
 
   void Reset() override;
 

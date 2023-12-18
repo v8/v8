@@ -1116,6 +1116,12 @@ void HeapObject::set_map_after_allocation(Tagged<Map> value,
 #endif
 }
 
+// static
+void HeapObject::SetFillerMap(const WritableFreeSpace& writable_space,
+                              Tagged<Map> value) {
+  writable_space.WriteHeaderSlot<Map, kMapOffset>(value, kRelaxedStore);
+}
+
 DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
   return map_word(cage_base, kAcquireLoad).ToMap();
 }

@@ -314,8 +314,7 @@ bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
   if (origin != AllocationOrigin::kGC && identity() != NEW_SPACE) {
     heap()->NotifyOldGenerationExpansion(local_heap, identity(), page);
   }
-  Free(page->area_start(), page->area_size(),
-       SpaceAccountingMode::kSpaceAccounted);
+  Free(page->area_start(), page->area_size());
   NotifyNewPage(page);
   return true;
 }

@@ -175,35 +175,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   RawAllocateBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
                         size_t max_size_in_bytes, AllocationOrigin origin);
 
-  size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
-    if (size_in_bytes == 0) return 0;
-    heap()->CreateFillerObjectAtBackground(start,
-                                           static_cast<int>(size_in_bytes));
-    if (mode == SpaceAccountingMode::kSpaceAccounted) {
-      return AccountedFree(start, size_in_bytes);
-    } else {
-      return UnaccountedFree(start, size_in_bytes);
-    }
-  }
-
-  // Give a block of memory to the space's free list.  It might be added to
-  // the free list or accounted as waste.
-  // If add_to_freelist is false then just accounting stats are updated and
-  // no attempt to add area to free list is made.
-  size_t AccountedFree(Address start, size_t size_in_bytes) {
-    size_t wasted = free_list_->Free(start, size_in_bytes, kLinkCategory);
-    Page* page = Page::FromAddress(start);
-    accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
-    free_list()->increase_wasted_bytes(wasted);
-    DCHECK_GE(size_in_bytes, wasted);
-    return size_in_bytes - wasted;
-  }
-
-  size_t UnaccountedFree(Address start, size_t size_in_bytes) {
-    size_t wasted = free_list_->Free(start, size_in_bytes, kDoNotLinkCategory);
-    DCHECK_GE(size_in_bytes, wasted);
-    return size_in_bytes - wasted;
-  }
+  // Free a block of memory. During sweeping, we don't update the accounting
+  // stats and don't link the free list category.
+  V8_INLINE size_t Free(Address start, size_t size_in_bytes);
+  V8_INLINE size_t FreeDuringSweep(Address start, size_t size_in_bytes);
 
   void ResetFreeList();
 
@@ -368,6 +343,9 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   size_t size_at_last_gc_ = 0;
 
  private:
+  template <bool during_sweep>
+  V8_INLINE size_t FreeInternal(Address start, size_t size_in_bytes);
+
   class ConcurrentAllocationMutex {
    public:
     explicit ConcurrentAllocationMutex(const PagedSpaceBase* space) {

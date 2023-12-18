@@ -757,35 +757,6 @@ void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,
   }
 }
 
-void PagedSpaceAllocatorPolicy::DecreaseLimit(Address new_limit) {
-  Address old_limit = allocator_->limit();
-  DCHECK_LE(allocator_->top(), new_limit);
-  DCHECK_GE(old_limit, new_limit);
-  if (new_limit != old_limit) {
-    base::Optional<CodePageHeaderModificationScope> optional_scope;
-    if (allocator_->identity() == CODE_SPACE) {
-      optional_scope.emplace("DecreaseLimit writes to the page header.");
-    }
-
-    PagedSpace::ConcurrentAllocationMutex guard(space_);
-    Address old_max_limit = allocator_->original_limit_relaxed();
-    if (!allocator_->supports_extending_lab()) {
-      DCHECK_EQ(old_max_limit, old_limit);
-      allocator_->ResetLab(allocator_->top(), new_limit, new_limit);
-      space_->Free(new_limit, old_max_limit - new_limit,
-                   SpaceAccountingMode::kSpaceAccounted);
-    } else {
-      allocator_->ExtendLAB(new_limit);
-      space_heap()->CreateFillerObjectAt(
-          new_limit, static_cast<int>(old_max_limit - new_limit));
-    }
-    if (allocator_->IsBlackAllocationEnabled()) {
-      Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
-                                                                   old_limit);
-    }
-  }
-}
-
 bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
     size_t size_in_bytes, AllocationOrigin origin) {
   PagedSpace::ConcurrentAllocationMutex guard(space_);
@@ -831,7 +802,7 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
     if (!allocator_->supports_extending_lab()) {
-      space_->Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
+      space_->Free(limit, end - limit);
       end = limit;
     } else {
       DCHECK(allocator_->is_main_thread());
@@ -904,8 +875,7 @@ void PagedSpaceAllocatorPolicy::FreeLinearAllocationAreaUnsynchronized() {
   DCHECK_IMPLIES(current_limit - current_top >= 2 * kTaggedSize,
                  space_heap()->marking_state()->IsUnmarked(
                      HeapObject::FromAddress(current_top)));
-  space_->Free(current_top, current_max_limit - current_top,
-               SpaceAccountingMode::kSpaceAccounted);
+  space_->Free(current_top, current_max_limit - current_top);
 }
 
 }  // namespace internal

@@ -24,6 +24,7 @@ class ExternalPointerSlot;
 class IndirectPointerSlot;
 class ExposedTrustedObject;
 class ObjectVisitor;
+class WritableFreeSpace;
 
 V8_OBJECT class HeapObjectLayout {
  public:
@@ -110,6 +111,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
       Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  static inline void SetFillerMap(const WritableFreeSpace& writable_page,
+                                  Tagged<Map> value);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.

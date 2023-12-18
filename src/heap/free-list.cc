@@ -57,9 +57,19 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
         set_top(cur_node->next());
       }
       if (!prev_non_evac_node.is_null()) {
-        CodePageMemoryModificationScope code_modification_scope(
-            BasicMemoryChunk::FromHeapObject(prev_non_evac_node));
-        prev_non_evac_node->set_next(cur_node->next());
+        if (BasicMemoryChunk::FromHeapObject(prev_non_evac_node)
+                ->executable()) {
+          WritableJitPage jit_page(prev_non_evac_node->address(),
+                                   prev_non_evac_node->Size());
+          WritableFreeSpace free_space = jit_page.FreeRange(
+              prev_non_evac_node->address(), prev_non_evac_node->Size());
+          prev_non_evac_node->SetNext(free_space, cur_node->next());
+        } else {
+          prev_non_evac_node->SetNext(
+              WritableFreeSpace::ForNonExecutableMemory(
+                  prev_non_evac_node->address(), prev_non_evac_node->Size()),
+              cur_node->next());
+        }
       }
       *node_size = size;
       return cur_node;
@@ -70,17 +80,14 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
   return FreeSpace();
 }
 
-void FreeListCategory::Free(Address start, size_t size_in_bytes, FreeMode mode,
-                            FreeList* owner) {
+void FreeListCategory::Free(const WritableFreeSpace& writable_free_space,
+                            FreeMode mode, FreeList* owner) {
   Tagged<FreeSpace> free_space =
-      FreeSpace::cast(HeapObject::FromAddress(start));
-  DCHECK_EQ(free_space->Size(), size_in_bytes);
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromAddress(start));
-    free_space->set_next(top());
-  }
+      FreeSpace::cast(HeapObject::FromAddress(writable_free_space.Address()));
+  DCHECK_EQ(free_space->Size(), writable_free_space.Size());
+  free_space->SetNext(writable_free_space, top());
   set_top(free_space);
+  size_t size_in_bytes = writable_free_space.Size();
   available_ += size_in_bytes;
   if (mode == kLinkCategory) {
     if (is_linked(owner)) {
@@ -162,7 +169,9 @@ Tagged<FreeSpace> FreeList::SearchForNodeInList(FreeListCategoryType type,
   return node;
 }
 
-size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
+size_t FreeList::Free(const WritableFreeSpace& free_space, FreeMode mode) {
+  Address start = free_space.Address();
+  size_t size_in_bytes = free_space.Size();
   Page* page = Page::FromAddress(start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
@@ -175,7 +184,7 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  page->free_list_category(type)->Free(start, size_in_bytes, mode, this);
+  page->free_list_category(type)->Free(free_space, mode, this);
   DCHECK_EQ(page->AvailableInFreeList(),
             page->AvailableInFreeListFromAllocatedBytes());
   return 0;
@@ -271,8 +280,10 @@ void FreeListManyCached::RemoveCategory(FreeListCategory* category) {
 #endif
 }
 
-size_t FreeListManyCached::Free(Address start, size_t size_in_bytes,
+size_t FreeListManyCached::Free(const WritableFreeSpace& free_space,
                                 FreeMode mode) {
+  Address start = free_space.Address();
+  size_t size_in_bytes = free_space.Size();
   Page* page = Page::FromAddress(start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
@@ -285,7 +296,7 @@ size_t FreeListManyCached::Free(Address start, size_t size_in_bytes,
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  page->free_list_category(type)->Free(start, size_in_bytes, mode, this);
+  page->free_list_category(type)->Free(free_space, mode, this);
 
   // Updating cache
   if (mode == kLinkCategory) {

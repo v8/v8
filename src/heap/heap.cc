@@ -3164,7 +3164,8 @@ Tagged<HeapObject> Heap::PrecedeWithFiller(Tagged<HeapObject> object,
 
 Tagged<HeapObject> Heap::PrecedeWithFillerBackground(Tagged<HeapObject> object,
                                                      int filler_size) {
-  CreateFillerObjectAtBackground(object.address(), filler_size);
+  CreateFillerObjectAtBackground(
+      WritableFreeSpace::ForNonExecutableMemory(object.address(), filler_size));
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
@@ -3180,7 +3181,8 @@ Tagged<HeapObject> Heap::AlignWithFillerBackground(
   DCHECK_LE(0, filler_size - pre_filler);
   const int post_filler = filler_size - pre_filler;
   if (post_filler) {
-    CreateFillerObjectAtBackground(object.address() + object_size, post_filler);
+    CreateFillerObjectAtBackground(WritableFreeSpace::ForNonExecutableMemory(
+        object.address() + object_size, post_filler));
   }
   return object;
 }
@@ -3254,51 +3256,47 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
-void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
+void CreateFillerObjectAtImpl(const WritableFreeSpace& free_space, Heap* heap,
                               ClearFreedMemoryMode clear_memory_mode) {
+  int size = free_space.Size();
   if (size == 0) return;
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(addr, kObjectAlignment8GbHeap));
+                 IsAligned(free_space.Address(), kObjectAlignment8GbHeap));
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(size, kObjectAlignment8GbHeap));
 
-  CodePageMemoryModificationScope memory_modification_scope(
-      BasicMemoryChunk::FromAddress(addr));
-
   // TODO(v8:13070): Filler sizes are irrelevant for 8GB+ heaps. Adding them
   // should be avoided in this mode.
-  Tagged<HeapObject> filler = HeapObject::FromAddress(addr);
   ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
-    filler->set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
-                                     SKIP_WRITE_BARRIER);
+    HeapObject::SetFillerMap(free_space,
+                             roots.unchecked_one_pointer_filler_map());
     // Ensure the filler map is properly initialized.
-    DCHECK(IsMap(filler->map(heap->isolate())));
+    DCHECK(IsMap(
+        HeapObject::FromAddress(free_space.Address())->map(heap->isolate())));
   } else if (size == 2 * kTaggedSize) {
-    filler->set_map_after_allocation(roots.unchecked_two_pointer_filler_map(),
-                                     SKIP_WRITE_BARRIER);
+    HeapObject::SetFillerMap(free_space,
+                             roots.unchecked_two_pointer_filler_map());
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      AtomicSlot slot(ObjectSlot(addr) + 1);
-      *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
+      free_space.ClearTagged<kTaggedSize>((size / kTaggedSize) - 1);
     }
     // Ensure the filler map is properly initialized.
-    DCHECK(IsMap(filler->map(heap->isolate())));
+    DCHECK(IsMap(
+        HeapObject::FromAddress(free_space.Address())->map(heap->isolate())));
   } else {
     DCHECK_GT(size, 2 * kTaggedSize);
-    filler->set_map_after_allocation(roots.unchecked_free_space_map(),
-                                     SKIP_WRITE_BARRIER);
-    FreeSpace::cast(filler)->set_size(size, kRelaxedStore);
+    HeapObject::SetFillerMap(free_space, roots.unchecked_free_space_map());
+    FreeSpace::SetSize(free_space, size, kRelaxedStore);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      MemsetTagged(ObjectSlot(addr) + 2,
-                   Tagged<Object>(kClearedFreeMemoryValue),
-                   (size / kTaggedSize) - 2);
+      free_space.ClearTagged<2 * kTaggedSize>((size / kTaggedSize) - 2);
     }
 
     // During bootstrapping we need to create a free space object before its
     // map is initialized. In this case we cannot access the map yet, as it
     // might be null, or not set up properly yet.
     DCHECK_IMPLIES(roots.is_initialized(RootIndex::kFreeSpaceMap),
-                   IsMap(filler->map(heap->isolate())));
+                   IsMap(HeapObject::FromAddress(free_space.Address())
+                             ->map(heap->isolate())));
   }
 }
 
@@ -3317,39 +3315,45 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {}
 
 }  // namespace
 
-void Heap::CreateFillerObjectAtBackground(Address addr, int size) {
+void Heap::CreateFillerObjectAtBackground(const WritableFreeSpace& free_space) {
   // TODO(leszeks): Verify that no slots need to be recorded.
   // Do not verify whether slots are cleared here: the concurrent thread is not
   // allowed to access the main thread's remembered set.
-  CreateFillerObjectAtRaw(addr, size,
-                          ClearFreedMemoryMode::kDontClearFreedMemory,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
-}
-
-void Heap::CreateFillerObjectAtSweeper(Address addr, int size) {
-  // Do not verify whether slots are cleared here: the concurrent sweeper is not
-  // allowed to access the main thread's remembered set.
-  CreateFillerObjectAtRaw(addr, size,
+  CreateFillerObjectAtRaw(free_space,
                           ClearFreedMemoryMode::kDontClearFreedMemory,
                           ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
 void Heap::CreateFillerObjectAt(Address addr, int size,
                                 ClearFreedMemoryMode clear_memory_mode) {
-  CreateFillerObjectAtRaw(addr, size, clear_memory_mode,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
+  if (size == 0) return;
+  if (BasicMemoryChunk::FromAddress(addr)->executable()) {
+    WritableJitPage jit_page(addr, size);
+    WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
+    CreateFillerObjectAtRaw(free_space, clear_memory_mode,
+                            ClearRecordedSlots::kNo,
+                            VerifyNoSlotsRecorded::kYes);
+  } else {
+    WritableFreeSpace free_space =
+        WritableFreeSpace::ForNonExecutableMemory(addr, size);
+    CreateFillerObjectAtRaw(free_space, clear_memory_mode,
+                            ClearRecordedSlots::kNo,
+                            VerifyNoSlotsRecorded::kYes);
+  }
 }
 
 void Heap::CreateFillerObjectAtRaw(
-    Address addr, int size, ClearFreedMemoryMode clear_memory_mode,
+    const WritableFreeSpace& free_space, ClearFreedMemoryMode clear_memory_mode,
     ClearRecordedSlots clear_slots_mode,
     VerifyNoSlotsRecorded verify_no_slots_recorded) {
   // TODO(mlippautz): It would be nice to DCHECK that we never call this
   // with {addr} pointing into large object space; however we currently do,
   // see, e.g., Factory::NewFillerObject and in many tests.
+  size_t size = free_space.Size();
   if (size == 0) return;
-  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
+  CreateFillerObjectAtImpl(free_space, this, clear_memory_mode);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    Address addr = free_space.Address();
     if (clear_slots_mode == ClearRecordedSlots::kYes) {
       ClearRecordedSlotRange(addr, addr + size);
     } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
@@ -3515,7 +3519,8 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   CreateFillerObjectAtRaw(
-      old_start, bytes_to_trim, ClearFreedMemoryMode::kClearFreedMemory,
+      WritableFreeSpace::ForNonExecutableMemory(old_start, bytes_to_trim),
+      ClearFreedMemoryMode::kClearFreedMemory,
       MayContainRecordedSlots(object) ? ClearRecordedSlots::kYes
                                       : ClearRecordedSlots::kNo,
       VerifyNoSlotsRecorded::kYes);
@@ -4035,8 +4040,9 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
 
   const Address filler = object.address() + new_size;
   const int filler_size = old_size - new_size;
-  CreateFillerObjectAtRaw(filler, filler_size, clear_memory_mode,
-                          clear_recorded_slots, verify_no_slots_recorded);
+  CreateFillerObjectAtRaw(
+      WritableFreeSpace::ForNonExecutableMemory(filler, filler_size),
+      clear_memory_mode, clear_recorded_slots, verify_no_slots_recorded);
 }
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
@@ -5621,8 +5627,9 @@ class StressConcurrentAllocationTask : public CancelableTask {
           kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kTaggedAligned);
       if (!result.IsFailure()) {
-        heap->CreateFillerObjectAtBackground(result.ToAddress(),
-                                             kSmallObjectSize);
+        heap->CreateFillerObjectAtBackground(
+            WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
+                                                      kSmallObjectSize));
       } else {
         heap->CollectGarbageFromAnyThread(&local_heap);
       }
@@ -5631,8 +5638,9 @@ class StressConcurrentAllocationTask : public CancelableTask {
                                       AllocationOrigin::kRuntime,
                                       AllocationAlignment::kTaggedAligned);
       if (!result.IsFailure()) {
-        heap->CreateFillerObjectAtBackground(result.ToAddress(),
-                                             kMediumObjectSize);
+        heap->CreateFillerObjectAtBackground(
+            WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
+                                                      kMediumObjectSize));
       } else {
         heap->CollectGarbageFromAnyThread(&local_heap);
       }
@@ -5641,8 +5649,9 @@ class StressConcurrentAllocationTask : public CancelableTask {
                                       AllocationOrigin::kRuntime,
                                       AllocationAlignment::kTaggedAligned);
       if (!result.IsFailure()) {
-        heap->CreateFillerObjectAtBackground(result.ToAddress(),
-                                             kLargeObjectSize);
+        heap->CreateFillerObjectAtBackground(
+            WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
+                                                      kLargeObjectSize));
       } else {
         heap->CollectGarbageFromAnyThread(&local_heap);
       }

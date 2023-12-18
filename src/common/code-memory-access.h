@@ -201,8 +201,6 @@ class V8_EXPORT ThreadIsolation {
   // region more quickly without switching the write permissions all the time.
   static WritableJitPage LookupWritableJitPage(Address addr, size_t size);
 
-  static void UnregisterInstructionStreamsInPageExcept(
-      MemoryChunk* chunk, const std::vector<Address>& keep);
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
   // Check for a potential dead lock in case we want to lookup the jit
@@ -210,9 +208,6 @@ class V8_EXPORT ThreadIsolation {
   static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
-  // Public for testing. Please use the wasm/js specific functions above.
-  static void UnregisterJitAllocationsInPageExceptForTesting(
-      Address page, size_t page_size, const std::vector<Address>& keep);
   static void RegisterJitAllocationForTesting(Address obj, size_t size);
   static void UnregisterJitAllocationForTesting(Address addr, size_t size);
 
@@ -272,7 +267,7 @@ class V8_EXPORT ThreadIsolation {
 
   // All accesses to the JitPage go through the JitPageReference class, which
   // will guard it against concurrent access.
-  class JitPageReference {
+  class V8_EXPORT JitPageReference {
    public:
     JitPageReference(class JitPage* page, Address address);
     JitPageReference(JitPageReference&&) V8_NOEXCEPT = default;
@@ -289,12 +284,13 @@ class V8_EXPORT ThreadIsolation {
     void UnregisterAllocation(base::Address addr);
     void UnregisterAllocationsExcept(base::Address start, size_t size,
                                      const std::vector<base::Address>& addr);
+    void UnregisterRange(base::Address addr, size_t size);
 
     base::Address StartOfAllocationAt(base::Address inner_pointer);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
 
-    bool Empty() const;
+    bool Empty() const { return jit_page_->allocations_.empty(); }
     void Shrink(class JitPage* tail);
     void Expand(size_t offset);
     void Merge(JitPageReference& next);
@@ -468,8 +464,47 @@ class WritableJitAllocation {
   friend class WritableJitPage;
 };
 
+// Similar to the WritableJitAllocation, all writes to free space should go
+// through this object since it adds validation that the writes are safe for
+// CFI.
+// For convenience, it can also be used for writes to non-executable memory for
+// which it will skip the CFI checks.
+class WritableFreeSpace {
+ public:
+  // This function can be used to create a WritableFreeSpace object for
+  // non-executable memory only, i.e. it won't perform CFI validation and
+  // doesn't unlock the code space.
+  // For executable memory, use the WritableJitPage::FreeRange function.
+  static V8_INLINE WritableFreeSpace ForNonExecutableMemory(base::Address addr,
+                                                            size_t size);
+
+  WritableFreeSpace(const WritableFreeSpace&) = delete;
+  WritableFreeSpace& operator=(const WritableFreeSpace&) = delete;
+  V8_INLINE ~WritableFreeSpace();
+
+  template <typename T, size_t offset>
+  V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) const;
+  template <size_t offset>
+  V8_INLINE void ClearTagged(size_t count) const;
+
+  base::Address Address() const { return address_; }
+  int Size() const { return size_; }
+  bool Executable() const { return executable_; }
+
+ private:
+  WritableFreeSpace(base::Address addr, size_t size, bool executable);
+
+  const base::Address address_;
+  const int size_;
+  const bool executable_;
+
+  friend class WritableJitPage;
+};
+
 class WritableJitPage {
  public:
+  V8_INLINE WritableJitPage(Address addr, size_t size);
+
   WritableJitPage(const WritableJitPage&) = delete;
   WritableJitPage& operator=(const WritableJitPage&) = delete;
   V8_INLINE ~WritableJitPage();
@@ -477,9 +512,11 @@ class WritableJitPage {
 
   V8_INLINE WritableJitAllocation LookupAllocationContaining(Address addr);
 
- private:
-  V8_INLINE WritableJitPage(Address addr, size_t size);
+  V8_INLINE WritableFreeSpace FreeRange(Address addr, size_t size);
 
+  bool Empty() const { return page_ref_.Empty(); }
+
+ private:
   RwxMemoryWriteScope write_scope_;
   ThreadIsolation::JitPageReference page_ref_;
 };

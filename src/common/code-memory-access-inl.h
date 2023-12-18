@@ -8,6 +8,7 @@
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
@@ -142,6 +143,44 @@ WritableJitAllocation WritableJitPage::LookupAllocationContaining(
   auto pair = page_ref_.AllocationContaining(addr);
   return WritableJitAllocation(pair.first, pair.second.Size(),
                                pair.second.Type());
+}
+
+V8_INLINE WritableFreeSpace WritableJitPage::FreeRange(Address addr,
+                                                       size_t size) {
+  page_ref_.UnregisterRange(addr, size);
+  return WritableFreeSpace(addr, size, true);
+}
+
+WritableFreeSpace::~WritableFreeSpace() = default;
+
+// static
+V8_INLINE WritableFreeSpace
+WritableFreeSpace::ForNonExecutableMemory(base::Address addr, size_t size) {
+  return WritableFreeSpace(addr, size, false);
+}
+
+V8_INLINE WritableFreeSpace::WritableFreeSpace(base::Address addr, size_t size,
+                                               bool executable)
+    : address_(addr), size_(static_cast<int>(size)), executable_(executable) {}
+
+template <typename T, size_t offset>
+void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
+                                        RelaxedStoreTag) const {
+  Tagged<HeapObject> object = HeapObject::FromAddress(address_);
+  // TODO(v8:13355): add validation before the write.
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(object, value);
+  } else {
+    TaggedField<T, offset>::Relaxed_Store(object, value);
+  }
+}
+
+template <size_t offset>
+void WritableFreeSpace::ClearTagged(size_t count) const {
+  base::Address start = address_ + offset;
+  // TODO(v8:13355): add validation before the write.
+  MemsetTagged(ObjectSlot(start), Tagged<Object>(kClearedFreeMemoryValue),
+               count);
 }
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT

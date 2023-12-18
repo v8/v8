@@ -240,6 +240,20 @@ void CheckForRegionOverlap(const T& map, Address addr, size_t size) {
   }
 }
 
+template <typename Iterator>
+bool AllocationIsBehindRange(Address range_start, Address range_size,
+                             const Iterator& it) {
+  Address range_end = range_start + range_size;
+  Address allocation_start = it->first;
+  Address allocation_size = it->second.Size();
+  Address allocation_end = allocation_start + allocation_size;
+
+  if (allocation_start >= range_end) return true;
+
+  CHECK_LE(allocation_end, range_end);
+  return false;
+}
+
 }  // namespace
 
 ThreadIsolation::JitPageReference::JitPageReference(class JitPage* jit_page,
@@ -252,10 +266,6 @@ ThreadIsolation::JitPage::~JitPage() {
 
 size_t ThreadIsolation::JitPageReference::Size() const {
   return jit_page_->size_;
-}
-
-bool ThreadIsolation::JitPageReference::Empty() const {
-  return jit_page_->allocations_.empty();
 }
 
 void ThreadIsolation::JitPageReference::Shrink(class JitPage* tail) {
@@ -311,6 +321,19 @@ void ThreadIsolation::JitPageReference::UnregisterAllocation(
     base::Address addr) {
   // TODO(sroettger): check that the memory is not in use (scan shadow stacks).
   CHECK_EQ(jit_page_->allocations_.erase(addr), 1);
+}
+
+void ThreadIsolation::JitPageReference::UnregisterRange(base::Address start,
+                                                        size_t size) {
+  auto begin = jit_page_->allocations_.lower_bound(start);
+  auto end = begin;
+  while (end != jit_page_->allocations_.end() &&
+         !AllocationIsBehindRange(start, size, end)) {
+    end++;
+  }
+
+  // TODO(sroettger): check that the memory is not in use (scan shadow stacks).
+  jit_page_->allocations_.erase(begin, end);
 }
 
 void ThreadIsolation::JitPageReference::UnregisterAllocationsExcept(
@@ -497,13 +520,6 @@ void ThreadIsolation::RegisterJitAllocations(Address start,
   }
 }
 
-// static
-void ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
-    Address page, size_t page_size, const std::vector<Address>& keep) {
-  LookupJitPage(page, page_size)
-      .UnregisterAllocationsExcept(page, page_size, keep);
-}
-
 void ThreadIsolation::RegisterJitAllocationForTesting(Address obj,
                                                       size_t size) {
   RegisterJitAllocation(obj, size, JitAllocationType::kInstructionStream);
@@ -513,16 +529,6 @@ void ThreadIsolation::RegisterJitAllocationForTesting(Address obj,
 void ThreadIsolation::UnregisterJitAllocationForTesting(Address addr,
                                                         size_t size) {
   LookupJitPage(addr, size).UnregisterAllocation(addr);
-}
-
-// static
-void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
-    MemoryChunk* chunk, const std::vector<Address>& keep) {
-  RwxMemoryWriteScope write_scope("UnregisterInstructionStreamsInPageExcept");
-  Address page = chunk->area_start();
-  size_t page_size = chunk->area_size();
-  LookupJitPage(page, page_size)
-      .UnregisterAllocationsExcept(page, page_size, keep);
 }
 
 // static

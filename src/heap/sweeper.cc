@@ -821,8 +821,7 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     CodePageMemoryModificationScopeForDebugging memory_modification_scope(page);
     AtomicZapBlock(free_start, size);
   }
-  page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
-  freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->UnaccountedFree(
+  freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->FreeDuringSweep(
       free_start, size);
   if (should_reduce_memory) page->DiscardUnusedMemory(free_start, size);
 
@@ -917,7 +916,6 @@ void Sweeper::RawSweep(Page* p,
   DCHECK_IMPLIES(is_promoted_page, space->identity() == OLD_SPACE);
 
   // Phase 1: Prepare the page for sweeping.
-  std::vector<Address> code_objects;
 
   base::Optional<ActiveSystemPages> active_system_pages_after_sweeping;
   if (should_reduce_memory) {
@@ -954,8 +952,6 @@ void Sweeper::RawSweep(Page* p,
   Address free_start = p->area_start();
   PtrComprCageBase cage_base(heap_->isolate());
   for (auto [object, size] : LiveObjectRange(p)) {
-    if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE))
-      code_objects.push_back(object.address());
     DCHECK(marking_state_->IsMarked(object));
     if (is_promoted_page && should_iterate_promoted_pages_) {
       promoted_object_visitor->Process(object);
@@ -998,10 +994,6 @@ void Sweeper::RawSweep(Page* p,
     PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(p->owner());
     paged_space->ReduceActiveSystemPages(p,
                                          *active_system_pages_after_sweeping);
-  }
-
-  if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE)) {
-    ThreadIsolation::UnregisterInstructionStreamsInPageExcept(p, code_objects);
   }
 }
 
@@ -1302,8 +1294,7 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
   page->ClearFlag(Page::NEVER_ALLOCATE_ON_PAGE);
-  heap_->CreateFillerObjectAtSweeper(start, static_cast<int>(size));
-  paged_space->UnaccountedFree(start, size);
+  paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);
 
