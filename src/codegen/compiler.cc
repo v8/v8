@@ -676,11 +676,11 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    shared_info->set_bytecode_array(*compilation_info->bytecode_array());
-
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
     shared_info->set_feedback_metadata(*feedback_metadata, kReleaseStore);
+
+    shared_info->set_bytecode_array(*compilation_info->bytecode_array());
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
