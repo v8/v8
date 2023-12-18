@@ -1047,6 +1047,7 @@ bool getPropertiesForPreview(v8::Local<v8::Context> context,
     blocklist.push_back("[[Int16Array]]");
     blocklist.push_back("[[Int32Array]]");
   }
+  blocklist.push_back("constructor");
   int skipIndex = object->IsStringObject()
                       ? object.As<v8::StringObject>()->ValueOf()->Length() + 1
                       : -1;
