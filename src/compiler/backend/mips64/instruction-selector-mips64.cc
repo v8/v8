@@ -4467,6 +4467,13 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
+  OperandGenerator g(this);
+  auto input = g.UseRegister(this->input_at(node, 0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
   VisitRR(this, kMips64Seb, node);
 }
@@ -4612,13 +4619,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
-  OperandGenerator g(this);
-  auto input = g.UseRegister(node->InputAt(0));
-  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
 
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
