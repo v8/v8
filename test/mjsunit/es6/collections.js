@@ -1475,3 +1475,19 @@ function TestSetCopyConstructor() {
   }
 }
 TestSetCopyConstructor();
+
+function TestSetIteratorExhaustedFromSetCtor() {
+  const set = new Set([1, 2, 3]);
+  const iter = set[Symbol.iterator]();
+  new Set(iter);
+  assertTrue(iter.next().done);
+}
+TestSetIteratorExhaustedFromSetCtor();
+
+function TestSetIteratorExhaustedFromList() {
+  const set = new Set([1, 2, 3]);
+  const iter = set[Symbol.iterator]();
+  new Set([...iter]);
+  assertTrue(iter.next().done);
+}
+TestSetIteratorExhaustedFromList();

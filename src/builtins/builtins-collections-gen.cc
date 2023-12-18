@@ -957,6 +957,9 @@ void BranchIfIterableWithOriginalValueSetIterator(
                                                          if_true, if_false);
 }
 
+// A helper function to help extract the {table} from either a Set or
+// SetIterator. The function has a side effect of marking the
+// SetIterator (if SetIterator is passed) as exhausted.
 TNode<OrderedHashSet> CollectionsBuiltinsAssembler::SetOrSetIteratorToSet(
     TNode<Object> iterable) {
   TVARIABLE(OrderedHashSet, var_table);
@@ -984,6 +987,13 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::SetOrSetIteratorToSet(
         TransitionAndUpdate<JSSetIterator, OrderedHashSet>(iterator);
     CSA_DCHECK(this, IntPtrEqual(index, IntPtrConstant(0)));
     var_table = table;
+    // Set the {iterable} to exhausted if it's an iterator.
+    StoreObjectFieldRoot(iterator, JSSetIterator::kTableOffset,
+                         RootIndex::kEmptyOrderedHashSet);
+    TNode<IntPtrT> number_of_elements = LoadAndUntagPositiveSmiObjectField(
+        table, OrderedHashSet::NumberOfElementsOffset());
+    StoreObjectFieldNoWriteBarrier(iterator, JSSetIterator::kIndexOffset,
+                                   SmiTag(number_of_elements));
     Goto(&done);
   }
 
@@ -1080,7 +1090,6 @@ TF_BUILTIN(MapIteratorToList, CollectionsBuiltinsAssembler) {
 
 TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     TNode<Context> context, TNode<HeapObject> iterable) {
-  const TNode<Uint16T> instance_type = LoadInstanceType(iterable);
   TNode<OrderedHashSet> table = SetOrSetIteratorToSet(iterable);
   TNode<Smi> size_smi =
       LoadObjectField<Smi>(table, OrderedHashMap::NumberOfElementsOffset());
@@ -1099,8 +1108,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
       IntPtrT, var_offset,
       IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset)));
   TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
-  Label done(this), finalize(this, {&var_index}),
-      loop(this, {&var_index, &var_offset});
+  Label done(this), loop(this, {&var_index, &var_offset});
 
   Goto(&loop);
 
@@ -1111,8 +1119,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     TNode<IntPtrT> entry_start_position;
     TNode<IntPtrT> cur_index;
     std::tie(entry_key, entry_start_position, cur_index) =
-        NextSkipHashTableHoles<OrderedHashSet>(table, var_index.value(),
-                                               &finalize);
+        NextSkipHashTableHoles<OrderedHashSet>(table, var_index.value(), &done);
 
     Store(elements, var_offset.value(), entry_key);
 
@@ -1120,15 +1127,6 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kTaggedSize));
     Goto(&loop);
   }
-
-  BIND(&finalize);
-  GotoIf(InstanceTypeEqual(instance_type, JS_SET_TYPE), &done);
-  // Set the {iterable} to exhausted if it's an iterator.
-  StoreObjectFieldRoot(iterable, JSSetIterator::kTableOffset,
-                       RootIndex::kEmptyOrderedHashSet);
-  StoreObjectFieldNoWriteBarrier(iterable, JSSetIterator::kIndexOffset,
-                                 SmiTag(var_index.value()));
-  Goto(&done);
 
   BIND(&done);
   return UncheckedCast<JSArray>(array);

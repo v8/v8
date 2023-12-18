@@ -260,7 +260,8 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                          Label* if_end);
 
   // A helper function to help extract the {table} from either a Set or
-  // SetIterator.
+  // SetIterator. The function has a side effect of marking the
+  // SetIterator (if SetIterator is passed) as exhausted.
   TNode<OrderedHashSet> SetOrSetIteratorToSet(TNode<Object> iterator);
 
   // Adds constructor entries to a collection when constructing from a Set
