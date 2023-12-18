@@ -443,7 +443,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   const wasm::FunctionSig* sig = wasm_call_params.signature();
   Graph::SubgraphScope graph_scope(graph());
   WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
-                           WasmGraphBuilder::kNoSpecialParameterMode, isolate(),
+                           WasmGraphBuilder::kJSFunctionAbiMode, isolate(),
                            native_module->enabled_features());
   SourcePosition call_pos = source_positions_->GetSourcePosition(call_node);
   // Calculate hypothetical inlining id, so if we can't inline, we do not add

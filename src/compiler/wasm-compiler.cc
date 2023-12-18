@@ -137,7 +137,7 @@ WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
     const wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table,
-    Parameter0Mode parameter_mode, Isolate* isolate,
+    ParameterMode parameter_mode, Isolate* isolate,
     wasm::WasmFeatures enabled_features)
     : gasm_(std::make_unique<WasmGraphAssembler>(mcgraph, zone)),
       zone_(zone),
@@ -153,7 +153,7 @@ WasmGraphBuilder::WasmGraphBuilder(
                                    V8_STATIC_ROOTS_BOOL
                                ? NullCheckStrategy::kTrapHandler
                                : NullCheckStrategy::kExplicit) {
-  DCHECK_EQ(isolate == nullptr, parameter_mode_ != kNoSpecialParameterMode);
+  DCHECK_EQ(isolate != nullptr, parameter_mode_ == kJSFunctionAbiMode);
   DCHECK_IMPLIES(env && env->module &&
                      std::any_of(env->module->memories.begin(),
                                  env->module->memories.end(),
@@ -235,7 +235,7 @@ void WasmGraphBuilder::Start(unsigned params) {
   }
   // Initialize instance node.
   switch (parameter_mode_) {
-    case kInstanceMode: {
+    case kInstanceParameterMode: {
       Node* param = Param(wasm::kWasmInstanceParameterIndex);
       if (v8_flags.debug_code) {
         Assert(gasm_->HasInstanceType(param, WASM_INSTANCE_OBJECT_TYPE),
@@ -244,7 +244,18 @@ void WasmGraphBuilder::Start(unsigned params) {
       instance_node_ = param;
       break;
     }
-    case kNoSpecialParameterMode: {
+    case kWasmApiFunctionRefMode: {
+      Node* param = Param(0);
+      if (v8_flags.debug_code) {
+        Assert(gasm_->HasInstanceType(param, WASM_API_FUNCTION_REF_TYPE),
+               AbortReason::kUnexpectedInstanceType);
+      }
+      instance_node_ = gasm_->Load(
+          MachineType::TaggedPointer(), param,
+          wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kInstanceOffset));
+      break;
+    }
+    case kJSFunctionAbiMode: {
       Node* param = Param(Linkage::kJSCallClosureParamIndex, "%closure");
       if (v8_flags.debug_code) {
         Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
@@ -254,16 +265,8 @@ void WasmGraphBuilder::Start(unsigned params) {
           gasm_->LoadFunctionDataFromJSFunction(param));
       break;
     }
-    case kWasmApiFunctionRefMode: {
-      Node* param = Param(0);
-      // TODO(clemensb): We should also check the instance type of {param} here,
-      // but this currently fails because we use this parameter mode
-      // inconsistently.
-      instance_node_ = gasm_->Load(
-          MachineType::TaggedPointer(), param,
-          wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kInstanceOffset));
+    case kNoSpecialParameterMode:
       break;
-    }
   }
   graph()->SetEnd(graph()->NewNode(mcgraph()->common()->End(0)));
 }
@@ -377,7 +380,7 @@ Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
   // We immediately lower null in wrappers, as they do not go through a lowering
   // phase.
   // TODO(thibaudm): Can we use wasm null for exnref?
-  return parameter_mode_ == kInstanceMode ? gasm_->Null(type)
+  return parameter_mode_ == kInstanceParameterMode ? gasm_->Null(type)
          : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef ||
             type == wasm::kWasmExnRef || type == wasm::kWasmNullExnRef)
              ? LOAD_ROOT(NullValue, null_value)
@@ -414,10 +417,12 @@ Node* WasmGraphBuilder::GetInstance() { return instance_node_.get(); }
 
 Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
   switch (parameter_mode_) {
-    case kInstanceMode:
+    case kInstanceParameterMode:
+    case kJSFunctionAbiMode:
     case kWasmApiFunctionRefMode:
       return gasm_->LoadRootRegister();
     case kNoSpecialParameterMode:
+      // In C-entry stubs the root register is not available yet.
       return mcgraph()->IntPtrConstant(isolate_->isolate_root());
   }
 }
@@ -2744,7 +2749,7 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 Node* WasmGraphBuilder::IsNull(Node* object, wasm::ValueType type) {
   // We immediately lower null in wrappers, as they do not go through a lowering
   // phase.
-  return parameter_mode_ == kInstanceMode
+  return parameter_mode_ == kInstanceParameterMode
              ? gasm_->IsNull(object, type)
              : gasm_->TaggedEqual(object, RefNull(type));
 }
@@ -6984,7 +6989,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
                           const wasm::FunctionSig* sig,
                           const wasm::WasmModule* module,
-                          Parameter0Mode parameter_mode, Isolate* isolate,
+                          ParameterMode parameter_mode, Isolate* isolate,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode, wasm::WasmFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt, parameter_mode,
@@ -8591,10 +8596,9 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  compiler::SourcePositionTable* spt,
                                  wasm::WasmFeatures features, Node* frame_state,
                                  bool set_in_wasm_flag) {
-  WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
-                                  WasmGraphBuilder::kNoSpecialParameterMode,
-                                  isolate, spt,
-                                  StubCallMode::kCallBuiltinPointer, features);
+  WasmWrapperGraphBuilder builder(
+      zone, mcgraph, signature, module, WasmGraphBuilder::kJSFunctionAbiMode,
+      isolate, spt, StubCallMode::kCallBuiltinPointer, features);
   builder.BuildJSToWasmWrapper(is_import, false, frame_state, set_in_wasm_flag);
 }
 
@@ -8616,9 +8620,8 @@ std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
   WasmWrapperGraphBuilder builder(
-      zone.get(), mcgraph, sig, module,
-      WasmGraphBuilder::kNoSpecialParameterMode, isolate, nullptr,
-      StubCallMode::kCallBuiltinPointer, enabled_features);
+      zone.get(), mcgraph, sig, module, WasmGraphBuilder::kJSFunctionAbiMode,
+      isolate, nullptr, StubCallMode::kCallBuiltinPointer, enabled_features);
   builder.BuildJSToWasmWrapper(is_import);
 
   //----------------------------------------------------------------------------
@@ -8970,9 +8973,8 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
   WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
-                                  WasmGraphBuilder::kNoSpecialParameterMode,
-                                  isolate, nullptr,
-                                  StubCallMode::kCallBuiltinPointer,
+                                  WasmGraphBuilder::kJSFunctionAbiMode, isolate,
+                                  nullptr, StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildJSToJSWrapper();
 
@@ -9016,7 +9018,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
   WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
-                                  WasmGraphBuilder::kWasmApiFunctionRefMode,
+                                  WasmGraphBuilder::kNoSpecialParameterMode,
                                   nullptr, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
@@ -9065,7 +9067,7 @@ void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, data.func_body.sig,
                            data.source_positions,
-                           WasmGraphBuilder::kInstanceMode,
+                           WasmGraphBuilder::kInstanceParameterMode,
                            nullptr /* isolate */, env->enabled_features);
   auto* allocator = wasm::GetWasmEngine()->allocator();
   wasm::BuildTFGraph(allocator, env->enabled_features, env->module, &builder,

@@ -166,16 +166,18 @@ struct WasmCompilationData {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
-  // The parameter at index 0 in a wasm function has special meaning:
-  // - For normal wasm functions, it points to the function's instance.
-  // - For Wasm-to-JS and C-API wrappers, it points to a {WasmApiFunctionRef}
-  //   object which represents the function's context.
-  // - For JS-to-Wasm and JS-to-JS wrappers (which are JS functions), it does
-  //   not have a special meaning. In these cases, we need access to an isolate
-  //   at compile time, i.e., {isolate_} needs to be non-null.
-  enum Parameter0Mode {
-    kInstanceMode,
+  // The instance can be passed to Wasm in multiple ways:
+  // - For normal wasm functions, it is passed as an implicit first parameter.
+  // - For Wasm-to-JS and C-API wrappers, a {WasmApiFunctionRef} object is
+  //   passed as first parameter.
+  // - For JS-to-Wasm and JS-to-JS wrappers (which are JS functions), we load
+  //   the Wasm instance from the JS function data. The generated code objects
+  //   live on the JS heap, so those compilation pass an isolate.
+  // - The C-entry stub uses a custom ABI (see {CWasmEntryParameters}).
+  enum ParameterMode {
+    kInstanceParameterMode,
     kWasmApiFunctionRefMode,
+    kJSFunctionAbiMode,
     kNoSpecialParameterMode
   };
 
@@ -183,7 +185,7 @@ class WasmGraphBuilder {
                                      MachineGraph* mcgraph,
                                      const wasm::FunctionSig* sig,
                                      compiler::SourcePositionTable* spt,
-                                     Parameter0Mode parameter_mode,
+                                     ParameterMode parameter_mode,
                                      Isolate* isolate,
                                      wasm::WasmFeatures enabled_features);
 
@@ -881,7 +883,7 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
   int inlining_id_ = -1;
-  Parameter0Mode parameter_mode_;
+  const ParameterMode parameter_mode_;
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;
   NullCheckStrategy null_check_strategy_;
