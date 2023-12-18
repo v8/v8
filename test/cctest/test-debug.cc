@@ -4192,7 +4192,9 @@ class ArchiveRestoreThread : public v8::base::Thread,
   }
 
   void MaybeSpawnChildThread() {
-    if (spawn_count_ > 1) {
+    if (spawn_count_ <= 1) return;
+    {
+      isolate_->Exit();
       v8::Unlocker unlocker(isolate_);
 
       // Spawn a thread that spawns a thread that spawns a thread (and so
@@ -4218,6 +4220,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart(
           v8::base::Stack::GetStackStart());
     }
+    isolate_->Enter();
   }
 
   int GetBreakCount() { return break_count_; }
@@ -4232,12 +4235,70 @@ class ArchiveRestoreThread : public v8::base::Thread,
 TEST(DebugArchiveRestore) {
   v8::Isolate* isolate = CcTest::isolate();
 
+  // This test uses the multi-threaded model and v8::Locker, so the main
+  // thread must exit the isolate before the test starts.
+  isolate->Exit();
+
   ArchiveRestoreThread thread(isolate, 4);
   // Instead of calling thread.Start() and thread.Join() here, we call
   // thread.Run() directly, to make sure we exercise archive/restore
   // logic on the *current* thread as well as other threads.
   thread.Run();
   CHECK_EQ(thread.GetBreakCount(), 5);
+
+  // The isolate must be entered again, before teardown.
+  isolate->Enter();
+}
+
+namespace {
+class ThreadJustUsingV8Locker : public v8::base::Thread {
+ public:
+  explicit ThreadJustUsingV8Locker(v8::Isolate* isolate)
+      : Thread(Options("thread using v8::Locker")), isolate_(isolate) {}
+
+  void Run() override {
+    v8::Locker locker(isolate_);
+    v8::Isolate::Scope isolate_scope(isolate_);
+    v8::HandleScope scope(isolate_);
+    // This thread does nothing useful.
+  }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // anonymous namespace
+
+UNINITIALIZED_TEST(Bug1511649UnlockerRestoreDebug) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::Function> test =
+        CompileFunction(isolate, "function test() {}", "test");
+    i::Handle<i::BreakPoint> bp = SetBreakPoint(test, 0);
+
+    {
+      isolate->Exit();
+      v8::Unlocker unlocker(isolate);
+
+      ThreadJustUsingV8Locker thread(isolate);
+      CHECK(thread.Start());
+      thread.Join();
+    }
+    isolate->Enter();
+
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Debug* debug = i_isolate->debug();
+    debug->ClearBreakPoint(bp);
+  }
+  isolate->Dispose();
 }
 
 class DebugEventExpectNoException : public v8::debug::DebugDelegate {

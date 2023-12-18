@@ -491,6 +491,8 @@ char* Debug::RestoreDebug(char* storage) {
   MemCopy(reinterpret_cast<char*>(&thread_local_), storage,
           ArchiveSpacePerThread());
 
+  // Enter the isolate.
+  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate_));
   // Enter the debugger.
   DebugScope debug_scope(this);
 
