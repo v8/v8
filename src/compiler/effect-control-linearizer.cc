@@ -2663,8 +2663,8 @@ const Char* GetLiteralString(Node* node, JSHeapBroker* broker) {
   StringRef string = m.Ref(broker).AsString();
   DisallowGarbageCollection no_gc;
   SharedStringAccessGuardIfNeeded access_guard(broker->isolate());
-  const Char* str = string.object()->template GetDirectStringChars<Char>(
-      broker->isolate(), no_gc, access_guard);
+  const Char* str =
+      string.object()->template GetDirectStringChars<Char>(no_gc, access_guard);
   return str;
 }
 
@@ -2692,7 +2692,7 @@ void EffectControlLinearizer::IfThenElse(Node* condition,
 // allocated if we want to allocate a string of length {length} (in particular,
 // it takes headers and alignment into account).
 Node* EffectControlLinearizer::SizeForString(Node* length, Node* is_two_byte) {
-  Node* size = __ Int32Constant(String::kHeaderSize);
+  Node* size = __ Int32Constant(sizeof(SeqString));
   size = __ Int32Add(size, __ Word32Shl(length, is_two_byte));
 
   auto object_pointer_align = [&](Node* value) -> Node* {
@@ -3107,7 +3107,7 @@ Node* EffectControlLinearizer::EndStringBuilderConcat(Node* node) {
                      __ IntPtrConstant(kHeapObjectTag));
     Node* start = __ IntPtrSub(
         end, __ IntPtrSub(new_backing_store_real_size,
-                          __ IntPtrAdd(__ IntPtrConstant(String::kHeaderSize),
+                          __ IntPtrAdd(__ IntPtrConstant(sizeof(SeqString)),
                                        ChangeInt32ToIntPtr(__ Word32Shl(
                                            new_length, is_two_byte)))));
     auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
@@ -3138,7 +3138,7 @@ Node* EffectControlLinearizer::EndStringBuilderConcat(Node* node) {
   __ StoreField(AccessBuilder::ForMap(kNoWriteBarrier), node,
                 __ HeapConstant(factory()->free_space_map()));
   __ StoreField(AccessBuilder::ForFreeSpaceSize(), node,
-                ChangeInt32ToSmi(__ Int32Constant(SlicedString::kSize)));
+                ChangeInt32ToSmi(__ Int32Constant(sizeof(SlicedString))));
 
   return backing_store;
 }
@@ -5190,8 +5190,8 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* result_map = done.PhiAt(0);
 
   // Allocate the resulting ConsString.
-  Node* result =
-      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(ConsString::kSize));
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(sizeof(ConsString)));
   __ StoreField(AccessBuilder::ForMap(), result, result_map);
   __ StoreField(AccessBuilder::ForNameRawHashField(), result,
                 __ Int32Constant(Name::kEmptyHashField));

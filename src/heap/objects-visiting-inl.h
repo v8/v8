@@ -329,7 +329,7 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::VisitStringLocked(
   // The object has been locked. At this point shared read access is
   // guaranteed but we must re-read the map and check whether the string has
   // transitioned.
-  Tagged<Map> map = object->map(visitor->cage_base());
+  Tagged<Map> map = object->map();
   int size;
   switch (map->visitor_id()) {
 #define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorIdType, TypeName)         \
@@ -337,8 +337,8 @@ ConcurrentHeapVisitor<ResultType, ConcreteVisitor>::VisitStringLocked(
     visitor                                                                   \
         ->template VisitMapPointerIfNeeded<VisitorId::kVisit##VisitorIdType>( \
             object);                                                          \
-    size = TypeName::BodyDescriptor::SizeOf(map, object);                     \
-    TypeName::BodyDescriptor::IterateBody(                                    \
+    size = ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object);       \
+    ObjectTraits<TypeName>::BodyDescriptor::IterateBody(                      \
         map, TypeName::unchecked_cast(object), size, visitor);                \
     break;
 

@@ -298,42 +298,42 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSourceTextModuleInfo) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(Tagged<String>::cast(obj)->map(cage_base)).IsCons();
+  return StringShape(Tagged<String>::cast(obj)->map()).IsCons();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsThinString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsThin();
+  return StringShape(String::cast(obj)->map()).IsThin();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSlicedString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsSliced();
+  return StringShape(String::cast(obj)->map()).IsSliced();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsSequential();
+  return StringShape(String::cast(obj)->map()).IsSequential();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqOneByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsSequentialOneByte();
+  return StringShape(String::cast(obj)->map()).IsSequentialOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqTwoByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsSequentialTwoByte();
+  return StringShape(String::cast(obj)->map()).IsSequentialTwoByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsExternalOneByte();
+  return StringShape(String::cast(obj)->map()).IsExternalOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
   if (!IsString(obj, cage_base)) return false;
-  return StringShape(String::cast(obj)->map(cage_base)).IsExternalTwoByte();
+  return StringShape(String::cast(obj)->map()).IsExternalTwoByte();
 }
 
 bool IsNumber(Tagged<Object> obj) {
@@ -983,8 +983,16 @@ ReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
   return ReadOnlyHeap::EarlyGetReadOnlyRoots(*this);
 }
 
+ReadOnlyRoots HeapObjectLayout::EarlyGetReadOnlyRoots() const {
+  return ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged(this));
+}
+
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
+}
+
+ReadOnlyRoots HeapObjectLayout::GetReadOnlyRoots() const {
+  return ReadOnlyHeap::GetReadOnlyRoots(Tagged(this));
 }
 
 // TODO(v8:13788): Remove this cage-ful accessor.
@@ -1010,6 +1018,28 @@ Tagged<Map> HeapObjectLayout::map() const {
   return Tagged<HeapObject>(this)->map();
 }
 
+Tagged<Map> HeapObjectLayout::map(AcquireLoadTag) const {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->map(kAcquireLoad);
+}
+
+void HeapObjectLayout::set_map(Tagged<Map> value) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->set_map(value);
+}
+
+void HeapObjectLayout::set_map(Tagged<Map> value, ReleaseStoreTag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->set_map(value, kReleaseStore);
+}
+
+void HeapObjectLayout::set_map_safe_transition(Tagged<Map> value,
+                                               ReleaseStoreTag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->set_map_safe_transition(value,
+                                                           kReleaseStore);
+}
+
 void HeapObject::set_map(Tagged<Map> value) {
   set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
                                   VerificationMode::kPotentialLayoutChange);
@@ -1031,6 +1061,13 @@ void HeapObject::set_map_safe_transition(Tagged<Map> value,
                                   VerificationMode::kSafeMapTransition);
 }
 
+void HeapObjectLayout::set_map_safe_transition_no_write_barrier(
+    Tagged<Map> value, RelaxedStoreTag tag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  return Tagged<HeapObject>(this)->set_map_safe_transition_no_write_barrier(
+      value, tag);
+}
+
 void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
                                                           RelaxedStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
@@ -1041,6 +1078,12 @@ void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
                                                           ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
                                  VerificationMode::kSafeMapTransition);
+}
+
+void HeapObjectLayout::set_map_no_write_barrier(Tagged<Map> value,
+                                                RelaxedStoreTag tag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  Tagged<HeapObject>(this)->set_map_no_write_barrier(value, tag);
 }
 
 // Unsafe accessor omitting write barrier.
@@ -1170,6 +1213,12 @@ void HeapObject::set_map_word(Tagged<Map> map, ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(*this, MapWord::FromMap(map));
 }
 
+void HeapObjectLayout::set_map_word_forwarded(Tagged<HeapObject> target_object,
+                                              ReleaseStoreTag tag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  Tagged<HeapObject>(this)->set_map_word_forwarded(target_object, tag);
+}
+
 void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(
@@ -1183,6 +1232,8 @@ bool HeapObject::release_compare_and_swap_map_word_forwarded(
       MapWord::FromForwardingAddress(*this, new_target_object));
   return result == static_cast<Tagged_t>(old_map_word.ptr());
 }
+
+int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
@@ -1249,6 +1300,11 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
     return true;
   }
   return false;
+}
+
+WriteBarrierMode HeapObjectLayout::GetWriteBarrierMode(
+    const DisallowGarbageCollection& promise) {
+  return GetWriteBarrierModeForObject(this, &promise);
 }
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(

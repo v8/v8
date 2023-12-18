@@ -31,8 +31,9 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
   Allocate(register_snapshot, result, size);
   StoreTaggedSignedField(result, size - kObjectAlignment, Smi::zero());
   SetMapAsRoot(result, RootIndex::kSeqTwoByteStringMap);
-  StoreInt32Field(result, Name::kRawHashFieldOffset, Name::kEmptyHashField);
-  StoreInt32Field(result, String::kLengthOffset, length);
+  StoreInt32Field(result, offsetof(Name, raw_hash_field_),
+                  Name::kEmptyHashField);
+  StoreInt32Field(result, offsetof(String, length_), length);
 }
 
 Register MaglevAssembler::FromAnyToRegister(const Input& input,
@@ -172,7 +173,8 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                 StaticReadOnlyRoot::kNullValue);
   static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
                 StaticReadOnlyRoot::kempty_string);
-  static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
+  static_assert(StaticReadOnlyRoot::kempty_string +
+                    SeqOneByteString::SizeFor(0) ==
                 StaticReadOnlyRoot::kFalseValue);
   static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
                 StaticReadOnlyRoot::kTrueValue);

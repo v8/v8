@@ -15,6 +15,37 @@ namespace v8 {
 namespace internal {
 
 template <ExternalPointerTag tag>
+inline void ExternalPointerMember<tag>::Init(IsolateForSandbox isolate,
+                                             Address value) {
+  InitExternalPointerField<tag>(reinterpret_cast<Address>(storage_), isolate,
+                                value);
+}
+
+template <ExternalPointerTag tag>
+inline Address ExternalPointerMember<tag>::load(
+    const IsolateForSandbox isolate) const {
+  return ReadExternalPointerField<tag>(reinterpret_cast<Address>(storage_),
+                                       isolate);
+}
+
+template <ExternalPointerTag tag>
+inline void ExternalPointerMember<tag>::store(IsolateForSandbox isolate,
+                                              Address value) {
+  WriteExternalPointerField<tag>(reinterpret_cast<Address>(storage_), isolate,
+                                 value);
+}
+
+template <ExternalPointerTag tag>
+inline ExternalPointer_t ExternalPointerMember<tag>::load_encoded() const {
+  return base::bit_cast<ExternalPointer_t>(storage_);
+}
+
+template <ExternalPointerTag tag>
+inline void ExternalPointerMember<tag>::store_encoded(ExternalPointer_t value) {
+  memcpy(storage_, &value, sizeof(ExternalPointer_t));
+}
+
+template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address,
                                         IsolateForSandbox isolate,
                                         Address value) {

@@ -319,17 +319,17 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   if (IsSlicedString(*source, cage_base)) {
     Tagged<SlicedString> string = SlicedString::cast(*source);
     start = string->offset();
-    Tagged<String> parent = string->parent(cage_base);
+    Tagged<String> parent = string->parent();
     if (IsThinString(parent, cage_base))
-      parent = ThinString::cast(parent)->actual(cage_base);
+      parent = ThinString::cast(parent)->actual();
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
   }
 
   if (StringShape(*source_, cage_base).IsExternal()) {
-    chars_ = static_cast<const Char*>(
-        SeqExternalString::cast(*source_)->GetChars(cage_base));
+    chars_ =
+        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;

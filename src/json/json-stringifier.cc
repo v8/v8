@@ -153,7 +153,7 @@ class JsonStringifier {
             string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
       }
     } else {
-      if (String::IsOneByteRepresentationUnderneath(*string)) {
+      if (String::IsOneByteRepresentationUnderneath(string)) {
         CopyChars<uint8_t, uint16_t>(
             two_byte_ptr_ + current_index_,
             string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
@@ -175,7 +175,7 @@ class JsonStringifier {
       const bool representation_ok =
           encoding_ == String::TWO_BYTE_ENCODING ||
           (string->IsFlat() &&
-           String::IsOneByteRepresentationUnderneath(*string));
+           String::IsOneByteRepresentationUnderneath(string));
       if (representation_ok) {
         while (!CurrentPartCanFit(string->length())) Extend();
         AppendStringByCopy(string, no_gc);
@@ -276,7 +276,7 @@ class JsonStringifier {
 
     void TryInsert(Tagged<String> string) {
       ReadOnlyRoots roots(isolate());
-      if (string->map(isolate()) == roots.internalized_one_byte_string_map()) {
+      if (string->map() == roots.internalized_one_byte_string_map()) {
         keys_[GetIndex(string)] = MaybeCompress(string);
       }
     }
@@ -1411,7 +1411,7 @@ template <typename DestChar>
 bool JsonStringifier::TrySerializeSimplePropertyKey(
     Tagged<String> key, const DisallowGarbageCollection& no_gc) {
   ReadOnlyRoots roots(isolate_);
-  if (key->map(isolate_) != roots.internalized_one_byte_string_map()) {
+  if (key->map() != roots.internalized_one_byte_string_map()) {
     return false;
   }
   if (!key_cache_.Contains(key)) {
@@ -1442,7 +1442,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
   base::Vector<const uint8_t> chars(
       SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
-            key.address() + key->Size(isolate_));
+            key.address() + key->Size());
 #if DEBUG
   for (int i = 0; i < length; ++i) {
     DCHECK(DoNotEscape(chars[i]));

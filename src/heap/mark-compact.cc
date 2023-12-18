@@ -2562,6 +2562,8 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
   const uint64_t trace_id_;
 };
 
+}  // namespace
+
 class FullStringForwardingTableCleaner final
     : public StringForwardingTableCleanerBase {
  public:
@@ -2686,13 +2688,14 @@ class FullStringForwardingTableCleaner final
     // Record the slot in the old-to-old remembered set. This is
     // required as the internalized string could be relocated during
     // compaction.
-    ObjectSlot slot =
-        ThinString::cast(original_string)->RawField(ThinString::kActualOffset);
+    ObjectSlot slot(&ThinString::cast(original_string)->actual_);
     MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
   }
 
   Heap* const heap_;
 };
+
+namespace {
 
 class SharedStructTypeRegistryCleaner final : public RootVisitor {
  public:

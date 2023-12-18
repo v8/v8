@@ -17,10 +17,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/primitive-heap-object-tq-inl.inc"
 
-PrimitiveHeapObjectLayout::PrimitiveHeapObjectLayout() {
-  SLOW_DCHECK(IsPrimitiveHeapObject(this));
-}
-
 CAST_ACCESSOR(PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(PrimitiveHeapObject, HeapObject)
 

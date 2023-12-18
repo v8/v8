@@ -26,21 +26,24 @@ namespace internal {
   V(BigInt)                             \
   V(BytecodeArray)                      \
   V(BytecodeWrapper)                    \
-  V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
-  V(Cell)                               \
-  V(InstructionStream)                  \
   V(CallSiteInfo)                       \
+  V(Cell)                               \
   V(Code)                               \
   V(CodeWrapper)                        \
+  V(ConsString)                         \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
   V(DebugInfo)                          \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
+  V(ExternalPointerArray)               \
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
+  V(Hole)                               \
+  V(InstructionStream)                  \
+  V(InterpreterData)                    \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
@@ -49,20 +52,20 @@ namespace internal {
   V(JSObject)                           \
   V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
-  V(WeakCell)                           \
   V(JSWeakCollection)                   \
   V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
-  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
-  V(InterpreterData)                    \
+  V(SeqOneByteString)                   \
+  V(SeqTwoByteString)                   \
   V(SharedFunctionInfo)                 \
+  V(SlicedString)                       \
   V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
@@ -71,7 +74,9 @@ namespace internal {
   V(SwissNameDictionary)                \
   V(Symbol)                             \
   V(SyntheticModule)                    \
+  V(ThinString)                         \
   V(TransitionArray)                    \
+  V(WeakCell)                           \
   IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmArray)                 \
   IF_WASM(V, WasmCapiFunctionData)      \

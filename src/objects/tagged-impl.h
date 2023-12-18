@@ -217,6 +217,7 @@ class TaggedImpl {
 
  protected:
   StorageType* ptr_location() { return &ptr_; }
+  const StorageType* ptr_location() const { return &ptr_; }
 
  private:
   friend class CompressedObjectSlot;

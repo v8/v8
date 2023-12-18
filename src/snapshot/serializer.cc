@@ -156,7 +156,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   // ThinStrings are just an indirection to an internalized string, so elide the
   // indirection and serialize the actual string directly.
   if (IsThinString(*obj, isolate())) {
-    obj = handle(ThinString::cast(*obj)->actual(isolate()), isolate());
+    obj = handle(ThinString::cast(*obj)->actual(), isolate());
   } else if (IsCode(*obj, isolate())) {
     Tagged<Code> code = Code::cast(*obj);
     if (code->kind() == CodeKind::BASELINE) {
@@ -735,7 +735,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Serialize string header (except for map).
   uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
-  for (int i = HeapObject::kHeaderSize; i < SeqString::kHeaderSize; i++) {
+  for (size_t i = sizeof(HeapObjectLayout); i < sizeof(SeqString); i++) {
     sink_->Put(string_start[i], "StringHeader");
   }
 
@@ -744,9 +744,9 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Since the allocation size is rounded up to object alignment, there
   // maybe left-over bytes that need to be padded.
-  int padding_size = allocation_size - SeqString::kHeaderSize - content_size;
+  size_t padding_size = allocation_size - sizeof(SeqString) - content_size;
   DCHECK(0 <= padding_size && padding_size < kObjectAlignment);
-  for (int i = 0; i < padding_size; i++) {
+  for (size_t i = 0; i < padding_size; i++) {
     sink_->Put(static_cast<uint8_t>(0), "StringPadding");
   }
 }

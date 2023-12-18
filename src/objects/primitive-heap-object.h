@@ -15,11 +15,8 @@ namespace internal {
 
 #include "torque-generated/src/objects/primitive-heap-object-tq.inc"
 
-V8_OBJECT class PrimitiveHeapObjectLayout : public HeapObjectLayout {
- public:
-  inline PrimitiveHeapObjectLayout();
-
-  DECL_VERIFIER(PrimitiveHeapObject)
+V8_OBJECT class PrimitiveHeapObjectLayout : public HeapObjectLayout{
+  public : DECL_VERIFIER(PrimitiveHeapObject)
 } V8_OBJECT_END;
 
 static_assert(sizeof(PrimitiveHeapObjectLayout) == sizeof(HeapObjectLayout));

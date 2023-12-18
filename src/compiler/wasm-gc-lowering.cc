@@ -1007,7 +1007,7 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
         &done, string, gasm_.IntPtrConstant(0),
         gasm_.Int32Constant(kCharWidthBailoutSentinel));
     Node* resource = gasm_.BuildLoadExternalPointerFromObject(
-        string, ExternalString::kResourceDataOffset,
+        string, AccessBuilder::ForExternalStringResourceData().offset,
         kExternalStringResourceDataTag, gasm_.LoadRootRegister());
     Node* shifted_offset = gasm_.Word32Shl(offset, charwidth_shift);
     final_offset = gasm_.IntPtrAdd(

@@ -224,6 +224,13 @@ class Tagged<Object> : public TaggedBase {
   // Tagged<Object> implicitly initialises to Smi::zero().
   V8_INLINE constexpr Tagged() : TaggedBase(kNullAddress) {}
 
+  // Allow implicit conversion from const HeapObjectLayout* to Tagged<Object>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const HeapObjectLayout* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
+
   // Implicit conversion for subclasses -- all classes are subclasses of Object,
   // so allow all tagged pointers.
   // NOLINTNEXTLINE
@@ -333,7 +340,12 @@ class Tagged<HeapObject> : public TaggedBase {
   }
 
   V8_INLINE constexpr Tagged() = default;
-  V8_INLINE explicit Tagged(const HeapObjectLayout* ptr)
+  // Allow implicit conversion from const HeapObjectLayout* to
+  // Tagged<HeapObject>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const HeapObjectLayout* ptr)
       : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
 
   // Implicit conversion for subclasses.
@@ -428,7 +440,11 @@ class Tagged : public detail::BaseForTagged<T>::type {
 
   V8_INLINE constexpr Tagged() = default;
   template <typename U = T>
-  V8_INLINE explicit Tagged(const T* ptr)
+  // Allow implicit conversion from const T* to Tagged<T>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const T* ptr)
       : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {
     static_assert(std::is_base_of_v<HeapObjectLayout, U>);
   }

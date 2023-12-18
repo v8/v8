@@ -1398,24 +1398,25 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                                              Tagged<String> string) {
   if (IsConsString(string)) {
     Tagged<ConsString> cs = ConsString::cast(string);
-    SetInternalReference(entry, "first", cs->first(), ConsString::kFirstOffset);
+    SetInternalReference(entry, "first", cs->first(),
+                         offsetof(ConsString, first_));
     SetInternalReference(entry, "second", cs->second(),
-                         ConsString::kSecondOffset);
+                         offsetof(ConsString, second_));
   } else if (IsSlicedString(string)) {
     Tagged<SlicedString> ss = SlicedString::cast(string);
     SetInternalReference(entry, "parent", ss->parent(),
-                         SlicedString::kParentOffset);
+                         offsetof(SlicedString, parent_));
   } else if (IsThinString(string)) {
     Tagged<ThinString> ts = ThinString::cast(string);
     SetInternalReference(entry, "actual", ts->actual(),
-                         ThinString::kActualOffset);
+                         offsetof(ThinString, actual_));
   }
 }
 
 void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry,
                                              Tagged<Symbol> symbol) {
   SetInternalReference(entry, "name", symbol->description(),
-                       Symbol::kDescriptionOffset);
+                       offsetof(Symbol, description_));
 }
 
 void V8HeapExplorer::ExtractJSCollectionReferences(

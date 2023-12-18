@@ -1173,10 +1173,10 @@ Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
 Tagged<Symbol> Factory::NewSymbolInternal(AllocationType allocation) {
   DCHECK(allocation != AllocationType::kYoung);
   // Statically ensure that it is safe to allocate symbols in paged spaces.
-  static_assert(Symbol::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Symbol) <= kMaxRegularHeapObjectSize);
 
   Tagged<Symbol> symbol = Tagged<Symbol>::cast(AllocateRawWithImmortalMap(
-      Symbol::kSize, allocation, read_only_roots().symbol_map()));
+      sizeof(Symbol), allocation, read_only_roots().symbol_map()));
   DisallowGarbageCollection no_gc;
   // Generate a random hash value.
   int hash = isolate()->GenerateIdentityHash(Name::HashBits::kMax);
@@ -1188,8 +1188,8 @@ Tagged<Symbol> Factory::NewSymbolInternal(AllocationType allocation) {
   } else {
     // Can't use setter during bootstrapping as its typecheck tries to access
     // the roots table before it is initialized.
-    TaggedField<Object>::store(symbol, Symbol::kDescriptionOffset,
-                               read_only_roots().undefined_value());
+    symbol->description_.store(&*symbol, read_only_roots().undefined_value(),
+                               SKIP_WRITE_BARRIER);
   }
   symbol->set_flags(0);
   DCHECK(!symbol->is_private());

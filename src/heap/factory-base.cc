@@ -733,7 +733,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   int size = SeqStringT::SizeFor(length);
-  DCHECK_GE(SeqStringT::kMaxSize, size);
+  DCHECK_GE(ObjectTraits<SeqStringT>::kMaxSize, size);
 
   Tagged<SeqStringT> string =
       SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
@@ -827,14 +827,14 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       uint8_t* dest = result->GetChars(no_gc, access_guard);
       // Copy left part.
       {
-        const uint8_t* src = left->template GetDirectStringChars<uint8_t>(
-            isolate(), no_gc, access_guard);
+        const uint8_t* src =
+            left->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
-        const uint8_t* src = right->template GetDirectStringChars<uint8_t>(
-            isolate(), no_gc, access_guard);
+        const uint8_t* src =
+            right->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
       }
       return result;
@@ -846,10 +846,9 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(isolate());
     base::uc16* sink = result->GetChars(no_gc, access_guard);
-    String::WriteToFlat(*left, sink, 0, left->length(), isolate(),
-                        access_guard);
+    String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
     String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
-                        isolate(), access_guard);
+                        access_guard);
     return result;
   }
 

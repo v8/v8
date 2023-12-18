@@ -6665,7 +6665,7 @@ Node* WasmGraphBuilder::StringHash(Node* string, CheckForNull null_check,
 
   Node* raw_hash = gasm_->LoadFromObject(
       MachineType::Int32(), string,
-      wasm::ObjectAccess::ToTagged(Name::kRawHashFieldOffset));
+      wasm::ObjectAccess::ToTagged(offsetof(Name, raw_hash_field_)));
   Node* hash_not_computed_mask =
       gasm_->Int32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
   static_assert(Name::HashFieldTypeBits::kShift == 0);

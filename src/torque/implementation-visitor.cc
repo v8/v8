@@ -3506,13 +3506,17 @@ void ImplementationVisitor::VisitAllDeclarables() {
   // Do the same for macros which generate C++ debug code.
   // The set of macros is the same as C++ macros.
   output_type_ = OutputType::kCCDebug;
-  for (size_t i = 0; i < cc_macros.size(); ++i) {
+  const std::vector<std::pair<TorqueMacro*, SourceId>>& cc_debug_macros =
+      GlobalContext::AllMacrosForCCDebugOutput();
+  for (size_t i = 0; i < cc_debug_macros.size(); ++i) {
     try {
-      Visit(static_cast<Declarable*>(cc_macros[i].first), cc_macros[i].second);
+      Visit(static_cast<Declarable*>(cc_debug_macros[i].first),
+            cc_debug_macros[i].second);
     } catch (TorqueAbortCompilation&) {
       // Recover from compile errors here. The error is recorded already.
     }
   }
+
   output_type_ = OutputType::kCSA;
 }
 

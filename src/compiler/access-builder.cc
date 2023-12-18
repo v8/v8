@@ -802,7 +802,7 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 
 // static
 FieldAccess AccessBuilder::ForNameRawHashField() {
-  FieldAccess access = {kTaggedBase,        Name::kRawHashFieldOffset,
+  FieldAccess access = {kTaggedBase,        offsetof(Name, raw_hash_field_),
                         Handle<Name>(),     OptionalMapRef(),
                         Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier,    "NameRawHashField"};
@@ -821,7 +821,7 @@ FieldAccess AccessBuilder::ForFreeSpaceSize() {
 // static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase,
-                        String::kLengthOffset,
+                        offsetof(String, length_),
                         Handle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kStringLengthType,
@@ -834,7 +834,7 @@ FieldAccess AccessBuilder::ForStringLength() {
 
 // static
 FieldAccess AccessBuilder::ForConsStringFirst() {
-  FieldAccess access = {kTaggedBase,          ConsString::kFirstOffset,
+  FieldAccess access = {kTaggedBase,          offsetof(ConsString, first_),
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ConsStringFirst"};
@@ -845,7 +845,7 @@ FieldAccess AccessBuilder::ForConsStringFirst() {
 
 // static
 FieldAccess AccessBuilder::ForConsStringSecond() {
-  FieldAccess access = {kTaggedBase,          ConsString::kSecondOffset,
+  FieldAccess access = {kTaggedBase,          offsetof(ConsString, second_),
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ConsStringSecond"};
@@ -856,7 +856,7 @@ FieldAccess AccessBuilder::ForConsStringSecond() {
 
 // static
 FieldAccess AccessBuilder::ForThinStringActual() {
-  FieldAccess access = {kTaggedBase,          ThinString::kActualOffset,
+  FieldAccess access = {kTaggedBase,          offsetof(ThinString, actual_),
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "ThinStringActual"};
@@ -866,7 +866,7 @@ FieldAccess AccessBuilder::ForThinStringActual() {
 
 // static
 FieldAccess AccessBuilder::ForSlicedStringOffset() {
-  FieldAccess access = {kTaggedBase,         SlicedString::kOffsetOffset,
+  FieldAccess access = {kTaggedBase,         offsetof(SlicedString, offset_),
                         Handle<Name>(),      OptionalMapRef(),
                         Type::SignedSmall(), MachineType::TaggedSigned(),
                         kNoWriteBarrier,     "SlicedStringOffset"};
@@ -876,7 +876,7 @@ FieldAccess AccessBuilder::ForSlicedStringOffset() {
 
 // static
 FieldAccess AccessBuilder::ForSlicedStringParent() {
-  FieldAccess access = {kTaggedBase,          SlicedString::kParentOffset,
+  FieldAccess access = {kTaggedBase,          offsetof(SlicedString, parent_),
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "SlicedStringParent"};
@@ -888,7 +888,7 @@ FieldAccess AccessBuilder::ForSlicedStringParent() {
 FieldAccess AccessBuilder::ForExternalStringResourceData() {
   FieldAccess access = {
       kTaggedBase,
-      ExternalString::kResourceDataOffset,
+      offsetof(ExternalString, resource_data_),
       Handle<Name>(),
       OptionalMapRef(),
       Type::ExternalPointer(),
@@ -904,7 +904,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
 
 // static
 ElementAccess AccessBuilder::ForSeqOneByteStringCharacter() {
-  ElementAccess access = {kTaggedBase, SeqOneByteString::kHeaderSize,
+  ElementAccess access = {kTaggedBase, offsetof(SeqOneByteString, chars_),
                           TypeCache::Get()->kUint8, MachineType::Uint8(),
                           kNoWriteBarrier};
   return access;
@@ -912,7 +912,7 @@ ElementAccess AccessBuilder::ForSeqOneByteStringCharacter() {
 
 // static
 ElementAccess AccessBuilder::ForSeqTwoByteStringCharacter() {
-  ElementAccess access = {kTaggedBase, SeqTwoByteString::kHeaderSize,
+  ElementAccess access = {kTaggedBase, offsetof(SeqTwoByteString, chars_),
                           TypeCache::Get()->kUint16, MachineType::Uint16(),
                           kNoWriteBarrier};
   return access;

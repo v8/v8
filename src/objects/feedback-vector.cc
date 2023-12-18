@@ -1196,7 +1196,7 @@ Tagged<Name> FeedbackNexus::GetName() const {
       return Name::cast(extra.GetHeapObjectAssumeStrong());
     }
   }
-  return Name();
+  return {};
 }
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {

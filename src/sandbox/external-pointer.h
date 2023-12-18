@@ -11,6 +11,25 @@
 namespace v8 {
 namespace internal {
 
+template <ExternalPointerTag tag>
+class ExternalPointerMember {
+ public:
+  ExternalPointerMember() = default;
+
+  void Init(IsolateForSandbox isolate, Address value);
+
+  inline Address load(const IsolateForSandbox isolate) const;
+  inline void store(IsolateForSandbox isolate, Address value);
+
+  inline ExternalPointer_t load_encoded() const;
+  inline void store_encoded(ExternalPointer_t value);
+
+  Address storage_address() { return reinterpret_cast<Address>(storage_); }
+
+ private:
+  alignas(alignof(Tagged_t)) char storage_[sizeof(ExternalPointer_t)];
+};
+
 // Creates and initializes an entry in the external pointer table and writes the
 // handle for that entry to the field.
 template <ExternalPointerTag tag>

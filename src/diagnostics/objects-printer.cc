@@ -106,6 +106,10 @@ void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
 }
 }  // namespace
 
+void HeapObjectLayout::PrintHeader(std::ostream& os, const char* id) {
+  Tagged<HeapObject>(this)->PrintHeader(os, id);
+}
+
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
   PtrComprCageBase cage_base = GetPtrComprCageBase();
@@ -1582,7 +1586,7 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {
 }
 
 void String::StringPrint(std::ostream& os) {
-  PrintHeapObjectHeaderWithoutMap(*this, os, "String");
+  PrintHeapObjectHeaderWithoutMap(this, os, "String");
   os << ": ";
   os << PrefixForDebugPrint();
   PrintUC16(os, 0, length());
@@ -1590,10 +1594,10 @@ void String::StringPrint(std::ostream& os) {
 }
 
 void Name::NamePrint(std::ostream& os) {
-  if (IsString(*this)) {
-    String::cast(*this)->StringPrint(os);
+  if (IsString(this)) {
+    String::cast(this)->StringPrint(os);
   } else {
-    os << Brief(*this);
+    os << Brief(this);
   }
 }
 
@@ -3280,11 +3284,11 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
-  if (IsString(*this)) {
-    PrintF("%s", String::cast(*this)->ToCString().get());
+  if (IsString(this)) {
+    PrintF("%s", String::cast(this)->ToCString().get());
   } else {
-    DCHECK(IsSymbol(*this));
-    Tagged<Symbol> s = Symbol::cast(*this);
+    DCHECK(IsSymbol(this));
+    Tagged<Symbol> s = Symbol::cast(this);
     if (IsUndefined(s->description())) {
       PrintF("#<%s>", s->PrivateSymbolToName());
     } else {
@@ -3295,11 +3299,11 @@ void Name::NameShortPrint() {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(base::Vector<char> str) {
-  if (IsString(*this)) {
-    return SNPrintF(str, "%s", String::cast(*this)->ToCString().get());
+  if (IsString(this)) {
+    return SNPrintF(str, "%s", String::cast(this)->ToCString().get());
   } else {
-    DCHECK(IsSymbol(*this));
-    Tagged<Symbol> s = Symbol::cast(*this);
+    DCHECK(IsSymbol(this));
+    Tagged<Symbol> s = Symbol::cast(this);
     if (IsUndefined(s->description())) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
@@ -3471,7 +3475,7 @@ char* String::ToAsciiArray() {
   static char* buffer = nullptr;
   if (buffer != nullptr) delete[] buffer;
   buffer = new char[length() + 1];
-  WriteToFlat(*this, reinterpret_cast<uint8_t*>(buffer), 0, length());
+  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
   buffer[length()] = 0;
   return buffer;
 }

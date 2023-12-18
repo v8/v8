@@ -354,8 +354,14 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Tagged<Object> p) {
   CHECK(IsInstructionStream(HeapObject::cast(p), cage_base));
 }
 
+void Name::NameVerify(Isolate* isolate) {
+  PrimitiveHeapObjectVerify(isolate);
+  CHECK(IsName(this));
+}
+
 void Symbol::SymbolVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SymbolVerify(*this, isolate);
+  NameVerify(isolate);
+  CHECK(IsSymbol(this));
   uint32_t hash;
   const bool has_hash = TryGetHash(&hash);
   CHECK(has_hash);
@@ -1036,20 +1042,22 @@ void JSDate::JSDateVerify(Isolate* isolate) {
 }
 
 void String::StringVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StringVerify(*this, isolate);
+  PrimitiveHeapObjectVerify(isolate);
+  CHECK(IsString(this, isolate));
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
-  CHECK_IMPLIES(length() == 0, *this == ReadOnlyRoots(isolate).empty_string());
-  if (IsInternalizedString(*this)) {
+  CHECK_IMPLIES(length() == 0, this == ReadOnlyRoots(isolate).empty_string());
+  if (IsInternalizedString(this)) {
     CHECK(HasHashCode());
-    CHECK(!ObjectInYoungGeneration(*this));
+    CHECK(!ObjectInYoungGeneration(this));
   }
 }
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ConsStringVerify(*this, isolate);
+  StringVerify(isolate);
+  CHECK(IsConsString(this, isolate));
   CHECK_GE(length(), ConsString::kMinLength);
   CHECK(length() == first()->length() + second()->length());
-  if (IsFlat(isolate)) {
+  if (IsFlat()) {
     // A flat cons can only be created by String::SlowFlatten.
     // Afterwards, the first part may be externalized or internalized.
     CHECK(IsSeqString(first()) || IsExternalString(first()) ||
@@ -1058,14 +1066,16 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
 }
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
+  StringVerify(isolate);
+  CHECK(IsThinString(this, isolate));
   CHECK(!HasForwardingIndex(kAcquireLoad));
   CHECK(IsInternalizedString(actual()));
   CHECK(IsSeqString(actual()) || IsExternalString(actual()));
 }
 
 void SlicedString::SlicedStringVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SlicedStringVerify(*this, isolate);
+  StringVerify(isolate);
+  CHECK(IsSlicedString(this, isolate));
   CHECK(!IsConsString(parent()));
   CHECK(!IsSlicedString(parent()));
 #ifdef DEBUG
@@ -1079,7 +1089,10 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
 #endif
 }
 
-USE_TORQUE_VERIFIER(ExternalString)
+void ExternalString::ExternalStringVerify(Isolate* isolate) {
+  StringVerify(isolate);
+  CHECK(IsExternalString(this, isolate));
+}
 
 void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSBoundFunctionVerify(*this, isolate);

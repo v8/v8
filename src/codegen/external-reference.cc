@@ -1113,26 +1113,22 @@ void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t start,
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(IsExternalOneByteString(Tagged<Object>(string), cage_base));
-  return ExternalOneByteString::cast(Tagged<Object>(string))
-      ->GetChars(cage_base);
+  CHECK(IsExternalOneByteString(Tagged<Object>(string)));
+  return ExternalOneByteString::cast(Tagged<Object>(string))->GetChars();
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
   // The following CHECK is a workaround to prevent a CFI bug where
   // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(IsExternalTwoByteString(Tagged<Object>(string), cage_base));
-  return ExternalTwoByteString::cast(Tagged<Object>(string))
-      ->GetChars(cage_base);
+  CHECK(IsExternalTwoByteString(Tagged<Object>(string)));
+  return ExternalTwoByteString::cast(Tagged<Object>(string))->GetChars();
 }
 
 }  // namespace

@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
@@ -307,6 +308,16 @@ class ExternalPointerSlot
 
   explicit ExternalPointerSlot(Address ptr, ExternalPointerTag tag)
       : SlotBase(ptr)
+#ifdef V8_ENABLE_SANDBOX
+        ,
+        tag_(tag)
+#endif
+  {
+  }
+
+  template <ExternalPointerTag tag>
+  explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
+      : SlotBase(member->storage_address())
 #ifdef V8_ENABLE_SANDBOX
         ,
         tag_(tag)

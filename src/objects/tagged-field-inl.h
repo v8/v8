@@ -61,6 +61,12 @@ void TaggedMember<T, CompressionScheme>::store(HeapObjectLayout* host,
 }
 
 template <typename T, typename CompressionScheme>
+Tagged<T> TaggedMember<T, CompressionScheme>::Relaxed_Load() const {
+  return Tagged<T>(
+      tagged_to_full(AsAtomicTagged::Relaxed_Load(this->ptr_location())));
+}
+
+template <typename T, typename CompressionScheme>
 void TaggedMember<T, CompressionScheme>::store_no_write_barrier(
     Tagged<T> value) {
 #ifdef V8_ATOMIC_OBJECT_FIELD_WRITES

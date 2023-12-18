@@ -1282,7 +1282,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   for (int run = 0; run < 2; run++) {
     Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
         i_isolate, factory, kStrings - kLOStrings, kLOStrings,
-        ExternalString::kUncachedSize, run == 0);
+        sizeof(UncachedExternalString), run == 0);
 
     // Check strings are in the forwarding table after internalization.
     for (int i = 0; i < shared_strings->length(); i++) {
@@ -1427,7 +1427,7 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   // Depending on the architecture/build options the two byte string might be
   // cached or uncached.
   const bool is_uncached =
-      two_byte->Size() < ExternalString::kSizeOfAllExternalStrings;
+      two_byte->Size() < static_cast<int>(sizeof(ExternalString));
 
   if (is_uncached) {
     // Shared uncached external strings are not internalizable. A new internal
@@ -1707,7 +1707,7 @@ void TestConcurrentExternalization(bool share_resources) {
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
-      ExternalString::kUncachedSize, false);
+      sizeof(UncachedExternalString), false);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -1752,8 +1752,7 @@ void TestConcurrentExternalization(bool share_resources) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
                                 i_isolate);
     Tagged<String> string = *input_string;
-    CheckStringAndResource(string, i, true, String{}, true, share_resources,
-                           threads);
+    CheckStringAndResource(string, i, true, {}, true, share_resources, threads);
   }
 
   ParkingThread::ParkedJoinAll(local_isolate, threads);
@@ -1790,7 +1789,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
-      ExternalString::kUncachedSize, false);
+      sizeof(UncachedExternalString), false);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
@@ -1918,7 +1917,7 @@ void TestConcurrentExternalizationAndInternalization(
 
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings - kLOStrings, kLOStrings,
-      ExternalString::kUncachedSize, hit_or_miss == kTestHit);
+      sizeof(UncachedExternalString), hit_or_miss == kTestHit);
 
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);

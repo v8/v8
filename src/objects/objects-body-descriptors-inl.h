@@ -903,20 +903,17 @@ class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<ExternalString> string = ExternalString::unchecked_cast(obj);
-    v->VisitExternalPointer(
-        obj, string->RawExternalPointerField(kResourceOffset,
-                                             kExternalStringResourceTag));
+    v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_));
     if (string->is_uncached()) return;
-    v->VisitExternalPointer(
-        obj, string->RawExternalPointerField(kResourceDataOffset,
-                                             kExternalStringResourceDataTag));
+    v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_data_));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     InstanceType type = map->instance_type();
     const auto is_uncached =
         (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
-    return is_uncached ? kUncachedSize : kSizeOfAllExternalStrings;
+    return is_uncached ? sizeof(UncachedExternalString)
+                       : sizeof(ExternalString);
   }
 };
 
@@ -1113,11 +1110,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       case kSlicedStringTag:
         return CALL_APPLY(SlicedString);
       case kExternalStringTag:
-        if ((type & kStringEncodingMask) == kOneByteStringTag) {
-          return CALL_APPLY(ExternalOneByteString);
-        } else {
-          return CALL_APPLY(ExternalTwoByteString);
-        }
+        return CALL_APPLY(ExternalString);
     }
     UNREACHABLE();
   }

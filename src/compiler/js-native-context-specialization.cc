@@ -410,11 +410,10 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
     created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), GetPtrComprCageBase(*left),
-                        access_guard);
-    String::WriteToFlat(
-        *right, flat->GetChars(no_gc, access_guard) + left->length(), 0,
-        right->length(), GetPtrComprCageBase(*right), access_guard);
+                        left->length(), access_guard);
+    String::WriteToFlat(*right,
+                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
+                        right->length(), access_guard);
     return flat;
   } else {
     // One (or both) of {left} and {right} is 2-byte ==> the result will be
@@ -428,11 +427,10 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
     created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
-                        left->length(), GetPtrComprCageBase(*left),
-                        access_guard);
-    String::WriteToFlat(
-        *right, flat->GetChars(no_gc, access_guard) + left->length(), 0,
-        right->length(), GetPtrComprCageBase(*right), access_guard);
+                        left->length(), access_guard);
+    String::WriteToFlat(*right,
+                        flat->GetChars(no_gc, access_guard) + left->length(), 0,
+                        right->length(), access_guard);
     return flat;
   }
 }

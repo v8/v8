@@ -1307,7 +1307,8 @@ class MachineLoweringReducer : public Next {
                       StaticReadOnlyRoot::kNullValue);
         static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
                       StaticReadOnlyRoot::kempty_string);
-        static_assert(StaticReadOnlyRoot::kempty_string + String::kHeaderSize ==
+        static_assert(StaticReadOnlyRoot::kempty_string +
+                          SeqOneByteString::SizeFor(0) ==
                       StaticReadOnlyRoot::kFalseValue);
         static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
                       StaticReadOnlyRoot::kTrueValue);
@@ -1503,7 +1504,7 @@ class MachineLoweringReducer : public Next {
     // Allocate the resulting ConsString.
     BIND(allocate_string, map);
     auto string = __ template Allocate<String>(
-        __ IntPtrConstant(ConsString::kSize), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung);
     __ InitializeField(string, AccessBuilder::ForMap(), map);
     __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                        __ Word32Constant(Name::kEmptyHashField));

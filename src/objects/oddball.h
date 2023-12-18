@@ -16,8 +16,6 @@ namespace internal {
 // The Oddball describes objects null, undefined, true, and false.
 V8_OBJECT class Oddball : public PrimitiveHeapObjectLayout {
  public:
-  inline Oddball();
-
   // [to_number_raw]: Cached raw to_number computed at startup.
   DECL_PRIMITIVE_ACCESSORS(to_number_raw, double)
   inline void set_to_number_raw_as_bits(uint64_t bits);

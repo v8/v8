@@ -28,19 +28,72 @@ class WritableFreeSpace;
 
 V8_OBJECT class HeapObjectLayout {
  public:
+  HeapObjectLayout() = delete;
+
   // [map]: Contains a map which contains the object's reflective
   // information.
   inline Tagged<Map> map() const;
+  inline Tagged<Map> map(AcquireLoadTag) const;
+
+  inline void set_map(Tagged<Map> value);
+  inline void set_map(Tagged<Map> value, ReleaseStoreTag);
+
+  // This method behaves the same as `set_map` but marks the map transition as
+  // safe for the concurrent marker (object layout doesn't change) during
+  // verification.
+  inline void set_map_safe_transition(Tagged<Map> value, ReleaseStoreTag);
+
+  inline void set_map_safe_transition_no_write_barrier(
+      Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
       Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // The no-write-barrier version.  This is OK if the object is white and in
+  // new space, or if the value is an immortal immutable object, like the maps
+  // of primitive (non-JS) objects like strings, heap numbers etc.
+  inline void set_map_no_write_barrier(Tagged<Map> value,
+                                       RelaxedStoreTag = kRelaxedStore);
+
+  // Access the map word using acquire load and release store.
+  inline void set_map_word_forwarded(Tagged<HeapObject> target_object,
+                                     ReleaseStoreTag);
+
+  // Returns the tagged pointer to this HeapObject.
+  // TODO(leszeks): Consider bottlenecking this through Tagged<>.
+  inline Address ptr() const { return address() + kHeapObjectTag; }
+
+  // Returns the address of this HeapObject.
+  inline Address address() const { return reinterpret_cast<Address>(this); }
+
+  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
+  // way that doesn't require passing Isolate/Heap down huge call chains or to
+  // places where it might not be safe to access it.
+  inline ReadOnlyRoots GetReadOnlyRoots() const;
+  // This is slower, but safe to call during bootstrapping.
+  inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
+
+  // Returns the heap object's size in bytes
+  inline int Size() const;
+
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
+
+  // Return the write barrier mode for this. Callers of this function
+  // must be able to present a reference to an DisallowGarbageCollection
+  // object as a sign that they are not going to use this function
+  // from code that allocates and thus invalidates the returned write
+  // barrier mode.
+  inline WriteBarrierMode GetWriteBarrierMode(
+      const DisallowGarbageCollection& promise);
+
+#ifdef OBJECT_PRINT
+  void PrintHeader(std::ostream& os, const char* id);
+#endif
 
  private:
   friend class HeapObject;

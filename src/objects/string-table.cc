@@ -574,14 +574,12 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
 
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   if (IsConsString(source, isolate)) {
-    DCHECK(!source->IsFlat(isolate));
+    DCHECK(!source->IsFlat());
     buffer.Reset(length);
-    String::WriteToFlat(source, buffer.Data(), 0, length, isolate,
-                        access_guard);
+    String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
     chars = buffer.Data();
   } else {
-    chars = source->GetDirectStringChars<Char>(isolate, no_gc, access_guard) +
-            start;
+    chars = source->GetDirectStringChars<Char>(no_gc, access_guard) + start;
   }
 
   if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {

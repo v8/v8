@@ -87,7 +87,7 @@ Tagged<Name> TransitionsAccessor::GetKey(int transition_number) {
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
-      return Name();
+      return Tagged<Name>();
     case kWeakRef: {
       Tagged<Map> map = Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
       return GetSimpleTransitionKey(map);

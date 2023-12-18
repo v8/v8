@@ -31,6 +31,8 @@ class TaggedMember : public TaggedMemberBase {
   inline void store(HeapObjectLayout* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  inline Tagged<T> Relaxed_Load() const;
+
  private:
   inline void store_no_write_barrier(Tagged<T> value);
   inline void Relaxed_Store_no_write_barrier(Tagged<T> value);

@@ -541,7 +541,7 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
           // Overwriting {string} with a filler, so that we don't leave around a
           // potentially-too-small SlicedString.
           isolate()->heap()->CreateFillerObjectAt(string.address(),
-                                                  SlicedString::kSize);
+                                                  sizeof(SlicedString));
 
           return backing_store;
         }

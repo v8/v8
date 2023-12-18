@@ -32,6 +32,8 @@ enum InstanceType : uint16_t;
   V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
+  V(SeqOneByteString)                \
+  V(SeqTwoByteString)                \
   IF_WASM(V, WasmNull)
 
 #define POINTER_VISITOR_ID_LIST(V)      \
@@ -39,20 +41,23 @@ enum InstanceType : uint16_t;
   V(AllocationSite)                     \
   V(BytecodeArray)                      \
   V(BytecodeWrapper)                    \
-  V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
-  V(Cell)                               \
-  V(InstructionStream)                  \
   V(CallSiteInfo)                       \
+  V(Cell)                               \
   V(Code)                               \
   V(CodeWrapper)                        \
+  V(ConsString)                         \
   V(DataHandler)                        \
   V(DebugInfo)                          \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
+  V(ExternalPointerArray)               \
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FreeSpace)                          \
+  V(Hole)                               \
+  V(InstructionStream)                  \
+  V(InterpreterData)                    \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
@@ -63,21 +68,20 @@ enum InstanceType : uint16_t;
   V(JSObjectFast)                       \
   V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
-  V(JSWeakRef)                          \
   V(JSWeakCollection)                   \
+  V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
-  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
-  V(InterpreterData)                    \
   V(SharedFunctionInfo)                 \
-  V(SloppyArgumentsElements)            \
   V(ShortcutCandidate)                  \
+  V(SlicedString)                       \
+  V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \
@@ -86,6 +90,7 @@ enum InstanceType : uint16_t;
   V(SwissNameDictionary)                \
   V(Symbol)                             \
   V(SyntheticModule)                    \
+  V(ThinString)                         \
   V(TransitionArray)                    \
   IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmArray)                 \

@@ -1058,10 +1058,12 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
   // corresponding char for each set flag.
 
   {
-    const TNode<String> string = AllocateSeqOneByteString(var_length.value());
+    const TNode<SeqOneByteString> string =
+        CAST(AllocateSeqOneByteString(var_length.value()));
 
     TVARIABLE(IntPtrT, var_offset,
-              IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+              IntPtrSub(FieldSliceSeqOneByteStringChars(string).offset,
+                        IntPtrConstant(1)));
 
 #define CASE_FOR_FLAG(Lower, Camel, LowerCamel, Char, ...)              \
   do {                                                                  \

@@ -12,6 +12,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -7044,7 +7045,8 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
     LoadObjectField(value, string_reg.gp(), no_reg,
-                    wasm::ObjectAccess::ToTagged(String::kLengthOffset),
+                    wasm::ObjectAccess::ToTagged(
+                        compiler::AccessBuilder::ForStringLength().offset),
                     ValueKind::kI32, false /* is_signed */, pinned);
     __ PushRegister(kI32, value);
   }

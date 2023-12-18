@@ -121,7 +121,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
-      __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
+      __ movw(FieldOperand(result_string, offsetof(SeqTwoByteString, chars_)),
               Immediate(char_code & 0xFFFF));
     }
   } else {

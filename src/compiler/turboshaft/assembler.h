@@ -464,7 +464,7 @@ class TurboshaftAssemblerOpInterface;
 
 template <typename T>
 class Uninitialized {
-  static_assert(std::is_base_of_v<HeapObject, T>);
+  static_assert(is_subtype_v<T, HeapObject>);
 
  public:
   explicit Uninitialized(V<T> object) : object_(object) {}
@@ -2223,7 +2223,7 @@ class TurboshaftAssemblerOpInterface
 
   template <typename T = HeapObject>
   Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
-    static_assert(std::is_base_of_v<HeapObject, T>);
+    static_assert(is_subtype_v<T, HeapObject>);
     DCHECK(!in_object_initialization_);
     in_object_initialization_ = true;
     return Uninitialized<T>{ReduceIfReachableAllocate(resolve(size), type)};

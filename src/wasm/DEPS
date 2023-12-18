@@ -28,5 +28,10 @@ specific_include_rules = {
   "wasm-engine\.h": [
     # The WasmEngine may cache common call descriptors.
     "+src/compiler/wasm-call-descriptors.h",
-  ]
+  ],
+  "liftoff-compiler.cc": [
+    "-src/compiler",
+    "+src/compiler/wasm-compiler.h",
+    "+src/compiler/access-builder.h",
+  ],
 }

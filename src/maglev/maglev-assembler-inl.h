@@ -864,7 +864,7 @@ inline void MaglevAssembler::StringLength(Register result, Register string) {
                              LAST_STRING_TYPE);
     Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
   }
-  LoadSignedField(result, FieldMemOperand(string, String::kLengthOffset),
+  LoadSignedField(result, FieldMemOperand(string, offsetof(String, length_)),
                   sizeof(int32_t));
 }
 

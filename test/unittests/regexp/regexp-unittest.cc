@@ -1720,7 +1720,7 @@ TEST_F(RegExpTestWithContext, UseCountRegExp) {
   CHECK(resultToStringError->IsObject());
 }
 
-class UncachedExternalString
+class UncachedExternalStringResource
     : public v8::String::ExternalOneByteStringResource {
  public:
   const char* data() const override { return "abcdefghijklmnopqrstuvwxyz"; }
@@ -1731,7 +1731,8 @@ class UncachedExternalString
 TEST_F(RegExpTestWithContext, UncachedExternalString) {
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> external =
-      v8::String::NewExternalOneByte(isolate(), new UncachedExternalString())
+      v8::String::NewExternalOneByte(isolate(),
+                                     new UncachedExternalStringResource())
           .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*external)->map() ==
         ReadOnlyRoots(i_isolate()).uncached_external_one_byte_string_map());
