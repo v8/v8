@@ -1244,6 +1244,12 @@ static void DebugPrintImpl(MaybeObject maybe_object, std::ostream& os) {
 RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
 
+  if (args.length() == 0) {
+    // This runtime method has variable number of arguments, but if there is no
+    // argument, undefined behavior may happen.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   // This is exposed to tests / fuzzers; handle variable arguments gracefully.
   std::unique_ptr<std::ostream> output_stream(new StdoutStream());
   if (args.length() >= 2) {
