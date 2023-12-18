@@ -102,16 +102,15 @@ MachineType assert_size(int expected_size, MachineType type) {
 
 // Use MachineType::Pointer() over Tagged() to load root pointers because they
 // do not get compressed.
-#define LOAD_ROOT(RootName, factory_name)                    \
-  (parameter_mode_ == kNoSpecialParameterMode                \
-       ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
-             isolate_->factory()->factory_name()))           \
-       : gasm_->LoadImmutable(                               \
-             MachineType::Pointer(), BuildLoadIsolateRoot(), \
-             IsolateData::root_slot_offset(RootIndex::k##RootName)))
+#define LOAD_ROOT(RootName, factory_name)                         \
+  (isolate_ ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
+                  isolate_->factory()->factory_name()))           \
+            : gasm_->LoadImmutable(                               \
+                  MachineType::Pointer(), BuildLoadIsolateRoot(), \
+                  IsolateData::root_slot_offset(RootIndex::k##RootName)))
 
 #define LOAD_MUTABLE_ROOT(RootName, factory_name)                    \
-  (parameter_mode_ == kNoSpecialParameterMode                        \
+  (isolate_                                                          \
        ? graph()->NewNode(mcgraph()->common()->HeapConstant(         \
              isolate_->factory()->factory_name()))                   \
        : gasm_->Load(MachineType::Pointer(), BuildLoadIsolateRoot(), \
@@ -153,7 +152,12 @@ WasmGraphBuilder::WasmGraphBuilder(
                                    V8_STATIC_ROOTS_BOOL
                                ? NullCheckStrategy::kTrapHandler
                                : NullCheckStrategy::kExplicit) {
-  DCHECK_EQ(isolate != nullptr, parameter_mode_ == kJSFunctionAbiMode);
+  // There are two kinds of isolate-specific code: JS-to-JS wrappers (passing
+  // kNoSpecialParameterMode) and JS-to-Wasm wrappers (passing
+  // kJSFunctionAbiMode).
+  DCHECK_IMPLIES(isolate != nullptr,
+                 parameter_mode_ == kJSFunctionAbiMode ||
+                     parameter_mode_ == kNoSpecialParameterMode);
   DCHECK_IMPLIES(env && env->module &&
                      std::any_of(env->module->memories.begin(),
                                  env->module->memories.end(),
@@ -416,15 +420,8 @@ Node* WasmGraphBuilder::NoContextConstant() {
 Node* WasmGraphBuilder::GetInstance() { return instance_node_.get(); }
 
 Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
-  switch (parameter_mode_) {
-    case kInstanceParameterMode:
-    case kJSFunctionAbiMode:
-    case kWasmApiFunctionRefMode:
-      return gasm_->LoadRootRegister();
-    case kNoSpecialParameterMode:
-      // In C-entry stubs the root register is not available yet.
-      return mcgraph()->IntPtrConstant(isolate_->isolate_root());
-  }
+  return isolate_ ? mcgraph()->IntPtrConstant(isolate_->isolate_root())
+                  : gasm_->LoadRootRegister();
 }
 
 Node* WasmGraphBuilder::TraceInstruction(uint32_t mark_id) {
@@ -8972,10 +8969,11 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
-                                  WasmGraphBuilder::kJSFunctionAbiMode, isolate,
-                                  nullptr, StubCallMode::kCallBuiltinPointer,
-                                  wasm::WasmFeatures::FromIsolate(isolate));
+  WasmWrapperGraphBuilder builder(
+      zone.get(), mcgraph, sig, module,
+      WasmGraphBuilder::kNoSpecialParameterMode, nullptr /* isolate */,
+      nullptr /* source position table */, StubCallMode::kCallBuiltinPointer,
+      wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildJSToJSWrapper();
 
   int wasm_count = static_cast<int>(sig->parameter_count());

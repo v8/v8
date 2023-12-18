@@ -166,18 +166,19 @@ struct WasmCompilationData {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
-  // The instance can be passed to Wasm in multiple ways:
-  // - For normal wasm functions, it is passed as an implicit first parameter.
-  // - For Wasm-to-JS and C-API wrappers, a {WasmApiFunctionRef} object is
-  //   passed as first parameter.
-  // - For JS-to-Wasm and JS-to-JS wrappers (which are JS functions), we load
-  //   the Wasm instance from the JS function data. The generated code objects
-  //   live on the JS heap, so those compilation pass an isolate.
-  // - The C-entry stub uses a custom ABI (see {CWasmEntryParameters}).
+  // ParameterMode specifies how the instance is passed.
   enum ParameterMode {
+    // Normal wasm functions pass the instance as an implicit first parameter.
     kInstanceParameterMode,
+    // For Wasm-to-JS and C-API wrappers, a {WasmApiFunctionRef} object is
+    // passed as first parameter.
     kWasmApiFunctionRefMode,
+    // For JS-to-Wasm wrappers (which are JS functions), we load the Wasm
+    // instance from the JS function data. The generated code objects live on
+    // the JS heap, so those compilation pass an isolate.
     kJSFunctionAbiMode,
+    // The JS-to-JS wrapper does not have an associated instance.
+    // The C-entry stub uses a custom ABI (see {CWasmEntryParameters}).
     kNoSpecialParameterMode
   };
 
