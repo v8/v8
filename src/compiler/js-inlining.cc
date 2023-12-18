@@ -761,6 +761,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   int inlining_id =
       info_->AddInlinedFunction(shared_info->object(), bytecode_array.object(),
                                 source_positions_->GetSourcePosition(node));
+  if (v8_flags.profile_guided_optimization &&
+      FeedbackVector::cast(feedback_cell.object()->value())
+              ->invocation_count_before_stable() >
+          v8_flags.invocation_count_for_early_optimization) {
+    shared_info->object()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
 
   // Create the subgraph for the inlinee.
   Node* start_node;

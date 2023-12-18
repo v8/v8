@@ -338,6 +338,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
+  if (v8_flags.profile_guided_optimization) {
+    function->shared()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();

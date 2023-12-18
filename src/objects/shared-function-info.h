@@ -538,6 +538,9 @@ class SharedFunctionInfo
 
   DECL_BOOLEAN_ACCESSORS(sparkplug_compiled)
 
+  CachedTieringDecision cached_tiering_decision();
+  void set_cached_tiering_decision(CachedTieringDecision decision);
+
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 

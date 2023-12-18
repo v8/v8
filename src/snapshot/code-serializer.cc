@@ -155,6 +155,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     return;
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     Handle<DebugInfo> debug_info;
+    CachedTieringDecision cached_tiering_decision;
     bool restore_bytecode = false;
     {
       DisallowGarbageCollection no_gc;
@@ -175,13 +176,20 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
               debug_info->OriginalBytecodeArray(isolate()), isolate());
         }
       }
+      if (v8_flags.profile_guided_optimization) {
+        cached_tiering_decision = sfi->cached_tiering_decision();
+        sfi->set_cached_tiering_decision(CachedTieringDecision::kPending);
+      }
     }
     SerializeGeneric(obj, slot_type);
+    DisallowGarbageCollection no_gc;
+    Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
     if (restore_bytecode) {
-      DisallowGarbageCollection no_gc;
-      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(*obj);
       sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
                                   isolate());
+    }
+    if (v8_flags.profile_guided_optimization) {
+      sfi->set_cached_tiering_decision(cached_tiering_decision);
     }
     return;
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(

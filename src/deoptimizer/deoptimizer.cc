@@ -431,6 +431,10 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  if (v8_flags.profile_guided_optimization) {
+    function->shared()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
   function->ResetIfCodeFlushed(isolate);
   if (code.is_null()) code = function->code(isolate);
 

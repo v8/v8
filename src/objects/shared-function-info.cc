@@ -773,6 +773,15 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
                            lit->start_position());
 }
 
+CachedTieringDecision SharedFunctionInfo::cached_tiering_decision() {
+  return CachedTieringDecisionBits::decode(flags2());
+}
+
+void SharedFunctionInfo::set_cached_tiering_decision(
+    CachedTieringDecision decision) {
+  set_flags2(CachedTieringDecisionBits::update(flags2(), decision));
+}
+
 // static
 void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,

@@ -115,6 +115,9 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
+UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
+                kInvocationCountBeforeStableOffset)
+
 int FeedbackVector::osr_urgency() const {
   return OsrUrgencyBits::decode(osr_state());
 }
@@ -208,6 +211,14 @@ bool FeedbackVector::log_next_execution() const {
 
 void FeedbackVector::set_log_next_execution(bool value) {
   set_flags(LogNextExecutionBit::update(flags(), value));
+}
+
+bool FeedbackVector::interrupt_budget_reset_by_ic_change() const {
+  return InterruptBudgetResetByIcChangeBit::decode(flags());
+}
+
+void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
+  set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
 }
 
 base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(

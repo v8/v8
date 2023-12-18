@@ -450,7 +450,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
       HeapObjectReference::ClearedValue(isolate()));
   vector->set_length(length);
   vector->set_invocation_count(0);
-  vector->set_placeholder0(0);
+  vector->set_invocation_count_before_stable(0);
   vector->reset_osr_state();
   vector->reset_flags();
   vector->set_log_next_execution(v8_flags.log_function_events);

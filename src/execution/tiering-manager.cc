@@ -165,6 +165,13 @@ bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
           !function->shared()->sparkplug_compiled());
 }
 
+bool TieringOrTieredUpToOptimizedTier(Tagged<FeedbackVector> vector) {
+  return !IsNone(vector->tiering_state()) || vector->maybe_has_maglev_code() ||
+         vector->maybe_has_maglev_osr_code() ||
+         vector->maybe_has_turbofan_code() ||
+         vector->maybe_has_turbofan_osr_code();
+}
+
 bool TiersUpToMaglev(CodeKind code_kind) {
   // TODO(v8:7700): Flip the UNLIKELY when appropriate.
   return V8_UNLIKELY(maglev::IsMaglevEnabled()) &&
@@ -176,7 +183,9 @@ bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
 }
 
 int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
-                       TieringState tiering_state, int bytecode_length) {
+                       TieringState tiering_state,
+                       CachedTieringDecision cached_tiering_decision,
+                       int bytecode_length) {
   if (IsRequestTurbofan(tiering_state) ||
       (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN)) {
     return v8_flags.invocation_count_for_osr * bytecode_length;
@@ -187,9 +196,15 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
   if (maglev::IsMaglevOsrEnabled() && IsRequestMaglev(tiering_state)) {
     return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
   }
-  return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
-             ? v8_flags.invocation_count_for_maglev * bytecode_length
-             : v8_flags.invocation_count_for_turbofan * bytecode_length;
+  if (TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone) {
+    if (v8_flags.profile_guided_optimization &&
+        (cached_tiering_decision == CachedTieringDecision::kEarlyMaglev ||
+         cached_tiering_decision == CachedTieringDecision::kEarlyTurbofan)) {
+      return v8_flags.invocation_count_for_early_optimization * bytecode_length;
+    }
+    return v8_flags.invocation_count_for_maglev * bytecode_length;
+  }
+  return v8_flags.invocation_count_for_turbofan * bytecode_length;
 }
 
 }  // namespace
@@ -213,10 +228,11 @@ int TieringManager::InterruptBudgetFor(
     // operation for forward jump.
     return INT_MAX / 2;
   }
-  return ::i::InterruptBudgetFor(override_active_tier
-                                     ? override_active_tier
-                                     : function->GetActiveTier(isolate),
-                                 function->tiering_state(), bytecode_length);
+  return ::i::InterruptBudgetFor(
+      override_active_tier ? override_active_tier
+                           : function->GetActiveTier(isolate),
+      function->tiering_state(), function->shared()->cached_tiering_decision(),
+      bytecode_length);
 }
 
 namespace {
@@ -351,6 +367,11 @@ OptimizationDecision TieringManager::ShouldOptimize(
   if (TiersUpToMaglev(current_code_kind) &&
       shared->PassesFilter(v8_flags.maglev_filter) &&
       !shared->maglev_compilation_failed()) {
+    if (v8_flags.profile_guided_optimization &&
+        shared->cached_tiering_decision() ==
+            CachedTieringDecision::kEarlyTurbofan) {
+      return OptimizationDecision::TurbofanHotAndStable();
+    }
     return OptimizationDecision::Maglev();
   }
 
@@ -392,12 +413,53 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     int bytecodes = std::min(bytecode_length, (kMaxInt >> 1) / invocations);
     int new_budget = invocations * bytecodes;
     int current_budget = cell->interrupt_budget();
-    if (new_budget > current_budget) {
-      if (v8_flags.trace_opt_verbose) {
-        PrintF("[delaying optimization of %s, IC changed]\n",
-               shared->DebugNameCStr().get());
+    if (v8_flags.profile_guided_optimization &&
+        shared->cached_tiering_decision() == CachedTieringDecision::kPending) {
+      if (TieringOrTieredUpToOptimizedTier(vector)) {
+        shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
+      } else {
+        // Record how many invocation count were consumed before the last IC
+        // change.
+        int new_invocation_count_before_stable;
+        if (vector->interrupt_budget_reset_by_ic_change()) {
+          // Initial interrupt budget is
+          // v8_flags.minimum_invocations_after_ic_update * bytecodes
+          int new_consumed_budget = new_budget - current_budget;
+          new_invocation_count_before_stable =
+              vector->invocation_count_before_stable() +
+              std::ceil(static_cast<float>(new_consumed_budget) / bytecodes);
+        } else {
+          // Initial interrupt budget is
+          // v8_flags.invocation_count_for_{maglev|turbofan} * bytecodes
+          int total_consumed_budget =
+              (maglev::IsMaglevEnabled()
+                   ? v8_flags.invocation_count_for_maglev
+                   : v8_flags.invocation_count_for_turbofan) *
+                  bytecodes -
+              current_budget;
+          new_invocation_count_before_stable =
+              std::ceil(static_cast<float>(total_consumed_budget) / bytecodes);
+        }
+        if (new_invocation_count_before_stable >
+            v8_flags.invocation_count_for_early_optimization) {
+          shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
+        } else {
+          vector->set_invocation_count_before_stable(
+              new_invocation_count_before_stable);
+        }
       }
-      cell->set_interrupt_budget(new_budget);
+    }
+    if (!v8_flags.profile_guided_optimization ||
+        shared->cached_tiering_decision() == CachedTieringDecision::kPending ||
+        shared->cached_tiering_decision() == CachedTieringDecision::kNormal) {
+      if (new_budget > current_budget) {
+        if (v8_flags.trace_opt_verbose) {
+          PrintF("[delaying optimization of %s, IC changed]\n",
+                 shared->DebugNameCStr().get());
+        }
+        vector->set_interrupt_budget_reset_by_ic_change(true);
+        cell->set_interrupt_budget(new_budget);
+      }
     }
   }
 }

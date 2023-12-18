@@ -249,6 +249,9 @@ class FeedbackVector
   using TorqueGeneratedFeedbackVector::set_invocation_count;
   DECL_RELAXED_INT32_ACCESSORS(invocation_count)
   inline void clear_invocation_count(RelaxedStoreTag tag);
+  using TorqueGeneratedFeedbackVector::invocation_count_before_stable;
+  using TorqueGeneratedFeedbackVector::set_invocation_count_before_stable;
+  DECL_UINT8_ACCESSORS(invocation_count_before_stable)
 
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the
@@ -304,6 +307,9 @@ class FeedbackVector
 
   TieringState osr_tiering_state();
   void set_osr_tiering_state(TieringState marker);
+
+  inline bool interrupt_budget_reset_by_ic_change() const;
+  inline void set_interrupt_budget_reset_by_ic_change(bool value);
 
   void reset_flags();
 

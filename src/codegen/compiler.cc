@@ -537,8 +537,8 @@ CompilationJob::Status TurbofanCompilationJob::AbortOptimization(
 void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
                                                     Isolate* isolate) const {
   DCHECK(compilation_info()->IsOptimizing());
+  Handle<SharedFunctionInfo> shared = compilation_info()->shared_info();
   if (v8_flags.trace_opt || v8_flags.trace_opt_stats) {
-    Handle<JSFunction> function = compilation_info()->closure();
     double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
     double ms_optimize = time_taken_to_execute_.InMillisecondsF();
     double ms_codegen = time_taken_to_finalize_.InMillisecondsF();
@@ -553,7 +553,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
 
       compilation_time += (ms_creategraph + ms_optimize + ms_codegen);
       compiled_functions++;
-      code_size += function->shared()->SourceSize();
+      code_size += shared->SourceSize();
       PrintF(
           "[turbofan] Compiled: %d functions with %d byte source size in "
           "%fms.\n",
@@ -610,6 +610,12 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
       static_cast<int>(time_background.InMicroseconds()));
   counters->turbofan_optimize_total_foreground()->AddSample(
       static_cast<int>(time_foreground.InMicroseconds()));
+
+  if (v8_flags.profile_guided_optimization &&
+      shared->cached_tiering_decision() ==
+          CachedTieringDecision::kEarlyMaglev) {
+    shared->set_cached_tiering_decision(CachedTieringDecision::kEarlyTurbofan);
+  }
 }
 
 void TurbofanCompilationJob::RecordFunctionCompilation(
@@ -4144,6 +4150,10 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     RecordMaglevFunctionCompilation(isolate, function,
                                     Handle<AbstractCode>::cast(code));
     job->RecordCompilationStats(isolate);
+    if (v8_flags.profile_guided_optimization &&
+        shared->cached_tiering_decision() == CachedTieringDecision::kPending) {
+      shared->set_cached_tiering_decision(CachedTieringDecision::kEarlyMaglev);
+    }
     CompilerTracer::TraceFinishMaglevCompile(
         isolate, function, job->is_osr(), job->prepare_in_ms(),
         job->execute_in_ms(), job->finalize_in_ms());
