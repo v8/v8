@@ -272,6 +272,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!IsJSGlobalObject(*params.receiver));
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
+  DCHECK(!isolate->has_exception());
 
 #if V8_ENABLE_WEBASSEMBLY
   // If we have PKU support for Wasm, ensure that code is currently write
