@@ -455,21 +455,27 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   }
 
   if (info->si_code == SEGV_ACCERR) {
-    // This indicates an access to a (valid) mapping but with insufficient
-    // permissions (e.g. accessing a region mapped with PROT_NONE). Some
-    // mechanisms (e.g. the lookup of external pointers in an
-    // ExternalPointerTable) omit bounds checks and instead guarantee that any
-    // out-of-bounds access will land in a PROT_NONE mapping. Memory accesses
-    // that _always_ cause such a permission violation are not exploitable and
-    // so these crashes are filtered out here. However, testcases need to be
-    // written with this in mind and must access other memory ranges.
+    // This indicates an access to a valid mapping but with insufficient
+    // permissions, for example accessing a region mapped with PROT_NONE, or
+    // writing to a read-only mapping.
+    //
+    // The sandbox relies on such accesses crashing in a safe way in some
+    // cases. For example, the accesses into the various pointer tables are not
+    // bounds checked, but instead it is guaranteed that an out-of-bounds
+    // access will hit a PROT_NONE mapping. Similarly, harmless stack overflows
+    // (e.g. due to unlimited recursion) will run into a guard page, and so
+    // also crash with a SEGV_ACCERR.
+    //
+    // Memory accesses that _always_ cause such a permission violation are not
+    // exploitable and the crashes are therefore filtered out here. However,
+    // testcases need to be written with this behavior in mind and should
+    // typically try to access non-existing memory to demonstrate the ability
+    // to escape from the sandbox.
     PrintToStderr(
         "Caught harmless memory access violaton (memory permission violation). "
         "Exiting process...\n");
     _exit(0);
   }
-
-  // TODO(saelo) also try to detect harmless stack overflows here if possible.
 
   // Otherwise it's a sandbox violation, so restore the original signal
   // handlers, then return from this handler. The faulting instruction will be
