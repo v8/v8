@@ -304,7 +304,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '562a4372d17622e613cfe977e1f12286a8b92bda',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'beb2b5845948783b5eb68fa409189784b4d946e0',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dbe34d7b760dc429ddc938fa19b92c2b330a72ec',
   'tools/luci-go': {
