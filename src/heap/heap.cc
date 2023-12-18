@@ -5957,7 +5957,7 @@ void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
     return;
   }
 
-  CHECK(!incremental_marking()->IsMarking());
+  CHECK_IMPLIES(incremental_marking(), !incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
 }
