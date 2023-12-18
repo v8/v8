@@ -1723,8 +1723,6 @@
 ##############################################################################
 ['variant == experimental_regexp', {
   'regress/regress-779407': [SKIP],
-  # TODO(v8:12956): Support modifiers in experimental engine
-  'harmony/regexp-modifiers': [SKIP],
 }],  # variant == experimental_regexp
 
 ################################################################################

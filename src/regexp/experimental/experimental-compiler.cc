@@ -25,13 +25,13 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  public:
   static bool Check(RegExpTree* tree, RegExpFlags flags, int capture_count) {
     if (!AreSuitableFlags(flags)) return false;
-    CanBeHandledVisitor visitor;
+    CanBeHandledVisitor visitor{flags};
     tree->Accept(&visitor, nullptr);
     return visitor.result_;
   }
 
  private:
-  CanBeHandledVisitor() = default;
+  explicit CanBeHandledVisitor(RegExpFlags flags) : flags_(flags) {}
 
   static bool AreSuitableFlags(RegExpFlags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
@@ -160,6 +160,19 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitGroup(RegExpGroup* node, void*) override {
+    if (flags() != node->flags()) {
+      // Flags that aren't supported by the experimental engine at all, are not
+      // supported via modifiers either.
+      // TODO(pthier): Currently the only flag supported in modifiers and in
+      // the experimental engine is multi-line, which is already handled in the
+      // parser. If more flags are supported either by the experimental engine
+      // or in modifiers we need to add general support for modifiers to the
+      // experimental engine.
+      if (!AreSuitableFlags(node->flags())) {
+        result_ = false;
+        return nullptr;
+      }
+    }
     node->body()->Accept(this, nullptr);
     return nullptr;
   }
@@ -180,10 +193,12 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   void* VisitEmpty(RegExpEmpty* node, void*) override { return nullptr; }
 
  private:
+  RegExpFlags flags() const { return flags_; }
+
   // See comment in `VisitQuantifier`:
   int replication_factor_ = 1;
-
   bool result_ = true;
+  RegExpFlags flags_;
 };
 
 }  // namespace

@@ -232,7 +232,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   bool has_been_compiled = false;
 
   if (v8_flags.default_to_experimental_regexp_engine &&
-      ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
+      ExperimentalRegExp::CanBeHandled(parse_result.tree, pattern, flags,
                                        parse_result.capture_count)) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
@@ -240,7 +240,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     has_been_compiled = true;
   } else if (flags & JSRegExp::kLinear) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
-    if (!ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
+    if (!ExperimentalRegExp::CanBeHandled(parse_result.tree, pattern, flags,
                                           parse_result.capture_count)) {
       // TODO(mbid): The error could provide a reason for why the regexp can't
       // be executed in linear time (e.g. due to back references).
@@ -975,7 +975,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
   if (v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks &&
-      ExperimentalRegExp::CanBeHandled(data->tree, flags,
+      ExperimentalRegExp::CanBeHandled(data->tree, pattern, flags,
                                        data->capture_count)) {
     if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
       backtrack_limit = v8_flags.regexp_backtracks_before_fallback;

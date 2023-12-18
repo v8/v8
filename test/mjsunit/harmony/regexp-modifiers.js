@@ -44,7 +44,7 @@ test(
     /Foo(?i:B[\q{ĀĂĄ|AaA}--\q{āăą}])r/v, ['FooBaaar', 'FoobAAAr'],
     ['FooBĀĂĄr', 'FooBaaaR']);
 
-test(/(?m:^foo$)/, ['foo', '\nfoo', 'foo\n', '\nfoo\n']);
+test(/(?m:^foo$)/, ['foo', '\nfoo', 'foo\n', '\nfoo\n'], ['xfoo', 'foox']);
 
 test(
     /(?s:^.$)/, ['a', 'A', '0', '\n', '\r', '\u2028', '\u2029', 'π'],
