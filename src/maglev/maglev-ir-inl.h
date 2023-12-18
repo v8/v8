@@ -164,6 +164,7 @@ inline void DefineAsFixed(Node* node, Register reg) {
                                 reg.code(), kNoVreg);
 }
 
+// TODO(v8:7700): Create generic DefineSameAs(..., int input).
 inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }
