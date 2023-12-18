@@ -2482,7 +2482,7 @@ void Simulator::set_fpu_register_float(int fpureg, Float32 value) {
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  FPUregisters_[fpureg] = base::bit_cast<double>(value);
+  FPUregisters_[fpureg] = base::bit_cast<int64_t>(value);
 }
 
 void Simulator::set_fpu_register_double(int fpureg, Float64 value) {
@@ -2537,7 +2537,7 @@ float Simulator::get_fpu_register_float(int fpureg) const {
   if (!is_boxed_float(FPUregisters_[fpureg])) {
     return std::numeric_limits<float>::quiet_NaN();
   }
-  return base::bit_cast<float>(FPUregisters_[fpureg]);
+  return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF).get_scalar();
 }
 
 // Fix NaN boxing error according to
@@ -2549,7 +2549,7 @@ Float32 Simulator::get_fpu_register_Float32(int fpureg,
     std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
     return Float32::FromBits(0x7fc00000);
   }
-  return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF));
+  return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF);
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {

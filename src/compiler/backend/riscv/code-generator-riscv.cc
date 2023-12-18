@@ -875,6 +875,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchSetStackPointer: {
       DCHECK(instr->InputAt(0)->IsRegister());
       __ Move(sp, i.InputRegister(0));
+      auto fp_scope = static_cast<wasm::FPRelativeScope>(
+          MiscField::decode(instr->opcode()));
+      if (fp_scope == wasm::kEnterFPRelativeOnlyScope) {
+        DCHECK(frame_access_state()->has_frame());
+        frame_access_state()->SetFrameAccessToFP();
+      } else {
+        frame_access_state()->SetFrameAccessToDefault();
+      }
+      frame_access_state()->SetFPRelativeOnly(fp_scope ==
+                                              wasm::kEnterFPRelativeOnlyScope);
       break;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

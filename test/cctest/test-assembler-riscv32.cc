@@ -528,7 +528,8 @@ TEST(RISCV_UTEST_fmv_d_double) {
     __ fmv_d(fa0, ft0);
     __ fsd(fa0, a1, 0);
   };
-  GenAndRunTest<int32_t, double*>(&src, &dst, fn);
+  GenAndRunTest<int32_t, int32_t>(reinterpret_cast<int32_t>(&src),
+                                  reinterpret_cast<int32_t>(&dst), fn);
   CHECK_EQ(base::bit_cast<int64_t>(0xC037800000000000),
            base::bit_cast<int64_t>(dst));
 }
@@ -545,7 +546,8 @@ TEST(RISCV_UTEST_fmv_d_double_signaling_NaN) {
     __ fsd(fa0, a1, 0);
   };
 
-  GenAndRunTest<int32_t, int64_t*>(&src, &dst, fn);
+  GenAndRunTest<int32_t, int32_t>(reinterpret_cast<int32_t>(&src),
+                                  reinterpret_cast<int32_t>(&dst), fn);
   CHECK_EQ(base::bit_cast<int64_t>(0x7ff4000000000000),
            base::bit_cast<int64_t>(dst));
 }
@@ -2254,7 +2256,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
     };                                                                         \
     for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {         \
       for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {       \
-        GenAndRunTest<double*, float>(rs1_fval, rs2_fval, fn);                 \
+        GenAndRunTest<int32_t, float>(rs1_fval, rs2_fval, fn);                 \
         for (size_t i = 0; i < n; i++) {                                       \
           CHECK_DOUBLE_EQ(                                                     \
               check_fn(rs1_fval, rs2_fval)                                     \
@@ -2294,7 +2296,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
     };                                                                         \
     for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {         \
       for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {       \
-        GenAndRunTest<double*, float>(rs1_fval, rs2_fval, fn);                 \
+        GenAndRunTest<int32_t, float>(rs1_fval, rs2_fval, fn);                 \
         for (size_t i = 0; i < n; i++) {                                       \
           CHECK_DOUBLE_EQ(                                                     \
               check_fn(rs1_fval, rs2_fval)                                     \
@@ -2568,7 +2570,7 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
           break;                                                       \
         }                                                              \
       }                                                                \
-      GenAndRunTest<double*, float>(rs1_fval, fn);                     \
+      GenAndRunTest<int32_t, float>(rs1_fval, fn);                     \
       CHECK_DOUBLE_EQ(UseCanonicalNan<double>(expect_res), result);    \
     }                                                                  \
   }
