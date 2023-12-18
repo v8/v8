@@ -57,7 +57,7 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, Tagged<HeapObject>, kPrototypeOffset, true,
                    IsNull(value) || IsJSProxy(value) || IsWasmObject(value) ||
                        (IsJSObject(value) &&
-                        (value.InWritableSharedSpace() ||
+                        (InWritableSharedSpace(value) ||
                          value->map()->is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Tagged<Object>) {
@@ -724,7 +724,7 @@ bool Map::CanTransition() const {
   // Shared JS objects have fixed shapes and do not transition. Their maps are
   // either in shared space or RO space.
   DCHECK_IMPLIES(InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type),
-                 InAnySharedSpace());
+                 InAnySharedSpace(*this));
   return InstanceTypeChecker::IsJSObject(type) &&
          !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
 }

@@ -862,9 +862,9 @@ bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,
                                             Tagged<HeapObject> obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
   const auto obj1_marked =
-      obj1.InReadOnlySpace() || marking_state_->IsMarked(obj1);
+      InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
   const auto obj2_marked =
-      obj2.InReadOnlySpace() || marking_state_->IsMarked(obj2);
+      InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
   return obj1_marked == obj2_marked;
 }
 
@@ -1115,7 +1115,7 @@ class ObjectStatsVisitor {
         phase_(phase) {}
 
   void Visit(Tagged<HeapObject> obj) {
-    if (obj.InReadOnlySpace() || marking_state_->IsMarked(obj)) {
+    if (InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {

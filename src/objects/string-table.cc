@@ -435,7 +435,7 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
   if (entry.is_found()) {
     Handle<String> result(String::cast(current_table.GetKey(isolate, entry)),
                           isolate);
-    DCHECK_IMPLIES(v8_flags.shared_string_table, Object::InSharedHeap(*result));
+    DCHECK_IMPLIES(v8_flags.shared_string_table, InAnySharedSpace(*result));
     return result;
   }
 

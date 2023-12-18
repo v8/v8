@@ -570,8 +570,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     // Objects in the shared heap are prohibited from being used as keys in
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
-    DCHECK(!key.InWritableSharedSpace());
-    if (key.InReadOnlySpace() || concrete_visitor()->IsMarked(key)) {
+    DCHECK(!InWritableSharedSpace(key));
+    if (InReadOnlySpace(key) || concrete_visitor()->IsMarked(key)) {
       VisitPointer(table, value_slot);
     } else {
       Tagged<Object> value_obj = table->ValueAt(i);
@@ -605,7 +605,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
   if (IsHeapObject(weak_ref->target())) {
     Tagged<HeapObject> target = HeapObject::cast(weak_ref->target());
     SynchronizePageAccess(target);
-    if (target.InReadOnlySpace() || concrete_visitor()->IsMarked(target)) {
+    if (InReadOnlySpace(target) || concrete_visitor()->IsMarked(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
       ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
@@ -631,8 +631,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
   Tagged<HeapObject> unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
-  if ((target.InReadOnlySpace() || concrete_visitor()->IsMarked(target)) &&
-      (unregister_token.InReadOnlySpace() ||
+  if ((InReadOnlySpace(target) || concrete_visitor()->IsMarked(target)) &&
+      (InReadOnlySpace(unregister_token) ||
        concrete_visitor()->IsMarked(unregister_token))) {
     // Record the slots inside the WeakCell, since the IterateBody above
     // didn't visit it.
@@ -737,7 +737,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // follows this call:
   // - Array in read only space;
   // - StrongDescriptor array;
-  if (descriptors.InReadOnlySpace() || IsStrongDescriptorArray(descriptors)) {
+  if (InReadOnlySpace(descriptors) || IsStrongDescriptorArray(descriptors)) {
     return;
   }
 

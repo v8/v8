@@ -22,7 +22,7 @@ void EvacuationVerifier::VerifyHeapObjectImpl(Tagged<HeapObject> heap_object) {
 }
 
 bool EvacuationVerifier::ShouldVerifyObject(Tagged<HeapObject> heap_object) {
-  const bool in_shared_heap = i::InWritableSharedSpace(heap_object);
+  const bool in_shared_heap = InWritableSharedSpace(heap_object);
   return heap_->isolate()->is_shared_space_isolate() ? in_shared_heap
                                                      : !in_shared_heap;
 }

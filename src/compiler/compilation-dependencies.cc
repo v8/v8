@@ -125,8 +125,7 @@ class PendingDependencies final {
     // to never invalidate assumptions. E.g., maps for shared structs do not
     // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
-    if (i::InWritableSharedSpace(*object) || i::InReadOnlySpace(*object))
-      return;
+    if (InWritableSharedSpace(*object) || InReadOnlySpace(*object)) return;
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 

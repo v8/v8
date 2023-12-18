@@ -78,16 +78,6 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-// static
-bool Object::InSharedHeap(Tagged<Object> obj) {
-  return IsHeapObject(obj) && HeapObject::cast(obj).InAnySharedSpace();
-}
-
-// static
-bool Object::InWritableSharedSpace(Tagged<Object> obj) {
-  return IsHeapObject(obj) && HeapObject::cast(obj).InWritableSharedSpace();
-}
-
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
   return IsHeapObject(obj) &&
          IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject>::cast(obj));
@@ -255,34 +245,9 @@ Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
   } while (true);
 }
 
-bool HeapObject::InAnySharedSpace() const {
-  return Tagged<HeapObject>(*this).InAnySharedSpace();
-}
-
-bool HeapObject::InWritableSharedSpace() const {
-  return Tagged<HeapObject>(*this).InWritableSharedSpace();
-}
-
-bool HeapObject::InReadOnlySpace() const {
-  return Tagged<HeapObject>(*this).InReadOnlySpace();
-}
-
-bool Tagged<HeapObject>::InAnySharedSpace() const {
-  if (IsReadOnlyHeapObject(*this)) return V8_SHARED_RO_HEAP_BOOL;
-  return InWritableSharedSpace();
-}
-
-bool Tagged<HeapObject>::InWritableSharedSpace() const {
-  return BasicMemoryChunk::FromHeapObject(*this)->InWritableSharedSpace();
-}
-
-bool Tagged<HeapObject>::InReadOnlySpace() const {
-  return IsReadOnlyHeapObject(*this);
-}
-
 bool InAnySharedSpace(Tagged<HeapObject> obj) {
   if (IsReadOnlyHeapObject(obj)) return V8_SHARED_RO_HEAP_BOOL;
-  return i::InWritableSharedSpace(obj);
+  return InWritableSharedSpace(obj);
 }
 
 bool InWritableSharedSpace(Tagged<HeapObject> obj) {
@@ -297,7 +262,7 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
-  return IsJSObject(obj) && !obj->InWritableSharedSpace();
+  return IsJSObject(obj) && !InWritableSharedSpace(*obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
@@ -1479,7 +1444,7 @@ bool IsShared(Tagged<Object> obj) {
   // Check if this object is already shared.
   InstanceType instance_type = object->map()->instance_type();
   if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
-    DCHECK(object.InAnySharedSpace());
+    DCHECK(InAnySharedSpace(object));
     return true;
   }
   switch (instance_type) {
@@ -1489,7 +1454,7 @@ bool IsShared(Tagged<Object> obj) {
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      DCHECK(object.InAnySharedSpace());
+      DCHECK(InAnySharedSpace(object));
       return true;
     case INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case INTERNALIZED_ONE_BYTE_STRING_TYPE:
@@ -1498,12 +1463,12 @@ bool IsShared(Tagged<Object> obj) {
     case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
       if (v8_flags.shared_string_table) {
-        DCHECK(object.InAnySharedSpace());
+        DCHECK(InAnySharedSpace(object));
         return true;
       }
       return false;
     case HEAP_NUMBER_TYPE:
-      return object.InWritableSharedSpace();
+      return InWritableSharedSpace(object);
     default:
       return false;
   }

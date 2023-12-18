@@ -304,13 +304,6 @@ bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
 }
 
 // static
-bool Heap::InWritableSharedSpace(MaybeObject object) {
-  Tagged<HeapObject> heap_object;
-  return object.GetHeapObject(&heap_object) &&
-         heap_object.InWritableSharedSpace();
-}
-
-// static
 bool Heap::InFromPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return IsHeapObject(object) && InFromPage(HeapObject::cast(object));

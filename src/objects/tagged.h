@@ -361,10 +361,6 @@ class Tagged<HeapObject> : public TaggedBase {
   constexpr V8_INLINE bool IsHeapObject() const { return true; }
   constexpr V8_INLINE bool IsSmi() const { return false; }
 
-  inline bool InAnySharedSpace() const;
-  inline bool InWritableSharedSpace() const;
-  inline bool InReadOnlySpace() const;
-
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   template <typename U,

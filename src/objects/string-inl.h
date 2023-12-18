@@ -674,7 +674,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   if (V8_LIKELY(shape.IsDirect())) return string;
 
   if (shape.IsCons()) {
-    DCHECK(!Object::InSharedHeap(s));
+    DCHECK(!InAnySharedSpace(s));
     Tagged<ConsString> cons = ConsString::cast(s);
     if (!cons->IsFlat(isolate)) {
       AllowGarbageCollection yes_gc;
@@ -803,7 +803,7 @@ Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
     case StringTransitionStrategy::kInPlace:
       // A relaxed write is sufficient here, because at this point the string
       // has not yet escaped the current thread.
-      DCHECK(Object::InSharedHeap(*string));
+      DCHECK(InAnySharedSpace(*string));
       string->set_map_no_write_barrier(*new_map.ToHandleChecked());
       return string;
     case StringTransitionStrategy::kAlreadyTransitioned:
@@ -880,7 +880,7 @@ bool String::IsShared() const { return IsShared(GetPtrComprCageBase(*this)); }
 
 bool String::IsShared(PtrComprCageBase cage_base) const {
   const bool result = StringShape(*this, cage_base).IsShared();
-  DCHECK_IMPLIES(result, Object::InSharedHeap(*this));
+  DCHECK_IMPLIES(result, InAnySharedSpace(*this));
   return result;
 }
 

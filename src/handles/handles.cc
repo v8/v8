@@ -65,7 +65,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (i::InWritableSharedSpace(heap_object)) return true;
+  if (InWritableSharedSpace(heap_object)) return true;
 
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
@@ -108,7 +108,7 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (i::InWritableSharedSpace(heap_object)) return true;
+  if (InWritableSharedSpace(heap_object)) return true;
 
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.

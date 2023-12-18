@@ -70,7 +70,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // update the code for these barriers and make the remembered sets aware of
   // pointer table entries.
   DCHECK(!Heap::InYoungGeneration(value));
-  DCHECK(!value.InWritableSharedSpace());
+  DCHECK(!InWritableSharedSpace(value));
 
   // We never need to record indirect pointer slots (i.e. references through a
   // pointer table) since the referenced object owns its table entry and will
@@ -85,18 +85,18 @@ void MarkingBarrier::WriteWithoutHost(Tagged<HeapObject> value) {
   // objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // On client isolates (= worker isolates) shared values can be ignored.
-    if (value.InWritableSharedSpace()) {
+    if (InWritableSharedSpace(value)) {
       return;
     }
   }
-  if (value.InReadOnlySpace()) return;
+  if (InReadOnlySpace(value)) return;
   MarkValueLocal(value);
 }
 
 void MarkingBarrier::Write(Tagged<InstructionStream> host,
                            RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!host.InWritableSharedSpace());
+  DCHECK(!InWritableSharedSpace(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
@@ -117,7 +117,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
 void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!host.InWritableSharedSpace());
+  DCHECK(!InWritableSharedSpace(host));
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
@@ -144,7 +144,7 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   unsigned gc_epoch;
   MarkingWorklist::Local* worklist;
   if (V8_UNLIKELY(uses_shared_heap_) &&
-      descriptor_array.InWritableSharedSpace() && !is_shared_space_isolate_) {
+      InWritableSharedSpace(descriptor_array) && !is_shared_space_isolate_) {
     gc_epoch = isolate()
                    ->shared_space_isolate()
                    ->heap()

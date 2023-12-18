@@ -213,7 +213,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
             ReadOnlyRoots(isolate).undefined_value_handle(), details);
       }
       elements_template->SetInitialNumberOfElements(num_elements);
-      DCHECK(elements_template->InAnySharedSpace());
+      DCHECK(InAnySharedSpace(*elements_template));
 
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_elements_template_symbol(),

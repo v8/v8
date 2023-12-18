@@ -572,8 +572,8 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
                               MaybeObject target) override {
     Tagged<HeapObject> target_heap_object;
     return target.GetHeapObject(&target_heap_object) &&
-           i::InWritableSharedSpace(target_heap_object) &&
-           !Heap::InYoungGeneration(host) && !i::InWritableSharedSpace(host);
+           InWritableSharedSpace(target_heap_object) &&
+           !Heap::InYoungGeneration(host) && !InWritableSharedSpace(host);
   }
 };
 
@@ -679,7 +679,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
       isolate(), &old_to_shared, &typed_old_to_shared);
   object->IterateBody(cage_base_, &old_to_shared_visitor);
 
-  if (i::InWritableSharedSpace(object)) {
+  if (InWritableSharedSpace(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
 
@@ -724,7 +724,7 @@ void HeapVerifier::VerifyReadOnlyHeap(Heap* heap) {
 // static
 void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(
     Heap* heap, Tagged<HeapObject> object) {
-  if (i::InWritableSharedSpace(object)) {
+  if (InWritableSharedSpace(object)) {
     // Out of objects in the shared heap, only strings can change layout.
     DCHECK(IsString(object));
     // Shared strings only change layout under GC, never concurrently.

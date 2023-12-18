@@ -5816,7 +5816,7 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = HeapObject::cast(arr.get()->get(i));
-    CHECK(arr_value.InReadOnlySpace() || marking_state->IsMarked(arr_value));
+    CHECK(InReadOnlySpace(arr_value) || marking_state->IsMarked(arr_value));
   }
 }
 

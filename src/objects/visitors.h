@@ -273,7 +273,7 @@ class ClientRootVisitor final : public RootVisitor {
  private:
   V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
     return IsHeapObject(object) &&
-           HeapObject::cast(object).InWritableSharedSpace();
+           InWritableSharedSpace(HeapObject::cast(object));
   }
 
   Visitor* const actual_visitor_;
@@ -315,7 +315,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
     Tagged<Object> istream_object = slot.load(code_cage_base());
     Tagged<InstructionStream> istream;
     if (istream_object.GetHeapObject(&istream)) {
-      DCHECK(!istream.InWritableSharedSpace());
+      DCHECK(!InWritableSharedSpace(istream));
     }
 #endif
   }
@@ -335,7 +335,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
  private:
   V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
     return IsHeapObject(object) &&
-           HeapObject::cast(object).InWritableSharedSpace();
+           InWritableSharedSpace(HeapObject::cast(object));
   }
 
   Visitor* const actual_visitor_;

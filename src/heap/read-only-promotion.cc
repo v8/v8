@@ -49,7 +49,7 @@ class Committee final {
     // and therefore that no filtering of unreachable objects is required here.
     HeapObjectIterator it(isolate_->heap(), safepoint_scope);
     for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-      DCHECK(!o.InReadOnlySpace());
+      DCHECK(!InReadOnlySpace(o));
 
       // Note that cycles prevent us from promoting/rejecting each subgraph as
       // we visit it, since locally we cannot determine whether the deferred
@@ -83,7 +83,7 @@ class Committee final {
   // will be processed further up the callchain.
   bool EvaluateSubgraph(Tagged<HeapObject> o, HeapObjectSet* accepted_subgraph,
                         HeapObjectSet* visited) {
-    if (o.InReadOnlySpace()) return true;
+    if (InReadOnlySpace(o)) return true;
     if (Contains(promo_rejected_, o)) return false;
     if (Contains(promo_accepted_, o)) return true;
     if (Contains(*visited, o)) return true;
@@ -322,7 +322,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // and instead just iterates linearly over pages. Without this change the
     // verifier would fail on this now-dead object.
     for (auto [src, dst] : moves) {
-      CHECK(!src.InReadOnlySpace());
+      CHECK(!InReadOnlySpace(src));
       isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
     }
   }
@@ -333,7 +333,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     //
     // Known objects.
     Heap* heap = isolate->heap();
-    CHECK(heap->promise_all_resolve_element_shared_fun().InReadOnlySpace());
+    CHECK(InReadOnlySpace(heap->promise_all_resolve_element_shared_fun()));
     // TODO(jgruber): Extend here with more objects as they are added to
     // the promotion algorithm.
 
@@ -341,7 +341,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     if (Builtins::kCodeObjectsAreInROSpace) {
       Builtins* builtins = isolate->builtins();
       for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-        CHECK(builtins->code(static_cast<Builtin>(i)).InReadOnlySpace());
+        CHECK(InReadOnlySpace(builtins->code(static_cast<Builtin>(i))));
       }
     }
 #endif  // DEBUG
@@ -418,13 +418,13 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       if (it == moves_reverse_lookup_.end()) return;
 
       // If we reach here, `host` is a moved object located in RO space.
-      CHECK(host.InReadOnlySpace());
+      CHECK(InReadOnlySpace(host));
       RecordProcessedSlotIfDebug(slot.address());
 
       Tagged<ExposedTrustedObject> dead_object =
           ExposedTrustedObject::cast(it->second);
       CHECK(IsExposedTrustedObject(dead_object));
-      CHECK(!dead_object.InReadOnlySpace());
+      CHECK(!InReadOnlySpace(dead_object));
 
       // Currently, only Code objects are RO promotion candidates and are
       // referenced through indirect pointers. Code objects always use the code

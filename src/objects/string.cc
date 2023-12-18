@@ -35,7 +35,7 @@ namespace internal {
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    AllocationType allocation) {
   DCHECK_NE(cons->second()->length(), 0);
-  DCHECK(!Object::InSharedHeap(*cons));
+  DCHECK(!InAnySharedSpace(*cons));
 
   // TurboFan can create cons strings with empty first parts.
   while (cons->first()->length() == 0) {
@@ -114,7 +114,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
     case StringTransitionStrategy::kInPlace:
       // A relaxed write is sufficient here, because at this point the string
       // has not yet escaped the current thread.
-      DCHECK(Object::InSharedHeap(*flat));
+      DCHECK(InAnySharedSpace(*flat));
       flat->set_map_no_write_barrier(*new_map.ToHandleChecked());
       return flat;
     case StringTransitionStrategy::kAlreadyTransitioned:
@@ -429,7 +429,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
+  DCHECK_IMPLIES(InWritableSharedSpace(*this),
+                 isolate->is_shared_space_isolate());
   bool is_internalized = IsInternalizedString(*this);
   bool has_pointers = StringShape(*this).IsIndirect();
 
@@ -518,7 +519,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
+  DCHECK_IMPLIES(InWritableSharedSpace(*this),
+                 isolate->is_shared_space_isolate());
   bool is_internalized = IsInternalizedString(*this);
   bool has_pointers = StringShape(*this).IsIndirect();
 
@@ -539,7 +541,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     int new_size = this->SizeFromMap(new_map);
 
     if (has_pointers) {
-      DCHECK(!InWritableSharedSpace());
+      DCHECK(!InWritableSharedSpace(*this));
       isolate->heap()->NotifyObjectLayoutChange(
           *this, no_gc, InvalidateRecordedSlots::kYes,
           InvalidateExternalPointerSlots::kNo, new_size);

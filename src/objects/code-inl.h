@@ -539,7 +539,7 @@ bool Code::has_instruction_stream() const {
 #else
   const uint64_t value = ReadField<uint64_t>(kInstructionStreamOffset);
 #endif
-  SLOW_DCHECK(value == 0 || !InReadOnlySpace());
+  SLOW_DCHECK(value == 0 || !InReadOnlySpace(*this));
   return value != 0;
 }
 
@@ -551,7 +551,7 @@ bool Code::has_instruction_stream(RelaxedLoadTag tag) const {
   const uint64_t value =
       RELAXED_READ_INT64_FIELD(*this, kInstructionStreamOffset);
 #endif
-  SLOW_DCHECK(value == 0 || !InReadOnlySpace());
+  SLOW_DCHECK(value == 0 || !InReadOnlySpace(*this));
   return value != 0;
 }
 
