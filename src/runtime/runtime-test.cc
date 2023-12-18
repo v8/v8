@@ -2099,5 +2099,29 @@ RUNTIME_FUNCTION(Runtime_NotifyIsolateBackground) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
+  if (isolate->UseEfficiencyMode()) {
+    return ReadOnlyRoots(isolate).true_value();
+  }
+  return ReadOnlyRoots(isolate).false_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {
+  HandleScope scope(isolate);
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  if (*args.at<Object>(0) == ReadOnlyRoots(isolate).true_value()) {
+    isolate->set_battery_saver_mode_enabled(true);
+  } else {
+    isolate->set_battery_saver_mode_enabled(false);
+  }
+  // If the override flag is set changing the mode has no effect.
+  if (v8_flags.battery_saver_mode.value().has_value()) {
+    return ReadOnlyRoots(isolate).false_value();
+  }
+  return ReadOnlyRoots(isolate).true_value();
+}
+
 }  // namespace internal
 }  // namespace v8
