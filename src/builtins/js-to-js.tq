@@ -104,27 +104,46 @@ transitioning javascript builtin JSToJSWrapper(
   }
 
   dcheck(nextIndex == numOutParams);
-  const result = CallVarargs(
+  const calleeResult = CallVarargs(
       context, ref.callable, 0, Convert<int32>(numOutParams), outParams);
 
-  if (returnCount == 0) return Undefined;
-  if (returnCount == 1) {
-    return ConvertToAndFromWasm(
-        context, *returnTypes.UncheckedAtIndex(0), result);
+  let result: JSAny;
+  if (returnCount == 0) {
+    result = Undefined;
+  } else if (returnCount == 1) {
+    result = ConvertToAndFromWasm(
+        context, *returnTypes.UncheckedAtIndex(0), calleeResult);
+  } else {
+    const returnValues = IterableToFixedArrayForWasm(
+        context, calleeResult, Convert<Smi>(returnCount));
+
+    const resultArray = WasmAllocateJSArray(Convert<Smi>(returnCount));
+    const resultFixedArray = UnsafeCast<FixedArray>(resultArray.elements);
+
+    for (let returnIndex: intptr = 0; returnIndex < returnCount;
+         returnIndex++) {
+      const retVal = UnsafeCast<JSAny>(returnValues.objects[returnIndex]);
+      const retType = *returnTypes.UncheckedAtIndex(returnIndex);
+      resultFixedArray.objects[returnIndex] =
+          ConvertToAndFromWasm(context, retType, retVal);
+    }
+    result = resultArray;
   }
 
-  const returnValues =
-      IterableToFixedArrayForWasm(context, result, Convert<Smi>(returnCount));
-
-  const resultArray = WasmAllocateJSArray(Convert<Smi>(returnCount));
-  const resultFixedArray = UnsafeCast<FixedArray>(resultArray.elements);
-
-  for (let returnIndex: intptr = 0; returnIndex < returnCount; returnIndex++) {
-    const retVal = UnsafeCast<JSAny>(returnValues.objects[returnIndex]);
-    const retType = *returnTypes.UncheckedAtIndex(returnIndex);
-    resultFixedArray.objects[returnIndex] =
-        ConvertToAndFromWasm(context, retType, retVal);
+  // The normal return sequence of Torque-generated JavaScript builtins does not
+  // consider the case where the caller may push additional "undefined"
+  // parameters on the stack, and therefore does not generate code to pop these
+  // additional parameters. Here we calculate the actual number of parameters on
+  // the stack. This number is the number of actual parameters provided by the
+  // caller, which is `arguments.length`, or the number of declared arguments,
+  // if not enough actual parameters were provided, i.e.
+  // `SharedFunctionInfo::length`.
+  let popCount = arguments.length;
+  const declaredArgCount = paramCount;
+  if (declaredArgCount > popCount) {
+    popCount = declaredArgCount;
   }
-  return resultArray;
+  // Also pop the receiver.
+  PopAndReturn(popCount + 1, result);
 }
 }

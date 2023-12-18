@@ -92,6 +92,7 @@ const tests = [
 })();
 
 (function TestTierup() {
+  print(arguments.callee.name);
   const jsFunc =
       new WebAssembly.Function({parameters: [], results: []}, () => 15);
 
@@ -100,3 +101,14 @@ const tests = [
   jsFunc();
   assertTrue(!%HasUnoptimizedJSToJSWrapper(jsFunc));
 })();
+
+(function TestParamPops() {
+  print(arguments.callee.name);
+  function add(i, j) {
+    return i + j;
+  }
+  const jsFunc =
+      new WebAssembly.Function({parameters: ['f64'], results: ['i32']}, add);
+  jsFunc();
+  jsFunc(1, 2, 3, 4);
+}) ();
