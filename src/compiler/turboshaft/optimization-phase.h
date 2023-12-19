@@ -172,6 +172,7 @@ class GraphVisitor {
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
       if (const PhiOp* phi =
               input_graph().Get(index).template TryCast<PhiOp>()) {
+        if (ShouldSkipOperation(*phi)) continue;
         // This Phi has been cloned/inlined, and has thus now a single
         // predecessor, and shouldn't be a Phi anymore.
         OpIndex newval = MapToNewGraph(phi->input(added_block_phi_input));
@@ -182,7 +183,9 @@ class GraphVisitor {
     // mappings.
     int phi_num = 0;
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
-      if (input_graph().Get(index).template Is<PhiOp>()) {
+      const Operation& op = input_graph().Get(index);
+      if (op.template Is<PhiOp>()) {
+        if (ShouldSkipOperation(op)) continue;
         CreateOldToNewMapping(index, new_phi_values[phi_num++]);
       } else {
         if (!VisitOpAndUpdateMapping<false>(index, input_block)) break;
@@ -436,7 +439,7 @@ class GraphVisitor {
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
     if constexpr (trace_reduction) TraceReductionStart(index);
-    if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(op)) {
+    if (ShouldSkipOperation(op)) {
       if constexpr (trace_reduction) TraceOperationSkipped();
       return OpIndex::Invalid();
     }
