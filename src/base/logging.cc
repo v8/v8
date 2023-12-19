@@ -150,14 +150,28 @@ void V8_Fatal(const char* format, ...) {
 
   fflush(stdout);
   fflush(stderr);
+
   // Print the formatted message to stdout without cropping the output.
-  v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
-                           line);
+  if (v8::base::g_abort_mode == v8::base::AbortMode::kSoft) {
+    // In this case, instead of crashing the process will be terminated
+    // normally by OS::Abort. Make this clear in the output printed to stderr.
+    v8::base::OS::PrintError(
+        "\n\n#\n# Safely terminating process due to error in %s, line %d\n# ",
+        file, line);
+    // Also prefix the error message (printed below). This has two purposes:
+    // (1) it makes it clear that this error is deemed "safe" (2) it causes
+    // fuzzers that pattern-match on stderr output to ignore these failures.
+    v8::base::OS::PrintError("The following harmless error was encountered: ");
+  } else {
+    v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
+                             line);
+  }
 
   // Print the error message.
   va_start(arguments, format);
   v8::base::OS::VPrintError(format, arguments);
   va_end(arguments);
+
   // Print the message object's address to force stack allocation.
   v8::base::OS::PrintError("\n#\n#\n#\n#FailureMessage Object: %p", &message);
 

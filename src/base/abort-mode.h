@@ -16,8 +16,8 @@ namespace base {
 // kSoft:
 //  - DCHECKs are turned into No-ops and as such V8 is allowed to continue
 //    execution.
-//  - CHECKs are turned into regular exits, which allows fuzzers to ignore
-//    them, this is such that we can try to find useful crashes.
+//  - CHECKs, FATAL, etc. are turned into regular exits, which allows fuzzers
+//    to ignore them, this is such that we can try to find useful crashes.
 // kHard:
 //  - see definition of --hard-abort flag. DCHECKs / CHECKs are using
 //    IMMEDIATE_CRASH() to signal abnormal program termination.

@@ -2142,6 +2142,13 @@ DEFINE_BOOL(hard_abort, true, "abort by crashing")
 DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
 
+DEFINE_BOOL(soft_abort, false,
+            "exit cleanly on fatal errors and ignore DCHECK failures entirely. "
+            "Useful when \"safe\" crashes should be ignored, for example for "
+            "fuzzing the sandbox.")
+// TODO(saelo): introduce a --sandbox-fuzzing mode as well here
+DEFINE_IMPLICATION(hole_fuzzing, soft_abort)
+
 DEFINE_BOOL(experimental_value_unavailable, true,
             "enable experimental <value unavailable> in scopes")
 

@@ -5023,6 +5023,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #if V8_ENABLE_SANDBOX
     } else if (strcmp(argv[i], "--enable-sandbox-crash-filter") == 0) {
       options.enable_sandbox_crash_filter = true;
+      // Enable the "soft" abort mode in addition to the crash filter. This is
+      // mostly so that we get better error output for (safe) fatal errors.
+      // TODO(saelo): consider renaming --enable-sandbox-crash-filter to
+      // --sandbox-fuzzing and make it a V8 flag that implies --soft-abort.
+      i::v8_flags.soft_abort = true;
       argv[i] = nullptr;
 #endif  // V8_ENABLE_SANDBOX
     } else {

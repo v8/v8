@@ -237,7 +237,7 @@ void V8::Initialize() {
 
   base::AbortMode abort_mode = base::AbortMode::kDefault;
 
-  if (v8_flags.hole_fuzzing) {
+  if (v8_flags.soft_abort) {
     abort_mode = base::AbortMode::kSoft;
   } else if (v8_flags.hard_abort) {
     abort_mode = base::AbortMode::kHard;
