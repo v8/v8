@@ -155,6 +155,9 @@ class SnapshotCreatorImpl final {
                       const StartupData* existing_blob, bool owns_isolate);
   explicit SnapshotCreatorImpl(const v8::Isolate::CreateParams& params);
 
+  SnapshotCreatorImpl(Isolate* isolate,
+                      const v8::Isolate::CreateParams& params);
+
   ~SnapshotCreatorImpl();
 
   Isolate* isolate() const { return isolate_; }

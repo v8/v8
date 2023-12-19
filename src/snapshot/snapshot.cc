@@ -897,6 +897,25 @@ SnapshotCreatorImpl::SnapshotCreatorImpl(
                                     : Snapshot::DefaultSnapshotBlob());
 }
 
+SnapshotCreatorImpl::SnapshotCreatorImpl(
+    Isolate* isolate, const v8::Isolate::CreateParams& params)
+    : owns_isolate_(false), isolate_(isolate) {
+  if (auto allocator = params.array_buffer_allocator_shared) {
+    CHECK(params.array_buffer_allocator == nullptr ||
+          params.array_buffer_allocator == allocator.get());
+    isolate_->set_array_buffer_allocator(allocator.get());
+    isolate_->set_array_buffer_allocator_shared(std::move(allocator));
+  } else {
+    CHECK_NOT_NULL(params.array_buffer_allocator);
+    isolate_->set_array_buffer_allocator(params.array_buffer_allocator);
+  }
+  isolate_->set_api_external_references(params.external_references);
+  isolate_->heap()->ConfigureHeap(params.constraints, params.cpp_heap);
+
+  InitInternal(params.snapshot_blob ? params.snapshot_blob
+                                    : Snapshot::DefaultSnapshotBlob());
+}
+
 SnapshotCreatorImpl::~SnapshotCreatorImpl() {
   if (isolate_->heap()->read_only_space()->writable()) {
     // Finalize the RO heap in order to leave the Isolate in a consistent state.

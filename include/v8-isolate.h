@@ -586,7 +586,7 @@ class V8_EXPORT Isolate {
    * Only Isolate::GetData() and Isolate::SetData(), which access the
    * embedder-controlled parts of the isolate, are allowed to be called on the
    * uninitialized isolate. To initialize the isolate, call
-   * Isolate::Initialize().
+   * `Isolate::Initialize()` or initialize a `SnapshotCreator`.
    *
    * When an isolate is no longer used its resources should be freed
    * by calling Dispose().  Using the delete operator is not allowed.

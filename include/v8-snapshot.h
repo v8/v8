@@ -123,6 +123,20 @@ class V8_EXPORT SnapshotCreator {
   explicit SnapshotCreator(const v8::Isolate::CreateParams& params);
 
   /**
+   * Initializes an Isolate for serialization and enters it. The creator does
+   * not own the Isolate but merely initialize it properly.
+   *
+   * \param isolate The isolate that was allocated by `Isolate::Allocate()~.
+   * \param params The parameters to initialize the Isolate for. Details:
+   *               - `params.external_references` are expected to be a
+   *                 null-terminated array of external references.
+   *               - `params.existing_blob` is an optional snapshot blob from
+   *                 which can be used to initialize the new blob.
+   */
+  SnapshotCreator(v8::Isolate* isolate,
+                  const v8::Isolate::CreateParams& params);
+
+  /**
    * Destroy the snapshot creator, and exit and dispose of the Isolate
    * associated with it.
    */
