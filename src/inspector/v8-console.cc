@@ -985,7 +985,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
                  context, name.As<v8::Name>(),
                  CommandLineAPIScope::accessorGetterCallback,
                  CommandLineAPIScope::accessorSetterCallback, thisReference(),
-                 v8::DontEnum, v8::SideEffectType::kHasNoSideEffect)
+                 v8::DontEnum)
              .FromMaybe(false)) {
       bool removed = installedMethods()->Delete(context, name).FromMaybe(false);
       DCHECK(removed);
