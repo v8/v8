@@ -580,13 +580,12 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
                                                  IndirectPointerTag tag) {
   DCHECK_NE(tag, kCodeIndirectPointerTag);
   DCHECK(!AreAliased(handle, destination));
-  CHECK(root_array_available_);
-  Register table = destination;
-  LoadAddress(table,
-              ExternalReference::trusted_pointer_table_base_address(isolate()));
   shrl(handle, Immediate(kTrustedPointerHandleShift));
   static_assert(kTrustedPointerTableEntrySize == 8);
-  movq(destination, Operand(table, handle, times_8, 0));
+  DCHECK(root_array_available_);
+  movq(destination,
+       Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
+  movq(destination, Operand{destination, handle, times_8, 0});
   // The LSB is used as marking bit by the trusted pointer table, so here we
   // have to set it using a bitwise OR as it may or may not be set.
   orq(destination, Immediate(kHeapObjectTag));
