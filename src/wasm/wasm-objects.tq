@@ -143,9 +143,8 @@ extern class WasmModuleObject extends JSObject {
 
 extern class WasmTableObject extends JSObject {
   // The instance in which this WasmTableObject is defined.
-  // This field is undefined if the global is defined outside any Wasm module,
+  // This field is undefined if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
-  // Because it might be undefined, we declare it as a HeapObject.
   instance: WasmInstanceObject|Undefined;
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
@@ -160,7 +159,7 @@ extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
   is_memory64: Smi;  // Boolean
-  instances: WeakArrayList|Undefined;
+  instances: WeakArrayList;
 }
 
 extern class WasmGlobalObject extends JSObject {

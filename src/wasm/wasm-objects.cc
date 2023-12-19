@@ -753,6 +753,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
   memory_object->set_is_memory64(memory_type == WasmMemoryFlag::kWasmMemory64);
+  memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 
   std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
   if (buffer->is_shared()) {
@@ -834,10 +835,7 @@ void WasmMemoryObject::UseInInstance(Isolate* isolate,
                                      int memory_index_in_instance) {
   SetInstanceMemory(*instance, memory->array_buffer(),
                     memory_index_in_instance);
-  Handle<WeakArrayList> old_instances =
-      memory->has_instances()
-          ? Handle<WeakArrayList>(memory->instances(), isolate)
-          : isolate->factory()->empty_weak_array_list();
+  Handle<WeakArrayList> old_instances{memory->instances(), isolate};
   Handle<WeakArrayList> new_instances = WeakArrayList::Append(
       isolate, old_instances, MaybeObjectHandle::Weak(instance));
   memory->set_instances(*new_instances);
@@ -846,21 +844,19 @@ void WasmMemoryObject::UseInInstance(Isolate* isolate,
 void WasmMemoryObject::SetNewBuffer(Tagged<JSArrayBuffer> new_buffer) {
   DisallowGarbageCollection no_gc;
   set_array_buffer(new_buffer);
-  if (has_instances()) {
-    Tagged<WeakArrayList> instances = this->instances();
-    for (int i = 0, len = instances->length(); i < len; ++i) {
-      MaybeObject elem = instances->Get(i);
-      if (elem->IsCleared()) continue;
-      Tagged<WasmInstanceObject> instance =
-          WasmInstanceObject::cast(elem.GetHeapObjectAssumeWeak());
-      // TODO(clemens): Avoid the iteration by also remembering the memory index
-      // if we ever see larger numbers of memories.
-      Tagged<FixedArray> memory_objects = instance->memory_objects();
-      int num_memories = memory_objects->length();
-      for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
-        if (memory_objects->get(mem_idx) == *this) {
-          SetInstanceMemory(instance, new_buffer, mem_idx);
-        }
+  Tagged<WeakArrayList> instances = this->instances();
+  for (int i = 0, len = instances->length(); i < len; ++i) {
+    MaybeObject elem = instances->Get(i);
+    if (elem->IsCleared()) continue;
+    Tagged<WasmInstanceObject> instance =
+        WasmInstanceObject::cast(elem.GetHeapObjectAssumeWeak());
+    // TODO(clemens): Avoid the iteration by also remembering the memory index
+    // if we ever see larger numbers of memories.
+    Tagged<FixedArray> memory_objects = instance->memory_objects();
+    int num_memories = memory_objects->length();
+    for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
+      if (memory_objects->get(mem_idx) == *this) {
+        SetInstanceMemory(instance, new_buffer, mem_idx);
       }
     }
   }

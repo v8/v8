@@ -108,8 +108,7 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmMemoryObject
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>,
-                   kInstancesOffset)
+ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>, kInstancesOffset)
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
