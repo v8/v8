@@ -338,13 +338,6 @@
   # intl402
   'intl402/Temporal/TimeZone/from/timezone-case-insensitive': [FAIL],
 
-  'built-ins/Temporal/Duration/compare/precision-exact-mathematical-values-1': [FAIL],
-  'built-ins/Temporal/Duration/compare/precision-exact-mathematical-values-2': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-duration-relative-months': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-duration-relative-weeks': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-duration-relative-years-days': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-duration-relative-years-months': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/precision-exact-in-balance-duration-relative-years-with-calendar': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/precision-exact-in-round-duration': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/roundingmode-ceil': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/roundingmode-floor': [FAIL],
@@ -2009,6 +2002,39 @@
   'intl402/Temporal/ZonedDateTime/prototype/since/custom-time-zone-ids-case-sensitive': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/until/custom-time-zone-ids-case-sensitive': [FAIL],
 
+  'built-ins/Temporal/Duration/prototype/round/calendar-possibly-required': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/february-leap-year': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-expand': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-halfCeil': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-halfEven': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-halfExpand': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-halfFloor': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/roundingmode-halfTrunc': [FAIL],
+  'built-ins/Temporal/Duration/prototype/toString/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/dateuntil-field': [FAIL],
+  'built-ins/Temporal/Duration/prototype/total/duration-out-of-range-added-to-relativeto': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/since/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/PlainDate/prototype/until/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/since/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/until/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/since/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/default-overflow-behaviour': [FAIL],
+  'built-ins/Temporal/PlainYearMonth/prototype/until/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/round-cross-unit-boundary': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/round-cross-unit-boundary': [FAIL],
+  # Timeouts
+  'built-ins/Temporal/Duration/prototype/round/zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/PlainDate/prototype/since/rounding-zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/PlainDate/prototype/until/rounding-zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/since/rounding-zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/until/rounding-zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/since/rounding-zero-year-month-length': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/until/rounding-zero-year-month-length': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/rounding-zero-year-month-week-length': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/rounding-zero-year-month-week-length': [SKIP],
+
   # Temporal tests fail under i18n and passed in no i18n
   'built-ins/Temporal/Duration/compare/constructor-in-calendar-fields':  [['not i18n', PASS], ['i18n', FAIL]],
   'built-ins/Temporal/Duration/compare/duplicate-calendar-fields': [['not i18n', PASS], ['i18n', FAIL]],
@@ -2092,6 +2118,16 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=14288
   'intl402/DateTimeFormat/timezone-case-insensitive': [FAIL],
   'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14159
+  'intl402/Locale/constructor-options-firstDayOfWeek-invalid': [FAIL],
+  'intl402/Locale/constructor-options-firstDayOfWeek-valid': [FAIL],
+  'intl402/Locale/prototype/firstDayOfWeek/name': [FAIL],
+  'intl402/Locale/prototype/firstDayOfWeek/prop-desc': [FAIL],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-id': [FAIL],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-options': [FAIL],
+  'intl402/Locale/prototype/getWeekInfo/firstDay-by-option': [FAIL],
+
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -2389,14 +2425,14 @@
   'built-ins/Temporal/Duration/prototype/add/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-propertybag-getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/duration-out-of-range-added-to-relativeto': [PASS, ['mode != release or dcheck_always_on', FAIL]],
+  'built-ins/Temporal/Duration/prototype/round/duration-out-of-range-added-to-relativeto': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/calendar-dateadd-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/duration-out-of-range-added-to-relativeto': [PASS, ['mode != release or dcheck_always_on', FAIL]],
+  'built-ins/Temporal/Duration/prototype/total/duration-out-of-range-added-to-relativeto': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/calendar-dateadd-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
