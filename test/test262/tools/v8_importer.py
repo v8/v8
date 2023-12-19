@@ -152,7 +152,7 @@ class V8TestImporter(TestImporter):
     for folder in self.project_config.paths_to_sync:
       _log.info(f'Sync {folder.destination} with {folder.source}')
       destination = self.project_root / folder.destination
-      for f in destination.glob('./*/*'):
+      for f in destination.glob('./**/*'):
         if f.is_file():
           relative_path = f.relative_to(destination)
           source_file = self.test262_path / folder.source / relative_path
