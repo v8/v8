@@ -40,7 +40,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 10},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
@@ -2039,7 +2039,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 10},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
