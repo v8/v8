@@ -237,7 +237,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     out << indentation;
     if (opcode == kExprElse || opcode == kExprCatch ||
         opcode == kExprCatchAll || opcode == kExprBlock || opcode == kExprIf ||
-        opcode == kExprLoop || opcode == kExprTry) {
+        opcode == kExprLoop || opcode == kExprTry || opcode == kExprTryTable) {
       indentation.increase();
     }
 
@@ -260,13 +260,18 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
       out << WasmOpcodes::OpcodeName(opcode);
     }
     if (opcode == kExprBlock || opcode == kExprIf || opcode == kExprLoop ||
-        opcode == kExprTry) {
-      label_stack_.emplace_back(out.line_number(), out.length(),
-                                label_occurrence_index_++);
+        opcode == kExprTry || opcode == kExprTryTable) {
+      // Create the LabelInfo now to get the correct offset, but only push it
+      // after printing the immediates because the immediates don't see the new
+      // label yet.
+      LabelInfo label(out.line_number(), out.length(),
+                      label_occurrence_index_++);
+      pc_ += PrintImmediatesAndGetLength(out);
+      label_stack_.push_back(label);
+    } else {
+      pc_ += PrintImmediatesAndGetLength(out);
     }
-    uint32_t length = PrintImmediatesAndGetLength(out);
 
-    pc_ += length;
     out.NextLine(pc_offset());
   }
 
