@@ -134,8 +134,6 @@ class WasmGraphBuildingInterface {
     SsaEnv* catch_env;
     TFNode* exception = nullptr;
 
-    bool might_throw() const { return exception != nullptr; }
-
     MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TryInfo);
 
     explicit TryInfo(SsaEnv* c) : catch_env(c) {}
@@ -1231,14 +1229,6 @@ class WasmGraphBuildingInterface {
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->might_throw()) {
-      block->reachability = kSpecOnlyReachable;
-      return;
-    }
-
     TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
 
@@ -1299,7 +1289,7 @@ class WasmGraphBuildingInterface {
     DCHECK_EQ(decoder->control_at(0), block);
     DCHECK(block->is_incomplete_try());
 
-    if (block->try_info->might_throw()) {
+    if (block->try_info->exception) {
       // Merge the current env into the target handler's env.
       SetEnv(block->try_info->catch_env);
       if (depth == decoder->control_depth() - 1) {
@@ -1333,15 +1323,6 @@ class WasmGraphBuildingInterface {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
-
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->might_throw()) {
-      decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return;
-    }
-
     SetEnv(block->try_info->catch_env);
   }
 
@@ -1350,14 +1331,6 @@ class WasmGraphBuildingInterface {
   void CatchCase(FullDecoder* decoder, Control* block,
                  const CatchCase& catch_case, base::Vector<Value> values) {
     DCHECK(block->is_try_table());
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->might_throw()) {
-      decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return;
-    }
-
     TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
 

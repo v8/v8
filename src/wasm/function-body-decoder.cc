@@ -199,7 +199,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     }
     if (line_numbers) line_numbers->push_back(i.position());
     if (opcode == kExprElse || opcode == kExprCatch ||
-        opcode == kExprCatchAll) {
+        opcode == kExprCatchAll || opcode == kExprDelegate) {
       control_depth--;
     }
 

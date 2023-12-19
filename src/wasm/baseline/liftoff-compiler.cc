@@ -1303,14 +1303,6 @@ class LiftoffCompiler {
     DCHECK(block->is_try_catch());
     __ emit_jump(block->label.get());
 
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->catch_reached) {
-      block->reachability = kSpecOnlyReachable;
-      return;
-    }
-
     // This is the last use of this label. Re-use the field for the label of the
     // next catch block, and jump there if the tag does not match.
     __ bind(&block->try_info->catch_label);
@@ -1474,15 +1466,6 @@ class LiftoffCompiler {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
-
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->catch_reached) {
-      decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return;
-    }
-
     __ bind(&block->try_info->catch_label);
     __ cache_state()->Split(block->try_info->catch_state);
     if (!block->try_info->in_handler) {
@@ -1505,11 +1488,6 @@ class LiftoffCompiler {
     __ bind(&block->try_info->catch_label);
     block->try_info->catch_label.Unuse();
     block->try_info->catch_label.UnuseNear();
-    if (!block->try_info->catch_reached) {
-      decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return;
-    }
-
     __ cache_state()->Split(block->try_info->catch_state);
 
     if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
