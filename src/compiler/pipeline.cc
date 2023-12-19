@@ -3027,7 +3027,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   if (v8_flags.turboshaft) {
     UnparkedScopeIfNeeded scope(data->broker(),
-                                v8_flags.turboshaft_trace_reduction);
+                                v8_flags.turboshaft_trace_reduction ||
+                                    v8_flags.turboshaft_trace_emitted);
 
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
         data->CreateTurboshaftPipeline(

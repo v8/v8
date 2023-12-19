@@ -659,6 +659,11 @@ class Graph {
   void RemoveLast() {
     DecrementInputUses(*AllOperations().rbegin());
     operations_.RemoveLast();
+#ifdef DEBUG
+    if (v8_flags.turboshaft_trace_emitted) {
+      std::cout << "/!\\ Removed last emitted operation /!\\\n";
+    }
+#endif
   }
 
   template <class Op, class... Args>
@@ -684,6 +689,11 @@ class Graph {
       DCHECK_LT(input, result);
       DCHECK(BelongsToThisGraph(input));
     }
+
+    if (v8_flags.turboshaft_trace_emitted) {
+      std::cout << "Emitted: " << result << " => " << op << "\n";
+    }
+
 #endif  // DEBUG
 
     return op;
@@ -737,6 +747,12 @@ class Graph {
     bound_blocks_.push_back(block);
     uint32_t depth = block->ComputeDominator();
     dominator_tree_depth_ = std::max<uint32_t>(dominator_tree_depth_, depth);
+
+#ifdef DEBUG
+    if (v8_flags.turboshaft_trace_emitted) {
+      std::cout << "\nBound: " << block->index() << "\n";
+    }
+#endif
 
     return true;
   }

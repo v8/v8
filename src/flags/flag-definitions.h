@@ -1326,9 +1326,13 @@ DEFINE_BOOL(turboshaft_trace_typing, false,
             "print typing steps of turboshaft type inference")
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
+DEFINE_BOOL(turboshaft_trace_emitted, false,
+            "trace emitted Turboshaft instructions")
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
+DEFINE_BOOL_READONLY(turboshaft_trace_emitted, false,
+                     "trace emitted Turboshaft instructions")
 #endif  // DEBUG
 
 // Favor memory over execution speed.
