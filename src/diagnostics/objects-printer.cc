@@ -2000,17 +2000,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
 
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSGlobalProxy");
-  if (!GetIsolate()->bootstrapper()->IsActive()) {
-    os << "\n - native context: " << Brief(native_context());
-  }
   JSObjectPrintBody(os, *this);
 }
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSGlobalObject");
-  if (!GetIsolate()->bootstrapper()->IsActive()) {
-    os << "\n - native context: " << Brief(native_context());
-  }
   os << "\n - global proxy: " << Brief(global_proxy());
   JSObjectPrintBody(os, *this);
 }

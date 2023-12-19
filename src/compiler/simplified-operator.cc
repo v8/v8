@@ -1182,7 +1182,7 @@ struct SimplifiedOperatorGlobalCache final {
               IrOpcode::kConvertReceiver,  // opcode
               Operator::kEliminatable,     // flags
               "ConvertReceiver",           // name
-              2, 1, 1, 1, 1, 0,            // counts
+              3, 1, 1, 1, 1, 0,            // counts
               kMode) {}                    // param
   };
   ConvertReceiverOperator<ConvertReceiverMode::kAny>

@@ -797,9 +797,9 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kConvertReceiver:
-      return __ ConvertJSPrimitiveToObject(Map(node->InputAt(0)),
-                                           Map(node->InputAt(1)),
-                                           ConvertReceiverModeOf(node->op()));
+      return __ ConvertJSPrimitiveToObject(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          ConvertReceiverModeOf(node->op()));
 
     case IrOpcode::kToBoolean:
       return __ ConvertToBoolean(Map(node->InputAt(0)));

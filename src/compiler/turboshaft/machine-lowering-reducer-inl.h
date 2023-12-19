@@ -1440,6 +1440,7 @@ class MachineLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(ConvertJSPrimitiveToObject)(V<Object> value,
+                                             V<Object> native_context,
                                              V<Object> global_proxy,
                                              ConvertReceiverMode mode) {
     switch (mode) {
@@ -1467,10 +1468,8 @@ class MachineLoweringReducer : public Next {
                         value, __ HeapConstant(factory_->null_value()))),
                     done, global_proxy);
           }
-          V<NativeContext> native_context =
-              __ template LoadField<NativeContext>(
-                  global_proxy, AccessBuilder::ForJSGlobalProxyNativeContext());
-          GOTO(done, __ CallBuiltin_ToObject(isolate_, native_context, value));
+          GOTO(done, __ CallBuiltin_ToObject(
+                         isolate_, V<Context>::Cast(native_context), value));
         }
 
         BIND(done, result);

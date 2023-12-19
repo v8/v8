@@ -154,7 +154,8 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const ConvertJSPrimitiveToObjectOp& op) {
-    return callback_(op.value(), op.global_proxy(), op.mode);
+    return callback_(op.value(), op.native_context(), op.global_proxy(),
+                     op.mode);
   }
 
   OpIndex operator()(const SelectOp& op) {

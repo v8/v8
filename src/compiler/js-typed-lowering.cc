@@ -1801,12 +1801,13 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
                                        broker()->target_native_context())) {
         return NoChange();
       }
+      NativeContextRef native_context = function->native_context(broker());
       Node* global_proxy = jsgraph()->ConstantNoHole(
-          function->native_context(broker()).global_proxy_object(broker()),
-          broker());
-      receiver = effect =
-          graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
-                           receiver, global_proxy, effect, control);
+          native_context.global_proxy_object(broker()), broker());
+      receiver = effect = graph()->NewNode(
+          simplified()->ConvertReceiver(convert_mode), receiver,
+          jsgraph()->ConstantNoHole(native_context, broker()), global_proxy,
+          effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
 

@@ -141,7 +141,7 @@ Node* ResolveSameValueRenames(Node* node) {
 Reduction TypedOptimization::ReduceConvertReceiver(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 0);
   Type const value_type = NodeProperties::GetType(value);
-  Node* const global_proxy = NodeProperties::GetValueInput(node, 1);
+  Node* const global_proxy = NodeProperties::GetValueInput(node, 2);
   if (value_type.Is(Type::Receiver())) {
     ReplaceWithValue(node, value);
     return Replace(value);

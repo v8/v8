@@ -914,9 +914,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Node* global_proxy = jsgraph()->ConstantNoHole(
           broker()->target_native_context().global_proxy_object(broker()),
           broker());
-      Node* receiver = effect =
-          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                           call.receiver(), global_proxy, effect, start);
+      Node* receiver = effect = graph()->NewNode(
+          simplified()->ConvertReceiver(p.convert_mode()), call.receiver(),
+          jsgraph()->ConstantNoHole(broker()->target_native_context(),
+                                    broker()),
+          global_proxy, effect, start);
       NodeProperties::ReplaceValueInput(node, receiver,
                                         JSCallNode::ReceiverIndex());
       NodeProperties::ReplaceEffectInput(node, effect);

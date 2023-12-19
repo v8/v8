@@ -804,7 +804,8 @@ class GraphVisitor : public Next {
   OpIndex AssembleOutputGraphConvertJSPrimitiveToObject(
       const ConvertJSPrimitiveToObjectOp& op) {
     return Asm().ReduceConvertJSPrimitiveToObject(
-        MapToNewGraph(op.value()), MapToNewGraph(op.global_proxy()), op.mode);
+        MapToNewGraph(op.value()), MapToNewGraph(op.native_context()),
+        MapToNewGraph(op.global_proxy()), op.mode);
   }
   OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
     return Asm().ReduceSelect(

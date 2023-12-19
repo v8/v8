@@ -1318,6 +1318,10 @@ TEST(TryHasOwnProperty) {
         factory->NewFunctionForTesting(factory->empty_string());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
+    function->initial_map()->set_instance_size(JSGlobalObject::kHeaderSize);
+    function->initial_map()->SetInObjectUnusedPropertyFields(0);
+    function->initial_map()->SetInObjectPropertiesStartInWords(
+        function->initial_map()->instance_size_in_words());
     function->initial_map()->set_is_prototype_map(true);
     function->initial_map()->set_is_dictionary_map(true);
     function->initial_map()->set_may_have_interesting_properties(true);

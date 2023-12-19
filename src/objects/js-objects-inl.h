@@ -617,11 +617,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
-DEF_GETTER(JSGlobalObject, native_context_unchecked, Tagged<Object>) {
-  return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,
-                                                                 *this);
-}
-
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
 }
@@ -950,6 +945,10 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
+}
+
+Tagged<NativeContext> JSGlobalObject::native_context() {
+  return *GetCreationContext();
 }
 
 bool JSGlobalObject::IsDetached() {

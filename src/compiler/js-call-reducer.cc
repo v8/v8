@@ -3917,9 +3917,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
     //     are considered compatible at that point, and the {receiver}
     //     will be pass as the {holder}.
     //
-    receiver = holder = effect =
-        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                         receiver, global_proxy, effect, control);
+    receiver = holder = effect = graph()->NewNode(
+        simplified()->ConvertReceiver(p.convert_mode()), receiver,
+        jsgraph()->ConstantNoHole(native_context(), broker()), global_proxy,
+        effect, control);
   } else {
     // Try to infer the {receiver} maps from the graph.
     MapInference inference(broker(), receiver, effect);
@@ -4014,9 +4015,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
       // The CallFunctionTemplate builtin requires the {receiver} to be
       // an actual JSReceiver, so make sure we do the proper conversion
       // first if necessary.
-      receiver = holder = effect =
-          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                           receiver, global_proxy, effect, control);
+      receiver = holder = effect = graph()->NewNode(
+          simplified()->ConvertReceiver(p.convert_mode()), receiver,
+          jsgraph()->ConstantNoHole(native_context(), broker()), global_proxy,
+          effect, control);
 
       Callable callable = Builtins::CallableFor(isolate(), builtin_name);
       auto call_descriptor = Linkage::GetStubCallDescriptor(

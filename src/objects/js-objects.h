@@ -1096,7 +1096,7 @@ class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
-  V8_EXPORT_PRIVATE bool IsDetached() const;
+  V8_EXPORT_PRIVATE bool IsDetached();
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1117,10 +1117,7 @@ class JSGlobalObject
                                      Handle<Name> name);
 
   inline bool IsDetached();
-
-  // May be called by the concurrent GC when the global object is not
-  // fully initialized.
-  DECL_GETTER(native_context_unchecked, Tagged<Object>)
+  inline Tagged<NativeContext> native_context();
 
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalObject)

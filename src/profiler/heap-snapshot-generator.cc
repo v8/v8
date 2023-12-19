@@ -1312,8 +1312,6 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractJSGlobalProxyReferences(
     HeapEntry* entry, Tagged<JSGlobalProxy> proxy) {
-  SetInternalReference(entry, "native_context", proxy->native_context(),
-                       JSGlobalProxy::kNativeContextOffset);
 }
 
 void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
@@ -1373,12 +1371,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                          JSFunction::kCodeOffset);
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = JSGlobalObject::cast(obj);
-    SetInternalReference(entry, "native_context", global_obj->native_context(),
-                         JSGlobalObject::kNativeContextOffset);
     SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
                          JSGlobalObject::kGlobalProxyOffset);
-    static_assert(JSGlobalObject::kHeaderSize - JSObject::kHeaderSize ==
-                  2 * kTaggedSize);
   } else if (IsJSArrayBufferView(obj)) {
     Tagged<JSArrayBufferView> view = JSArrayBufferView::cast(obj);
     SetInternalReference(entry, "buffer", view->buffer(),

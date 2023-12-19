@@ -5538,9 +5538,7 @@ Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwap(
       });
 }
 
-bool JSGlobalProxy::IsDetached() const {
-  return IsNull(native_context(), GetIsolate());
-}
+bool JSGlobalProxy::IsDetached() { return !GetCreationContext().has_value(); }
 
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
                                             Handle<Name> name) {

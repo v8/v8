@@ -7958,7 +7958,8 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   ConvertReceiverMode const mode = ConvertReceiverModeOf(node->op());
   Node* value = node->InputAt(0);
-  Node* global_proxy = node->InputAt(1);
+  Node* native_context = node->InputAt(1);
+  Node* global_proxy = node->InputAt(2);
 
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined: {
@@ -7981,8 +7982,6 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), callable.descriptor(),
           callable.descriptor().GetStackParameterCount(), flags, properties);
-      Node* native_context = __ LoadField(
-          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
       Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
                              value, native_context);
       __ Goto(&done_convert, result);
@@ -8012,8 +8011,6 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), callable.descriptor(),
           callable.descriptor().GetStackParameterCount(), flags, properties);
-      Node* native_context = __ LoadField(
-          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
       Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
                              value, native_context);
       __ Goto(&done_convert, result);

@@ -1633,10 +1633,12 @@ class TurboshaftAssemblerOpInterface
         object, frame_state, kind, input_requirement, feedback);
   }
 
-  V<Object> ConvertJSPrimitiveToObject(V<Object> value, V<Object> global_proxy,
+  V<Object> ConvertJSPrimitiveToObject(V<Object> value,
+                                       V<Object> native_context,
+                                       V<Object> global_proxy,
                                        ConvertReceiverMode mode) {
-    return ReduceIfReachableConvertJSPrimitiveToObject(value, global_proxy,
-                                                       mode);
+    return ReduceIfReachableConvertJSPrimitiveToObject(value, native_context,
+                                                       global_proxy, mode);
   }
 
   V<Word32> Word32Constant(uint32_t value) {

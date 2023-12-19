@@ -382,63 +382,6 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
                                                  mode);
 }
 
-bool NativeContextInferrer::InferForContext(PtrComprCageBase cage_base,
-
-                                            Tagged<Context> context,
-                                            Address* native_context) {
-  Tagged<Map> context_map = context->map(cage_base, kAcquireLoad);
-  Tagged<Object> maybe_native_context =
-      TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
-          Acquire_Load(cage_base, context_map);
-  if (IsNativeContext(maybe_native_context, cage_base)) {
-    *native_context = maybe_native_context.ptr();
-    return true;
-  }
-  return false;
-}
-
-bool NativeContextInferrer::InferForJSFunction(PtrComprCageBase cage_base,
-                                               Tagged<JSFunction> function,
-                                               Address* native_context) {
-  Tagged<Object> maybe_context =
-      TaggedField<Object, JSFunction::kContextOffset>::Acquire_Load(cage_base,
-                                                                    function);
-  // The context may be a smi during deserialization.
-  if (IsSmi(maybe_context)) {
-    DCHECK_EQ(maybe_context, Smi::uninitialized_deserialization_value());
-    return false;
-  }
-  if (!IsContext(maybe_context)) {
-    // The function does not have a context.
-    return false;
-  }
-  return InferForContext(cage_base, Context::cast(maybe_context),
-                         native_context);
-}
-
-bool NativeContextInferrer::InferForJSObject(PtrComprCageBase cage_base,
-                                             Tagged<Map> map,
-                                             Tagged<JSObject> object,
-                                             Address* native_context) {
-  if (map->instance_type() == JS_GLOBAL_OBJECT_TYPE) {
-    Tagged<Object> maybe_context =
-        JSGlobalObject::cast(object)->native_context_unchecked(cage_base);
-    if (IsNativeContext(maybe_context)) {
-      *native_context = maybe_context.ptr();
-      return true;
-    }
-  }
-  // The maximum number of steps to perform when looking for the context.
-  const int kMaxSteps = 3;
-  Tagged<Object> maybe_constructor =
-      map->TryGetConstructor(cage_base, kMaxSteps);
-  if (IsJSFunction(maybe_constructor)) {
-    return InferForJSFunction(cage_base, JSFunction::cast(maybe_constructor),
-                              native_context);
-  }
-  return false;
-}
-
 void NativeContextStats::Clear() { size_by_context_.clear(); }
 
 void NativeContextStats::Merge(const NativeContextStats& other) {

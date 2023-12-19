@@ -4385,7 +4385,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
     TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
 struct ConvertJSPrimitiveToObjectOp
-    : FixedArityOperationT<2, ConvertJSPrimitiveToObjectOp> {
+    : FixedArityOperationT<3, ConvertJSPrimitiveToObjectOp> {
   ConvertReceiverMode mode;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
@@ -4400,11 +4400,12 @@ struct ConvertJSPrimitiveToObjectOp
   }
 
   OpIndex value() const { return Base::input(0); }
-  OpIndex global_proxy() const { return Base::input(1); }
+  OpIndex native_context() const { return Base::input(1); }
+  OpIndex global_proxy() const { return Base::input(2); }
 
-  ConvertJSPrimitiveToObjectOp(OpIndex value, OpIndex global_proxy,
-                               ConvertReceiverMode mode)
-      : Base(value, global_proxy), mode(mode) {}
+  ConvertJSPrimitiveToObjectOp(OpIndex value, OpIndex native_context,
+                               OpIndex global_proxy, ConvertReceiverMode mode)
+      : Base(value, native_context, global_proxy), mode(mode) {}
 
   void Validate(const Graph& graph) const {
   }

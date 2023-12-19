@@ -277,9 +277,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to SeqTwoByteString characters.
   static ElementAccess ForSeqTwoByteStringCharacter();
 
-  // Provides access to JSGlobalProxy::native_context() field.
-  static FieldAccess ForJSGlobalProxyNativeContext();
-
   // Provides access to JSArrayIterator::iterated_object() field.
   static FieldAccess ForJSArrayIteratorIteratedObject();
 

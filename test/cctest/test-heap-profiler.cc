@@ -1960,10 +1960,6 @@ TEST(GlobalObjectFields) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* native_context =
-      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kInternal,
-                  "native_context");
-  CHECK(native_context);
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK(global_proxy);
@@ -3172,13 +3168,17 @@ TEST(HeapSnapshotScriptContext) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_map = GetProperty(
+      env->GetIsolate(), global, v8::HeapGraphEdge::kInternal, "map");
+  const v8::HeapGraphNode* map_map = GetProperty(
+      env->GetIsolate(), global_map, v8::HeapGraphEdge::kInternal, "map");
   const v8::HeapGraphNode* native_context =
-      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kInternal,
+      GetProperty(env->GetIsolate(), map_map, v8::HeapGraphEdge::kInternal,
                   "native_context");
-  CHECK(native_context);
   const v8::HeapGraphNode* script_context_table =
       GetProperty(env->GetIsolate(), native_context,
                   v8::HeapGraphEdge::kInternal, "script_context_table");
+
   CHECK(script_context_table);
   bool found_foo = false;
   for (int i = 0, count = script_context_table->GetChildrenCount(); i < count;

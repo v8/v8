@@ -1596,13 +1596,13 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
 
     if (IsJSGlobalProxy(*receiver)) {
-      Tagged<Object> receiver_context =
-          JSGlobalProxy::cast(*receiver)->native_context();
-      if (!IsContext(receiver_context)) return false;
+      base::Optional<Tagged<Object>> receiver_context =
+          JSGlobalProxy::cast(*receiver)->GetCreationContext();
+      if (!receiver_context) return false;
 
-      if (receiver_context == *accessing_context) return true;
+      if (*receiver_context == *accessing_context) return true;
 
-      if (Context::cast(receiver_context)->security_token() ==
+      if (Context::cast(*receiver_context)->security_token() ==
           accessing_context->security_token())
         return true;
     }
@@ -6152,10 +6152,12 @@ void Isolate::DetachGlobal(Handle<Context> env) {
 
   ReadOnlyRoots roots(this);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
-  global_proxy->set_native_context(roots.null_value());
   // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
   // DetachGlobal causing a map change.
   JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
+  // Detach the global object from the native context by making its map
+  // contextless (use the global metamap instead of the contextful one).
+  global_proxy->map()->set_map(roots.meta_map());
   global_proxy->map()->set_constructor_or_back_pointer(roots.null_value(),
                                                        kRelaxedStore);
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);

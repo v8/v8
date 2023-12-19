@@ -919,16 +919,6 @@ ElementAccess AccessBuilder::ForSeqTwoByteStringCharacter() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
-  FieldAccess access = {
-      kTaggedBase,          JSGlobalProxy::kNativeContextOffset,
-      Handle<Name>(),       OptionalMapRef(),
-      Type::Internal(),     MachineType::TaggedPointer(),
-      kPointerWriteBarrier, "JSGlobalProxyNativeContext"};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSArrayIteratorIteratedObject() {
   FieldAccess access = {
       kTaggedBase,          JSArrayIterator::kIteratedObjectOffset,

@@ -1435,11 +1435,10 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   // ConfigureGlobalObject
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
-  // Set the native context for the global object.
-  global_object->set_native_context(*native_context());
+  // Set up the pointer back from the global object to the global proxy.
   global_object->set_global_proxy(*global_proxy);
   // Set the native context of the global proxy.
-  global_proxy->set_native_context(*native_context());
+  global_proxy->map()->set_map(native_context()->meta_map());
   // Set the global proxy of the native context. If the native context has been
   // deserialized, the global proxy is already correctly set up by the
   // deserializer. Otherwise it's undefined.
@@ -1460,7 +1459,7 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalProxy> global_proxy) {
   Handle<JSObject> global_object(
       JSObject::cast(native_context()->global_object()), isolate());
   JSObject::ForceSetPrototype(isolate(), global_proxy, global_object);
-  global_proxy->set_native_context(*native_context());
+  global_proxy->map()->set_map(native_context()->meta_map());
   DCHECK(native_context()->global_proxy() == *global_proxy);
 }
 
@@ -6860,7 +6859,7 @@ Genesis::Genesis(
       // The global proxy needs to be integrated into the native context.
       HookUpGlobalProxy(global_proxy);
     }
-    DCHECK_EQ(global_proxy->native_context(), *native_context());
+    DCHECK_EQ(global_proxy->GetCreationContext(), *native_context());
     DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
     DCHECK(native_context().is_null());
@@ -6951,7 +6950,9 @@ Genesis::Genesis(Isolate* isolate,
       global_proxy_template->InternalFieldCount());
 
   Handle<JSGlobalProxy> global_proxy;
-  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
+  if (maybe_global_proxy.ToHandle(&global_proxy)) {
+    global_proxy->map()->set_map(ReadOnlyRoots(isolate).meta_map());
+  } else {
     global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }
 
@@ -6975,9 +6976,6 @@ Genesis::Genesis(Isolate* isolate,
       JS_GLOBAL_PROXY_TYPE, proxy_size, TERMINAL_FAST_ELEMENTS_KIND);
   global_proxy_map->set_is_access_check_needed(true);
   global_proxy_map->set_may_have_interesting_properties(true);
-
-  // A remote global proxy has no native context.
-  global_proxy->set_native_context(ReadOnlyRoots(heap()).null_value());
 
   // Configure the hidden prototype chain of the global proxy.
   JSObject::ForceSetPrototype(isolate, global_proxy, global_object);
