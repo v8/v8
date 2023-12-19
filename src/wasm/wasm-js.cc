@@ -2103,12 +2103,12 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
                                       "suspending")) {
         suspend = i::wasm::kSuspend;
-        i_isolate->CountUsage(v8::Isolate::kJavaScriptPromiseIntegration);
+        i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
       }
       if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
                                       "promising")) {
         promise = i::wasm::kPromise;
-        i_isolate->CountUsage(v8::Isolate::kJavaScriptPromiseIntegration);
+        i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
       }
     }
   }
