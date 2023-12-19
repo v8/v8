@@ -122,8 +122,7 @@ old_cwd = Path.cwd()
 os.chdir(options.perf_data_dir)
 
 # ==============================================================================
-JS_FLAGS_PERF = ("--perf-prof", "--no-write-protect-code-memory",
-                 "--interpreted-frames-native-stack")
+JS_FLAGS_PERF = ("--perf-prof", "--interpreted-frames-native-stack")
 
 
 def wait_for_process_timeout(process):

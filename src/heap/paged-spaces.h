@@ -207,17 +207,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // be used for allocation.
   Page* RemovePageSafe(int size_in_bytes);
 
-  void SetReadable();
-  void SetReadAndExecutable();
-
-  void SetDefaultCodePermissions() {
-    if (v8_flags.jitless) {
-      SetReadable();
-    } else {
-      SetReadAndExecutable();
-    }
-  }
-
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
   void Verify(Isolate* isolate,

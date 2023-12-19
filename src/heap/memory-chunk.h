@@ -200,17 +200,6 @@ class MemoryChunk : public BasicMemoryChunk {
                : PageAllocator::kReadWrite;
   }
 
-  V8_EXPORT_PRIVATE void SetReadable();
-  V8_EXPORT_PRIVATE void SetReadAndExecutable();
-
-  // Used by the mprotect version of CodePageMemoryModificationScope to toggle
-  // the writable permission bit of the MemoryChunk.
-  // The returned MutexGuard protects the page from concurrent access. The
-  // caller needs to call SetDefaultCodePermissions before releasing the
-  // MutexGuard.
-  V8_EXPORT_PRIVATE base::MutexGuard SetCodeModificationPermissions();
-  V8_EXPORT_PRIVATE void SetDefaultCodePermissions();
-
   heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
   const heap::ListNode<MemoryChunk>& list_node() const { return list_node_; }
 
@@ -270,11 +259,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
-
-  // Sets the requested page permissions only if the write unprotect counter
-  // has reached 0.
-  void DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-      PageAllocator::Permission permission);
 
 #ifdef DEBUG
   static void ValidateOffsets(MemoryChunk* chunk);

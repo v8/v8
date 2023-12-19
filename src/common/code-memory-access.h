@@ -25,8 +25,6 @@ namespace internal {
 // - CodePageHeaderModificationScope:
 //     Used when we write to the page header of CodeSpace pages. Only needed on
 //     Apple Silicon where we can't have RW- pages in the RWX space.
-// - CodePageMemoryModificationScope:
-//     Allows access to the allocation area of the CodeSpace pages.
 // - CodePageMemoryModificationScopeForDebugging:
 //     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
@@ -38,7 +36,6 @@ namespace internal {
 // - RwxMemoryWriteScopeForTesting:
 //     Same, but for use in testing.
 
-class CodePageMemoryModificationScope;
 class RwxMemoryWriteScopeForTesting;
 namespace wasm {
 class CodeSpaceWriteScope;
@@ -123,7 +120,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
-  friend class CodePageMemoryModificationScope;
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
 

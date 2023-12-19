@@ -44,63 +44,6 @@ void MemoryChunk::InitializationMemoryFence() {
 #endif
 }
 
-void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-    PageAllocator::Permission permission) {
-  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-  DCHECK(permission == PageAllocator::kRead ||
-         permission == PageAllocator::kReadExecute);
-  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(IsAnyCodeSpace(owner_identity()));
-  page_protection_change_mutex_->AssertHeld();
-  Address protect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(protect_start, page_size));
-  size_t protect_size = RoundUp(area_size(), page_size);
-  CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
-}
-
-void MemoryChunk::SetReadable() {
-  DecrementWriteUnprotectCounterAndMaybeSetPermissions(PageAllocator::kRead);
-}
-
-void MemoryChunk::SetReadAndExecutable() {
-  DCHECK(!v8_flags.jitless);
-  DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-      PageAllocator::kReadExecute);
-}
-
-base::MutexGuard MemoryChunk::SetCodeModificationPermissions() {
-  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(IsAnyCodeSpace(owner_identity()));
-  // Incrementing the write_unprotect_counter_ and changing the page
-  // protection mode has to be atomic.
-  base::MutexGuard guard(page_protection_change_mutex_);
-
-  Address unprotect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(unprotect_start, page_size));
-  size_t unprotect_size = RoundUp(area_size(), page_size);
-  // We may use RWX pages to write code. Some CPUs have optimisations to push
-  // updates to code to the icache through a fast path, and they may filter
-  // updates based on the written memory being executable.
-  CHECK(reservation_.SetPermissions(
-      unprotect_start, unprotect_size,
-      MemoryChunk::GetCodeModificationPermission()));
-
-  return guard;
-}
-
-void MemoryChunk::SetDefaultCodePermissions() {
-  if (v8_flags.jitless) {
-    SetReadable();
-  } else {
-    SetReadAndExecutable();
-  }
-}
-
 MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          Address area_start, Address area_end,
                          VirtualMemory reservation, Executability executable,

@@ -542,20 +542,6 @@ class Heap final {
   // Dump heap statistics in JSON format.
   void DumpJSONHeapStatistics(std::stringstream& stream);
 
-  bool write_protect_code_memory() const {
-    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) {
-      // On MacOS on ARM64 ("Apple M1"/Apple Silicon) code modification
-      // protection must be used. It can be achieved by one of the following
-      // approaches:
-      // 1) switching memory protection between RW-RX as on other architectures
-      //    => return true,
-      // 2) fast W^X machinery (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) which
-      //    doesn not require memory protection changes => return false.
-      return !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT;
-    }
-    return write_protect_code_memory_;
-  }
-
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
   }
@@ -2166,10 +2152,6 @@ class Heap final {
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
-  // Determines whether code space is write-protected. This is essentially a
-  // race-free copy of the {v8_flags.write_protect_code_memory} flag.
-  bool write_protect_code_memory_ = false;
-
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 
   // Starts marking when stress_marking_percentage_% of the marking start limit
@@ -2567,30 +2549,6 @@ using CodePageHeaderModificationScope = RwxMemoryWriteScope;
 using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
 #endif  // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
 
-// The CodePageMemoryModificationScope does not check if transitions to
-// writeable and back to executable are actually allowed, i.e. the MemoryChunk
-// was registered to be executable. It can be used by concurrent threads.
-class V8_NODISCARD CodePageMemoryModificationScope {
- public:
-  explicit inline CodePageMemoryModificationScope(BasicMemoryChunk* chunk);
-  explicit inline CodePageMemoryModificationScope(
-      Tagged<InstructionStream> object);
-  inline ~CodePageMemoryModificationScope();
-
- private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-  base::Optional<RwxMemoryWriteScope> rwx_write_scope_;
-#else
-  BasicMemoryChunk* chunk_;
-  bool scope_active_;
-  base::Optional<base::MutexGuard> guard_;
-#endif
-
-  // Disallow any GCs inside this scope, as a relocation of the underlying
-  // object would change the {MemoryChunk} that this scope targets.
-  DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
-};
-
 class CodePageMemoryModificationScopeForDebugging {
  public:
   // When we zap newly allocated MemoryChunks, the chunk is not initialized yet
@@ -2604,10 +2562,6 @@ class CodePageMemoryModificationScopeForDebugging {
  private:
 #if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   RwxMemoryWriteScope rwx_write_scope_;
-#else
-  VirtualMemory* reservation_ = nullptr;
-  base::Optional<base::AddressRegion> region_;
-  base::Optional<CodePageMemoryModificationScope> memory_modification_scope_;
 #endif
 };
 

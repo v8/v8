@@ -359,22 +359,6 @@ void PagedSpaceBase::ReleasePageImpl(Page* page,
   heap()->memory_allocator()->Free(free_mode, page);
 }
 
-void PagedSpaceBase::SetReadable() {
-  DCHECK(identity() == CODE_SPACE);
-  for (Page* page : *this) {
-    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
-    page->SetReadable();
-  }
-}
-
-void PagedSpaceBase::SetReadAndExecutable() {
-  DCHECK(identity() == CODE_SPACE);
-  for (Page* page : *this) {
-    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
-    page->SetReadAndExecutable();
-  }
-}
-
 std::unique_ptr<ObjectIterator> PagedSpaceBase::GetObjectIterator(Heap* heap) {
   return std::unique_ptr<ObjectIterator>(
       new PagedSpaceObjectIterator(heap, this));

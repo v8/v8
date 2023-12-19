@@ -5780,15 +5780,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   SetGetExternallyAllocatedMemoryInBytesCallback(ReturnNull);
 
-  write_protect_code_memory_ = v8_flags.write_protect_code_memory;
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-  if (RwxMemoryWriteScope::IsSupported()) {
-    // If PKU machinery is available then use it instead of conventional
-    // mprotect.
-    write_protect_code_memory_ = false;
-  }
-#endif  // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-
   if (new_space()) {
     minor_gc_job_.reset(new MinorGCJob(this));
     minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
@@ -7544,35 +7535,18 @@ CodePageMemoryModificationScopeForDebugging::
                                                 base::AddressRegion region) {
 #if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
-#else
-  if (heap->write_protect_code_memory()) {
-    reservation_ = reservation;
-    region_.emplace(region);
-    CHECK(reservation_->SetPermissions(
-        region_->begin(), region_->size(),
-        MemoryChunk::GetCodeModificationPermission()));
-  }
 #endif
 }
 
 CodePageMemoryModificationScopeForDebugging::
-    CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk)
-    : memory_modification_scope_(chunk) {
+    CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk) {
 #if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #endif
 }
 
 CodePageMemoryModificationScopeForDebugging::
-    ~CodePageMemoryModificationScopeForDebugging() {
-  if (reservation_) {
-    DCHECK(region_.has_value());
-    CHECK(reservation_->SetPermissions(
-        region_->begin(), region_->size(),
-        v8_flags.jitless ? PageAllocator::Permission::kRead
-                         : PageAllocator::Permission::kReadExecute));
-  }
-}
+    ~CodePageMemoryModificationScopeForDebugging() {}
 
 #endif
 

@@ -1722,7 +1722,6 @@ DEFINE_IMPLICATION(cppgc_young_generation, minor_ms)
 // Unified young generation disables the unmodified wrapper reclamation
 // optimization.
 DEFINE_NEG_IMPLICATION(cppgc_young_generation, reclaim_unmodified_wrappers)
-DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
 DEFINE_BOOL(optimize_gc_for_battery, false, "optimize GC for battery")
 #if defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 DEFINE_BOOL(concurrent_marking, true, "use concurrent marking")
@@ -2721,8 +2720,6 @@ DEFINE_PERF_PROF_BOOL(
     perf_prof_delete_file,
     "Remove the perf file right after creating it (for testing only).")
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
-// TODO(v8:8462) Remove implication once perf supports remapping.
-DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
 
 // --perf-prof-unwinding-info is available only on selected architectures.
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
