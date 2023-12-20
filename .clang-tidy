@@ -1,6 +1,7 @@
 ---
 ---
   Checks:          '-*,
+                    bugprone-unique-ptr-array-mismatch,
                     modernize-redundant-void-arg,
                     modernize-replace-random-shuffle,
                     modernize-shrink-to-fit,
