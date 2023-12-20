@@ -198,6 +198,14 @@ constexpr auto CallFunctionTemplateDescriptor::registers() {
 }
 
 // static
+constexpr auto CallFunctionTemplateGenericDescriptor::registers() {
+  // r3 : function template info
+  // r4 : number of arguments (on the stack)
+  // r5 : topmost script-having context
+  return RegisterArray(r3, r4, r5);
+}
+
+// static
 constexpr auto CallWithSpreadDescriptor::registers() {
   // r2: number of arguments (on the stack)
   // r3 : the target to call
@@ -302,6 +310,11 @@ constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
   return r4;
+}
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
+  return r3;
 }
 // static
 constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
