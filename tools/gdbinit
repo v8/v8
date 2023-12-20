@@ -395,10 +395,20 @@ def cppgc_pretty_printers(val):
   typename = val.type.name or val.type.tag or str(val.type)
   regex = re.compile("^(cppgc|blink)::(Weak|Untraced)?Member<(.*)>$")
   match = regex.match(typename)
-  if match is None:
-    return None
-  return CppGCMemberPrinter(
-      val, category=match.group(2), pointee_type=match.group(3))
+  if match is not None:
+    return CppGCMemberPrinter(
+        val, category=match.group(2), pointee_type=match.group(3))
+
+  # The member type might have been obscured by typedefs and template
+  # arguments. Fallback to using the underlying type.
+  real_type = val.type.strip_typedefs()
+  if (real_type.name is not None and
+      real_type.name.startswith('cppgc::internal::BasicMember')):
+    inner_type = real_type.template_argument(0)
+    return CppGCMemberPrinter(
+        val, category='Basic', pointee_type=inner_type.name)
+
+  return None
 
 
 gdb.pretty_printers.append(cppgc_pretty_printers)
