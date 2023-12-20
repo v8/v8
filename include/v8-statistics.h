@@ -71,7 +71,7 @@ class V8_EXPORT MeasureMemoryDelegate {
    * \param unattributed_size_in_bytes total size of objects that were not
    *   attributed to any context (i.e. are likely shared objects).
    */
-  V8_DEPRECATE_SOON("Please use the version that takes a result struct")
+  V8_DEPRECATED("Please use the version that takes a result struct")
   virtual void MeasurementComplete(
       const std::vector<std::pair<Local<Context>, size_t>>&
           context_sizes_in_bytes,
@@ -84,7 +84,7 @@ class V8_EXPORT MeasureMemoryDelegate {
      * which ShouldMeasure returned true and that was not garbage collected
      * while the memory measurement was in progress.
      */
-    V8_DEPRECATE_SOON("Please use contexts and sizes_in_bytes")
+    V8_DEPRECATED("Please use contexts and sizes_in_bytes")
     const std::vector<std::pair<Local<Context>, size_t>>&
         context_sizes_in_bytes;
 

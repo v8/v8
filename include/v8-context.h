@@ -181,7 +181,7 @@ class V8_EXPORT Context : public Data {
      * also be considered for freezing should be added to the children_out
      * parameter. Returns true if the operation completed successfully.
      */
-    V8_DEPRECATE_SOON("Please use the version that takes a LocalVector&")
+    V8_DEPRECATED("Please use the version that takes a LocalVector&")
     virtual bool FreezeEmbedderObjectAndGetChildren(
         Local<Object> obj, std::vector<Local<Object>>& children_out) {
       // TODO(chromium:1454114): This method is temporarily defined in order to

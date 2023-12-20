@@ -286,7 +286,7 @@ class V8_EXPORT Module : public Data {
    * module_name is used solely for logging/debugging and doesn't affect module
    * behavior.
    */
-  V8_DEPRECATE_SOON("Please use the version that takes a MemorySpan")
+  V8_DEPRECATED("Please use the version that takes a MemorySpan")
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
       const std::vector<Local<String>>& export_names,
@@ -313,7 +313,7 @@ class V8_EXPORT Module : public Data {
    * with the pending top-level await.
    * An embedder may call this before exiting to improve error messages.
    */
-  V8_DEPRECATE_SOON("Please use GetStalledTopLevelAwaitMessages")
+  V8_DEPRECATED("Please use GetStalledTopLevelAwaitMessages")
   std::vector<std::tuple<Local<Module>, Local<Message>>>
   GetStalledTopLevelAwaitMessage(Isolate* isolate);
 
