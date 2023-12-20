@@ -416,6 +416,10 @@ class HandleScopeImplementer {
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
 
+#ifdef V8_ENABLE_CHECKS
+  HandleScopeDataForDebugging handle_scope_data_for_debugging_;
+#endif
+
   void IterateThis(RootVisitor* v);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);

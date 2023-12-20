@@ -180,6 +180,9 @@ HandleScope::HandleScope(Isolate* isolate) {
   prev_next_ = data->next;
   prev_limit_ = data->limit;
   data->level++;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = isolate->handle_scope_data_for_debugging()->Register();
+#endif
 }
 
 HandleScope::HandleScope(HandleScope&& other) V8_NOEXCEPT
@@ -187,10 +190,16 @@ HandleScope::HandleScope(HandleScope&& other) V8_NOEXCEPT
       prev_next_(other.prev_next_),
       prev_limit_(other.prev_limit_) {
   other.isolate_ = nullptr;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = other.scope_level_;
+#endif
 }
 
 HandleScope::~HandleScope() {
   if (V8_UNLIKELY(isolate_ == nullptr)) return;
+#ifdef V8_ENABLE_CHECKS
+  isolate_->handle_scope_data_for_debugging()->Unregister(scope_level_);
+#endif
   CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
@@ -199,11 +208,17 @@ HandleScope& HandleScope::operator=(HandleScope&& other) V8_NOEXCEPT {
     isolate_ = other.isolate_;
   } else {
     DCHECK_EQ(isolate_, other.isolate_);
+#ifdef V8_ENABLE_CHECKS
+    isolate_->handle_scope_data_for_debugging()->Unregister(scope_level_);
+#endif
     CloseScope(isolate_, prev_next_, prev_limit_);
   }
   prev_next_ = other.prev_next_;
   prev_limit_ = other.prev_limit_;
   other.isolate_ = nullptr;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = other.scope_level_;
+#endif
   return *this;
 }
 
@@ -241,6 +256,9 @@ template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
   Tagged<T> value = *handle_value;
+#ifdef V8_ENABLE_CHECKS
+  isolate_->handle_scope_data_for_debugging()->Verify(scope_level_);
+#endif
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
