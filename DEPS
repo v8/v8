@@ -240,6 +240,8 @@ deps = {
   },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '390005586bde14be9b55fde71ca4ae2107021ac9',
+  'third_party/fp16/src':
+    Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '6ad82eadcb1a4404964a8d86c544fda1dab7af94',
     'condition': 'checkout_fuchsia',
