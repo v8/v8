@@ -11,6 +11,7 @@
                     modernize-use-nullptr,
                     modernize-use-override,
                     # google-build-explicit-make-pair,
+                    google-default-arguments,
                     google-explicit-constructor,
                     google-readability-casting'
 WarningsAsErrors: ''
