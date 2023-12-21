@@ -1703,7 +1703,9 @@ Tagged<Object> Isolate::TerminateExecution() {
 }
 
 void Isolate::CancelTerminateExecution() {
-  if (is_execution_terminating()) clear_exception();
+  if (!is_execution_terminating()) return;
+  clear_internal_exception();
+  if (try_catch_handler()) try_catch_handler()->ResetInternal();
 }
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
