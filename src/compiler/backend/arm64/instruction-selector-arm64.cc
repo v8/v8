@@ -3713,7 +3713,8 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
       EmitLoad(this, change_op.input(), opcode, immediate_mode, rep, node);
       return;
     }
-    if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
+    if ((input_op.Is<Opmask::kWord32ShiftRightArithmetic>() ||
+         input_op.Is<Opmask::kWord32ShiftRightArithmeticShiftOutZeros>()) &&
         CanCover(node, change_op.input())) {
       const ShiftOp& sar = input_op.Cast<ShiftOp>();
       if (this->is_integer_constant(sar.right())) {
