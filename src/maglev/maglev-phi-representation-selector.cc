@@ -23,15 +23,51 @@ namespace maglev {
     }                                             \
   } while (false)
 
-ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
-                                                       const ProcessingState&) {
-  DCHECK_EQ(node->value_representation(), ValueRepresentation::kTagged);
+void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
+  MergeNewNodesInBlock(current_block_);
+  PreparePhiTaggings(current_block_, block);
+  current_block_ = block;
+
+  if (block->has_phi()) {
+    auto& phis = *block->phis();
+
+    auto first_retry = phis.begin();
+    auto end_retry = first_retry;
+    bool any_change = false;
+
+    for (auto it = phis.begin(); it != phis.end(); ++it) {
+      Phi* phi = *it;
+      ProcessPhiResult res = ProcessPhi(phi);
+      if (res == ProcessPhiResult::kChanged) {
+        any_change = true;
+      } else if (ProcessPhiResult::kRetryOnChange) {
+        if (end_retry == first_retry) {
+          first_retry = it;
+        }
+        end_retry = it;
+        ++end_retry;
+      }
+    }
+    // Give it one more shot in case an earlier phi has a later one as input.
+    if (any_change) {
+      for (auto it = first_retry; it != end_retry; ++it) {
+        ProcessPhi(*it);
+      }
+    }
+  }
+}
+
+MaglevPhiRepresentationSelector::ProcessPhiResult
+MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
+  if (node->value_representation() != ValueRepresentation::kTagged) {
+    return ProcessPhiResult::kNone;
+  }
 
   if (node->is_exception_phi()) {
     // Exception phis have no inputs (or, at least, none accessible through
     // `node->input(...)`), so we don't know if the inputs could be untagged or
     // not, so we just keep those Phis tagged.
-    return ProcessResult::kContinue;
+    return ProcessPhiResult::kNone;
   }
 
   TRACE_UNTAGGING(
@@ -42,6 +78,7 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
   ValueRepresentationSet input_reprs;
   HoistType hoist_untagging = HoistType::kNone;
 
+  bool has_tagged_phi_input = false;
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input(i).node();
     if (input->Is<SmiConstant>()) {
@@ -82,6 +119,7 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
           DCHECK_EQ(i, 1);
           break;
         }
+        has_tagged_phi_input = true;
         input_reprs.RemoveAll();
         break;
       }
@@ -142,6 +180,9 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
       break;
     }
   }
+  ProcessPhiResult default_result = has_tagged_phi_input
+                                        ? ProcessPhiResult::kRetryOnChange
+                                        : ProcessPhiResult::kNone;
 
   UseRepresentationSet use_reprs;
   if (node->is_loop_phi() && !node->get_same_loop_uses_repr_hints().empty()) {
@@ -166,7 +207,7 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
     // ignored.
     TRACE_UNTAGGING("  => Leaving tagged [incompatible uses]");
     EnsurePhiInputsTagged(node);
-    return ProcessResult::kContinue;
+    return default_result;
   }
 
   if (input_reprs.contains(ValueRepresentation::kTagged) ||
@@ -174,7 +215,7 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
       input_reprs.empty()) {
     TRACE_UNTAGGING("  => Leaving tagged [tagged or uint32 inputs]");
     EnsurePhiInputsTagged(node);
-    return ProcessResult::kContinue;
+    return default_result;
   }
 
   // Only allowed to have Int32, Float64 and HoleyFloat64 inputs from here.
@@ -241,23 +282,23 @@ ProcessResult MaglevPhiRepresentationSelector::Process(Phi* node,
   if (intersection.contains(ValueRepresentation::kInt32)) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, hoist_untagging);
-    return ProcessResult::kContinue;
+    return ProcessPhiResult::kChanged;
   } else if (intersection.contains(ValueRepresentation::kFloat64)) {
     TRACE_UNTAGGING("  => Untagging to kFloat64");
     ConvertTaggedPhiTo(node, ValueRepresentation::kFloat64, hoist_untagging);
-    return ProcessResult::kContinue;
+    return ProcessPhiResult::kChanged;
   } else if (intersection.contains(ValueRepresentation::kHoleyFloat64)) {
     TRACE_UNTAGGING("  => Untagging to HoleyFloat64");
     ConvertTaggedPhiTo(node, ValueRepresentation::kHoleyFloat64,
                        hoist_untagging);
-    return ProcessResult::kContinue;
+    return ProcessPhiResult::kChanged;
   }
 
   DCHECK(intersection.empty());
   // We don't untag the Phi.
   TRACE_UNTAGGING("  => Leaving tagged [incompatible inputs/uses]");
   EnsurePhiInputsTagged(node);
-  return ProcessResult::kContinue;
+  return default_result;
 }
 
 void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {

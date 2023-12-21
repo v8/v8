@@ -42,13 +42,16 @@ class MaglevPhiRepresentationSelector {
       StdoutStream{} << "\n";
     }
   }
-  void PreProcessBasicBlock(BasicBlock* block) {
-    MergeNewNodesInBlock(current_block_);
-    PreparePhiTaggings(current_block_, block);
-    current_block_ = block;
-  }
+  void PreProcessBasicBlock(BasicBlock* block);
 
-  ProcessResult Process(Phi* node, const ProcessingState&);
+  enum ProcessPhiResult { kNone, kRetryOnChange, kChanged };
+  ProcessPhiResult ProcessPhi(Phi* node);
+
+  // The visitor method is a no-op since phis are processed in
+  // PreProcessBasicBlock.
+  ProcessResult Process(Phi* node, const ProcessingState&) {
+    return ProcessResult::kContinue;
+  }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState&) {
     FixLoopPhisBackedge(node->target());
