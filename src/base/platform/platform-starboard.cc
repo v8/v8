@@ -18,6 +18,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/time.h"
@@ -85,9 +86,9 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   if (!SbTimeIsTimeThreadNowSupported()) return -1;
 
-  SbTimeMonotonic thread_now = SbTimeGetMonotonicThreadNow();
-  *secs = thread_now / kSbTimeSecond;
-  *usecs = thread_now % kSbTimeSecond;
+  int64_t us_time = SbTimeGetMonotonicThreadNow();
+  *secs = us_time / TimeConstants::kMicroSecondsPerSecond;
+  *usecs = us_time % TimeConstants::kMicroSecondsPerSecond;
   return 0;
 }
 
@@ -442,14 +443,18 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     return SbTimeZoneGetName();
   }
   double LocalTimeOffset(double time_ms, bool is_utc) override {
-    // SbTimeZOneGetCurrent returns an offset west of Greenwich, which has the
+    // SbTimeZoneGetCurrent returns an offset west of Greenwich, which has the
     // opposite sign V8 expects.
     // The starboard function returns offset in minutes. We convert to return
     // value in milliseconds.
     return SbTimeZoneGetCurrent() * 60.0 * msPerSecond * (-1);
   }
   double DaylightSavingsOffset(double time_ms) override {
-    EzTimeValue value = EzTimeValueFromSbTime(SbTimeGetNow());
+    int64_t posix_microseconds = starboard::CurrentPosixTime();
+    EzTimeValue value = {
+        posix_microseconds / TimeConstants::kMicroSecondsPerSecond,
+        (int32_t)(posix_microseconds % TimeConstants::kMicroSecondsPerSecond)
+    };
     EzTimeExploded ez_exploded;
     bool result =
         EzTimeValueExplode(&value, kEzTimeZoneLocal, &ez_exploded, NULL);
