@@ -253,10 +253,31 @@ class V8_NODISCARD CallDepthScope {
   DISALLOW_NEW_AND_DELETE()
 };
 
-class V8_NODISCARD InternalEscapableScope : public EscapableHandleScope {
+class V8_NODISCARD InternalEscapableScope : public EscapableHandleScopeBase {
  public:
   explicit inline InternalEscapableScope(i::Isolate* isolate)
-      : EscapableHandleScope(reinterpret_cast<v8::Isolate*>(isolate)) {}
+      : EscapableHandleScopeBase(reinterpret_cast<v8::Isolate*>(isolate)) {}
+
+  /**
+   * Pushes the value into the previous scope and returns a handle to it.
+   * Cannot be called twice.
+   */
+  template <class T>
+  V8_INLINE Local<T> Escape(Local<T> value) {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    return value;
+#else
+    DCHECK(!value.IsEmpty());
+    return Local<T>::FromSlot(EscapeSlot(value.slot()));
+#endif
+  }
+
+  template <class T>
+  V8_INLINE MaybeLocal<T> EscapeMaybe(MaybeLocal<T> maybe_value) {
+    Local<T> value;
+    if (!maybe_value.ToLocal(&value)) return maybe_value;
+    return Escape(value);
+  }
 };
 
 template <typename T>

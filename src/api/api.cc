@@ -929,31 +929,19 @@ i::Address* HandleScope::CreateHandleForCurrentIsolate(i::Address value) {
 
 #endif  // V8_ENABLE_DIRECT_LOCAL
 
-EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
+EscapableHandleScopeBase::EscapableHandleScopeBase(Isolate* v8_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   escape_slot_ = CreateHandle(
       i_isolate, i::ReadOnlyRoots(i_isolate).the_hole_value().ptr());
   Initialize(v8_isolate);
 }
 
-i::Address* EscapableHandleScope::Escape(i::Address* escape_value) {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(GetIsolate())->heap();
-  Utils::ApiCheck(
-      i::IsTheHole(i::Tagged<i::Object>(*escape_slot_), heap->isolate()),
-      "EscapableHandleScope::Escape", "Escape value set twice");
-  if (escape_value == nullptr) {
-    *escape_slot_ = i::ReadOnlyRoots(heap).undefined_value().ptr();
-    return nullptr;
-  }
+i::Address* EscapableHandleScopeBase::EscapeSlot(i::Address* escape_value) {
+  DCHECK_NOT_NULL(escape_value);
+  DCHECK(i::IsTheHole(i::Tagged<i::Object>(*escape_slot_),
+                      reinterpret_cast<i::Isolate*>(GetIsolate())));
   *escape_slot_ = *escape_value;
   return escape_slot_;
-}
-
-void* EscapableHandleScope::operator new(size_t) { base::OS::Abort(); }
-void* EscapableHandleScope::operator new[](size_t) { base::OS::Abort(); }
-void EscapableHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
-void EscapableHandleScope::operator delete[](void*, size_t) {
-  base::OS::Abort();
 }
 
 SealHandleScope::SealHandleScope(Isolate* v8_isolate)
@@ -972,11 +960,6 @@ SealHandleScope::~SealHandleScope() {
   DCHECK_EQ(current->level, current->sealed_level);
   current->sealed_level = prev_sealed_level_;
 }
-
-void* SealHandleScope::operator new(size_t) { base::OS::Abort(); }
-void* SealHandleScope::operator new[](size_t) { base::OS::Abort(); }
-void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
-void SealHandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool Data::IsModule() const {
   return i::IsModule(*Utils::OpenDirectHandle(this));
@@ -3141,7 +3124,7 @@ Local<String> Message::Get() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(i_isolate));
+  InternalEscapableScope scope(i_isolate);
   i::Handle<i::String> raw_result =
       i::MessageHandler::GetMessage(i_isolate, self);
   Local<String> result = Utils::ToLocal(raw_result);
@@ -3184,7 +3167,7 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(i_isolate));
+  InternalEscapableScope scope(i_isolate);
   i::Handle<i::Object> stackFramesObj(self->stack_frames(), i_isolate);
   if (!IsFixedArray(*stackFramesObj)) return v8::Local<v8::StackTrace>();
   auto stackTrace = i::Handle<i::FixedArray>::cast(stackFramesObj);
@@ -3296,7 +3279,7 @@ MaybeLocal<String> Message::GetSource(Local<Context> context) const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  InternalEscapableScope handle_scope(i_isolate);
   RETURN_ESCAPED(Utils::ToLocal(i::direct_handle(self->GetSource(), i_isolate),
                                 i_isolate));
 }
@@ -3305,7 +3288,7 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(i_isolate));
+  InternalEscapableScope handle_scope(i_isolate);
   i::JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, self);
   RETURN_ESCAPED(Utils::ToLocal(self->GetSourceLine()));
 }

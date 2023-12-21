@@ -375,6 +375,7 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend Local<Boolean> False(Isolate* isolate);
   friend class HandleScope;
   friend class EscapableHandleScope;
+  friend class InternalEscapableScope;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
   template <class F1, class F2>
@@ -679,21 +680,42 @@ class MaybeLocal {
  * A HandleScope which first allocates a handle in the current scope
  * which will be later filled with the escape value.
  */
-class V8_EXPORT V8_NODISCARD EscapableHandleScope : public HandleScope {
+class V8_EXPORT V8_NODISCARD EscapableHandleScopeBase : public HandleScope {
  public:
-  explicit EscapableHandleScope(Isolate* isolate);
-  V8_INLINE ~EscapableHandleScope() = default;
+  explicit EscapableHandleScopeBase(Isolate* isolate);
+  V8_INLINE ~EscapableHandleScopeBase() = default;
 
+  EscapableHandleScopeBase(const EscapableHandleScopeBase&) = delete;
+  void operator=(const EscapableHandleScopeBase&) = delete;
+  void* operator new(size_t size) = delete;
+  void* operator new[](size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
+  void operator delete[](void*, size_t) = delete;
+
+ protected:
   /**
    * Pushes the value into the previous scope and returns a handle to it.
    * Cannot be called twice.
    */
+  internal::Address* EscapeSlot(internal::Address* escape_value);
+
+ private:
+  internal::Address* escape_slot_;
+};
+
+class V8_EXPORT V8_NODISCARD EscapableHandleScope
+    : public EscapableHandleScopeBase {
+ public:
+  explicit EscapableHandleScope(Isolate* isolate)
+      : EscapableHandleScopeBase(isolate) {}
+  V8_INLINE ~EscapableHandleScope() = default;
   template <class T>
   V8_INLINE Local<T> Escape(Local<T> value) {
 #ifdef V8_ENABLE_DIRECT_LOCAL
     return value;
 #else
-    return Local<T>::FromSlot(Escape(value.slot()));
+    if (value.IsEmpty()) return value;
+    return Local<T>::FromSlot(EscapeSlot(value.slot()));
 #endif
   }
 
@@ -701,20 +723,6 @@ class V8_EXPORT V8_NODISCARD EscapableHandleScope : public HandleScope {
   V8_INLINE MaybeLocal<T> EscapeMaybe(MaybeLocal<T> value) {
     return Escape(value.FromMaybe(Local<T>()));
   }
-
-  EscapableHandleScope(const EscapableHandleScope&) = delete;
-  void operator=(const EscapableHandleScope&) = delete;
-
- private:
-  // Declaring operator new and delete as deleted is not spec compliant.
-  // Therefore declare them private instead to disable dynamic alloc
-  void* operator new(size_t size);
-  void* operator new[](size_t size);
-  void operator delete(void*, size_t);
-  void operator delete[](void*, size_t);
-
-  internal::Address* Escape(internal::Address* escape_value);
-  internal::Address* escape_slot_;
 };
 
 /**
@@ -729,15 +737,12 @@ class V8_EXPORT V8_NODISCARD SealHandleScope {
 
   SealHandleScope(const SealHandleScope&) = delete;
   void operator=(const SealHandleScope&) = delete;
+  void* operator new(size_t size) = delete;
+  void* operator new[](size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
+  void operator delete[](void*, size_t) = delete;
 
  private:
-  // Declaring operator new and delete as deleted is not spec compliant.
-  // Therefore declare them private instead to disable dynamic alloc
-  void* operator new(size_t size);
-  void* operator new[](size_t size);
-  void operator delete(void*, size_t);
-  void operator delete[](void*, size_t);
-
   internal::Isolate* const i_isolate_;
   internal::Address* prev_limit_;
   int prev_sealed_level_;
