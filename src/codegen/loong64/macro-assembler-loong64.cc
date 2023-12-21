@@ -2767,6 +2767,10 @@ void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
   Ld_d(destination, MemOperand(kRootRegister, offset));
 }
 
+void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
+  St_d(value, MemOperand(kRootRegister, offset));
+}
+
 void MacroAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   if (offset == 0) {
