@@ -32,7 +32,7 @@ void Hole::set_raw_numeric_value(uint64_t bits) {
 
 void Hole::Initialize(Isolate* isolate, Handle<Hole> hole,
                       Handle<HeapNumber> numeric_value) {
-  hole->set_raw_numeric_value(numeric_value->value_as_bits(kRelaxedLoad));
+  hole->set_raw_numeric_value(numeric_value->value_as_bits());
 }
 
 }  // namespace internal

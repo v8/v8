@@ -464,8 +464,8 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
     if (representation_.IsDouble()) {
       // Compare doubles by bit pattern.
       if (!IsHeapNumber(current_value) || !IsHeapNumber(used_value) ||
-          HeapNumber::cast(current_value)->value_as_bits(kRelaxedLoad) !=
-              HeapNumber::cast(used_value)->value_as_bits(kRelaxedLoad)) {
+          HeapNumber::cast(current_value)->value_as_bits() !=
+              HeapNumber::cast(used_value)->value_as_bits()) {
         TRACE_BROKER_MISSING(broker_,
                              "Constant Double property value changed in "
                                  << holder_.object() << " at FieldIndex "

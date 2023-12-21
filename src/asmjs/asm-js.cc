@@ -351,8 +351,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   wasm::AsmJsParser::StdlibSet stdlib_uses =
-      wasm::AsmJsParser::StdlibSet::FromIntegral(
-          uses_bitset->value_as_bits(kRelaxedLoad));
+      wasm::AsmJsParser::StdlibSet::FromIntegral(uses_bitset->value_as_bits());
   if (!stdlib_uses.empty()) {  // No checking needed if no uses.
     if (stdlib.is_null()) {
       ReportInstantiationFailure(script, position, "Requires standard library");

@@ -942,7 +942,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
     Tagged<Object> current_value =
         holder->RawFastPropertyAt(isolate_, field_index);
     DCHECK(IsHeapNumber(current_value, isolate_));
-    bits = HeapNumber::cast(current_value)->value_as_bits(kRelaxedLoad);
+    bits = HeapNumber::cast(current_value)->value_as_bits();
     // Use bit representation of double to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
     // base::bit_cast or value(), will change its value on ia32 (the x87

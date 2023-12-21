@@ -867,7 +867,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           Tagged<HeapObject> hn =
               HeapObject::FromAddress(mutable_double_address);
           hn->set_map_after_allocation(roots().heap_number_map());
-          HeapNumber::cast(hn)->set_value_as_bits(bits, kRelaxedStore);
+          HeapNumber::cast(hn)->set_value_as_bits(bits);
           value = hn;
           mutable_double_address +=
               ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
