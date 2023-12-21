@@ -2766,6 +2766,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
         i_isolate, source->resource_name, source->resource_line_offset,
         source->resource_column_offset, source->source_map_url,
         source->host_defined_options, source->resource_options);
+    script_details.wrapped_arguments = arguments_list;
 
     std::unique_ptr<i::AlignedCachedData> cached_data;
     if (options == kConsumeCodeCache) {
@@ -2778,8 +2779,8 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     i::Handle<i::JSFunction> scoped_result;
     has_exception =
         !i::Compiler::GetWrappedFunction(
-             Utils::OpenHandle(*source->source_string), arguments_list, context,
-             script_details, cached_data.get(), options, no_cache_reason)
+             Utils::OpenHandle(*source->source_string), context, script_details,
+             cached_data.get(), options, no_cache_reason)
              .ToHandle(&scoped_result);
     if (options == kConsumeCodeCache) {
       source->cached_data->rejected = cached_data->rejected();
