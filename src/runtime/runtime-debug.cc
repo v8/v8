@@ -134,21 +134,14 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  // TODO(verwaest): Remove all those has_exception() checks once we figure out
-  // where we first see one in chromium:1509114.
-  DCHECK(!isolate->has_exception());
   if (isolate->debug()->break_points_active()) {
-    DCHECK(!isolate->has_exception());
     isolate->debug()->HandleDebugBreak(
         kIgnoreIfTopFrameBlackboxed,
         v8::debug::BreakReasons({v8::debug::BreakReason::kDebuggerStatement}));
-    DCHECK(!isolate->has_exception());
     if (isolate->debug()->IsRestartFrameScheduled()) {
-      DCHECK(!isolate->has_exception());
       return isolate->TerminateExecution();
     }
   }
-  DCHECK(!isolate->has_exception());
   return isolate->stack_guard()->HandleInterrupts();
 }
 
