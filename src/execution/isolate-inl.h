@@ -130,6 +130,7 @@ bool Isolate::has_exception() {
 }
 
 bool Isolate::is_execution_terminating() {
+  if (try_catch_handler()) return try_catch_handler()->HasTerminated();
   return thread_local_top()->exception_ ==
          i::ReadOnlyRoots(this).termination_exception();
 }

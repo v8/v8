@@ -203,9 +203,7 @@ class V8_NODISCARD CallDepthScope {
     // Also clear termination exceptions iff there's no TryCatch handler.
     // TODO(verwaest): Drop this once we propagate exceptions to external
     // TryCatch on Throw. This should be debug-only.
-    if (isolate_->thread_local_top()->CallDepthIsZero() &&
-        (isolate_->thread_local_top()->try_catch_handler_ == nullptr ||
-         !isolate_->is_execution_terminating())) {
+    if (isolate_->thread_local_top()->CallDepthIsZero()) {
       isolate_->clear_internal_exception();
     }
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
