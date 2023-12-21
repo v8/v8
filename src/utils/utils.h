@@ -365,21 +365,24 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
       const auto xored0 = veorq_u8(lhs0, rhs0);
       const auto xored1 = veorq_u8(lhs1, rhs1);
       const auto ored = vorrq_u8(xored0, xored1);
-      return !static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(ored, ored), 0));
+      return !static_cast<bool>(
+          vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(ored, ored)), 0));
     }
     default:  // count: [33, ...]
     {
       const auto lhs0 = vld1q_u8(lhs);
       const auto rhs0 = vld1q_u8(rhs);
       const auto xored = veorq_u8(lhs0, rhs0);
-      if (static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(xored, xored), 0)))
+      if (static_cast<bool>(
+              vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
         return false;
       for (size_t i = count % sizeof(uint8x16_t); i < count;
            i += sizeof(uint8x16_t)) {
         const auto lhs0 = vld1q_u8(lhs + i);
         const auto rhs0 = vld1q_u8(rhs + i);
         const auto xored = veorq_u8(lhs0, rhs0);
-        if (static_cast<bool>(vgetq_lane_u64(vpmaxq_u8(xored, xored), 0)))
+        if (static_cast<bool>(vgetq_lane_u64(
+                vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
           return false;
       }
       return true;
