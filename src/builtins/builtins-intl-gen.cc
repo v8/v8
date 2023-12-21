@@ -39,8 +39,9 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   }
 
   TNode<Uint8T> GetChar(TNode<SeqOneByteString> seq_string, int index) {
-    size_t effective_offset =
-        offsetof(SeqOneByteString, chars_[index]) - kHeapObjectTag;
+    size_t effective_offset = offsetof(SeqOneByteString, chars_) +
+                              sizeof(SeqOneByteString::Char) * index -
+                              kHeapObjectTag;
     return Load<Uint8T>(seq_string, IntPtrConstant(effective_offset));
   }
 
