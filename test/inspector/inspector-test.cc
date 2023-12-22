@@ -824,9 +824,11 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(info[0]);
-    v8::MaybeLocal<v8::Value> result =
-        callback->Call(context, v8::Undefined(isolate), 0, nullptr);
-    info.GetReturnValue().Set(result.ToLocalChecked());
+    v8::Local<v8::Value> result;
+    if (callback->Call(context, v8::Undefined(isolate), 0, nullptr)
+            .ToLocal(&result)) {
+      info.GetReturnValue().Set(result);
+    }
   }
 
   static void RunNestedMessageLoop(

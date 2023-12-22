@@ -118,7 +118,6 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
     source = ToV8String(data->isolate(), expression_utf8_);
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
-  v8::Isolate::SafeForTerminationScope allowTermination(data->isolate());
   if (!is_module_) {
     v8::Local<v8::Script> script;
     if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))

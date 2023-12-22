@@ -8,7 +8,6 @@
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
 #include "src/common/assert-scope.h"
-#include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -178,17 +177,8 @@ template <bool do_callback>
 class V8_NODISCARD CallDepthScope {
  public:
   CallDepthScope(i::Isolate* isolate, Local<Context> context)
-      : isolate_(isolate),
-        saved_context_(isolate->context(), isolate_),
-        safe_for_termination_(isolate->next_v8_call_is_safe_for_termination()),
-        interrupts_scope_(isolate_, i::StackGuard::TERMINATE_EXECUTION,
-                          isolate_->only_terminate_in_safe_scope()
-                              ? (safe_for_termination_
-                                     ? i::InterruptsScope::kRunInterrupts
-                                     : i::InterruptsScope::kPostponeInterrupts)
-                              : i::InterruptsScope::kNoop) {
+      : isolate_(isolate), saved_context_(isolate->context(), isolate_) {
     isolate_->thread_local_top()->IncrementCallDepth<do_callback>(this);
-    isolate_->set_next_v8_call_is_safe_for_termination(false);
     i::Tagged<i::NativeContext> env = *Utils::OpenHandle(*context);
     isolate->set_context(env);
 
@@ -219,7 +209,6 @@ class V8_NODISCARD CallDepthScope {
 #endif
 
     isolate_->set_context(*saved_context_);
-    isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
 
   CallDepthScope(const CallDepthScope&) = delete;
@@ -242,8 +231,6 @@ class V8_NODISCARD CallDepthScope {
   i::Isolate* const isolate_;
   i::Handle<i::Context> saved_context_;
 
-  bool safe_for_termination_ : 1;
-  i::InterruptsScope interrupts_scope_;
   i::Address previous_stack_height_;
 
   friend class i::ThreadLocalTop;

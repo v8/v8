@@ -101,7 +101,6 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
-  v8::Isolate::SafeForTerminationScope allowTermination(m_isolate);
   return unboundScript->BindToCurrentContext()->Run(context);
 }
 
@@ -441,9 +440,7 @@ int64_t V8InspectorImpl::generateUniqueId() {
 
 V8InspectorImpl::EvaluateScope::EvaluateScope(
     const InjectedScript::Scope& scope)
-    : m_scope(scope),
-      m_isolate(scope.inspector()->isolate()),
-      m_safeForTerminationScope(m_isolate) {}
+    : m_scope(scope), m_isolate(scope.inspector()->isolate()) {}
 
 struct V8InspectorImpl::EvaluateScope::CancelToken {
   v8::base::Mutex m_mutex;

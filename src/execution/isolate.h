@@ -535,8 +535,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
-  V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)                                \
   V(int, embedder_wrapper_type_index, -1)                                     \
   V(int, embedder_wrapper_object_index, -1)                                   \
   V(compiler::NodeObserver*, node_observer, nullptr)                          \

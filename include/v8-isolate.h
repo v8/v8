@@ -395,16 +395,13 @@ class V8_EXPORT Isolate {
    */
   class V8_EXPORT V8_NODISCARD SafeForTerminationScope {
    public:
-    explicit SafeForTerminationScope(v8::Isolate* v8_isolate);
-    ~SafeForTerminationScope();
+    V8_DEPRECATE_SOON("All code should be safe for termination")
+    explicit SafeForTerminationScope(v8::Isolate* v8_isolate) {}
+    ~SafeForTerminationScope() {}
 
     // Prevent copying of Scope objects.
     SafeForTerminationScope(const SafeForTerminationScope&) = delete;
     SafeForTerminationScope& operator=(const SafeForTerminationScope&) = delete;
-
-   private:
-    internal::Isolate* i_isolate_;
-    bool prev_value_;
   };
 
   /**

@@ -9675,8 +9675,6 @@ void Isolate::Initialize(Isolate* v8_isolate,
     }
   }
 
-  i_isolate->set_only_terminate_in_safe_scope(
-      params.only_terminate_in_safe_scope);
   i_isolate->set_embedder_wrapper_type_index(
       params.embedder_wrapper_type_index);
   i_isolate->set_embedder_wrapper_object_index(
@@ -9819,17 +9817,6 @@ Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
 Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
   microtask_queue_->DecrementMicrotasksSuppressions();
   i_isolate_->thread_local_top()->DecrementCallDepth(this);
-}
-
-Isolate::SafeForTerminationScope::SafeForTerminationScope(
-    v8::Isolate* v8_isolate)
-    : i_isolate_(reinterpret_cast<i::Isolate*>(v8_isolate)),
-      prev_value_(i_isolate_->next_v8_call_is_safe_for_termination()) {
-  i_isolate_->set_next_v8_call_is_safe_for_termination(true);
-}
-
-Isolate::SafeForTerminationScope::~SafeForTerminationScope() {
-  i_isolate_->set_next_v8_call_is_safe_for_termination(prev_value_);
 }
 
 i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
