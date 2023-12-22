@@ -5257,35 +5257,6 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   return true;
 }
 
-// This predicate is called when an young generation space cannot allocated
-// from the free list and is about to add a new page. Returning false will
-// cause a GC.
-bool Heap::ShouldExpandYoungGenerationOnSlowAllocation() {
-  DCHECK(deserialization_complete());
-  DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-
-  if (always_allocate()) return true;
-
-  if (gc_state() == TEAR_DOWN) return true;
-
-  if (!CanPromoteYoungAndExpandOldGeneration(Page::kPageSize)) {
-    // Assuming all of new space is alive, doing a full GC and promoting all
-    // objects should still succeed. Don't let new space grow if it means it
-    // will exceed the available size of old space.
-    return false;
-  }
-
-  if (incremental_marking()->IsMajorMarking() &&
-      !AllocationLimitOvershotByLargeMargin()) {
-    // Allocate a new page during full GC incremental marking to avoid
-    // prematurely finalizing the incremental GC. Once the full GC is over, new
-    // space will be empty and capacity will be reset.
-    return true;
-  }
-
-  return false;
-}
-
 bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
   if (!local_heap) return false;
   return local_heap->allocation_failed_;

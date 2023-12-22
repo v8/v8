@@ -534,6 +534,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Reset the allocation pointer.
   void GarbageCollectionEpilogue() {
     size_at_last_gc_ = Size();
+    force_allocation_success_ = false;
     last_lab_page_ = nullptr;
   }
 
@@ -565,6 +566,10 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool ShouldReleaseEmptyPage() const;
 
+  bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
+
+  void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
+
   bool IsPromotionCandidate(const MemoryChunk* page) const;
 
   // Return the available bytes without growing.
@@ -588,6 +593,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t current_capacity_ = 0;
 
   Page* last_lab_page_ = nullptr;
+
+  bool force_allocation_success_ = false;
 
   friend class PagedNewSpaceAllocatorPolicy;
 };
@@ -706,7 +713,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
-  const PagedSpaceForNewSpace* paged_space() const { return &paged_space_; }
 
   void MakeIterable() override { paged_space_.MakeIterable(); }
 
@@ -717,6 +723,10 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.ShouldReleaseEmptyPage();
   }
   void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
+
+  void ForceAllocationSuccessUntilNextGC() {
+    paged_space_.ForceAllocationSuccessUntilNextGC();
+  }
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 

@@ -1924,7 +1924,6 @@ class Heap final {
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
-  bool ShouldExpandYoungGenerationOnSlowAllocation();
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
   bool IsMajorMarkingComplete(LocalHeap* local_heap);
@@ -2404,7 +2403,6 @@ class Heap final {
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
-  friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
   friend class PagedSpaceForNewSpace;
