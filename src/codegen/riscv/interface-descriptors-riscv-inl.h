@@ -193,6 +193,13 @@ constexpr auto CallFunctionTemplateDescriptor::registers() {
   return RegisterArray(a1, a0);
 }
 
+constexpr auto CallFunctionTemplateGenericDescriptor::registers() {
+  // a1 : function template info
+  // a2 : number of arguments (on the stack)
+  // a3 : topmost script-having context
+  return RegisterArray(a1, a2, a3);
+}
+
 // static
 constexpr auto CallWithSpreadDescriptor::registers() {
   // a0 : number of arguments (on the stack)
@@ -293,6 +300,11 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
   return RegisterArray(a0, a1, a2);
 }
 
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
+  return a1;
+}
 // static
 constexpr Register
 CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister() {

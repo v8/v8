@@ -4356,6 +4356,10 @@ void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
   LoadWord(destination, MemOperand(kRootRegister, offset));
 }
 
+void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
+  StoreWord(value, MemOperand(kRootRegister, offset));
+}
+
 MemOperand MacroAssembler::ExternalReferenceAsOperand(
     ExternalReference reference, Register scratch) {
   if (root_array_available_ && options().enable_root_relative_access) {
