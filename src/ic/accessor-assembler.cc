@@ -1365,8 +1365,16 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proto_handler);
     {
-      HandleStoreICProtoHandler(p, CAST(strong_handler), miss, ic_mode,
-                                support_elements);
+      if (p->IsAnyDefineOwn()) {
+        // Normally, proto handlers are not created for DefineOwnICs, however
+        // such a handler might be fetched from the StoreIC's megamorphic stub
+        // cache. Treat them as slow ones.
+        Goto(&if_slow);
+
+      } else {
+        HandleStoreICProtoHandler(p, CAST(strong_handler), &if_slow, miss,
+                                  ic_mode, support_elements);
+      }
     }
 
     // |handler| is a heap object. Must be code, call it.
@@ -1789,8 +1797,9 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(
-    const StoreICParameters* p, TNode<StoreHandler> handler, Label* miss,
-    ICMode ic_mode, ElementSupport support_elements) {
+    const StoreICParameters* p, TNode<StoreHandler> handler, Label* slow,
+    Label* miss, ICMode ic_mode, ElementSupport support_elements) {
+  DCHECK(!p->IsAnyDefineOwn());
   Comment("HandleStoreICProtoHandler");
 
   OnCodeHandler on_code_handler;
@@ -1844,7 +1853,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   {
     Label if_add_normal(this), if_store_global_proxy(this), if_api_setter(this),
-        if_accessor(this), if_native_data_property(this), if_slow(this);
+        if_accessor(this), if_native_data_property(this);
 
     CSA_DCHECK(this, TaggedIsSmi(smi_handler));
     TNode<Int32T> handler_word = SmiToInt32(CAST(smi_handler));
@@ -1853,7 +1862,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         DecodeWord32<StoreHandler::KindBits>(handler_word);
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kNormal)), &if_add_normal);
 
-    GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), slow);
 
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
     CSA_DCHECK(this, IsWeakOrCleared(maybe_holder));
@@ -1874,26 +1883,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     CSA_DCHECK(this, Word32Equal(handler_kind, STORE_KIND(kProxy)));
     HandleStoreToProxy(p, CAST(holder), miss, support_elements);
-
-    BIND(&if_slow);
-    {
-      Comment("store_slow");
-      // The slow case calls into the runtime to complete the store without
-      // causing an IC miss that would otherwise cause a transition to the
-      // generic stub.
-      if (ic_mode == ICMode::kGlobalIC) {
-        TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
-                        p->slot(), p->vector(), p->receiver(), p->name());
-      } else if (p->IsAnyDefineOwn()) {
-        // DefineKeyedOwnIC and DefineNamedOwnIC shouldn't be using slow proto
-        // handlers, otherwise proper slow function must be called.
-        CSA_DCHECK(this, BoolConstant(!p->IsAnyDefineOwn()));
-        Unreachable();
-      } else {
-        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
-                        p->receiver(), p->name());
-      }
-    }
 
     BIND(&if_add_normal);
     {

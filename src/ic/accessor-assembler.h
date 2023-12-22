@@ -477,8 +477,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // StoreIC implementation.
 
   void HandleStoreICProtoHandler(const StoreICParameters* p,
-                                 TNode<StoreHandler> handler, Label* miss,
-                                 ICMode ic_mode,
+                                 TNode<StoreHandler> handler, Label* slow,
+                                 Label* miss, ICMode ic_mode,
                                  ElementSupport support_elements);
   void HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                    TNode<JSObject> holder, TNode<Object> value,
