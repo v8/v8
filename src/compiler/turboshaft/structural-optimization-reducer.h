@@ -104,13 +104,6 @@ class StructuralOptimizationReducer : public Next {
     OpIndex switch_var = OpIndex::Invalid();
     uint32_t value;
     while (true) {
-      // The "false" destination will be inlined before the switch is emitted,
-      // so it should only contain pure operations.
-      if (!ContainsOnlyPureOps(current_branch->if_false, Asm().input_graph())) {
-        TRACE("\t [break] End of only-pure-ops cascade reached.\n");
-        break;
-      }
-
       // If we encounter a condition that is not equality, we can't turn it
       // into a switch case.
       const Operation& cond =
@@ -119,6 +112,15 @@ class StructuralOptimizationReducer : public Next {
       if (!cond.template Is<ComparisonOp>()) {
         // 'if(x==0)' may be optimized to 'if(x)', we should take this into
         // consideration.
+
+        // The "false" destination will be inlined before the switch is emitted,
+        // so it should only contain pure operations.
+        if (!ContainsOnlyPureOps(current_branch->if_true,
+                                 Asm().input_graph())) {
+          TRACE("\t [break] End of only-pure-ops cascade reached.\n");
+          break;
+        }
+
         OpIndex current_var = current_branch->condition();
         if (!switch_var.valid()) {
           switch_var = current_var;
@@ -149,6 +151,14 @@ class StructuralOptimizationReducer : public Next {
         if (!right_op.Is<Opmask::kWord32Constant>()) {
           TRACE(
               "\t [bailout] No Word32 constant on the right side of Equal.\n");
+          break;
+        }
+
+        // The "false" destination will be inlined before the switch is emitted,
+        // so it should only contain pure operations.
+        if (!ContainsOnlyPureOps(current_branch->if_false,
+                                 Asm().input_graph())) {
+          TRACE("\t [break] End of only-pure-ops cascade reached.\n");
           break;
         }
         const ConstantOp& const_op = right_op.Cast<ConstantOp>();
