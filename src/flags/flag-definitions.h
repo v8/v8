@@ -273,9 +273,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)                  \
-  V(harmony_set_methods, "harmony Set Methods") \
-  V(harmony_iterator_helpers, "JavaScript iterator helpers")
+#define HARMONY_STAGED_BASE(V) V(harmony_set_methods, "harmony Set Methods")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
   V(js_regexp_modifiers, "RegExp modifiers")
@@ -299,7 +297,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_json_parse_with_source, "harmony json parse with source") \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")        \
   V(harmony_array_grouping, "harmony array grouping")                 \
-  V(harmony_array_from_async, "harmony Array.fromAsync")
+  V(harmony_array_from_async, "harmony Array.fromAsync")              \
+  V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
   V(js_promise_withresolvers, "Promise.withResolvers")
