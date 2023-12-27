@@ -218,7 +218,7 @@ deps = {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
-        'version': 'XSjN84pHxBPX13CrUj3fQjEroncvFGGeJY9wDVEDswoC',
+        'version': 'wpJvg81kuXdMM66r_l9Doa-pLfR6S26Jd1x40LpwWEoC',
       },
     ],
     'condition': 'checkout_android',
