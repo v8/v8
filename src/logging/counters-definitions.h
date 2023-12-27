@@ -131,6 +131,8 @@ namespace internal {
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
   /* Snapshot. */                                                             \
+  HT(snapshot_decompress, V8.SnapshotDecompressMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
   HT(snapshot_deserialize_rospace, V8.SnapshotDeserializeRoSpaceMicroSeconds, \
      1000000, MICROSECOND)                                                    \
   HT(snapshot_deserialize_isolate, V8.SnapshotDeserializeIsolateMicroSeconds, \
