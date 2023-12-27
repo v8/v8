@@ -2577,7 +2577,7 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(
     TNode<Map> map, base::Optional<TNode<Uint32T>> maybe_bitfield3) {
   Label is_prototype(this), cont(this);
   TNode<Uint32T> bitfield3;
-  if (bitfield3) {
+  if (maybe_bitfield3) {
     bitfield3 = maybe_bitfield3.value();
   } else {
     bitfield3 = LoadMapBitField3(map);
