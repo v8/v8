@@ -164,7 +164,7 @@ bool BasicBlockProfiler::HasData(Isolate* isolate) {
 }
 
 void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
-  os << "---- Start Profiling Data ----" << std::endl;
+  os << "---- Start Profiling Data ----" << '\n';
   for (const auto& data : data_list_) {
     os << *data;
   }
@@ -181,7 +181,7 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
     // optimization might get confused.
     CHECK(builtin_names.insert(data.function_name_).second);
   }
-  os << "---- End Profiling Data ----" << std::endl;
+  os << "---- End Profiling Data ----" << '\n';
 }
 
 void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
@@ -223,17 +223,17 @@ void BasicBlockProfilerData::Log(Isolate* isolate, std::ostream& os) {
       any_nonzero_counter = true;
       os << ProfileDataFromFileConstants::kBlockCounterMarker << kNext
          << function_name_.c_str() << kNext << block_ids_[i] << kNext
-         << counts_[i] << std::endl;
+         << counts_[i] << '\n';
     }
   }
   if (any_nonzero_counter) {
     for (size_t i = 0; i < branches_.size(); ++i) {
       os << ProfileDataFromFileConstants::kBlockHintMarker << kNext
          << function_name_.c_str() << kNext << branches_[i].first << kNext
-         << branches_[i].second << std::endl;
+         << branches_[i].second << '\n';
     }
     os << ProfileDataFromFileConstants::kBuiltinHashMarker << kNext
-       << function_name_.c_str() << kNext << hash_ << std::endl;
+       << function_name_.c_str() << kNext << hash_ << '\n';
   }
 }
 
@@ -249,10 +249,10 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
   }
   if (!d.schedule_.empty()) {
     os << "schedule for " << name << " (B0 entered " << d.counts_[0]
-       << " times)" << std::endl;
-    os << d.schedule_.c_str() << std::endl;
+       << " times)" << '\n';
+    os << d.schedule_.c_str() << '\n';
   }
-  os << "block counts for " << name << ":" << std::endl;
+  os << "block counts for " << name << ":" << '\n';
   std::vector<std::pair<size_t, uint32_t>> pairs;
   pairs.reserve(d.n_blocks());
   for (size_t i = 0; i < d.n_blocks(); ++i) {
@@ -266,11 +266,11 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
       });
   for (auto it : pairs) {
     if (it.second == 0) break;
-    os << "block B" << it.first << " : " << it.second << std::endl;
+    os << "block B" << it.first << " : " << it.second << '\n';
   }
-  os << std::endl;
+  os << '\n';
   if (!d.code_.empty()) {
-    os << d.code_.c_str() << std::endl;
+    os << d.code_.c_str() << '\n';
   }
   return os;
 }
