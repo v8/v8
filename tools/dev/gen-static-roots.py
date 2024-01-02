@@ -87,6 +87,13 @@ parser.add_argument(
     required=False,
     type=Path,
     help='target build directory')
+parser.add_argument(
+    '-j',
+    "--jobs",
+    default=-1,
+    required=False,
+    type=int,
+    help='the job count for generating static roots (postive number required)')
 
 args = parser.parse_args()
 
@@ -98,14 +105,17 @@ def run(cmd, **kwargs):
   return subprocess.run(cmd, **kwargs, check=True)
 
 
-def build(path, gn_args):
+def build(path, gn_args, jobs):
   if not path.exists():
     path.mkdir(parents=True, exist_ok=True)
   with (path / "args.gn").open("w") as f:
     f.write(gn_args)
   suffix = ".bat" if platform.system() == "Windows" else ""
   run(["gn" + suffix, "gen", path])
-  run(["autoninja" + suffix, "-C", path, "mksnapshot"])
+  if jobs > 0:
+    run(["autoninja" + suffix, "-C", path, "mksnapshot", "-j" + str(jobs)])
+  else:
+    run(["autoninja" + suffix, "-C", path, "mksnapshot"])
   return path.absolute()
 
 
@@ -118,7 +128,7 @@ for target in [args.configuration]:
   build_dir = args.out / f"gen-static-roots.{target}"
   config = STATIC_ROOT_CONFIGURATIONS[target]
   gn_args = config["gn_args"]
-  build_path = build(build_dir, gn_args)
+  build_path = build(build_dir, gn_args, args.jobs)
   out_file = Path(tempfile.gettempdir()) / f"static-roots-{target}.h"
   run([build_path / "mksnapshot", "--static-roots-src", out_file])
   target_file = v8_path / config["target"]
