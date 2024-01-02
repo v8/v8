@@ -396,7 +396,7 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
     // CHECK_EQ(0, current_block_id.ToInt());
     // The phi size test below is because we can, technically, have phi
     // instructions with one argument. Some tests expose that, too.
-  } else if (block->PredecessorCount() == 1 && block->phis().size() == 0) {
+  } else if (block->PredecessorCount() == 1 && block->phis().empty()) {
     const BlockAssessments* prev_block = assessments_[block->predecessors()[0]];
     ret->CopyFrom(prev_block);
   } else {
@@ -457,7 +457,7 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
     worklist.pop();
 
     const InstructionBlock* origin = current_assessment->origin();
-    CHECK(origin->PredecessorCount() > 1 || origin->phis().size() > 0);
+    CHECK(origin->PredecessorCount() > 1 || !origin->phis().empty());
 
     // Check if the virtual register is a phi first, instead of relying on
     // the incoming assessments. In particular, this handles the case

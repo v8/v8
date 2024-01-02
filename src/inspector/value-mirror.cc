@@ -969,7 +969,7 @@ struct EntryMirror {
       mirrors->emplace_back(
           EntryMirror{std::move(keyMirror), std::move(valueMirror)});
     }
-    return mirrors->size() > 0;
+    return !mirrors->empty();
   }
 };
 
@@ -1239,9 +1239,9 @@ class ObjectMirror final : public ValueMirrorBase {
     }
 
     // No embedder-implemented serialization. Serialize as V8 Object.
-    return V8DeepSerializer::serializeV8Value(
-        value, context, maxDepth, additionalParameters, duplicateTracker,
-        *(result->get()));
+    return V8DeepSerializer::serializeV8Value(value, context, maxDepth,
+                                              additionalParameters,
+                                              duplicateTracker, *(*result));
   }
 
  private:

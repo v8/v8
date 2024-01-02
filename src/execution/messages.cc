@@ -69,7 +69,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
     std::unique_ptr<char[]> data_str;
     if (IsString(*data))
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
-    PrintF("%s:%i: %s\n", data_str.get() ? data_str.get() : "<unknown>",
+    PrintF("%s:%i: %s\n", data_str ? data_str.get() : "<unknown>",
            loc->start_pos(), str.get());
   }
 }

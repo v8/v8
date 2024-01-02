@@ -1375,7 +1375,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
   API_RCS_SCOPE(i_isolate, FunctionTemplate, New);
 
   if (!Utils::ApiCheck(
-          c_function_overloads.size() == 0 ||
+          c_function_overloads.empty() ||
               behavior == ConstructorBehavior::kThrow,
           "FunctionTemplate::NewWithCFunctionOverloads",
           "Fast API calls are not supported for constructor functions")) {
@@ -1428,7 +1428,7 @@ void FunctionTemplate::SetCallHandler(
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
   obj->set_data(*Utils::OpenDirectHandle(*data));
-  if (c_function_overloads.size() > 0) {
+  if (!c_function_overloads.empty()) {
     // Stores the data for a sequence of CFunction overloads into a single
     // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
     i::Handle<i::FixedArray> function_overloads =

@@ -6260,7 +6260,7 @@ std::string GetStringFromLocales(Isolate* isolate, Handle<Object> locales) {
 
 bool StringEqualsLocales(Isolate* isolate, const std::string& str,
                          Handle<Object> locales) {
-  if (IsUndefined(*locales, isolate)) return str == "";
+  if (IsUndefined(*locales, isolate)) return str.empty();
   return Handle<String>::cast(locales)->IsEqualTo(
       base::VectorOf(str.c_str(), str.length()));
 }
@@ -6446,9 +6446,7 @@ void Isolate::AddCodeMemoryRange(MemoryRange range) {
 void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
-#if !defined(V8_TARGET_ARCH_ARM)
-  return;
-#else
+#if defined(V8_TARGET_ARCH_ARM)
   void* new_page_start = reinterpret_cast<void*>(chunk->area_start());
   size_t new_page_size = chunk->area_size();
 
@@ -6533,9 +6531,7 @@ LocalHeap* Isolate::CurrentLocalHeap() {
 void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
-#if !defined(V8_TARGET_ARCH_ARM)
-  return;
-#else
+#if defined(V8_TARGET_ARCH_ARM)
   void* removed_page_start = reinterpret_cast<void*>(chunk->area_start());
   std::vector<MemoryRange>* old_code_pages = GetCodePages();
   DCHECK_NOT_NULL(old_code_pages);

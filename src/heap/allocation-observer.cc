@@ -55,7 +55,7 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
 
   observers_.erase(it);
 
-  if (observers_.size() == 0) {
+  if (observers_.empty()) {
     current_counter_ = next_counter_ = 0;
   } else {
     size_t step_size = 0;
