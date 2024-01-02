@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '911ccd864c77a8d9c91066858dfbd4517f9e83e2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0e40b92d9ec7f75c76a831b72ad1842efa830275',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
