@@ -153,12 +153,15 @@ class V8TestImporter(TestImporter):
       _log.info(f'Sync {folder.destination} with {folder.source}')
       destination = self.project_root / folder.destination
       for f in destination.glob('./**/*'):
-        if f.is_file():
+        if f.is_file() and not self.is_git_sync_exception(f):
           relative_path = f.relative_to(destination)
           source_file = self.test262_path / folder.source / relative_path
           status = self.get_git_file_status(v8_test262_revision,
                                             test262_revision, source_file)
           self.update_file(f, status, source_file)
+
+  def is_git_sync_exception(self, file):
+    return file.name == 'features.txt'
 
   def get_git_file_status(self, v8_test262_revision, test262_revision,
                           source_file):
