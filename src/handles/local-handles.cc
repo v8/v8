@@ -26,9 +26,6 @@ void LocalHandleScope::OpenMainThreadScope(LocalHeap* local_heap) {
   prev_next_ = data->next;
   prev_limit_ = data->limit;
   data->level++;
-#ifdef V8_ENABLE_CHECKS
-  scope_level_ = isolate->handle_scope_data_for_debugging()->Register();
-#endif
 }
 
 void LocalHandleScope::CloseMainThreadScope(LocalHeap* local_heap,
@@ -37,18 +34,6 @@ void LocalHandleScope::CloseMainThreadScope(LocalHeap* local_heap,
   Isolate* isolate = local_heap->heap()->isolate();
   HandleScope::CloseScope(isolate, prev_next, prev_limit);
 }
-
-#ifdef V8_ENABLE_CHECKS
-void LocalHandleScope::VerifyMainThreadScope() const {
-  Isolate* isolate = local_heap_->heap()->isolate();
-  isolate->handle_scope_data_for_debugging()->Verify(scope_level_);
-}
-
-void LocalHandleScope::UnregisterMainThreadScope() const {
-  Isolate* isolate = local_heap_->heap()->isolate();
-  isolate->handle_scope_data_for_debugging()->Unregister(scope_level_);
-}
-#endif  // V8_ENABLE_CHECKS
 
 LocalHandles::LocalHandles() { scope_.Initialize(); }
 LocalHandles::~LocalHandles() {

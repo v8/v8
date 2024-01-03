@@ -271,10 +271,6 @@ class V8_NODISCARD HandleScope {
   Address* prev_next_;
   Address* prev_limit_;
 
-#ifdef V8_ENABLE_CHECKS
-  int scope_level_ = 0;
-#endif
-
   // Close the handle scope resetting limits to a previous state.
   static V8_INLINE void CloseScope(Isolate* isolate, Address* prev_next,
                                    Address* prev_limit);
@@ -335,24 +331,6 @@ struct HandleScopeData final {
 };
 
 static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
-
-#ifdef V8_ENABLE_CHECKS
-// This is to ensure LIFO handle scopes in debug builds.
-struct HandleScopeDataForDebugging final {
-  int last_handle_scope_level_ = 0;
-
-  void Initialize() { last_handle_scope_level_ = 0; }
-
-  inline int Register() { return ++last_handle_scope_level_; }
-
-  inline void Unregister(int level) {
-    Verify(level);
-    --last_handle_scope_level_;
-  }
-
-  inline void Verify(int level) { CHECK_EQ(last_handle_scope_level_, level); }
-};
-#endif  // V8_ENABLE_CHECKS
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 // Direct handles should not be used without conservative stack scanning,
