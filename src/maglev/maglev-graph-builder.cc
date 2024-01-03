@@ -325,7 +325,12 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
     data_.get<DeoptFrame::ConstructInvokeStubFrameData>().context->add_use();
   }
 
-  ~DeoptFrameScope() { builder_->current_deopt_scope_ = parent_; }
+  ~DeoptFrameScope() {
+    builder_->current_deopt_scope_ = parent_;
+    // We might have cached a checkpointed frame which includes this scope;
+    // reset it just in case.
+    builder_->latest_checkpointed_frame_.reset();
+  }
 
   DeoptFrameScope* parent() const { return parent_; }
 
