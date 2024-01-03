@@ -57,6 +57,18 @@ void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
   }
 }
 
+namespace {
+
+bool CanHoistUntaggingTo(BasicBlock* block) {
+  if (block->successors().size() != 1) return false;
+  if (!block->successors()[0]->is_loop()) return true;
+  // To be able to hoist above resumable loops we would have to be able to
+  // convert during resumption.
+  return !block->successors()[0]->state()->is_resumable_loop();
+}
+
+}  // namespace
+
 MaglevPhiRepresentationSelector::ProcessPhiResult
 MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   if (node->value_representation() != ValueRepresentation::kTagged) {
@@ -130,15 +142,17 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       // can try to hoist untagging out of the loop.
       if (builder_->graph()->is_osr() &&
           v8_flags.maglev_hoist_osr_value_phi_untagging &&
-          input->Is<InitialValue>()) {
+          input->Is<InitialValue>() &&
+          CanHoistUntaggingTo(*builder_->graph()->begin())) {
         hoist_untagging = HoistType::kPrologue;
         continue;
       }
       if (node->is_loop_phi()) {
         BasicBlock* dominator = node->merge_state()->predecessor_at(0);
-        if (input->Is<InitialValue>() || i == 0 ||
-            (input->has_id() &&
-             input->id() < dominator->control_node()->id())) {
+        if ((input->Is<InitialValue>() || i == 0 ||
+             (input->has_id() &&
+              input->id() < dominator->control_node()->id())) &&
+            CanHoistUntaggingTo(dominator)) {
           auto static_type = StaticTypeForNode(
               builder_->broker(), builder_->local_isolate(), input);
           if (NodeTypeIs(static_type, NodeType::kSmi)) {
@@ -155,7 +169,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
           // TODO(olivf): Unless we untag OSR values, speculatively untagging
           // could end us in deopt loops. To enable this by default we need to
           // add some feedback to be able to back off. Or, ideally find the
-          // respective checked conversion form within the loop to wire up the
+          // respective checked conversion from within the loop to wire up the
           // feedback collection.
           if (v8_flags.maglev_speculative_hoist_phi_untagging) {
             // TODO(olivf): Currently there is no hard guarantee that the phi
