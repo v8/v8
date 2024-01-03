@@ -1010,9 +1010,14 @@ class CompressedHeapObjectSlot;
 template <typename Cage>
 class V8HeapCompressionSchemeImpl;
 class MainCage;
-class TrustedCage;
 using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
+#ifdef V8_ENABLE_SANDBOX
+class TrustedCage;
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
+#else
+// The trusted cage does not exist in this case.
+using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+#endif
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
@@ -1066,6 +1071,12 @@ struct SlotTraits {
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
   using TInstructionStreamSlot = OffHeapFullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+  using TProtectedPointerSlot =
+      OffHeapCompressedObjectSlot<TrustedSpaceCompressionScheme>;
+#else
+  using TProtectedPointerSlot = TObjectSlot;
+#endif  // V8_ENABLE_SANDBOX
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
@@ -1092,6 +1103,13 @@ using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 // be allocated off the main heap the load operations require explicit cage base
 // value for code space.
 using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
+
+// A protected pointer is one where both the pointer itself and the pointed-to
+// object are protected from modifications by an attacker if the sandbox is
+// enabled. In practice, this means that they are pointers from one
+// TrustedObject to another TrustedObject as (only) trusted objects cannot
+// directly be manipulated by an attacker.
+using ProtectedPointerSlot = SlotTraits::TProtectedPointerSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 

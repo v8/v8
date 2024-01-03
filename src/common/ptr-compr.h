@@ -80,6 +80,9 @@ class TrustedCage : public AllStatic {
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
 };
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
+#else
+// The trusted cage does not exist in this case.
+using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_EXTERNAL_CODE_SPACE

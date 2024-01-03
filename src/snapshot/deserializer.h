@@ -145,6 +145,7 @@ class Deserializer : public SerializerDeserializer {
   struct ReferenceDescriptor {
     HeapObjectReferenceType type;
     bool is_indirect_pointer;
+    bool is_protected_pointer;
   };
 
   void VisitRootPointers(Root root, const char* description,
@@ -221,6 +222,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadInitializeSelfIndirectPointer(uint8_t data,
                                         SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadProtectedPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
@@ -301,6 +304,7 @@ class Deserializer : public SerializerDeserializer {
 
   bool next_reference_is_weak_ = false;
   bool next_reference_is_indirect_pointer_ = false;
+  bool next_reference_is_protected_pointer = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
   const bool should_rehash_;

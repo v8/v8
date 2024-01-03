@@ -5,7 +5,7 @@
 #include "src/heap/heap-write-barrier.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/marking-barrier.h"
+#include "src/heap/marking-barrier-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -96,6 +96,13 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                IndirectPointerSlot slot) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, slot);
+}
+
+void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
+                               ProtectedPointerSlot slot,
+                               Tagged<TrustedObject> value) {
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  marking_barrier->Write(host, slot, value);
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {

@@ -47,6 +47,13 @@ class CompressedObjectSlot : public SlotBase<CompressedObjectSlot, Tagged_t> {
   // TODO(leszeks): Consider deprecating the operator* load, and always pass the
   // Isolate.
   inline Tagged<Object> operator*() const;
+  // TODO(saelo): it would be nice if we could have two load variants: one that
+  // takes no arguments (which should normally be used), and one that takes an
+  // Isolate* or an IsolateForSandbox to be compatible with the
+  // IndirectPointerSlot. Then, all slots that contain HeapObject references
+  // would have at least a `load(isolate)` variant, and so could that could be
+  // used in cases where only the slots content matters.
+  inline Tagged<Object> load() const;
   inline Tagged<Object> load(PtrComprCageBase cage_base) const;
   inline void store(Tagged<Object> value) const;
   inline void store_map(Tagged<Map> map) const;
@@ -150,9 +157,14 @@ class OffHeapCompressedObjectSlot
   explicit OffHeapCompressedObjectSlot(const uint32_t* ptr)
       : TSlotBase(reinterpret_cast<Address>(ptr)) {}
 
+  inline Tagged<Object> load() const;
   inline Tagged<Object> load(PtrComprCageBase cage_base) const;
   inline void store(Tagged<Object> value) const;
 
+  inline Tagged<Object> Relaxed_Load() const;
+  // TODO(saelo): same as in CompressedObjectSlot, consider removing the load
+  // variant with a PtrComprCageBase but instead adding one with an isolate
+  // parameter that simply forwards the the parameterless variant.
   inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
   inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(Tagged<Object> value) const;

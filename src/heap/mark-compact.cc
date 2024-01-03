@@ -1311,28 +1311,46 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                             IndirectPointerSlot slot) final {}
 
+  inline void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                    ProtectedPointerSlot slot) final {
+    RecordMigratedSlot(host, MaybeObject::FromObject(slot.load()),
+                       slot.address());
+  }
+
  protected:
   inline void RecordMigratedSlot(Tagged<HeapObject> host, MaybeObject value,
                                  Address slot) {
     if (value->IsStrongOrWeak()) {
-      BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
-      if (p->InYoungGeneration()) {
-        DCHECK_IMPLIES(p->IsToPage(), v8_flags.minor_ms || p->IsLargePage());
-
-        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-        DCHECK(chunk->SweepingDone());
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
-      } else if (p->IsEvacuationCandidate()) {
-        if (p->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
-              MemoryChunk::FromHeapObject(host), slot);
+      BasicMemoryChunk* value_chunk =
+          BasicMemoryChunk::FromAddress(value.ptr());
+      MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+      if (value_chunk->InYoungGeneration()) {
+        DCHECK_IMPLIES(value_chunk->IsToPage(),
+                       v8_flags.minor_ms || value_chunk->IsLargePage());
+        DCHECK(host_chunk->SweepingDone());
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(host_chunk,
+                                                                  slot);
+      } else if (value_chunk->IsEvacuationCandidate()) {
+        if (value_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(host_chunk,
+                                                                     slot);
+        } else if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+                   host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+          // When the sandbox is disabled, we use plain tagged pointers to
+          // reference trusted objects from untrusted ones. However, for these
+          // references we want to use the OLD_TO_OLD remembered set, so here
+          // we need to check that both the value chunk and the host chunk are
+          // trusted space chunks.
+          RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+              host_chunk, slot);
         } else {
-          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-              MemoryChunk::FromHeapObject(host), slot);
+          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(host_chunk,
+                                                                    slot);
         }
-      } else if (p->InWritableSharedSpace() && !InWritableSharedSpace(host)) {
-        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-            MemoryChunk::FromHeapObject(host), slot);
+      } else if (value_chunk->InWritableSharedSpace() &&
+                 !InWritableSharedSpace(host)) {
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(host_chunk,
+                                                                     slot);
       }
     }
   }
@@ -3703,6 +3721,15 @@ MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
 }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
+#ifdef V8_ENABLE_SANDBOX
+template <>
+Tagged<Object>
+MakeSlotValue<ProtectedPointerSlot, HeapObjectReferenceType::STRONG>(
+    Tagged<HeapObject> heap_object) {
+  return heap_object;
+}
+#endif  // V8_ENABLE_SANDBOX
+
 // The following specialization
 //   MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>()
 // is not used.
@@ -3718,9 +3745,11 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
           std::is_same<TSlot, MaybeObjectSlot>::value ||
           std::is_same<TSlot, OffHeapObjectSlot>::value ||
           std::is_same<TSlot, InstructionStreamSlot>::value ||
-          std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value,
+          std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value ||
+          std::is_same<TSlot, ProtectedPointerSlot>::value,
       "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
-      "InstructionStreamSlot or WriteProtectedSlot are expected here");
+      "InstructionStreamSlot, WriteProtectedSlot, or ProtectedPointerSlot are "
+      "expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
   DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
@@ -4724,6 +4753,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     UpdateUntypedOldToNewPointers<OLD_TO_NEW_BACKGROUND>();
     UpdateUntypedOldToOldPointers();
     UpdateUntypedOldToCodePointers();
+    UpdateUntypedTrustedToTrustedPointers();
   }
 
   template <RememberedSetType old_to_new_type>
@@ -4807,6 +4837,38 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           },
           SlotSet::FREE_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet(OLD_TO_CODE);
+    }
+  }
+
+  void UpdateUntypedTrustedToTrustedPointers() {
+#ifdef V8_ENABLE_SANDBOX
+    // When the sandbox is enabled, we must not process the TRUSTED_TO_TRUSTED
+    // remembered set on any chunk that is located inside the sandbox (in which
+    // case the set should be unused). This is because an attacker could either
+    // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
+    // GC into populating it with invalid pointers, both of which may lead to
+    // memory corruption inside the trusted space here.
+    Sandbox* sandbox = GetProcessWideSandbox();
+    if (!sandbox->is_partially_reserved() &&
+        sandbox->Contains(chunk_->address()))
+      return;
+#endif
+
+    if (chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
+      // TODO(saelo) we can probably drop all the cage_bases here once we no
+      // longer need to pass them into our slot implementations.
+      const PtrComprCageBase unused_cage_base(kNullAddress);
+      RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
+          chunk_,
+          [=](MaybeObjectSlot slot) {
+            UpdateStrongSlot(unused_cage_base,
+                             ProtectedPointerSlot(slot.address()));
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
+          },
+          SlotSet::FREE_EMPTY_BUCKETS);
+      chunk_->ReleaseSlotSet(TRUSTED_TO_TRUSTED);
     }
   }
 

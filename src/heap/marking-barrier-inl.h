@@ -8,10 +8,25 @@
 #include "src/base/logging.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-barrier.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename TSlot>
+void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
+                           Tagged<HeapObject> value) {
+  DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  MarkValue(host, value);
+
+  if (slot.address() && IsCompacting(host)) {
+    MarkCompactCollector::RecordSlot(host, slot, value);
+  }
+}
 
 void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
                                Tagged<HeapObject> value) {

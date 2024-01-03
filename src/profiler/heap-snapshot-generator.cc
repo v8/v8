@@ -1156,25 +1156,25 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
 
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override {
-    int field_index =
-        static_cast<int>(slot.address() - parent_start_.address()) /
-        kIndirectPointerSize;
-    DCHECK_GE(field_index, 0);
-    if (generator_->visited_fields_[field_index]) {
-      generator_->visited_fields_[field_index] = false;
-    } else {
-      Tagged<Object> content = slot.load(generator_->isolate());
-      if (IsHeapObject(content)) {
-        VisitHeapObjectImpl(HeapObject::cast(content), field_index);
-      }
-    }
+    VisitSlotImpl(generator_->isolate(), slot);
+  }
+
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot) override {
+    // TODO(saelo): the cage base doesn't currently matter as it isn't used,
+    // but technically we should either use the trusted cage base here or
+    // remove the cage_base parameter.
+    const PtrComprCageBase unused_cage_base(kNullAddress);
+    VisitSlotImpl(unused_cage_base, slot);
   }
 
  private:
-  template <typename TSlot>
-  V8_INLINE void VisitSlotImpl(PtrComprCageBase cage_base, TSlot slot) {
+  template <typename TIsolateOrCageBase, typename TSlot>
+  V8_INLINE void VisitSlotImpl(TIsolateOrCageBase isolate_or_cage_base,
+                               TSlot slot) {
     int field_index =
-        static_cast<int>(MaybeObjectSlot(slot.address()) - parent_start_);
+        static_cast<int>(slot.address() - parent_start_.address()) /
+        TSlot::kSlotDataSize;
 #ifdef V8_TARGET_BIG_ENDIAN
     field_index += AdjustEmbedderFieldIndex(parent_obj_, field_index);
 #endif
@@ -1183,7 +1183,7 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
       generator_->visited_fields_[field_index] = false;
     } else {
       Tagged<HeapObject> heap_object;
-      auto loaded_value = slot.load(cage_base);
+      auto loaded_value = slot.load(isolate_or_cage_base);
       if (loaded_value.GetHeapObjectIfStrong(&heap_object)) {
         VisitHeapObjectImpl(heap_object, field_index);
       } else if (loaded_value.GetHeapObjectIfWeak(&heap_object)) {

@@ -68,6 +68,10 @@ class BodyDescriptorBase {
                                                 IndirectPointerTag tag,
                                                 ObjectVisitor* v);
 
+  template <typename ObjectVisitor>
+  static inline void IterateProtectedPointer(Tagged<TrustedObject> obj,
+                                             int offset, ObjectVisitor* v);
+
  protected:
   // Returns true for all header and embedder fields.
   static inline bool IsValidEmbedderJSObjectSlotImpl(Tagged<Map> map,

@@ -123,7 +123,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   }
   V8_INLINE void VisitInstructionStreamPointer(
       Tagged<Code> host, InstructionStreamSlot slot) final {
-    VisitInstructionStreamPointerImpl(host, slot);
+    VisitStrongPointerImpl(host, slot);
   }
   V8_INLINE void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                                       RelocInfo* rinfo) final;
@@ -143,6 +143,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                      IndirectPointerSlot slot) final;
+
+  V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                       ProtectedPointerSlot slot) final {
+    VisitStrongPointerImpl(host, slot);
+  }
 
   void SynchronizePageAccess(Tagged<HeapObject> heap_object) {
 #ifdef THREAD_SANITIZER
@@ -181,16 +186,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                              Tagged<HeapObject> heap_object);
 
   template <typename TSlot>
-  V8_INLINE void VisitPointerImpl(Tagged<HeapObject> host, TSlot p);
-
-  template <typename TSlot>
   V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
                                    TSlot end);
 
-  // Similar to VisitPointersImpl() but using code cage base for loading from
-  // the slot.
-  V8_INLINE void VisitInstructionStreamPointerImpl(Tagged<Code> host,
-                                                   InstructionStreamSlot slot);
+  template <typename TSlot>
+  V8_INLINE void VisitStrongPointerImpl(Tagged<HeapObject> host, TSlot slot);
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 

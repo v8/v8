@@ -270,6 +270,22 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   WriteBarrier::Marking(host, slot);
 }
 
+inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
+                                         ProtectedPointerSlot slot,
+                                         Tagged<TrustedObject> value,
+                                         WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
+  // Protected pointers are only used within trusted space.
+  DCHECK(!heap_internals::MemoryChunk::FromHeapObject(value)
+              ->IsYoungOrSharedChunk());
+
+  WriteBarrier::Marking(host, slot, value);
+}
+
 inline void GenerationalBarrierForCode(Tagged<InstructionStream> host,
                                        RelocInfo* rinfo,
                                        Tagged<HeapObject> object) {
@@ -388,6 +404,13 @@ void WriteBarrier::Marking(Tagged<DescriptorArray> descriptor_array,
 void WriteBarrier::Marking(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   if (!IsMarking(host)) return;
   MarkingSlow(host, slot);
+}
+
+void WriteBarrier::Marking(Tagged<TrustedObject> host,
+                           ProtectedPointerSlot slot,
+                           Tagged<TrustedObject> value) {
+  if (!IsMarking(host)) return;
+  MarkingSlow(host, slot, value);
 }
 
 // static

@@ -97,13 +97,13 @@ class MarkCompactCollector final {
 
   static void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                               Tagged<HeapObject> target);
-  V8_INLINE static void RecordSlot(Tagged<HeapObject> object, ObjectSlot slot,
-                                   Tagged<HeapObject> target);
+  template <typename THeapObjectSlot>
   V8_INLINE static void RecordSlot(Tagged<HeapObject> object,
-                                   HeapObjectSlot slot,
+                                   THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
+  template <typename THeapObjectSlot>
   V8_INLINE static void RecordSlot(MemoryChunk* source_page,
-                                   HeapObjectSlot slot,
+                                   THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
 
   bool is_compacting() const { return compacting_; }

@@ -1195,6 +1195,20 @@ void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
 #endif
 }
 
+void Serializer::ObjectSerializer::VisitProtectedPointer(
+    Tagged<TrustedObject> host, ProtectedPointerSlot slot) {
+  // If necessary, output any raw data preceeding this slot.
+  OutputRawData(slot.address());
+
+  Handle<HeapObject> content(HeapObject::cast(slot.load(isolate())), isolate());
+  bytes_processed_so_far_ += kTaggedSize;
+
+  // Currently we cannot see pending objects here, but we may need to support
+  // them in the future. They should already be supported by the deserializer.
+  CHECK(!serializer_->SerializePendingObject(*content));
+  sink_->Put(kProtectedPointerPrefix, "ProtectedPointer");
+  serializer_->SerializeObject(content, SlotType::kAnySlot);
+}
 namespace {
 
 // Similar to OutputRawData, but substitutes the given field with the given

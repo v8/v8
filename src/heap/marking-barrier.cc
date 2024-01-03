@@ -39,19 +39,6 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
-void MarkingBarrier::Write(Tagged<HeapObject> host, HeapObjectSlot slot,
-                           Tagged<HeapObject> value) {
-  DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
-
-  MarkValue(host, value);
-
-  if (slot.address() && IsCompacting(host)) {
-    MarkCompactCollector::RecordSlot(host, slot, value);
-  }
-}
-
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
