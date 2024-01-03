@@ -78,7 +78,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:7010a6e144fc543d34546af3636ee8fa656469a5',
+  'luci_go': 'git_revision:a7b7f319032d68f1cf0e710e695a84957d3b11dc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bd311c3cf677af9d6d9bba5c35c82c7f25c6b69c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '29e1dd053941204889fd2d7e377c1b552a051100',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
