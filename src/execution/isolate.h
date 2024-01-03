@@ -1330,12 +1330,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &isolate_data_.handle_scope_data_;
   }
 
-#ifdef V8_ENABLE_CHECKS
-  V8_INLINE HandleScopeDataForDebugging* handle_scope_data_for_debugging() {
-    return &handle_scope_data_for_debugging_;
-  }
-#endif
-
   HandleScopeImplementer* handle_scope_implementer() const {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
@@ -2727,12 +2721,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data_ = nullptr;
-#endif
-
-#ifdef V8_ENABLE_CHECKS
-  ThreadId current_thread_id_;
-  int current_thread_counter_ = 0;
-  HandleScopeDataForDebugging handle_scope_data_for_debugging_;
 #endif
 
   friend class heap::HeapTester;

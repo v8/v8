@@ -900,15 +900,9 @@ void HandleScope::Initialize(Isolate* v8_isolate) {
   prev_next_ = current->next;
   prev_limit_ = current->limit;
   current->level++;
-#ifdef V8_ENABLE_CHECKS
-  scope_level_ = i_isolate->handle_scope_data_for_debugging()->Register();
-#endif
 }
 
 HandleScope::~HandleScope() {
-#ifdef V8_ENABLE_CHECKS
-  i_isolate_->handle_scope_data_for_debugging()->Unregister(scope_level_);
-#endif
   i::HandleScope::CloseScope(i_isolate_, prev_next_, prev_limit_);
 }
 
@@ -11456,18 +11450,10 @@ void HandleScopeImplementer::FreeThreadResources() { Free(); }
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
   HandleScopeData* current = isolate_->handle_scope_data();
   handle_scope_data_ = *current;
-#ifdef V8_ENABLE_CHECKS
-  HandleScopeDataForDebugging* current_for_debugging =
-      isolate_->handle_scope_data_for_debugging();
-  handle_scope_data_for_debugging_ = *current_for_debugging;
-#endif
   MemCopy(storage, this, sizeof(*this));
 
   ResetAfterArchive();
   current->Initialize();
-#ifdef V8_ENABLE_CHECKS
-  current_for_debugging->Initialize();
-#endif
 
   return storage + ArchiveSpacePerThread();
 }
@@ -11479,10 +11465,6 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 char* HandleScopeImplementer::RestoreThread(char* storage) {
   MemCopy(this, storage, sizeof(*this));
   *isolate_->handle_scope_data() = handle_scope_data_;
-#ifdef V8_ENABLE_CHECKS
-  *isolate_->handle_scope_data_for_debugging() =
-      handle_scope_data_for_debugging_;
-#endif
   return storage + ArchiveSpacePerThread();
 }
 

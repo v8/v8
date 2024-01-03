@@ -135,9 +135,6 @@ class V8_EXPORT V8_NODISCARD HandleScope {
   internal::Isolate* i_isolate_;
   internal::Address* prev_next_;
   internal::Address* prev_limit_;
-#ifdef V8_ENABLE_CHECKS
-  int scope_level_ = 0;
-#endif
 
   // LocalBase<T>::New uses CreateHandle with an Isolate* parameter.
   template <typename T>
