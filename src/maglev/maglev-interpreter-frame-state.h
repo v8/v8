@@ -660,15 +660,16 @@ class MergePointInterpreterFrameState {
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
-  void MergeDead(const MaglevCompilationUnit& compilation_unit) {
-    DCHECK_GE(predecessor_count_, 1);
+  void MergeDead(const MaglevCompilationUnit& compilation_unit,
+                 unsigned num = 1) {
+    DCHECK_GE(predecessor_count_, num);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-    predecessor_count_--;
+    predecessor_count_ -= num;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
 
     frame_state_.ForEachValue(compilation_unit,
                               [&](ValueNode* value, interpreter::Register reg) {
-                                ReducePhiPredecessorCount(reg, value);
+                                ReducePhiPredecessorCount(reg, value, num);
                               });
   }
 
@@ -805,8 +806,8 @@ class MergePointInterpreterFrameState {
                         ValueNode* merged, ValueNode* unmerged,
                         Alternatives::List* per_predecessor_alternatives);
 
-  void ReducePhiPredecessorCount(interpreter::Register owner,
-                                 ValueNode* merged);
+  void ReducePhiPredecessorCount(interpreter::Register owner, ValueNode* merged,
+                                 unsigned num = 1);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,

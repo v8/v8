@@ -677,7 +677,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
 }
 
 void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
-    interpreter::Register owner, ValueNode* merged) {
+    interpreter::Register owner, ValueNode* merged, unsigned num) {
   // If the merged node is null, this is a pre-created loop header merge
   // frame with null values for anything that isn't a loop Phi.
   if (merged == nullptr) {
@@ -691,7 +691,7 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(
     // It's possible that merged == unmerged at this point since loop-phis are
     // not dropped if they are only assigned to themselves in the loop.
     DCHECK_EQ(result->owner(), owner);
-    result->reduce_input_count();
+    result->reduce_input_count(num);
   }
 }
 }  // namespace maglev
