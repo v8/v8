@@ -29,7 +29,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
     CodePointerTable::Space* space =
         isolate.GetCodePointerTableSpaceFor(field_address);
     handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-        space, host.address(), kNullAddress);
+        space, host.address(), kNullAddress, kDefaultCodeEntrypointTag);
   } else {
     TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
     handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(

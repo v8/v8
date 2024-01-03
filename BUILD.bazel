@@ -2229,6 +2229,7 @@ filegroup(
         "src/sandbox/indirect-pointer.h",
         "src/sandbox/indirect-pointer-tag.h",
         "src/sandbox/indirect-pointer-inl.h",
+        "src/sandbox/code-entrypoint-tag.h",
         "src/sandbox/external-entity-table.h",
         "src/sandbox/external-entity-table-inl.h",
         "src/sandbox/sandbox.cc",

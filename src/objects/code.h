@@ -90,6 +90,8 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
+  inline CodeEntrypointTag entrypoint_tag() const;
+
   inline void SetInstructionStreamAndInstructionStart(
       IsolateForSandbox isolate, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

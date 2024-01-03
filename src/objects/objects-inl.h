@@ -864,13 +864,15 @@ void HeapObject::ClearCodePointerField(size_t offset) {
   ClearTrustedPointerField(offset);
 }
 
-Address HeapObject::ReadCodeEntrypointViaCodePointerField(size_t offset) const {
-  return i::ReadCodeEntrypointViaCodePointerField(field_address(offset));
+Address HeapObject::ReadCodeEntrypointViaCodePointerField(
+    size_t offset, CodeEntrypointTag tag) const {
+  return i::ReadCodeEntrypointViaCodePointerField(field_address(offset), tag);
 }
 
 void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
-                                                        Address value) {
-  i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value);
+                                                        Address value,
+                                                        CodeEntrypointTag tag) {
+  i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

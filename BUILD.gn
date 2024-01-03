@@ -4002,6 +4002,7 @@ v8_header_set("v8_internal_headers") {
     "src/runtime/runtime.h",
     "src/sandbox/bounded-size-inl.h",
     "src/sandbox/bounded-size.h",
+    "src/sandbox/code-entrypoint-tag.h",
     "src/sandbox/code-pointer-inl.h",
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",

@@ -604,7 +604,8 @@ Tagged<Object> Code::raw_instruction_stream(PtrComprCageBase cage_base,
 
 DEF_GETTER(Code, instruction_start, Address) {
 #ifdef V8_ENABLE_SANDBOX
-  return ReadCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset);
+  return ReadCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset,
+                                               entrypoint_tag());
 #else
   return ReadField<Address>(kInstructionStartOffset);
 #endif
@@ -612,10 +613,22 @@ DEF_GETTER(Code, instruction_start, Address) {
 
 void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
-  WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value);
+  WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value,
+                                         entrypoint_tag());
 #else
   WriteField<Address>(kInstructionStartOffset, value);
 #endif
+}
+
+CodeEntrypointTag Code::entrypoint_tag() const {
+  // Currently we only distinguish between bytecode handlers and other Code. In
+  // the future, we'll probably also want to distinguish between Wasm, RegExp,
+  // and JavaScript Code.
+  if (kind() == CodeKind::BYTECODE_HANDLER) {
+    return kBytecodeHandlerEntrypointTag;
+  } else {
+    return kDefaultCodeEntrypointTag;
+  }
 }
 
 void Code::SetInstructionStreamAndInstructionStart(

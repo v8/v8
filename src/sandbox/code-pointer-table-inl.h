@@ -15,21 +15,23 @@ namespace internal {
 
 void CodePointerTableEntry::MakeCodePointerEntry(Address code,
                                                  Address entrypoint,
+                                                 CodeEntrypointTag tag,
                                                  bool mark_as_alive) {
   DCHECK_EQ(code & kMarkingBit, 0);
   if (mark_as_alive) code |= kMarkingBit;
-  entrypoint_.store(entrypoint, std::memory_order_relaxed);
+  entrypoint_.store(entrypoint ^ tag, std::memory_order_relaxed);
   code_.store(code, std::memory_order_relaxed);
 }
 
-Address CodePointerTableEntry::GetEntrypoint() const {
+Address CodePointerTableEntry::GetEntrypoint(CodeEntrypointTag tag) const {
   DCHECK(!IsFreelistEntry());
-  return entrypoint_.load(std::memory_order_relaxed);
+  return entrypoint_.load(std::memory_order_relaxed) ^ tag;
 }
 
-void CodePointerTableEntry::SetEntrypoint(Address value) {
+void CodePointerTableEntry::SetEntrypoint(Address value,
+                                          CodeEntrypointTag tag) {
   DCHECK(!IsFreelistEntry());
-  entrypoint_.store(value, std::memory_order_relaxed);
+  entrypoint_.store(value ^ tag, std::memory_order_relaxed);
 }
 
 Address CodePointerTableEntry::GetCodeObject() const {
@@ -87,9 +89,10 @@ bool CodePointerTableEntry::IsMarked() const {
   return value & kMarkingBit;
 }
 
-Address CodePointerTable::GetEntrypoint(CodePointerHandle handle) const {
+Address CodePointerTable::GetEntrypoint(CodePointerHandle handle,
+                                        CodeEntrypointTag tag) const {
   uint32_t index = HandleToIndex(handle);
-  return at(index).GetEntrypoint();
+  return at(index).GetEntrypoint(tag);
 }
 
 Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
@@ -97,10 +100,11 @@ Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
   return at(index).GetCodeObject();
 }
 
-void CodePointerTable::SetEntrypoint(CodePointerHandle handle, Address value) {
+void CodePointerTable::SetEntrypoint(CodePointerHandle handle, Address value,
+                                     CodeEntrypointTag tag) {
   DCHECK_NE(kNullCodePointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
-  at(index).SetEntrypoint(value);
+  at(index).SetEntrypoint(value, tag);
 }
 
 void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
@@ -110,10 +114,11 @@ void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
 }
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
-    Space* space, Address code, Address entrypoint) {
+    Space* space, Address code, Address entrypoint, CodeEntrypointTag tag) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
-  at(index).MakeCodePointerEntry(code, entrypoint, space->allocate_black());
+  at(index).MakeCodePointerEntry(code, entrypoint, tag,
+                                 space->allocate_black());
   return IndexToHandle(index);
 }
 

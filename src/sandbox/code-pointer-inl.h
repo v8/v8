@@ -14,7 +14,8 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address) {
+V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address,
+                                                        CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
@@ -23,19 +24,20 @@ V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address) {
   // technically we should use memory_order_consume here.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  return GetProcessWideCodePointerTable()->GetEntrypoint(handle);
+  return GetProcessWideCodePointerTable()->GetEntrypoint(handle, tag);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
 V8_INLINE void WriteCodeEntrypointViaCodePointerField(Address field_address,
-                                                      Address value) {
+                                                      Address value,
+                                                      CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // See comment above for why this is a Relaxed_Load.
   auto location = reinterpret_cast<CodePointerHandle*>(field_address);
   CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  GetProcessWideCodePointerTable()->SetEntrypoint(handle, value);
+  GetProcessWideCodePointerTable()->SetEntrypoint(handle, value, tag);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX

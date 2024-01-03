@@ -365,9 +365,11 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline bool IsCodePointerFieldCleared(size_t offset) const;
   inline void ClearCodePointerField(size_t offest);
 
-  inline Address ReadCodeEntrypointViaCodePointerField(size_t offset) const;
+  inline Address ReadCodeEntrypointViaCodePointerField(
+      size_t offset, CodeEntrypointTag tag) const;
   inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
-                                                     Address value);
+                                                     Address value,
+                                                     CodeEntrypointTag tag);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
