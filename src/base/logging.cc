@@ -182,5 +182,13 @@ void V8_Fatal(const char* format, ...) {
 }
 
 void V8_Dcheck(const char* file, int line, const char* message) {
+  if (v8::base::g_abort_mode == v8::base::AbortMode::kSoft) {
+    // In this mode, DCHECK failures don't lead to process termination.
+    v8::base::OS::PrintError(
+        "# Ignoring debug check failure in %s, line %d: %s\n", file, line,
+        message);
+    return;
+  }
+
   v8::base::g_dcheck_function(file, line, message);
 }
