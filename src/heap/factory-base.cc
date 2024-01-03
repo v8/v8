@@ -288,7 +288,8 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    int parameter_count, Handle<FixedArray> constant_pool) {
+    int parameter_count, Handle<FixedArray> constant_pool,
+    Handle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -310,8 +311,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
   instance->set_constant_pool(*constant_pool);
-  instance->set_handler_table(read_only_roots().empty_byte_array(),
-                              SKIP_WRITE_BARRIER);
+  instance->set_handler_table(*handler_table);
   instance->set_wrapper(*wrapper);
   instance->set_source_position_table(read_only_roots().undefined_value(),
                                       kReleaseStore, SKIP_WRITE_BARRIER);

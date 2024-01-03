@@ -192,7 +192,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(CheckRequiredAlignment(isolate));
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
-  CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpace(*this),
+  CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
                 !IsTrustedSpaceObject(*this));
 
   switch (map(cage_base)->instance_type()) {
@@ -387,7 +387,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   {
     auto o = handler_table();
     Object::VerifyPointer(isolate, o);
-    CHECK(IsByteArray(o));
+    CHECK(IsTrustedByteArray(o));
   }
   {
     auto o = wrapper();

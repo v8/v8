@@ -22,8 +22,9 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
 
 SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
+PROTECTED_POINTER_ACCESSORS(BytecodeArray, handler_table, TrustedByteArray,
+                            kHandlerTableOffset)
 ACCESSORS(BytecodeArray, constant_pool, Tagged<FixedArray>, kConstantPoolOffset)
-ACCESSORS(BytecodeArray, handler_table, Tagged<ByteArray>, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, wrapper, Tagged<BytecodeWrapper>, kWrapperOffset)
 RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
                           Tagged<HeapObject>, kSourcePositionTableOffset)
@@ -133,9 +134,10 @@ DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
 
 DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
   Tagged<Object> value =
-      TaggedField<Object>::load(cage_base, *this, kHandlerTableOffset);
+      TaggedField<Object, kHandlerTableOffset,
+                  TrustedSpaceCompressionScheme>::load(*this);
   // This field might be 0 during deserialization.
-  DCHECK(value == Smi::zero() || IsByteArray(value));
+  DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
   return value;
 }
 
@@ -159,8 +161,8 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
   Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
-  if (IsByteArray(maybe_handler_table)) {
-    size += ByteArray::cast(maybe_handler_table)->AllocatedSize();
+  if (IsTrustedByteArray(maybe_handler_table)) {
+    size += TrustedByteArray::cast(maybe_handler_table)->AllocatedSize();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }

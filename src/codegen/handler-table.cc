@@ -32,7 +32,7 @@ HandlerTable::HandlerTable(const wasm::WasmCode* code)
 HandlerTable::HandlerTable(Tagged<BytecodeArray> bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
 
-HandlerTable::HandlerTable(Tagged<ByteArray> byte_array)
+HandlerTable::HandlerTable(Tagged<TrustedByteArray> byte_array)
     : HandlerTable(reinterpret_cast<Address>(byte_array->begin()),
                    byte_array->length(), kRangeBasedEncoding) {}
 

@@ -187,10 +187,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
       int length);
 
-  Handle<BytecodeArray> NewBytecodeArray(int length,
-                                         const uint8_t* raw_bytecodes,
-                                         int frame_size, int parameter_count,
-                                         Handle<FixedArray> constant_pool);
+  Handle<BytecodeArray> NewBytecodeArray(
+      int length, const uint8_t* raw_bytecodes, int frame_size,
+      int parameter_count, Handle<FixedArray> constant_pool,
+      Handle<TrustedByteArray> handler_table);
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
 

@@ -640,15 +640,19 @@ TEST(BytecodeArray) {
     constant_pool->set(i, *number);
   }
 
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(3);
+
   // Allocate and initialize BytecodeArray
-  Handle<BytecodeArray> array = factory->NewBytecodeArray(
-      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, constant_pool);
+  Handle<BytecodeArray> array =
+      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
+                                kParameterCount, constant_pool, handler_table);
 
   CHECK(IsBytecodeArray(*array));
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
   CHECK_EQ(array->frame_size(), kFrameSize);
   CHECK_EQ(array->parameter_count(), kParameterCount);
   CHECK_EQ(array->constant_pool(), *constant_pool);
+  CHECK_EQ(array->handler_table(), *handler_table);
   CHECK_LE(array->address(), array->GetFirstBytecodeAddress());
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());

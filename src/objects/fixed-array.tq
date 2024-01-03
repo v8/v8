@@ -39,7 +39,7 @@ extern class ByteArray extends FixedArrayBase {
 }
 
 @cppObjectDefinition
-extern class TrustedByteArray extends ExposedTrustedObject {
+extern class TrustedByteArray extends TrustedObject {
   const length: Smi;
   bytes[length]: uint8;
 }
