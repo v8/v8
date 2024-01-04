@@ -281,6 +281,15 @@ class JSObjectData : public JSReceiverData {
 
 namespace {
 
+// Separate function for racy WrapForRead, so that we can explicitly suppress it
+// in TSAN (see tools/sanitizers/tsan_suppressions.txt).
+Handle<Object> RacyWrapForReadOfConstant(JSHeapBroker* broker,
+                                         Handle<Object> value,
+                                         Representation representation) {
+  return Object::WrapForRead<AllocationType::kOld>(
+      broker->local_isolate_or_isolate(), value, representation);
+}
+
 OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
                                                  JSObjectRef holder,
                                                  Representation representation,
@@ -363,9 +372,16 @@ OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
   }
 
   // Now that we can safely inspect the constant, it may need to be wrapped.
+  //
+  // The wrapping is allowed to racily read the object so that it can copy heap
+  // numbers -- this is of course not thread safe, it's not even guaranteed to
+  // be atomic since heap number values are unaligned, but we add a dependency
+  // on constantness so we can guarantee that the only time this racy access
+  // actually has a race is when the dependency will anyway fail.
   Handle<Object> value = broker->CanonicalPersistentHandle(constant.value());
-  Handle<Object> possibly_wrapped = Object::WrapForRead<AllocationType::kOld>(
-      broker->local_isolate_or_isolate(), value, representation);
+  Handle<Object> possibly_wrapped =
+      RacyWrapForReadOfConstant(broker, value, representation);
+
   return TryMakeRef(broker, *possibly_wrapped);
 }
 
