@@ -427,11 +427,11 @@ void PrintSingleDeoptFrame(
       os << "}";
       break;
     }
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      os << "@" << frame.as_inlined_arguments().bytecode_position();
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame: {
+      os << "@InlinedExtraArguments";
       if (!v8_flags.print_maglev_deopt_verbose) return;
       os << " : {";
-      auto arguments = frame.as_inlined_arguments().arguments();
+      auto arguments = frame.as_inlined_extra_arguments().extra_arguments();
       DCHECK_GT(arguments.size(), 0);
       os << "<this>:" << PrintNodeLabel(graph_labeller, arguments[0]) << ":"
          << current_input_location->operand();
@@ -577,7 +577,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
     case DeoptFrame::FrameType::kInterpretedFrame:
       lazy_frame = &deopt_info->top_frame().as_interpreted();
       break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
       UNREACHABLE();
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:

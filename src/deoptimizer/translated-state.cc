@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/assert-scope.h"
@@ -838,10 +839,7 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
 }
 
 int TranslatedFrame::GetValueCount() {
-  // The function is added to all frame state descriptors in
-  // InstructionSelector::AddInputsToFrameStateDescriptor.
   static constexpr int kTheFunction = 1;
-
   switch (kind()) {
     case kUnoptimizedFunction: {
       int parameter_count =
@@ -851,10 +849,8 @@ int TranslatedFrame::GetValueCount() {
       return height() + parameter_count + kTheContext + kTheFunction +
              kTheAccumulator;
     }
-
     case kInlinedExtraArguments:
-      return height() + kTheFunction;
-
+      return height();
     case kConstructCreateStub:
     case kConstructInvokeStub:
     case kBuiltinContinuation:
@@ -2332,8 +2328,8 @@ TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
   return nullptr;
 }
 
-TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
-    int jsframe_index, int* args_count) {
+TranslatedState::ArgumentsInfo
+TranslatedState::GetArgumentsInfoFromJSFrameIndex(int jsframe_index) {
   for (size_t i = 0; i < frames_.size(); i++) {
     if (frames_[i].kind() == TranslatedFrame::kUnoptimizedFunction ||
         frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
@@ -2342,12 +2338,14 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
-        // We have the JS function frame, now check if it has arguments
-        // adaptor.
+        int parameter_count = 0;
+        int extra_args_count = 0;
+        TranslatedFrame* extra_args_frame = nullptr;
+        // Check if it has extra arguments (over application).
         if (i > 0 &&
             frames_[i - 1].kind() == TranslatedFrame::kInlinedExtraArguments) {
-          *args_count = frames_[i - 1].height();
-          return &(frames_[i - 1]);
+          extra_args_count = frames_[i - 1].height();
+          extra_args_frame = &(frames_[i - 1]);
         }
 
         // JavaScriptBuiltinContinuation frames that are not preceeded by
@@ -2366,18 +2364,20 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           // argument (the result).
           static constexpr int kTheContext = 1;
           const int height = frames_[i].height() + kTheContext;
-          *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
-          DCHECK_EQ(*args_count, JSParameterCount(1));
+          parameter_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
+          DCHECK_EQ(parameter_count, JSParameterCount(1));
         } else {
-          *args_count = frames_[i]
-                            .shared_info()
-                            ->internal_formal_parameter_count_with_receiver();
+          parameter_count =
+              frames_[i]
+                  .shared_info()
+                  ->internal_formal_parameter_count_without_receiver();
         }
-        return &(frames_[i]);
+        return ArgumentsInfo{&(frames_[i]), extra_args_frame, parameter_count,
+                             extra_args_count};
       }
     }
   }
-  return nullptr;
+  UNREACHABLE();
 }
 
 void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {

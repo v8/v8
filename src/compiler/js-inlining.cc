@@ -295,6 +295,40 @@ FrameState JSInliner::CreateArtificialFrameState(
                                      callee, outer_frame_state)};
 }
 
+FrameState JSInliner::CreateInlinedExtraArgumentsFrameState(
+    Node* node, FrameState outer_frame_state,
+    int argument_count_without_receiver, SharedFunctionInfoRef shared) {
+  int parameter_count =
+      shared.internal_formal_parameter_count_without_receiver();
+  int extra_arguments = argument_count_without_receiver - parameter_count;
+  const FrameStateFunctionInfo* state_info =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kInlinedExtraArguments, extra_arguments, 0,
+          shared.object());
+
+  const Operator* op = common()->FrameState(
+      BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), state_info);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
+  Node* node0 = graph()->NewNode(op0);
+
+  Node* extra_args_node;
+  if (extra_arguments > 0) {
+    NodeVector args(local_zone_);
+    for (int i = parameter_count; i < argument_count_without_receiver; i++) {
+      args.push_back(node->InputAt(JSCallOrConstructNode::ArgumentIndex(i)));
+    }
+    const Operator* op_param = common()->StateValues(
+        static_cast<int>(args.size()), SparseInputMask::Dense());
+    extra_args_node = graph()->NewNode(op_param, static_cast<int>(args.size()),
+                                       &args.front());
+  } else {
+    extra_args_node = node0;
+  }
+  return FrameState{graph()->NewNode(
+      op, extra_args_node, node0, node0, jsgraph()->UndefinedConstant(),
+      jsgraph()->UndefinedConstant(), outer_frame_state)};
+}
+
 namespace {
 
 bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
@@ -928,10 +962,12 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   int parameter_count =
       shared_info->internal_formal_parameter_count_without_receiver();
   DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
+  // TODO(victorgomes): Figure out a better way to propagate the argument count
+  // in case of underapplication. Currently, we create an empty
+  // InlinedExtraArguments with negative parameter count.
   if (call.argument_count() != parameter_count) {
-    frame_state = CreateArtificialFrameState(
-        node, frame_state, call.argument_count(),
-        FrameStateType::kInlinedExtraArguments, *shared_info);
+    frame_state = CreateInlinedExtraArgumentsFrameState(
+        node, frame_state, call.argument_count(), *shared_info);
   }
 
   return InlineCall(node, new_target, context, frame_state, start, end,

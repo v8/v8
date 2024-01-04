@@ -50,10 +50,9 @@ void DeepForEachInputImpl(
             f(node, &input_locations[index++]);
           });
       break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      f(frame.as_inlined_arguments().closure(), &input_locations[index++]);
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame: {
       for (first_argument<Function> node :
-           frame.as_inlined_arguments().arguments()) {
+           frame.as_inlined_extra_arguments().extra_arguments()) {
         f(node, &input_locations[index++]);
       }
       break;
@@ -111,7 +110,7 @@ void DeepForEachInput(const_if_function_first_arg_not_reference<
       f(top_frame.as_construct_stub().context(), &input_locations[index++]);
       break;
     }
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
       // The inlined arguments frame can never be the top frame.
       UNREACHABLE();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:

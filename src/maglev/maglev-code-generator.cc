@@ -991,7 +991,7 @@ BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().bytecode_position();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
       DCHECK_NOT_NULL(deopt_frame.parent());
       return GetBytecodeOffset(*deopt_frame.parent());
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
@@ -1005,7 +1005,7 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().source_position();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
       DCHECK_NOT_NULL(deopt_frame.parent());
       return GetSourcePosition(*deopt_frame.parent());
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
@@ -1019,8 +1019,10 @@ compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
   switch (deopt_frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       return deopt_frame.as_interpreted().unit().shared_function_info();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      return deopt_frame.as_inlined_arguments().unit().shared_function_info();
+    case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
+      return deopt_frame.as_inlined_extra_arguments()
+          .unit()
+          .shared_function_info();
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       return deopt_frame.as_construct_stub().unit().shared_function_info();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
@@ -1065,7 +1067,7 @@ class MaglevFrameTranslationBuilder {
         return BuildSingleDeoptFrame(
             top_frame.as_interpreted(), current_input_location,
             deopt_info->result_location(), deopt_info->result_size());
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
         // The inlined arguments frame can never be the top frame.
         UNREACHABLE();
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
@@ -1121,8 +1123,8 @@ class MaglevFrameTranslationBuilder {
       case DeoptFrame::FrameType::kInterpretedFrame:
         return BuildSingleDeoptFrame(frame.as_interpreted(),
                                      current_input_location);
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        return BuildSingleDeoptFrame(frame.as_inlined_arguments(),
+      case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame:
+        return BuildSingleDeoptFrame(frame.as_inlined_extra_arguments(),
                                      current_input_location);
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildSingleDeoptFrame(frame.as_construct_stub(),
@@ -1184,20 +1186,14 @@ class MaglevFrameTranslationBuilder {
                           interpreter::Register::invalid_value(), return_count);
   }
 
-  void BuildSingleDeoptFrame(const InlinedArgumentsDeoptFrame& frame,
+  void BuildSingleDeoptFrame(const InlinedExtraArgumentsDeoptFrame& frame,
                              const InputLocation*& current_input_location) {
     translation_array_builder_->BeginInlinedExtraArguments(
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
-        static_cast<uint32_t>(frame.arguments().size()));
+        static_cast<uint32_t>(frame.extra_arguments().size()));
 
-    // Closure
-    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
-
-    // Arguments
-    // TODO(victorgomes): Technically we don't need all arguments, only the
-    // extra ones. But doing this at the moment, since it matches the
-    // TurboFan behaviour.
-    for (ValueNode* value : frame.arguments()) {
+    // Extra arguments
+    for (ValueNode* value : frame.extra_arguments()) {
       BuildDeoptFrameSingleValue(value, current_input_location);
     }
   }

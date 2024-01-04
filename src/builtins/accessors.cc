@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer/translated-state.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -401,31 +402,40 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
   TranslatedState translated_values(frame);
   translated_values.Prepare(frame->fp());
 
-  int argument_count = 0;
-  TranslatedFrame* translated_frame =
-      translated_values.GetArgumentsInfoFromJSFrameIndex(inlined_frame_index,
-                                                         &argument_count);
-  TranslatedFrame::iterator iter = translated_frame->begin();
+  TranslatedState::ArgumentsInfo arguments_info =
+      translated_values.GetArgumentsInfoFromJSFrameIndex(inlined_frame_index);
+  TranslatedFrame::iterator iter = arguments_info.function_frame->begin();
 
   // Materialize the function.
   bool should_deoptimize = iter->IsMaterializedObject();
   Handle<JSFunction> function = Handle<JSFunction>::cast(iter->GetValue());
-  iter++;
-
-  // Skip the receiver.
-  iter++;
-  argument_count--;
+  iter++;  // Skip the function.
+  iter++;  // Skip the receiver.
 
   Handle<JSObject> arguments =
-      factory->NewArgumentsObject(function, argument_count);
-  Handle<FixedArray> array = factory->NewFixedArray(argument_count);
-  for (int i = 0; i < argument_count; ++i) {
-    // If we materialize any object, we should deoptimize the frame because we
-    // might alias an object that was eliminated by escape analysis.
+      factory->NewArgumentsObject(function, arguments_info.arguments_count());
+  Handle<FixedArray> array =
+      factory->NewFixedArray(arguments_info.arguments_count());
+  int arg_index = 0;
+  // If we materialize any object, we should deoptimize the frame because we
+  // might alias an object that was eliminated by escape analysis.
+  for (; arg_index < arguments_info.parameter_count_without_receiver;
+       ++arg_index) {
     should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
     Handle<Object> value = iter->GetValue();
-    array->set(i, *value);
+    array->set(arg_index, *value);
     iter++;
+  }
+  if (arguments_info.extra_args_frame) {
+    TranslatedFrame::iterator iter_extra =
+        arguments_info.extra_args_frame->begin();
+    for (; arg_index < arguments_info.arguments_count(); ++arg_index) {
+      should_deoptimize =
+          should_deoptimize || iter_extra->IsMaterializedObject();
+      Handle<Object> value = iter_extra->GetValue();
+      array->set(arg_index, *value);
+      iter_extra++;
+    }
   }
   arguments->set_elements(*array);
 

@@ -20,6 +20,7 @@ namespace compiler {
 
 class Graph;
 class BytecodeLivenessState;
+class ArgumentsIterator;
 
 class V8_EXPORT_PRIVATE StateValuesCache {
  public:
@@ -101,6 +102,7 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
    private:
     friend class StateValuesAccess;
+    friend class ArgumentsIterator;
 
     iterator() : current_depth_(-1) {}
     explicit iterator(Node* node);
@@ -137,6 +139,37 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
  private:
   Node* node_;
+};
+
+class V8_EXPORT_PRIVATE ArgumentsIterator {
+ public:
+  explicit ArgumentsIterator(FrameState frame_state);
+
+  ArgumentsIterator& operator++() {
+    Advance();
+    return *this;
+  }
+
+  Node* node() {
+    if (!args_it_.done()) {
+      return args_it_.node();
+    }
+    return extra_args_it_.node();
+  }
+
+  bool done() {
+    DCHECK_IMPLIES(argument_count_ != 0,
+                   !args_it_.done() || !extra_args_it_.done());
+    return argument_count_ == 0;
+  }
+
+ private:
+  StateValuesAccess::iterator args_it_;
+  StateValuesAccess::iterator extra_args_it_;
+
+  void Advance();
+
+  int argument_count_ = 0;
 };
 
 }  // namespace compiler

@@ -137,13 +137,12 @@ class MaxCallDepthProcessor {
       case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
         return FastConstructStubFrameInfo::Conservative().frame_size_in_bytes();
       }
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
+      case DeoptFrame::FrameType::kInlinedExtraArgumentsFrame: {
         return std::max(
-            0,
-            static_cast<int>(
-                deopt_frame->as_inlined_arguments().arguments().size() -
-                deopt_frame->as_inlined_arguments().unit().parameter_count()) *
-                kSystemPointerSize);
+            0, static_cast<int>(deopt_frame->as_inlined_extra_arguments()
+                                    .extra_arguments()
+                                    .size() *
+                                kSystemPointerSize));
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context

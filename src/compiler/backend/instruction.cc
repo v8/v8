@@ -1136,13 +1136,13 @@ void InstructionSequence::SetRegisterConfigurationForTesting(
 namespace {
 
 size_t GetConservativeFrameSizeInBytes(FrameStateType type,
-                                       size_t parameters_count,
+                                       int parameters_count,
                                        size_t locals_count,
                                        BytecodeOffset bailout_id) {
   switch (type) {
     case FrameStateType::kUnoptimizedFunction: {
       auto info = UnoptimizedFrameInfo::Conservative(
-          static_cast<int>(parameters_count), static_cast<int>(locals_count));
+          parameters_count, static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kInlinedExtraArguments:
@@ -1153,13 +1153,12 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // We just need to account for the additional parameters we might push
       // here.
       return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
-          static_cast<int>(parameters_count));
+          parameters_count);
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kWasmInlinedIntoJS:
 #endif
     case FrameStateType::kConstructCreateStub: {
-      auto info = ConstructStubFrameInfo::Conservative(
-          static_cast<int>(parameters_count));
+      auto info = ConstructStubFrameInfo::Conservative(parameters_count);
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kConstructInvokeStub:
@@ -1172,7 +1171,7 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
       auto info = BuiltinContinuationFrameInfo::Conservative(
-          static_cast<int>(parameters_count),
+          parameters_count,
           Builtins::CallInterfaceDescriptorFor(
               Builtins::GetBuiltinFromBytecodeOffset(bailout_id)),
           config);
@@ -1183,7 +1182,7 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
 }
 
 size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
-                                            size_t parameters_count,
+                                            int parameters_count,
                                             size_t locals_count,
                                             BytecodeOffset bailout_id,
                                             FrameStateDescriptor* outer_state) {
@@ -1200,19 +1199,20 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
 
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-    OutputFrameStateCombine state_combine, size_t parameters_count,
+    OutputFrameStateCombine state_combine, int parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state)
     : type_(type),
       bailout_id_(bailout_id),
       frame_state_combine_(state_combine),
-      parameters_count_(parameters_count),
+      parameters_count_(parameters_count > 0 ? parameters_count : 0),
       locals_count_(locals_count),
       stack_count_(stack_count),
       total_conservative_frame_size_in_bytes_(
           GetTotalConservativeFrameSizeInBytes(
-              type, parameters_count, locals_count, bailout_id, outer_state)),
+              type, parameters_count > 0 ? parameters_count : 0, locals_count,
+              bailout_id, outer_state)),
       values_(zone),
       shared_info_(shared_info),
       outer_state_(outer_state) {}
@@ -1286,8 +1286,8 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     MaybeHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
-                           parameters_count, locals_count, stack_count,
-                           shared_info, outer_state),
+                           static_cast<int>(parameters_count), locals_count,
+                           stack_count, shared_info, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 

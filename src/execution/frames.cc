@@ -3562,6 +3562,7 @@ UnoptimizedFrameInfo::UnoptimizedFrameInfo(int parameters_count_with_receiver,
 // static
 uint32_t UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
     int parameters_count) {
+  if (parameters_count <= 0) return 0;
   return (parameters_count + ArgumentPaddingSlots(parameters_count)) *
          kSystemPointerSize;
 }
