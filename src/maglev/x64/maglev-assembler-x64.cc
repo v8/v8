@@ -323,17 +323,18 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
-  DoubleRegister converted_back = kScratchDoubleReg;
-
-  // Convert the input float64 value to int32.
-  Cvttsd2si(dst, src);
+  // Truncating conversion of the input float64 value to a int32.
+  Cvttpd2dq(kScratchDoubleReg, src);
   // Convert that int32 value back to float64.
-  Cvtlsi2sd(converted_back, dst);
+  Cvtdq2pd(kScratchDoubleReg, kScratchDoubleReg);
   // Check that the result of the float64->int32->float64 is equal to the input
-  // (i.e. that the conversion didn't truncate.
-  Ucomisd(src, converted_back);
+  // (i.e. that the conversion didn't truncate).
+  Ucomisd(kScratchDoubleReg, src);
   JumpIf(parity_even, fail);
   JumpIf(not_equal, fail);
+
+  // Move to general purpose register.
+  Cvttsd2si(dst, src);
 
   // Check if {input} is -0.
   Label check_done;
@@ -354,10 +355,12 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
                                                 Label* fail) {
   DoubleRegister converted_back = kScratchDoubleReg;
 
-  // Convert the input float64 value to uint32.
-  Cvttsd2ui(dst, src, fail);
-  // Convert that uint32 value back to float64.
-  Cvtlui2sd(converted_back, dst);
+  // Convert the input float64 value to int64.
+  Cvttsd2si(dst, src);
+  // Truncate and zero extend to int32.
+  movl(dst, dst);
+  // Convert that value back to float64.
+  Cvtqsi2sd(converted_back, dst);
   // Check that the result of the float64->uint32->float64 is equal to the input
   // (i.e. that the conversion didn't truncate.
   Ucomisd(src, converted_back);
@@ -381,16 +384,18 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
 void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
                                               DoubleRegister value,
                                               Label* success, Label* fail) {
-  DoubleRegister converted_back = kScratchDoubleReg;
-  // Convert the input float64 value to int32.
-  Cvttsd2si(result, value);
+  // Truncating conversion of the input float64 value to a int32.
+  Cvttpd2dq(kScratchDoubleReg, value);
   // Convert that int32 value back to float64.
-  Cvtlsi2sd(converted_back, result);
+  Cvtdq2pd(kScratchDoubleReg, kScratchDoubleReg);
   // Check that the result of the float64->int32->float64 is equal to
   // the input (i.e. that the conversion didn't truncate).
-  Ucomisd(value, converted_back);
+  Ucomisd(value, kScratchDoubleReg);
   JumpIf(parity_even, fail);
   JumpIf(kNotEqual, fail);
+
+  // Move to general purpose register.
+  Cvttsd2si(result, value);
   Jump(success);
 }
 
