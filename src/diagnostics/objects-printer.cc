@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
@@ -3642,6 +3643,15 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   i::Print(GetObjectFromRaw(object));
 }
 
+// Used by lldb_visualizers.py to create a representation of a V8 object.
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE extern std::string _v8_internal_Print_Object_To_String(
+    void* object) {
+  std::stringstream strm;
+  i::Print(GetObjectFromRaw(object), strm);
+  return strm.str();
+}
+
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #ifdef OBJECT_PRINT
@@ -3731,6 +3741,52 @@ V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
+}
+
+namespace _v8_internal_debugonly {
+// This class is easy to navigate in a GUI debugger and not intended for
+// use elsewhere.
+struct StackTraceDebugDetails {
+  i::StackFrame::Type type;
+  std::string summary;
+  std::vector<i::Tagged<i::SharedFunctionInfo>> functions;
+  std::vector<i::Tagged<i::Object>> expressions;
+};
+}  // namespace _v8_internal_debugonly
+
+// Used by lldb_visualizers.py to create a representation of the V8 stack.
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE extern std::vector<
+    _v8_internal_debugonly::StackTraceDebugDetails>
+_v8_internal_Expand_StackTrace(i::Isolate* isolate) {
+  std::vector<_v8_internal_debugonly::StackTraceDebugDetails> stack;
+  i::DisallowGarbageCollection no_gc;
+  int i = 0;
+
+  for (i::StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    i::CommonFrame* frame = i::CommonFrame::cast(it.frame());
+    _v8_internal_debugonly::StackTraceDebugDetails details;
+    details.type = frame->type();
+
+    if (frame->is_java_script()) {
+      i::JavaScriptFrame::cast(frame)->GetFunctions(&details.functions);
+    }
+
+    int exprcount = frame->ComputeExpressionsCount();
+    for (int i = 0; i < exprcount; i++) {
+      details.expressions.push_back(frame->GetExpression(i));
+    }
+
+    i::HandleScope scope(isolate);
+    i::StringStream::ClearMentionedObjectCache(isolate);
+    i::HeapStringAllocator allocator;
+    i::StringStream accumulator(&allocator);
+    frame->Print(&accumulator, i::StackFrame::OVERVIEW, i++);
+    std::unique_ptr<char[]> overview = accumulator.ToCString();
+    details.summary = overview.get();
+    stack.push_back(std::move(details));
+  }
+  return stack;
 }
 
 V8_DONT_STRIP_SYMBOL
