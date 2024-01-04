@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b665dda8f1013923f1b173afe7b316ff3864eb46',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '25066035862bdc2f88e49658b2ab9c31bcceaabf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5e016b7d32822a0cbc3c65162aa9fc2bd021f275',
   'buildtools/linux64': {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '29e1dd053941204889fd2d7e377c1b552a051100',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '65730c4295c0bcd15c0e817d7f8a1566c6342211',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7380fdcba2ba111cde69571375baddb0748935fc',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '259976c7483c321c122169d193e150310f4ea609',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -280,7 +280,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '15db46be4ec5e2c31a35bf07357b5025e2754693',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '6e2ded9791097b14d956915253aebcb2c2e2bc40',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '7451ba4b852aa031667d0331b7fd13afabd6b232',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '2602aecdf4bfa2a4bd70722937b2ec503d8c46c8',
   'third_party/logdog/logdog':
