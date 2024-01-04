@@ -662,13 +662,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadZeroIfConditionZero(Register dest, Register condition);
 
   void SignExtendByte(Register rd, Register rs) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+    sextb(rd, rs);
+#else
     slli(rd, rs, xlen - 8);
     srai(rd, rd, xlen - 8);
+#endif
   }
 
   void SignExtendShort(Register rd, Register rs) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+    sexth(rd, rs);
+#else
     slli(rd, rs, xlen - 16);
     srai(rd, rd, xlen - 16);
+#endif
   }
 
   void Clz32(Register rd, Register rs);
@@ -678,8 +686,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #if V8_TARGET_ARCH_RISCV64
   void SignExtendWord(Register rd, Register rs) { sext_w(rd, rs); }
   void ZeroExtendWord(Register rd, Register rs) {
+#if CAN_USE_ZBA_INSTRUCTIONS
+    zextw(rd, rs);
+#else
     slli(rd, rs, 32);
     srli(rd, rd, 32);
+#endif
   }
   void Popcnt64(Register rd, Register rs, Register scratch);
   void Ctz64(Register rd, Register rs);

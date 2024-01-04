@@ -76,6 +76,13 @@ constexpr Opcode RO_ZEXTH = OP | (0b100 << kFunct3Shift) |
                             (0b00000 << kShamtShift);
 #endif
 
+constexpr Opcode RO_REV8 =
+    OP_IMM | (0b101 << kFunct3Shift) | (0b011010 << kFunct6Shift);
+#ifdef V8_TARGET_ARCH_RISCV64
+constexpr Opcode RO_REV8_IMM12 = 0b011010111000;
+#elif defined(V8_TARGET_ARCH_RISCV32)
+constexpr Opcode RO_REV8_IMM12 = 0b011010011000;
+#endif
 // Zbs
 constexpr Opcode RO_BCLR =
     OP | (0b001 << kFunct3Shift) | (0b0100100 << kFunct7Shift);

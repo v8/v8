@@ -1590,6 +1590,13 @@ void Decoder::DecodeIType(Instruction* instr) {
         case RO_BEXTI:
           Format(instr, "bexti     'rd, 'rs1, 's64");
           break;
+        case RO_REV8: {
+          if (instr->Imm12Value() == RO_REV8_IMM12) {
+            Format(instr, "rev8      'rd, 'rs1");
+            break;
+          }
+          UNSUPPORTED_RISCV();
+        }
         default:
           UNSUPPORTED_RISCV();
       }

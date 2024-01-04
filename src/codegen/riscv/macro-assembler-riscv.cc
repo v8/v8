@@ -1506,11 +1506,26 @@ void MacroAssembler::Mv(Register rd, const Operand& rt) {
 void MacroAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
                                        uint8_t sa) {
   DCHECK(sa >= 1 && sa <= 31);
-  UseScratchRegisterScope temps(this);
-  Register tmp = rd == rt ? temps.Acquire() : rd;
-  DCHECK(tmp != rt);
-  slli(tmp, rs, sa);
-  AddWord(rd, rt, tmp);
+  switch (sa) {
+#ifdef CAN_USE_ZBA_INSTRUCTIONS
+    case 1:
+      sh1add(rd, rs, rt);
+      break;
+    case 2:
+      sh2add(rd, rs, rt);
+      break;
+    case 3:
+      sh3add(rd, rs, rt);
+      break;
+#endif
+    default: {
+      UseScratchRegisterScope temps(this);
+      Register tmp = rd == rt ? temps.Acquire() : rd;
+      DCHECK(tmp != rt);
+      slli(tmp, rs, sa);
+      AddWord(rd, rt, tmp);
+    } break;
+  }
 }
 
 // ------------Pseudo-instructions-------------
@@ -3619,6 +3634,13 @@ void MacroAssembler::LoadZeroIfConditionZero(Register dest,
 }
 
 void MacroAssembler::Clz32(Register rd, Register xx) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+#if V8_TARGET_ARCH_RISCV64
+  clzw(rd, xx);
+#else
+  clz(rd, xx);
+#endif
+#else
   // 32 bit unsigned in lower word: count number of leading zeros.
   //  int n = 32;
   //  unsigned y;
@@ -3692,10 +3714,14 @@ void MacroAssembler::Clz32(Register rd, Register xx) {
   addi(rd, n, -2);
   bind(&L4);
 #endif
+#endif
 }
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Clz64(Register rd, Register xx) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+  clz(rd, xx);
+#else
   // 64 bit: count number of leading zeros.
   //  int n = 64;
   //  unsigned y;
@@ -3747,9 +3773,17 @@ void MacroAssembler::Clz64(Register rd, Register xx) {
   BranchShort(&L5, eq, y, Operand(zero_reg));
   addiw(rd, n, -2);
   bind(&L5);
+#endif
 }
 #endif
 void MacroAssembler::Ctz32(Register rd, Register rs) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+#if V8_TARGET_ARCH_RISCV64
+  ctzw(rd, rs);
+#else
+  ctz(rd, rs);
+#endif
+#else
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
 
@@ -3771,9 +3805,13 @@ void MacroAssembler::Ctz32(Register rd, Register rs) {
     li(scratch, 32);
     Sub32(rd, scratch, rd);
   }
+#endif
 }
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Ctz64(Register rd, Register rs) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+  ctz(rd, rs);
+#else
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3794,9 +3832,17 @@ void MacroAssembler::Ctz64(Register rd, Register rs) {
     li(scratch, 64);
     SubWord(rd, scratch, rd);
   }
+#endif
 }
 #endif
 void MacroAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+#if V8_TARGET_ARCH_RISCV64
+  cpopw(rd, rs);
+#else
+  cpop(rd, rs);
+#endif
+#else
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
@@ -3844,10 +3890,14 @@ void MacroAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
   And(rd, rd, scratch2);
   Mul32(rd, rd, value);
   Srl32(rd, rd, shift);
+#endif
 }
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
+#if CAN_USE_ZBB_INSTRUCTIONS
+  cpop(rd, rs);
+#else
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
   // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
@@ -3881,6 +3931,7 @@ void MacroAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
   And(rd, rd, scratch2);
   Mul64(rd, rd, value);
   srli(rd, rd, 32 + shift);
+#endif
 }
 #endif
 void MacroAssembler::TryInlineTruncateDoubleToI(Register result,

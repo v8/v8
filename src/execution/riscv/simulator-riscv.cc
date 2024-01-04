@@ -5099,6 +5099,20 @@ void Simulator::DecodeRVIType() {
           set_rd((rs1() >> index) & 1);
           break;
         }
+        case RO_REV8: {
+          if (imm12() == RO_REV8_IMM12) {
+            reg_t input = rs1();
+            reg_t output = 0;
+            reg_t j = xlen - 1;
+            for (int i = 0; i < xlen; i += 8) {
+              output |= ((input >> (j - 7)) & 0xff) << i;
+              j -= 8;
+            }
+            set_rd(output);
+            break;
+          }
+          UNSUPPORTED_RISCV();
+        }
         default:
           UNSUPPORTED_RISCV();
       }

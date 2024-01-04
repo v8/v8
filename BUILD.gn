@@ -1372,6 +1372,21 @@ config("toolchain") {
   }
 
   # Under simulator build, compiler will not provide __riscv_xlen. Define here
+  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+    if (riscv_use_rvv || target_is_simulator) {
+      defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
+      defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
+    }
+    if (riscv_use_zba || target_is_simulator) {
+      defines += [ "CAN_USE_ZBA_INSTRUCTIONS" ]
+    }
+    if (riscv_use_zbb || target_is_simulator) {
+      defines += [ "CAN_USE_ZBB_INSTRUCTIONS" ]
+    }
+    if (riscv_use_zbs || target_is_simulator) {
+      defines += [ "CAN_USE_ZBS_INSTRUCTIONS" ]
+    }
+  }
   if (v8_current_cpu == "riscv64") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
     defines += [ "__riscv_xlen=64" ]
@@ -1379,21 +1394,12 @@ config("toolchain") {
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
     }
-    if (riscv_use_rvv || target_is_simulator) {
-      defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
-      defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
-    }
   }
 
   if (v8_current_cpu == "riscv32") {
     defines += [ "V8_TARGET_ARCH_RISCV32" ]
     defines += [ "__riscv_xlen=32" ]
     defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
-
-    if (riscv_use_rvv || target_is_simulator) {
-      defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
-      defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
-    }
   }
 
   if (v8_current_cpu == "x86") {

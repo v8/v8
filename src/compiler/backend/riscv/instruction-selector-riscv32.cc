@@ -403,8 +403,13 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
     UNIMPLEMENTED();
   } else {
     RiscvOperandGeneratorT<Adapter> g(this);
+#ifdef CAN_USE_ZBB_INSTRUCTIONS
+    Emit(kRiscvRev8, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+#else
     Emit(kRiscvByteSwap32, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)));
+#endif
   }
 }
 

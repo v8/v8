@@ -58,6 +58,18 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 #if (defined CAN_USE_RVV_INSTRUCTIONS)
   answer |= 1u << RISCV_SIMD;
 #endif  // def CAN_USE_RVV_INSTRUCTIONS
+
+#if (defined CAN_USE_ZBA_INSTRUCTIONS)
+  answer |= 1u << ZBA;
+#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+
+#if (defined CAN_USE_ZBB_INSTRUCTIONS)
+  answer |= 1u << ZBB;
+#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+
+#if (defined CAN_USE_ZBS_INSTRUCTIONS)
+  answer |= 1u << ZBS;
+#endif  // def CAN_USE_ZBA_INSTRUCTIONS
   return answer;
 }
 

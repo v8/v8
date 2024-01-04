@@ -1256,6 +1256,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
 #endif
+#ifdef CAN_USE_ZBB_INSTRUCTIONS
+    case kRiscvRev8:
+      __ rev8(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvAndn:
+      __ andn(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvOrn:
+      __ orn(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvXnor:
+      __ xnor(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvClz:
+      __ clz(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvCtz:
+      __ ctz(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvCpop:
+      __ cpop(i.OutputRegister(), i.InputRegister(0));
+      break;
+#if V8_TARGET_ARCH_RISCV64
+    case kRiscvClzw:
+      __ clzw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvCtzw:
+      __ ctzw(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvCpopw:
+      __ cpopw(i.OutputRegister(), i.InputRegister(0));
+      break;
+#endif
+    case kRiscvMax:
+      __ max(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvMaxu:
+      __ maxu(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvMin:
+      __ min(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvMinu:
+      __ minu(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kRiscvSextb:
+      __ sextb(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvSexth:
+      __ sexth(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kRiscvZexth:
+      __ zexth(i.OutputRegister(), i.InputRegister(0));
+      break;
+#endif
     case kRiscvTst32:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       __ Sll32(kScratchReg, kScratchReg, 0x0);
