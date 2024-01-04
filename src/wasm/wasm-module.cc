@@ -168,6 +168,9 @@ int AsmJsOffsetInformation::GetSourcePosition(int declared_func_index,
   };
   SLOW_DCHECK(std::is_sorted(function_offsets.begin(), function_offsets.end(),
                              byte_offset_less));
+  // If there are no positions recorded, map offset 0 (for function entry) to
+  // position 0.
+  if (function_offsets.empty() && byte_offset == 0) return 0;
   auto it =
       std::lower_bound(function_offsets.begin(), function_offsets.end(),
                        AsmJsOffsetEntry{byte_offset, 0, 0}, byte_offset_less);

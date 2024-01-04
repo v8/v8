@@ -202,6 +202,13 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
           kAsmJsInstantiateSuccess);
       return *result.ToHandleChecked();
     }
+    if (isolate->has_exception()) {
+      // If instantiation fails, we do not propagate the exception but instead
+      // fall back to JS execution. The only exception (to that rule) is the
+      // termination exception.
+      DCHECK(isolate->is_execution_terminating());
+      return ReadOnlyRoots{isolate}.exception();
+    }
     isolate->counters()->asmjs_instantiate_result()->AddSample(
         kAsmJsInstantiateFail);
 
