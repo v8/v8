@@ -223,7 +223,6 @@ V8_OBJECT class Name : public PrimitiveHeapObjectLayout {
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class compiler::WasmGraphBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedNameAsserts;
 
   inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;
@@ -303,7 +302,6 @@ V8_OBJECT class Symbol : public Name {
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
   friend class maglev::MaglevAssembler;
-  template <typename D, typename P>
   friend class TorqueGeneratedSymbolAsserts;
 
   // TODO(cbruni): remove once the new maptracer is in place.

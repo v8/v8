@@ -22,9 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/name-tq-inl.inc"
 
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(Name, PrimitiveHeapObjectLayout)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(Symbol, Name)
-
 inline Tagged<Symbol> Symbol::cast(Tagged<Object> obj) {
   SLOW_DCHECK(IsSymbol(obj));
   return Symbol::unchecked_cast(obj);

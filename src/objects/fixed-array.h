@@ -144,6 +144,7 @@ class TaggedArrayBase : public Super {
   // Object layout.
   static constexpr int kCapacityOffset = Shape::kCapacityOffset;
   static constexpr int kHeaderSize = Shape::kHeaderSize;
+  static constexpr int kObjectsOffset = kHeaderSize;
 
  protected:
   template <class IsolateT>
@@ -227,7 +228,7 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = FixedArray::Shape::kCapacityOffset;
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -440,6 +441,8 @@ class FixedDoubleArray
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
+
+  static constexpr int kFloatsOffset = Shape::kHeaderSize;
 };
 
 class WeakFixedArrayShape final : public AllStatic {
@@ -644,6 +647,8 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   class BodyDescriptor;
 
+  static constexpr int kLengthOffset = Shape::kLengthOffset;
+
  private:
   static Handle<ArrayList> EnsureSpace(
       Isolate* isolate, Handle<ArrayList> array, int length,
@@ -702,6 +707,8 @@ class ByteArray : public PrimitiveArrayBase<ByteArray, ByteArrayShape> {
   DECL_VERIFIER(ByteArray)
 
   class BodyDescriptor;
+
+  static constexpr int kBytesOffset = Shape::kHeaderSize;
 };
 
 class TrustedByteArrayShape final : public AllStatic {
@@ -746,6 +753,8 @@ class TrustedByteArray
   DECL_VERIFIER(TrustedByteArray)
 
   class BodyDescriptor;
+
+  static constexpr int kBytesOffset = Shape::kHeaderSize;
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
@@ -834,6 +843,8 @@ class ExternalPointerArray : public FixedArrayBase {
                 "ExternalPointerArray maxLength not a Smi");
 
   class BodyDescriptor;
+
+  static constexpr int kPointersOffset = kHeaderSize;
 
   DECL_CAST(ExternalPointerArray)
   DECL_PRINTER(ExternalPointerArray)

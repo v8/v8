@@ -613,7 +613,6 @@ V8_OBJECT class String : public Name {
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class wasm::baseline::LiftoffCompiler;
-  template <typename D, typename P>
   friend class TorqueGeneratedStringAsserts;
 
   // Implementation of the Get() public methods. Do not use directly.
@@ -813,7 +812,6 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class StringFromCharCodeAssembler;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedSeqOneByteStringAsserts;
 
   Char chars_[];
@@ -887,7 +885,6 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   friend class maglev::MaglevAssembler;
   friend class maglev::BuiltinStringFromCharCode;
   friend class compiler::AccessBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedSeqTwoByteStringAsserts;
 
   Char chars_[];
@@ -953,7 +950,6 @@ V8_OBJECT class ConsString : public String {
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedConsStringAsserts;
 
   friend Tagged<String> String::GetUnderlying() const;
@@ -1001,7 +997,6 @@ V8_OBJECT class ThinString : public String {
   friend class maglev::CheckedInternalizedString;
   friend class compiler::AccessBuilder;
   friend class FullStringForwardingTableCleaner;
-  template <typename D, typename P>
   friend class TorqueGeneratedThinStringAsserts;
 
   friend Tagged<String> String::GetUnderlying() const;
@@ -1052,7 +1047,6 @@ V8_OBJECT class SlicedString : public String {
   friend class ToDirectStringAssembler;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedSlicedStringAsserts;
 
   friend Tagged<String> String::GetUnderlying() const;
@@ -1115,7 +1109,6 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   friend struct OffsetsForDebug;
   friend class CodeStubAssembler;
   friend class compiler::AccessBuilder;
-  template <typename D, typename P>
   friend class TorqueGeneratedExternalStringAsserts;
 
  protected:

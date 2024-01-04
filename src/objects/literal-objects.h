@@ -79,6 +79,10 @@ class ObjectBoilerplateDescription
 
   class BodyDescriptor;
 
+  static constexpr int kBackingStoreSizeOffset = Shape::kBackingStoreSizeOffset;
+  static constexpr int kFlagsOffset = Shape::kFlagsOffset;
+  static constexpr int kRawEntriesOffset = Shape::kHeaderSize;
+
  private:
   static constexpr int kElementsPerEntry = 2;
   static constexpr int NameIndex(int i) { return i * kElementsPerEntry; }

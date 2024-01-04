@@ -4,9 +4,10 @@
 
 @cppObjectDefinition
 extern class ObjectBoilerplateDescription extends HeapObject {
-  capacity: Smi;
+  const capacity: Smi;
   backing_store_size: Smi;
   flags: Smi;
+  raw_entries[capacity]: Object;
 }
 
 extern class ArrayBoilerplateDescription extends Struct {

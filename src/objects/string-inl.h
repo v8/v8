@@ -31,20 +31,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/string-tq-inl.inc"
-
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(String, Name)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(SeqString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(SeqOneByteString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(SeqTwoByteString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(InternalizedString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(ConsString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(ThinString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(SlicedString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(ExternalString, String)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(ExternalOneByteString, ExternalString)
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(ExternalTwoByteString, ExternalString)
-
 class V8_NODISCARD SharedStringAccessGuardIfNeeded {
  public:
   // Creates no SharedMutexGuard<kShared> for the string access since it was

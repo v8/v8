@@ -131,8 +131,10 @@ class BytecodeArray : public ExposedTrustedObject {
   V(kFrameSizeOffset, kInt32Size)                                       \
   V(kParameterSizeOffset, kInt32Size)                                   \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kInt32Size)            \
+  V(kOptionalPaddingOffset, 0)                                          \
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
+  V(kHeaderSize, 0)                                                     \
+  V(kBytesOffset, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST

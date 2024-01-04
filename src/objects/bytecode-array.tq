@@ -7,13 +7,16 @@ type DependentCode extends WeakArrayList;
 @cppObjectDefinition
 extern class BytecodeArray extends ExposedTrustedObject {
   const length: Smi;
-  constant_pool: FixedArray;
   handler_table: ByteArray;
+  constant_pool: FixedArray;
   wrapper: BytecodeWrapper;
   source_position_table: Undefined|ByteArray|Exception;
   frame_size: int32;
   parameter_size: int32;
   incoming_new_target_or_generator_register: int32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  bytes[length]: uint8;
 }
 
 // A wrapper around a bytecode object that lives inside the sandbox. This can
@@ -21,7 +24,8 @@ extern class BytecodeArray extends ExposedTrustedObject {
 // for example because it is stored inside an array of tagged values.
 @cppObjectDefinition
 extern class BytecodeWrapper extends Struct {
-  bytecode: IndirectPointer<BytecodeArray>;
+  @if(V8_ENABLE_SANDBOX) bytecode: IndirectPointer<BytecodeArray>;
+  @ifnot(V8_ENABLE_SANDBOX) bytecode: BytecodeArray;
   padding1: int32;
   padding2: int32;
 }

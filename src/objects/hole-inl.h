@@ -19,8 +19,6 @@
 namespace v8 {
 namespace internal {
 
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(Hole, HeapObject)
-
 OBJECT_CONSTRUCTORS_IMPL(Hole, HeapObject)
 
 CAST_ACCESSOR(Hole)

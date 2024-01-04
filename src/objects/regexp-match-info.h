@@ -84,6 +84,7 @@ class RegExpMatchInfo
   static constexpr int kMinCapacity = 2;
 
   // Redeclare these here since they are used from generated code.
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
   static constexpr int kLastInputOffset = Shape::kLastInputOffset;
   static constexpr int kLastSubjectOffset = Shape::kLastSubjectOffset;
   static constexpr int kNumberOfCaptureRegistersOffset =
