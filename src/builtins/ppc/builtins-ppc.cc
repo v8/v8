@@ -3076,7 +3076,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ LoadTaggedField(
       vector,
       FieldMemOperand(kWasmInstanceRegister,
-                      WasmInstanceObject::kFeedbackVectorsOffset),
+                      WasmTrustedInstanceData::kFeedbackVectorsOffset),
       scratch);
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
@@ -3154,7 +3154,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // start to the jump table offset already stored in r11.
     __ LoadU64(ip,
                FieldMemOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kJumpTableStartOffset),
+                               WasmTrustedInstanceData::kJumpTableStartOffset),
                r0);
     __ AddS64(r11, r11, ip);
   }
