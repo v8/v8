@@ -3292,7 +3292,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   __ LoadTaggedField(
       vector, FieldMemOperand(kWasmInstanceRegister,
-                              WasmInstanceObject::kFeedbackVectorsOffset));
+                              WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ Add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
   __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
@@ -3380,7 +3380,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   constexpr Register temp = x8;
   static_assert(!kSavedGpRegs.has(temp));
   __ ldr(temp, FieldMemOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kJumpTableStartOffset));
+                               WasmTrustedInstanceData::kJumpTableStartOffset));
   __ add(x17, temp, Operand(x17));
   // Finally, jump to the jump table slot for the function.
   __ Jump(x17);
@@ -4090,9 +4090,10 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
 
   __ Ldr(kContextRegister,
          MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(kContextRegister,
-                     FieldMemOperand(kContextRegister,
-                                     WasmInstanceObject::kNativeContextOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
@@ -4138,9 +4139,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
   __ Ldr(kContextRegister,
          MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(kContextRegister,
-                     FieldMemOperand(kContextRegister,
-                                     WasmInstanceObject::kNativeContextOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 
   DEFINE_SCOPED(tmp);
   DEFINE_SCOPED(tmp2);
@@ -4172,8 +4174,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
                    kSystemPointerSize));
 
   DEFINE_PINNED(wasm_instance, kWasmInstanceRegister);
-  __ Ldr(wasm_instance,
-         MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+  __ Ldr(
+      wasm_instance,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
 
   DEFINE_PINNED(wrapper_buffer,
                 WasmJSToWasmWrapperDescriptor::WrapperBufferRegister());
@@ -4362,7 +4365,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ Ldr(x1, MemOperand(
                    fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ Ldr(x0,
-           MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+           MemOperand(fp,
+                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
   }
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 

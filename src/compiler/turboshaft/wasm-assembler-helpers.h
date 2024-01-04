@@ -21,11 +21,11 @@ struct RootTypes {
 
 #define LOAD_INSTANCE_FIELD(instance, name, representation)     \
   __ Load(instance, LoadOp::Kind::TaggedBase(), representation, \
-          WasmInstanceObject::k##name##Offset)
+          WasmTrustedInstanceData::k##name##Offset)
 
 #define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)       \
   __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(), representation, \
-          WasmInstanceObject::k##name##Offset)
+          WasmTrustedInstanceData::k##name##Offset)
 
 #define LOAD_ROOT(name)                                          \
   V<compiler::turboshaft::RootTypes::k##name##Type>::Cast(       \

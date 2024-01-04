@@ -233,12 +233,12 @@ Reduction MemoryLowering::ReduceAllocateRaw(Node* node,
     Node* instance_node = GetWasmInstanceNode();
     int top_address_offset =
         allocation_type == AllocationType::kYoung
-            ? WasmInstanceObject::kNewAllocationTopAddressOffset
-            : WasmInstanceObject::kOldAllocationTopAddressOffset;
+            ? WasmTrustedInstanceData::kNewAllocationTopAddressOffset
+            : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
     int limit_address_offset =
         allocation_type == AllocationType::kYoung
-            ? WasmInstanceObject::kNewAllocationLimitAddressOffset
-            : WasmInstanceObject::kOldAllocationLimitAddressOffset;
+            ? WasmTrustedInstanceData::kNewAllocationLimitAddressOffset
+            : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
     top_address =
         __ Load(MachineType::Pointer(), instance_node,
                 __ IntPtrConstant(top_address_offset - kHeapObjectTag));

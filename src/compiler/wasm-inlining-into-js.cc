@@ -59,7 +59,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       parameters_[i] = nullptr;
     }
     // Instance node at parameter 0.
-    instance_node_ = Param(wasm::kWasmInstanceParameterIndex);
+    trusted_data_node_ = Param(wasm::kWasmInstanceParameterIndex);
   }
 
   Node* Param(int index, const char* debug_name = nullptr) {
@@ -278,7 +278,8 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
         static_cast<uint32_t>(heap_index),
         null_succeeds ? wasm::kNullable : wasm::kNonNullable);
     Node* rtt = mcgraph_->graph()->NewNode(
-        gasm_.simplified()->RttCanon(target_type.ref_index()), instance_node_);
+        gasm_.simplified()->RttCanon(target_type.ref_index()),
+        trusted_data_node_);
     TypeNode(rtt, wasm::ValueType::Rtt(target_type.ref_index()));
     Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
     SetSourcePosition(cast);
@@ -363,7 +364,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   const wasm::FunctionBody& body_;
   Node** parameters_;
   Graph* graph_;
-  Node* instance_node_;
+  Node* trusted_data_node_;
   WasmGraphAssembler gasm_;
   SourcePositionTable* source_position_table_ = nullptr;
   const uint8_t* instruction_start_ = pc_;

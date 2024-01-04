@@ -177,19 +177,19 @@ class TurboshaftGraphBuildingInterface {
     __ SetCurrentOrigin(WasmPositionToOpIndex(0, inlining_id_));
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
-    V<WasmInstanceObject> instance_node;
+    V<WasmTrustedInstanceData> trusted_instance_data;
     if (mode_ == kRegular) {
       static_assert(kWasmInstanceParameterIndex == 0);
-      instance_node = __ WasmInstanceParameter();
+      trusted_instance_data = __ WasmInstanceParameter();
       for (; index < decoder->sig_->parameter_count(); index++) {
         // Parameter indices are shifted by 1 because parameter 0 is the
         // instance.
         ssa_env_[index] = __ Parameter(
             index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
       }
-      instance_cache_.Initialize(instance_node, decoder->module_);
+      instance_cache_.Initialize(trusted_instance_data, decoder->module_);
     } else {
-      instance_node = real_parameters_[0];
+      trusted_instance_data = real_parameters_[0];
       for (; index < decoder->sig_->parameter_count(); index++) {
         // Parameter indices are shifted by 1 because parameter 0 is the
         // instance.
@@ -263,8 +263,8 @@ class TurboshaftGraphBuildingInterface {
     }
 
     if (v8_flags.debug_code) {
-      IF_NOT (LIKELY(__ HasInstanceType(instance_node,
-                                        WASM_INSTANCE_OBJECT_TYPE))) {
+      IF_NOT (LIKELY(__ HasInstanceType(trusted_instance_data,
+                                        WASM_TRUSTED_INSTANCE_DATA_TYPE))) {
         OpIndex message_id = __ TaggedIndexConstant(
             static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
         CallRuntime(decoder, Runtime::kAbort, {message_id});
@@ -651,7 +651,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    result->op = __ WasmRefFunc(instance_node(), function_index);
+    result->op = __ WasmRefFunc(trusted_instance_data(), function_index);
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -678,12 +678,12 @@ class TurboshaftGraphBuildingInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    result->op = __ GlobalGet(instance_node(), imm.global);
+    result->op = __ GlobalGet(trusted_instance_data(), imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    __ GlobalSet(instance_node(), value.op, imm.global);
+    __ GlobalSet(trusted_instance_data(), value.op, imm.global);
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
@@ -1748,7 +1748,8 @@ class TurboshaftGraphBuildingInterface {
       } else {
         V<WordPtr> callee =
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, imm.sig, callee, instance_node(), args, returns);
+        BuildWasmCall(decoder, imm.sig, callee, trusted_instance_data(), args,
+                      returns);
       }
     }
   }
@@ -1760,7 +1761,7 @@ class TurboshaftGraphBuildingInterface {
         imm.index < decoder->module_->num_imported_functions
             ? BuildImportedFunctionTargetAndRef(imm.index)
             : std::pair{__ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
-                        instance_node()};
+                        trusted_instance_data()};
     BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
   }
 
@@ -1784,9 +1785,9 @@ class TurboshaftGraphBuildingInterface {
     feedback_slot_++;
     if (inlining_enabled(decoder) &&
         should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
-      V<FixedArray> internal_functions =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), WasmInternalFunctions,
-                                        MemoryRepresentation::TaggedPointer());
+      V<FixedArray> internal_functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(), WasmInternalFunctions,
+          MemoryRepresentation::TaggedPointer());
       size_t return_count = sig->return_count();
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
@@ -2193,8 +2194,9 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        instance_node(), TagsTable, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
     auto tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
 
@@ -2219,8 +2221,9 @@ class TurboshaftGraphBuildingInterface {
             decoder, native_context,
             {block->exception,
              LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol)}));
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        instance_node(), TagsTable, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_catch = __ NewBlock();
@@ -2333,8 +2336,9 @@ class TurboshaftGraphBuildingInterface {
             decoder, instance_cache_.native_context(),
             {block->exception,
              LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol)}));
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        instance_node(), TagsTable, MemoryRepresentation::TaggedPointer());
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
         instance_tags, catch_case.maybe_tag.tag_imm.index));
     TSBlock* if_catch = __ NewBlock();
@@ -2633,7 +2637,7 @@ class TurboshaftGraphBuildingInterface {
                            MachineType::Uint32(), MachineType::Uint32());
     V<Word32> result =
         CallC(&sig, ExternalReference::wasm_memory_init(),
-              {__ BitcastTaggedToWord(instance_node()),
+              {__ BitcastTaggedToWord(trusted_instance_data()),
                __ Word32Constant(imm.memory.index), dst_uintptr, src.op,
                __ Word32Constant(imm.data_segment.index), size.op});
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
@@ -2654,7 +2658,7 @@ class TurboshaftGraphBuildingInterface {
                            MachineType::Uint32(), MachineType::UintPtr(),
                            MachineType::UintPtr(), MachineType::UintPtr());
     V<Word32> result = CallC(&sig, ExternalReference::wasm_memory_copy(),
-                             {__ BitcastTaggedToWord(instance_node()),
+                             {__ BitcastTaggedToWord(trusted_instance_data()),
                               __ Word32Constant(imm.memory_dst.index),
                               __ Word32Constant(imm.memory_src.index),
                               dst_uintptr, src_uintptr, size_uintptr});
@@ -2674,15 +2678,15 @@ class TurboshaftGraphBuildingInterface {
                            MachineType::UintPtr());
     V<Word32> result = CallC(
         &sig, ExternalReference::wasm_memory_fill(),
-        {__ BitcastTaggedToWord(instance_node()), __ Word32Constant(imm.index),
-         dst_uintptr, value.op, size_uintptr});
+        {__ BitcastTaggedToWord(trusted_instance_data()),
+         __ Word32Constant(imm.index), dst_uintptr, value.op, size_uintptr});
 
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     V<FixedUInt32Array> data_segment_sizes =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), DataSegmentSizes,
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), DataSegmentSizes,
                                       MemoryRepresentation::TaggedPointer());
     __ Store(data_segment_sizes, __ Word32Constant(0),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
@@ -2754,7 +2758,7 @@ class TurboshaftGraphBuildingInterface {
   void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
                  Value* result) {
     V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        instance_node(), Tables, MemoryRepresentation::TaggedPointer());
+        trusted_instance_data(), Tables, MemoryRepresentation::TaggedPointer());
     auto table =
         V<WasmTableObject>::Cast(__ LoadFixedArrayElement(tables, imm.index));
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
@@ -2765,7 +2769,7 @@ class TurboshaftGraphBuildingInterface {
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     V<FixedArray> elem_segments =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), ElementSegments,
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), ElementSegments,
                                       MemoryRepresentation::TaggedPointer());
     __ StoreFixedArrayElement(elem_segments, imm.index,
                               LOAD_ROOT(EmptyFixedArray),
@@ -2948,8 +2952,8 @@ class TurboshaftGraphBuildingInterface {
       MachineSignature sig(0, 6, arg_types);
 
       CallC(&sig, ExternalReference::wasm_array_copy(),
-            {instance_node(), dst.op, dst_index.op, src.op, src_index.op,
-             length.op});
+            {trusted_instance_data(), dst.op, dst_index.op, src.op,
+             src_index.op, length.op});
       GOTO(end);
     }
 
@@ -3667,7 +3671,8 @@ class TurboshaftGraphBuildingInterface {
   bool did_bailout() { return did_bailout_; }
 
  private:
-  // The InstanceCache caches commonly used fields of the WasmInstanceObject.
+  // The InstanceCache caches commonly used fields of the
+  // WasmTrustedInstanceData.
   // We can extend the set of cached fields as needed.
   // This caching serves two purposes:
   // (1) It makes sure that the respective fields are loaded early on, as
@@ -3683,17 +3688,18 @@ class TurboshaftGraphBuildingInterface {
    public:
     explicit InstanceCache(Assembler& assembler) : asm_(assembler) {}
 
-    void Initialize(V<WasmInstanceObject> instance, const WasmModule* mod) {
-      DCHECK(!instance_node_.valid());  // Only call {Initialize()} once.
-      instance_node_ = instance;
+    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data,
+                    const WasmModule* mod) {
+      DCHECK(!trusted_data_.valid());  // Only call {Initialize()} once.
+      trusted_data_ = trusted_instance_data;
       managed_object_maps_ =
-          __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(),
+          __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
-                  WasmInstanceObject::kManagedObjectMapsOffset);
+                  WasmTrustedInstanceData::kManagedObjectMapsOffset);
       native_context_ =
-          __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(),
+          __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
-                  WasmInstanceObject::kNativeContextOffset);
+                  WasmTrustedInstanceData::kNativeContextOffset);
 
       if (!mod->memories.empty()) {
 #if DEBUG
@@ -3773,7 +3779,7 @@ class TurboshaftGraphBuildingInterface {
       mem_start_ = V<WordPtr>::Cast(value);
     }
 
-    V<WasmInstanceObject> instance() { return instance_node_; }
+    V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
     V<FixedArray> managed_object_maps() { return managed_object_maps_; }
     V<NativeContext> native_context() { return native_context_; }
     V<WordPtr> memory0_start() {
@@ -3796,8 +3802,8 @@ class TurboshaftGraphBuildingInterface {
       // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
       if (!memory_can_move()) kind = kind.Immutable();
-      return __ Load(instance_node_, kind, kMaybeSandboxedPointer,
-                     WasmInstanceObject::kMemory0StartOffset);
+      return __ Load(trusted_data_, kind, kMaybeSandboxedPointer,
+                     WasmTrustedInstanceData::kMemory0StartOffset);
     }
 
     V<WordPtr> LoadMemSize() {
@@ -3809,8 +3815,8 @@ class TurboshaftGraphBuildingInterface {
         kind = kind.NotLoadEliminable();
       }
       if (!memory_can_grow_) kind = kind.Immutable();
-      return __ Load(instance_node_, kind, MemoryRepresentation::PointerSized(),
-                     WasmInstanceObject::kMemory0SizeOffset);
+      return __ Load(trusted_data_, kind, MemoryRepresentation::PointerSized(),
+                     WasmTrustedInstanceData::kMemory0SizeOffset);
     }
 
     bool memory_can_move() { return memory_start_index_ != kUnused; }
@@ -3819,7 +3825,7 @@ class TurboshaftGraphBuildingInterface {
     Assembler& Asm() { return asm_; }
 
     // Cached immutable fields (need no Phi nodes):
-    V<WasmInstanceObject> instance_node_;
+    V<WasmTrustedInstanceData> trusted_data_;
     V<FixedArray> managed_object_maps_;
     V<NativeContext> native_context_;
 
@@ -5464,9 +5470,9 @@ class TurboshaftGraphBuildingInterface {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_start();
     } else {
-      V<ByteArray> instance_memories =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), MemoryBasesAndSizes,
-                                        MemoryRepresentation::TaggedPointer());
+      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(), MemoryBasesAndSizes,
+          MemoryRepresentation::TaggedPointer());
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
                      kMaybeSandboxedPointer,
                      ByteArray::kHeaderSize +
@@ -5485,9 +5491,9 @@ class TurboshaftGraphBuildingInterface {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_size();
     } else {
-      V<ByteArray> instance_memories =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), MemoryBasesAndSizes,
-                                        MemoryRepresentation::TaggedPointer());
+      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(), MemoryBasesAndSizes,
+          MemoryRepresentation::TaggedPointer());
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
           MemoryRepresentation::PointerSized(),
@@ -5543,14 +5549,15 @@ class TurboshaftGraphBuildingInterface {
       uint32_t function_index) {
     // Imported function.
     V<WordPtr> func_index = __ IntPtrConstant(function_index);
-    V<FixedArray> imported_function_refs =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), ImportedFunctionRefs,
-                                      MemoryRepresentation::TaggedPointer());
+    V<FixedArray> imported_function_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(), ImportedFunctionRefs,
+        MemoryRepresentation::TaggedPointer());
     auto ref = V<HeapObject>::Cast(
         __ LoadFixedArrayElement(imported_function_refs, func_index));
-    V<FixedAddressArray> imported_targets =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), ImportedFunctionTargets,
-                                      MemoryRepresentation::TaggedPointer());
+    ref = LoadTrustedDataFromMaybeInstanceObject(ref);
+    V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(), ImportedFunctionTargets,
+        MemoryRepresentation::TaggedPointer());
     V<WordPtr> target =
         __ Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::PointerSized(),
@@ -5573,23 +5580,24 @@ class TurboshaftGraphBuildingInterface {
     V<ExternalPointerArray> ift_targets;
     V<FixedArray> ift_refs;
     if (table_index == 0) {
-      ift_size =
-          needs_dynamic_size
-              ? LOAD_INSTANCE_FIELD(instance_node(), IndirectFunctionTableSize,
-                                    MemoryRepresentation::Uint32())
-              : __ Word32Constant(table.initial_size);
-      ift_sig_ids =
-          LOAD_INSTANCE_FIELD(instance_node(), IndirectFunctionTableSigIds,
-                              MemoryRepresentation::TaggedPointer());
-      ift_targets =
-          LOAD_INSTANCE_FIELD(instance_node(), IndirectFunctionTableTargets,
-                              MemoryRepresentation::TaggedPointer());
-      ift_refs = LOAD_INSTANCE_FIELD(instance_node(), IndirectFunctionTableRefs,
+      ift_size = needs_dynamic_size
+                     ? LOAD_INSTANCE_FIELD(trusted_instance_data(),
+                                           IndirectFunctionTableSize,
+                                           MemoryRepresentation::Uint32())
+                     : __ Word32Constant(table.initial_size);
+      ift_sig_ids = LOAD_INSTANCE_FIELD(trusted_instance_data(),
+                                        IndirectFunctionTableSigIds,
+                                        MemoryRepresentation::TaggedPointer());
+      ift_targets = LOAD_INSTANCE_FIELD(trusted_instance_data(),
+                                        IndirectFunctionTableTargets,
+                                        MemoryRepresentation::TaggedPointer());
+      ift_refs = LOAD_INSTANCE_FIELD(trusted_instance_data(),
+                                     IndirectFunctionTableRefs,
                                      MemoryRepresentation::TaggedPointer());
     } else {
-      V<FixedArray> ift_tables =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(instance_node(), IndirectFunctionTables,
-                                        MemoryRepresentation::TaggedPointer());
+      V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(), IndirectFunctionTables,
+          MemoryRepresentation::TaggedPointer());
       OpIndex ift_table = __ LoadFixedArrayElement(ift_tables, table_index);
       ift_size = needs_dynamic_size
                      ? __ Load(ift_table, LoadOp::Kind::TaggedBase(),
@@ -5620,7 +5628,7 @@ class TurboshaftGraphBuildingInterface {
 
     if (needs_type_check) {
       V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance_node(), IsorecursiveCanonicalTypes,
+          trusted_instance_data(), IsorecursiveCanonicalTypes,
           MemoryRepresentation::PointerSized());
       V<Word32> expected_sig_id =
           __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
@@ -5715,6 +5723,11 @@ class TurboshaftGraphBuildingInterface {
 #endif
     auto ref =
         V<HeapObject>::Cast(__ LoadFixedArrayElement(ift_refs, index_intptr));
+
+    // If ref is a WasmInstanceObject, load the WasmTrustedInstanceData from it
+    // (if it's a WasmApiFunctionRef we pass it unmodified).
+    ref = LoadTrustedDataFromMaybeInstanceObject(ref);
+
     return {target, ref};
   }
 
@@ -5735,6 +5748,9 @@ class TurboshaftGraphBuildingInterface {
             : __ Load(func_ref, LoadOp::Kind::TaggedBase(),
                       MemoryRepresentation::TaggedPointer(),
                       WasmInternalFunction::kRefOffset);
+
+    // If ref is a WasmInstanceObject, load the trusted data from it.
+    ref = LoadTrustedDataFromMaybeInstanceObject(ref);
 
 #ifdef V8_ENABLE_SANDBOX
     V<Word32> target_handle = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
@@ -5821,6 +5837,67 @@ class TurboshaftGraphBuildingInterface {
     }
     // Calls might mutate cached instance fields.
     instance_cache_.ReloadCachedMemory();
+  }
+
+#if V8_ENABLE_SANDBOX
+  V<HeapObject> DecodeTrustedPointer(V<Word32> handle, IndirectPointerTag tag) {
+    V<Word32> index =
+        __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
+    V<Word64> offset = __ ChangeUint32ToUint64(
+        __ Word32ShiftLeft(index, kTrustedPointerTableEntrySizeLog2));
+    V<WordPtr> table =
+        __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+                MemoryRepresentation::PointerSized(),
+                IsolateData::trusted_pointer_table_offset() +
+                    Internals::kTrustedPointerTableBasePointerOffset);
+    V<WordPtr> decoded_ptr = __ Load(table, offset, LoadOp::Kind::RawAligned(),
+                                     MemoryRepresentation::PointerSized());
+    // TODO(saelo): Mask out the tag once we encode it in the table.
+    USE(tag);
+
+    // Always set the tagged bit, used as a marking bit in that table.
+    V<HeapObject> trusted_object =
+        V<HeapObject>::Cast(__ Word64BitwiseOr(decoded_ptr, kHeapObjectTag));
+    return trusted_object;
+  }
+#endif  // V8_ENABLE_SANDBOX
+
+  // Load the trusted data from a WasmInstanceObject.
+  V<HeapObject> LoadTrustedDataFromInstanceObject(
+      V<HeapObject> instance_object) {
+#if V8_ENABLE_SANDBOX
+    V<Word32> handle = __ Load(
+        instance_object, LoadOp::Kind::TaggedBase().Immutable(),
+        MemoryRepresentation::Uint32(), WasmInstanceObject::kTrustedDataOffset);
+    return DecodeTrustedPointer(handle,
+                                kWasmTrustedInstanceDataIndirectPointerTag);
+#else
+    return __ Load(instance_object, LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::TaggedPointer(),
+                   WasmInstanceObject::kTrustedDataOffset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  // Load the trusted data if the given object is a WasmInstanceObject.
+  // Otherwise return the value unmodified.
+  // This is used when calling via WasmInternalFunction where the "ref" is
+  // either an instance object or a WasmApiFunctionRef.
+  // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
+  // indirect load.
+  V<HeapObject> LoadTrustedDataFromMaybeInstanceObject(
+      V<HeapObject> maybe_instance_object) {
+    // If the "ref" is a WasmInstanceObject, load the WasmTrustedInstanceData
+    // from it.
+    Label<HeapObject> done(&asm_);
+    GOTO_IF_NOT(LIKELY(__ HasInstanceType(maybe_instance_object,
+                                          WASM_INSTANCE_OBJECT_TYPE)),
+                done, maybe_instance_object);
+    V<HeapObject> trusted_data =
+        LoadTrustedDataFromInstanceObject(maybe_instance_object);
+    GOTO(done, trusted_data);
+
+    BIND(done, result);
+    return result;
   }
 
   void BuildWasmMaybeReturnCall(FullDecoder* decoder, const FunctionSig* sig,
@@ -6511,7 +6588,7 @@ class TurboshaftGraphBuildingInterface {
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
-    inlinee_args[0] = instance_node();
+    inlinee_args[0] = trusted_instance_data();
     for (size_t i = 0; i < inlinee.sig->parameter_count(); i++) {
       inlinee_args[i + 1] = args[i].op;
     }
@@ -6535,7 +6612,8 @@ class TurboshaftGraphBuildingInterface {
         // will be triggered again when actually compiling the invalid function.
         V<WordPtr> callee =
             __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, sig, callee, instance_node(), args, returns);
+        BuildWasmCall(decoder, sig, callee, trusted_instance_data(), args,
+                      returns);
         return;
       }
       decoder->module_->set_function_validated(func_index);
@@ -6750,7 +6828,9 @@ class TurboshaftGraphBuildingInterface {
     no_liftoff_inlining_budget_ = no_liftoff_inlining_budget;
   }
 
-  V<WasmInstanceObject> instance_node() { return instance_cache_.instance(); }
+  V<WasmTrustedInstanceData> trusted_instance_data() {
+    return instance_cache_.trusted_instance_data();
+  }
 
   Mode mode_;
   ZoneAbslFlatHashMap<TSBlock*, BlockPhis> block_phis_;

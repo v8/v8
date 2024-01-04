@@ -128,7 +128,7 @@ int CallSiteInfo::GetEnclosingLineNumber(Handle<CallSiteInfo> info) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsAsmJsWasm()) {
-    auto module = info->GetWasmInstance()->module();
+    auto* module = info->GetWasmInstance()->module();
     auto func_index = info->GetWasmFunctionIndex();
     int position = wasm::GetSourcePosition(module, func_index, 0,
                                            info->IsAsmJsAtNumberConversion());
@@ -144,7 +144,7 @@ int CallSiteInfo::GetEnclosingColumnNumber(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
-    auto module = info->GetWasmInstance()->module();
+    auto* module = info->GetWasmInstance()->module();
     auto func_index = info->GetWasmFunctionIndex();
     return GetWasmFunctionOffset(module, func_index);
   }
@@ -155,7 +155,7 @@ int CallSiteInfo::GetEnclosingColumnNumber(Handle<CallSiteInfo> info) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsAsmJsWasm()) {
-    auto module = info->GetWasmInstance()->module();
+    auto* module = info->GetWasmInstance()->module();
     auto func_index = info->GetWasmFunctionIndex();
     int position = wasm::GetSourcePosition(module, func_index, 0,
                                            info->IsAsmJsAtNumberConversion());
@@ -598,7 +598,7 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
-    auto module = info->GetWasmInstance()->module();
+    auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
     uint32_t func_index = info->GetWasmFunctionIndex();
     return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());
@@ -617,7 +617,10 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
 base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
-    return GetWasmInstance()->module_object()->script();
+    return GetWasmInstance()
+        ->trusted_data(GetIsolate())
+        ->module_object()
+        ->script();
   }
   if (IsBuiltin()) {
     return base::nullopt;

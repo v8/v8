@@ -398,6 +398,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return kVisitWasmInstanceObject;
+    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
+      return kVisitWasmTrustedInstanceData;
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:

@@ -41,6 +41,7 @@ class JSPromise;
 class Counters;
 class WasmModuleObject;
 class WasmInstanceObject;
+class WasmTrustedInstanceData;
 
 namespace wasm {
 
@@ -76,7 +77,7 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Tagged<WasmInstanceObject>, int func_index);
+bool CompileLazy(Isolate*, Tagged<WasmTrustedInstanceData>, int func_index);
 
 // Throws the compilation error after failed lazy compilation.
 void ThrowLazyCompilationError(Isolate* isolate,
@@ -85,10 +86,10 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 // Trigger tier-up of a particular function to TurboFan. If tier-up was already
 // triggered, we instead increase the priority with exponential back-off.
-V8_EXPORT_PRIVATE void TriggerTierUp(Tagged<WasmInstanceObject> instance,
+V8_EXPORT_PRIVATE void TriggerTierUp(Tagged<WasmTrustedInstanceData>,
                                      int func_index);
 // Synchronous version of the above.
-void TierUpNowForTesting(Isolate* isolate, Tagged<WasmInstanceObject> instance,
+void TierUpNowForTesting(Isolate*, Tagged<WasmTrustedInstanceData>,
                          int func_index);
 
 template <typename Key, typename KeyInfo, typename Hash>

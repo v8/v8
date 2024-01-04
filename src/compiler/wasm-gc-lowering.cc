@@ -534,7 +534,7 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
   Node* instance_node = node->InputAt(0);
   Node* maps_list = gasm_.LoadImmutable(
       MachineType::TaggedPointer(), instance_node,
-      WasmInstanceObject::kManagedObjectMapsOffset - kHeapObjectTag);
+      WasmTrustedInstanceData::kManagedObjectMapsOffset - kHeapObjectTag);
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index)));

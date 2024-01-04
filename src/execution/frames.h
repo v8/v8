@@ -454,6 +454,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
@@ -475,6 +476,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
                             int function_index, int op_wire_bytes_offset);
 
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
     Handle<Object> receiver() const;
     uint32_t function_index() const;
     int code_offset() const { return op_wire_bytes_offset_; }
@@ -1144,7 +1146,9 @@ class WasmFrame : public TypedFrame {
 
   // Accessors.
   virtual V8_EXPORT_PRIVATE Tagged<WasmInstanceObject> wasm_instance() const;
+  virtual Tagged<WasmTrustedInstanceData> trusted_instance_data() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
+
   wasm::WasmCode* wasm_code() const;
   int function_index() const;
   Tagged<Script> script() const;
@@ -1211,6 +1215,7 @@ class WasmToJsFrame : public WasmFrame {
 
   int position() const override { return 0; }
   Tagged<WasmInstanceObject> wasm_instance() const override;
+  Tagged<WasmTrustedInstanceData> trusted_instance_data() const override;
 
  protected:
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);

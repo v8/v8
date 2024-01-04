@@ -194,6 +194,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
 
+#if V8_ENABLE_WEBASSEMBLY
+  Handle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(

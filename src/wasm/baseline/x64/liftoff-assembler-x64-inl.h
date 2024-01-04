@@ -52,7 +52,7 @@ inline constexpr Operand GetStackSlot(int offset) {
   return Operand(rbp, -offset);
 }
 
-constexpr Operand kInstanceOperand = GetStackSlot(kInstanceOffset);
+constexpr Operand kInstanceDataOperand = GetStackSlot(kInstanceOffset);
 
 constexpr Operand kOSRTargetSlot = GetStackSlot(kOSRTargetOffset);
 
@@ -323,16 +323,16 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
 void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
-  Register instance = cache_state_.cached_instance;
-  if (instance == no_reg) {
-    instance = kScratchRegister;
-    LoadInstanceFromFrame(instance);
+  Register instance_data = cache_state_.cached_instance_data;
+  if (instance_data == no_reg) {
+    instance_data = kScratchRegister;
+    LoadInstanceDataFromFrame(instance_data);
   }
 
-  Register budget_array = kScratchRegister;  // Overwriting {instance}.
+  Register budget_array = kScratchRegister;  // Overwriting {instance_data}.
   constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-      WasmInstanceObject::kTieringBudgetArrayOffset);
-  movq(budget_array, Operand{instance, kArrayOffset});
+      WasmTrustedInstanceData::kTieringBudgetArrayOffset);
+  movq(budget_array, Operand{instance_data, kArrayOffset});
 
   int offset = kInt32Size * declared_func_index;
   subl(Operand{budget_array, offset}, Immediate(budget_used));
@@ -362,8 +362,16 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
-  movq(dst, liftoff::kInstanceOperand);
+void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
+  movq(dst, liftoff::kInstanceDataOperand);
+}
+
+void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
+    Register dst, Register instance_object) {
+  Operand src{instance_object, wasm::ObjectAccess::ToTagged(
+                                   WasmInstanceObject::kTrustedDataOffset)};
+  LoadTrustedPointerField(dst, src, kWasmTrustedInstanceDataIndirectPointerTag,
+                          kScratchRegister);
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -409,8 +417,8 @@ void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
                            IsolateRootLocation::kInRootRegister);
 }
 
-void LiftoffAssembler::SpillInstance(Register instance) {
-  movq(liftoff::kInstanceOperand, instance);
+void LiftoffAssembler::SpillInstanceData(Register instance) {
+  movq(liftoff::kInstanceDataOperand, instance);
 }
 
 void LiftoffAssembler::ResetOSRTarget() {

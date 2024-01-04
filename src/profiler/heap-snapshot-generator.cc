@@ -2176,13 +2176,16 @@ void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
 }
 
 void V8HeapExplorer::ExtractWasmInstanceObjectReference(
-    Tagged<WasmInstanceObject> obj, HeapEntry* entry) {
+    Tagged<WasmInstanceObject> instance_object, HeapEntry* entry) {
   PtrComprCageBase cage_base(heap_->isolate());
-  for (size_t i = 0; i < WasmInstanceObject::kTaggedFieldOffsets.size(); i++) {
-    const uint16_t offset = WasmInstanceObject::kTaggedFieldOffsets[i];
-    SetInternalReference(entry, WasmInstanceObject::kTaggedFieldNames[i],
-                         TaggedField<Object>::load(cage_base, obj, offset),
-                         offset);
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      instance_object->trusted_data(heap_->isolate());
+  for (size_t i = 0; i < WasmTrustedInstanceData::kTaggedFieldOffsets.size();
+       i++) {
+    const uint16_t offset = WasmTrustedInstanceData::kTaggedFieldOffsets[i];
+    SetInternalReference(
+        entry, WasmTrustedInstanceData::kTaggedFieldNames[i],
+        TaggedField<Object>::load(cage_base, trusted_data, offset), offset);
   }
 }
 

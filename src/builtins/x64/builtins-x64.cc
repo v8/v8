@@ -3064,9 +3064,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Push(rbp);
   __ Move(rbp, rsp);
   __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
-  __ LoadTaggedField(vector,
-                     FieldOperand(kWasmInstanceRegister,
-                                  WasmInstanceObject::kFeedbackVectorsOffset));
+  __ LoadTaggedField(
+      vector, FieldOperand(kWasmInstanceRegister,
+                           WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ LoadTaggedField(vector, FieldOperand(vector, func_index, times_tagged_size,
                                           FixedArray::kHeaderSize));
   Label allocate_vector, done;
@@ -3142,9 +3142,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     RestoreWasmParams(masm, offset);
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r15.
-    __ addq(r15, MemOperand(kWasmInstanceRegister,
-                            wasm::ObjectAccess::ToTagged(
-                                WasmInstanceObject::kJumpTableStartOffset)));
+    __ addq(r15,
+            MemOperand(kWasmInstanceRegister,
+                       wasm::ObjectAccess::ToTagged(
+                           WasmTrustedInstanceData::kJumpTableStartOffset)));
   }
 
   // Finally, jump to the jump table slot for the function.
@@ -3418,7 +3419,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
           MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset));
   __ LoadTaggedField(
       kContextRegister,
-      FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
+      FieldOperand(kContextRegister,
+                   WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp1,
                            tmp2);
@@ -3466,7 +3468,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
           MemOperand(rbp, StackSwitchFrameConstants::kInstanceOffset));
   __ LoadTaggedField(
       kContextRegister,
-      FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
+      FieldOperand(kContextRegister,
+                   WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, reason, kContextRegister, r8, rdi);
   RestoreParentSuspender(masm, r8, rdi);
@@ -3494,8 +3497,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register wrapper_buffer =
       WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
-  __ movq(kWasmInstanceRegister,
-          MemOperand(rbp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+  __ movq(
+      kWasmInstanceRegister,
+      MemOperand(rbp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
 
   Register original_fp = stack_switch ? r9 : rbp;
   Register new_wrapper_buffer = stack_switch ? rbx : wrapper_buffer;
@@ -3635,8 +3639,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ movq(rbx,
             MemOperand(rbp,
                        JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
-    __ movq(rax, MemOperand(
-                     rbp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+    __ movq(rax,
+            MemOperand(
+                rbp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
   }
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 

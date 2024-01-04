@@ -688,7 +688,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Code> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance_object,
       Handle<WasmInternalFunction> internal, int func_index,
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
       int wrapper_budget, wasm::Promise promise);
@@ -720,8 +720,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   Handle<Object> NewWasmArrayFromElementSegment(
-      Handle<WasmInstanceObject> instance, uint32_t segment_index,
-      uint32_t start_offset, uint32_t length, Handle<Map> map);
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      uint32_t segment_index, uint32_t start_offset, uint32_t length,
+      Handle<Map> map);
   Handle<WasmContinuationObject> NewWasmContinuationObject(
       Address jmpbuf, Handle<Foreign> managed_stack, Handle<HeapObject> parent,
       AllocationType allocation = AllocationType::kYoung);

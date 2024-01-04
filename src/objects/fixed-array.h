@@ -501,7 +501,7 @@ class WeakArrayList
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
   // indices to elements can change.
-  static Handle<WeakArrayList> Append(
+  static V8_WARN_UNUSED_RESULT Handle<WeakArrayList> Append(
       Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value,
       AllocationType allocation = AllocationType::kYoung);
 

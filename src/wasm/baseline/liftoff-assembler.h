@@ -239,7 +239,7 @@ class LiftoffAssembler : public MacroAssembler {
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
-    Register cached_instance = no_reg;
+    Register cached_instance_data = no_reg;
     static constexpr int kNoCachedMemIndex = -1;
     // The index of the cached memory start, or {kNoCachedMemIndex} if none is
     // cached ({cached_mem_start} will be {no_reg} in that case).
@@ -297,7 +297,8 @@ class LiftoffAssembler : public MacroAssembler {
     // can easily be reloaded. Those are returned first if we run out of free
     // registers.
     bool has_volatile_register(LiftoffRegList candidates) {
-      return (cached_instance != no_reg && candidates.has(cached_instance)) ||
+      return (cached_instance_data != no_reg &&
+              candidates.has(cached_instance_data)) ||
              (cached_mem_start != no_reg && candidates.has(cached_mem_start));
     }
 
@@ -305,9 +306,10 @@ class LiftoffAssembler : public MacroAssembler {
       DCHECK(!frozen);
       DCHECK(has_volatile_register(candidates));
       Register reg = no_reg;
-      if (cached_instance != no_reg && candidates.has(cached_instance)) {
-        reg = cached_instance;
-        cached_instance = no_reg;
+      if (cached_instance_data != no_reg &&
+          candidates.has(cached_instance_data)) {
+        reg = cached_instance_data;
+        cached_instance_data = no_reg;
       } else {
         DCHECK(candidates.has(cached_mem_start));
         reg = cached_mem_start;
@@ -333,7 +335,7 @@ class LiftoffAssembler : public MacroAssembler {
     }
 
     void SetInstanceCacheRegister(Register reg) {
-      SetCacheRegister(&cached_instance, reg);
+      SetCacheRegister(&cached_instance_data, reg);
     }
 
     void SetMemStartCacheRegister(Register reg, int memory_index) {
@@ -343,7 +345,7 @@ class LiftoffAssembler : public MacroAssembler {
     }
 
     Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
-      DCHECK_EQ(no_reg, cached_instance);
+      DCHECK_EQ(no_reg, cached_instance_data);
       LiftoffRegList available_regs =
           kGpCacheRegList.MaskOut(pinned).MaskOut(used_registers);
       if (available_regs.is_empty()) return no_reg;
@@ -353,13 +355,13 @@ class LiftoffAssembler : public MacroAssembler {
                                    ? kWasmInstanceRegister
                                    : available_regs.GetFirstRegSet().gp();
       SetInstanceCacheRegister(new_cache_reg);
-      DCHECK_EQ(new_cache_reg, cached_instance);
+      DCHECK_EQ(new_cache_reg, cached_instance_data);
       return new_cache_reg;
     }
 
     V8_INLINE void ClearCacheRegister(Register* cache) {
       DCHECK(!frozen);
-      V8_ASSUME(cache == &cached_instance || cache == &cached_mem_start);
+      V8_ASSUME(cache == &cached_instance_data || cache == &cached_mem_start);
       if (*cache == no_reg) return;
       int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
       DCHECK_EQ(1, register_use_count[liftoff_code]);
@@ -368,7 +370,9 @@ class LiftoffAssembler : public MacroAssembler {
       *cache = no_reg;
     }
 
-    void ClearCachedInstanceRegister() { ClearCacheRegister(&cached_instance); }
+    void ClearCachedInstanceRegister() {
+      ClearCacheRegister(&cached_instance_data);
+    }
 
     void ClearCachedMemStartRegister() {
       V8_ASSUME(cached_mem_index == kNoCachedMemIndex || cached_mem_index >= 0);
@@ -641,7 +645,7 @@ class LiftoffAssembler : public MacroAssembler {
   void SpillRegisters(Regs... regs) {
     for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
       if (cache_state_.is_free(r)) continue;
-      if (r.is_gp() && cache_state_.cached_instance == r.gp()) {
+      if (r.is_gp() && cache_state_.cached_instance_data == r.gp()) {
         cache_state_.ClearCachedInstanceRegister();
       } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
         V8_ASSUME(cache_state_.cached_mem_index >= 0);
@@ -746,7 +750,9 @@ class LiftoffAssembler : public MacroAssembler {
   inline void CheckTierUp(int declared_func_index, int budget_used,
                           Label* ool_label, const FreezeCacheState& frozen);
   inline void LoadConstant(LiftoffRegister, WasmValue);
-  inline void LoadInstanceFromFrame(Register dst);
+  inline void LoadInstanceDataFromFrame(Register dst);
+  inline void LoadTrustedDataFromInstanceObject(Register dst,
+                                                Register instance_object);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
                                int size);
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
@@ -756,7 +762,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadExternalPointer(Register dst, Register src_addr, int offset,
                                   Register index, ExternalPointerTag tag,
                                   Register scratch);
-  inline void SpillInstance(Register instance);
+  inline void SpillInstanceData(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,

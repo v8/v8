@@ -167,8 +167,8 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
   // The "stack prefix" region will be identical for any source that merges into
   // that state.
 
-  if (cache_state_.cached_instance != no_reg) {
-    target.SetInstanceCacheRegister(cache_state_.cached_instance);
+  if (cache_state_.cached_instance_data != no_reg) {
+    target.SetInstanceCacheRegister(cache_state_.cached_instance_data);
   }
 
   DCHECK_EQ(cache_state_.cached_mem_start == no_reg,
@@ -329,8 +329,8 @@ void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
       safepoint.DefineTaggedRegister(slot.reg().gp().code());
     }
   }
-  if (cached_instance != no_reg) {
-    safepoint.DefineTaggedRegister(cached_instance.code());
+  if (cached_instance_data != no_reg) {
+    safepoint.DefineTaggedRegister(cached_instance_data.code());
   }
 }
 
@@ -540,7 +540,7 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
 
   // Full stack merging is only done for forward jumps, so we can just clear the
   // cache registers at the target in case of mismatch.
-  if (cache_state_.cached_instance != target.cached_instance) {
+  if (cache_state_.cached_instance_data != target.cached_instance_data) {
     target.ClearCachedInstanceRegister();
   }
   if (cache_state_.cached_mem_index != target.cached_mem_index ||
@@ -586,23 +586,23 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   // another register. Register moves are executed as part of the
   // {ParallelMove}. Remember whether the register content has to be
   // reloaded after executing the stack parallel_move.
-  bool reload_instance = false;
+  bool reload_instance_data = false;
   // If the instance cache registers match, or the destination has no instance
   // cache register, nothing needs to be done.
-  if (cache_state_.cached_instance != target.cached_instance &&
-      target.cached_instance != no_reg) {
+  if (cache_state_.cached_instance_data != target.cached_instance_data &&
+      target.cached_instance_data != no_reg) {
     // On forward jumps, just reset the cached register in the target state.
     if (jump_direction == kForwardJump) {
       target.ClearCachedInstanceRegister();
-    } else if (cache_state_.cached_instance != no_reg) {
+    } else if (cache_state_.cached_instance_data != no_reg) {
       // If the source has the instance cached but in the wrong register,
       // execute a register move as part of the stack transfer.
-      parallel_move.MoveRegister(LiftoffRegister{target.cached_instance},
-                                 LiftoffRegister{cache_state_.cached_instance},
-                                 kIntPtrKind);
+      parallel_move.MoveRegister(
+          LiftoffRegister{target.cached_instance_data},
+          LiftoffRegister{cache_state_.cached_instance_data}, kIntPtrKind);
     } else {
       // Otherwise (the source state has no cached instance), we reload later.
-      reload_instance = true;
+      reload_instance_data = true;
     }
   }
 
@@ -633,29 +633,29 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   // Now execute stack transfers and register moves/loads.
   parallel_move.Execute();
 
-  if (reload_instance) {
-    LoadInstanceFromFrame(target.cached_instance);
+  if (reload_instance_data) {
+    LoadInstanceDataFromFrame(target.cached_instance_data);
   }
   if (reload_mem_start) {
-    // {target.cached_instance} already got restored above, so we can use it
-    // if it exists.
-    Register instance = target.cached_instance;
-    if (instance == no_reg) {
-      // We don't have the instance available yet. Store it into the target
+    // {target.cached_instance_data} already got restored above, so we can use
+    // it if it exists.
+    Register instance_data = target.cached_instance_data;
+    if (instance_data == no_reg) {
+      // We don't have the instance data available yet. Store it into the target
       // mem_start, so that we can load the mem0_start from there.
-      instance = target.cached_mem_start;
-      LoadInstanceFromFrame(instance);
+      instance_data = target.cached_mem_start;
+      LoadInstanceDataFromFrame(instance_data);
     }
     if (target.cached_mem_index == 0) {
       LoadFromInstance(
-          target.cached_mem_start, instance,
-          ObjectAccess::ToTagged(WasmInstanceObject::kMemory0StartOffset),
+          target.cached_mem_start, instance_data,
+          ObjectAccess::ToTagged(WasmTrustedInstanceData::kMemory0StartOffset),
           sizeof(size_t));
     } else {
       LoadTaggedPointerFromInstance(
-          target.cached_mem_start, instance,
+          target.cached_mem_start, instance_data,
           ObjectAccess::ToTagged(
-              WasmInstanceObject::kMemoryBasesAndSizesOffset));
+              WasmTrustedInstanceData::kMemoryBasesAndSizesOffset));
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
@@ -702,7 +702,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 void LiftoffAssembler::ClearRegister(
     Register reg, std::initializer_list<Register*> possible_uses,
     LiftoffRegList pinned) {
-  if (reg == cache_state()->cached_instance) {
+  if (reg == cache_state()->cached_instance_data) {
     cache_state()->ClearCachedInstanceRegister();
     // We can return immediately. The instance is only used to load information
     // at the beginning of an instruction when values don't have to be in
@@ -805,7 +805,8 @@ void LiftoffAssembler::PrepareBuiltinCall(
 
 void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
-                                   Register* target, Register target_instance) {
+                                   Register* target,
+                                   Register target_instance_data) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
 
   LiftoffStackSlots stack_slots{this};
@@ -820,10 +821,13 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
       instance_reg,
       Register::from_code(call_descriptor->GetInputLocation(1).AsRegister()));
   param_regs.set(instance_reg);
-  if (target_instance == no_reg) target_instance = cache_state_.cached_instance;
-  if (target_instance != no_reg && target_instance != instance_reg) {
+  if (target_instance_data == no_reg) {
+    target_instance_data = cache_state_.cached_instance_data;
+  }
+  if (target_instance_data != no_reg && target_instance_data != instance_reg) {
     parallel_move.MoveRegister(LiftoffRegister(instance_reg),
-                               LiftoffRegister(target_instance), kIntPtrKind);
+                               LiftoffRegister(target_instance_data),
+                               kIntPtrKind);
   }
 
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -881,8 +885,8 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   parallel_move.Execute();
 
   // Reload the instance from the stack if we do not have it in a register.
-  if (target_instance == no_reg) {
-    LoadInstanceFromFrame(instance_reg);
+  if (target_instance_data == no_reg) {
+    LoadInstanceDataFromFrame(instance_reg);
   }
 }
 
@@ -1088,7 +1092,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
     used_regs.set(reg);
   }
   for (Register cache_reg :
-       {cache_state_.cached_instance, cache_state_.cached_mem_start}) {
+       {cache_state_.cached_instance_data, cache_state_.cached_mem_start}) {
     if (cache_reg != no_reg) {
       DCHECK(!used_regs.has(cache_reg));
       int liftoff_code = LiftoffRegister{cache_reg}.liftoff_code();

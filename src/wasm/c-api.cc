@@ -1698,10 +1698,10 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       i::WasmExportedFunctionData::cast(raw_function_data), isolate);
   i::Handle<i::WasmInstanceObject> instance(function_data->instance(), isolate);
   int function_index = function_data->function_index();
+  const i::wasm::WasmModule* module = instance->module();
   // Caching {sig} would give a ~10% reduction in overhead.
-  const i::wasm::FunctionSig* sig =
-      instance->module()->functions[function_index].sig;
-  PrepareFunctionData(isolate, function_data, sig, instance->module());
+  const i::wasm::FunctionSig* sig = module->functions[function_index].sig;
+  PrepareFunctionData(isolate, function_data, sig, module);
   i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(isolate),
                                   isolate);
   i::Address call_target = function_data->internal()->call_target(isolate);
@@ -1710,10 +1710,11 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   PushArgs(sig, args, &packer, store);
 
   i::Handle<i::Object> object_ref = instance;
-  if (function_index <
-      static_cast<int>(instance->module()->num_imported_functions)) {
+  if (function_index < static_cast<int>(module->num_imported_functions)) {
     object_ref = i::handle(
-        instance->imported_function_refs()->get(function_index), isolate);
+        instance->trusted_data(isolate)->imported_function_refs()->get(
+            function_index),
+        isolate);
     if (IsWasmApiFunctionRef(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::JSFunction::cast(
           i::WasmApiFunctionRef::cast(*object_ref)->callable());

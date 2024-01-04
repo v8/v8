@@ -69,8 +69,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 
   instance_object_ = InitInstanceObject();
+  trusted_instance_data_ =
+      handle(instance_object_->trusted_data(isolate_), isolate_);
   Handle<FixedArray> tables(isolate_->factory()->NewFixedArray(0));
-  instance_object_->set_tables(*tables);
+  trusted_instance_data_->set_tables(*tables);
 
   if (maybe_import) {
     const wasm::FunctionSig* sig = maybe_import->sig;
@@ -112,7 +114,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, test_module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);
-  CHECK_EQ(0, instance_object_->memory_objects()->length());
+  CHECK_EQ(0, trusted_instance_data_->memory_objects()->length());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages = initial_pages;
@@ -132,7 +134,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
           .ToHandleChecked();
   Handle<FixedArray> memory_objects = isolate_->factory()->NewFixedArray(1);
   memory_objects->set(0, *memory_object);
-  instance_object_->set_memory_objects(*memory_objects);
+  trusted_instance_data_->set_memory_objects(*memory_objects);
 
   // Create the memory_bases_and_sizes array.
   Handle<FixedAddressArray> memory_bases_and_sizes =
@@ -142,17 +144,18 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   memory_bases_and_sizes->set_sandboxed_pointer(
       0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);
-  instance_object_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
+  trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
   mem0_start_ = mem_start;
   mem0_size_ = size;
   CHECK(size == 0 || mem0_start_);
 
-  WasmMemoryObject::UseInInstance(isolate_, memory_object, instance_object_, 0);
+  WasmMemoryObject::UseInInstance(isolate_, memory_object,
+                                  trusted_instance_data_, 0);
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  instance_object_->SetRawMemory(0, mem0_start_, mem0_size_);
+  trusted_instance_data_->SetRawMemory(0, mem0_start_, mem0_size_);
   return mem0_start_;
 }
 
@@ -198,10 +201,10 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
-  if (!instance_object_.is_null()) {
+  if (!trusted_instance_data_.is_null()) {
     Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
         static_cast<int>(test_module_->functions.size()));
-    instance_object_->set_wasm_internal_functions(*funcs);
+    trusted_instance_data_->set_wasm_internal_functions(*funcs);
   }
   return index;
 }
@@ -213,25 +216,24 @@ void TestingModuleBuilder::InitializeWrapperCache() {
     Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
         static_cast<int>(test_module_->types.size()));
     for (uint32_t index = 0; index < test_module_->types.size(); index++) {
-      CreateMapForType(isolate_, test_module_.get(), index, instance_object(),
+      CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
                        maps);
     }
-    instance_object()->set_managed_object_maps(*maps);
+    trusted_instance_data_->set_managed_object_maps(*maps);
   }
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   InitializeWrapperCache();
   Handle<WasmInternalFunction> internal =
-      WasmInstanceObject::GetOrCreateWasmInternalFunction(
-          isolate_, instance_object(), index);
+      WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+          isolate_, trusted_instance_data_, index);
   return WasmInternalFunction::GetOrCreateExternal(internal);
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
     const uint16_t* function_indexes, uint32_t table_size,
     ValueType table_type) {
-  Handle<WasmInstanceObject> instance = instance_object();
   uint32_t table_index = static_cast<uint32_t>(test_module_->tables.size());
   test_module_->tables.emplace_back();
   WasmTable& table = test_module_->tables.back();
@@ -245,25 +247,26 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     Handle<FixedArray> old_tables =
         table_index == 0
             ? isolate_->factory()->empty_fixed_array()
-            : handle(instance_object_->indirect_function_tables(), isolate_);
+            : handle(trusted_instance_data_->indirect_function_tables(),
+                     isolate_);
     Handle<FixedArray> new_tables =
         isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
     Handle<WasmIndirectFunctionTable> table_obj =
         WasmIndirectFunctionTable::New(isolate_, table.initial_size);
     new_tables->set(table_index, *table_obj);
-    instance_object_->set_indirect_function_tables(*new_tables);
+    trusted_instance_data_->set_indirect_function_tables(*new_tables);
   }
 
-  WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-      instance_object(), table_index, table_size);
+  WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+      isolate_, trusted_instance_data_, table_index, table_size);
   Handle<WasmTableObject> table_obj = WasmTableObject::New(
-      isolate_, instance, table.type, table.initial_size,
+      isolate_, instance_object_, table.type, table.initial_size,
       table.has_maximum_size, table.maximum_size, nullptr,
       IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
           ? Handle<Object>::cast(isolate_->factory()->null_value())
           : Handle<Object>::cast(isolate_->factory()->wasm_null()));
 
-  WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
+  WasmTableObject::AddDispatchTable(isolate_, table_obj, trusted_instance_data_,
                                     table_index);
 
   if (function_indexes) {
@@ -271,19 +274,19 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
-      FunctionTargetAndRef entry(instance, function.func_index);
-      instance->indirect_function_table(table_index)
+      FunctionTargetAndRef entry(instance_object_, function.func_index);
+      trusted_instance_data_->indirect_function_table(table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());
       WasmTableObject::SetFunctionTablePlaceholder(
-          isolate_, table_obj, i, instance_object_, function_indexes[i]);
+          isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }
   }
 
-  Handle<FixedArray> old_tables(instance_object_->tables(), isolate_);
+  Handle<FixedArray> old_tables(trusted_instance_data_->tables(), isolate_);
   Handle<FixedArray> new_tables =
       isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
   new_tables->set(old_tables->length(), *table_obj);
-  instance_object_->set_tables(*new_tables);
+  trusted_instance_data_->set_tables(*new_tables);
 }
 
 uint32_t TestingModuleBuilder::AddBytes(base::Vector<const uint8_t> bytes) {
@@ -312,9 +315,9 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
   test_module_->tags.emplace_back(sig, AddSignature(sig));
   Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  Handle<FixedArray> table(instance_object_->tags_table(), isolate_);
+  Handle<FixedArray> table(trusted_instance_data_->tags_table(), isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
-  instance_object_->set_tags_table(*table);
+  trusted_instance_data_->set_tags_table(*table);
   table->set(index, *tag);
   return index;
 }
@@ -358,12 +361,12 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
       FixedAddressArray::New(isolate_, size);
   MemCopy(data_segment_starts->begin(), data_segment_starts_.data(),
           size * sizeof(Address));
-  instance_object_->set_data_segment_starts(*data_segment_starts);
+  trusted_instance_data_->set_data_segment_starts(*data_segment_starts);
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate_, size);
   MemCopy(data_segment_sizes->begin(), data_segment_sizes_.data(),
           size * sizeof(uint32_t));
-  instance_object_->set_data_segment_sizes(*data_segment_sizes);
+  trusted_instance_data_->set_data_segment_sizes(*data_segment_sizes);
   return index;
 }
 
@@ -410,13 +413,16 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_ = module_object->native_module();
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
-  auto instance = WasmInstanceObject::New(isolate_, module_object);
-  instance->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
-  instance->set_globals_start(globals_data_);
+  Handle<WasmTrustedInstanceData> trusted_data =
+      WasmTrustedInstanceData::New(isolate_, module_object);
+  Handle<WasmInstanceObject> instance_object =
+      handle(trusted_data->instance_object(), isolate_);
+  trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
+  trusted_data->set_globals_start(globals_data_);
   Handle<FixedArray> feedback_vector =
       isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);
-  instance->set_feedback_vectors(*feedback_vector);
-  return instance;
+  trusted_data->set_feedback_vectors(*feedback_vector);
+  return instance_object;
 }
 
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,

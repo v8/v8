@@ -1173,10 +1173,12 @@ class CompileLazyTimingScope {
 
 }  // namespace
 
-bool CompileLazy(Isolate* isolate, Tagged<WasmInstanceObject> instance,
+bool CompileLazy(Isolate* isolate,
+                 Tagged<WasmTrustedInstanceData> trusted_instance_data,
                  int func_index) {
   DisallowGarbageCollection no_gc;
-  Tagged<WasmModuleObject> module_object = instance->module_object();
+  Tagged<WasmModuleObject> module_object =
+      trusted_instance_data->module_object();
   NativeModule* native_module = module_object->native_module();
   Counters* counters = isolate->counters();
 
@@ -1270,15 +1272,17 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 class TransitiveTypeFeedbackProcessor {
  public:
-  static void Process(Tagged<WasmInstanceObject> instance, int func_index) {
-    TransitiveTypeFeedbackProcessor{instance, func_index}.ProcessQueue();
+  static void Process(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+                      int func_index) {
+    TransitiveTypeFeedbackProcessor{trusted_instance_data, func_index}
+        .ProcessQueue();
   }
 
  private:
-  TransitiveTypeFeedbackProcessor(Tagged<WasmInstanceObject> instance,
-                                  int func_index)
-      : instance_(instance),
-        module_(instance->module()),
+  TransitiveTypeFeedbackProcessor(
+      Tagged<WasmTrustedInstanceData> trusted_instance_data, int func_index)
+      : instance_data_(trusted_instance_data),
+        module_(trusted_instance_data->module()),
         mutex_guard(&module_->type_feedback.mutex),
         feedback_for_function_(module_->type_feedback.feedback_for_function) {
     queue_.insert(func_index);
@@ -1315,7 +1319,8 @@ class TransitiveTypeFeedbackProcessor {
   }
 
   DisallowGarbageCollection no_gc_scope_;
-  Tagged<WasmInstanceObject> instance_;
+  Isolate* isolate_;
+  Tagged<WasmTrustedInstanceData> instance_data_;
   const WasmModule* const module_;
   // TODO(jkummerow): Check if it makes a difference to apply any updates
   // as a single batch at the end.
@@ -1326,11 +1331,11 @@ class TransitiveTypeFeedbackProcessor {
 
 class FeedbackMaker {
  public:
-  FeedbackMaker(Tagged<WasmInstanceObject> instance, int func_index,
-                int num_calls)
-      : instance_(instance),
-        num_imported_functions_(
-            static_cast<int>(instance->module()->num_imported_functions)),
+  FeedbackMaker(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+                int func_index, int num_calls)
+      : instance_data_(trusted_instance_data),
+        num_imported_functions_(static_cast<int>(
+            trusted_instance_data->module()->num_imported_functions)),
         func_index_(func_index) {
     result_.reserve(num_calls);
   }
@@ -1339,7 +1344,7 @@ class FeedbackMaker {
     if (!IsWasmInternalFunction(maybe_function)) return;
     Tagged<WasmInternalFunction> function =
         WasmInternalFunction::cast(maybe_function);
-    if (function->ref() != instance_) {
+    if (function->ref() != instance_data_->instance_object()) {
       // Not a wasm function, or not a function declared in this instance.
       return;
     }
@@ -1394,7 +1399,7 @@ class FeedbackMaker {
   std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
 
  private:
-  const Tagged<WasmInstanceObject> instance_;
+  const Tagged<WasmTrustedInstanceData> instance_data_;
   std::vector<CallSiteFeedback> result_;
   const int num_imported_functions_;
   const int func_index_;
@@ -1406,14 +1411,14 @@ class FeedbackMaker {
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   int which_vector = declared_function_index(module_, func_index);
   Tagged<Object> maybe_feedback =
-      instance_->feedback_vectors()->get(which_vector);
+      instance_data_->feedback_vectors()->get(which_vector);
   if (!IsFixedArray(maybe_feedback)) return;
   Tagged<FixedArray> feedback = FixedArray::cast(maybe_feedback);
   base::Vector<uint32_t> call_direct_targets =
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
   DCHECK_EQ(feedback->length(), call_direct_targets.size() * 2);
-  FeedbackMaker fm(instance_, func_index, feedback->length() / 2);
+  FeedbackMaker fm(instance_data_, func_index, feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
     Tagged<Object> value = feedback->get(i);
     if (IsWasmInternalFunction(value)) {
@@ -1438,8 +1443,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         PrintF("[function %d: call #%d: uninitialized]\n", func_index, i / 2);
       }
     } else if (v8_flags.trace_wasm_inlining) {
-      if (value ==
-          ReadOnlyRoots(instance_->GetIsolate()).megamorphic_symbol()) {
+      if (value == ReadOnlyRoots{isolate_}.megamorphic_symbol()) {
         PrintF("[function %d: call #%d: megamorphic]\n", func_index, i / 2);
       }
     }
@@ -1450,8 +1454,10 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }
 
-void TriggerTierUp(Tagged<WasmInstanceObject> instance, int func_index) {
-  NativeModule* native_module = instance->module_object()->native_module();
+void TriggerTierUp(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+                   int func_index) {
+  NativeModule* native_module =
+      trusted_instance_data->module_object()->native_module();
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
@@ -1462,9 +1468,9 @@ void TriggerTierUp(Tagged<WasmInstanceObject> instance, int func_index) {
   {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         &module->type_feedback.mutex);
-    int array_index =
-        wasm::declared_function_index(instance->module(), func_index);
-    instance->tiering_budget_array()[array_index] =
+    int array_index = wasm::declared_function_index(
+        trusted_instance_data->module(), func_index);
+    trusted_instance_data->tiering_budget_array()[array_index] =
         v8_flags.wasm_tiering_budget;
     int& stored_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
@@ -1484,18 +1490,20 @@ void TriggerTierUp(Tagged<WasmInstanceObject> instance, int func_index) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
-    TransitiveTypeFeedbackProcessor::Process(instance, func_index);
+    TransitiveTypeFeedbackProcessor::Process(trusted_instance_data, func_index);
   }
 
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 
-void TierUpNowForTesting(Isolate* isolate, Tagged<WasmInstanceObject> instance,
+void TierUpNowForTesting(Isolate* isolate,
+                         Tagged<WasmTrustedInstanceData> trusted_instance_data,
                          int func_index) {
-  NativeModule* native_module = instance->module_object()->native_module();
+  NativeModule* native_module =
+      trusted_instance_data->module_object()->native_module();
   if (native_module->enabled_features().has_inlining() ||
       native_module->module()->is_wasm_gc) {
-    TransitiveTypeFeedbackProcessor::Process(instance, func_index);
+    TransitiveTypeFeedbackProcessor::Process(trusted_instance_data, func_index);
   }
   wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,
                                          func_index,

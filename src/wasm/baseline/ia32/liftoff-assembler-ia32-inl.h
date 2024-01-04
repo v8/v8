@@ -23,8 +23,8 @@ namespace v8::internal::wasm {
 
 namespace liftoff {
 
-// ebp-4 holds the stack marker, ebp-8 is the instance parameter.
-constexpr int kInstanceOffset = 8;
+// ebp-4 holds the stack marker, ebp-8 is the instance data parameter.
+constexpr int kInstanceDataOffset = 8;
 constexpr int kFeedbackVectorOffset = 12;  // ebp-12 is the feedback vector.
 
 inline Operand GetStackSlot(int offset) { return Operand(ebp, -offset); }
@@ -36,7 +36,9 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
 }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
-inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
+inline Operand GetInstanceDataOperand() {
+  return GetStackSlot(kInstanceDataOffset);
+}
 
 static constexpr LiftoffRegList kByteRegs =
     LiftoffRegList::FromBits<RegList{eax, ecx, edx}.bits()>();
@@ -354,15 +356,15 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     liftoff::CacheStatePreservingTempRegisters temps{this};
     Register budget_array = temps.Acquire();
 
-    Register instance = cache_state_.cached_instance;
-    if (instance == no_reg) {
-      instance = budget_array;  // Reuse the temp register.
-      LoadInstanceFromFrame(instance);
+    Register instance_data = cache_state_.cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = budget_array;  // Reuse the temp register.
+      LoadInstanceDataFromFrame(instance_data);
     }
 
     constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-        WasmInstanceObject::kTieringBudgetArrayOffset);
-    mov(budget_array, Operand{instance, kArrayOffset});
+        WasmTrustedInstanceData::kTieringBudgetArrayOffset);
+    mov(budget_array, Operand{instance_data, kArrayOffset});
 
     int array_offset = kInt32Size * declared_func_index;
     sub(Operand{budget_array, array_offset}, Immediate(budget_used));
@@ -393,8 +395,15 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
-  mov(dst, liftoff::GetInstanceOperand());
+void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
+  mov(dst, liftoff::GetInstanceDataOperand());
+}
+
+void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
+    Register dst, Register instance_object) {
+  LoadTaggedPointerFromInstance(
+      dst, instance_object,
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset));
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -434,8 +443,8 @@ void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
   mov(dst, src_op);
 }
 
-void LiftoffAssembler::SpillInstance(Register instance) {
-  mov(liftoff::GetInstanceOperand(), instance);
+void LiftoffAssembler::SpillInstanceData(Register instance) {
+  mov(liftoff::GetInstanceDataOperand(), instance);
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}

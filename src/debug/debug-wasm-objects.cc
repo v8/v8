@@ -276,9 +276,11 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
+    Handle<WasmTrustedInstanceData> trusted_data{
+        instance->trusted_data(isolate), isolate};
     Handle<WasmInternalFunction> internal =
-        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
-                                                            index);
+        WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+            isolate, trusted_data, index);
     return WasmInternalFunction::GetOrCreateExternal(internal);
   }
 
@@ -302,7 +304,9 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
                             uint32_t index) {
     Handle<WasmModuleObject> module(instance->module_object(), isolate);
     return WasmValueObject::New(
-        isolate, instance->GetGlobalValue(instance->module()->globals[index]),
+        isolate,
+        instance->trusted_data(isolate)->GetGlobalValue(
+            isolate, instance->module()->globals[index]),
         module);
   }
 
@@ -322,13 +326,14 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
   static constexpr char const* kClassName = "Memories";
 
   static uint32_t Count(Isolate* isolate, Handle<WasmInstanceObject> instance) {
-    return instance->memory_objects()->length();
+    return instance->trusted_data(isolate)->memory_objects()->length();
   }
 
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
-    return handle(instance->memory_object(index), isolate);
+    return handle(instance->trusted_data(isolate)->memory_object(index),
+                  isolate);
   }
 
   static Handle<String> GetName(Isolate* isolate,
@@ -347,13 +352,14 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
   static constexpr char const* kClassName = "Tables";
 
   static uint32_t Count(Isolate* isolate, Handle<WasmInstanceObject> instance) {
-    return instance->tables()->length();
+    return instance->trusted_data(isolate)->tables()->length();
   }
 
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
-    return handle(instance->tables()->get(index), isolate);
+    return handle(instance->trusted_data(isolate)->tables()->get(index),
+                  isolate);
   }
 
   static Handle<String> GetName(Isolate* isolate,
@@ -645,7 +651,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
     Isolate* isolate = frame_->isolate();
     switch (type_) {
       case debug::ScopeIterator::ScopeTypeModule: {
-        Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
+        Handle<WasmInstanceObject> instance{frame_->wasm_instance(), isolate};
         Handle<JSObject> object =
             isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
@@ -997,13 +1003,14 @@ std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
 Handle<String> GetWasmFunctionDebugName(Isolate* isolate,
                                         Handle<WasmInstanceObject> instance,
                                         uint32_t func_index) {
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  wasm::NamesProvider* names =
-      module_object->native_module()->GetNamesProvider();
+  wasm::NativeModule* native_module =
+      instance->module_object()->native_module();
+  wasm::NamesProvider* names = native_module->GetNamesProvider();
   StringBuilder sb;
   wasm::NamesProvider::FunctionNamesBehavior behavior =
-      module_object->is_asm_js() ? wasm::NamesProvider::kWasmInternal
-                                 : wasm::NamesProvider::kDevTools;
+      is_asmjs_module(native_module->module())
+          ? wasm::NamesProvider::kWasmInternal
+          : wasm::NamesProvider::kDevTools;
   names->PrintFunctionName(sb, func_index, behavior);
   return ToInternalString(sb, isolate);
 }

@@ -146,25 +146,27 @@ int WasmStackSize(Isolate* isolate) {
 RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  Handle<WasmInstanceObject> instance_object = args.at<WasmInstanceObject>(0);
+  Handle<WasmTrustedInstanceData> trusted_data =
+      handle(instance_object->trusted_data(isolate), isolate);
   Address wrapper_start = isolate->builtins()
                               ->code(Builtin::kWasmToJsWrapperAsm)
                               ->instruction_start();
   int result = 0;
-  int import_count = instance->imported_function_targets()->length();
+  int import_count = trusted_data->imported_function_targets()->length();
   for (int i = 0; i < import_count; ++i) {
-    if (instance->imported_function_targets()->get(i) == wrapper_start) {
+    if (trusted_data->imported_function_targets()->get(i) == wrapper_start) {
       ++result;
     }
   }
-  int table_count = instance->tables()->length();
+  int table_count = trusted_data->tables()->length();
   for (int table_index = 0; table_index < table_count; ++table_index) {
     if (!IsWasmIndirectFunctionTable(
-            instance->indirect_function_tables()->get(table_index))) {
+            trusted_data->indirect_function_tables()->get(table_index))) {
       continue;
     }
     Tagged<WasmIndirectFunctionTable> table = WasmIndirectFunctionTable::cast(
-        instance->indirect_function_tables()->get(table_index));
+        trusted_data->indirect_function_tables()->get(table_index));
 
     for (int entry_index = 0; entry_index < static_cast<int>(table->size());
          ++entry_index) {
@@ -281,8 +283,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
   int func_index = frame->function_index();
-  const wasm::FunctionSig* sig =
-      frame->wasm_instance()->module()->functions[func_index].sig;
+  const wasm::WasmModule* module = frame->wasm_instance()->module();
+  const wasm::FunctionSig* sig = module->functions[func_index].sig;
 
   size_t num_returns = sig->return_count();
   // If we have no returns, we should have passed {Smi::zero()}.
@@ -397,11 +399,13 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<WasmExceptionPackage> exception = args.at<WasmExceptionPackage>(0);
-  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(1);
+  Handle<WasmInstanceObject> instance_object = args.at<WasmInstanceObject>(1);
+  Handle<WasmTrustedInstanceData> trusted_data =
+      handle(instance_object->trusted_data(isolate), isolate);
   Handle<Object> tag =
       WasmExceptionPackage::GetExceptionTag(isolate, exception);
   CHECK(IsWasmExceptionTag(*tag));
-  Handle<FixedArray> tags_table(instance->tags_table(), isolate);
+  Handle<FixedArray> tags_table(trusted_data->tags_table(), isolate);
   for (int index = 0; index < tags_table->length(); ++index) {
     if (tags_table->get(index) == *tag) return Smi::FromInt(index);
   }
@@ -501,7 +505,9 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   Handle<JSObject> argument = args.at<JSObject>(0);
   Handle<WasmModuleObject> module;
   if (IsWasmInstanceObject(*argument)) {
-    module = handle(Handle<WasmInstanceObject>::cast(argument)->module_object(),
+    module = handle(Handle<WasmInstanceObject>::cast(argument)
+                        ->trusted_data(isolate)
+                        ->module_object(),
                     isolate);
   } else if (IsWasmModuleObject(*argument)) {
     module = Handle<WasmModuleObject>::cast(argument);
@@ -528,7 +534,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
   // TODO(14259): Fix for multi-memory.
-  auto memory_object = frame->wasm_instance()->memory_object(0);
+  auto memory_object = frame->trusted_instance_data()->memory_object(0);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->array_buffer()->backing_store());
   int func_index = frame->function_index();
@@ -547,9 +553,11 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   Handle<WasmExportedFunction> exp_fun =
       Handle<WasmExportedFunction>::cast(function);
-  Tagged<WasmInstanceObject> instance = exp_fun->instance();
+  Tagged<WasmInstanceObject> instance_object = exp_fun->instance();
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      instance_object->trusted_data(isolate);
   int func_index = exp_fun->function_index();
-  wasm::TierUpNowForTesting(isolate, instance, func_index);
+  wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -629,9 +637,10 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DCHECK_EQ(1, args.length());
   DisallowGarbageCollection no_gc;
-  auto instance = WasmInstanceObject::cast(args[0]);
+  auto instance_object = WasmInstanceObject::cast(args[0]);
 
-  instance->module_object()->native_module()->set_lazy_compile_frozen(true);
+  instance_object->module_object()->native_module()->set_lazy_compile_frozen(
+      true);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

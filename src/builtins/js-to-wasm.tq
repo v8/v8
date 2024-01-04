@@ -6,17 +6,17 @@
 
 namespace runtime {
 extern runtime WasmGenericJSToWasmObject(
-    Context, WasmInstanceObject|Undefined, JSAny, Smi): JSAny;
+    Context, WasmTrustedInstanceData|Undefined, JSAny, Smi): JSAny;
 extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
 extern runtime WasmCompileWrapper(NoContext, WasmExportedFunctionData): JSAny;
 extern runtime WasmAllocateSuspender(Context): JSAny;
 }  // namespace runtime
 
 namespace wasm {
-extern builtin JSToWasmWrapperAsm(RawPtr<intptr>, WasmInstanceObject, JSAny):
-    JSAny;
+extern builtin JSToWasmWrapperAsm(
+    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
-    RawPtr<intptr>, WasmInstanceObject, JSAny): JSAny;
+    RawPtr<intptr>, WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -410,7 +410,8 @@ macro LocationAllocatorForReturns(
 }
 
 macro JSToWasmObject(
-    context: NativeContext, instanceOrUndefined: WasmInstanceObject|Undefined,
+    context: NativeContext,
+    trustedInstanceDataOrUndefined: WasmTrustedInstanceData|Undefined,
     targetType: int32, value: JSAny): Object {
   const heapType = (targetType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
   const kind = targetType & kValueTypeKindBitsMask;
@@ -438,7 +439,7 @@ macro JSToWasmObject(
     ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
   }
   return runtime::WasmGenericJSToWasmObject(
-      context, instanceOrUndefined, value, Convert<Smi>(targetType));
+      context, trustedInstanceDataOrUndefined, value, Convert<Smi>(targetType));
 }
 
 macro JSToWasmWrapperHelper(
@@ -456,6 +457,8 @@ macro JSToWasmWrapperHelper(
   }
 
   const sig = functionData.sig_ptr;
+  const trustedInstanceData: WasmTrustedInstanceData =
+      LoadTrustedDataFromInstance(functionData.instance);
 
   const paramCount = *GetRefAt<int32>(sig, kWasmParameterCountOffset);
 
@@ -606,7 +609,7 @@ macro JSToWasmWrapperHelper(
       // back to the stack.
       hasRefParam = true;
       arguments[Convert<intptr>(paramIndex)] =
-          JSToWasmObject(context, functionData.instance, paramType, param);
+          JSToWasmObject(context, trustedInstanceData, paramType, param);
     }
   }
   if (hasRefParam) {
@@ -646,7 +649,6 @@ macro JSToWasmWrapperHelper(
 
   const internal: WasmInternalFunction = functionData.internal;
   const callTarget = internal.call_target_ptr;
-  const instance: WasmInstanceObject = functionData.instance;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass
@@ -666,15 +668,17 @@ macro JSToWasmWrapperHelper(
       paramStart;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;
 
-  // Both `instance` and `resultArray` get passed separately as parameters to
-  // make them GC-safe. They get passed over the stack so that they get scanned
-  // by the GC as part of the outgoing parameters of this Torque builtin.
+  // Both `trustedInstanceData` and `resultArray` get passed separately as
+  // parameters to make them GC-safe. They get passed over the stack so that
+  // they get scanned by the GC as part of the outgoing parameters of this
+  // Torque builtin.
   let result: JSAny;
   if constexpr (switchStack) {
-    result =
-        WasmReturnPromiseOnSuspendAsm(wrapperBuffer, instance, resultArray);
+    result = WasmReturnPromiseOnSuspendAsm(
+        wrapperBuffer, trustedInstanceData, resultArray);
   } else {
-    result = JSToWasmWrapperAsm(wrapperBuffer, instance, resultArray);
+    result =
+        JSToWasmWrapperAsm(wrapperBuffer, trustedInstanceData, resultArray);
   }
 
   // The normal return sequence of Torque-generated JavaScript builtins does not
@@ -748,7 +752,7 @@ macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
 }
 
 builtin JSToWasmHandleReturns(
-    instance: WasmInstanceObject, resultArray: JSArray,
+    trustedData: WasmTrustedInstanceData, resultArray: JSArray,
     wrapperBuffer: RawPtr<intptr>): JSAny {
   const returnCount = *GetRefAt<int32>(
       wrapperBuffer, kWrapperBufferReturnCount);
@@ -789,7 +793,8 @@ builtin JSToWasmHandleReturns(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
       const value = BitcastWordToTagged(rawRef);
-      return WasmToJSObject(LoadContextFromInstance(instance), value, retType);
+      return WasmToJSObject(
+          LoadContextFromInstanceData(trustedData), value, retType);
     }
   }
 
@@ -874,8 +879,8 @@ builtin JSToWasmHandleReturns(
     } else {
       locationAllocator.GetGPSlot();
       const value = fixedArray.objects[k];
-      fixedArray.objects[k] =
-          WasmToJSObject(LoadContextFromInstance(instance), value, retType);
+      fixedArray.objects[k] = WasmToJSObject(
+          LoadContextFromInstanceData(trustedData), value, retType);
     }
   }
 

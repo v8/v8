@@ -26,9 +26,9 @@ WireBytesRef ConstantExpression::wire_bytes_ref() const {
                       LengthField::decode(bit_field_));
 }
 
-ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
-                                        ValueType expected, Isolate* isolate,
-                                        Handle<WasmInstanceObject> instance) {
+ValueOrError EvaluateConstantExpression(
+    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
+    Handle<WasmTrustedInstanceData> trusted_instance_data) {
   switch (expr.kind()) {
     case ConstantExpression::kEmpty:
       UNREACHABLE();
@@ -44,15 +44,15 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
       Handle<Object> value =
-          WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
-                                                              index);
+          WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+              isolate, trusted_instance_data, index);
       return WasmValue(value, expected);
     }
     case ConstantExpression::kWireBytesRef: {
       WireBytesRef ref = expr.wire_bytes_ref();
 
       base::Vector<const uint8_t> module_bytes =
-          instance->module_object()->native_module()->wire_bytes();
+          trusted_instance_data->module_object()->native_module()->wire_bytes();
 
       const uint8_t* start = module_bytes.begin() + ref.offset();
       const uint8_t* end = module_bytes.begin() + ref.end_offset();
@@ -63,10 +63,11 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
       // We use FullValidationTag so we do not have to create another template
       // instance of WasmFullDecoder, which would cost us >50Kb binary code
       // size.
+      auto* module = trusted_instance_data->module();
       WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                       kConstantExpression>
-          decoder(zone, instance->module(), WasmFeatures::All(), &detected,
-                  body, instance->module(), isolate, instance);
+          decoder(zone, module, WasmFeatures::All(), &detected, body, module,
+                  isolate, trusted_instance_data);
 
       decoder.DecodeFunctionBody();
 

@@ -259,7 +259,12 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
-      const converted = JSToWasmObject(context, ref.instance, retType, retVal);
+      dcheck(ref.instance == Undefined || Is<WasmInstanceObject>(ref.instance));
+      const trustedData = ref.instance == Undefined ?
+          Undefined :
+          LoadTrustedDataFromInstance(
+              UnsafeCast<WasmInstanceObject>(ref.instance));
+      const converted = JSToWasmObject(context, trustedData, retType, retVal);
       let toRef = locationAllocator.GetGPSlot();
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the

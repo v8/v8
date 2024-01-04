@@ -19,9 +19,7 @@
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/well-known-imports.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace {
 
@@ -2713,6 +2711,4 @@ void BuildTFGraph(AccountingAllocator* allocator, WasmFeatures enabled,
   CHECK(decoder.ok());
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

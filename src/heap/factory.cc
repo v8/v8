@@ -1643,17 +1643,11 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
       map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result->set_native_context(*isolate()->native_context());
-  if (!callable.is_null() && *callable != *undefined_value()) {
-    result->set_callable(*callable);
-  } else {
-    result->set_callable(*undefined_value());
-  }
+  DCHECK(IsUndefined(*callable) || IsJSReceiver(*callable));
+  result->set_callable(*callable);
   result->set_suspend(suspend);
-  if (!instance.is_null() && *instance != *undefined_value()) {
-    result->set_instance(*instance);
-  } else {
-    result->set_instance(*undefined_value());
-  }
+  DCHECK(IsUndefined(*instance) || IsWasmInstanceObject(*instance));
+  result->set_instance(*instance);
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
   result->set_sig(*serialized_sig);
@@ -1691,7 +1685,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Handle<PodArray<wasm::ValueType>> serialized_sig, Handle<Code> wrapper_code,
     Handle<Map> rtt, wasm::Suspend suspend, wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
-      callable, suspend, Handle<WasmInstanceObject>(), serialized_sig);
+      callable, suspend, undefined_value(), serialized_sig);
 
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(opt_call_target, ref, rtt, -1);
@@ -1752,9 +1746,8 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
     Handle<Code> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
-  Handle<WasmApiFunctionRef> ref =
-      NewWasmApiFunctionRef(Handle<JSReceiver>(), wasm::kNoSuspend,
-                            Handle<WasmInstanceObject>(), serialized_sig);
+  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+      undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, ref, rtt, -1);
   WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(ref, internal);
@@ -1854,22 +1847,24 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
 }
 
 Handle<Object> Factory::NewWasmArrayFromElementSegment(
-    Handle<WasmInstanceObject> instance, uint32_t segment_index,
-    uint32_t start_offset, uint32_t length, Handle<Map> map) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    uint32_t segment_index, uint32_t start_offset, uint32_t length,
+    Handle<Map> map) {
   DCHECK(WasmArray::type(*map)->element_type().is_reference());
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
-  base::Optional<MessageTemplate> opt_error =
-      wasm::InitializeElementSegment(&zone, isolate(), instance, segment_index);
+  base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+      &zone, isolate(), trusted_instance_data, segment_index);
   if (opt_error.has_value()) {
     return handle(Smi::FromEnum(opt_error.value()), isolate());
   }
 
   Handle<FixedArray> elements =
-      handle(FixedArray::cast(instance->element_segments()->get(segment_index)),
+      handle(FixedArray::cast(
+                 trusted_instance_data->element_segments()->get(segment_index)),
              isolate());
 
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);

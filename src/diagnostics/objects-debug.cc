@@ -268,8 +268,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       JSObject::cast(*this)->JSObjectVerify(isolate);
       break;
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_INSTANCE_OBJECT_TYPE:
-      WasmInstanceObject::cast(*this)->WasmInstanceObjectVerify(isolate);
+    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
+      WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataVerify(
+          isolate);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this)->WasmValueObjectVerify(isolate);
@@ -2154,15 +2155,9 @@ void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
 
 #if V8_ENABLE_WEBASSEMBLY
 
-void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
-  CHECK(IsWasmInstanceObject(*this));
-
-  // Just generically check all tagged fields. Don't check the untagged fields,
-  // as some of them might still contain the "undefined" value if the
-  // WasmInstanceObject is not fully set up yet.
-  for (int offset = kHeaderSize; offset < kEndOfStrongFieldsOffset;
-       offset += kTaggedSize) {
+void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
+  // Check all tagged fields.
+  for (uint16_t offset : kTaggedFieldOffsets) {
     VerifyObjectField(isolate, offset);
   }
 }

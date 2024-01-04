@@ -56,7 +56,7 @@ STATIC_ROOT_CONFIGURATIONS = {
         "gn_args":
             f"""\
 is_debug = false
-use_goma = {USE_GOMA}
+use_remoteexec = true
 v8_enable_static_roots = false
 v8_enable_static_roots_generation = true
 v8_enable_pointer_compression = true

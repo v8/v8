@@ -3228,14 +3228,14 @@ class TurboshaftAssemblerOpInterface
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  OpIndex GlobalGet(V<WasmInstanceObject> instance,
+  OpIndex GlobalGet(V<WasmTrustedInstanceData> trusted_instance_data,
                     const wasm::WasmGlobal* global) {
-    return ReduceIfReachableGlobalGet(instance, global);
+    return ReduceIfReachableGlobalGet(trusted_instance_data, global);
   }
 
-  OpIndex GlobalSet(V<WasmInstanceObject> instance, OpIndex value,
-                    const wasm::WasmGlobal* global) {
-    return ReduceIfReachableGlobalSet(instance, value, global);
+  OpIndex GlobalSet(V<WasmTrustedInstanceData> trusted_instance_data,
+                    OpIndex value, const wasm::WasmGlobal* global) {
+    return ReduceIfReachableGlobalSet(trusted_instance_data, value, global);
   }
 
   V<HeapObject> Null(wasm::ValueType type) {
@@ -3390,7 +3390,7 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
-  V<WasmInstanceObject> WasmInstanceParameter() {
+  V<WasmTrustedInstanceData> WasmInstanceParameter() {
     return Parameter(wasm::kWasmInstanceParameterIndex,
                      RegisterRepresentation::Tagged());
   }

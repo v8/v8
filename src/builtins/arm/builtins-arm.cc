@@ -2796,8 +2796,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register scratch = r7;
   Label allocate_vector, done;
 
-  __ ldr(vector, FieldMemOperand(kWasmInstanceRegister,
-                                 WasmInstanceObject::kFeedbackVectorsOffset));
+  __ ldr(vector,
+         FieldMemOperand(kWasmInstanceRegister,
+                         WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
   __ ldr(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
@@ -2862,7 +2863,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r8.
     __ ldr(r9, FieldMemOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kJumpTableStartOffset));
+                               WasmTrustedInstanceData::kJumpTableStartOffset));
     __ add(r8, r8, r9);
   }
 
@@ -3604,9 +3605,10 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
 
   __ ldr(kContextRegister,
          MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(kContextRegister,
-                     FieldMemOperand(kContextRegister,
-                                     WasmInstanceObject::kNativeContextOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
@@ -3652,9 +3654,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
   __ ldr(kContextRegister,
          MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
-  __ LoadTaggedField(kContextRegister,
-                     FieldMemOperand(kContextRegister,
-                                     WasmInstanceObject::kNativeContextOffset));
+  __ LoadTaggedField(
+      kContextRegister,
+      FieldMemOperand(kContextRegister,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 
   DEFINE_SCOPED(tmp);
   DEFINE_SCOPED(tmp2);
@@ -3684,9 +3687,10 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
 
-  DEFINE_PINNED(wasm_instance, kWasmInstanceRegister);
-  __ ldr(wasm_instance,
-         MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+  DEFINE_PINNED(wasm_instance_data, kWasmInstanceRegister);
+  __ ldr(
+      wasm_instance_data,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
 
   DEFINE_PINNED(wrapper_buffer,
                 WasmJSToWasmWrapperDescriptor::WrapperBufferRegister());
@@ -3695,21 +3699,21 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Register original_fp = no_reg;
   Register new_wrapper_buffer = no_reg;
   if (stack_switch) {
-    SwitchToAllocatedStack(masm, regs, wasm_instance, wrapper_buffer,
+    SwitchToAllocatedStack(masm, regs, wasm_instance_data, wrapper_buffer,
                            original_fp, new_wrapper_buffer, &suspend);
   } else {
     original_fp = fp;
     new_wrapper_buffer = wrapper_buffer;
   }
 
-  regs.ResetExcept(original_fp, wrapper_buffer, wasm_instance,
+  regs.ResetExcept(original_fp, wrapper_buffer, wasm_instance_data,
                    new_wrapper_buffer);
 
   {
     __ str(new_wrapper_buffer,
            MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
     if (stack_switch) {
-      __ str(wasm_instance,
+      __ str(wasm_instance_data,
              MemOperand(fp, StackSwitchFrameConstants::kInstanceOffset));
       DEFINE_SCOPED(scratch)
       __ ldr(
@@ -3737,7 +3741,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     FREE_REG(new_wrapper_buffer)
   }
-  FREE_REG(wasm_instance)
+  FREE_REG(wasm_instance_data)
   for (auto reg : wasm::kGpParamRegisters) {
     regs.Reserve(reg);
   }
@@ -3860,7 +3864,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ ldr(r1, MemOperand(
                    fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ ldr(r0,
-           MemOperand(fp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+           MemOperand(fp,
+                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
   }
 
   __ Call(BUILTIN_CODE(masm->isolate(), JSToWasmHandleReturns),

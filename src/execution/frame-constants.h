@@ -283,7 +283,7 @@ class JSToWasmWrapperFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static constexpr int kResultArrayParamOffset = 2 * kSystemPointerSize;
-  static constexpr int kInstanceParamOffset = 3 * kSystemPointerSize;
+  static constexpr int kInstanceDataParamOffset = 3 * kSystemPointerSize;
 
   // Contains RawPtr to stack-allocated buffer.
   static constexpr int kWrapperBufferOffset =

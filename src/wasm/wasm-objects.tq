@@ -9,7 +9,15 @@ type PodArrayOfWasmValueType extends ByteArray
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 
-extern class WasmInstanceObject extends JSObject;
+extern class WasmTrustedInstanceData extends ExposedTrustedObject;
+
+extern class WasmInstanceObject extends JSObject {
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData;
+  module_object: WasmModuleObject;
+  exports_object: JSObject;
+}
 
 // Represents the context of a function that is defined through the JS or C
 // APIs. Corresponds to the WasmInstanceObject passed to a Wasm function

@@ -11,11 +11,19 @@
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-TNode<WasmInstanceObject> WasmBuiltinsAssembler::LoadInstanceFromFrame() {
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
   return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+}
+
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
+    TNode<WasmInstanceObject> instance_object) {
+  return CAST(LoadTrustedPointerFromObject(
+      instance_object, WasmInstanceObject::kTrustedDataOffset,
+      kWasmTrustedInstanceDataIndirectPointerTag));
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
@@ -32,7 +40,7 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   GotoIf(IsJSFunctionInstanceType(instance_type), &js);
   GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
          &apifunc);
-  context_result = LoadContextFromInstance(CAST(function_or_instance));
+  context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
 
   BIND(&js);
@@ -52,29 +60,30 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   return context_result.value();
 }
 
-TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstance(
-    TNode<WasmInstanceObject> instance) {
-  return CAST(Load(MachineType::AnyTagged(), instance,
-                   IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
-                                  kHeapObjectTag)));
+TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return CAST(
+      Load(MachineType::AnyTagged(), trusted_data,
+           IntPtrConstant(WasmTrustedInstanceData::kNativeContextOffset -
+                          kHeapObjectTag)));
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstance(
-    TNode<WasmInstanceObject> instance) {
-  return LoadObjectField<FixedArray>(instance,
-                                     WasmInstanceObject::kTablesOffset);
+TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return LoadObjectField<FixedArray>(trusted_data,
+                                     WasmTrustedInstanceData::kTablesOffset);
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
-    TNode<WasmInstanceObject> instance) {
+TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
   return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kWasmInternalFunctionsOffset);
+      trusted_data, WasmTrustedInstanceData::kWasmInternalFunctionsOffset);
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
-    TNode<WasmInstanceObject> instance) {
+TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
   return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kManagedObjectMapsOffset);
+      trusted_data, WasmTrustedInstanceData::kManagedObjectMapsOffset);
 }
 
 TNode<Float64T> WasmBuiltinsAssembler::StringToFloat64(TNode<String> input) {
@@ -126,11 +135,12 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
   auto value = Parameter<Object>(Descriptor::kArgument);
   Return(value);
 }
+
 TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
   TorqueStructWasmToJSResult result = WasmToJSWrapper(
       UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
   PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
                result.result3);
 }
-}  // namespace internal
-}  // namespace v8
+
+}  // namespace v8::internal

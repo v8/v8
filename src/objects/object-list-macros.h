@@ -304,6 +304,7 @@ namespace internal {
   IF_WASM(V, WasmStruct)                        \
   IF_WASM(V, WasmTypeInfo)                      \
   IF_WASM(V, WasmTableObject)                   \
+  IF_WASM(V, WasmTrustedInstanceData)           \
   IF_WASM(V, WasmValueObject)                   \
   IF_WASM(V, WasmSuspenderObject)               \
   IF_WASM(V, WasmContinuationObject)            \

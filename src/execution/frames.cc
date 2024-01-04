@@ -1429,31 +1429,31 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
   //  ===  WasmFrame ===
-  //  +-----------------+-----------------------------------------
-  //  |   out_param n   |  <-- parameters_base / sp
-  //  |       ...       |
-  //  |   out_param 0   |  (these can be tagged or untagged)
-  //  +-----------------+-----------------------------------------
-  //  |   spill_slot n  |  <-- parameters_limit          ^
-  //  |       ...       |                          spill_slot_space
-  //  |   spill_slot 0  |                                v
-  //  +-----------------+-----------------------------------------
-  //  | WasmFeedback(*) |  <-- frame_header_base         ^
-  //  |- - - - - - - - -|                                |
-  //  |   WasmInstance  |                                |
-  //  |- - - - - - - - -|                                |
-  //  |   Type Marker   |                                |
-  //  |- - - - - - - - -|                         frame_header_size
-  //  | [Constant Pool] |                                |
-  //  |- - - - - - - - -|                                |
-  //  | saved frame ptr |  <-- fp                        |
-  //  |- - - - - - - - -|                                |
-  //  |  return addr    |  <- tagged_parameter_limit     v
-  //  +-----------------+-----------------------------------------
-  //  |    in_param n   |
-  //  |       ...       |
-  //  |    in_param 0   |  <-- first_tagged_parameter_slot
-  //  +-----------------+-----------------------------------------
+  //  +-------------------------+-----------------------------------------
+  //  |   out_param n           |  <-- parameters_base / sp
+  //  |       ...               |
+  //  |   out_param 0           |  (these can be tagged or untagged)
+  //  +-------------------------+-----------------------------------------
+  //  |   spill_slot n          |  <-- parameters_limit                  ^
+  //  |       ...               |                               spill_slot_space
+  //  |   spill_slot 0          |                                        v
+  //  +-------------------------+-----------------------------------------
+  //  | WasmFeedback(*)         |  <-- frame_header_base                 ^
+  //  |- - - - - - - - - - - - -|                                        |
+  //  | WasmTrustedInstanceData |                                        |
+  //  |- - - - - - - - - - - - -|                                        |
+  //  |   Type Marker           |                                        |
+  //  |- - - - - - - - - - - - -|                              frame_header_size
+  //  | [Constant Pool]         |                                        |
+  //  |- - - - - - - - - - - - -|                                        |
+  //  | saved frame ptr         |  <-- fp                                |
+  //  |- - - - - - - - - - - - -|                                        |
+  //  |  return addr            |  <-- tagged_parameter_limit            v
+  //  +-------------------------+-----------------------------------------
+  //  |    in_param n           |
+  //  |       ...               |
+  //  |    in_param 0           |  <-- first_tagged_parameter_slot
+  //  +-------------------------+-----------------------------------------
   //
   // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
@@ -2439,7 +2439,7 @@ uint32_t FrameSummary::WasmFrameSummary::function_index() const {
 }
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  const wasm::WasmModule* module = wasm_instance()->module();
   return GetSourcePosition(module, function_index(), code_offset(),
                            at_to_number_conversion());
 }
@@ -2449,8 +2449,14 @@ Handle<Script> FrameSummary::WasmFrameSummary::script() const {
                 wasm_instance()->GetIsolate());
 }
 
+Handle<WasmTrustedInstanceData>
+FrameSummary::WasmFrameSummary::wasm_trusted_instance_data() const {
+  Isolate* isolate = wasm_instance_->GetIsolate();
+  return handle(wasm_instance_->trusted_data(isolate), isolate);
+}
+
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
-  return handle(wasm_instance()->native_context(), isolate());
+  return handle(wasm_trusted_instance_data()->native_context(), isolate());
 }
 
 Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
@@ -2469,6 +2475,12 @@ FrameSummary::WasmInlinedFrameSummary::WasmInlinedFrameSummary(
       function_index_(function_index),
       op_wire_bytes_offset_(op_wire_bytes_offset) {}
 
+Handle<WasmTrustedInstanceData>
+FrameSummary::WasmInlinedFrameSummary::wasm_trusted_instance_data() const {
+  Isolate* isolate = wasm_instance_->GetIsolate();
+  return handle(wasm_instance_->trusted_data(isolate), isolate);
+}
+
 Handle<Object> FrameSummary::WasmInlinedFrameSummary::receiver() const {
   return wasm_instance_->GetIsolate()->global_proxy();
 }
@@ -2478,7 +2490,7 @@ uint32_t FrameSummary::WasmInlinedFrameSummary::function_index() const {
 }
 
 int FrameSummary::WasmInlinedFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  const wasm::WasmModule* module = wasm_instance()->module();
   return GetSourcePosition(module, function_index(), code_offset(), false);
 }
 
@@ -2488,7 +2500,7 @@ Handle<Script> FrameSummary::WasmInlinedFrameSummary::script() const {
 }
 
 Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
-  return handle(wasm_instance()->native_context(), isolate());
+  return handle(wasm_trusted_instance_data()->native_context(), isolate());
 }
 
 Handle<StackFrameInfo>
@@ -2964,7 +2976,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   memcpy(func_name, raw_func_name.begin(), func_name_len);
   func_name[func_name_len] = '\0';
   int pos = position();
-  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  const wasm::WasmModule* module = trusted_instance_data()->module();
   int func_index = function_index();
   int func_code_offset = module->functions[func_index].code.offset();
   accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d)\n",
@@ -2979,9 +2991,13 @@ wasm::WasmCode* WasmFrame::wasm_code() const {
 }
 
 Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
+  return trusted_instance_data()->instance_object();
+}
+
+Tagged<WasmTrustedInstanceData> WasmFrame::trusted_instance_data() const {
   const int offset = WasmFrameConstants::kWasmInstanceOffset;
-  Tagged<Object> instance(Memory<Address>(fp() + offset));
-  return WasmInstanceObject::cast(instance);
+  Tagged<Object> trusted_data(Memory<Address>(fp() + offset));
+  return WasmTrustedInstanceData::cast(trusted_data);
 }
 
 wasm::NativeModule* WasmFrame::native_module() const {
@@ -2989,7 +3005,7 @@ wasm::NativeModule* WasmFrame::native_module() const {
 }
 
 Tagged<WasmModuleObject> WasmFrame::module_object() const {
-  return wasm_instance()->module_object();
+  return trusted_instance_data()->module_object();
 }
 
 int WasmFrame::function_index() const { return wasm_code()->index(); }
@@ -2997,7 +3013,7 @@ int WasmFrame::function_index() const { return wasm_code()->index(); }
 Tagged<Script> WasmFrame::script() const { return module_object()->script(); }
 
 int WasmFrame::position() const {
-  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  const wasm::WasmModule* module = trusted_instance_data()->module();
   return GetSourcePosition(module, function_index(), generated_code_offset(),
                            at_to_number_conversion());
 }
@@ -3011,7 +3027,7 @@ int WasmFrame::generated_code_offset() const {
 bool WasmFrame::is_inspectable() const { return wasm_code()->is_inspectable(); }
 
 Tagged<Object> WasmFrame::context() const {
-  return wasm_instance()->native_context();
+  return trusted_instance_data()->native_context();
 }
 
 void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
@@ -3132,6 +3148,10 @@ Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
   Tagged<WasmApiFunctionRef> func_ref = WasmApiFunctionRef::cast(func_ref_obj);
   return WasmInstanceObject::cast(func_ref->instance());
+}
+
+Tagged<WasmTrustedInstanceData> WasmToJsFrame::trusted_instance_data() const {
+  return wasm_instance()->trusted_data(isolate());
 }
 
 void JsToWasmFrame::Iterate(RootVisitor* v) const {

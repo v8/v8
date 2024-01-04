@@ -3131,7 +3131,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Load the feedback vector.
   __ mov(tmp, FieldOperand(kWasmInstanceRegister,
-                           WasmInstanceObject::kFeedbackVectorsOffset));
+                           WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ mov(tmp, FieldOperand(tmp, func_index, times_tagged_size,
                            FixedArray::kHeaderSize));
   Label allocate_vector;
@@ -3220,7 +3220,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in edi.
     __ add(edi, MemOperand(kWasmInstanceRegister,
-                           WasmInstanceObject::kJumpTableStartOffset -
+                           WasmTrustedInstanceData::kJumpTableStartOffset -
                                kHeapObjectTag));
   }
 
@@ -3508,9 +3508,9 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp,
   __ Move(promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ mov(kContextRegister,
          MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset));
-  __ Move(
-      kContextRegister,
-      FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
+  __ Move(kContextRegister,
+          FieldOperand(kContextRegister,
+                       WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp);
   __ Push(promise);
@@ -3555,9 +3555,9 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
   __ mov(kContextRegister,
          MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset));
-  __ Move(
-      kContextRegister,
-      FieldOperand(kContextRegister, WasmInstanceObject::kNativeContextOffset));
+  __ Move(kContextRegister,
+          FieldOperand(kContextRegister,
+                       WasmTrustedInstanceData::kNativeContextOffset));
 
   ReloadParentContinuation(masm, promise, reason, kContextRegister, edi);
   __ Push(promise);
@@ -3606,7 +3606,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     // Preserve wasm_instance across the switch.
     __ mov(eax,
            MemOperand(original_fp,
-                      JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
     __ mov(MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset), eax);
 
     Register result_array = eax;
@@ -3706,9 +3706,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ mov(kWasmInstanceRegister,
            MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset));
   } else {
-    __ mov(
-        kWasmInstanceRegister,
-        MemOperand(ebp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+    __ mov(kWasmInstanceRegister,
+           MemOperand(ebp,
+                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
   }
 
   Register call_target = edi;
@@ -3752,8 +3752,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ mov(eax, MemOperand(ebp, StackSwitchFrameConstants::kInstanceOffset));
     __ mov(ecx, MemOperand(ebp, StackSwitchFrameConstants::kResultArrayOffset));
   } else {
-    __ mov(eax, MemOperand(
-                    ebp, JSToWasmWrapperFrameConstants::kInstanceParamOffset));
+    __ mov(eax,
+           MemOperand(ebp,
+                      JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
     __ mov(ecx,
            MemOperand(ebp,
                       JSToWasmWrapperFrameConstants::kResultArrayParamOffset));

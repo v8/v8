@@ -162,6 +162,10 @@ class WasmGraphAssembler : public GraphAssembler {
                                            Node* index, ExternalPointerTag tag,
                                            Node* isolate_root);
 
+  Node* LoadImmutableTrustedPointerFromObject(Node* object, int offset,
+                                              IndirectPointerTag tag);
+  Node* BuildDecodeTrustedPointer(Node* handle, IndirectPointerTag tag);
+
   Node* IsSmi(Node* object);
 
   // Maps and their contents.
@@ -311,6 +315,8 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* LoadRootRegister() {
     return AddNode(graph()->NewNode(mcgraph()->machine()->LoadRootRegister()));
   }
+
+  Node* LoadTrustedDataFromInstanceObject(Node* instance_object);
 
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 

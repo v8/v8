@@ -61,7 +61,7 @@ namespace {
   } while (false)
 
 #define WASM_INSTANCE_OBJECT_FIELD_OFFSET(name) \
-  ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
+  ObjectAccess::ToTagged(WasmTrustedInstanceData::k##name##Offset)
 
 template <int expected_size, int actual_size>
 struct assert_field_size {
@@ -71,7 +71,7 @@ struct assert_field_size {
 };
 
 #define WASM_INSTANCE_OBJECT_FIELD_SIZE(name) \
-  FIELD_SIZE(WasmInstanceObject::k##name##Offset)
+  FIELD_SIZE(WasmTrustedInstanceData::k##name##Offset)
 
 #define LOAD_INSTANCE_FIELD(dst, name, load_size, pinned)                      \
   __ LoadFromInstance(dst, LoadInstanceIntoRegister(pinned, dst),              \
@@ -424,7 +424,7 @@ class LiftoffCompiler {
     Builtin builtin;
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
-    Register cached_instance;
+    Register cached_instance_data;
     OutOfLineSafepointInfo* safepoint_info;
     // These two pointers will only be used for debug code:
     SpilledRegistersForInspection* spilled_registers;
@@ -443,7 +443,7 @@ class LiftoffCompiler {
           builtin,                       // builtin
           pos,                           // position
           {},                            // regs_to_save
-          no_reg,                        // cached_instance
+          no_reg,                        // cached_instance_data
           safepoint_info,                // safepoint_info
           spilled_registers,             // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
@@ -451,7 +451,8 @@ class LiftoffCompiler {
     }
     static OutOfLineCode StackCheck(
         Zone* zone, WasmCodePosition pos, LiftoffRegList regs_to_save,
-        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
+        Register cached_instance_data,
+        SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {
@@ -460,7 +461,7 @@ class LiftoffCompiler {
           Builtin::kWasmStackGuard,      // builtin
           pos,                           // position
           regs_to_save,                  // regs_to_save
-          cached_instance,               // cached_instance
+          cached_instance_data,          // cached_instance_data
           safepoint_info,                // safepoint_info
           spilled_regs,                  // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
@@ -468,7 +469,8 @@ class LiftoffCompiler {
     }
     static OutOfLineCode TierupCheck(
         Zone* zone, WasmCodePosition pos, LiftoffRegList regs_to_save,
-        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
+        Register cached_instance_data,
+        SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {
@@ -477,7 +479,7 @@ class LiftoffCompiler {
           Builtin::kWasmTriggerTierUp,   // builtin
           pos,                           // position
           regs_to_save,                  // regs_to_save
-          cached_instance,               // cached_instance
+          cached_instance_data,          // cached_instance_data
           safepoint_info,                // safepoint_info
           spilled_regs,                  // spilled_registers
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
@@ -725,10 +727,10 @@ class LiftoffCompiler {
     if (!v8_flags.wasm_stack_checks) return;
 
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
-    // The cached instance will be reloaded separately.
-    if (__ cache_state()->cached_instance != no_reg) {
-      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
-      regs_to_save.clear(__ cache_state()->cached_instance);
+    // The cached instance data will be reloaded separately.
+    if (__ cache_state()->cached_instance_data != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_instance_data));
+      regs_to_save.clear(__ cache_state()->cached_instance_data);
     }
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
@@ -752,7 +754,7 @@ class LiftoffCompiler {
       spilled_regs = GetSpilledRegistersForInspection();
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
-        zone_, position, regs_to_save, __ cache_state()->cached_instance,
+        zone_, position, regs_to_save, __ cache_state()->cached_instance_data,
         spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
     __ StackCheck(ool.label.get());
@@ -781,13 +783,13 @@ class LiftoffCompiler {
 
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     // The cached instance will be reloaded separately.
-    if (__ cache_state()->cached_instance != no_reg) {
-      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
-      regs_to_save.clear(__ cache_state()->cached_instance);
+    if (__ cache_state()->cached_instance_data != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_instance_data));
+      regs_to_save.clear(__ cache_state()->cached_instance_data);
     }
 
     out_of_line_code_.push_back(OutOfLineCode::TierupCheck(
-        zone_, position, regs_to_save, __ cache_state()->cached_instance,
+        zone_, position, regs_to_save, __ cache_state()->cached_instance_data,
         spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
 
@@ -957,9 +959,9 @@ class LiftoffCompiler {
     }
 
     // If debug code is enabled, assert that the first parameter is a
-    // WasmInstanceObject.
+    // WasmTrustedInstanceData.
     if (v8_flags.debug_code) {
-      SCOPED_CODE_COMMENT("Check instance parameter type");
+      SCOPED_CODE_COMMENT("Check instance data parameter type");
       LiftoffRegList pinned;
       Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       Register instance = pinned.set(LoadInstanceIntoRegister(pinned, scratch));
@@ -969,11 +971,11 @@ class LiftoffCompiler {
       __ Load(LiftoffRegister{scratch}, scratch, no_reg,
               wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
               LoadType::kI32Load16U);
-      // If not WASM_INSTANCE_OBJECT_TYPE -> error.
+      // If not WASM_TRUSTED_INSTANCE_DATA_TYPE -> error.
       Label ok;
       FreezeCacheState frozen{asm_};
-      __ emit_i32_cond_jumpi(kEqual, &ok, scratch, WASM_INSTANCE_OBJECT_TYPE,
-                             frozen);
+      __ emit_i32_cond_jumpi(kEqual, &ok, scratch,
+                             WASM_TRUSTED_INSTANCE_DATA_TYPE, frozen);
       __ AssertUnreachable(AbortReason::kUnexpectedInstanceType);
       __ bind(&ok);
     }
@@ -1041,8 +1043,8 @@ class LiftoffCompiler {
           __ Fill(entry.reg, entry.offset, entry.kind);
         }
       }
-      if (ool->cached_instance != no_reg) {
-        __ LoadInstanceFromFrame(ool->cached_instance);
+      if (ool->cached_instance_data != no_reg) {
+        __ LoadInstanceDataFromFrame(ool->cached_instance_data);
       }
       __ emit_jump(ool->continuation.get());
     } else {
@@ -5534,12 +5536,12 @@ class LiftoffCompiler {
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
-    Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
-      __ LoadInstanceFromFrame(instance);
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
     }
-    pinned.set(instance);
+    pinned.set(instance_data);
 
     // Only allocate the OOB code now, so the state of the stack is reflected
     // correctly.
@@ -5555,7 +5557,7 @@ class LiftoffCompiler {
 
     LiftoffRegister result =
         GenerateCCall(kI32,
-                      {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                      {{kIntPtrKind, LiftoffRegister{instance_data}, 0},
                        {kI32, static_cast<int32_t>(imm.memory.index), 0},
                        dst,
                        src,
@@ -5601,12 +5603,12 @@ class LiftoffCompiler {
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
-    Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
-      __ LoadInstanceFromFrame(instance);
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
     }
-    pinned.set(instance);
+    pinned.set(instance_data);
 
     // Only allocate the OOB code now, so the state of the stack is reflected
     // correctly.
@@ -5621,7 +5623,7 @@ class LiftoffCompiler {
 
     LiftoffRegister result =
         GenerateCCall(kI32,
-                      {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                      {{kIntPtrKind, LiftoffRegister{instance_data}, 0},
                        {kI32, static_cast<int32_t>(imm.memory_dst.index), 0},
                        {kI32, static_cast<int32_t>(imm.memory_src.index), 0},
                        dst,
@@ -5643,12 +5645,12 @@ class LiftoffCompiler {
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
-    Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
-      __ LoadInstanceFromFrame(instance);
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
     }
-    pinned.set(instance);
+    pinned.set(instance_data);
 
     // Only allocate the OOB code now, so the state of the stack is reflected
     // correctly.
@@ -5663,7 +5665,7 @@ class LiftoffCompiler {
 
     LiftoffRegister result =
         GenerateCCall(kI32,
-                      {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                      {{kIntPtrKind, LiftoffRegister{instance_data}, 0},
                        {kI32, static_cast<int32_t>(imm.index), 0},
                        dst,
                        value,
@@ -7672,6 +7674,30 @@ class LiftoffCompiler {
   }
 
  private:
+  // Load the trusted data if the given object is a WasmInstanceObject.
+  // Otherwise return the value unmodified.
+  // This is used when calling via WasmInternalFunction where the "ref" is
+  // either an instance object or a WasmApiFunctionRef.
+  // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
+  // indirect load.
+  void LoadTrustedDataFromMaybeInstanceObject(Register dst, Register ref,
+                                              Register scratch) {
+    // Load the map.
+    __ LoadMap(scratch, ref);
+    // Load the instance type.
+    __ Load(LiftoffRegister{scratch}, scratch, no_reg,
+            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+            LoadType::kI32Load16U);
+    // If not WASM_INSTANCE_OBJECT_TYPE -> done.
+    if (dst != ref) __ Move(dst, ref, kIntPtrKind);
+    Label done;
+    FreezeCacheState frozen{asm_};
+    __ emit_i32_cond_jumpi(kNotEqual, &done, scratch, WASM_INSTANCE_OBJECT_TYPE,
+                           frozen);
+    __ LoadTrustedDataFromInstanceObject(dst, ref);
+    __ bind(&done);
+  }
+
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[], TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
@@ -7692,10 +7718,27 @@ class LiftoffCompiler {
     if (imm.index < env_->module->num_imported_functions) {
       // A direct call to an imported function.
       LiftoffRegList pinned;
-      Register tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register imported_function_ref =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
-      Register imported_targets = tmp;
+      // Load the ref object (either a WasmInstanceObject or a
+      // WasmApiFunctionRef).
+      Register imported_function_refs = imported_function_ref;
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
+                                     ImportedFunctionRefs, pinned);
+      __ LoadTaggedPointer(
+          imported_function_ref, imported_function_refs, no_reg,
+          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
+
+      // If the ref is a WasmInstanceObject, load the WasmTrustedInstanceData
+      // from it.
+      Register first_arg = imported_function_ref;
+      LoadTrustedDataFromMaybeInstanceObject(
+          first_arg, imported_function_ref,
+          target /* use as scratch register */);
+
+      Register imported_targets = target;
       LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
                                      pinned);
       __ LoadFullPointer(
@@ -7703,16 +7746,7 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
               imm.index));
 
-      Register imported_function_refs = tmp;
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
-                                     ImportedFunctionRefs, pinned);
-      Register imported_function_ref = tmp;
-      __ LoadTaggedPointer(
-          imported_function_ref, imported_function_refs, no_reg,
-          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
-
-      Register explicit_instance = imported_function_ref;
-      __ PrepareCall(&sig, call_descriptor, &target, explicit_instance);
+      __ PrepareCall(&sig, call_descriptor, &target, first_arg);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -7938,21 +7972,28 @@ class LiftoffCompiler {
     {
       CODE_COMMENT("Execute indirect call");
 
-      Register function_ref = tmp1;
+      // The first parameter will be either a WasmTrustedInstanceData or a
+      // WasmApiFunctionRef.
+      Register first_param = tmp1;
       Register function_target = tmp2;
 
       // Load the ref from {instance->ift_refs[key]}.
+      // Re-use the {first_param} register for intermediate pointers.
+      Register ift_refs = first_param;
       if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_ref, IndirectFunctionTableRefs,
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(ift_refs, IndirectFunctionTableRefs,
                                        pinned);
       } else {
-        __ LoadTaggedPointer(function_ref, indirect_function_table, no_reg,
+        __ LoadTaggedPointer(ift_refs, indirect_function_table, no_reg,
                              wasm::ObjectAccess::ToTagged(
                                  WasmIndirectFunctionTable::kRefsOffset));
       }
-      __ LoadTaggedPointer(function_ref, function_ref, index,
+      Register ref = first_param;
+      __ LoadTaggedPointer(ref, ift_refs, index,
                            ObjectAccess::ElementOffsetInTaggedFixedArray(0),
                            true);
+      LoadTrustedDataFromMaybeInstanceObject(first_param, ref,
+                                             tmp2 /* scratch */);
 
       // Load the target from {instance->ift_targets[key]}
       if (imm.table_imm.index == 0) {
@@ -7971,7 +8012,7 @@ class LiftoffCompiler {
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-      __ PrepareCall(&sig, call_descriptor, &function_target, function_ref);
+      __ PrepareCall(&sig, call_descriptor, &function_target, first_param);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -7999,7 +8040,7 @@ class LiftoffCompiler {
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     Register target_reg = no_reg;
-    Register ref_reg = no_reg;
+    Register first_param_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
       LiftoffRegList pinned;
@@ -8014,6 +8055,7 @@ class LiftoffCompiler {
       size_t vector_slot = encountered_call_instructions_.size() * 2;
       encountered_call_instructions_.push_back(
           FunctionTypeFeedback::kNonDirectCall);
+      // TODO(clemensb): Can we make this a 32-bit integer and pass as constant?
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       VarState index_var(kIntPtrKind, index, 0);
 
@@ -8023,10 +8065,15 @@ class LiftoffCompiler {
                   MakeSig::Returns(kIntPtrKind, kIntPtrKind)
                       .Params(kRef, kIntPtrKind, kRef),
                   {vector_var, index_var, func_ref_var}, decoder->position());
-
       target_reg = LiftoffRegister(kReturnRegister0).gp();
-      ref_reg = LiftoffRegister(kReturnRegister1).gp();
+      Register ref_reg = kReturnRegister1;
 
+      first_param_reg = kReturnRegister1;
+      // We are after a call, so there are plenty of free registers.
+      pinned = LiftoffRegList{target_reg, ref_reg};
+      Register scratch =
+          __ cache_state() -> unused_register(kGpReg, pinned).gp();
+      LoadTrustedDataFromMaybeInstanceObject(first_param_reg, ref_reg, scratch);
     } else {  // inlining_enabled(decoder)
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
@@ -8035,25 +8082,28 @@ class LiftoffCompiler {
       __ SpillAllRegisters();
 
       // We limit ourselves to four registers:
-      // (1) func_data, initially reused for func_ref.
-      // (2) instance, initially used as temp.
+      // (1) internal_func.
+      // (2) first_param_reg, initially used for ref.
       // (3) target, initially used as temp.
       // (4) temp.
       LiftoffRegList pinned;
-      LiftoffRegister func_ref = pinned.set(__ PopToModifiableRegister(pinned));
-      MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
-      LiftoffRegister instance =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister internal_func =
+          pinned.set(__ PopToModifiableRegister(pinned));
+      MaybeEmitNullCheck(decoder, internal_func.gp(), pinned, func_ref_type);
+      first_param_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      // Load "ref" (instance or WasmApiFunctionRef) and target.
+      // Load "ref" (WasmInstanceObject or WasmApiFunctionRef) and target.
+      Register ref = first_param_reg;
       __ LoadTaggedPointer(
-          instance.gp(), func_ref.gp(), no_reg,
+          ref, internal_func.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
+      LoadTrustedDataFromMaybeInstanceObject(first_param_reg, ref,
+                                             target.gp() /* scratch */);
 
       __ LoadExternalPointer(
-          target.gp(), func_ref.gp(),
+          target.gp(), internal_func.gp(),
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
           kWasmInternalFunctionCallTargetTag, temp.gp());
 
@@ -8069,24 +8119,24 @@ class LiftoffCompiler {
       // In this case, we can use a shortcut and load the entrypoint directly
       // from the code pointer table without going through the Code object.
       __ LoadCodeEntrypointViaCodePointer(
-          target.gp(), func_ref.gp(),
+          target.gp(), internal_func.gp(),
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
 #else
       __ LoadTaggedPointer(
-          target.gp(), func_ref.gp(), no_reg,
+          target.gp(), internal_func.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
       __ LoadCodeInstructionStart(target.gp(), target.gp());
 #endif
       // Fall through to {perform_call}.
 
       __ bind(&perform_call);
-      // Now the call target is in {target}, and the right instance object
-      // is in {instance}.
+      // Now the call target is in {target} and the first parameter
+      // (WasmTrustedInstanceData or WasmApiFunctionRef) is in
+      // {first_param_reg}.
       target_reg = target.gp();
-      ref_reg = instance.gp();
     }  // inlining_enabled(decoder)
 
-    __ PrepareCall(&sig, call_descriptor, &target_reg, ref_reg);
+    __ PrepareCall(&sig, call_descriptor, &target_reg, first_param_reg);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -8338,7 +8388,7 @@ class LiftoffCompiler {
   // caller then.
   V8_INLINE Register LoadInstanceIntoRegister(LiftoffRegList pinned,
                                               Register fallback) {
-    Register instance = __ cache_state()->cached_instance;
+    Register instance = __ cache_state() -> cached_instance_data;
     if (V8_UNLIKELY(instance == no_reg)) {
       instance = LoadInstanceIntoRegister_Slow(pinned, fallback);
     }
@@ -8347,12 +8397,12 @@ class LiftoffCompiler {
 
   V8_NOINLINE V8_PRESERVE_MOST Register
   LoadInstanceIntoRegister_Slow(LiftoffRegList pinned, Register fallback) {
-    DCHECK_EQ(no_reg, __ cache_state()->cached_instance);
+    DCHECK_EQ(no_reg, __ cache_state()->cached_instance_data);
     SCOPED_CODE_COMMENT("load instance");
     Register instance = __ cache_state()->TrySetCachedInstanceRegister(
         pinned | LiftoffRegList{fallback});
     if (instance == no_reg) instance = fallback;
-    __ LoadInstanceFromFrame(instance);
+    __ LoadInstanceDataFromFrame(instance);
     return instance;
   }
 

@@ -879,11 +879,12 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
   // Update the "break_on_entry" flag on all live instances.
   i::Tagged<i::WeakArrayList> weak_instance_list =
       script->wasm_weak_instance_list();
+  i::Isolate* isolate = script->GetIsolate();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     if (weak_instance_list->Get(i)->IsCleared()) continue;
     i::Tagged<i::WasmInstanceObject> instance =
         i::WasmInstanceObject::cast(weak_instance_list->Get(i).GetHeapObject());
-    instance->set_break_on_entry(enabled);
+    instance->trusted_data(isolate)->set_break_on_entry(enabled);
   }
 }
 }  // namespace

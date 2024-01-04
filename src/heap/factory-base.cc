@@ -337,6 +337,24 @@ Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
   return wrapper;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+template <typename Impl>
+Handle<WasmTrustedInstanceData>
+FactoryBase<Impl>::NewWasmTrustedInstanceData() {
+  Tagged<WasmTrustedInstanceData> result =
+      WasmTrustedInstanceData::cast(AllocateRawWithImmortalMap(
+          WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
+          read_only_roots().wasm_trusted_instance_data_map()));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->clear_padding();
+  for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
+    result->RawField(offset).store(read_only_roots().undefined_value());
+  }
+  return handle(result, isolate());
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScript(Handle<PrimitiveHeapObject> source,
                                             ScriptEventType script_event_type) {

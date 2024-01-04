@@ -23,10 +23,12 @@ namespace internal {
 constexpr int kIndirectPointerTagShift = 48;
 constexpr uint64_t kIndirectPointerTagMask = 0xffff000000000000;
 
-#define INDIRECT_POINTER_TAG_LIST(V)                       \
-  V(kCodeIndirectPointerTag, CODE_TYPE)                    \
-  V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE) \
-  V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE)
+#define INDIRECT_POINTER_TAG_LIST(V)                           \
+  V(kCodeIndirectPointerTag, CODE_TYPE)                        \
+  V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE)     \
+  V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE) \
+  IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,       \
+          WASM_TRUSTED_INSTANCE_DATA_TYPE)
 
 #define MAKE_TAG(instance_type) \
   (uint64_t{instance_type} << kIndirectPointerTagShift)

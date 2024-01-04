@@ -46,7 +46,7 @@ namespace liftoff {
 //
 static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
-constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kInstanceDataOffset = 2 * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
@@ -62,7 +62,9 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   return MemOperand(offset > 0 ? fp : sp, -offset + half_offset);
 }
 
-inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
+inline MemOperand GetInstanceDataOperand() {
+  return GetStackSlot(kInstanceDataOffset);
+}
 
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
@@ -621,15 +623,15 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     liftoff::CacheStatePreservingTempRegisters temps{this};
     Register budget_array = temps.Acquire();
 
-    Register instance = cache_state_.cached_instance;
-    if (instance == no_reg) {
-      instance = budget_array;  // Reuse the temp register.
-      LoadInstanceFromFrame(instance);
+    Register instance_data = cache_state_.cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = budget_array;  // Reuse the temp register.
+      LoadInstanceDataFromFrame(instance_data);
     }
 
     constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-        WasmInstanceObject::kTieringBudgetArrayOffset);
-    ldr(budget_array, MemOperand{instance, kArrayOffset});
+        WasmTrustedInstanceData::kTieringBudgetArrayOffset);
+    ldr(budget_array, MemOperand{instance_data, kArrayOffset});
 
     int budget_arr_offset = kInt32Size * declared_func_index;
     // If the offset cannot be used in the operand directly, add it once to the
@@ -674,8 +676,15 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::LoadInstanceFromFrame(Register dst) {
-  ldr(dst, liftoff::GetInstanceOperand());
+void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
+  ldr(dst, liftoff::GetInstanceDataOperand());
+}
+
+void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
+    Register dst, Register instance_object) {
+  LoadTaggedPointerFromInstance(
+      dst, instance_object,
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset));
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
@@ -717,8 +726,8 @@ void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
   ldr(dst, src_op);
 }
 
-void LiftoffAssembler::SpillInstance(Register instance) {
-  str(instance, liftoff::GetInstanceOperand());
+void LiftoffAssembler::SpillInstanceData(Register instance) {
+  str(instance, liftoff::GetInstanceDataOperand());
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}

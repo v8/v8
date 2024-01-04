@@ -200,8 +200,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       JSObject::cast(*this)->JSObjectPrint(os);
       break;
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_INSTANCE_OBJECT_TYPE:
-      WasmInstanceObject::cast(*this)->WasmInstanceObjectPrint(os);
+    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
+      WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataPrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this)->WasmValueObjectPrint(os);
@@ -2337,7 +2337,7 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
+void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 #define PRINT_WASM_INSTANCE_FIELD(name, convert) \
   os << "\n - " #name ": " << convert(name());
 #define PRINT_OPTIONAL_WASM_INSTANCE_FIELD(name, convert) \
@@ -2348,9 +2348,8 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
     return reinterpret_cast<void*>(value);
   };
 
-  JSObjectPrintHeader(os, *this, "WasmInstanceObject");
-  PRINT_WASM_INSTANCE_FIELD(module_object, Brief);
-  PRINT_WASM_INSTANCE_FIELD(exports_object, Brief);
+  PrintHeader(os, "WasmTrustedInstanceData");
+  PRINT_WASM_INSTANCE_FIELD(instance_object, Brief);
   PRINT_WASM_INSTANCE_FIELD(native_context, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_objects, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
@@ -2387,7 +2386,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory_bases_and_sizes, Brief);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
-  JSObjectPrintBody(os, *this);
   os << "\n";
 
 #undef PRINT_OPTIONAL_WASM_INSTANCE_FIELD
