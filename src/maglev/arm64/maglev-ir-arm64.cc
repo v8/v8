@@ -107,8 +107,9 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       DCHECK(!scratch.Aliases(result_string));
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ Move(scratch, char_code & 0xFFFF);
-      __ Strh(scratch.W(), FieldMemOperand(result_string,
-                                           offsetof(SeqTwoByteString, chars_)));
+      __ Strh(scratch.W(),
+              FieldMemOperand(result_string,
+                              OFFSET_OF_DATA_START(SeqTwoByteString)));
       if (reallocate_result) {
         __ Move(ToRegister(result()), result_string);
       }

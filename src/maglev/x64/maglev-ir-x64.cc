@@ -114,8 +114,9 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
-      __ movw(FieldOperand(result_string, offsetof(SeqTwoByteString, chars_)),
-              Immediate(char_code & 0xFFFF));
+      __ movw(
+          FieldOperand(result_string, OFFSET_OF_DATA_START(SeqTwoByteString)),
+          Immediate(char_code & 0xFFFF));
     }
   } else {
     MaglevAssembler::ScratchRegisterScope temps(masm);

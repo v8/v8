@@ -32,11 +32,11 @@ TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
 
   BIND(&if_sequential);
   {
-    static_assert(offsetof(SeqOneByteString, chars_) ==
-                  offsetof(SeqTwoByteString, chars_));
-    var_data = RawPtrAdd(
-        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(string)),
-        IntPtrConstant(offsetof(SeqOneByteString, chars_) - kHeapObjectTag));
+    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                  OFFSET_OF_DATA_START(SeqTwoByteString));
+    var_data = RawPtrAdd(ReinterpretCast<RawPtrT>(BitcastTaggedToWord(string)),
+                         IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                        kHeapObjectTag));
     Goto(&if_join);
   }
 
@@ -421,7 +421,7 @@ TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
     TNode<String> value = AllocateSeqTwoByteString(2);
     StoreNoWriteBarrier(
         MachineRepresentation::kWord32, value,
-        IntPtrConstant(offsetof(SeqTwoByteString, chars_) - kHeapObjectTag),
+        IntPtrConstant(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
         codepoint);
     var_result = value;
     Goto(&return_result);
@@ -731,7 +731,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
     // Loop over the {lhs} and {rhs} strings to see if they are equal.
     constexpr int kBeginOffset =
-        offsetof(SeqOneByteString, chars_) - kHeapObjectTag;
+        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
     TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
     TNode<IntPtrT> end = IntPtrAdd(begin, length);
     TVARIABLE(IntPtrT, var_offset, begin);
@@ -759,7 +759,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
     }
 
-    var_offset = IntPtrConstant(offsetof(SeqOneByteString, chars_) -
+    var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
                                 kHeapObjectTag + kChunkSize);
 
     Goto(&chunk_loop);
@@ -1005,7 +1005,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
       TNode<IntPtrT> offset = ElementOffsetFromIndex(
           var_max_index.value(), UINT8_ELEMENTS,
-          offsetof(SeqOneByteString, chars_) - kHeapObjectTag);
+          OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag);
       StoreNoWriteBarrier(MachineRepresentation::kWord8, one_byte_result,
                           offset, code16);
       var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1029,7 +1029,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // Write the character that caused the 8-bit to 16-bit fault.
     TNode<IntPtrT> max_index_offset = ElementOffsetFromIndex(
         var_max_index.value(), UINT16_ELEMENTS,
-        offsetof(SeqTwoByteString, chars_) - kHeapObjectTag);
+        OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
     StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                         max_index_offset, code16);
     var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1046,7 +1046,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               var_max_index.value(), UINT16_ELEMENTS,
-              offsetof(SeqTwoByteString, chars_) - kHeapObjectTag);
+              OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
           StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                               offset, code16);
           var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1801,9 +1801,9 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 
   ElementsKind from_kind = from_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
   ElementsKind to_kind = to_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
-  static_assert(offsetof(SeqOneByteString, chars_) ==
-                offsetof(SeqTwoByteString, chars_));
-  int header_size = offsetof(SeqOneByteString, chars_) - kHeapObjectTag;
+  static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                OFFSET_OF_DATA_START(SeqTwoByteString));
+  int header_size = OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
   TNode<IntPtrT> from_offset =
       ElementOffsetFromIndex(from_index, from_kind, header_size);
   TNode<IntPtrT> to_offset =
@@ -1888,7 +1888,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     // in wasm.tq.
     TNode<IntPtrT> start_offset = ElementOffsetFromIndex(
         from_index, UINT16_ELEMENTS,
-        offsetof(SeqTwoByteString, chars_) - kHeapObjectTag);
+        OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
     TNode<IntPtrT> end_offset = IntPtrAdd(
         start_offset, ElementOffsetFromIndex(character_count, UINT16_ELEMENTS));
     TNode<IntPtrT> eight_char_loop_end = IntPtrSub(

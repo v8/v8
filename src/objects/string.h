@@ -814,7 +814,7 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqOneByteStringAsserts;
 
-  Char chars_[];
+  FLEXIBLE_ARRAY_MEMBER(Char, chars);
 } V8_OBJECT_END;
 
 template <>
@@ -887,7 +887,7 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqTwoByteStringAsserts;
 
-  Char chars_[];
+  FLEXIBLE_ARRAY_MEMBER(Char, chars);
 } V8_OBJECT_END;
 
 template <>

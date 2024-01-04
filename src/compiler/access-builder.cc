@@ -904,7 +904,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
 
 // static
 ElementAccess AccessBuilder::ForSeqOneByteStringCharacter() {
-  ElementAccess access = {kTaggedBase, offsetof(SeqOneByteString, chars_),
+  ElementAccess access = {kTaggedBase, OFFSET_OF_DATA_START(SeqOneByteString),
                           TypeCache::Get()->kUint8, MachineType::Uint8(),
                           kNoWriteBarrier};
   return access;
@@ -912,7 +912,7 @@ ElementAccess AccessBuilder::ForSeqOneByteStringCharacter() {
 
 // static
 ElementAccess AccessBuilder::ForSeqTwoByteStringCharacter() {
-  ElementAccess access = {kTaggedBase, offsetof(SeqTwoByteString, chars_),
+  ElementAccess access = {kTaggedBase, OFFSET_OF_DATA_START(SeqTwoByteString),
                           TypeCache::Get()->kUint16, MachineType::Uint16(),
                           kNoWriteBarrier};
   return access;

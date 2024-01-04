@@ -294,8 +294,9 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, string, 1);
         __ And(scratch, char_code, Immediate(0xFFFF));
-        __ Strh(scratch.W(),
-                FieldMemOperand(string, offsetof(SeqTwoByteString, chars_)));
+        __ Strh(
+            scratch.W(),
+            FieldMemOperand(string, OFFSET_OF_DATA_START(SeqTwoByteString)));
         if (reallocate_result) {
           __ Move(result, string);
         }
@@ -427,7 +428,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    Add(index, index, offsetof(SeqOneByteString, chars_) - kHeapObjectTag);
+    Add(index, index, OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag);
     Ldrb(result, MemOperand(string, index));
     B(result_fits_one_byte);
 
@@ -435,7 +436,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // {instance_type} is unused from this point, so we can use as scratch.
     Register scratch = instance_type;
     Lsl(scratch, index, 1);
-    Add(scratch, scratch, offsetof(SeqTwoByteString, chars_) - kHeapObjectTag);
+    Add(scratch, scratch,
+        OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
     Ldrh(result, MemOperand(string, scratch));
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
@@ -450,7 +452,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register second_code_point = scratch;
       Lsl(index, index, 1);
-      Add(index, index, offsetof(SeqTwoByteString, chars_) - kHeapObjectTag);
+      Add(index, index,
+          OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
       Ldrh(second_code_point, MemOperand(string, index));
 
       // {index} is not needed at this point.

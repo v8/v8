@@ -1026,7 +1026,7 @@ uint8_t SeqOneByteString::Get(
     int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
-  return chars_[index];
+  return chars()[index];
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
@@ -1034,7 +1034,7 @@ void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   DCHECK_LE(value, kMaxOneByteCharCode);
-  chars_[index] = value;
+  chars()[index] = value;
 }
 
 void SeqOneByteString::SeqOneByteStringSetChars(int index,
@@ -1043,18 +1043,18 @@ void SeqOneByteString::SeqOneByteStringSetChars(int index,
   DisallowGarbageCollection no_gc;
   DCHECK_LE(0, index);
   DCHECK_LT(index + string_length, length());
-  void* address = static_cast<void*>(&chars_[index]);
+  void* address = static_cast<void*>(&chars()[index]);
   memcpy(address, string, string_length);
 }
 
 Address SeqOneByteString::GetCharsAddress() const {
-  return reinterpret_cast<Address>(chars_);
+  return reinterpret_cast<Address>(&chars()[0]);
 }
 
 uint8_t* SeqOneByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
-  return chars_;
+  return chars();
 }
 
 uint8_t* SeqOneByteString::GetChars(
@@ -1062,17 +1062,17 @@ uint8_t* SeqOneByteString::GetChars(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
-  return chars_;
+  return chars();
 }
 
 Address SeqTwoByteString::GetCharsAddress() const {
-  return reinterpret_cast<Address>(chars_);
+  return reinterpret_cast<Address>(&chars()[0]);
 }
 
 base::uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
-  return chars_;
+  return chars();
 }
 
 base::uc16* SeqTwoByteString::GetChars(
@@ -1080,20 +1080,20 @@ base::uc16* SeqTwoByteString::GetChars(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
-  return chars_;
+  return chars();
 }
 
 uint16_t SeqTwoByteString::Get(
     int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
-  return chars_[index];
+  return chars()[index];
 }
 
 void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   DisallowGarbageCollection no_gc;
   DCHECK(index >= 0 && index < length());
-  chars_[index] = value;
+  chars()[index] = value;
 }
 
 // static

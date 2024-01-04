@@ -523,8 +523,8 @@ extras_accessors = [
     'Oddball, kind, int, offsetof(Oddball, kind_)',
     'HeapNumber, value, double, kValueOffset',
     'ExternalString, resource, Object, offsetof(ExternalString, resource_)',
-    'SeqOneByteString, chars, char, offsetof(SeqOneByteString, chars_)',
-    'SeqTwoByteString, chars, char, offsetof(SeqTwoByteString, chars_)',
+    'SeqOneByteString, chars, char, OFFSET_OF_DATA_START(SeqOneByteString)',
+    'SeqTwoByteString, chars, char, OFFSET_OF_DATA_START(SeqTwoByteString)',
     'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
@@ -844,7 +844,8 @@ def parse_field(call):
     offset = args[2];
     dtype = 'SMI'
 
-  if offset.startswith("offsetof("):
+  if offset.startswith("offsetof(") or offset.startswith(
+      "OFFSET_OF_DATA_START("):
     offsetof_fields.append((klass, field, offset))
     value = 'OffsetsForDebug::%s_%s' % (klass, field)
   else:

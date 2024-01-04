@@ -116,7 +116,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ andl(char_code, Immediate(0xFFFF));
-        __ movw(FieldOperand(result, offsetof(SeqTwoByteString, chars_)),
+        __ movw(FieldOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
                 char_code);
         __ jmp(*done);
       },
@@ -241,11 +241,11 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     movzxbl(result, FieldOperand(string, index, times_1,
-                                 offsetof(SeqOneByteString, chars_)));
+                                 OFFSET_OF_DATA_START(SeqOneByteString)));
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
     movzxwl(result, FieldOperand(string, index, times_2,
-                                 offsetof(SeqTwoByteString, chars_)));
+                                 OFFSET_OF_DATA_START(SeqTwoByteString)));
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
       Register first_code_point = scratch;
@@ -263,7 +263,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Register second_code_point = scratch;
       movzxwl(second_code_point,
               FieldOperand(string, index, times_2,
-                           offsetof(SeqTwoByteString, chars_)));
+                           OFFSET_OF_DATA_START(SeqTwoByteString)));
 
       // {index} is not needed at this point.
       Register scratch2 = index;

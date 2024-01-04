@@ -4346,8 +4346,12 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
   for (auto f : type_->fields()) {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
-    impl_ << "  static_assert(" << field_offset
-          << " == offsetof(" + name_ + ", " << f.name_and_type.name << "_),\n"
+    std::string cpp_field_offset =
+        f.index.has_value()
+            ? "OFFSET_OF_DATA_START(" + name_ + ")"
+            : "offsetof(" + name_ + ", " + f.name_and_type.name + "_)";
+    impl_ << "  static_assert(" << field_offset << " == " << cpp_field_offset
+          << ",\n"
           << "                \"Value of " << name_ << "::" << field_offset
           << " defined in Torque and offset of field " << name_
           << "::" << f.name_and_type.name << " in C++ do not match\");\n";

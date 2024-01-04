@@ -263,8 +263,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, string, 1);
         __ and_(scratch, char_code, Operand(0xFFFF));
-        __ strh(scratch,
-                FieldMemOperand(string, offsetof(SeqTwoByteString, chars_)));
+        __ strh(scratch, FieldMemOperand(
+                             string, OFFSET_OF_DATA_START(SeqTwoByteString)));
         if (reallocate_result) {
           __ Move(result, string);
         }
@@ -396,7 +396,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     add(index, index,
-        Operand(offsetof(SeqOneByteString, chars_) - kHeapObjectTag));
+        Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
     ldrb(result, MemOperand(string, index));
     b(result_fits_one_byte);
 
@@ -405,7 +405,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     Register scratch = instance_type;
     lsl(scratch, index, Operand(1));
     add(scratch, scratch,
-        Operand(offsetof(SeqTwoByteString, chars_) - kHeapObjectTag));
+        Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
     ldrh(result, MemOperand(string, scratch));
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
@@ -423,7 +423,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Register second_code_point = scratch;
       lsl(index, index, Operand(1));
       add(index, index,
-          Operand(offsetof(SeqTwoByteString, chars_) - kHeapObjectTag));
+          Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
       ldrh(second_code_point, MemOperand(string, index));
 
       // {index} is not needed at this point.

@@ -7906,7 +7906,7 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
     TNode<String> result = AllocateSeqTwoByteString(1);
     StoreNoWriteBarrier(
         MachineRepresentation::kWord16, result,
-        IntPtrConstant(offsetof(SeqTwoByteString, chars_) - kHeapObjectTag),
+        IntPtrConstant(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
         code);
     var_result = result;
     Goto(&if_done);
@@ -8023,14 +8023,14 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
 
   BIND(&if_issequential);
   {
-    static_assert(offsetof(SeqOneByteString, chars_) ==
-                  offsetof(SeqTwoByteString, chars_));
+    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                  OFFSET_OF_DATA_START(SeqTwoByteString));
     TNode<RawPtrT> result =
         ReinterpretCast<RawPtrT>(BitcastTaggedToWord(var_string_.value()));
     if (ptr_kind == PTR_TO_DATA) {
-      result = RawPtrAdd(
-          result,
-          IntPtrConstant(offsetof(SeqOneByteString, chars_) - kHeapObjectTag));
+      result = RawPtrAdd(result,
+                         IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                        kHeapObjectTag));
     }
     var_result = result;
     Goto(&out);
@@ -8044,9 +8044,9 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
     TNode<String> string = var_string_.value();
     TNode<RawPtrT> result = LoadExternalStringResourceDataPtr(CAST(string));
     if (ptr_kind == PTR_TO_STRING) {
-      result = RawPtrSub(
-          result,
-          IntPtrConstant(offsetof(SeqOneByteString, chars_) - kHeapObjectTag));
+      result = RawPtrSub(result,
+                         IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                        kHeapObjectTag));
     }
     var_result = result;
     Goto(&out);

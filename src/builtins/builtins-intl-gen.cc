@@ -31,15 +31,15 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> PointerToSeqStringData(TNode<String> seq_string) {
     CSA_DCHECK(this,
                IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
-    static_assert(offsetof(SeqOneByteString, chars_) ==
-                  offsetof(SeqTwoByteString, chars_));
-    return IntPtrAdd(
-        BitcastTaggedToWord(seq_string),
-        IntPtrConstant(offsetof(SeqOneByteString, chars_) - kHeapObjectTag));
+    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                  OFFSET_OF_DATA_START(SeqTwoByteString));
+    return IntPtrAdd(BitcastTaggedToWord(seq_string),
+                     IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                    kHeapObjectTag));
   }
 
   TNode<Uint8T> GetChar(TNode<SeqOneByteString> seq_string, int index) {
-    size_t effective_offset = offsetof(SeqOneByteString, chars_) +
+    size_t effective_offset = OFFSET_OF_DATA_START(SeqOneByteString) +
                               sizeof(SeqOneByteString::Char) * index -
                               kHeapObjectTag;
     return Load<Uint8T>(seq_string, IntPtrConstant(effective_offset));
@@ -50,7 +50,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   void JumpIfStartsWithIgnoreCase(TNode<SeqOneByteString> seq_string,
                                   const char* pattern, Label* target) {
     size_t effective_offset =
-        offsetof(SeqOneByteString, chars_) - kHeapObjectTag;
+        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
     TNode<Uint16T> raw =
         Load<Uint16T>(seq_string, IntPtrConstant(effective_offset));
     DCHECK_EQ(strlen(pattern), 2);
