@@ -488,9 +488,9 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
          * we should not even emit the shift in the first place. We do a move  \
          * here for the moment. */                                             \
         __ Move(out, left);                                                    \
-        return;                                                                \
+      } else {                                                                 \
+        __ opcode(out, left, Operand(shift));                                  \
       }                                                                        \
-      __ opcode(out, left, Operand(shift));                                    \
     } else {                                                                   \
       MaglevAssembler::ScratchRegisterScope temps(masm);                       \
       Register scratch = temps.Acquire();                                      \

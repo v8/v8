@@ -425,10 +425,40 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
 DEF_BITWISE_BINOP(Int32BitwiseAnd, and_)
 DEF_BITWISE_BINOP(Int32BitwiseOr, orr)
 DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
-DEF_BITWISE_BINOP(Int32ShiftLeft, lslv)
-DEF_BITWISE_BINOP(Int32ShiftRight, asrv)
-DEF_BITWISE_BINOP(Int32ShiftRightLogical, lsrv)
 #undef DEF_BITWISE_BINOP
+
+#define DEF_SHIFT_BINOP(Instruction, opcode)                     \
+  void Instruction::SetValueLocationConstraints() {              \
+    UseRegister(left_input());                                   \
+    if (right_input().node()->Is<Int32Constant>()) {             \
+      UseAny(right_input());                                     \
+    } else {                                                     \
+      UseRegister(right_input());                                \
+    }                                                            \
+    DefineAsRegister(this);                                      \
+  }                                                              \
+                                                                 \
+  void Instruction::GenerateCode(MaglevAssembler* masm,          \
+                                 const ProcessingState& state) { \
+    Register out = ToRegister(result()).W();                     \
+    Register left = ToRegister(left_input()).W();                \
+    if (Int32Constant* constant =                                \
+            right_input().node()->TryCast<Int32Constant>()) {    \
+      int right = constant->value() & 31;                        \
+      if (right == 0) {                                          \
+        __ Move(out, left);                                      \
+      } else {                                                   \
+        __ opcode(out, left, right);                             \
+      }                                                          \
+    } else {                                                     \
+      Register right = ToRegister(right_input()).W();            \
+      __ opcode##v(out, left, right);                            \
+    }                                                            \
+  }
+DEF_SHIFT_BINOP(Int32ShiftLeft, lsl)
+DEF_SHIFT_BINOP(Int32ShiftRight, asr)
+DEF_SHIFT_BINOP(Int32ShiftRightLogical, lsr)
+#undef DEF_SHIFT_BINOP
 
 void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(value_input());
