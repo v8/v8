@@ -408,7 +408,7 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
-  Set(slot, HeapObjectReference::Weak(code));
+  Set(slot, HeapObjectReference::Weak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
 }
 

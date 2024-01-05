@@ -227,7 +227,8 @@ base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  Tagged<Code> code = Code::cast(maybe_code.GetHeapObject());
+  Tagged<Code> code =
+      CodeWrapper::cast(maybe_code.GetHeapObject())->code(isolate);
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.

@@ -3814,6 +3814,12 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
 
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
+    // The entry references a CodeWrapper object. Unwrap it now.
+    LoadCodePointerField(
+        scratch_and_result,
+        FieldOperand(scratch_and_result, CodeWrapper::kCodeOffset),
+        kScratchRegister);
+
     TestCodeIsMarkedForDeoptimization(scratch_and_result);
 
     if (min_opt_level == CodeKind::TURBOFAN) {

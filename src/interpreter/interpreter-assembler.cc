@@ -1409,6 +1409,9 @@ void InterpreterAssembler::OnStackReplacement(
     maybe_target_code = GetHeapObjectAssumeWeak(maybe_cached_osr_code);
 
     // Is it marked_for_deoptimization? If yes, clear the slot.
+    TNode<CodeWrapper> code_wrapper = CAST(maybe_target_code.value());
+    maybe_target_code =
+        LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
               &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
