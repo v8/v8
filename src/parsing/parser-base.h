@@ -4420,11 +4420,11 @@ void ParserBase<Impl>::ParseFunctionBody(
       } else {
         ParseStatementList(&inner_body, closing_token);
       }
-
       if (IsDerivedConstructor(kind)) {
+        // Derived constructors are implemented by returning `this` when the
+        // original return value is undefined, so always use `this`.
         ExpressionParsingScope expression_scope(impl());
-        inner_body.Add(factory()->NewReturnStatement(impl()->ThisExpression(),
-                                                     kNoSourcePosition));
+        UseThis();
         expression_scope.ValidateExpression();
       }
       Expect(closing_token);
@@ -5734,18 +5734,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
 
   Token::Value tok = peek();
   ExpressionT return_value = impl()->NullExpression();
-  if (scanner()->HasLineTerminatorBeforeNext() || Token::IsAutoSemicolon(tok)) {
-    if (IsDerivedConstructor(function_state_->kind())) {
-      ExpressionParsingScope expression_scope(impl());
-      return_value = impl()->ThisExpression();
-      expression_scope.ValidateExpression();
-    }
-  } else {
+  if (!scanner()->HasLineTerminatorBeforeNext() &&
+      !Token::IsAutoSemicolon(tok)) {
     return_value = ParseExpression();
   }
   ExpectSemicolon();
 
-  return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
   int continuation_pos = end_position();
   StatementT stmt =
       BuildReturnStatement(return_value, loc.beg_pos, continuation_pos);

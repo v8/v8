@@ -1053,10 +1053,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserScopedStatementList* body, PreParserStatement block,
       const PreParserExpression& return_value) {}
 
-  V8_INLINE PreParserExpression
-  RewriteReturn(const PreParserExpression& return_value, int pos) {
-    return return_value;
-  }
   V8_INLINE PreParserStatement
   RewriteSwitchStatement(PreParserStatement switch_statement, Scope* scope) {
     return PreParserStatement::Default();

@@ -1953,38 +1953,6 @@ Block* Parser::IgnoreCompletion(Statement* statement) {
   return block;
 }
 
-Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
-  if (IsDerivedConstructor(function_state_->kind())) {
-    // For subclass constructors we need to return this in case of undefined;
-    // other primitive values trigger an exception in the ConstructStub.
-    //
-    //   return expr;
-    //
-    // Is rewritten as:
-    //
-    //   return (temp = expr) === undefined ? this : temp;
-
-    // temp = expr
-    Variable* temp = NewTemporary(ast_value_factory()->empty_string());
-    Assignment* assign = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
-
-    // temp === undefined
-    Expression* is_undefined = factory()->NewCompareOperation(
-        Token::EQ_STRICT, assign,
-        factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
-
-    // is_undefined ? this : temp
-    // We don't need to call UseThis() since it's guaranteed to be called
-    // for derived constructors after parsing the constructor in
-    // ParseFunctionBody.
-    return_value =
-        factory()->NewConditional(is_undefined, factory()->ThisExpression(),
-                                  factory()->NewVariableProxy(temp), pos);
-  }
-  return return_value;
-}
-
 Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
                                           Scope* scope) {
   // In order to get the CaseClauses to execute in their own lexical scope,

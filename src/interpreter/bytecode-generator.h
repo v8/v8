@@ -80,6 +80,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
+  class ControlScopeForDerivedConstructor;
   class ControlScopeForIteration;
   class ControlScopeForTopLevel;
   class ControlScopeForTryCatch;
@@ -195,6 +196,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
+  void GenerateBytecodeBodyWithoutImplicitFinalReturn();
   template <typename IsolateT>
   void AllocateDeferredConstants(IsolateT* isolate, Handle<Script> script);
 

@@ -2098,13 +2098,6 @@
   'built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/throws-if-exportname-not-string': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12085
-  'language/statements/class/subclass/derived-class-return-override-catch-finally': [FAIL],
-  'language/statements/class/subclass/derived-class-return-override-catch-finally-arrow': [FAIL],
-  'language/statements/class/subclass/derived-class-return-override-finally-super': [FAIL],
-  'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
-  'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12524
   'built-ins/Date/prototype/setHours/arg-coercion-order': [FAIL],
   'built-ins/Date/prototype/setMinutes/arg-coercion-order': [FAIL],
