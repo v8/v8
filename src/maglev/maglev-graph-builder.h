@@ -1879,6 +1879,8 @@ class MaglevGraphBuilder {
       compiler::FeedbackSource const& feedback_source,
       compiler::AccessMode access_mode);
 
+  ReduceResult BuildLoadTypedArrayLength(ValueNode* object,
+                                         ElementsKind elements_kind);
   ValueNode* BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
                                         ElementsKind elements_kind);
   void BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
@@ -1920,8 +1922,9 @@ class MaglevGraphBuilder {
   // side effects, record its value, and allow that value to be re-used on
   // subsequent loads.
   void RecordKnownProperty(ValueNode* lookup_start_object,
-                           compiler::NameRef name, ValueNode* value,
-                           bool is_const, compiler::AccessMode access_mode);
+                           KnownNodeAspects::LoadedPropertyMapKey key,
+                           ValueNode* value, bool is_const,
+                           compiler::AccessMode access_mode);
   ReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                          compiler::NameRef name);
 

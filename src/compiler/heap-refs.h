@@ -381,12 +381,13 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   bool should_access_heap() const;
 
+  ObjectData* data() const;
+
   struct Hash {
     size_t operator()(ObjectRef ref) const { return ref.hash_value(); }
   };
 
  protected:
-  ObjectData* data() const;
   ObjectData* data_;  // Should be used only by object() getters.
 
  private:

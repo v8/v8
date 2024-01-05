@@ -603,39 +603,27 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
+void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
-  if (ElementsKindSize(elements_kind_) == 1) {
-    UseRegister(index_input());
-  } else {
-    UseAndClobberRegister(index_input());
-  }
+  DefineAsRegister(this);
 }
-void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
+void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-
+  Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
     __ CompareObjectTypeAndAssert(object, JS_TYPED_ARRAY_TYPE, eq,
                                   AbortReason::kUnexpectedValue);
   }
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register byte_length = temps.Acquire();
-  __ LoadBoundedSizeFromObject(byte_length, object,
+  __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
+    // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ Cmp(byte_length,
-           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)));
-  } else {
-    __ Cmp(byte_length, index);
+    __ Lsr(result_register, result_register,
+           base::bits::CountTrailingZeros(element_size));
   }
-  // We use an unsigned comparison to handle negative indices as well.
-  __ EmitEagerDeoptIf(kUnsignedLessThanEqual, DeoptimizeReason::kOutOfBounds,
-                      this);
 }
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }

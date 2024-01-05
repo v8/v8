@@ -37,35 +37,28 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
           Operand(ToRegister(raw_allocation()), offset()));
 }
 
-void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
+void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
-  if (ElementsKindSize(elements_kind_) == 1) {
-    UseRegister(index_input());
-  } else {
-    UseAndClobberRegister(index_input());
-  }
+  DefineAsRegister(this);
 }
-void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
+void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-  Register byte_length = kScratchRegister;
+  Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
     __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
-  __ LoadBoundedSizeFromObject(byte_length, object,
+  __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
+    // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ shlq(index, Immediate(base::bits::CountTrailingZeros(element_size)));
+    __ shrq(result_register,
+            Immediate(base::bits::CountTrailingZeros(element_size)));
   }
-  __ cmpq(index, byte_length);
-  // We use {above_equal} which does an unsigned comparison to handle negative
-  // indices as well.
-  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
 void CheckJSDataViewBounds::SetValueLocationConstraints() {

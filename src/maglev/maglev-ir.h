@@ -184,6 +184,7 @@ class MergePointInterpreterFrameState;
   V(LoadHoleyFixedDoubleArrayElementCheckedNotHole) \
   V(LoadSignedIntDataViewElement)                   \
   V(LoadDoubleDataViewElement)                      \
+  V(LoadTypedArrayLength)                           \
   V(LoadSignedIntTypedArrayElement)                 \
   V(LoadSignedIntTypedArrayElementNoDeopt)          \
   V(LoadUnsignedIntTypedArrayElement)               \
@@ -5210,22 +5211,19 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
   ExternalArrayType element_type_;
 };
 
-class CheckJSTypedArrayBounds
-    : public FixedInputNodeT<2, CheckJSTypedArrayBounds> {
-  using Base = FixedInputNodeT<2, CheckJSTypedArrayBounds>;
+class LoadTypedArrayLength
+    : public FixedInputValueNodeT<1, LoadTypedArrayLength> {
+  using Base = FixedInputValueNodeT<1, LoadTypedArrayLength>;
 
  public:
-  explicit CheckJSTypedArrayBounds(uint64_t bitfield,
-                                   ElementsKind elements_kind)
+  explicit LoadTypedArrayLength(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kUint32};
+  static constexpr OpProperties kProperties = OpProperties::Uint32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   static constexpr int kReceiverIndex = 0;
-  static constexpr int kIndexIndex = 1;
   Input& receiver_input() { return input(kReceiverIndex); }
-  Input& index_input() { return input(kIndexIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -5233,6 +5231,26 @@ class CheckJSTypedArrayBounds
 
  private:
   ElementsKind elements_kind_;
+};
+
+class CheckJSTypedArrayBounds
+    : public FixedInputNodeT<2, CheckJSTypedArrayBounds> {
+  using Base = FixedInputNodeT<2, CheckJSTypedArrayBounds>;
+
+ public:
+  explicit CheckJSTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kUint32, ValueRepresentation::kUint32};
+
+  static constexpr int kIndexIndex = 0;
+  static constexpr int kLengthIndex = 1;
+  Input& index_input() { return input(kIndexIndex); }
+  Input& length_input() { return input(kLengthIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {

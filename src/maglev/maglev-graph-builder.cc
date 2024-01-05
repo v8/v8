@@ -4228,6 +4228,44 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   return AddNewNode<StringAt>({object, index});
 }
 
+namespace {
+ReduceResult TryFindLoadedProperty(
+    const KnownNodeAspects::LoadedPropertyMap& loaded_properties,
+    ValueNode* lookup_start_object,
+    KnownNodeAspects::LoadedPropertyMapKey name) {
+  auto props_for_name = loaded_properties.find(name);
+  if (props_for_name == loaded_properties.end()) return ReduceResult::Fail();
+
+  auto it = props_for_name->second.find(lookup_start_object);
+  if (it == props_for_name->second.end()) return ReduceResult::Fail();
+
+  return it->second;
+}
+
+}  // namespace
+
+ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
+    ValueNode* object, ElementsKind elements_kind) {
+  DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
+  bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
+
+  if (!is_variable_length) {
+    // Note: We can't use broker()->length_string() here, because it could
+    // conflict with redefinitions of the TypedArray length property.
+    RETURN_IF_DONE(TryFindLoadedProperty(
+        known_node_aspects().loaded_constant_properties, object,
+        KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength()));
+  }
+
+  ValueNode* result = AddNewNode<LoadTypedArrayLength>({object}, elements_kind);
+  if (!is_variable_length) {
+    RecordKnownProperty(
+        object, KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength(),
+        result, true, compiler::AccessMode::kLoad);
+  }
+  return result;
+}
+
 ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
 #define BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Type, ...)                       \
@@ -4327,7 +4365,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     return ReduceResult::Fail();
   }
   ValueNode* index = GetUint32ElementIndex(index_object);
-  AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadTypedArrayLength(object, elements_kind));
+  AddNewNode<CheckJSTypedArrayBounds>({index, length});
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
@@ -4788,59 +4828,59 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   }
 }
 
-void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
-                                             compiler::NameRef name,
-                                             ValueNode* value, bool is_const,
-                                             compiler::AccessMode access_mode) {
+void MaglevGraphBuilder::RecordKnownProperty(
+    ValueNode* lookup_start_object, KnownNodeAspects::LoadedPropertyMapKey key,
+    ValueNode* value, bool is_const, compiler::AccessMode access_mode) {
   DCHECK(!value->properties().is_conversion());
   KnownNodeAspects::LoadedPropertyMap& loaded_properties =
       is_const ? known_node_aspects().loaded_constant_properties
                : known_node_aspects().loaded_properties;
-  // Try to get loaded_properties[name] if it already exists, otherwise
-  // construct loaded_properties[name] = ZoneMap{zone()}.
-  auto& props_for_name =
-      loaded_properties.try_emplace(name, zone()).first->second;
+  // Try to get loaded_properties[key] if it already exists, otherwise
+  // construct loaded_properties[key] = ZoneMap{zone()}.
+  auto& props_for_key =
+      loaded_properties.try_emplace(key, zone()).first->second;
 
   if (!is_const && IsAnyStore(access_mode)) {
     // We don't do any aliasing analysis, so stores clobber all other cached
-    // loads of a property with that name. We only need to do this for
+    // loads of a property with that key. We only need to do this for
     // non-constant properties, since constant properties are known not to
     // change and therefore can't be clobbered.
     // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
     // whether there's an intersection of known maps.
     if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  * Removing all non-constant cached properties with name "
-                << *name.object() << std::endl;
+      std::cout << "  * Removing all non-constant cached ";
+      switch (key.type()) {
+        case KnownNodeAspects::LoadedPropertyMapKey::kName:
+          std::cout << "properties with name " << *key.name().object();
+          break;
+        case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
+          std::cout << "TypedArray length";
+          break;
+      }
+      std::cout << std::endl;
     }
-    props_for_name.clear();
+    props_for_key.clear();
   }
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
               << " known property "
               << PrintNodeLabel(graph_labeller(), lookup_start_object) << ": "
-              << PrintNode(graph_labeller(), lookup_start_object) << " ["
-              << *name.object()
-              << "] = " << PrintNodeLabel(graph_labeller(), value) << ": "
+              << PrintNode(graph_labeller(), lookup_start_object) << " [";
+    switch (key.type()) {
+      case KnownNodeAspects::LoadedPropertyMapKey::kName:
+        std::cout << *key.name().object();
+        break;
+      case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
+        std::cout << "TypedArray length";
+        break;
+    }
+    std::cout << "] = " << PrintNodeLabel(graph_labeller(), value) << ": "
               << PrintNode(graph_labeller(), value) << std::endl;
   }
 
-  props_for_name[lookup_start_object] = value;
+  props_for_key[lookup_start_object] = value;
 }
-
-namespace {
-ReduceResult TryFindLoadedProperty(
-    const KnownNodeAspects::LoadedPropertyMap& loaded_properties,
-    ValueNode* lookup_start_object, compiler::NameRef name) {
-  auto props_for_name = loaded_properties.find(name);
-  if (props_for_name == loaded_properties.end()) return ReduceResult::Fail();
-
-  auto it = props_for_name->second.find(lookup_start_object);
-  if (it == props_for_name->second.end()) return ReduceResult::Fail();
-
-  return it->second;
-}
-}  // namespace
 
 ReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
     ValueNode* lookup_start_object, compiler::NameRef name) {

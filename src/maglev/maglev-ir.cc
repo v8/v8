@@ -2993,6 +2993,21 @@ void CheckFixedArrayNonEmpty::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kWrongEnumIndices));
 }
 
+// TODO(leszeks): Unify this with CheckInt32Condition, by allowing the latter to
+// take Uint32 inputs.
+void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
+  UseRegister(index_input());
+  UseRegister(length_input());
+}
+void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register index = ToRegister(index_input());
+  Register length = ToRegister(length_input());
+  __ CompareInt32AndJumpIf(
+      index, length, kUnsignedGreaterThanEqual,
+      __ GetDeoptLabel(this, DeoptimizeReason::kOutOfBounds));
+}
+
 void CheckInt32Condition::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
