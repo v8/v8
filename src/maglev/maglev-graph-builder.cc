@@ -4179,7 +4179,8 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 // TODO(victorgomes): Consider caching the values and adding an
 // uint32_alternative in node_info.
 ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
-  RecordUseReprHintIfPhi(object, UseRepresentation::kUint32);
+  // Don't record a Uint32 Phi use here, since the tagged path goes via
+  // GetInt32ElementIndex, making this an Int32 Phi use.
 
   switch (object->properties().value_representation()) {
     case ValueRepresentation::kWord64:
