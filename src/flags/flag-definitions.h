@@ -522,7 +522,7 @@ DEFINE_BOOL(force_emit_interrupt_budget_checks, false,
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_BOOL(maglev, ENABLE_MAGLEV_BY_DEFAULT,
             "enable the maglev optimizing compiler")
-#if !defined(ENABLE_MAGLEV_BY_DEFAULT)
+#if !ENABLE_MAGLEV_BY_DEFAULT
 // Enable Maglev on Future for platforms in which it's not enabled by default
 // (eg, Android).
 DEFINE_WEAK_IMPLICATION(future, maglev)
