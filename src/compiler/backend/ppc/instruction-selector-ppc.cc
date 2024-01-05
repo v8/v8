@@ -1273,10 +1273,11 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
     if (CanCover(node, input.node()) && input.IsLoad()) {
       LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
       if (load_rep.representation() == MachineRepresentation::kWord64) {
-        Node* base = input.node()->InputAt(0);
-        Node* offset = input.node()->InputAt(1);
-        bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
-                          node->opcode() == IrOpcode::kWord64AtomicLoad);
+        Node* load_op = input.node();
+        Node* base = load_op->InputAt(0);
+        Node* offset = load_op->InputAt(1);
+        bool is_atomic = (load_op->opcode() == IrOpcode::kWord32AtomicLoad ||
+                          load_op->opcode() == IrOpcode::kWord64AtomicLoad);
         Emit(kPPC_LoadByteRev64 | AddressingModeField::encode(kMode_MRR),
              g.DefineAsRegister(node), g.UseRegister(base),
              g.UseRegister(offset), g.UseImmediate(is_atomic));
@@ -1298,10 +1299,11 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
     if (CanCover(node, input.node()) && input.IsLoad()) {
       LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
       if (load_rep.representation() == MachineRepresentation::kWord32) {
-        Node* base = input.node()->InputAt(0);
-        Node* offset = input.node()->InputAt(1);
-        bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
-                          node->opcode() == IrOpcode::kWord64AtomicLoad);
+        Node* load_op = input.node();
+        Node* base = load_op->InputAt(0);
+        Node* offset = load_op->InputAt(1);
+        bool is_atomic = (load_op->opcode() == IrOpcode::kWord32AtomicLoad ||
+                          load_op->opcode() == IrOpcode::kWord64AtomicLoad);
         Emit(kPPC_LoadByteRev32 | AddressingModeField::encode(kMode_MRR),
              g.DefineAsRegister(node), g.UseRegister(base),
              g.UseRegister(offset), g.UseImmediate(is_atomic));
