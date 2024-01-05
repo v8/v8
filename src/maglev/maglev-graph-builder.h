@@ -1837,9 +1837,15 @@ class MaglevGraphBuilder {
 
   compiler::OptionalObjectRef TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo const& access_info);
-  compiler::OptionalObjectRef TryFoldLoadConstantDataField(
+  compiler::OptionalJSObjectRef TryGetConstantDataFieldHolder(
       compiler::PropertyAccessInfo const& access_info,
       ValueNode* lookup_start_object);
+  compiler::OptionalObjectRef TryFoldLoadConstantDataField(
+      compiler::JSObjectRef holder,
+      compiler::PropertyAccessInfo const& access_info);
+  base::Optional<double> TryFoldLoadConstantDoubleField(
+      compiler::JSObjectRef holder,
+      compiler::PropertyAccessInfo const& access_info);
 
   // Returns the loaded value node but doesn't update the accumulator yet.
   ValueNode* BuildLoadField(compiler::PropertyAccessInfo const& access_info,

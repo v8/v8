@@ -2648,6 +2648,15 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
             }
             break;
           }
+          case PolymorphicAccessInfo::kConstantDouble: {
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            DoubleRegister double_scratch = temps.AcquireDouble();
+            double constant = access_info.constant_double();
+            __ Move(double_scratch, constant);
+            __ AllocateHeapNumber(node->register_snapshot(), result,
+                                  double_scratch);
+            break;
+          }
           case PolymorphicAccessInfo::kModuleExport: {
             Register cell = map;  // Reuse scratch.
             __ Move(cell, access_info.cell());

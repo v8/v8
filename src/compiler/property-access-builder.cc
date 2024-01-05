@@ -208,7 +208,12 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     holder = m.Ref(broker()).AsJSObject();
   }
 
-  OptionalObjectRef value = holder->GetOwnFastDataProperty(
+  if (access_info.field_representation().IsDouble()) {
+    base::Optional<double> value = holder->GetOwnFastConstantDoubleProperty(
+        broker(), access_info.field_index(), dependencies());
+    return value.has_value() ? jsgraph()->ConstantNoHole(*value) : nullptr;
+  }
+  OptionalObjectRef value = holder->GetOwnFastConstantDataProperty(
       broker(), access_info.field_representation(), access_info.field_index(),
       dependencies());
   return value.has_value() ? jsgraph()->ConstantNoHole(*value, broker())

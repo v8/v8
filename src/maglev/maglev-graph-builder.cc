@@ -3565,23 +3565,36 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
   return constant;
 }
 
-compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
+compiler::OptionalJSObjectRef MaglevGraphBuilder::TryGetConstantDataFieldHolder(
     compiler::PropertyAccessInfo const& access_info,
     ValueNode* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return {};
-  compiler::OptionalJSObjectRef source;
   if (access_info.holder().has_value()) {
-    source = access_info.holder();
-  } else if (compiler::OptionalHeapObjectRef c =
-                 TryGetConstant(lookup_start_object)) {
-    if (!c.value().IsJSObject()) return {};
-    source = c.value().AsJSObject();
-  } else {
-    return {};
+    return access_info.holder();
   }
-  return source.value().GetOwnFastDataProperty(
+  if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
+    if (c.value().IsJSObject()) {
+      return c.value().AsJSObject();
+    }
+  }
+  return {};
+}
+
+compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
+    compiler::JSObjectRef holder,
+    compiler::PropertyAccessInfo const& access_info) {
+  DCHECK(!access_info.field_representation().IsDouble());
+  return holder.GetOwnFastConstantDataProperty(
       broker(), access_info.field_representation(), access_info.field_index(),
       broker()->dependencies());
+}
+
+base::Optional<double> MaglevGraphBuilder::TryFoldLoadConstantDoubleField(
+    compiler::JSObjectRef holder,
+    compiler::PropertyAccessInfo const& access_info) {
+  DCHECK(access_info.field_representation().IsDouble());
+  return holder.GetOwnFastConstantDoubleProperty(
+      broker(), access_info.field_index(), broker()->dependencies());
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
@@ -3635,12 +3648,23 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
 ValueNode* MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo const& access_info,
     ValueNode* lookup_start_object) {
-  compiler::OptionalObjectRef constant =
-      TryFoldLoadConstantDataField(access_info, lookup_start_object);
-  if (constant.has_value()) {
-    return GetConstant(constant.value());
+  compiler::OptionalJSObjectRef constant_holder =
+      TryGetConstantDataFieldHolder(access_info, lookup_start_object);
+  if (constant_holder) {
+    if (access_info.field_representation().IsDouble()) {
+      base::Optional<double> constant =
+          TryFoldLoadConstantDoubleField(constant_holder.value(), access_info);
+      if (constant.has_value()) {
+        return GetFloat64Constant(constant.value());
+      }
+    } else {
+      compiler::OptionalObjectRef constant =
+          TryFoldLoadConstantDataField(constant_holder.value(), access_info);
+      if (constant.has_value()) {
+        return GetConstant(constant.value());
+      }
+    }
   }
-
   // Resolve property holder.
   ValueNode* load_source;
   if (access_info.holder().has_value()) {
@@ -4059,16 +4083,34 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
         case compiler::PropertyAccessInfo::kFastDataConstant: {
           field_repr =
               field_repr.generalize(access_info.field_representation());
-          compiler::OptionalObjectRef constant =
-              TryFoldLoadConstantDataField(access_info, lookup_start_object);
-          if (constant.has_value()) {
-            poly_access_infos.push_back(
-                PolymorphicAccessInfo::Constant(maps, constant.value()));
-          } else {
-            poly_access_infos.push_back(PolymorphicAccessInfo::DataLoad(
-                maps, access_info.field_representation(), access_info.holder(),
-                access_info.field_index()));
+
+          compiler::OptionalJSObjectRef constant_holder =
+              TryGetConstantDataFieldHolder(access_info, lookup_start_object);
+          if (constant_holder) {
+            if (access_info.field_representation().IsDouble()) {
+              base::Optional<double> constant = TryFoldLoadConstantDoubleField(
+                  constant_holder.value(), access_info);
+              if (constant.has_value()) {
+                poly_access_infos.push_back(
+                    PolymorphicAccessInfo::ConstantDouble(maps,
+                                                          constant.value()));
+                break;
+              }
+            } else {
+              compiler::OptionalObjectRef constant =
+                  TryFoldLoadConstantDataField(constant_holder.value(),
+                                               access_info);
+              if (constant.has_value()) {
+                poly_access_infos.push_back(
+                    PolymorphicAccessInfo::Constant(maps, constant.value()));
+                break;
+              }
+            }
           }
+
+          poly_access_infos.push_back(PolymorphicAccessInfo::DataLoad(
+              maps, access_info.field_representation(), access_info.holder(),
+              access_info.field_index()));
           break;
         }
         case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
@@ -8261,8 +8303,11 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     bool found_on_proto = holder.has_value();
     compiler::JSObjectRef holder_ref =
         found_on_proto ? holder.value() : callable;
+    if (access_info.field_representation().IsDouble()) {
+      return ReduceResult::Fail();
+    }
     compiler::OptionalObjectRef has_instance_field =
-        holder_ref.GetOwnFastDataProperty(
+        holder_ref.GetOwnFastConstantDataProperty(
             broker(), access_info.field_representation(),
             access_info.field_index(), broker()->dependencies());
     if (!has_instance_field.has_value() ||
@@ -8737,8 +8782,9 @@ base::Optional<FastObject> MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 #endif
 
     // Note: the use of RawInobjectPropertyAt (vs. the higher-level
-    // GetOwnFastDataProperty) here is necessary, since the underlying value
-    // may be `uninitialized`, which the latter explicitly does not support.
+    // GetOwnFastConstantDataProperty) here is necessary, since the underlying
+    // value may be `uninitialized`, which the latter explicitly does not
+    // support.
     compiler::OptionalObjectRef maybe_boilerplate_value =
         boilerplate.RawInobjectPropertyAt(
             broker(),

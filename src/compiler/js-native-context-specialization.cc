@@ -757,7 +757,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     OptionalJSObjectRef holder = access_info.holder();
     bool found_on_proto = holder.has_value();
     JSObjectRef holder_ref = found_on_proto ? holder.value() : receiver.value();
-    OptionalObjectRef constant = holder_ref.GetOwnFastDataProperty(
+    if (access_info.field_representation().IsDouble()) return NoChange();
+    OptionalObjectRef constant = holder_ref.GetOwnFastConstantDataProperty(
         broker(), access_info.field_representation(), access_info.field_index(),
         dependencies());
     if (!constant.has_value() || !constant->IsHeapObject() ||

@@ -12,4 +12,4 @@ deadlock:GlobalSafepoint::EnterGlobalSafepointScope
 # Allow racy reads of constant HeapNumber field values, for concurrent compilers
 # that promise that this race is benign (compilation will fail if the race
 # happens).
-race:RacyWrapForReadOfConstant
+race:RacyReadHeapNumberBits

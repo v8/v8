@@ -8561,9 +8561,10 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   if (!holder.has_value()) return inference.NoChange();
 
   // Bail out if the exec method is not the original one.
-  OptionalObjectRef constant =
-      holder->GetOwnFastDataProperty(broker(), ai_exec.field_representation(),
-                                     ai_exec.field_index(), dependencies());
+  if (ai_exec.field_representation().IsDouble()) return inference.NoChange();
+  OptionalObjectRef constant = holder->GetOwnFastConstantDataProperty(
+      broker(), ai_exec.field_representation(), ai_exec.field_index(),
+      dependencies());
   if (!constant.has_value() ||
       !constant->equals(native_context().regexp_exec_function(broker()))) {
     return inference.NoChange();
