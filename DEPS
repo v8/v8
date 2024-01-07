@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '721476ca9ba5606d5978dca49f79bbf17747f153',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2c361187830bd00e10f75e88300932c490b7bf11',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '961317d5472b453569d596e83b53a3998a89bc97',
   'buildtools/linux64': {
@@ -311,7 +311,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '40e35a76af71511ee701001df5bc1ba216472d67',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '657c88b9c012b3f8036f891f2c819626e74f31c9',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9eb79319239629c1b23cf7a59e5ebb2bab319a34',
   'tools/luci-go': {
       'packages': [
         {
@@ -327,7 +327,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0efbd21db7715658abdf83ff72289facc165fb3c',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'd556a0f9346a02113cec2c418a66216253d60053',
     'condition': 'not build_with_chromium',
   }
 }
