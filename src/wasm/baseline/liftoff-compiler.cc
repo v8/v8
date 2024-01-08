@@ -3329,10 +3329,10 @@ class LiftoffCompiler {
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * memory_index * 2;
       __ LoadFullPointer(memory_start, memory_start, buffer_offset);
-    }
 #ifdef V8_ENABLE_SANDBOX
-    __ DecodeSandboxedPointer(memory_start);
+      __ DecodeSandboxedPointer(memory_start);
 #endif
+    }
     __ cache_state()->SetMemStartCacheRegister(memory_start, memory_index);
     return memory_start;
   }
@@ -5133,10 +5133,10 @@ class LiftoffCompiler {
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * imm.memory->index * 2;
       __ LoadFullPointer(addr, addr, buffer_offset);
-    }
 #ifdef V8_ENABLE_SANDBOX
-    __ DecodeSandboxedPointer(addr);
+      __ DecodeSandboxedPointer(addr);
 #endif
+    }
     __ emit_i32_add(addr, addr, index);
     pinned.clear(LiftoffRegister(index));
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));

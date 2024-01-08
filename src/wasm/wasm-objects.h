@@ -365,7 +365,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
   DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
-  DECL_SANDBOXED_POINTER_ACCESSORS(memory0_start, uint8_t*)
+  DECL_PRIMITIVE_ACCESSORS(memory0_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)

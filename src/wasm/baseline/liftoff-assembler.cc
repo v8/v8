@@ -660,10 +660,10 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
                           kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
-    }
 #ifdef V8_ENABLE_SANDBOX
-    DecodeSandboxedPointer(target.cached_mem_start);
+      DecodeSandboxedPointer(target.cached_mem_start);
 #endif
+    }
   }
 }
 

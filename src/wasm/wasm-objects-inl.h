@@ -180,10 +180,8 @@ void WasmGlobalObject::SetRef(Handle<Object> value) {
 CAST_ACCESSOR(WasmTrustedInstanceData)
 OBJECT_CONSTRUCTORS_IMPL(WasmTrustedInstanceData, ExposedTrustedObject)
 
-// TODO(14499): This can be a raw pointer now that it is stored in the trusted
-// space.
-SANDBOXED_POINTER_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
-                            kMemory0StartOffset)
+PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
+                    kMemory0StartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
                     kMemory0SizeOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
