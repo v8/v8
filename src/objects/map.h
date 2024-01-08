@@ -882,8 +882,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);
 
-  static const int kMaxPreAllocatedPropertyFields = 255;
-
   static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   class BodyDescriptor;

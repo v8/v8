@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/base/optional.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
 // TODO(jkummerow): Consider forward-declaring instead.
@@ -876,6 +877,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
   static const int kMaxInstanceSize = 255 * kTaggedSize;
+  // kMaxInstanceSize in words must fit in one byte.
+  static_assert((kMaxInstanceSize >> kTaggedSizeLog2) <= kMaxUInt8);
 
   static const int kMapCacheSize = 128;
 

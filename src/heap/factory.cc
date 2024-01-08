@@ -3722,6 +3722,8 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
   if (number_of_properties >= JSObject::kMapCacheSize) {
     return handle(context->slow_object_with_object_prototype_map(), isolate());
   }
+  // TODO(chromium:1503456): remove once fixed.
+  CHECK_LE(0, number_of_properties);
 
   Handle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
                                isolate());
