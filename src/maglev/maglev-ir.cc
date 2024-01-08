@@ -2724,12 +2724,19 @@ void LoadPolymorphicDoubleField::GenerateCode(MaglevAssembler* masm,
             }
             break;
           }
+          case PolymorphicAccessInfo::kConstantDouble: {
+            double constant = access_info.constant_double();
+            __ Move(result, constant);
+            break;
+          }
           case PolymorphicAccessInfo::kStringLength:
             __ StringLength(scratch, object);
             __ Int32ToDouble(result, scratch);
             break;
-          default:
-            UNREACHABLE();
+
+          case PolymorphicAccessInfo::kModuleExport:
+          case PolymorphicAccessInfo::kNotFound:
+            break;
         }
       },
       ToDoubleRegister(result()));
