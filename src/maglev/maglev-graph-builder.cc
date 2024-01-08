@@ -335,7 +335,8 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
 
   DeoptFrameScope* parent() const { return parent_; }
 
-  DeoptFrame::FrameData data() const { return data_; }
+  DeoptFrame::FrameData& data() { return data_; }
+  const DeoptFrame::FrameData& data() const { return data_; }
 
  private:
   MaglevGraphBuilder* builder_;

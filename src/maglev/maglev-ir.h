@@ -1136,6 +1136,9 @@ class DeoptFrame {
   DeoptFrame(FrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
 
+  DeoptFrame(const FrameData& data, DeoptFrame* parent)
+      : data_(data), parent_(parent) {}
+
   FrameType type() const { return data_.tag(); }
   DeoptFrame* parent() { return parent_; }
   const DeoptFrame* parent() const { return parent_; }
