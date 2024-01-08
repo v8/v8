@@ -4375,7 +4375,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
       while (right > 0) {
         DCHECK_LE(left, right);
-        const int mid = (left + right) / 2;
+        const int mid = left + (right - left) / 2;
         if (position > Smi::ToInt(ends->get(mid))) {
           left = mid + 1;
         } else if (position <= Smi::ToInt(ends->get(mid - 1))) {
