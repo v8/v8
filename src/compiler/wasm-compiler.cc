@@ -3633,28 +3633,33 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::CheckBoundsAndAlignment(
 
   const uintptr_t align_mask = access_size - 1;
 
-  // Don't emit an alignment check if the index is a constant.
-  // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
-  UintPtrMatcher match(index);
-  if (match.HasResolvedValue()) {
-    uintptr_t effective_offset = match.ResolvedValue() + offset;
-    if ((effective_offset & align_mask) != 0) {
-      // statically known to be unaligned; trap.
-      TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
+  // Do alignment checks only for > 1 byte accesses (otherwise they trivially
+  // pass).
+  if (align_mask != 0) {
+    // Don't emit an alignment check if the index is a constant.
+    // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
+    UintPtrMatcher match(index);
+    if (match.HasResolvedValue()) {
+      uintptr_t effective_offset = match.ResolvedValue() + offset;
+      if ((effective_offset & align_mask) != 0) {
+        // statically known to be unaligned; trap.
+        TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
+      }
+      return {index, bounds_check_result};
     }
-    return {index, bounds_check_result};
+
+    // Unlike regular memory accesses, atomic memory accesses should trap if
+    // the effective offset is misaligned.
+    // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
+    Node* effective_offset =
+        gasm_->IntAdd(MemBuffer(memory->index, offset), index);
+
+    Node* cond =
+        gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
+    TrapIfFalse(wasm::kTrapUnalignedAccess,
+                gasm_->Word32Equal(cond, Int32Constant(0)), position);
   }
 
-  // Unlike regular memory accesses, atomic memory accesses should trap if
-  // the effective offset is misaligned.
-  // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
-  Node* effective_offset =
-      gasm_->IntAdd(MemBuffer(memory->index, offset), index);
-
-  Node* cond =
-      gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
-  TrapIfFalse(wasm::kTrapUnalignedAccess,
-              gasm_->Word32Equal(cond, Int32Constant(0)), position);
   return {index, bounds_check_result};
 }
 

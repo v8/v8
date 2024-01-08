@@ -5379,18 +5379,24 @@ class TurboshaftGraphBuildingInterface {
 
     const uintptr_t align_mask = repr.SizeInBytes() - 1;
 
-    // TODO(14108): Optimize constant index as per wasm-compiler.cc.
+    // Do alignment checks only for > 1 byte accesses (otherwise they trivially
+    // pass).
+    if (align_mask != 0) {
+      // TODO(14108): Optimize constant index as per wasm-compiler.cc.
 
-    // Unlike regular memory accesses, atomic memory accesses should trap if
-    // the effective offset is misaligned.
-    // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
-    OpIndex effective_offset =
-        __ WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
+      // Unlike regular memory accesses, atomic memory accesses should trap if
+      // the effective offset is misaligned.
+      // TODO(wasm): this addition is redundant with one inserted by
+      // {MemBuffer}.
+      OpIndex effective_offset =
+          __ WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
 
-    V<Word32> cond = __ TruncateWordPtrToWord32(
-        __ WordPtrBitwiseAnd(effective_offset, __ IntPtrConstant(align_mask)));
-    __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)), OpIndex::Invalid(),
-                 TrapId::kTrapUnalignedAccess);
+      V<Word32> cond = __ TruncateWordPtrToWord32(__ WordPtrBitwiseAnd(
+          effective_offset, __ IntPtrConstant(align_mask)));
+      __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)),
+                   OpIndex::Invalid(), TrapId::kTrapUnalignedAccess);
+    }
+
     return {converted_index, bounds_check_result};
   }
 

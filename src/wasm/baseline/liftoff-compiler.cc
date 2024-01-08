@@ -3209,6 +3209,9 @@ class LiftoffCompiler {
   void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
                          uintptr_t offset, Register index,
                          LiftoffRegList pinned) {
+    DCHECK_NE(0, access_size);
+    // For access_size 1 there is no minimum alignment.
+    if (access_size == 1) return;
     SCOPED_CODE_COMMENT("alignment check");
     Label* trap_label =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess);
