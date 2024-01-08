@@ -196,10 +196,8 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_top_address,
                     Address*, kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, isorecursive_canonical_types,
                     const uint32_t*, kIsorecursiveCanonicalTypesOffset)
-// TODO(14499): This can be a raw pointer now that it is stored in the
-// trusted space.
-SANDBOXED_POINTER_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
-                            kGlobalsStartOffset)
+PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
+                    kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
           Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_function_targets,

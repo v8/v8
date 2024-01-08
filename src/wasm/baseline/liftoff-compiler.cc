@@ -2647,13 +2647,13 @@ class LiftoffCompiler {
               global->index);
       __ LoadFullPointer(addr, addr, field_offset);
       *offset = 0;
+#ifdef V8_ENABLE_SANDBOX
+      __ DecodeSandboxedPointer(addr);
+#endif
     } else {
       LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
       *offset = global->offset;
     }
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(addr);
-#endif
       return addr;
   }
 
