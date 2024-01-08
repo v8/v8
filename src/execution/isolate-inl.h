@@ -136,6 +136,13 @@ bool Isolate::is_execution_terminating() {
 
 #ifdef DEBUG
 Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
+  if (is_execution_terminating() && !v8_flags.strict_termination_checks) {
+    // We may be missing places where termination checks are handled properly.
+    // If that's the case, it's likely that we'll have one sitting around when
+    // we return from a builtin. If we're not looking to find such bugs
+    // (strict_termination_checks is false), simply return the exception marker.
+    return ReadOnlyRoots(this).exception();
+  }
   DCHECK_EQ(has_exception(), result == ReadOnlyRoots(this).exception());
 #ifdef V8_COMPRESS_POINTERS
   // Check that the returned pointer is actually part of the current isolate,
