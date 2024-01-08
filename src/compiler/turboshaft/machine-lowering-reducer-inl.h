@@ -1634,7 +1634,8 @@ class MachineLoweringReducer : public Next {
 
     // Check if field is a mutable double field.
     GOTO_IF(
-        UNLIKELY(__ TruncateWordPtrToWord32(__ WordPtrBitwiseAnd(index, 0x1))),
+        UNLIKELY(__ Word32Equal(
+            __ Word32BitwiseAnd(__ TruncateWordPtrToWord32(index), 0x1), 0x1)),
         double_field);
 
     {
