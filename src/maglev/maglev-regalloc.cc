@@ -377,6 +377,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->SetConstantLocation();
     USE(value);
   }
+  for (const auto& [value, constant] : graph_->uint32()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
   for (const auto& [value, constant] : graph_->float64()) {
     constant->SetConstantLocation();
     USE(value);

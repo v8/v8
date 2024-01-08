@@ -555,6 +555,9 @@ inline void MaglevAssembler::Move(Register dst, Tagged<TaggedIndex> i) {
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
   mov(dst, Operand(i));
 }
+inline void MaglevAssembler::Move(Register dst, uint32_t i) {
+  mov(dst, Operand(static_cast<int32_t>(i)));
+}
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   vmov(dst, base::Double(n));
 }

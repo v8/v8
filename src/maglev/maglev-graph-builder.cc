@@ -38,6 +38,7 @@
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
@@ -4178,7 +4179,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 
 // TODO(victorgomes): Consider caching the values and adding an
 // uint32_alternative in node_info.
-ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   // Don't record a Uint32 Phi use here, since the tagged path goes via
   // GetInt32ElementIndex, making this an Int32 Phi use.
 
@@ -4186,16 +4187,38 @@ ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kWord64:
       UNREACHABLE();
     case ValueRepresentation::kTagged:
-      // TODO(victorgomes): Consider create Uint32Constants and
-      // CheckedObjectToUnsignedIndex.
+      // TODO(victorgomes): Consider creating a CheckedObjectToUnsignedIndex.
+      if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
+        int32_t value = constant->value().value();
+        if (value < 0) {
+          return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
+        }
+        return GetUint32Constant(value);
+      }
       return AddNewNode<CheckedInt32ToUint32>({GetInt32ElementIndex(object)});
     case ValueRepresentation::kInt32:
+      if (Int32Constant* constant = object->TryCast<Int32Constant>()) {
+        int32_t value = constant->value();
+        if (value < 0) {
+          return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
+        }
+        return GetUint32Constant(value);
+      }
       return AddNewNode<CheckedInt32ToUint32>({object});
     case ValueRepresentation::kUint32:
       return object;
     case ValueRepresentation::kFloat64:
-      // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
+      if (Float64Constant* constant = object->TryCast<Float64Constant>()) {
+        double value = constant->value().get_scalar();
+        uint32_t uint32_value;
+        if (!DoubleToUint32IfEqualToSelf(value, &uint32_value)) {
+          return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
+        }
+        return GetUint32Constant(uint32_value);
+      }
+      V8_FALLTHROUGH;
     case ValueRepresentation::kHoleyFloat64: {
+      // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
       return AddNewNode<CheckedTruncateFloat64ToUint32>({object});
     }
   }
@@ -4364,8 +4387,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     // mechanism instead, so that we do not need to check this early.
     return ReduceResult::Fail();
   }
-  ValueNode* index = GetUint32ElementIndex(index_object);
+  ValueNode* index;
   ValueNode* length;
+  GET_VALUE_OR_ABORT(index, GetUint32ElementIndex(index_object));
   GET_VALUE_OR_ABORT(length, BuildLoadTypedArrayLength(object, elements_kind));
   AddNewNode<CheckJSTypedArrayBounds>({index, length});
   switch (keyed_mode.access_mode()) {

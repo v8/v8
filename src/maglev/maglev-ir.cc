@@ -739,7 +739,11 @@ Handle<Object> TaggedIndexConstant::DoReify(LocalIsolate* isolate) const {
 }
 
 Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(value());
+  return isolate->factory()->NewNumberFromInt<AllocationType::kOld>(value());
+}
+
+Handle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
+  return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
 Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
@@ -835,6 +839,10 @@ void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
 
+void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, value());
+}
+
 void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
                                        DoubleRegister reg) {
   __ Move(reg, value());
@@ -869,6 +877,10 @@ void TaggedIndexConstant::GenerateCode(MaglevAssembler* masm,
 void Int32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Int32Constant::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {}
+
+void Uint32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
+void Uint32Constant::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {}
 
 void Float64Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Float64Constant::GenerateCode(MaglevAssembler* masm,
@@ -6230,6 +6242,11 @@ void TaggedIndexConstant::PrintParams(
 
 void Int32Constant::PrintParams(std::ostream& os,
                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void Uint32Constant::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
 }
 

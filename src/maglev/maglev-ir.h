@@ -127,6 +127,7 @@ class MergePointInterpreterFrameState;
   V(ExternalConstant)               \
   V(Float64Constant)                \
   V(Int32Constant)                  \
+  V(Uint32Constant)                 \
   V(RootConstant)                   \
   V(SmiConstant)                    \
   V(TaggedIndexConstant)
@@ -3120,6 +3121,32 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
 
  private:
   const int32_t value_;
+};
+
+class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
+  using Base = FixedInputValueNodeT<0, Uint32Constant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit Uint32Constant(uint64_t bitfield, uint32_t value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Uint32();
+
+  uint32_t value() const { return value_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
+
+ private:
+  const uint32_t value_;
 };
 
 class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {

@@ -354,7 +354,7 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
-  Int32Constant* GetInt32Constant(int constant) {
+  Int32Constant* GetInt32Constant(int32_t constant) {
     // The constant must fit in a Smi, since it could be later tagged in a Phi.
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->int32().find(constant);
@@ -362,6 +362,19 @@ class MaglevGraphBuilder {
       Int32Constant* node = CreateNewConstantNode<Int32Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->int32().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  Uint32Constant* GetUint32Constant(int constant) {
+    // The constant must fit in a Smi, since it could be later tagged in a Phi.
+    DCHECK(Smi::IsValid(constant));
+    auto it = graph_->uint32().find(constant);
+    if (it == graph_->uint32().end()) {
+      Uint32Constant* node = CreateNewConstantNode<Uint32Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->uint32().emplace(constant, node);
       return node;
     }
     return it->second;
@@ -1826,11 +1839,11 @@ class MaglevGraphBuilder {
   }
   ValueNode* GetInt32ElementIndex(ValueNode* index_object);
 
-  ValueNode* GetUint32ElementIndex(interpreter::Register reg) {
+  ReduceResult GetUint32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
     return GetUint32ElementIndex(index_object);
   }
-  ValueNode* GetUint32ElementIndex(ValueNode* index_object);
+  ReduceResult GetUint32ElementIndex(ValueNode* index_object);
 
   bool CanTreatHoleAsUndefined(
       base::Vector<const compiler::MapRef> const& receiver_maps);
