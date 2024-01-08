@@ -4120,13 +4120,12 @@ void Isolate::InitializeThreadLocal() {
 }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
-  if (try_catch_handler() != nullptr) {
-    try_catch_handler()->can_continue_ = false;
-    try_catch_handler()->exception_ = reinterpret_cast<void*>(
-        ReadOnlyRoots(heap()).termination_exception().ptr());
-  }
   DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                  is_execution_terminating());
+  if (try_catch_handler() == nullptr) return;
+  try_catch_handler()->can_continue_ = false;
+  try_catch_handler()->exception_ = reinterpret_cast<void*>(
+      ReadOnlyRoots(heap()).termination_exception().ptr());
 }
 
 bool Isolate::PropagateExceptionToExternalTryCatch(

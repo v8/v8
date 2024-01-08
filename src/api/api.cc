@@ -10587,9 +10587,11 @@ MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
     if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy() &&
-        !i_isolate_->is_execution_terminating()) {
+        !i_isolate_->has_exception()) {
       microtask_queue_->PerformCheckpoint(
           reinterpret_cast<Isolate*>(i_isolate_));
+      DCHECK_IMPLIES(i_isolate_->has_exception(),
+                     i_isolate_->is_execution_terminating());
     }
   }
 #ifdef DEBUG
