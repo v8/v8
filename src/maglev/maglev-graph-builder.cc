@@ -4292,26 +4292,23 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
 
 ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
-#define BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Type, ...)                       \
-  if (broker()->dependencies()->DependOnArrayBufferDetachingProtector()) { \
-    return AddNewNode<Load##Type##TypedArrayElementNoDeopt>(__VA_ARGS__);  \
-  }                                                                        \
-  return AddNewNode<Load##Type##TypedArrayElement>(__VA_ARGS__);
+#define BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Type)                     \
+  return AddNewNode<Load##Type##TypedArrayElement>({object, index}, \
+                                                   elements_kind);
+
   switch (elements_kind) {
     case INT8_ELEMENTS:
     case INT16_ELEMENTS:
     case INT32_ELEMENTS:
-      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(SignedInt, {object, index},
-                                        elements_kind);
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(SignedInt);
     case UINT8_CLAMPED_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
-      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(UnsignedInt, {object, index},
-                                        elements_kind);
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(UnsignedInt);
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
-      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Double, {object, index}, elements_kind);
+      BUILD_AND_RETURN_LOAD_TYPED_ARRAY(Double);
     default:
       UNREACHABLE();
   }
@@ -4320,22 +4317,17 @@ ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
 
 void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
-#define BUILD_STORE_TYPED_ARRAY(Type, ...)                                 \
-  if (broker()->dependencies()->DependOnArrayBufferDetachingProtector()) { \
-    AddNewNode<Store##Type##TypedArrayElementNoDeopt>(__VA_ARGS__);        \
-  } else {                                                                 \
-    AddNewNode<Store##Type##TypedArrayElement>(__VA_ARGS__);               \
-  }
+#define BUILD_STORE_TYPED_ARRAY(Type, value)                           \
+  AddNewNode<Store##Type##TypedArrayElement>({object, index, (value)}, \
+                                             elements_kind);
+
   // TODO(leszeks): These operations have a deopt loop when the ToNumber
   // conversion sees a type other than number or oddball. Turbofan has the same
   // deopt loop, but ideally we'd avoid it.
   switch (elements_kind) {
     case UINT8_CLAMPED_ELEMENTS: {
-      BUILD_STORE_TYPED_ARRAY(Int,
-                              {object, index,
-                               GetAccumulatorUint8ClampedForToNumber(
-                                   ToNumberHint::kAssumeNumberOrOddball)},
-                              elements_kind)
+      BUILD_STORE_TYPED_ARRAY(Int, GetAccumulatorUint8ClampedForToNumber(
+                                       ToNumberHint::kAssumeNumberOrOddball))
       break;
     }
     case INT8_ELEMENTS:
@@ -4344,19 +4336,13 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(Int,
-                              {object, index,
-                               GetAccumulatorTruncatedInt32ForToNumber(
-                                   ToNumberHint::kAssumeNumberOrOddball)},
-                              elements_kind)
+      BUILD_STORE_TYPED_ARRAY(Int, GetAccumulatorTruncatedInt32ForToNumber(
+                                       ToNumberHint::kAssumeNumberOrOddball))
       break;
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(Double,
-                              {object, index,
-                               GetAccumulatorHoleyFloat64ForToNumber(
-                                   ToNumberHint::kAssumeNumberOrOddball)},
-                              elements_kind)
+      BUILD_STORE_TYPED_ARRAY(Double, GetAccumulatorHoleyFloat64ForToNumber(
+                                          ToNumberHint::kAssumeNumberOrOddball))
       break;
     default:
       UNREACHABLE();
@@ -4388,11 +4374,15 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     // mechanism instead, so that we do not need to check this early.
     return ReduceResult::Fail();
   }
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(leszeks): Eliminate this check.
+    AddNewNode<CheckTypedArrayNotDetached>({object});
+  }
   ValueNode* index;
   ValueNode* length;
   GET_VALUE_OR_ABORT(index, GetUint32ElementIndex(index_object));
   GET_VALUE_OR_ABORT(length, BuildLoadTypedArrayLength(object, elements_kind));
-  AddNewNode<CheckJSTypedArrayBounds>({index, length});
+  AddNewNode<CheckTypedArrayBounds>({index, length});
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);

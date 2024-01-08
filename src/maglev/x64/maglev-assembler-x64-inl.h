@@ -671,19 +671,14 @@ template <typename NodeT>
 inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
                                                    Register scratch,
                                                    NodeT* node) {
-  if (!code_gen_state()
-           ->broker()
-           ->dependencies()
-           ->DependOnArrayBufferDetachingProtector()) {
-    // A detached buffer leads to megamorphic feedback, so we won't have a deopt
-    // loop if we deopt here.
-    LoadTaggedField(scratch,
-                    FieldOperand(array, JSArrayBufferView::kBufferOffset));
-    LoadTaggedField(scratch,
-                    FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
-    testl(scratch, Immediate(JSArrayBuffer::WasDetachedBit::kMask));
-    EmitEagerDeoptIf(not_zero, DeoptimizeReason::kArrayBufferWasDetached, node);
-  }
+  // A detached buffer leads to megamorphic feedback, so we won't have a deopt
+  // loop if we deopt here.
+  LoadTaggedField(scratch,
+                  FieldOperand(array, JSArrayBufferView::kBufferOffset));
+  LoadTaggedField(scratch,
+                  FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+  testl(scratch, Immediate(JSArrayBuffer::WasDetachedBit::kMask));
+  EmitEagerDeoptIf(not_zero, DeoptimizeReason::kArrayBufferWasDetached, node);
 }
 
 inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {

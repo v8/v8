@@ -187,11 +187,8 @@ class MergePointInterpreterFrameState;
   V(LoadDoubleDataViewElement)                      \
   V(LoadTypedArrayLength)                           \
   V(LoadSignedIntTypedArrayElement)                 \
-  V(LoadSignedIntTypedArrayElementNoDeopt)          \
   V(LoadUnsignedIntTypedArrayElement)               \
-  V(LoadUnsignedIntTypedArrayElementNoDeopt)        \
   V(LoadDoubleTypedArrayElement)                    \
-  V(LoadDoubleTypedArrayElementNoDeopt)             \
   V(LoadEnumCacheLength)                            \
   V(LoadGlobal)                                     \
   V(LoadNamedGeneric)                               \
@@ -279,7 +276,8 @@ class MergePointInterpreterFrameState;
   V(CheckInt32Condition)                    \
   V(CheckFixedArrayNonEmpty)                \
   V(CheckJSDataViewBounds)                  \
-  V(CheckJSTypedArrayBounds)                \
+  V(CheckTypedArrayBounds)                  \
+  V(CheckTypedArrayNotDetached)             \
   V(CheckMaps)                              \
   V(CheckMapsWithMigration)                 \
   V(CheckNumber)                            \
@@ -302,9 +300,7 @@ class MergePointInterpreterFrameState;
   V(StoreFixedDoubleArrayElement)           \
   V(StoreFloat64)                           \
   V(StoreIntTypedArrayElement)              \
-  V(StoreIntTypedArrayElementNoDeopt)       \
   V(StoreDoubleTypedArrayElement)           \
-  V(StoreDoubleTypedArrayElementNoDeopt)    \
   V(StoreSignedIntDataViewElement)          \
   V(StoreDoubleDataViewElement)             \
   V(StoreTaggedFieldNoWriteBarrier)         \
@@ -5263,12 +5259,29 @@ class LoadTypedArrayLength
   ElementsKind elements_kind_;
 };
 
-class CheckJSTypedArrayBounds
-    : public FixedInputNodeT<2, CheckJSTypedArrayBounds> {
-  using Base = FixedInputNodeT<2, CheckJSTypedArrayBounds>;
+class CheckTypedArrayNotDetached
+    : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
+  using Base = FixedInputNodeT<1, CheckTypedArrayNotDetached>;
 
  public:
-  explicit CheckJSTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckTypedArrayNotDetached(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
+  using Base = FixedInputNodeT<2, CheckTypedArrayBounds>;
+
+ public:
+  explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kUint32, ValueRepresentation::kUint32};
@@ -6131,31 +6144,14 @@ class LoadDoubleDataViewElement
     ElementsKind elements_kind_;                                       \
   };
 
-// Nodes that can deopt are larger, since they contain the DeoptInfo. Thus, to
-// have better performance, we split the LoadxxxTypedArrayElement nodes in two:
-// those who can deopt and those who can't. Deoptimization in a
-// LoadxxxTypedArrayElement node is always because of a detached array buffer.
-// The NoDeopt versions of the nodes rely on the ArrayBufferDetachingProtector,
-// while the deopting versions have a runtime check that triggers a deopt if the
-// buffer is detached.
-LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement,
-                 OpProperties::EagerDeopt() | OpProperties::Int32(),
-                 INT8_ELEMENTS, INT16_ELEMENTS, INT32_ELEMENTS)
-LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElementNoDeopt, OpProperties::Int32(),
+LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement, OpProperties::Int32(),
                  INT8_ELEMENTS, INT16_ELEMENTS, INT32_ELEMENTS)
 
-LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElement,
-                 OpProperties::EagerDeopt() | OpProperties::Uint32(),
+LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElement, OpProperties::Uint32(),
                  UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
                  UINT16_ELEMENTS, UINT32_ELEMENTS)
-LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElementNoDeopt,
-                 OpProperties::Uint32(), UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
-                 UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
 
-LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement,
-                 OpProperties::EagerDeopt() | OpProperties::Float64(),
-                 FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
-LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, OpProperties::Float64(),
+LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
                  FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 
 #undef LOAD_TYPED_ARRAY
@@ -6190,28 +6186,11 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, OpProperties::Float64(),
     ElementsKind elements_kind_;                                           \
   };
 
-// Nodes that can deopt are larger, since they contain the DeoptInfo. Thus, to
-// have better performance, we split the StorexxxTypedArrayElement nodes in two:
-// those who can deopt and those who can't. Deoptimization in a
-// StorexxxTypedArrayElement node is always because of a detached array buffer.
-// The NoDeopt versions of the nodes rely on the ArrayBufferDetachingProtector,
-// while the deopting versions have a runtime check that triggers a deopt if the
-// buffer is detached.
-STORE_TYPED_ARRAY(StoreIntTypedArrayElement,
-                  OpProperties::EagerDeopt() | OpProperties::CanWrite(),
+STORE_TYPED_ARRAY(StoreIntTypedArrayElement, OpProperties::CanWrite(),
                   ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
                   INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
                   UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
-STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, OpProperties::CanWrite(),
-                  ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
-                  INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
-                  UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
-
-STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement,
-                  OpProperties::EagerDeopt() | OpProperties::CanWrite(),
-                  ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
-                  FLOAT64_ELEMENTS)
-STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, OpProperties::CanWrite(),
+STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
                   ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
 #undef STORE_TYPED_ARRAY
