@@ -5597,6 +5597,7 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
           object = BuildAllocateFastObject(
               FastObject(new_target_function->AsJSFunction(), zone(), broker()),
               AllocationType::kYoung);
+          ClearCurrentRawAllocation();
         } else {
           object = BuildCallBuiltin<Builtin::kFastNewObject>(
               {GetConstant(current_function), new_target});
