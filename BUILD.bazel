@@ -49,7 +49,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
 # v8_enable_builtins_reordering
-# v8_enable_external_code_space
 # v8_postmortem_support
 # v8_use_siphash
 # v8_no_inline
@@ -260,6 +259,23 @@ selects.config_setting_group(
     ],
 )
 
+# Enable support for external code range relative to the pointer compression
+# cage.
+v8_flag(
+    name = "v8_enable_external_code_space",
+    default = True,
+)
+
+# Enable support for external code range if enable_pointer_compression_shared_cage and
+# v8_enable_external_code_space.
+selects.config_setting_group(
+    name = "enable_external_code_space",
+    match_all = [
+        ":enable_pointer_compression_shared_cage",
+        ":is_v8_enable_external_code_space",
+    ],
+)
+
 # We use a string flag to create a 3 value-logic.
 # If no explicit value for v8_enable_short_builtin_calls, we set it to 'none'.
 v8_string(
@@ -444,6 +460,11 @@ v8_config(
     }) + select({
         ":is_v8_enable_short_builtin_calls": [
             "V8_SHORT_BUILTIN_CALLS",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_external_code_space": [
+            "V8_EXTERNAL_CODE_SPACE",
         ],
         "//conditions:default": [],
     }) + select({
