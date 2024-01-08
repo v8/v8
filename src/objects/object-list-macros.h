@@ -88,6 +88,8 @@ namespace internal {
   V(SloppyArgumentsElements)                  \
   V(SwissNameDictionary)                      \
   V(ThinString)                               \
+  V(TrustedByteArray)                         \
+  V(TrustedFixedArray)                        \
   V(UncompiledDataWithoutPreparseData)        \
   V(WeakArrayList)                            \
   V(WeakFixedArray)                           \
