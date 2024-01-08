@@ -746,8 +746,11 @@ class WasmGenerator {
 
   template <WasmOpcode memory_op, ValueKind... arg_kinds>
   void memop(DataRange* data) {
-    const uint8_t align =
-        data->getPseudoRandom<uint8_t>() % (max_alignment(memory_op) + 1);
+    // Atomic operations need to be aligned exactly to their max alignment.
+    const bool is_atomic = memory_op >> 8 == kAtomicPrefix;
+    const uint8_t align = is_atomic ? max_alignment(memory_op)
+                                    : data->getPseudoRandom<uint8_t>() %
+                                          (max_alignment(memory_op) + 1);
     uint32_t offset = data->get<uint16_t>();
     // With a 1/256 chance generate potentially very large offsets.
     if ((offset & 0xff) == 0xff) {
@@ -769,8 +772,7 @@ class WasmGenerator {
 
   template <WasmOpcode Op, ValueKind... Args>
   void atomic_op(DataRange* data) {
-    const uint8_t align =
-        data->getPseudoRandom<uint8_t>() % (max_alignment(Op) + 1);
+    const uint8_t align = max_alignment(Op);
     uint32_t offset = data->get<uint16_t>();
     // With a 1/256 chance generate potentially very large offsets.
     if ((offset & 0xff) == 0xff) {

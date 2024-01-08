@@ -22,10 +22,10 @@ function BasicMemory64Tests(num_pages, use_atomic_ops) {
   builder.addMemory64(num_pages, num_pages);
   builder.exportMemoryAs('memory');
 
-  // A memory operation with alignment (0) and offset (0).
+  // A memory operation with alignment (2) and offset (0).
   let op = (non_atomic, atomic) => use_atomic_ops ?
-      [kAtomicPrefix, atomic, 0, 0] :
-      [non_atomic, 0, 0];
+      [kAtomicPrefix, atomic, 2, 0] :
+      [non_atomic, 2, 0];
   builder.addFunction('load', makeSig([kWasmF64], [kWasmI32]))
       .addBody([
         kExprLocalGet, 0,                           // local.get 0

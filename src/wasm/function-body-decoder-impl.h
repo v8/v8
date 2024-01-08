@@ -5886,9 +5886,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 0;
     }
 
-    MemoryAccessImmediate imm = MakeMemoryAccessImmediate(
-        opcode_length, ElementSizeLog2Of(memtype.representation()));
+    const uint32_t element_size_log2 =
+        ElementSizeLog2Of(memtype.representation());
+    MemoryAccessImmediate imm =
+        MakeMemoryAccessImmediate(opcode_length, element_size_log2);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return false;
+    if (!VALIDATE(imm.alignment == element_size_log2)) {
+      this->DecodeError(this->pc_,
+                        "invalid alignment for atomic operation; expected "
+                        "alignment is %u, actual alignment is %u",
+                        element_size_log2, imm.alignment);
+    }
 
     const FunctionSig* sig =
         WasmOpcodes::SignatureForAtomicOp(opcode, imm.memory->is_memory64);

@@ -606,17 +606,17 @@ function TestStore(func, buffer, value, size) {
       kExprI32Const, 16,
       kExprI32Const, 20,
       kAtomicPrefix,
-      kExprI32AtomicStore, 0, 0xFC, 0xFF, 0x3a,
+      kExprI32AtomicStore, 2, 0xFC, 0xFF, 0x3a,
       kExprI32Const, 16,
       kAtomicPrefix,
-      kExprI32AtomicLoad, 0, 0xFC, 0xFF, 0x3a])
+      kExprI32AtomicLoad, 2, 0xFC, 0xFF, 0x3a])
     .exportAs("loadStore");
   builder.addFunction("storeOob", kSig_v_v)
     .addBody([
       kExprI32Const, 16,
       kExprI32Const, 20,
       kAtomicPrefix,
-      kExprI32AtomicStore, 0, 0xFC, 0xFF, 0xFF, 0x3a])
+      kExprI32AtomicStore, 2, 0xFC, 0xFF, 0xFF, 0x3a])
     .exportAs("storeOob");
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = (new WebAssembly.Instance(module,

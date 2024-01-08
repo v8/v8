@@ -281,7 +281,7 @@ WASM_EXEC_TEST(I32AtomicStoreParameter) {
 
   r.Build(
       {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_LOCAL_GET(0),
-                             MachineRepresentation::kWord8),
+                             MachineRepresentation::kWord32),
        WASM_ATOMICS_BINOP(kExprI32AtomicAdd, WASM_I32V_1(0), WASM_LOCAL_GET(0),
                           MachineRepresentation::kWord32)});
   CHECK_EQ(10, r.Call(10));
@@ -423,7 +423,7 @@ void RunU64BinOp_OOB(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   r.builder().SetMemoryShared();
 
   r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize), WASM_ZERO64,
-                              MachineRepresentation::kWord32)});
+                              MachineRepresentation::kWord64)});
 
   CHECK_TRAP64(r.Call());
 }

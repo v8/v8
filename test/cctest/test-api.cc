@@ -26614,7 +26614,7 @@ TEST(WasmI32AtomicWaitCallback) {
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
                              WASM_LOCAL_GET(1),
-                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 4)});
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 2, 4)});
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26650,7 +26650,7 @@ TEST(WasmI64AtomicWaitCallback) {
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),
                              WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(1)),
-                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 8)});
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 3, 8)});
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
