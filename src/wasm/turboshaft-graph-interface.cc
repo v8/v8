@@ -3802,7 +3802,7 @@ class TurboshaftGraphBuildingInterface {
       // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
       if (!memory_can_move()) kind = kind.Immutable();
-      return __ Load(trusted_data_, kind, MemoryRepresentation::PointerSized(),
+      return __ Load(trusted_data_, kind, kMaybeSandboxedPointer,
                      WasmTrustedInstanceData::kMemory0StartOffset);
     }
 

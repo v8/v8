@@ -900,8 +900,8 @@ class WasmLoweringReducer : public Next {
         return OpIndex::Invalid();
       }
     } else {
-      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance, GlobalsStart, MemoryRepresentation::PointerSized());
+      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(instance, GlobalsStart,
+                                                   kMaybeSandboxedPointer);
       if (mode == GlobalMode::kLoad) {
         LoadOp::Kind load_kind = is_mutable
                                      ? LoadOp::Kind::RawAligned()

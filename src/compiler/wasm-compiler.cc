@@ -3445,7 +3445,7 @@ Node* WasmGraphBuilder::MemSize(uint32_t mem_index) {
 Node* WasmGraphBuilder::LoadMemStart(uint32_t mem_index) {
   if (mem_index == 0) {
     return LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Start,
-                                              MachineType::Pointer());
+                                              kMaybeSandboxedPointer);
   }
   Node* memory_bases_and_sizes =
       LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
@@ -3571,7 +3571,7 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
     *offset = gasm_->IntPtrConstant(
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
   } else {
-    *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::Pointer());
+    *base = LOAD_INSTANCE_FIELD(GlobalsStart, kMaybeSandboxedPointer);
     *offset = gasm_->IntPtrConstant(global.offset);
   }
 }
@@ -8364,7 +8364,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             mem_size = gasm_->UintPtrConstant(0);
           } else if (module_->memories.size() == 1) {
             mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
-                Memory0Start, MachineType::Pointer());
+                Memory0Start, kMaybeSandboxedPointer);
             mem_size = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
                 Memory0Size, MachineType::UintPtr());
           } else {
