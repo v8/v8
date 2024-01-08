@@ -34,7 +34,12 @@ import re
 import subprocess
 import sys
 import shutil
+
+from enum import IntEnum
 from pathlib import Path
+
+V8_DIR = Path(__file__).absolute().parent.parent.parent
+GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 
 USE_PTY = "linux" in sys.platform
 if USE_PTY:
@@ -144,6 +149,45 @@ TESTSUITES_TARGETS = {
 
 OUTDIR = Path("out")
 
+BUILD_DISTRIBUTION_RE = re.compile(r"use_(remoteexec|goma) = (false|true)")
+RECLIENT_CFG_RE = re.compile(r"rbe_cfg_dir = \"[^\"]+\"\n")
+
+class Reclient(IntEnum):
+  NONE = 0
+  GOOGLE = 1
+  CUSTOM = 2
+
+
+def get_v8_solution(solutions):
+  for solution in solutions:
+    if (solution["name"] == "v8" or
+        solution["url"] == "https://chromium.googlesource.com/v8/v8.git"):
+      return solution
+  return None
+
+
+def detect_reclient():
+  if not GCLIENT_FILE_PATH.exists():
+    return Reclient.NONE
+  with open(GCLIENT_FILE_PATH) as f:
+    content = f.read()
+  try:
+    config_dict = {}
+    exec(content, config_dict)
+  except SyntaxError as e:
+    print("# Can't detect reclient due to .gclient syntax errors.")
+    return Reclient.NONE
+  v8_solution = get_v8_solution(config_dict["solutions"])
+  if not v8_solution:
+    print("# Can't detect reclient due to missing v8 gclient solution.")
+    return Reclient.NONE
+  custom_vars = v8_solution.get("custom_vars", {})
+  if custom_vars.get("download_remoteexec_cfg"):
+    return Reclient.GOOGLE
+  if custom_vars.get("rbe_instance"):
+    return Reclient.CUSTOM
+  return Reclient.NONE
+
 
 # Note: this function is reused by update-compile-commands.py. When renaming
 # this, please update that file too!
@@ -169,16 +213,26 @@ def detect_goma():
   return None
 
 
+RECLIENT_MODE = detect_reclient()
 GOMADIR = detect_goma()
-IS_GOMA_MACHINE = GOMADIR is not None
 
-USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
+# Let reclient have precendence over goma.
+IS_GOMA_MACHINE = not RECLIENT_MODE and GOMADIR is not None
+
+RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
+BUILD_DISTRIBUTION_LINE = ""
+if RECLIENT_MODE:
+  BUILD_DISTRIBUTION_LINE = "use_remoteexec = true"
+  if RECLIENT_MODE == Reclient.CUSTOM:
+    BUILD_DISTRIBUTION_LINE += f"\nrbe_cfg_dir = \"{RECLIENT_CFG_REL}\""
+elif IS_GOMA_MACHINE:
+  BUILD_DISTRIBUTION_LINE = "use_goma = true"
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
 is_debug = false
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
@@ -191,7 +245,7 @@ is_component_build = true
 is_debug = true
 symbol_level = 2
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
@@ -203,7 +257,7 @@ is_component_build = true
 is_debug = true
 symbol_level = 1
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
@@ -272,8 +326,9 @@ def _call_with_output(cmd):
   return p.returncode, "".join(output)
 
 
-def _write(filename, content):
-  print(f"# echo > {filename} << EOF\n{content}EOF")
+def _write(filename, content, log=True):
+  if log:
+    print(f"# echo > {filename} << EOF\n{content}EOF")
   with filename.open("w") as f:
     f.write(content)
 
@@ -466,6 +521,20 @@ class ManagedConfig(RawConfig):
         self.get_sandbox_flag())
     return template % "\n".join(arch_specific)
 
+  def update_build_distribution_args(self):
+    args_gn = self.path / "args.gn"
+    assert args_gn.exists()
+    with open(args_gn) as f:
+      gn_args = f.read()
+    # Remove custom reclient config path (it will be added again as part of
+    # the config line below if needed).
+    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
+    new_gn_args = BUILD_DISTRIBUTION_RE.sub(
+        BUILD_DISTRIBUTION_LINE, new_gn_args)
+    if gn_args != new_gn_args:
+      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
+      _write(args_gn, new_gn_args, log=False)
+
   def build(self):
     path = self.path
     args_gn = path / "args.gn"
@@ -474,6 +543,8 @@ class ManagedConfig(RawConfig):
       path.mkdir(parents=True)
     if not args_gn.exists():
       _write(args_gn, self.get_gn_args())
+    else:
+      self.update_build_distribution_args()
     return super().build()
 
   def run_tests(self):
