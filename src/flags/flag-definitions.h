@@ -1302,7 +1302,7 @@ DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)
-#if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64 or V8_TARGET_ARCH_ARM
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
 DEFINE_WEAK_IMPLICATION(turboshaft_future,
                         turboshaft_wasm_instruction_selection_experimental)
