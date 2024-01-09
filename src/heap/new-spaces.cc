@@ -924,34 +924,33 @@ void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   PagedSpaceBase::ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
 }
 
-bool PagedSpaceForNewSpace::AddFreshPage() {
-  if (current_capacity_ >= target_capacity_) return false;
-  return AllocatePage();
-}
-
 bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
   return current_capacity_ > target_capacity_;
 }
 
-bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
-                                                  AllocationOrigin origin) {
+bool PagedSpaceForNewSpace::ShouldAllocatedPage() const {
+  if (current_capacity_ < target_capacity_) {
+    return true;
+  }
   DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
   // Allocate another page is `force_allocation_success_` is true,
-  // `UsableCapacity()` is below `TotalCapacity()` and allocating another page
-  // won't exceed `TotalCapacity()`.
+  // `UsableCapacity()` is below `target_capacity_` and allocating another page
+  // won't exceed `target_capacity_`.
   if (force_allocation_success_ ||
-      ((UsableCapacity() < TotalCapacity()) &&
-       (TotalCapacity() - UsableCapacity() >= Page::kPageSize))) {
-    if (!heap()->CanExpandOldGeneration(
-            Size() + heap()->new_lo_space()->Size() + Page::kPageSize)) {
-      // Assuming all of new space is alive, doing a full GC and promoting all
-      // objects should still succeed. Don't let new space grow if it means it
-      // will exceed the available size of old space.
-      return false;
-    }
-    return AllocatePage();
+      ((UsableCapacity() < target_capacity_) &&
+       (target_capacity_ - UsableCapacity() >= Page::kPageSize))) {
+    // Assuming all of new space is alive, doing a full GC and promoting all
+    // objects should still succeed. Don't let new space grow if it means it
+    // will exceed the available size of old space.
+    return heap()->CanExpandOldGeneration(
+        Size() + heap()->new_lo_space()->Size() + Page::kPageSize);
   }
   return false;
+}
+
+bool PagedSpaceForNewSpace::TryAddPage() {
+  if (!ShouldAllocatedPage()) return false;
+  return AllocatePage();
 }
 
 bool PagedSpaceForNewSpace::AllocatePage() {
