@@ -526,8 +526,10 @@ class BytecodeGenerator::ControlScopeForDerivedConstructor final
     : public BytecodeGenerator::ControlScope {
  public:
   ControlScopeForDerivedConstructor(BytecodeGenerator* generator,
+                                    Register result_register,
                                     BytecodeLabels* check_return_value_labels)
       : ControlScope(generator),
+        result_register_(result_register),
         check_return_value_labels_(check_return_value_labels) {}
 
  protected:
@@ -538,6 +540,7 @@ class BytecodeGenerator::ControlScopeForDerivedConstructor final
     if (command == CMD_RETURN) {
       PopContextToExpectedDepth();
       generator()->builder()->SetStatementPosition(source_position);
+      generator()->builder()->StoreAccumulatorInRegister(result_register_);
       generator()->builder()->Jump(check_return_value_labels_->New());
       return true;
     }
@@ -545,6 +548,7 @@ class BytecodeGenerator::ControlScopeForDerivedConstructor final
   }
 
  private:
+  Register result_register_;
   BytecodeLabels* check_return_value_labels_;
 };
 
@@ -1570,7 +1574,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     // just forward a super call.
 
     BytecodeLabels check_return_value(zone());
-    ControlScopeForDerivedConstructor control(this, &check_return_value);
+    Register result = register_allocator()->NewRegister();
+    ControlScopeForDerivedConstructor control(this, result,
+                                              &check_return_value);
 
     GenerateBytecodeBodyWithoutImplicitFinalReturn();
 
@@ -1587,6 +1593,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
       }
 
       check_return_value.Bind(builder());
+      builder()->LoadAccumulatorWithRegister(result);
       builder()->JumpIfUndefined(return_this.New());
       BuildReturn(literal->return_position());
 
