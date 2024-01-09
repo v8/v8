@@ -105,7 +105,7 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
   bool SupportsExtendingLAB() const final { return true; }
 
  private:
-  bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
+  bool TryAddPage(int size_in_bytes, AllocationOrigin origin);
   bool WaitForSweepingForAllocation(int size_in_bytes, AllocationOrigin origin);
 
   PagedNewSpace* const space_;
