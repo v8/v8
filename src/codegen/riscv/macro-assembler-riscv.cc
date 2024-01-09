@@ -113,6 +113,11 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
                    &heal_optimized_code_slot);
 
+  // The entry references a CodeWrapper object. Unwrap it now.
+  __ LoadCodePointerField(
+      optimized_code_entry,
+      FieldMemOperand(optimized_code_entry, CodeWrapper::kCodeOffset));
+
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   __ JumpIfCodeIsMarkedForDeoptimization(optimized_code_entry, scratch1,
@@ -344,6 +349,25 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   bind(&done);
 }
 
+void MacroAssembler::LoadTrustedPointerField(Register destination,
+                                             MemOperand field_operand,
+                                             IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadIndirectPointerField(destination, field_operand, tag);
+#else
+  LoadTaggedField(destination, field_operand);
+#endif
+}
+
+void MacroAssembler::StoreTrustedPointerField(Register value,
+                                              MemOperand dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  StoreIndirectPointerField(value, dst_field_operand);
+#else
+  StoreTaggedField(value, dst_field_operand);
+#endif
+}
+
 void MacroAssembler::LoadExternalPointerField(Register destination,
                                               MemOperand field_operand,
                                               ExternalPointerTag tag,
@@ -373,6 +397,36 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   LoadWord(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
 }
+
+#ifdef V8_TARGET_ARCH_RISCV64
+void MacroAssembler::LoadIndirectPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register handle = temps.hasAvailable() ? temps.Acquire() : t8;
+  Ld_wu(handle, field_operand);
+
+  ResolveIndirectPointerHandle(destination, handle, tag);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
+void MacroAssembler::StoreIndirectPointerField(Register value,
+                                               MemOperand dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld_w(scratch, FieldMemOperand(
+                    value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+  St_w(scratch, dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
+}
+#endif
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
   if (registers.is_empty()) return;

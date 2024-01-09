@@ -1128,6 +1128,31 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
 
+  // Load a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void LoadTrustedPointerField(Register destination, MemOperand field_operand,
+                               IndirectPointerTag tag);
+  // Store a trusted pointer field.
+  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
+  // Load a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void LoadCodePointerField(Register destination, MemOperand field_operand) {
+    LoadTrustedPointerField(destination, field_operand,
+                            kCodeIndirectPointerTag);
+  }
+  // Store a code pointer field.
+  void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
+    StoreTrustedPointerField(value, dst_field_operand);
+  }
+
+  // Loads a field containing an off-heap ("external") pointer and does
+  // necessary decoding if sandbox is enabled.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTag tag,
+                                Register isolate_root = no_reg);
+
 #if V8_TARGET_ARCH_RISCV64
   // ---------------------------------------------------------------------------
   // Pointer compression Support
@@ -1168,6 +1193,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreSandboxedPointerField(Register value,
                                   const MemOperand& dst_field_operand);
 
+  // Loads an indirect pointer field.
+  // Only available when the sandbox is enabled, but always visible to avoid
+  // having to place the #ifdefs into the caller.
+  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
+                                IndirectPointerTag tag);
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled, but always visible to avoid
+  // having to place the #ifdefs into the caller.
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
   void AtomicDecompressTagged(Register dst, const MemOperand& src);
 
@@ -1202,11 +1237,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Sw(value, dst_field_operand);
   }
 #endif
-  // Loads a field containing off-heap pointer and does necessary decoding
-  // if sandboxed external pointers are enabled.
-  void LoadExternalPointerField(Register destination, MemOperand field_operand,
-                                ExternalPointerTag tag,
-                                Register isolate_root = no_reg);
   // Control-flow integrity:
 
   // Define a function entrypoint. This doesn't emit any code for this

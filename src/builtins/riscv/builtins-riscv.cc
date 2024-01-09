@@ -2873,9 +2873,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register scratch = t2;
   Label allocate_vector, done;
 
-  __ LoadTaggedField(vector,
-              FieldMemOperand(kWasmInstanceRegister,
-                              WasmInstanceObject::kFeedbackVectorsOffset));
+  __ LoadTaggedField(
+      vector, FieldMemOperand(kWasmInstanceRegister,
+                              WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ CalcScaledAddress(vector, vector, func_index, kTaggedSizeLog2);
   __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
@@ -2948,7 +2948,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // x17). Use that to compute the jump target.
   __ LoadWord(kScratchReg,
               FieldMemOperand(kWasmInstanceRegister,
-                              WasmInstanceObject::kJumpTableStartOffset));
+                              WasmTrustedInstanceData::kJumpTableStartOffset));
   __ AddWord(s1, s1, Operand(kScratchReg));
   // Finally, jump to the entrypoint.
   __ Jump(s1);
