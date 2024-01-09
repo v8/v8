@@ -6283,6 +6283,10 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
                    &heal_optimized_code_slot);
 
+  // The entry references a CodeWrapper object. Unwrap it now.
+  __ Ld(optimized_code_entry,
+        FieldMemOperand(optimized_code_entry, CodeWrapper::kCodeOffset));
+
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   __ TestCodeIsMarkedForDeoptimizationAndJump(optimized_code_entry, scratch1,
