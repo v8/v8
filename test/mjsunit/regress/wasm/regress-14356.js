@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-staging --experimental-wasm-gc
-// Flags: --experimental-wasm-relaxed-simd
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

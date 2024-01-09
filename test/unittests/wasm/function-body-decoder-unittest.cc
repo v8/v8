@@ -1113,7 +1113,6 @@ TEST_F(FunctionBodyDecoderTest, Unreachable_select2) {
 TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(return_call);
 
   uint8_t sig_index = builder.AddSignature(sigs.i_ii());
   uint8_t function_index = builder.AddFunction(sig_index);
@@ -1684,8 +1683,6 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 }
 
 TEST_F(FunctionBodyDecoderTest, SimpleReturnCalls) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
 
   builder.AddFunction(sigs.i_v());
@@ -1699,8 +1696,6 @@ TEST_F(FunctionBodyDecoderTest, SimpleReturnCalls) {
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnCallsWithTooFewArguments) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
 
   builder.AddFunction(sigs.i_i());
@@ -1713,8 +1708,6 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallsWithTooFewArguments) {
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnCallWithSubtype) {
-  WASM_FEATURE_SCOPE(return_call);
-
   auto sig = MakeSig::Returns(kWasmAnyRef);
   auto callee_sig = MakeSig::Returns(kWasmAnyRef.AsNonNull());
   builder.AddFunction(&callee_sig);
@@ -1723,8 +1716,6 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallWithSubtype) {
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnCallsWithMismatchedSigs) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
 
   builder.AddFunction(sigs.i_f());
@@ -1740,8 +1731,6 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallsWithMismatchedSigs) {
 }
 
 TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(kWasmFuncRef, 20, true, 30);
 
@@ -1757,8 +1746,6 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(kWasmFuncRef, 20, false, 20);
 
@@ -1777,8 +1764,6 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeTable(wasm::kWasmVoid);
 
@@ -1806,8 +1791,6 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
-  WASM_FEATURE_SCOPE(return_call);
-
   const FunctionSig* sig = sigs.i_i();
 
   uint8_t sig0 = builder.AddSignature(sigs.i_v());

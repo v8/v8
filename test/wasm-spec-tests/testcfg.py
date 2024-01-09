@@ -14,7 +14,7 @@ proposal_flags = [
     },
     {
         'name': 'tail-call',
-        'flags': ['--experimental-wasm-return-call']
+        'flags': []
     },
     {
         'name': 'memory64',
@@ -22,7 +22,7 @@ proposal_flags = [
     },
     {
         'name': 'extended-const',
-        'flags': ['--experimental-wasm-extended-const']
+        'flags': []
     },
     {
         'name': 'function-references',

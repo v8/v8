@@ -69,7 +69,7 @@ V8_INLINE bool ValidateAssumeTrue(bool condition, const char* message) {
         opcode);                                                             \
     return 0;                                                                \
   }                                                                          \
-  this->detected_->Add(kFeature_##feat);
+  this->detected_->Add(kFeature_##feat)
 
 static constexpr LoadType GetLoadType(WasmOpcode opcode) {
   // Hard-code the list of load types. The opcodes are highly unlikely to
@@ -2939,17 +2939,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     control_at(control_depth_of_current_catch())->might_throw = true;
   }
 
-  bool CheckSimdFeatureFlagOpcode(WasmOpcode opcode) {
-    if (!v8_flags.experimental_wasm_relaxed_simd &&
-        WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {
-      this->DecodeError(
-          "simd opcode not available, enable with --experimental-relaxed-simd");
-      return false;
-    }
-
-    return true;
-  }
-
   V8_INLINE ValueType MemoryIndexType(const WasmMemory* memory) {
     return memory->is_memory64 ? kWasmI64 : kWasmI32;
   }
@@ -3082,15 +3071,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   FOREACH_SIMPLE_NON_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
 
-#define BUILD_SIMPLE_OPCODE(op, _, sig, ...)                \
-  DECODE(op) {                                              \
-    if constexpr (decoding_mode == kConstantExpression) {   \
-      if (!VALIDATE(this->enabled_.has_extended_const())) { \
-        NonConstError(this, kExpr##op);                     \
-        return 0;                                           \
-      }                                                     \
-    }                                                       \
-    return BuildSimpleOperator_##sig(kExpr##op);            \
+#define BUILD_SIMPLE_OPCODE(op, _, sig, ...)              \
+  DECODE(op) {                                            \
+    if constexpr (decoding_mode == kConstantExpression) { \
+      this->detected_->Add(kFeature_extended_const);      \
+    }                                                     \
+    return BuildSimpleOperator_##sig(kExpr##op);          \
   }
   FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
@@ -3893,7 +3879,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(ReturnCall) {
-    CHECK_PROTOTYPE_OPCODE(return_call);
+    this->detected_->Add(kFeature_return_call);
     CallFunctionImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
@@ -3908,7 +3894,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(ReturnCallIndirect) {
-    CHECK_PROTOTYPE_OPCODE(return_call);
+    this->detected_->Add(kFeature_return_call);
     CallIndirectImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
@@ -3945,7 +3931,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(ReturnCallRef) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    CHECK_PROTOTYPE_OPCODE(return_call);
+    this->detected_->Add(kFeature_return_call);
     SigIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
@@ -3986,8 +3972,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->template read_prefixed_opcode<ValidationTag>(this->pc_);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
-    if (!CheckSimdFeatureFlagOpcode(full_opcode)) {
-      return 0;
+    if (WasmOpcodes::IsRelaxedSimdOpcode(full_opcode)) {
+      this->detected_->Add(kFeature_relaxed_simd);
     }
     return DecodeSimdOpcode(full_opcode, opcode_length);
   }

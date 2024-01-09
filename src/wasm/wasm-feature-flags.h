@@ -97,31 +97,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Tail call / return call proposal. */                                      \
-  /* https://github.com/webassembly/tail-call */                               \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.7 * */                                                       \
-  /* Shipped in v11.2 * */                                                     \
-  /* ITS: */                                                                   \
-  /* https://groups.google.com/a/chromium.org/g/blink-dev/c/6VEOK4WZ7Wk */     \
-  V(return_call, "return call opcodes", true)                                  \
-                                                                               \
-  /* Extended Constant Expressions Proposal. */                                \
-  /* https://github.com/WebAssembly/extended-const */                          \
-  /* V8 side owner: manoskouk */                                               \
-  /* Staged in v11.3. */                                                       \
-  /* Shipped in v11.4. */                                                      \
-  V(extended_const, "extended constant expressions", true)                     \
-                                                                               \
-  /* Relaxed SIMD proposal. */                                                 \
-  /* https://github.com/WebAssembly/relaxed-simd */                            \
-  /* V8 side owner: gdeepti */                                                 \
-  /* Staged in v11.2. */                                                       \
-  /* Shipped in v11.4. */                                                      \
-  /* ITS: */                                                                   \
-  /* https://groups.google.com/a/chromium.org/g/blink-dev/c/dX61V0HAAz4 */     \
-  V(relaxed_simd, "relaxed simd", true)                                        \
-                                                                               \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
   /* V8 side owner: manoskouk */                                               \
