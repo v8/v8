@@ -556,6 +556,12 @@ class V8_EXPORT Isolate {
     kWasmModuleCompilation = 131,
     kInvalidatedNoUndetectableObjectsProtector = 132,
     kWasmJavaScriptPromiseIntegration = 133,
+    kWasmReturnCall = 134,
+    kWasmExtendedConst = 135,
+    kWasmRelaxedSimd = 136,
+    kWasmTypeReflection = 137,
+    kWasmExnRef = 138,
+    kWasmTypedFuncRef = 139,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

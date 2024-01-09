@@ -29,6 +29,7 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
@@ -3901,7 +3902,37 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
       {kFeature_multi_memory, Feature::kWasmMultiMemory},
       {kFeature_gc, Feature::kWasmGC},
       {kFeature_imported_strings, Feature::kWasmImportedStrings},
+      {kFeature_return_call, Feature::kWasmReturnCall},
+      {kFeature_extended_const, Feature::kWasmExtendedConst},
+      {kFeature_relaxed_simd, Feature::kWasmRelaxedSimd},
+      {kFeature_type_reflection, Feature::kWasmTypeReflection},
+      {kFeature_exnref, Feature::kWasmExnRef},
+      {kFeature_typed_funcref, Feature::kWasmTypedFuncRef},
   };
+
+  // Check that every staging or shipping feature has a use counter as that is
+  // the main point of tracking used features.
+  auto check_use_counter = [](WasmFeature feat) constexpr -> bool {
+    // Some features intentionally do not have a use counter.
+    constexpr WasmFeature kIntentionallyNoUseCounter[] = {
+        kFeature_stringref,    // Deprecated / unlikely to ship.
+        kFeature_inlining,     // Not a user-visible feature.
+        kFeature_js_inlining,  // Not a user-visible feature.
+    };
+    for (auto no_use_counter_feature : kIntentionallyNoUseCounter) {
+      if (feat == no_use_counter_feature) return true;
+    }
+    for (auto [feature, use_counter] : kUseCounters) {
+      if (feat == feature) return true;
+    }
+    return false;
+  };
+#define CHECK_USE_COUNTER(feat, ...) \
+  static_assert(check_use_counter(WasmFeature::kFeature_##feat));
+  FOREACH_WASM_STAGING_FEATURE_FLAG(CHECK_USE_COUNTER)
+  FOREACH_WASM_SHIPPED_FEATURE_FLAG(CHECK_USE_COUNTER)
+  FOREACH_WASM_NON_FLAG_FEATURE(CHECK_USE_COUNTER)
+#undef CHECK_USE_COUNTER
 
   static constexpr size_t kMaxFeatures = arraysize(kUseCounters) + 1;
   base::SmallVector<Feature, kMaxFeatures> use_counter_features;
