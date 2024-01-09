@@ -74,8 +74,8 @@ DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = [
     "d8", "cctest", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-    "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
-    "bigint_shell", "wami"
+    "mkgrokdump", "mksnapshot", "generate-bytecode-expectations",
+    "inspector-test", "bigint_shell", "wami", "gn_args"
 ]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
@@ -147,7 +147,11 @@ TESTSUITES_TARGETS = {
     "webkit": "d8"
 }
 
-OUTDIR = Path("out")
+out_dir_override = os.getenv("V8_GM_OUTDIR")
+if out_dir_override and Path(out_dir_override).is_file:
+  OUTDIR = Path(out_dir_override)
+else:
+  OUTDIR = Path("out")
 
 BUILD_DISTRIBUTION_RE = re.compile(r"use_(remoteexec|goma) = (false|true)")
 RECLIENT_CFG_RE = re.compile(r"rbe_cfg_dir = \"[^\"]+\"\n")
@@ -545,6 +549,9 @@ class ManagedConfig(RawConfig):
       _write(args_gn, self.get_gn_args())
     else:
       self.update_build_distribution_args()
+    # If the target is to just build args.gn then we are done here.
+    if self.targets == {'gn_args'}:
+      return 0
     return super().build()
 
   def run_tests(self):
