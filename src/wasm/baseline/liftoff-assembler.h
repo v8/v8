@@ -766,6 +766,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
+                                uint32_t* protected_load_pc = nullptr,
                                 bool offset_reg_needs_shift = false);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
@@ -780,6 +781,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
                                  int32_t offset_imm, Register src,
                                  LiftoffRegList pinned,
+                                 uint32_t* protected_store_pc = nullptr,
                                  SkipWriteBarrier = kNoSkipWriteBarrier);
   // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);

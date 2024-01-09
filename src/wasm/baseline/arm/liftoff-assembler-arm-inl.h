@@ -835,10 +835,14 @@ inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm, bool needs_shift) {
+
+                                         int32_t offset_imm,
+                                         uint32_t* protected_load_pc,
+                                         bool needs_shift) {
   static_assert(kTaggedSize == kInt32Size);
   liftoff::LoadInternal(this, LiftoffRegister(dst), src_addr, offset_reg,
-                        offset_imm, LoadType::kI32Load, nullptr, needs_shift);
+                        offset_imm, LoadType::kI32Load, protected_load_pc,
+                        needs_shift);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -853,6 +857,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
+                                          uint32_t* protected_store_pc,
                                           SkipWriteBarrier skip_write_barrier) {
   static_assert(kTaggedSize == kInt32Size);
   UseScratchRegisterScope temps{this};
@@ -870,6 +875,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   MemOperand dst_op = actual_offset_reg == no_reg
                           ? MemOperand(dst_addr, offset_imm)
                           : MemOperand(dst_addr, actual_offset_reg);
+
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+
   str(src, dst_op);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;

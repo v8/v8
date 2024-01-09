@@ -2504,9 +2504,30 @@ class LiftoffCompiler {
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    // The decoder only calls this function if the type is nullable.
+    DCHECK(arg.type.is_nullable());
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, arg.type);
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
+        IsSubtypeOf(kWasmI31Ref.AsNonNull(), arg.type, decoder->module_) ||
+        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_) ||
+        IsSubtypeOf(arg.type, kWasmExnRef, decoder->module_)) {
+      // Use an explicit null check if
+      // (1) we cannot use trap handler or
+      // (2) the object might be a Smi or
+      // (3) the object might be a JS object.
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, arg.type);
+    } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+      // Otherwise, load the word after the map word.
+      static_assert(WasmStruct::kHeaderSize > kTaggedSize);
+      static_assert(WasmArray::kHeaderSize > kTaggedSize);
+      static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
+      LiftoffRegister dst = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      uint32_t protected_load_pc = 0;
+      __ Load(dst, obj.gp(), no_reg, kTaggedSize, LoadType::kI32Load,
+              &protected_load_pc);
+      RegisterProtectedInstruction(decoder, protected_load_pc);
+    }
     __ PushRegister(kRef, obj);
   }
 
@@ -3379,13 +3400,7 @@ class LiftoffCompiler {
       __ Load(value, mem, index, offset, type, &protected_load_pc, true,
               i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        protected_instructions_.emplace_back(
-            trap_handler::ProtectedInstructionData{protected_load_pc});
-        source_position_table_builder_.AddPosition(
-            protected_load_pc, SourcePosition(decoder->position()), true);
-        if (for_debugging_) {
-          DefineSafepoint(protected_load_pc);
-        }
+        RegisterProtectedInstruction(decoder, protected_load_pc);
       }
       __ PushRegister(kind, value);
     }
@@ -3536,13 +3551,7 @@ class LiftoffCompiler {
       __ Store(mem, index, offset, value, type, outer_pinned,
                &protected_store_pc, true, i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        protected_instructions_.emplace_back(
-            trap_handler::ProtectedInstructionData{protected_store_pc});
-        source_position_table_builder_.AddPosition(
-            protected_store_pc, SourcePosition(decoder->position()), true);
-        if (for_debugging_) {
-          DefineSafepoint(protected_store_pc);
-        }
+        RegisterProtectedInstruction(decoder, protected_store_pc);
       }
     }
 
@@ -4725,7 +4734,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
+        tmp_reg, pinned, nullptr, LiftoffAssembler::kSkipWriteBarrier);
 
     // Get the upper half word into tmp_reg and extend to a Smi.
     --*index_in_array;
@@ -4734,7 +4743,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, LiftoffAssembler::kSkipWriteBarrier);
+        tmp_reg, pinned, nullptr, LiftoffAssembler::kSkipWriteBarrier);
   }
 
   void Store64BitExceptionValue(Register values_array, int* index_in_array,
@@ -5853,7 +5862,7 @@ class LiftoffCompiler {
       // Skipping the write barrier is safe as long as:
       // (1) {obj} is freshly allocated, and
       // (2) {obj} is in new-space (not pretenured).
-      StoreObjectField(obj.gp(), no_reg, offset, value, pinned,
+      StoreObjectField(decoder, obj.gp(), no_reg, offset, value, false, pinned,
                        field_type.kind(), LiftoffAssembler::kSkipWriteBarrier);
       pinned.clear(value);
     }
@@ -5883,11 +5892,17 @@ class LiftoffCompiler {
     int offset = StructFieldOffset(struct_type, field.field_imm.index);
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
+
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
+    }
     LiftoffRegister value =
         __ GetUnusedRegister(reg_class_for(field_kind), pinned);
-    LoadObjectField(value, obj.gp(), no_reg, offset, field_kind, is_signed,
-                    pinned);
+    LoadObjectField(decoder, value, obj.gp(), no_reg, offset, field_kind,
+                    is_signed, implicit_check, pinned);
     __ PushRegister(unpacked(field_kind), value);
   }
 
@@ -5899,8 +5914,16 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
-    StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_kind);
+
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
+    }
+
+    StoreObjectField(decoder, obj.gp(), no_reg, offset, value, implicit_check,
+                     pinned, field_kind);
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
@@ -5948,7 +5971,7 @@ class LiftoffCompiler {
     // Skipping the write barrier is safe as long as:
     // (1) {obj} is freshly allocated, and
     // (2) {obj} is in new-space (not pretenured).
-    ArrayFillImpl(pinned, obj, index, value, length, elem_kind,
+    ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
                   LiftoffAssembler::kSkipWriteBarrier);
 
     __ PushRegister(kRef, obj);
@@ -5979,9 +6002,9 @@ class LiftoffCompiler {
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
       LiftoffRegister array_length =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LoadObjectField(array_length, array_reg.gp(), no_reg,
+      LoadObjectField(decoder, array_length, array_reg.gp(), no_reg,
                       ObjectAccess::ToTagged(WasmArray::kLengthOffset), kI32,
-                      false, pinned);
+                      false, false, pinned);
       LiftoffRegister index = pinned.set(__ PeekToRegister(2, pinned));
       LiftoffRegister length = pinned.set(__ PeekToRegister(0, pinned));
       LiftoffRegister index_plus_length =
@@ -6002,7 +6025,7 @@ class LiftoffCompiler {
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    ArrayFillImpl(pinned, obj, index, value, length,
+    ArrayFillImpl(decoder, pinned, obj, index, value, length,
                   imm.array_type->element_type().kind(),
                   LiftoffAssembler::kNoSkipWriteBarrier);
   }
@@ -6013,8 +6036,13 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
-    BoundsCheckArray(decoder, array, index, pinned);
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
     if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
     int elem_size_shift = value_kind_size_log2(elem_kind);
@@ -6023,9 +6051,9 @@ class LiftoffCompiler {
     }
     LiftoffRegister value =
         __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
-    LoadObjectField(value, array.gp(), index.gp(),
+    LoadObjectField(decoder, value, array.gp(), index.gp(),
                     wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
-                    elem_kind, is_signed, pinned);
+                    elem_kind, is_signed, false, pinned);
     __ PushRegister(unpacked(elem_kind), value);
   }
 
@@ -6038,25 +6066,36 @@ class LiftoffCompiler {
               value.reg_class());
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
-    BoundsCheckArray(decoder, array, index, pinned);
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
     int elem_size_shift = value_kind_size_log2(elem_kind);
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
-    StoreObjectField(array.gp(), index.gp(),
+    StoreObjectField(decoder, array.gp(), index.gp(),
                      wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
-                     value, pinned, elem_kind);
+                     value, false, pinned, elem_kind);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, array_obj.type);
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, obj.gp(), pinned, array_obj.type);
+    }
     LiftoffRegister len = __ GetUnusedRegister(kGpReg, pinned);
     int kLengthOffset = wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
-    LoadObjectField(len, obj.gp(), no_reg, kLengthOffset, kI32, false, pinned);
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    LoadObjectField(decoder, len, obj.gp(), no_reg, kLengthOffset, kI32,
+                    false /* is_signed */, implicit_null_check, pinned);
     __ PushRegister(kI32, len);
   }
 
@@ -6105,9 +6144,9 @@ class LiftoffCompiler {
       // Skipping the write barrier is safe as long as:
       // (1) {array} is freshly allocated, and
       // (2) {array} is in new-space (not pretenured).
-      StoreObjectField(array.gp(), no_reg, wasm::ObjectAccess::ToTagged(offset),
-                       element, pinned, elem_kind,
-                       LiftoffAssembler::kSkipWriteBarrier);
+      StoreObjectField(decoder, array.gp(), no_reg,
+                       wasm::ObjectAccess::ToTagged(offset), element, false,
+                       pinned, elem_kind, LiftoffAssembler::kSkipWriteBarrier);
     }
 
     // Push the array onto the stack.
@@ -7024,10 +7063,11 @@ class LiftoffCompiler {
     LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
-    LoadObjectField(value, string_reg.gp(), no_reg,
+    LoadObjectField(decoder, value, string_reg.gp(), no_reg,
                     wasm::ObjectAccess::ToTagged(
                         compiler::AccessBuilder::ForStringLength().offset),
-                    ValueKind::kI32, false /* is_signed */, pinned);
+                    ValueKind::kI32, false /* is_signed */,
+                    false /* trapping */, pinned);
     __ PushRegister(kI32, value);
   }
 
@@ -7894,7 +7934,7 @@ class LiftoffCompiler {
             IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
         __ LoadTaggedPointer(real_rtt, real_rtt, real_sig_id,
                              ObjectAccess::ToTagged(WeakArrayList::kHeaderSize),
-                             true);
+                             nullptr, true);
         // Remove the weak reference tag.
         if (kSystemPointerSize == 4) {
           __ emit_i32_andi(real_rtt, real_rtt,
@@ -7991,7 +8031,7 @@ class LiftoffCompiler {
       Register ref = first_param;
       __ LoadTaggedPointer(ref, ift_refs, index,
                            ObjectAccess::ElementOffsetInTaggedFixedArray(0),
-                           true);
+                           nullptr, true);
       LoadTrustedDataFromMaybeInstanceObject(first_param, ref,
                                              tmp2 /* scratch */);
 
@@ -8201,15 +8241,21 @@ class LiftoffCompiler {
                       trapping);
   }
 
-  void BoundsCheckArray(FullDecoder* decoder, LiftoffRegister array,
-                        LiftoffRegister index, LiftoffRegList pinned) {
+  void BoundsCheckArray(FullDecoder* decoder, bool implicit_null_check,
+                        LiftoffRegister array, LiftoffRegister index,
+                        LiftoffRegList pinned) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
     Label* trap_label =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
-    __ Load(length, array.gp(), no_reg, kLengthOffset, LoadType::kI32Load);
+    uint32_t protected_instruction_pc = 0;
+    __ Load(length, array.gp(), no_reg, kLengthOffset, LoadType::kI32Load,
+            implicit_null_check ? &protected_instruction_pc : nullptr);
+    if (implicit_null_check) {
+      RegisterProtectedInstruction(decoder, protected_instruction_pc);
+    }
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kI32, index.gp(),
                       length.gp(), trapping);
@@ -8220,31 +8266,50 @@ class LiftoffCompiler {
                                         struct_type->field_offset(field_index));
   }
 
-  void LoadObjectField(LiftoffRegister dst, Register src, Register offset_reg,
-                       int offset, ValueKind kind, bool is_signed,
-                       LiftoffRegList pinned) {
+  std::pair<bool, bool> null_checks_for_struct_op(ValueType struct_type,
+                                                  int field_index) {
+    bool explicit_null_check =
+        struct_type.is_nullable() &&
+        (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+    bool implicit_null_check =
+        struct_type.is_nullable() && !explicit_null_check;
+    return {explicit_null_check, implicit_null_check};
+  }
+
+  void LoadObjectField(FullDecoder* decoder, LiftoffRegister dst, Register src,
+                       Register offset_reg, int offset, ValueKind kind,
+                       bool is_signed, bool trapping, LiftoffRegList pinned) {
+    uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
-      __ LoadTaggedPointer(dst.gp(), src, offset_reg, offset);
+      __ LoadTaggedPointer(dst.gp(), src, offset_reg, offset,
+                           trapping ? &protected_load_pc : nullptr);
     } else {
       // Primitive kind.
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);
-      __ Load(dst, src, offset_reg, offset, load_type);
+      __ Load(dst, src, offset_reg, offset, load_type,
+              trapping ? &protected_load_pc : nullptr);
     }
+    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
 
-  void StoreObjectField(Register obj, Register offset_reg, int offset,
-                        LiftoffRegister value, LiftoffRegList pinned,
-                        ValueKind kind,
+  void StoreObjectField(FullDecoder* decoder, Register obj, Register offset_reg,
+                        int offset, LiftoffRegister value, bool trapping,
+                        LiftoffRegList pinned, ValueKind kind,
                         LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
                             LiftoffAssembler::kNoSkipWriteBarrier) {
+    uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
       __ StoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
+                            trapping ? &protected_load_pc : nullptr,
                             skip_write_barrier);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
-      __ Store(obj, offset_reg, offset, value, store_type, pinned);
+      __ Store(obj, offset_reg, offset, value, store_type, pinned,
+               trapping ? &protected_load_pc : nullptr);
     }
+    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
 
   void SetDefaultValue(LiftoffRegister reg, ValueType type) {
@@ -8312,9 +8377,10 @@ class LiftoffCompiler {
                             tmp_s128, lane_kind);
   }
 
-  void ArrayFillImpl(LiftoffRegList pinned, LiftoffRegister obj,
-                     LiftoffRegister index, LiftoffRegister value,
-                     LiftoffRegister length, ValueKind elem_kind,
+  void ArrayFillImpl(FullDecoder* decoder, LiftoffRegList pinned,
+                     LiftoffRegister obj, LiftoffRegister index,
+                     LiftoffRegister value, LiftoffRegister length,
+                     ValueKind elem_kind,
                      LiftoffAssembler::SkipWriteBarrier skip_write_barrier) {
     // initial_offset = WasmArray::kHeaderSize + index * elem_size.
     LiftoffRegister offset = index;
@@ -8338,12 +8404,23 @@ class LiftoffCompiler {
     __ bind(&loop);
     __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
                       end_offset.gp(), frozen_for_conditional_jumps);
-    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind,
-                     skip_write_barrier);
+    StoreObjectField(decoder, obj.gp(), offset.gp(), 0, value, false, pinned,
+                     elem_kind, skip_write_barrier);
     __ emit_i32_addi(offset.gp(), offset.gp(), value_kind_size(elem_kind));
     __ emit_jump(&loop);
 
     __ bind(&done);
+  }
+
+  void RegisterProtectedInstruction(FullDecoder* decoder,
+                                    uint32_t protected_instruction_pc) {
+    protected_instructions_.emplace_back(
+        trap_handler::ProtectedInstructionData{protected_instruction_pc});
+    source_position_table_builder_.AddPosition(
+        protected_instruction_pc, SourcePosition(decoder->position()), true);
+    if (for_debugging_) {
+      DefineSafepoint(protected_instruction_pc);
+    }
   }
 
   bool has_outstanding_op() const {
@@ -8476,6 +8553,11 @@ class LiftoffCompiler {
   // embedded in generated code, which will update the values at runtime.
   int32_t* max_steps_;
   int32_t* nondeterminism_;
+
+  const compiler::NullCheckStrategy null_check_strategy_ =
+      trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
+          ? compiler::NullCheckStrategy::kTrapHandler
+          : compiler::NullCheckStrategy::kExplicit;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
 };

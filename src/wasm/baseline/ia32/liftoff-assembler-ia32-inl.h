@@ -451,12 +451,14 @@ void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm, bool needs_shift) {
+                                         int32_t offset_imm,
+                                         uint32_t* protected_load_pc,
+                                         bool needs_shift) {
   DCHECK_GE(offset_imm, 0);
   static_assert(kTaggedSize == kInt32Size);
   Load(LiftoffRegister(dst), src_addr, offset_reg,
-       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, nullptr, false,
-       false, needs_shift);
+       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, protected_load_pc,
+       false, false, needs_shift);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -468,6 +470,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
+                                          uint32_t* protected_store_pc,
                                           SkipWriteBarrier skip_write_barrier) {
   DCHECK_GE(offset_imm, 0);
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
@@ -475,6 +478,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
+
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+
   mov(dst_op, src);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
