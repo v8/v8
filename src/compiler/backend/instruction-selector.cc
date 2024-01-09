@@ -4987,20 +4987,33 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     }
     case Opcode::kTaggedBitcast: {
       const TaggedBitcastOp& cast = op.Cast<TaggedBitcastOp>();
-      if (cast.from == RegisterRepresentation::Tagged() &&
-          cast.to == RegisterRepresentation::PointerSized()) {
-        MarkAsRepresentation(MachineType::PointerRepresentation(), node);
-        return VisitBitcastTaggedToWord(node);
-      } else if (cast.from.IsWord() &&
-                 cast.to == RegisterRepresentation::Tagged()) {
-        MarkAsTagged(node);
-        return VisitBitcastWordToTagged(node);
-      } else if (cast.from == RegisterRepresentation::Compressed() &&
-                 cast.to == RegisterRepresentation::Word32()) {
-        MarkAsRepresentation(MachineType::PointerRepresentation(), node);
-        return VisitBitcastTaggedToWord(node);
-      } else {
-        UNIMPLEMENTED();
+      switch (multi(cast.from, cast.to)) {
+        case multi(Rep::Tagged(), Rep::Word32()):
+          MarkAsWord32(node);
+          if constexpr (Is64()) {
+            DCHECK_EQ(cast.kind, TaggedBitcastOp::Kind::kSmi);
+            DCHECK(SmiValuesAre31Bits());
+            return EmitIdentity(node);
+          } else {
+            return VisitBitcastTaggedToWord(node);
+          }
+        case multi(Rep::Tagged(), Rep::Word64()):
+          MarkAsWord64(node);
+          return VisitBitcastTaggedToWord(node);
+        case multi(Rep::Word32(), Rep::Tagged()):
+        case multi(Rep::Word64(), Rep::Tagged()):
+          if (cast.kind == TaggedBitcastOp::Kind::kSmi) {
+            MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node);
+            return EmitIdentity(node);
+          } else {
+            MarkAsTagged(node);
+            return VisitBitcastWordToTagged(node);
+          }
+        case multi(Rep::Compressed(), Rep::Word32()):
+          MarkAsWord32(node);
+          return VisitBitcastTaggedToWord(node);
+        default:
+          UNIMPLEMENTED();
       }
     }
     case Opcode::kPhi:

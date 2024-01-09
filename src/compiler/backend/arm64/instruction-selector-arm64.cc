@@ -2483,8 +2483,8 @@ bool TryEmitBitfieldExtract32(InstructionSelectorT<TurboshaftAdapter>* selector,
                                               &shift_by_constant) &&
         (lhs_shift_by_constant & 0x1F) != 0 &&
         (lhs_shift_by_constant & 0x1F) == (shift_by_constant & 0x1F)) {
-      // TODO(12783): Can this also be ShiftRightArithmeticShiftOutZeros?
       DCHECK(shift.Is<Opmask::kWord32ShiftRightArithmetic>() ||
+             shift.Is<Opmask::kWord32ShiftRightArithmeticShiftOutZeros>() ||
              shift.Is<Opmask::kWord32ShiftRightLogical>());
 
       ArchOpcode opcode = shift.kind == ShiftOp::Kind::kShiftRightLogical

@@ -106,7 +106,7 @@ class CallWithReduceArgsHelper {
   }
 
   OpIndex operator()(const TaggedBitcastOp& op) {
-    return callback_(op.input(), op.from, op.to);
+    return callback_(op.input(), op.from, op.to, op.kind);
   }
 
   OpIndex operator()(const ObjectIsOp& op) {

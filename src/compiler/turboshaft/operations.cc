@@ -371,6 +371,17 @@ std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
+  switch (kind) {
+    case TaggedBitcastOp::Kind::kSmi:
+      return os << "Smi";
+    case TaggedBitcastOp::Kind::kHeapObject:
+      return os << "HeapObject";
+    case TaggedBitcastOp::Kind::kAny:
+      return os << "Any";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
   switch (assumption) {
     case ChangeOp::Assumption::kNoAssumption:

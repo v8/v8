@@ -865,17 +865,34 @@ Node* ScheduleBuilder::ProcessOperation(
                  {temp, GetNode(op.low_word32())});
 }
 Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
+  using Rep = RegisterRepresentation;
   const Operator* o;
-  if (op.from == RegisterRepresentation::Tagged() &&
-      op.to == RegisterRepresentation::PointerSized()) {
-    o = machine.BitcastTaggedToWord();
-  } else if (op.from.IsWord() && op.to == RegisterRepresentation::Tagged()) {
-    o = machine.BitcastWordToTagged();
-  } else if (op.from == RegisterRepresentation::Compressed() &&
-             op.to == RegisterRepresentation::Word32()) {
-    o = machine.BitcastTaggedToWord();
-  } else {
-    UNIMPLEMENTED();
+  switch (multi(op.from, op.to)) {
+    case multi(Rep::Tagged(), Rep::Word32()):
+      if constexpr (Is64()) {
+        DCHECK_EQ(op.kind, TaggedBitcastOp::Kind::kSmi);
+        DCHECK(SmiValuesAre31Bits());
+        o = machine.TruncateInt64ToInt32();
+      } else {
+        o = machine.BitcastTaggedToWord();
+      }
+      break;
+    case multi(Rep::Tagged(), Rep::Word64()):
+      o = machine.BitcastTaggedToWord();
+      break;
+    case multi(Rep::Word32(), Rep::Tagged()):
+    case multi(Rep::Word64(), Rep::Tagged()):
+      if (op.kind == TaggedBitcastOp::Kind::kSmi) {
+        o = machine.BitcastWordToTaggedSigned();
+      } else {
+        o = machine.BitcastWordToTagged();
+      }
+      break;
+    case multi(Rep::Compressed(), Rep::Word32()):
+      o = machine.BitcastTaggedToWord();
+      break;
+    default:
+      UNIMPLEMENTED();
   }
   return AddNode(o, {GetNode(op.input())});
 }

@@ -684,13 +684,9 @@ OpIndex GraphBuilder::Process(
       return __ BitcastWord32PairToFloat64(high, low);
     }
     case IrOpcode::kBitcastTaggedToWord:
-      return __ TaggedBitcast(Map(node->InputAt(0)),
-                              RegisterRepresentation::Tagged(),
-                              RegisterRepresentation::PointerSized());
+      return __ BitcastTaggedToWordPtr(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTagged:
-      return __ TaggedBitcast(Map(node->InputAt(0)),
-                              RegisterRepresentation::PointerSized(),
-                              RegisterRepresentation::Tagged());
+      return __ BitcastWordPtrToTagged(Map(node->InputAt(0)));
     case IrOpcode::kNumberIsFinite:
       return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFinite,
                         FloatRepresentation::Float64());
@@ -1121,7 +1117,7 @@ OpIndex GraphBuilder::Process(
         // builtins. We should fix them and remove this.
         if (__ output_graph().Get(base).outputs_rep()[0] ==
             RegisterRepresentation::Tagged()) {
-          base = __ BitcastTaggedToWord(base);
+          base = __ BitcastTaggedToWordPtr(base);
         }
       }
       bool aligned = opcode != IrOpcode::kUnalignedStore;
@@ -2230,13 +2226,9 @@ OpIndex GraphBuilder::Process(
       // as well.
       DCHECK_EQ(PipelineData::Get().pipeline_kind(),
                 TurboshaftPipelineKind::kCSA);
-      return __ TaggedBitcast(Map(node->InputAt(0)),
-                              RegisterRepresentation::Tagged(),
-                              RegisterRepresentation::PointerSized());
+      return __ BitcastTaggedToWordPtr(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTaggedSigned:
-      return __ TaggedBitcast(Map(node->InputAt(0)),
-                              RegisterRepresentation::PointerSized(),
-                              RegisterRepresentation::Tagged());
+      return __ BitcastWordPtrToSmi(Map(node->InputAt(0)));
 
     case IrOpcode::kWord32AtomicLoad:
     case IrOpcode::kWord64AtomicLoad: {

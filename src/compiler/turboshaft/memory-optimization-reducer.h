@@ -223,7 +223,7 @@ class MemoryOptimizationReducer : public Next {
       __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                       MemoryRepresentation::PointerSized());
-      return __ BitcastWordPtrToTagged(
+      return __ BitcastWordPtrToHeapObject(
           __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
     }
 
@@ -288,7 +288,7 @@ class MemoryOptimizationReducer : public Next {
         // Check if we can do bump pointer allocation here.
         OpIndex top_value = __ GetVariable(top(type));
         __ SetVariable(result,
-                       __ BitcastWordPtrToTagged(__ WordPtrAdd(
+                       __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
         OpIndex new_top = __ PointerAdd(top_value, size);
         OpIndex limit =
@@ -338,7 +338,7 @@ class MemoryOptimizationReducer : public Next {
       OpIndex allocated = __ Call(allocate_builtin, {reservation_size},
                                   AllocateBuiltinDescriptor());
       __ SetVariable(top(type),
-                     __ PointerSub(__ BitcastTaggedToWord(allocated),
+                     __ PointerSub(__ BitcastHeapObjectToWordPtr(allocated),
                                    __ IntPtrConstant(kHeapObjectTag)));
       __ Goto(done);
     }
@@ -349,7 +349,7 @@ class MemoryOptimizationReducer : public Next {
     __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::PointerSized());
-    return __ BitcastWordPtrToTagged(
+    return __ BitcastWordPtrToHeapObject(
         __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 

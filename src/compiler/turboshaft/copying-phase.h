@@ -747,7 +747,8 @@ class GraphVisitor : public Next {
         MapToNewGraph(op.high_word32()), MapToNewGraph(op.low_word32()));
   }
   OpIndex AssembleOutputGraphTaggedBitcast(const TaggedBitcastOp& op) {
-    return Asm().ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from, op.to);
+    return Asm().ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from, op.to,
+                                     op.kind);
   }
   OpIndex AssembleOutputGraphObjectIs(const ObjectIsOp& op) {
     return Asm().ReduceObjectIs(MapToNewGraph(op.input()), op.kind,

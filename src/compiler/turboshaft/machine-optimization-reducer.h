@@ -189,9 +189,10 @@ class MachineOptimizationReducer : public Next {
   }
 
   OpIndex REDUCE(TaggedBitcast)(OpIndex input, RegisterRepresentation from,
-                                RegisterRepresentation to) {
+                                RegisterRepresentation to,
+                                TaggedBitcastOp::Kind kind) {
     if (ShouldSkipOptimizationStep()) {
-      return Next::ReduceTaggedBitcast(input, from, to);
+      return Next::ReduceTaggedBitcast(input, from, to, kind);
     }
     // A Tagged -> Untagged -> Tagged sequence can be short-cut.
     // An Untagged -> Tagged -> Untagged sequence however cannot be removed,
@@ -202,6 +203,20 @@ class MachineOptimizationReducer : public Next {
           all_of(input_bitcast->from, to) == RegisterRepresentation::Tagged()) {
         return input_bitcast->input();
       }
+    }
+    // An Untagged -> Smi -> Untagged sequence can be short-cut.
+    if (auto* input_bitcast = matcher.TryCast<TaggedBitcastOp>(input);
+        input_bitcast && to.IsWord() &&
+        (kind == TaggedBitcastOp::Kind::kSmi ||
+         input_bitcast->kind == TaggedBitcastOp::Kind::kSmi)) {
+      if (input_bitcast->from == to) return input_bitcast->input();
+      if (input_bitcast->from == RegisterRepresentation::Word32()) {
+        DCHECK_EQ(to, RegisterRepresentation::Word64());
+        return __ BitcastWord32ToWord64(input_bitcast->input());
+      }
+      DCHECK(input_bitcast->from == RegisterRepresentation::Word64() &&
+             to == RegisterRepresentation::Word32());
+      return __ TruncateWord64ToWord32(input_bitcast->input());
     }
     // Try to constant-fold TaggedBitcast from Word Constant to Word.
     if (to.IsWord()) {
@@ -217,7 +232,7 @@ class MachineOptimizationReducer : public Next {
         }
       }
     }
-    return Next::ReduceTaggedBitcast(input, from, to);
+    return Next::ReduceTaggedBitcast(input, from, to, kind);
   }
 
   OpIndex REDUCE(FloatUnary)(OpIndex input, FloatUnaryOp::Kind kind,

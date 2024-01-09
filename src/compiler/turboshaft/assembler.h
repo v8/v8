@@ -1480,21 +1480,24 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
-                        RegisterRepresentation to) {
-    return ReduceIfReachableTaggedBitcast(input, from, to);
+                        RegisterRepresentation to, TaggedBitcastOp::Kind kind) {
+    return ReduceIfReachableTaggedBitcast(input, from, to, kind);
   }
-  V<WordPtr> BitcastTaggedToWord(V<Object> tagged) {
-    return TaggedBitcast(tagged, RegisterRepresentation::Tagged(),
-                         RegisterRepresentation::PointerSized());
+
+#define DECL_TAGGED_BITCAST(FromT, ToT, kind)              \
+  V<ToT> Bitcast##FromT##To##ToT(V<FromT> from) {          \
+    return TaggedBitcast(from, V<FromT>::rep, V<ToT>::rep, \
+                         TaggedBitcastOp::Kind::kind);     \
   }
-  V<Object> BitcastWordPtrToTagged(V<WordPtr> word) {
-    return TaggedBitcast(word, RegisterRepresentation::PointerSized(),
-                         RegisterRepresentation::Tagged());
-  }
-  V<Object> BitcastWord32ToTagged(V<Word32> word) {
-    return TaggedBitcast(word, RegisterRepresentation::Word32(),
-                         RegisterRepresentation::Tagged());
-  }
+  DECL_TAGGED_BITCAST(Smi, Word32, kSmi)
+  DECL_TAGGED_BITCAST(Word32, Smi, kSmi)
+  DECL_TAGGED_BITCAST(Smi, WordPtr, kSmi)
+  DECL_TAGGED_BITCAST(WordPtr, Smi, kSmi)
+  DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
+  DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
+  DECL_TAGGED_BITCAST(WordPtr, Tagged, kAny)
+  DECL_TAGGED_BITCAST(Tagged, WordPtr, kAny)
+#undef DECL_TAGGED_BITCAST
 
   V<Word32> ObjectIs(V<Object> input, ObjectIsOp::Kind kind,
                      ObjectIsOp::InputAssumptions input_assumptions) {
@@ -1918,24 +1921,21 @@ class TurboshaftAssemblerOpInterface
       V<Word32> shifted = Word32ShiftLeft(resolve(input), kSmiShiftBits);
       // In pointer compression, we smi-corrupt. Then, the upper bits are not
       // important.
-      return V<Smi>::Cast(
-          COMPRESS_POINTERS_BOOL
-              ? BitcastWord32ToTagged(shifted)
-              : BitcastWordPtrToTagged(ChangeInt32ToIntPtr(shifted)));
+      return BitcastWord32ToSmi(shifted);
     } else {
-      return V<Smi>::Cast(BitcastWordPtrToTagged(WordPtrShiftLeft(
-          ChangeInt32ToIntPtr(resolve(input)), kSmiShiftBits)));
+      return BitcastWordPtrToSmi(
+          WordPtrShiftLeft(ChangeInt32ToIntPtr(resolve(input)), kSmiShiftBits));
     }
   }
 
-  V<Word32> UntagSmi(V<Tagged> input) {
+  V<Word32> UntagSmi(V<Smi> input) {
     constexpr int kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
     if constexpr (Is64() && SmiValuesAre31Bits()) {
-      return Word32ShiftRightArithmeticShiftOutZeros(
-          TruncateWordPtrToWord32(BitcastTaggedToWord(input)), kSmiShiftBits);
+      return Word32ShiftRightArithmeticShiftOutZeros(BitcastSmiToWord32(input),
+                                                     kSmiShiftBits);
     }
     return TruncateWordPtrToWord32(WordPtrShiftRightArithmeticShiftOutZeros(
-        BitcastTaggedToWord(input), kSmiShiftBits));
+        BitcastSmiToWordPtr(input), kSmiShiftBits));
   }
 
   OpIndex AtomicRMW(V<WordPtr> base, V<WordPtr> index, OpIndex value,
@@ -2193,7 +2193,7 @@ class TurboshaftAssemblerOpInterface
   template <typename Base>
   V<WordPtr> GetElementStartPointer(V<Base> object,
                                     const ElementAccess& access) {
-    return WordPtrAdd(BitcastTaggedToWord(object),
+    return WordPtrAdd(BitcastHeapObjectToWordPtr(object),
                       access.header_size - access.tag());
   }
 

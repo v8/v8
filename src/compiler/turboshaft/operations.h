@@ -1931,11 +1931,27 @@ struct BitcastWord32PairToFloat64Op
 };
 
 struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
+  enum class Kind {
+    kSmi,  // This is a bitcast from a Word to a Smi or from a Smi to a Word
+    kHeapObject,  // This is a bitcast from or to a Heap Object
+    kAny
+  };
   RegisterRepresentation from;
   RegisterRepresentation to;
+  Kind kind;
 
-  // Due to moving GC, converting from or to pointers doesn't commute with GC.
-  static constexpr OpEffects effects = OpEffects().CanDoRawHeapAccess();
+  OpEffects Effects() const {
+    switch (kind) {
+      case Kind::kSmi:
+        return OpEffects();
+      case Kind::kHeapObject:
+      case Kind::kAny:
+        // Due to moving GC, converting from or to pointers doesn't commute with
+        // GC.
+        return OpEffects().CanDoRawHeapAccess();
+    }
+  }
+
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&to, 1);
   }
@@ -1948,20 +1964,29 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
   OpIndex input() const { return Base::input(0); }
 
   TaggedBitcastOp(OpIndex input, RegisterRepresentation from,
-                  RegisterRepresentation to)
-      : Base(input), from(from), to(to) {}
+                  RegisterRepresentation to, Kind kind)
+      : Base(input), from(from), to(to), kind(kind) {}
 
   void Validate(const Graph& graph) const {
-    // TODO(nicohartmann@): Without implicit trucation, the first case might not
-    // be correct anymore.
-    DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
-           (from == RegisterRepresentation::Tagged() &&
-            to == RegisterRepresentation::PointerSized()) ||
-           (from == RegisterRepresentation::Compressed() &&
-            to == RegisterRepresentation::Word32()));
+    if (kind == Kind::kSmi) {
+      DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
+             (from.IsTaggedOrCompressed() && to.IsWord()));
+      DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
+                         to == RegisterRepresentation::Word64(),
+                     Is64());
+    } else {
+      // TODO(nicohartmann@): Without implicit trucation, the first case might
+      // not be correct anymore.
+      DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
+             (from == RegisterRepresentation::Tagged() &&
+              to == RegisterRepresentation::PointerSized()) ||
+             (from == RegisterRepresentation::Compressed() &&
+              to == RegisterRepresentation::Word32()));
+    }
   }
-  auto options() const { return std::tuple{from, to}; }
+  auto options() const { return std::tuple{from, to, kind}; }
 };
+std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind assumption);
 
 struct SelectOp : FixedArityOperationT<3, SelectOp> {
   enum class Implementation : uint8_t { kBranch, kCMove };
@@ -7406,6 +7431,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StoreOp>().Effects();
     case Opcode::kCall:
       return Cast<CallOp>().Effects();
+    case Opcode::kTaggedBitcast:
+      return Cast<TaggedBitcastOp>().Effects();
     case Opcode::kAtomicRMW:
       return Cast<AtomicRMWOp>().Effects();
     case Opcode::kAtomicWord32Pair:
