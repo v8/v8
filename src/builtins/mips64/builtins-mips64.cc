@@ -2775,8 +2775,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register scratch = t2;
   Label allocate_vector, done;
 
-  __ Ld(vector, FieldMemOperand(kWasmInstanceRegister,
-                                WasmInstanceObject::kFeedbackVectorsOffset));
+  __ Ld(vector,
+        FieldMemOperand(kWasmInstanceRegister,
+                        WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ Dlsa(vector, vector, func_index, kTaggedSizeLog2);
   __ Ld(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
@@ -2885,7 +2886,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // t8). Use that to compute the jump target.
   static_assert(!kSavedGpRegs.has(t8));
   __ Ld(t8, FieldMemOperand(kWasmInstanceRegister,
-                            WasmInstanceObject::kJumpTableStartOffset));
+                            WasmTrustedInstanceData::kJumpTableStartOffset));
   __ Daddu(t8, v0, t8);
 
   // Finally, jump to the jump table slot for the function.
