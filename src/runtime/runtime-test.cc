@@ -1167,7 +1167,7 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
       heap->EnsureYoungSweepingCompleted();
     }
     auto* space = heap->paged_new_space()->paged_space();
-    while (space->TryAddPage()) {
+    while (space->AddFreshPage()) {
     }
     space->ResetFreeList();
   } else {

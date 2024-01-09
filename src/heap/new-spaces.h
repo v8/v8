@@ -538,6 +538,12 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
     last_lab_page_ = nullptr;
   }
 
+  // Try to switch the active semispace to a new, empty, page.
+  // Returns false if this isn't possible or reasonable (i.e., there
+  // are no pages, or the current page is already empty), or true
+  // if successful.
+  bool AddFreshPage();
+
   bool EnsureCurrentCapacity() { return true; }
 
   Page* InitializePage(MemoryChunk* chunk) final;
@@ -560,7 +566,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool ShouldReleaseEmptyPage() const;
 
-  bool TryAddPage();
+  bool AddPageBeyondCapacity(int size_in_bytes, AllocationOrigin origin);
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
 
@@ -579,7 +585,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
  private:
-  bool ShouldAllocatedPage() const;
   bool AllocatePage();
 
   const size_t initial_capacity_;

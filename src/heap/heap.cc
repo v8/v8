@@ -1909,9 +1909,6 @@ void Heap::CollectGarbage(AllocationSpace space,
       tracer()->StopYoungCycleIfNeeded();
     } else {
       tracer()->StopFullCycleIfNeeded();
-      CheckIneffectiveMarkCompact(
-          OldGenerationSizeOfObjects(),
-          tracer()->AverageMarkCompactMutatorUtilization());
     }
   });
 
@@ -2617,6 +2614,9 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
       SetOldGenerationAndGlobalAllocationLimit(
           new_old_generation_allocation_limit, new_global_allocation_limit);
     }
+
+    CheckIneffectiveMarkCompact(
+        old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_allocation_limit_configured()) {
     size_t new_old_generation_allocation_limit =

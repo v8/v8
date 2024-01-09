@@ -526,7 +526,7 @@ bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
 
   if (!paged_space_allocator_policy_->EnsureAllocation(size_in_bytes, alignment,
                                                        origin)) {
-    if (!TryAddPage(size_in_bytes, origin)) {
+    if (!AddPageBeyondCapacity(size_in_bytes, origin)) {
       if (!WaitForSweepingForAllocation(size_in_bytes, origin)) {
         return false;
       }
@@ -577,9 +577,9 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
       static_cast<size_t>(size_in_bytes), origin);
 }
 
-bool PagedNewSpaceAllocatorPolicy::TryAddPage(int size_in_bytes,
-                                              AllocationOrigin origin) {
-  if (space_->paged_space()->TryAddPage()) {
+bool PagedNewSpaceAllocatorPolicy::AddPageBeyondCapacity(
+    int size_in_bytes, AllocationOrigin origin) {
+  if (space_->paged_space()->AddPageBeyondCapacity(size_in_bytes, origin)) {
     return paged_space_allocator_policy_->TryAllocationFromFreeList(
         size_in_bytes, origin);
   }
