@@ -784,8 +784,6 @@ void GCTracer::PrintNVP() const {
           "scavenge.update_refs=%.2f "
           "scavenge.sweep_array_buffers=%.2f "
           "background.scavenge.parallel=%.2f "
-          "background.unmapper=%.2f "
-          "unmapper=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
@@ -804,7 +802,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "unmapper_chunks=%d\n",
+          "pool_chunks=%d\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
@@ -825,8 +823,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS),
           current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
-          current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER),
           incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
           current_scope(Scope::MC_INCREMENTAL),
           ScavengeSpeedInBytesPerMillisecond(), current_.start_object_size,
@@ -839,7 +835,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->unmapper()->NumberOfChunks());
+          heap_->memory_allocator()->pool()->NumberOfChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
       heap_->isolate()->PrintWithTimestamp(
@@ -875,8 +871,6 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.sweep=%.2f "
           "background.sweep.array_buffers=%.2f "
-          "background.unmapper=%.2f "
-          "unmapper=%.2f "
           "conservative_stack_scanning=%.2f "
           "total_size_before=%zu "
           "total_size_after=%zu "
@@ -922,8 +916,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER),
           current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
@@ -1011,8 +1003,6 @@ void GCTracer::PrintNVP() const {
           "background.sweep=%.1f "
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
-          "background.unmapper=%.1f "
-          "unmapper=%.1f "
           "conservative_stack_scanning=%.2f "
           "total_size_before=%zu "
           "total_size_after=%zu "
@@ -1029,7 +1019,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "unmapper_chunks=%d "
+          "pool_chunks=%d "
           "compaction_speed=%.f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -1102,8 +1092,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_BACKGROUND_SWEEPING),
           current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY),
           current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
-          current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER),
           current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
@@ -1114,7 +1102,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->unmapper()->NumberOfChunks(),
+          heap_->memory_allocator()->pool()->NumberOfChunks(),
           CompactionSpeedInBytesPerMillisecond());
       break;
     case Event::Type::START:
@@ -1735,8 +1723,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
       current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
       current_.scopes[Scope::MINOR_MS_BACKGROUND_MARKING];
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
-  // (both for the case of the scavenger and the minor mark-sweeper), and
-  // BACKGROUND_UNMAPPER (for the case of the minor mark-sweeper).
+  // (both for the case of the scavenger and the minor mark-sweeper).
   event.total_wall_clock_duration_in_us =
       total_wall_clock_duration.InMicroseconds();
   // MainThread:

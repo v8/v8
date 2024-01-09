@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
   static void InitializeOncePerProcess();
 
  private:
-  friend class SequentialUnmapperTest;
+  friend class PoolTest;
   // Only used for testing.
   static void FreeProcessWidePtrComprCageForTesting();
 

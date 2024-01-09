@@ -429,10 +429,10 @@ size_t Heap::CommittedOldGenerationMemory() {
          trusted_lo_space_->Size();
 }
 
-size_t Heap::CommittedMemoryOfUnmapper() {
+size_t Heap::CommittedMemoryOfPool() {
   if (!HasBeenSetUp()) return 0;
 
-  return memory_allocator()->unmapper()->CommittedBufferedMemory();
+  return memory_allocator()->pool()->CommittedBufferedMemory();
 }
 
 size_t Heap::CommittedMemory() {
@@ -704,10 +704,9 @@ void Heap::PrintShortHeapStatistics() {
                (this->SizeOfObjects() + ro_space->Size()) / KB,
                (this->Available()) / KB, sweeping_in_progress() ? "*" : "",
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
-  PrintIsolate(isolate_,
-               "Unmapper buffering %zu chunks of committed: %6zu KB\n",
-               memory_allocator()->unmapper()->NumberOfCommittedChunks(),
-               CommittedMemoryOfUnmapper() / KB);
+  PrintIsolate(isolate_, "Pool buffering %zu chunks of committed: %6zu KB\n",
+               memory_allocator()->pool()->NumberOfCommittedChunks(),
+               CommittedMemoryOfPool() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory_.total() / KB);
   PrintIsolate(isolate_, "Backing store memory: %6" PRIu64 " KB\n",
@@ -1207,8 +1206,6 @@ void Heap::GarbageCollectionPrologue(
 
   if (v8_flags.gc_verbose) Print();
 #endif  // DEBUG
-
-  memory_allocator()->unmapper()->PrepareForGC();
 }
 
 void Heap::GarbageCollectionPrologueInSafepoint() {
@@ -1395,15 +1392,12 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
     semi_space_new_space->MakeAllPagesInFromSpaceIterable();
+
+    // Discard pooled pages for scavenger if needed.
+    if (ShouldReduceMemory()) {
+      memory_allocator_->pool()->ReleasePooledChunks();
+    }
   }
-
-  // Ensure that unmapper task isn't running during full GC. We need access to
-  // those pages for accessing page flags when processing old-to-new slots.
-  DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR,
-                 !memory_allocator()->unmapper()->IsRunning());
-
-  // Start concurrent unmapper tasks to free pages queued during GC.
-  memory_allocator()->unmapper()->FreeQueuedChunks();
 
   // Remove CollectionRequested flag from main thread state, as the collection
   // was just performed.
@@ -2322,8 +2316,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
-
-    memory_allocator()->unmapper()->EnsureUnmappingCompleted();
   }
 
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
@@ -4240,7 +4232,6 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 
 void Heap::EagerlyFreeExternalMemory() {
   CompleteArrayBufferSweeping(this);
-  memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 }
 
 void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
@@ -5954,8 +5945,6 @@ void Heap::StartTearDown() {
   // Finish any ongoing sweeping to avoid stray background tasks still accessing
   // the heap during teardown.
   CompleteSweepingFull();
-
-  memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
   if (v8_flags.concurrent_marking) {
     concurrent_marking()->Pause();

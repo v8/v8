@@ -427,7 +427,7 @@ class CompactionSpaceCollection : public Malloced {
 // -----------------------------------------------------------------------------
 // Old generation regular object space.
 
-class OldSpace final : public PagedSpace {
+class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -441,6 +441,8 @@ class OldSpace final : public PagedSpace {
   }
 
   void AddPromotedPage(Page* page);
+
+  void ReleasePage(Page* page) override;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)

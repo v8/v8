@@ -18,9 +18,9 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-class MockPlatformForUnmapper : public TestPlatform {
+class MockPlatformForPool : public TestPlatform {
  public:
-  ~MockPlatformForUnmapper() override {
+  ~MockPlatformForPool() override {
     for (auto& task : worker_tasks_) {
       CcTest::default_platform()->CallOnWorkerThread(std::move(task));
     }
@@ -39,9 +39,9 @@ class MockPlatformForUnmapper : public TestPlatform {
   std::vector<std::unique_ptr<Task>> worker_tasks_;
 };
 
-UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {
+UNINITIALIZED_TEST(EagerDiscardingInCollectAllAvailableGarbage) {
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  MockPlatformForUnmapper platform;
+  MockPlatformForPool platform;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -55,7 +55,8 @@ UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {
     Heap* heap = i_isolate->heap();
     i::heap::SimulateFullSpace(heap->old_space());
     i::heap::InvokeMemoryReducingMajorGCs(heap);
-    CHECK_EQ(0, heap->memory_allocator()->unmapper()->NumberOfChunks());
+    CHECK_EQ(0, heap->memory_allocator()->pool()->NumberOfCommittedChunks());
+    CHECK_EQ(0u, heap->memory_allocator()->pool()->CommittedBufferedMemory());
   }
   isolate->Dispose();
 }

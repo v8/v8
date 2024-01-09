@@ -334,7 +334,7 @@ size_t PagedSpaceBase::Available() const {
 }
 
 void PagedSpaceBase::ReleasePage(Page* page) {
-  ReleasePageImpl(page, MemoryAllocator::FreeMode::kConcurrently);
+  ReleasePageImpl(page, MemoryAllocator::FreeMode::kImmediately);
 }
 
 void PagedSpaceBase::ReleasePageImpl(Page* page,
@@ -640,6 +640,10 @@ void OldSpace::AddPromotedPage(Page* page) {
   if (!v8_flags.minor_ms) {
     RelinkFreeListCategories(page);
   }
+}
+
+void OldSpace::ReleasePage(Page* page) {
+  ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
 }
 
 }  // namespace internal

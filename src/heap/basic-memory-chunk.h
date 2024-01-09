@@ -79,32 +79,28 @@ class BasicMemoryChunk {
     // still has to be performed.
     PRE_FREED = 1u << 13,
 
-    // |POOLED|: When actually freeing this chunk, only uncommit and do not
-    // give up the reservation as we still reuse the chunk at some point.
-    POOLED = 1u << 14,
-
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 15,
+    COMPACTION_WAS_ABORTED = 1u << 14,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 16,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 15,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 17,
+    UNREGISTERED = 1u << 16,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 18,
+    PINNED = 1u << 17,
 
     // A Page with code objects.
-    IS_EXECUTABLE = 1u << 19,
+    IS_EXECUTABLE = 1u << 18,
 
     // The memory chunk belongs to the trusted space. When the sandbox is
     // enabled, the trusted space is located outside of the sandbox and so its
     // content cannot be corrupted by an attacker.
-    IS_TRUSTED = 1u << 20,
+    IS_TRUSTED = 1u << 19,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

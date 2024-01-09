@@ -723,7 +723,6 @@
   SCAVENGER_MAIN_THREAD_SCOPES(F)        \
   F(TIME_TO_GLOBAL_SAFEPOINT)            \
   F(TIME_TO_SAFEPOINT)                   \
-  F(UNMAPPER)                            \
   F(UNPARK)                              \
   F(YOUNG_ARRAY_BUFFER_SWEEP)            \
   F(FULL_ARRAY_BUFFER_SWEEP)             \
@@ -734,7 +733,6 @@
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
   F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)     \
   F(BACKGROUND_COLLECTION)                  \
-  F(BACKGROUND_UNMAPPER)                    \
   F(BACKGROUND_UNPARK)                      \
   F(BACKGROUND_SAFEPOINT)                   \
   F(MC_BACKGROUND_EVACUATE_COPY)            \

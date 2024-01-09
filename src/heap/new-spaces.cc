@@ -76,8 +76,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
       current_page->ClearFlags(Page::kIsInYoungGenerationMask);
-      heap()->memory_allocator()->Free(
-          MemoryAllocator::FreeMode::kConcurrentlyAndPool, current_page);
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool,
+                                       current_page);
       current_page = next_current;
     }
 
@@ -157,8 +157,7 @@ void SemiSpace::Uncommit() {
     MemoryChunk* chunk = memory_chunk_list_.front();
     DecrementCommittedPhysicalMemory(chunk->CommittedPhysicalMemory());
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(
-        MemoryAllocator::FreeMode::kConcurrentlyAndPool, chunk);
+    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, chunk);
   }
   current_page_ = nullptr;
   current_capacity_ = 0;
@@ -214,8 +213,7 @@ void SemiSpace::RewindPages(int num_pages) {
     MemoryChunk* last = last_page();
     memory_chunk_list_.Remove(last);
     DecrementCommittedPhysicalMemory(last->CommittedPhysicalMemory());
-    heap()->memory_allocator()->Free(
-        MemoryAllocator::FreeMode::kConcurrentlyAndPool, last);
+    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, last);
     num_pages--;
   }
 }
@@ -923,8 +921,7 @@ void PagedSpaceForNewSpace::RemovePage(Page* page) {
 void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   DCHECK_LE(Page::kPageSize, current_capacity_);
   current_capacity_ -= Page::kPageSize;
-  PagedSpaceBase::ReleasePageImpl(
-      page, MemoryAllocator::FreeMode::kConcurrentlyAndPool);
+  PagedSpaceBase::ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
 }
 
 bool PagedSpaceForNewSpace::AddFreshPage() {

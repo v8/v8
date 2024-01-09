@@ -416,7 +416,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
     Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                        page);
       if (v8_flags.concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);

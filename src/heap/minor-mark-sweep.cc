@@ -876,7 +876,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     if (!non_atomic_marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       new_lo_space->RemovePage(current);
-      heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+      heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                       current);
       continue;
     }

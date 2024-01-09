@@ -6823,7 +6823,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
   if (!v8_flags.minor_ms) SemiSpaceNewSpace::From(heap->new_space())->Shrink();
-  heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+  heap->memory_allocator()->pool()->ReleasePooledChunks();
 }
 
 class DeleteNative {

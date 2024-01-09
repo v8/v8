@@ -322,6 +322,11 @@ void Sweeper::SweepingState<scope>::FinishSweeping() {
 
   if (HasValidJob()) job_handle_->Join();
 
+  // Discard all pooled pages on memory-reducing GCs.
+  if (should_reduce_memory_) {
+    sweeper_->heap_->memory_allocator()->pool()->ReleasePooledChunks();
+  }
+
   concurrent_sweepers_.clear();
   in_progress_ = false;
 }

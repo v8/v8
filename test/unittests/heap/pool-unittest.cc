@@ -282,24 +282,24 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
 #if !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX
 
 template <typename TMixin>
-class SequentialUnmapperTestMixin : public TMixin {
+class PoolTestMixin : public TMixin {
  public:
-  SequentialUnmapperTestMixin();
-  ~SequentialUnmapperTestMixin() override;
+  PoolTestMixin();
+  ~PoolTestMixin() override;
 };
 
-class SequentialUnmapperTest : public                                     //
-                               WithInternalIsolateMixin<                  //
-                                   WithIsolateScopeMixin<                 //
-                                       WithIsolateMixin<                  //
-                                           SequentialUnmapperTestMixin<   //
-                                               WithDefaultPlatformMixin<  //
-                                                   ::testing::Test>>>>> {
+class PoolTest : public                                     //
+                 WithInternalIsolateMixin<                  //
+                     WithIsolateScopeMixin<                 //
+                         WithIsolateMixin<                  //
+                             PoolTestMixin<                 //
+                                 WithDefaultPlatformMixin<  //
+                                     ::testing::Test>>>>> {
  public:
-  SequentialUnmapperTest() = default;
-  ~SequentialUnmapperTest() override = default;
-  SequentialUnmapperTest(const SequentialUnmapperTest&) = delete;
-  SequentialUnmapperTest& operator=(const SequentialUnmapperTest&) = delete;
+  PoolTest() = default;
+  ~PoolTest() override = default;
+  PoolTest(const PoolTest&) = delete;
+  PoolTest& operator=(const PoolTest&) = delete;
 
   static void FreeProcessWidePtrComprCageForTesting() {
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
@@ -351,7 +351,7 @@ class SequentialUnmapperTest : public                                     //
 
   Heap* heap() { return isolate()->heap(); }
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
-  MemoryAllocator::Unmapper* unmapper() { return allocator()->unmapper(); }
+  MemoryAllocator::Pool* pool() { return allocator()->pool(); }
 
   TrackingPageAllocator* tracking_page_allocator() {
     return tracking_page_allocator_;
@@ -363,51 +363,21 @@ class SequentialUnmapperTest : public                                     //
   static bool old_sweeping_flag_;
 };
 
-TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
-    nullptr;
-v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
-bool SequentialUnmapperTest::old_sweeping_flag_;
+TrackingPageAllocator* PoolTest::tracking_page_allocator_ = nullptr;
+v8::PageAllocator* PoolTest::old_page_allocator_ = nullptr;
+bool PoolTest::old_sweeping_flag_;
 
 template <typename TMixin>
-SequentialUnmapperTestMixin<TMixin>::SequentialUnmapperTestMixin() {
-  SequentialUnmapperTest::DoMixinSetUp();
+PoolTestMixin<TMixin>::PoolTestMixin() {
+  PoolTest::DoMixinSetUp();
 }
 template <typename TMixin>
-SequentialUnmapperTestMixin<TMixin>::~SequentialUnmapperTestMixin() {
-  SequentialUnmapperTest::DoMixinTearDown();
+PoolTestMixin<TMixin>::~PoolTestMixin() {
+  PoolTest::DoMixinTearDown();
 }
 
 // See v8:5945.
-TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
-  if (v8_flags.enable_third_party_heap) return;
-  Page* page =
-      allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
-                                static_cast<PagedSpace*>(heap()->old_space()),
-                                Executability::NOT_EXECUTABLE);
-  EXPECT_NE(nullptr, page);
-  const size_t page_size = tracking_page_allocator()->AllocatePageSize();
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kReadWrite);
-  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kReadWrite);
-  unmapper()->FreeQueuedChunks();
-  tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
-  unmapper()->TearDown();
-#ifdef V8_COMPRESS_POINTERS
-  // In this mode Isolate uses bounded page allocator which allocates pages
-  // inside prereserved region. Thus these pages are kept reserved until
-  // the Isolate dies.
-  tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
-#else
-  tracking_page_allocator()->CheckIsFree(page->address(), page_size);
-#endif  // V8_COMPRESS_POINTERS
-}
-
-// See v8:5945.
-TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
+TEST_F(PoolTest, UnmapOnTeardown) {
   if (v8_flags.enable_third_party_heap) return;
   Page* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
@@ -418,10 +388,10 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
 
-  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
+  allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
-  unmapper()->TearDown();
+  pool()->ReleasePooledChunks();
 #ifdef V8_COMPRESS_POINTERS
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
