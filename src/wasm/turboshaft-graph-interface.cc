@@ -2705,9 +2705,18 @@ class TurboshaftGraphBuildingInterface {
           BuiltinCallDescriptor::WasmTableGetFuncRef>(
           decoder, {__ IntPtrConstant(imm.index), index.op});
     } else {
+      V<WasmTableObject> table = LoadTable(imm.index);
+      V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
+                                MemoryRepresentation::TaggedSigned(),
+                                WasmTableObject::kCurrentLengthOffset);
+      V<Word32> in_bounds = __ Uint32LessThan(index.op, __ UntagSmi(size_smi));
+      __ TrapIfNot(in_bounds, OpIndex::Invalid(),
+                   TrapId::kTrapTableOutOfBounds);
+      V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
+                                      MemoryRepresentation::TaggedPointer(),
+                                      WasmTableObject::kEntriesOffset);
       result->op =
-          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableGet>(
-              decoder, {__ IntPtrConstant(imm.index), index.op});
+          __ LoadFixedArrayElement(entries, __ ChangeInt32ToIntPtr(index.op));
     }
     result->op = AnnotateResultIfReference(result->op, element_type);
   }
@@ -2758,12 +2767,16 @@ class TurboshaftGraphBuildingInterface {
         decoder, {__ NumberConstant(imm.index), start.op, count.op, value.op});
   }
 
-  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
-                 Value* result) {
+  V<WasmTableObject> LoadTable(uint32_t table_index) {
     V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
         trusted_instance_data(), Tables, MemoryRepresentation::TaggedPointer());
-    auto table =
-        V<WasmTableObject>::Cast(__ LoadFixedArrayElement(tables, imm.index));
+    return V<WasmTableObject>::Cast(
+        __ LoadFixedArrayElement(tables, table_index));
+  }
+
+  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
+                 Value* result) {
+    V<WasmTableObject> table = LoadTable(imm.index);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
