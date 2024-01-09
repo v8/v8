@@ -209,8 +209,9 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
                        RootIndex::kLastStrongOrReadOnlyRoot)) {
     // Some smi roots contain system pointer size values like stack limits.
     cmpq(with, RootAsOperand(index));
+    return;
   }
-  return CompareTaggedRoot(with, index);
+  CompareTaggedRoot(with, index);
 }
 
 void MacroAssembler::CompareTaggedRoot(Register with, RootIndex index) {
