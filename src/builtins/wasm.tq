@@ -774,21 +774,6 @@ macro ModifyThreadInWasmFlag(newValue: int32): void {
   *threadInWasmFlagRef = newValue;
 }
 
-macro ModifyWasmToJSCounter(increment: int32): void {
-  const rootSlot = LoadPointerFromRootRegister(kActiveSuspenderOffset);
-
-  const rawSuspender = BitcastWordToTagged(rootSlot);
-  typeswitch (rawSuspender) {
-    case (activeSuspender: WasmSuspenderObject): {
-      const current = Signed(activeSuspender.wasm_to_js_counter);
-      activeSuspender.wasm_to_js_counter = Unsigned(current + increment);
-    }
-    case (Object): {
-      // Nothing to do, but the case is needed by the Torque compiler.
-    }
-  }
-}
-
 builtin WasmStringNewWtf8(
     offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String|Null {
   const trustedData = LoadInstanceDataFromFrame();

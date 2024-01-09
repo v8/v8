@@ -2066,7 +2066,7 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
       Factory::JSFunctionBuilder{isolate, reject_sfi, context}.Build();
   suspender->set_resume(*resume);
   suspender->set_reject(*reject);
-  suspender->set_wasm_to_js_counter(0);
+  suspender->set_has_js_frames(0);
   return suspender;
 }
 

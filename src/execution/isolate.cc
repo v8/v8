@@ -2170,15 +2170,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       }
       case StackFrame::WASM_TO_JS:
         if (v8_flags.experimental_wasm_stack_switching) {
-          // Decrement the Wasm-to-JS counter and reset the central-stack info.
           Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
           if (!IsUndefined(suspender_obj)) {
             Tagged<WasmSuspenderObject> suspender =
                 WasmSuspenderObject::cast(suspender_obj);
-            int wasm_to_js_counter = suspender->wasm_to_js_counter();
-            DCHECK_LT(0, wasm_to_js_counter);
-            suspender->set_wasm_to_js_counter(wasm_to_js_counter - 1);
-
             // If the wasm-to-js wrapper was on a secondary stack and switched
             // to the central stack, handle the implicit switch back.
             Address central_stack_sp = *reinterpret_cast<Address*>(
@@ -2186,6 +2181,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
                 WasmImportWrapperFrameConstants::kCentralStackSPOffset);
             bool switched_stacks = central_stack_sp != kNullAddress;
             if (switched_stacks) {
+              DCHECK_EQ(1, suspender->has_js_frames());
+              suspender->set_has_js_frames(0);
               thread_local_top()->is_on_central_stack_flag_ = false;
               Address secondary_stack_limit = Memory<Address>(
                   frame->fp() +

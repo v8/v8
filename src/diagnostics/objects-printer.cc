@@ -2334,7 +2334,7 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n - resume: " << resume();
   os << "\n - reject: " << reject();
   os << "\n - state: " << state();
-  os << "\n - wasm_to_js_counter: " << wasm_to_js_counter();
+  os << "\n - has_js_frames: " << has_js_frames();
   os << "\n";
 }
 

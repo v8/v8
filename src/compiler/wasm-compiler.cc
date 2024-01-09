@@ -7800,15 +7800,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto* call_descriptor =
         GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
     Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
-    // Trap if there is any JS frame on the stack. Trap before decrementing the
-    // wasm-to-js counter, since it will already be decremented by the stack
-    // unwinder.
-    Node* counter =
-        gasm_->Load(MachineType::Int32(), suspender,
-                    wasm::ObjectAccess::ToTagged(
-                        WasmSuspenderObject::kWasmToJsCounterOffset));
-    // The counter is about to be decremented, so 1 means no JS frame.
-    Node* cond = gasm_->Word32Equal(Int32Constant(1), counter);
+    // Trap if there is any JS frame on the stack.
+    Node* has_js_frames = gasm_->Load(
+        MachineType::Int32(), suspender,
+        wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kHasJsFramesOffset));
+    Node* cond = gasm_->Word32Equal(Int32Constant(0), has_js_frames);
     auto suspend = gasm_->MakeLabel();
     gasm_->GotoIf(cond, &suspend);
     // {ThrowWasmError} expects to be called from wasm code, so set the
@@ -7960,38 +7956,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));
 
     Node* undefined_node = UndefinedValue();
-
     Node* call = nullptr;
-
-    Node* active_suspender;
-    if (v8_flags.experimental_wasm_stack_switching) {
-      // Increment the wasm-to-js counter before the call, and decrement it on
-      // return.
-      active_suspender = gasm_->Load(
-          MachineType::Pointer(), BuildLoadIsolateRoot(),
-          IsolateData::root_slot_offset(RootIndex::kActiveSuspender));
-      auto done = gasm_->MakeLabel();
-      Node* no_suspender =
-          gasm_->TaggedEqual(active_suspender, UndefinedValue());
-      gasm_->GotoIf(no_suspender, &done);
-      Node* counter =
-          gasm_->Load(MachineType::Int32(), active_suspender,
-                      wasm::ObjectAccess::ToTagged(
-                          WasmSuspenderObject::kWasmToJsCounterOffset));
-      counter = gasm_->Int32Add(counter, Int32Constant(1));
-      gasm_->Store(
-          StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-          active_suspender,
-          wasm::ObjectAccess::ToTagged(
-              WasmSuspenderObject::kWasmToJsCounterOffset),
-          counter);
-      gasm_->Goto(&done);
-      gasm_->Bind(&done);
-    }
-
     // Clear the ThreadInWasm flag.
     BuildModifyThreadInWasmFlag(false);
-
     switch (kind) {
       // =======================================================================
       // === JS Functions with matching arity ==================================
@@ -8102,31 +8069,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // source position 0 encodes the call to the imported JS code.
     SetSourcePosition(call, 0);
 
-    if (v8_flags.experimental_wasm_stack_switching) {
-      if (suspend) {
-        call = BuildSuspend(call, Param(1), Param(0));
-      }
-      auto done = gasm_->MakeLabel();
-      Node* no_suspender =
-          gasm_->TaggedEqual(active_suspender, UndefinedValue());
-      gasm_->GotoIf(no_suspender, &done);
-      // Decrement the wasm-to-js counter.
-      active_suspender = gasm_->Load(
-          MachineType::Pointer(), BuildLoadIsolateRoot(),
-          IsolateData::root_slot_offset(RootIndex::kActiveSuspender));
-      Node* counter =
-          gasm_->Load(MachineType::Int32(), active_suspender,
-                      wasm::ObjectAccess::ToTagged(
-                          WasmSuspenderObject::kWasmToJsCounterOffset));
-      counter = gasm_->Int32Sub(counter, Int32Constant(1));
-      gasm_->Store(
-          StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-          active_suspender,
-          wasm::ObjectAccess::ToTagged(
-              WasmSuspenderObject::kWasmToJsCounterOffset),
-          counter);
-      gasm_->Goto(&done);
-      gasm_->Bind(&done);
+    if (v8_flags.experimental_wasm_stack_switching && suspend) {
+      call = BuildSuspend(call, Param(1), Param(0));
     }
 
     // Convert the return value(s) back.

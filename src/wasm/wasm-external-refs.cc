@@ -12,6 +12,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
+#include "src/roots/roots.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -701,6 +702,13 @@ intptr_t switch_to_the_central_stack_for_js(Address raw_receiver,
                                             uintptr_t* stack_limit_slot) {
   Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
   Isolate* isolate = receiver->GetIsolate();
+  // Set the suspender's {has_js_frames} field. The suspender contains JS
+  // frames iff it is currently on the central stack.
+  // The wasm-to-js wrapper checks this field when calling a suspending import
+  // and traps if the stack contains JS frames.
+  auto active_suspender =
+      WasmSuspenderObject::cast(isolate->root(RootIndex::kActiveSuspender));
+  active_suspender->set_has_js_frames(1);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
   *stack_limit_slot = stack_guard->real_jslimit();
@@ -714,6 +722,10 @@ void switch_from_the_central_stack_for_js(Address raw_receiver,
                                           uintptr_t stack_limit) {
   Tagged<JSReceiver> receiver = JSReceiver::cast(Tagged<Object>(raw_receiver));
   Isolate* isolate = receiver->GetIsolate();
+  // The stack only contains wasm frames after this JS call.
+  auto active_suspender =
+      WasmSuspenderObject::cast(isolate->root(RootIndex::kActiveSuspender));
+  active_suspender->set_has_js_frames(0);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;
   StackGuard* stack_guard = isolate->stack_guard();

@@ -65,7 +65,6 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // 3 fixed slots, rounded up to stack alignment.
   const numFixedSlots = ((2 + alignment) / alignment) * alignment;
 
-  ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
   dcheck(ref.wrapper_budget > 0);
@@ -315,7 +314,6 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       numFixedSlots;
 
   ModifyThreadInWasmFlag(1);
-  ModifyWasmToJSCounter(-1);
   return WasmToJSResult{
     popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),
