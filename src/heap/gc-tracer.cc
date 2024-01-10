@@ -724,15 +724,18 @@ void GCTracer::Print() const {
 
   // Avoid PrintF as Output also appends the string to the tracing ring buffer
   // that gets printed on OOM failures.
+  DCHECK_IMPLIES(young_gc_while_full_gc_,
+                 Event::IsYoungGenerationEvent(current_.type));
   Output(
       "[%d:%p] "
       "%8.0f ms: "
-      "%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
+      "%s%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
       "%.2f / %.2f ms %s (average mu = %.3f, current mu = %.3f) %s; %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(),
       ToString(current_.type, false), current_.reduce_memory ? " (reduce)" : "",
+      young_gc_while_full_gc_ ? " (interleaved)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
@@ -766,6 +769,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
+          "interleaved=%d "
           "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
@@ -805,6 +809,7 @@ void GCTracer::PrintNVP() const {
           "pool_chunks=%d\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
+          young_gc_while_full_gc_,
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EPILOGUE),

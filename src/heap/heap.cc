@@ -1909,6 +1909,7 @@ void Heap::CollectGarbage(AllocationSpace space,
       tracer()->StopYoungCycleIfNeeded();
     } else {
       tracer()->StopFullCycleIfNeeded();
+      ReportIneffectiveMarkCompactIfNeeded();
     }
   });
 
@@ -3746,9 +3747,12 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
          mutator_utilization < kLowMutatorUtilization;
 }
 
+namespace {
+static constexpr int kMaxConsecutiveIneffectiveMarkCompacts = 4;
+}
+
 void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
                                        double mutator_utilization) {
-  const int kMaxConsecutiveIneffectiveMarkCompacts = 4;
   if (!v8_flags.detect_ineffective_gcs_near_heap_limit) return;
   if (!IsIneffectiveMarkCompact(old_generation_size, mutator_utilization)) {
     consecutive_ineffective_mark_compacts_ = 0;
@@ -3762,6 +3766,14 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
       consecutive_ineffective_mark_compacts_ = 0;
       return;
     }
+  }
+}
+
+void Heap::ReportIneffectiveMarkCompactIfNeeded() {
+  DCHECK_IMPLIES(!v8_flags.detect_ineffective_gcs_near_heap_limit,
+                 consecutive_ineffective_mark_compacts_ == 0);
+  if (consecutive_ineffective_mark_compacts_ ==
+      kMaxConsecutiveIneffectiveMarkCompacts) {
     FatalProcessOutOfMemory("Ineffective mark-compacts near heap limit");
   }
 }
