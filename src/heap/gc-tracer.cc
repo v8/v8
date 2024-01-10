@@ -347,16 +347,11 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
     long_task_stats->gc_young_wall_clock_duration_us +=
         duration.InMicroseconds();
   } else {
-    DCHECK_EQ(0u, current_.incremental_marking_bytes);
-    DCHECK(current_.incremental_marking_duration.IsZero());
     if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
-      RecordIncrementalMarkingSpeed(incremental_marking_bytes_,
-                                    incremental_marking_duration_);
+      RecordIncrementalMarkingSpeed(current_.incremental_marking_bytes,
+                                    current_.incremental_marking_duration);
       recorded_incremental_mark_compacts_.Push(
           BytesAndDuration(current_.end_object_size, duration));
-      std::swap(current_.incremental_marking_bytes, incremental_marking_bytes_);
-      std::swap(current_.incremental_marking_duration,
-                incremental_marking_duration_);
       for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
         current_.incremental_scopes[i] = incremental_scopes_[i];
         current_.scopes[i] = incremental_scopes_[i].duration;
@@ -365,15 +360,15 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
     } else {
       recorded_mark_compacts_.Push(
           BytesAndDuration(current_.end_object_size, duration));
-      DCHECK_EQ(0u, incremental_marking_bytes_);
-      DCHECK(incremental_marking_duration_.IsZero());
+      DCHECK_EQ(0u, current_.incremental_marking_bytes);
+      DCHECK(current_.incremental_marking_duration.IsZero());
     }
     RecordGCSumCounters();
     combined_mark_compact_speed_cache_ = 0.0;
     long_task_stats->gc_full_atomic_wall_clock_duration_us +=
         duration.InMicroseconds();
     RecordMutatorUtilization(current_.end_time,
-                             duration + incremental_marking_duration_);
+                             duration + current_.incremental_marking_duration);
   }
 
   heap_->UpdateTotalGCTime(duration);
@@ -668,8 +663,8 @@ void GCTracer::AddSurvivalRatio(double promotion_ratio) {
 
 void GCTracer::AddIncrementalMarkingStep(double duration, size_t bytes) {
   if (bytes > 0) {
-    incremental_marking_bytes_ += bytes;
-    incremental_marking_duration_ +=
+    current_.incremental_marking_bytes += bytes;
+    current_.incremental_marking_duration +=
         base::TimeDelta::FromMillisecondsD(duration);
   }
   ReportIncrementalMarkingStepToRecorder(duration);
@@ -711,7 +706,7 @@ void GCTracer::Print() const {
         current_scope(Scope::MC_INCREMENTAL),
         incremental_scope(Scope::MC_INCREMENTAL).steps,
         incremental_scope(Scope::MC_INCREMENTAL).longest_step.InMillisecondsF(),
-        (current_.end_time - incremental_marking_start_time_)
+        (current_.end_time - current_.incremental_marking_start_time)
             .InMillisecondsF());
   }
 
@@ -756,7 +751,7 @@ void GCTracer::PrintNVP() const {
   base::TimeDelta incremental_walltime_duration;
   if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
     incremental_walltime_duration =
-        current_.end_time - incremental_marking_start_time_;
+        current_.end_time - current_.incremental_marking_start_time;
   }
 
   // Avoid data races when printing the background scopes.
@@ -1119,14 +1114,15 @@ void GCTracer::PrintNVP() const {
 
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes,
                                              base::TimeDelta duration) {
+  DCHECK(!Event::IsYoungGenerationEvent(current_.type));
   if (duration.IsZero() || bytes == 0) return;
   double current_speed =
       static_cast<double>(bytes) / duration.InMillisecondsF();
-  if (recorded_incremental_marking_speed_ == 0) {
-    recorded_incremental_marking_speed_ = current_speed;
+  if (recorded_major_incremental_marking_speed_ == 0) {
+    recorded_major_incremental_marking_speed_ = current_speed;
   } else {
-    recorded_incremental_marking_speed_ =
-        (recorded_incremental_marking_speed_ + current_speed) / 2;
+    recorded_major_incremental_marking_speed_ =
+        (recorded_major_incremental_marking_speed_ + current_speed) / 2;
   }
 }
 
@@ -1193,12 +1189,12 @@ double GCTracer::CurrentMarkCompactMutatorUtilization() const {
 }
 
 double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
-  if (recorded_incremental_marking_speed_ != 0) {
-    return recorded_incremental_marking_speed_;
+  if (recorded_major_incremental_marking_speed_ != 0) {
+    return recorded_major_incremental_marking_speed_;
   }
-  if (!incremental_marking_duration_.IsZero()) {
-    return incremental_marking_bytes_ /
-           incremental_marking_duration_.InMillisecondsF();
+  if (!current_.incremental_marking_duration.IsZero()) {
+    return current_.incremental_marking_bytes /
+           current_.incremental_marking_duration.InMillisecondsF();
   }
   return kConservativeSpeedInBytesPerMillisecond;
 }
@@ -1322,7 +1318,7 @@ bool GCTracer::SurvivalEventsRecorded() const {
 void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Clear(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
-  incremental_marking_start_time_ = base::TimeTicks::Now();
+  current_.incremental_marking_start_time = base::TimeTicks::Now();
 }
 
 void GCTracer::FetchBackgroundCounters() {
@@ -1360,12 +1356,12 @@ void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
         TruncateToMs(current_.scopes[Scope::MC_PROLOGUE]));
     counters->gc_finalize_sweep()->AddSample(
         TruncateToMs(current_.scopes[Scope::MC_SWEEP]));
-    if (!incremental_marking_duration_.IsZero()) {
+    if (!current_.incremental_marking_duration.IsZero()) {
       heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
-          TruncateToMs(incremental_marking_duration_));
+          TruncateToMs(current_.incremental_marking_duration));
     }
     const base::TimeDelta overall_marking_time =
-        incremental_marking_duration_ + current_.scopes[Scope::MC_MARK];
+        current_.incremental_marking_duration + current_.scopes[Scope::MC_MARK];
     heap_->isolate()->counters()->gc_marking_sum()->AddSample(
         TruncateToMs(overall_marking_time));
 
@@ -1384,7 +1380,7 @@ void GCTracer::RecordGCSumCounters() {
   const base::TimeDelta incremental_marking =
       incremental_scopes_[Scope::MC_INCREMENTAL_LAYOUT_CHANGE].duration +
       incremental_scopes_[Scope::MC_INCREMENTAL_START].duration +
-      incremental_marking_duration_ +
+      current_.incremental_marking_duration +
       incremental_scopes_[Scope::MC_INCREMENTAL_FINALIZE].duration;
   const base::TimeDelta incremental_sweeping =
       incremental_scopes_[Scope::MC_INCREMENTAL_SWEEPING].duration;
@@ -1613,7 +1609,7 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.main_thread_incremental.mark_wall_clock_duration_in_us =
         incremental_marking.InMicroseconds();
     event.incremental_marking_start_stop_wall_clock_duration_in_us =
-        (current_.start_time - incremental_marking_start_time_)
+        (current_.start_time - current_.incremental_marking_start_time)
             .InMicroseconds();
   } else {
     DCHECK(incremental_marking.IsZero());
