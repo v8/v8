@@ -16,6 +16,7 @@ from blinkpy.w3c.test_importer import TestImporter
 
 TEST_FILE_REFERENCE_IN_STATUS_FILE = re.compile("^\s*'(.*)':.*,$")
 TEST262_FAILURE_LINE = re.compile("=== test262/(.*) ===")
+TEST262_PATTERN = re.compile('^test/(.*)\.js$')
 TEST262_REPO_URL = 'https://chromium.googlesource.com/external/github.com/tc39/test262'
 V8_TEST262_ROLLS_META_BUG = 'v8:7834'
 
@@ -175,7 +176,8 @@ class V8TestImporter(TestImporter):
     return GitFileStatus(status_line[0][0])
 
   def update_file(self, local_file, status, source_file):
-    if status in GitFileStatus:
+    gfs = GitFileStatus
+    if status in [gfs.ADDED, gfs.DELETED, gfs.MODIFIED]:
       _log.info(f'{local_file} has counterpart in Test262. Deleting.')
       local_file.unlink()
     else:
@@ -217,7 +219,7 @@ class V8TestImporter(TestImporter):
     updated_status = self.remove_deleted_tests(v8_test262_revision,
                                                test262_revision)
 
-    added_lines = self.detected_fail_lines(failure_lines)
+    added_lines = self.failed_tests_to_status_lines(failure_lines)
     if added_lines:
       updated_status = self.rewrite_status_file_content(updated_status,
                                                         added_lines,
@@ -227,6 +229,7 @@ class V8TestImporter(TestImporter):
       w_file.writelines(updated_status)
 
   def remove_deleted_tests(self, v8_test262_revision, test262_revision):
+    # Remove deleted tests from the status file.
     _log.info(f'Remove deleted tests references from status file')
     updated_status = []
     deleted_tests = self.get_updated_tests(
@@ -236,15 +239,17 @@ class V8TestImporter(TestImporter):
         result = TEST_FILE_REFERENCE_IN_STATUS_FILE.match(line)
         if result and (result.group(1) in deleted_tests):
           _log.info(f'... removing {result.group(1)}')
-        else:
-          updated_status.append(line)
+          continue
+        updated_status.append(line)
     return updated_status
 
-  def detected_fail_lines(self, failure_lines):
-    return [f"  '{test}': [FAIL],\n" for test in failure_lines]
+  def failed_tests_to_status_lines(self, failed_tests):
+    # Transform the list of failed tests into a list of status file lines.
+    return [f"  '{test}': [FAIL],\n" for test in failed_tests]
 
   def rewrite_status_file_content(self, updated_status, added_lines,
                                   v8_test262_revision, test262_revision):
+    # Reassemble the status file with the new tests added.
     # TODO(liviurau): This is easy to unit test. Add unit tests.
     status_lines_before_eof = updated_status[:-2]
     eof_status_lines = updated_status[-2:]
@@ -252,7 +257,7 @@ class V8TestImporter(TestImporter):
         '\n', ']\n'
     ], f'Unexpected status file eof. {eof_status_lines}'
     import_header_lines = [
-        '\n####', f'# Import test262@{test262_revision[:8]}\n',
+        '\n####\n', f'# Import test262@{test262_revision[:8]}\n',
         f'# {TEST262_REPO_URL}/+log/{v8_test262_revision[:8]}..{test262_revision[:8]}\n'
     ]
     new_failing_tests_lines = ['[ALWAYS, {\n'] + added_lines + [
@@ -270,9 +275,9 @@ class V8TestImporter(TestImporter):
         v8_test262_revision, test262_revision, '--', 'test'
     ]).splitlines()
     return [
-        re.sub(r'^test/(.*)\.js$', r'\1', line)
+        re.sub(TEST262_PATTERN, r'\1', line)
         for line in lines
-        if line.strip()
+        if line.strip() and TEST262_PATTERN.match(line)
     ]
 
 

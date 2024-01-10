@@ -9,7 +9,6 @@ from functools import cached_property
 
 from blinkpy.w3c.local_wpt import LocalRepo
 from blinkpy.w3c.wpt_github import GitHubRepo, PROVISIONAL_PR_LABEL
-from blinkpy.w3c.chromium_finder import absolute_chromium_dir
 from blinkpy.w3c.chromium_configs import ProjectConfig
 
 
