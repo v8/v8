@@ -650,7 +650,8 @@ class WasmGraphBuilder {
   // the kind of bounds check performed (or why none was needed).
   std::pair<Node*, BoundsCheckResult> BoundsCheckMem(
       const wasm::WasmMemory* memory, uint8_t access_size, Node* index,
-      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck);
+      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck,
+      AlignmentCheck alignment_check);
 
   std::pair<Node*, BoundsCheckResult> CheckBoundsAndAlignment(
       const wasm::WasmMemory* memory, int8_t access_size, Node* index,

@@ -3099,6 +3099,10 @@ class LiftoffCompiler {
   }
 
   enum ForceCheck : bool { kDoForceCheck = true, kDontForceCheck = false };
+  enum AlignmentCheck : bool {
+    kCheckAlignment = true,
+    kDontCheckAlignment = false
+  };
 
   // Returns the GP {index} register holding the ptrsized index.
   // Note that the {index} will typically not be pinned, but the returned
@@ -3107,7 +3111,8 @@ class LiftoffCompiler {
   Register BoundsCheckMem(FullDecoder* decoder, const WasmMemory* memory,
                           uint32_t access_size, uint64_t offset,
                           LiftoffRegister index, LiftoffRegList pinned,
-                          ForceCheck force_check) {
+                          ForceCheck force_check,
+                          AlignmentCheck check_alignment) {
     // The decoder ensures that the access is not statically OOB.
     DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
                                        memory->max_memory_size));
@@ -3119,6 +3124,15 @@ class LiftoffCompiler {
     // further down).
     Register index_ptrsize =
         kNeedI64RegPair && index.is_gp_pair() ? index.low_gp() : index.gp();
+
+    if (check_alignment) {
+      pinned.set(index_ptrsize);
+      if (memory->is_memory64 && kSystemPointerSize == kInt32Size) {
+        // The index.high_gp() is still needed to check for out of bounds.
+        pinned.set(index);
+      }
+      AlignmentCheckMem(decoder, access_size, offset, index_ptrsize, pinned);
+    }
 
     // Without bounds checks (testing only), just return the ptrsize index.
     if (V8_UNLIKELY(bounds_checks == kNoBoundsChecks)) {
@@ -3388,8 +3402,9 @@ class LiftoffCompiler {
       __ PushRegister(kind, value);
     } else {
       LiftoffRegister full_index = __ PopToRegister();
-      index = BoundsCheckMem(decoder, imm.memory, type.size(), offset,
-                             full_index, {}, kDontForceCheck);
+      index =
+          BoundsCheckMem(decoder, imm.memory, type.size(), offset, full_index,
+                         {}, kDontForceCheck, kDontCheckAlignment);
 
       SCOPED_CODE_COMMENT("load from memory");
       LiftoffRegList pinned{index};
@@ -3434,7 +3449,7 @@ class LiftoffCompiler {
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
     Register index =
         BoundsCheckMem(decoder, imm.memory, access_size, imm.offset, full_index,
-                       {}, kDontForceCheck);
+                       {}, kDontForceCheck, kDontCheckAlignment);
 
     uintptr_t offset = imm.offset;
     LiftoffRegList pinned{index};
@@ -3480,7 +3495,7 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister();
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDontForceCheck);
+                       pinned, kDontForceCheck, kDontCheckAlignment);
 
     bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
@@ -3540,8 +3555,9 @@ class LiftoffCompiler {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       ForceCheck force_check =
           kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
-      index = BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
-                             full_index, pinned, force_check);
+      index =
+          BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
+                         full_index, pinned, force_check, kDontCheckAlignment);
 
       pinned.set(index);
       SCOPED_CODE_COMMENT("store to memory");
@@ -3577,7 +3593,7 @@ class LiftoffCompiler {
         kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, force_check);
+                       pinned, force_check, kDontCheckAlignment);
 
     bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
@@ -5030,12 +5046,12 @@ class LiftoffCompiler {
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister(pinned);
+
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck);
-
+                       pinned, kDoForceCheck, kCheckAlignment);
     pinned.set(index);
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+
     uintptr_t offset = imm.offset;
     CODE_COMMENT("atomic store to memory");
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
@@ -5057,11 +5073,12 @@ class LiftoffCompiler {
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister();
-    Register index = BoundsCheckMem(decoder, imm.memory, type.size(),
-                                    imm.offset, full_index, {}, kDoForceCheck);
 
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       {}, kDoForceCheck, kCheckAlignment);
     LiftoffRegList pinned{index};
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+
     uintptr_t offset = imm.offset;
     CODE_COMMENT("atomic load from memory");
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
@@ -5107,12 +5124,11 @@ class LiftoffCompiler {
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister(pinned);
+
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck);
-
+                       pinned, kDoForceCheck, kCheckAlignment);
     pinned.set(index);
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     CODE_COMMENT("atomic binop");
     uintptr_t offset = imm.offset;
@@ -5131,10 +5147,11 @@ class LiftoffCompiler {
     // single register. Afterwards we load all remaining values into the
     // other registers.
     LiftoffRegister full_index = __ PeekToRegister(2, {});
-    Register index = BoundsCheckMem(decoder, imm.memory, type.size(),
-                                    imm.offset, full_index, {}, kDoForceCheck);
+
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       {}, kDoForceCheck, kCheckAlignment);
     LiftoffRegList pinned{index};
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -5180,9 +5197,8 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck);
+                       pinned, kDoForceCheck, kCheckAlignment);
     pinned.set(index);
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
@@ -5223,12 +5239,11 @@ class LiftoffCompiler {
     {
       LiftoffRegList pinned;
       LiftoffRegister full_index = __ PeekToRegister(2, pinned);
+
       Register index_reg =
           BoundsCheckMem(decoder, imm.memory, value_kind_size(kind), imm.offset,
-                         full_index, pinned, kDoForceCheck);
+                         full_index, pinned, kDoForceCheck, kCheckAlignment);
       pinned.set(index_reg);
-      AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
-                        pinned);
 
       uintptr_t offset = imm.offset;
       Register index_plus_offset = index_reg;
@@ -5318,9 +5333,8 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index_reg =
         BoundsCheckMem(decoder, imm.memory, kInt32Size, imm.offset, full_index,
-                       pinned, kDoForceCheck);
+                       pinned, kDoForceCheck, kCheckAlignment);
     pinned.set(index_reg);
-    AlignmentCheckMem(decoder, kInt32Size, imm.offset, index_reg, pinned);
 
     uintptr_t offset = imm.offset;
     Register addr = index_reg;

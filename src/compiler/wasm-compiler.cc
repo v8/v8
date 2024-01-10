@@ -3621,55 +3621,13 @@ void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
       stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index, val);
 }
 
-std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::CheckBoundsAndAlignment(
-    const wasm::WasmMemory* memory, int8_t access_size, Node* index,
-    uintptr_t offset, wasm::WasmCodePosition position,
-    EnforceBoundsCheck enforce_check) {
-  // Atomic operations need bounds checks until the backend can emit protected
-  // loads.
-  BoundsCheckResult bounds_check_result;
-  std::tie(index, bounds_check_result) = BoundsCheckMem(
-      memory, access_size, index, offset, position, enforce_check);
-
-  const uintptr_t align_mask = access_size - 1;
-
-  // Do alignment checks only for > 1 byte accesses (otherwise they trivially
-  // pass).
-  if (align_mask != 0) {
-    // Don't emit an alignment check if the index is a constant.
-    // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
-    UintPtrMatcher match(index);
-    if (match.HasResolvedValue()) {
-      uintptr_t effective_offset = match.ResolvedValue() + offset;
-      if ((effective_offset & align_mask) != 0) {
-        // statically known to be unaligned; trap.
-        TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
-      }
-      return {index, bounds_check_result};
-    }
-
-    // Unlike regular memory accesses, atomic memory accesses should trap if
-    // the effective offset is misaligned.
-    // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
-    Node* effective_offset =
-        gasm_->IntAdd(MemBuffer(memory->index, offset), index);
-
-    Node* cond =
-        gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
-    TrapIfFalse(wasm::kTrapUnalignedAccess,
-                gasm_->Word32Equal(cond, Int32Constant(0)), position);
-  }
-
-  return {index, bounds_check_result};
-}
-
 // Insert code to bounds check a memory access if necessary. Return the
 // bounds-checked index, which is guaranteed to have (the equivalent of)
 // {uintptr_t} representation.
 std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
     const wasm::WasmMemory* memory, uint8_t access_size, Node* index,
     uintptr_t offset, wasm::WasmCodePosition position,
-    EnforceBoundsCheck enforce_check) {
+    EnforceBoundsCheck enforce_check, AlignmentCheck alignment_check) {
   DCHECK_LE(1, access_size);
 
   wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
@@ -3680,25 +3638,56 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
                                      memory->max_memory_size));
 
   // Convert the index to uintptr.
+  Node* converted_index = index;
   if (!memory->is_memory64) {
-    index = gasm_->BuildChangeUint32ToUintPtr(index);
+    converted_index = gasm_->BuildChangeUint32ToUintPtr(index);
   } else if (kSystemPointerSize == kInt32Size) {
-    // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
-    // succeed the bounds check.
-    DCHECK_NE(wasm::kTrapHandler, bounds_checks);
-    if (bounds_checks == wasm::kExplicitBoundsChecks) {
-      Node* high_word = gasm_->TruncateInt64ToInt32(
-          gasm_->Word64Shr(index, Int32Constant(32)));
-      TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
-    }
     // Only use the low word for the following bounds check.
-    index = gasm_->TruncateInt64ToInt32(index);
+    converted_index = gasm_->TruncateInt64ToInt32(index);
+  }
+
+  UintPtrMatcher constant_index(converted_index);
+  // Do alignment checks only for > 1 byte accesses (otherwise they trivially
+  // pass).
+  const uintptr_t align_mask = access_size - 1;
+  if (static_cast<bool>(alignment_check) && align_mask != 0) {
+    // Don't emit an alignment check if the index is a constant.
+    // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
+    if (constant_index.HasResolvedValue()) {
+      uintptr_t effective_offset = constant_index.ResolvedValue() + offset;
+      if ((effective_offset & align_mask) != 0) {
+        // statically known to be unaligned; trap.
+        TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
+      }
+    } else {
+      // Unlike regular memory accesses, atomic memory accesses should trap if
+      // the effective offset is misaligned.
+      // TODO(wasm): this addition is redundant with one inserted by
+      // {MemBuffer}.
+      Node* effective_offset =
+          gasm_->IntAdd(MemBuffer(memory->index, offset), converted_index);
+
+      Node* cond =
+          gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
+      TrapIfFalse(wasm::kTrapUnalignedAccess,
+                  gasm_->Word32Equal(cond, Int32Constant(0)), position);
+    }
   }
 
   // If no bounds checks should be performed (for testing), just return the
   // converted index and assume it to be in-bounds.
-  if (bounds_checks == wasm::kNoBoundsChecks)
-    return {index, BoundsCheckResult::kInBounds};
+  if (bounds_checks == wasm::kNoBoundsChecks) {
+    return {converted_index, BoundsCheckResult::kInBounds};
+  }
+
+  if (memory->is_memory64 && kSystemPointerSize == kInt32Size) {
+    // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
+    // succeed the bounds check.
+    DCHECK_EQ(wasm::kExplicitBoundsChecks, bounds_checks);
+    Node* high_word =
+        gasm_->TruncateInt64ToInt32(gasm_->Word64Shr(index, Int32Constant(32)));
+    TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
+  }
 
   // We already checked that offset is below the max memory size.
   DCHECK_LT(offset, memory->max_memory_size);
@@ -3714,12 +3703,12 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
 
   uintptr_t end_offset = offset + access_size - 1u;
 
-  UintPtrMatcher match(index);
-  if (match.HasResolvedValue() && end_offset <= memory->min_memory_size &&
-      match.ResolvedValue() < memory->min_memory_size - end_offset) {
+  if (constant_index.HasResolvedValue() &&
+      end_offset <= memory->min_memory_size &&
+      constant_index.ResolvedValue() < memory->min_memory_size - end_offset) {
     // The input index is a constant and everything is statically within
     // bounds of the smallest possible memory.
-    return {index, BoundsCheckResult::kInBounds};
+    return {converted_index, BoundsCheckResult::kInBounds};
   }
 
   if (bounds_checks == wasm::kTrapHandler &&
@@ -3729,12 +3718,13 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
           gasm_->LoadImmutable(MachineType::Uint64(), BuildLoadIsolateRoot(),
                                IsolateData::wasm64_oob_offset_offset());
       Node* cond = gasm_->Word64Shr(
-          index, Int64Constant(memory->GetMemory64GuardsShift()));
-      Node* modified_index = mcgraph()->graph()->NewNode(
-          mcgraph()->machine()->Word64Select().op(), cond, true_node, index);
+          converted_index, Int64Constant(memory->GetMemory64GuardsShift()));
+      Node* modified_index =
+          mcgraph()->graph()->NewNode(mcgraph()->machine()->Word64Select().op(),
+                                      cond, true_node, converted_index);
       return {modified_index, BoundsCheckResult::kTrapHandler};
     } else {
-      return {index, BoundsCheckResult::kTrapHandler};
+      return {converted_index, BoundsCheckResult::kTrapHandler};
     }
   }
 
@@ -3752,9 +3742,9 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   Node* effective_size = gasm_->IntSub(mem_size, end_offset_node);
 
   // Introduce the actual bounds check.
-  Node* cond = gasm_->UintLessThan(index, effective_size);
+  Node* cond = gasm_->UintLessThan(converted_index, effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
-  return {index, BoundsCheckResult::kDynamicallyChecked};
+  return {converted_index, BoundsCheckResult::kDynamicallyChecked};
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -3912,9 +3902,9 @@ Node* WasmGraphBuilder::LoadLane(const wasm::WasmMemory* memory,
   Node* load;
   uint8_t access_size = memtype.MemSize();
   BoundsCheckResult bounds_check_result;
-  std::tie(index, bounds_check_result) =
-      BoundsCheckMem(memory, access_size, index, offset, position,
-                     EnforceBoundsCheck::kCanOmitBoundsCheck);
+  std::tie(index, bounds_check_result) = BoundsCheckMem(
+      memory, access_size, index, offset, position,
+      EnforceBoundsCheck::kCanOmitBoundsCheck, AlignmentCheck::kNo);
 
   MemoryAccessKind load_kind = GetMemoryAccessKind(
       mcgraph_, memtype.representation(), bounds_check_result);
@@ -3952,9 +3942,9 @@ Node* WasmGraphBuilder::LoadTransform(const wasm::WasmMemory* memory,
                             ? 8
                             : memtype.MemSize();
   BoundsCheckResult bounds_check_result;
-  std::tie(index, bounds_check_result) =
-      BoundsCheckMem(memory, access_size, index, offset, position,
-                     EnforceBoundsCheck::kCanOmitBoundsCheck);
+  std::tie(index, bounds_check_result) = BoundsCheckMem(
+      memory, access_size, index, offset, position,
+      EnforceBoundsCheck::kCanOmitBoundsCheck, AlignmentCheck::kNo);
 
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
   MemoryAccessKind load_kind = GetMemoryAccessKind(
@@ -3989,9 +3979,9 @@ Node* WasmGraphBuilder::LoadMem(const wasm::WasmMemory* memory,
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
   BoundsCheckResult bounds_check_result;
-  std::tie(index, bounds_check_result) =
-      BoundsCheckMem(memory, memtype.MemSize(), index, offset, position,
-                     EnforceBoundsCheck::kCanOmitBoundsCheck);
+  std::tie(index, bounds_check_result) = BoundsCheckMem(
+      memory, memtype.MemSize(), index, offset, position,
+      EnforceBoundsCheck::kCanOmitBoundsCheck, AlignmentCheck::kNo);
 
   Node* mem_start = MemBuffer(memory->index, offset);
   Node* load;
@@ -4042,7 +4032,8 @@ void WasmGraphBuilder::StoreLane(const wasm::WasmMemory* memory,
   std::tie(index, bounds_check_result) = BoundsCheckMem(
       memory, i::ElementSizeInBytes(mem_rep), index, offset, position,
       wasm::kPartialOOBWritesAreNoops ? EnforceBoundsCheck::kCanOmitBoundsCheck
-                                      : EnforceBoundsCheck::kNeedsBoundsCheck);
+                                      : EnforceBoundsCheck::kNeedsBoundsCheck,
+      AlignmentCheck::kNo);
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph_, mem_rep, bounds_check_result);
 
@@ -4073,7 +4064,8 @@ void WasmGraphBuilder::StoreMem(const wasm::WasmMemory* memory,
   std::tie(index, bounds_check_result) = BoundsCheckMem(
       memory, i::ElementSizeInBytes(mem_rep), index, offset, position,
       wasm::kPartialOOBWritesAreNoops ? EnforceBoundsCheck::kCanOmitBoundsCheck
-                                      : EnforceBoundsCheck::kNeedsBoundsCheck);
+                                      : EnforceBoundsCheck::kNeedsBoundsCheck,
+      AlignmentCheck::kNo);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndiannessStore(val, mem_rep, type);
@@ -5189,9 +5181,11 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
     : EnforceBoundsCheck::kNeedsBoundsCheck;
   Node* index;
   BoundsCheckResult bounds_check_result;
+  // Atomic operations need bounds checks until the backend can emit protected
+  // loads. Independently, an alignemnt check is needed as well.
   std::tie(index, bounds_check_result) =
-      CheckBoundsAndAlignment(memory, info.machine_type.MemSize(), inputs[0],
-                              offset, position, enforce_bounds_check);
+      BoundsCheckMem(memory, info.machine_type.MemSize(), inputs[0], offset,
+                     position, enforce_bounds_check, AlignmentCheck::kYes);
   // MemoryAccessKind::kUnaligned is impossible due to explicit aligment check.
   MemoryAccessKind access_kind =
       bounds_check_result == BoundsCheckResult::kTrapHandler

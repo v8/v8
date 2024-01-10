@@ -758,7 +758,8 @@ class TurboshaftGraphBuildingInterface {
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
@@ -800,7 +801,8 @@ class TurboshaftGraphBuildingInterface {
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
 
     compiler::turboshaft::Simd128LoadTransformOp::LoadKind load_kind =
         GetMemoryAccessKind(repr, strategy);
@@ -873,7 +875,8 @@ class TurboshaftGraphBuildingInterface {
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -924,7 +927,8 @@ class TurboshaftGraphBuildingInterface {
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        wasm::kPartialOOBWritesAreNoops
                            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
@@ -965,7 +969,8 @@ class TurboshaftGraphBuildingInterface {
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        kPartialOOBWritesAreNoops
                            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -2400,9 +2405,10 @@ class TurboshaftGraphBuildingInterface {
                     OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
     V<WordPtr> converted_index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+    std::tie(converted_index, bounds_check_result) = BoundsCheckMem(
         imm.memory, MemoryRepresentation::Int32(), index, imm.offset,
-        decoder->position(), compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+        compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+        compiler::AlignmentCheck::kYes);
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
     OpIndex addr = __ WordPtrAdd(MemStart(imm.mem_index), effective_offset);
@@ -2418,12 +2424,12 @@ class TurboshaftGraphBuildingInterface {
                   OpIndex expected, V<Word64> timeout, Value* result) {
     V<WordPtr> converted_index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+    std::tie(converted_index, bounds_check_result) = BoundsCheckMem(
         imm.memory,
         opcode == kExprI32AtomicWait ? MemoryRepresentation::Int32()
                                      : MemoryRepresentation::Int64(),
-        index, imm.offset, decoder->position(),
-        compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+        index, imm.offset, compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+        compiler::AlignmentCheck::kYes);
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
     V<BigInt> bigint_timeout = BuildChangeInt64ToBigInt(timeout);
@@ -2581,9 +2587,10 @@ class TurboshaftGraphBuildingInterface {
 
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(index, bounds_check_result) = CheckBoundsAndAlignment(
-        imm.memory, info.input_rep, args[0].op, imm.offset, decoder->position(),
-        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+    std::tie(index, bounds_check_result) =
+        BoundsCheckMem(imm.memory, info.input_rep, args[0].op, imm.offset,
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kYes);
     // MemoryAccessKind::kUnaligned is impossible due to explicit aligment
     // check.
     MemoryAccessKind access_kind =
@@ -5380,22 +5387,29 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  std::pair<V<WordPtr>, compiler::BoundsCheckResult> CheckBoundsAndAlignment(
+  std::pair<V<WordPtr>, compiler::BoundsCheckResult> BoundsCheckMem(
       const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
-      uintptr_t offset, wasm::WasmCodePosition position,
-      compiler::EnforceBoundsCheck enforce_check) {
-    // Atomic operations need bounds checks until the backend can emit protected
-    // loads.
-    compiler::BoundsCheckResult bounds_check_result;
-    V<WordPtr> converted_index;
-    std::tie(converted_index, bounds_check_result) =
-        BoundsCheckMem(memory, repr, index, offset, enforce_check);
+      uintptr_t offset, compiler::EnforceBoundsCheck enforce_bounds_check,
+      compiler::AlignmentCheck alignment_check) {
+    // The function body decoder already validated that the access is not
+    // statically OOB.
+    DCHECK(base::IsInBounds(offset, static_cast<uintptr_t>(repr.SizeInBytes()),
+                            memory->max_memory_size));
+
+    wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
+    // Convert the index to uintptr.
+    V<WordPtr> converted_index = index;
+    if (!memory->is_memory64) {
+      converted_index = __ ChangeUint32ToUintPtr(index);
+    } else if (kSystemPointerSize == kInt32Size) {
+      // Truncate index to 32-bit.
+      converted_index = V<WordPtr>::Cast(__ TruncateWord64ToWord32(index));
+    }
 
     const uintptr_t align_mask = repr.SizeInBytes() - 1;
-
     // Do alignment checks only for > 1 byte accesses (otherwise they trivially
     // pass).
-    if (align_mask != 0) {
+    if (static_cast<bool>(alignment_check) && align_mask != 0) {
       // TODO(14108): Optimize constant index as per wasm-compiler.cc.
 
       // Unlike regular memory accesses, atomic memory accesses should trap if
@@ -5411,38 +5425,19 @@ class TurboshaftGraphBuildingInterface {
                    OpIndex::Invalid(), TrapId::kTrapUnalignedAccess);
     }
 
-    return {converted_index, bounds_check_result};
-  }
-
-  std::pair<V<WordPtr>, compiler::BoundsCheckResult> BoundsCheckMem(
-      const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
-      uintptr_t offset, compiler::EnforceBoundsCheck enforce_bounds_check) {
-    // The function body decoder already validated that the access is not
-    // statically OOB.
-    DCHECK(base::IsInBounds(offset, static_cast<uintptr_t>(repr.SizeInBytes()),
-                            memory->max_memory_size));
-
-    wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
-    // Convert the index to uintptr.
-    if (!memory->is_memory64) {
-      index = __ ChangeUint32ToUintPtr(index);
-    } else if (kSystemPointerSize == kInt32Size) {
-      // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero
-      // to succeed the bounds check.
-      DCHECK_NE(kTrapHandler, bounds_checks);
-      if (bounds_checks == wasm::kExplicitBoundsChecks) {
-        V<Word32> high_word =
-            __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
-        __ TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
-      }
-      // Truncate index to 32-bit.
-      index = __ TruncateWord64ToWord32(index);
-    }
-
     // If no bounds checks should be performed (for testing), just return the
     // converted index and assume it to be in-bounds.
     if (bounds_checks == wasm::kNoBoundsChecks) {
-      return {index, compiler::BoundsCheckResult::kInBounds};
+      return {converted_index, compiler::BoundsCheckResult::kInBounds};
+    }
+
+    if (memory->is_memory64 && kSystemPointerSize == kInt32Size) {
+      // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero
+      // to succeed the bounds check.
+      DCHECK_EQ(kExplicitBoundsChecks, bounds_checks);
+      V<Word32> high_word =
+          __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
+      __ TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
     }
 
     // We already checked that offset is below the max memory size.
@@ -5455,17 +5450,18 @@ class TurboshaftGraphBuildingInterface {
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64) {
-        index = __ Select(
+        converted_index = __ Select(
             __ Word64ShiftRightLogical(
-                index, memory->GetMemory64GuardsShift()),  // cond
+                V<Word64>::Cast(converted_index),
+                memory->GetMemory64GuardsShift()),  // cond
             __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
                     MemoryRepresentation::PointerSized(),
                     IsolateData::wasm64_oob_offset_offset()),  // vtrue
-            index,                                             // vfalse
+            V<Word64>::Cast(converted_index),                  // vfalse
             RegisterRepresentation::Word64(), BranchHint::kNone,
             Implementation::kCMove);
       }
-      return {index, compiler::BoundsCheckResult::kTrapHandler};
+      return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }
 
     uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
@@ -5482,9 +5478,9 @@ class TurboshaftGraphBuildingInterface {
     // This produces a positive number since {end_offset <= min_size <=
     // mem_size}.
     V<WordPtr> effective_size = __ WordPtrSub(memory_size, end_offset);
-    __ TrapIfNot(__ UintPtrLessThan(index, effective_size), OpIndex::Invalid(),
-                 TrapId::kTrapMemOutOfBounds);
-    return {index, compiler::BoundsCheckResult::kDynamicallyChecked};
+    __ TrapIfNot(__ UintPtrLessThan(converted_index, effective_size),
+                 OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    return {converted_index, compiler::BoundsCheckResult::kDynamicallyChecked};
   }
 
   V<WordPtr> MemStart(uint32_t index) {
