@@ -6012,16 +6012,21 @@ class LiftoffCompiler {
       // Null check.
       LiftoffRegList pinned;
       LiftoffRegister array_reg = pinned.set(__ PeekToRegister(3, pinned));
-      MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
+      if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+        MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
+      }
 
       // Bounds checks.
       Label* trap_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
       LiftoffRegister array_length =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      bool implicit_null_check =
+          array.type.is_nullable() &&
+          null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
       LoadObjectField(decoder, array_length, array_reg.gp(), no_reg,
                       ObjectAccess::ToTagged(WasmArray::kLengthOffset), kI32,
-                      false, false, pinned);
+                      false, implicit_null_check, pinned);
       LiftoffRegister index = pinned.set(__ PeekToRegister(2, pinned));
       LiftoffRegister length = pinned.set(__ PeekToRegister(0, pinned));
       LiftoffRegister index_plus_length =
