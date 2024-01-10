@@ -1835,14 +1835,15 @@ class TurboshaftGraphBuildingInterface {
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        args, direct_returns.data());
-        for (size_t ret = 0; ret < direct_returns.size(); ret++) {
-          case_returns[ret].push_back(direct_returns[ret].op);
-        }
+
         if (__ current_block() != nullptr) {
           // Only add phi inputs and a Goto to {merge} if the current_block is
           // not nullptr. If the current_block is nullptr, it means that the
           // inlined body unconditionally exits early (likely an unconditional
           // trap or throw).
+          for (size_t ret = 0; ret < direct_returns.size(); ret++) {
+            case_returns[ret].push_back(direct_returns[ret].op);
+          }
           merge_phis.AddPhiInputs(instance_cache_);
           __ Goto(merge);
         }
