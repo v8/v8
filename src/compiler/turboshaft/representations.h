@@ -357,7 +357,8 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
   return false;
 }
 
-std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           MaybeRegisterRepresentation rep);
 
 template <typename T>
 struct MultiSwitch<

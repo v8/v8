@@ -530,7 +530,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   friend class GraphVisitor;
 };
 
-std::ostream& operator<<(std::ostream& os, const Block* b);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Block* b);
 
 inline PredecessorIterator& PredecessorIterator::operator++() {
   DCHECK_NE(current_, nullptr);
@@ -1149,9 +1149,12 @@ struct PrintAsBlockHeader {
   PrintAsBlockHeader(const Block& block, BlockIndex block_id)
       : block(block), block_id(block_id) {}
 };
-std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block);
-std::ostream& operator<<(std::ostream& os, const Graph& graph);
-std::ostream& operator<<(std::ostream& os, const Block::Kind& kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           PrintAsBlockHeader block);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Graph& graph);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Block::Kind& kind);
 
 inline uint32_t Block::ComputeDominator() {
   if (V8_UNLIKELY(LastPredecessor() == nullptr)) {

@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_OPMASKS_H_
 
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 
 // The Opmasks allow performing a type check or cast with an operation mask
 // that doesn't only encode the opcode but also additional properties, i.e.
@@ -255,6 +256,13 @@ using kTruncateFloat32ToUint32OverflowToMin =
 using kTruncateInt64ToInt32 = ChangeOpMask::For<
     ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
+
+using OverflowCheckedBinopMask =
+    MaskBuilder<OverflowCheckedBinopOp, FIELD(OverflowCheckedBinopOp, kind),
+                FIELD(OverflowCheckedBinopOp, rep)>;
+using kOverflowCheckedWord32Add =
+    OverflowCheckedBinopMask::For<OverflowCheckedBinopOp::Kind::kSignedAdd,
+                                  WordRepresentation::Word32()>;
 
 #if V8_ENABLE_WEBASSEMBLY
 

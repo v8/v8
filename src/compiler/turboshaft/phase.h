@@ -38,7 +38,8 @@ enum class TurboshaftPipelineKind {
 
 class LoopUnrollingAnalyzer;
 
-class PipelineData : public base::ContextualClass<PipelineData> {
+class V8_EXPORT_PRIVATE PipelineData
+    : public base::ContextualClass<PipelineData> {
  public:
   explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
                         OptimizedCompilationInfo* const& info,
@@ -171,6 +172,11 @@ class PipelineData : public base::ContextualClass<PipelineData> {
 
 void PrintTurboshaftGraph(Zone* temp_zone, CodeTracer* code_tracer,
                           const char* phase_name);
+void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
+                                       const Graph& graph,
+                                       const char* phase_name,
+                                       NodeOriginTable* node_origins,
+                                       Zone* temp_zone);
 
 }  // namespace v8::internal::compiler::turboshaft
 

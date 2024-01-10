@@ -20,7 +20,8 @@
 namespace v8::internal::compiler::turboshaft {
 
 #ifdef DEBUG
-bool OpIndexBelongsToTableGraph(const Graph* graph, OpIndex index);
+V8_EXPORT_PRIVATE bool OpIndexBelongsToTableGraph(const Graph* graph,
+                                                  OpIndex index);
 #endif
 
 namespace detail {

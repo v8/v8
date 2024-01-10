@@ -29,11 +29,12 @@ namespace v8::internal::compiler::turboshaft {
 
 using MaybeVariable = base::Optional<Variable>;
 
-int CountDecimalDigits(uint32_t value);
+V8_EXPORT_PRIVATE int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {
   int spaces;
 };
-std::ostream& operator<<(std::ostream& os, PaddingSpace padding);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           PaddingSpace padding);
 
 template <typename Next>
 class ReducerBaseForwarder;
@@ -1390,13 +1391,12 @@ class TSAssembler;
 template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
-  static void Run(Zone* phase_zone) {
-    PipelineData& data = PipelineData::Get();
-    Graph& input_graph = data.graph();
+  static void Run(Graph& input_graph, Zone* phase_zone,
+                  bool trace_reductions = false) {
     TSAssembler<GraphVisitor, Reducers...> phase(
         input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
-    if (data.info()->turboshaft_trace_reduction()) {
+    if (trace_reductions) {
       phase.template VisitGraph<true>();
     } else {
       phase.template VisitGraph<false>();
@@ -1411,7 +1411,10 @@ template <template <typename> typename... Reducers>
 class CopyingPhase {
  public:
   static void Run(Zone* phase_zone) {
-    CopyingPhaseImpl<Reducers...>::Run(phase_zone);
+    PipelineData& data = PipelineData::Get();
+    Graph& input_graph = data.graph();
+    CopyingPhaseImpl<Reducers...>::Run(
+        input_graph, phase_zone, data.info()->turboshaft_trace_reduction());
   }
 };
 

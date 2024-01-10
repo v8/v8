@@ -42,7 +42,8 @@
 
 namespace v8::internal {
 class HeapObject;
-std::ostream& operator<<(std::ostream& os, AbortReason reason);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           AbortReason reason);
 }  // namespace v8::internal
 namespace v8::internal::compiler {
 class CallDescriptor;
@@ -733,7 +734,8 @@ inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
   return first.produces.bits() & (second.consumes.bits());
 }
 
-std::ostream& operator<<(std::ostream& os, OpEffects op_effects);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           OpEffects op_effects);
 
 // SaturatedUint8 is a wrapper around a uint8_t, which can be incremented and
 // decremented with the `Incr` and `Decr` methods. These methods prevent over-
@@ -892,16 +894,17 @@ struct OperationPrintStyle {
   const char* op_index_prefix = "#";
 };
 
-std::ostream& operator<<(std::ostream& os, OperationPrintStyle op);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           OperationPrintStyle op);
 inline std::ostream& operator<<(std::ostream& os, const Operation& op) {
   return os << OperationPrintStyle{op};
 }
-void Print(const Operation& op);
+V8_EXPORT_PRIVATE void Print(const Operation& op);
 
-Zone* get_zone(Graph* graph);
+V8_EXPORT_PRIVATE Zone* get_zone(Graph* graph);
 
 OperationStorageSlot* AllocateOpStorage(Graph* graph, size_t slot_count);
-const Operation& Get(const Graph& graph, OpIndex index);
+V8_EXPORT_PRIVATE const Operation& Get(const Graph& graph, OpIndex index);
 
 // Determine if an operation declares `effects`, which means that its
 // effects are static and don't depend on inputs or options.
@@ -1149,7 +1152,7 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word32_select, Word32Select)                   \
   V(word64_select, Word64Select)
 
-class SupportedOperations {
+class V8_EXPORT_PRIVATE SupportedOperations {
 #define DECLARE_FIELD(name, machine_name) bool name##_;
 #define DECLARE_GETTER(name, machine_name)     \
   static bool name() {                         \
@@ -1191,12 +1194,13 @@ base::Vector<const MaybeRegisterRepresentation> MaybeRepVector() {
   return base::VectorOf(rep_array);
 }
 
-bool ValidOpInputRep(const Graph& graph, OpIndex input,
-                     std::initializer_list<RegisterRepresentation> expected_rep,
-                     base::Optional<size_t> projection_index = {});
-bool ValidOpInputRep(const Graph& graph, OpIndex input,
-                     RegisterRepresentation expected_rep,
-                     base::Optional<size_t> projection_index = {});
+V8_EXPORT_PRIVATE bool ValidOpInputRep(
+    const Graph& graph, OpIndex input,
+    std::initializer_list<RegisterRepresentation> expected_rep,
+    base::Optional<size_t> projection_index = {});
+V8_EXPORT_PRIVATE bool ValidOpInputRep(
+    const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
+    base::Optional<size_t> projection_index = {});
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
@@ -1477,7 +1481,8 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
-std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WordUnaryOp::Kind kind);
 
 struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   enum class Kind : uint8_t {
@@ -1534,7 +1539,8 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
-std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           FloatUnaryOp::Kind kind);
 
 struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   enum class Kind : uint8_t {
@@ -1597,7 +1603,8 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
-std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ShiftOp::Kind kind);
 
 struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   enum class Kind : uint8_t {
@@ -1661,7 +1668,8 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   }
   auto options() const { return std::tuple{kind, rep}; }
 };
-std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ComparisonOp::Kind kind);
 DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 8)
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
@@ -1793,8 +1801,10 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };
-std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
-std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ChangeOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ChangeOp::Assumption assumption);
 DEFINE_MULTI_SWITCH_INTEGRAL(ChangeOp::Kind, 16)
 DEFINE_MULTI_SWITCH_INTEGRAL(ChangeOp::Assumption, 4)
 
@@ -1861,7 +1871,8 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
 
   auto options() const { return std::tuple{kind, minus_zero_mode, feedback}; }
 };
-std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ChangeOrDeoptOp::Kind kind);
 
 // Perform a conversion and return a pair of the result and a bit if it was
 // successful.
@@ -1904,7 +1915,8 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
   }
   auto options() const { return std::tuple{kind, from, to}; }
 };
-std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           TryChangeOp::Kind kind);
 
 struct BitcastWord32PairToFloat64Op
     : FixedArityOperationT<2, BitcastWord32PairToFloat64Op> {
@@ -2027,7 +2039,8 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
 
   auto options() const { return std::tuple{rep, hint, implem}; }
 };
-std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           SelectOp::Implementation kind);
 
 struct PhiOp : OperationT<PhiOp> {
   RegisterRepresentation rep;
@@ -2617,7 +2630,8 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
 };
 DEFINE_MULTI_SWITCH_INTEGRAL(AtomicRMWOp::BinOp, 8)
 
-std::ostream& operator<<(std::ostream& os, AtomicRMWOp::BinOp kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           AtomicRMWOp::BinOp kind);
 
 struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
   enum class Kind : uint8_t {
@@ -2776,7 +2790,8 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
   auto options() const { return std::tuple{kind, offset}; }
 };
 
-std::ostream& operator<<(std::ostream& os, AtomicWord32PairOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           AtomicWord32PairOp::Kind kind);
 
 struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
   AtomicMemoryOrder memory_order;
@@ -3007,8 +3022,10 @@ struct StackCheckOp : FixedArityOperationT<0, StackCheckOp> {
   auto options() const { return std::tuple{check_origin, check_kind}; }
 };
 
-std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin);
-std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           StackCheckOp::CheckOrigin origin);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           StackCheckOp::CheckKind kind);
 
 // Retain a HeapObject to prevent it from being garbage collected too early.
 struct RetainOp : FixedArityOperationT<1, RetainOp> {
@@ -3110,7 +3127,8 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           FrameConstantOp::Kind kind);
 
 struct FrameStateOp : OperationT<FrameStateOp> {
   bool inlined;
@@ -3148,8 +3166,8 @@ struct FrameStateOp : OperationT<FrameStateOp> {
                const FrameStateData* data)
       : Base(inputs), inlined(inlined), data(data) {}
 
-  void Validate(const Graph& graph) const;
-  void PrintOptions(std::ostream& os) const;
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
+  V8_EXPORT_PRIVATE void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{inlined, data}; }
 };
 
@@ -3464,7 +3482,7 @@ struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
         didnt_throw_block(successor),
         catch_block(catch_block) {}
 
-  void Validate(const Graph& graph) const;
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
   auto options() const { return std::tuple{didnt_throw_block, catch_block}; }
 };
@@ -3544,7 +3562,7 @@ struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
       : Base(throwing_operation),
         has_catch_block(has_catch_block),
         results_rep(results_rep) {}
-  void Validate(const Graph& graph) const;
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   auto options() const { return std::tuple{}; }
 };
 
@@ -3769,8 +3787,8 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
   }
 }
 
-base::SmallVector<Block*, 4> SuccessorBlocks(const Block& block,
-                                             const Graph& graph);
+V8_EXPORT_PRIVATE base::SmallVector<Block*, 4> SuccessorBlocks(
+    const Block& block, const Graph& graph);
 
 // Tuples are only used to lower operations with multiple outputs.
 // `TupleOp` should be folded away by subsequent `ProjectionOp`s.
@@ -3891,9 +3909,10 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
   }
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
-std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind);
-std::ostream& operator<<(std::ostream& os,
-                         ObjectIsOp::InputAssumptions input_assumptions);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ObjectIsOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, ObjectIsOp::InputAssumptions input_assumptions);
 
 enum class NumericKind : uint8_t {
   kFloat64Hole,
@@ -3903,7 +3922,7 @@ enum class NumericKind : uint8_t {
   kMinusZero,
   kNaN,
 };
-std::ostream& operator<<(std::ostream& os, NumericKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, NumericKind kind);
 
 struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
   NumericKind kind;
@@ -3997,7 +4016,8 @@ struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
   }
   auto options() const { return std::tuple{from, to}; }
 };
-std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ConvertOp::Kind kind);
 
 struct ConvertUntaggedToJSPrimitiveOp
     : FixedArityOperationT<1, ConvertUntaggedToJSPrimitiveOp> {
@@ -4079,8 +4099,8 @@ struct ConvertUntaggedToJSPrimitiveOp
     return std::tuple{kind, input_rep, input_interpretation, minus_zero_mode};
   }
 };
-std::ostream& operator<<(std::ostream& os,
-                         ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind);
 
 struct ConvertUntaggedToJSPrimitiveOrDeoptOp
     : FixedArityOperationT<2, ConvertUntaggedToJSPrimitiveOrDeoptOp> {
@@ -4129,10 +4149,10 @@ struct ConvertUntaggedToJSPrimitiveOrDeoptOp
     return std::tuple{kind, input_rep, input_interpretation, feedback};
   }
 };
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind);
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
                           input_interpretation);
 
@@ -4188,9 +4208,9 @@ struct ConvertJSPrimitiveToUntaggedOp
 
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
-std::ostream& operator<<(std::ostream& os,
-                         ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind);
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
 
@@ -4257,10 +4277,10 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     return std::tuple{from_kind, to_kind, minus_zero_mode, feedback};
   }
 };
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind);
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
 struct TruncateJSPrimitiveToUntaggedOp
@@ -4310,9 +4330,9 @@ struct TruncateJSPrimitiveToUntaggedOp
 
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
-std::ostream& operator<<(std::ostream& os,
-                         TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind);
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
 
@@ -4357,7 +4377,7 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
 
   auto options() const { return std::tuple{kind, input_requirement, feedback}; }
 };
-std::ostream& operator<<(
+V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
@@ -4454,7 +4474,8 @@ struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
 
   auto options() const { return std::tuple{kind, allocation_type}; }
 };
-std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           NewArrayOp::Kind kind);
 
 struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
   enum class Kind : uint8_t {
@@ -4488,7 +4509,8 @@ struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, DoubleArrayMinMaxOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           DoubleArrayMinMaxOp::Kind kind);
 
 // TODO(nicohartmann@): We should consider getting rid of the LoadFieldByIndex
 // operation.
@@ -4614,7 +4636,8 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, BigIntBinopOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           BigIntBinopOp::Kind kind);
 
 struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
   enum class Kind : uint8_t {
@@ -4651,7 +4674,8 @@ struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, BigIntComparisonOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           BigIntComparisonOp::Kind kind);
 
 struct BigIntUnaryOp : FixedArityOperationT<1, BigIntUnaryOp> {
   enum class Kind : uint8_t {
@@ -4684,7 +4708,8 @@ struct BigIntUnaryOp : FixedArityOperationT<1, BigIntUnaryOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, BigIntUnaryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           BigIntUnaryOp::Kind kind);
 
 struct LoadRootRegisterOp : FixedArityOperationT<0, LoadRootRegisterOp> {
   static constexpr OpEffects effects = OpEffects();
@@ -4735,7 +4760,8 @@ struct StringAtOp : FixedArityOperationT<2, StringAtOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, StringAtOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           StringAtOp::Kind kind);
 
 #ifdef V8_INTL_SUPPORT
 struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
@@ -4770,7 +4796,8 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, StringToCaseIntlOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           StringToCaseIntlOp::Kind kind);
 #endif  // V8_INTL_SUPPORT
 
 struct StringLengthOp : FixedArityOperationT<1, StringLengthOp> {
@@ -4960,7 +4987,8 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           StringComparisonOp::Kind kind);
 
 struct ArgumentsLengthOp : FixedArityOperationT<0, ArgumentsLengthOp> {
   enum class Kind : uint8_t {
@@ -4990,7 +5018,8 @@ struct ArgumentsLengthOp : FixedArityOperationT<0, ArgumentsLengthOp> {
 
   auto options() const { return std::tuple{kind, formal_parameter_count}; }
 };
-std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           ArgumentsLengthOp::Kind kind);
 
 struct NewArgumentsElementsOp
     : FixedArityOperationT<1, NewArgumentsElementsOp> {
@@ -5304,8 +5333,8 @@ struct TransitionAndStoreArrayElementOp
 
   auto options() const { return std::tuple{kind, fast_map, double_map}; }
 };
-std::ostream& operator<<(std::ostream& os,
-                         TransitionAndStoreArrayElementOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, TransitionAndStoreArrayElementOp::Kind kind);
 
 struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
   ZoneRefSet<Map> maps;
@@ -5537,7 +5566,8 @@ struct SameValueOp : FixedArityOperationT<2, SameValueOp> {
 
   auto options() const { return std::tuple{mode}; }
 };
-std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           SameValueOp::Mode mode);
 
 struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
   static constexpr OpEffects effects = OpEffects();
@@ -5823,7 +5853,8 @@ struct FindOrderedHashEntryOp
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           FindOrderedHashEntryOp::Kind kind);
 
 struct CommentOp : FixedArityOperationT<0, CommentOp> {
   const char* message;
@@ -5877,11 +5908,13 @@ struct SpeculativeNumberBinopOp
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, SpeculativeNumberBinopOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           SpeculativeNumberBinopOp::Kind kind);
 
 #if V8_ENABLE_WEBASSEMBLY
 
-const RegisterRepresentation& RepresentationFor(wasm::ValueType type);
+V8_EXPORT_PRIVATE const RegisterRepresentation& RepresentationFor(
+    wasm::ValueType type);
 
 struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
   const wasm::WasmGlobal* global;
@@ -6715,7 +6748,8 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128BinopOp::Kind kind);
 
 #define FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \
   V(S128Not)                                          \
@@ -6807,7 +6841,8 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128UnaryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128UnaryOp::Kind kind);
 
 #define FOREACH_SIMD_128_SHIFT_OPCODE(V) \
   V(I8x16Shl)                            \
@@ -6854,7 +6889,8 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128ShiftOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128ShiftOp::Kind kind);
 
 #define FOREACH_SIMD_128_TEST_OPCODE(V) \
   V(V128AnyTrue)                        \
@@ -6895,7 +6931,8 @@ struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128TestOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128TestOp::Kind kind);
 
 #define FOREACH_SIMD_128_SPLAT_OPCODE(V) \
   V(I8x16)                               \
@@ -6944,7 +6981,8 @@ struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128SplatOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128SplatOp::Kind kind);
 
 #define FOREACH_SIMD_128_TERNARY_MASK_OPCODE(V) \
   V(S128Select)                                 \
@@ -6997,7 +7035,8 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
 
   auto options() const { return std::tuple{kind}; }
 };
-std::ostream& operator<<(std::ostream& os, Simd128TernaryOp::Kind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128TernaryOp::Kind kind);
 
 struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
   enum class Kind : uint8_t {
