@@ -1705,24 +1705,18 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   Check(eq, AbortReason::kOperandIsNotABoundFunction);
 }
 
-void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
-    Register object) {
+void MacroAssembler::AssertSmiOrHeapObjectInCompressionCage(Register object) {
   DCHECK(PointerCompressionIsEnabled());
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  // We may not have any scratch registers so we preserve our input register.
-  Push(object, xzr);
-  Label ok;
-  B(&ok, CheckSmi(object));
-  Mov(object, Operand(object, LSR, 32));
-  // Either the value is now equal to the right-shifted pointer compression
-  // cage base or it's zero if we got a compressed pointer register as input.
-  Cmp(object, 0);
-  B(kEqual, &ok);
-  Cmp(object, Operand(kPtrComprCageBaseRegister, LSR, 32));
-  Check(kEqual, AbortReason::kObjectNotTagged);
-  bind(&ok);
-  Pop(xzr, object);
+  Label is_smi;
+  B(&is_smi, CheckSmi(object));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  sub(temp, object, kPtrComprCageBaseRegister);
+  Cmp(temp, Immediate(UINT32_MAX));
+  Check(lo, AbortReason::kObjectNotTagged);
+  bind(&is_smi);
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
@@ -3304,7 +3298,6 @@ void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
 
 void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
   ASM_CODE_COMMENT(this);
-  AssertSmiOrHeapObjectInMainCompressionCage(obj);
   if (!base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                        RootIndex::kLastStrongOrReadOnlyRoot)) {
     // Some smi roots contain system pointer size values like stack limits.

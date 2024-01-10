@@ -3085,9 +3085,7 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Label convert_to_object, done;
   Register receiver = ToRegister(receiver_input());
-  __ JumpIfSmi(
-      receiver, &convert_to_object,
-      v8_flags.debug_code ? Label::Distance::kFar : Label::Distance::kNear);
+  __ JumpIfSmi(receiver, &convert_to_object, Label::Distance::kNear);
   __ JumpIfJSAnyIsNotPrimitive(receiver, &done);
 
   compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
@@ -3095,9 +3093,8 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
     Label convert_global_proxy;
     __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy,
                   Label::Distance::kNear);
-    __ JumpIfNotRoot(
-        receiver, RootIndex::kNullValue, &convert_to_object,
-        v8_flags.debug_code ? Label::Distance::kFar : Label::Distance::kNear);
+    __ JumpIfNotRoot(receiver, RootIndex::kNullValue, &convert_to_object,
+                     Label::Distance::kNear);
     __ bind(&convert_global_proxy);
     // Patch receiver to global proxy.
     __ Move(ToRegister(result()),
@@ -3411,8 +3408,7 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
   Label return_false, return_true;
   ZoneLabelRef done(masm);
 
-  __ JumpIfSmi(object_reg, &return_false,
-               v8_flags.debug_code ? Label::kFar : Label::kNear);
+  __ JumpIfSmi(object_reg, &return_false, Label::kNear);
 
   // Loop through the prototype chain looking for the {prototype}.
   Register map = temps.Acquire();
@@ -3468,7 +3464,7 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
     Register object_prototype = scratch;
     __ LoadTaggedField(object_prototype, map, Map::kPrototypeOffset);
     __ JumpIfRoot(object_prototype, RootIndex::kNullValue, &return_false,
-                  v8_flags.debug_code ? Label::kFar : Label::kNear);
+                  Label::kNear);
     __ CompareTaggedAndJumpIf(object_prototype, prototype().object(), kEqual,
                               &return_true, Label::kNear);
 
