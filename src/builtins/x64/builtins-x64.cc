@@ -2356,7 +2356,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   }
 
   Label stack_overflow;
-  __ StackOverflowCheck(rcx, &stack_overflow, Label::kNear);
+  __ StackOverflowCheck(rcx, &stack_overflow,
+                        DEBUG_BOOL ? Label::kFar : Label::kNear);
 
   // Push additional arguments onto the stack.
   // Move the arguments already in the stack,
@@ -2522,15 +2523,16 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     } else {
       Label convert_to_object, convert_receiver;
       __ movq(rcx, args.GetReceiverOperand());
-      __ JumpIfSmi(rcx, &convert_to_object, Label::kNear);
+      __ JumpIfSmi(rcx, &convert_to_object,
+                   DEBUG_BOOL ? Label::kFar : Label::kNear);
       __ JumpIfJSAnyIsNotPrimitive(rcx, rbx, &done_convert,
                                    DEBUG_BOOL ? Label::kFar : Label::kNear);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(rcx, RootIndex::kUndefinedValue, &convert_global_proxy,
-                      Label::kNear);
+                      DEBUG_BOOL ? Label::kFar : Label::kNear);
         __ JumpIfNotRoot(rcx, RootIndex::kNullValue, &convert_to_object,
-                         Label::kNear);
+                         DEBUG_BOOL ? Label::kFar : Label::kNear);
         __ bind(&convert_global_proxy);
         {
           // Patch receiver to global proxy.
@@ -2992,7 +2994,7 @@ void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
     __ AssertSmi(rax);
     if (save_new_target) {
       if (PointerCompressionIsEnabled()) {
-        __ AssertSmiOrHeapObjectInCompressionCage(
+        __ AssertSmiOrHeapObjectInMainCompressionCage(
             kJavaScriptCallNewTargetRegister);
       }
       __ Push(kJavaScriptCallNewTargetRegister);

@@ -215,6 +215,7 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void MacroAssembler::CompareTaggedRoot(Register with, RootIndex index) {
+  AssertSmiOrHeapObjectInMainCompressionCage(with);
   if (CanBeImmediate(index)) {
     cmp_tagged(with, Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
     return;
@@ -3242,17 +3243,25 @@ void MacroAssembler::AssertCode(Register object) {
   Check(equal, AbortReason::kOperandIsNotACode);
 }
 
-void MacroAssembler::AssertSmiOrHeapObjectInCompressionCage(Register object) {
+void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
+    Register object) {
   DCHECK(PointerCompressionIsEnabled());
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  Label is_smi;
-  j(CheckSmi(object), &is_smi, Label::kNear);
-  movq(kScratchRegister, object);
-  subq(kScratchRegister, kPtrComprCageBaseRegister);
-  cmpq(kScratchRegister, Immediate(UINT32_MAX));
-  Check(below, AbortReason::kObjectNotTagged);
-  bind(&is_smi);
+  Label ok;
+  // We may not have any scratch registers so we preserve our input register.
+  pushq(object);
+  j(CheckSmi(object), &ok);
+  // Clear the lower 32 bits.
+  shrq(object, Immediate(32));
+  shlq(object, Immediate(32));
+  // Either the value is now equal to the pointer compression cage base or it's
+  // zero if we got a compressed pointer register as input.
+  j(zero, &ok);
+  cmpq(object, kPtrComprCageBaseRegister);
+  Check(equal, AbortReason::kObjectNotTagged);
+  bind(&ok);
+  popq(object);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
@@ -3348,32 +3357,34 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
   DCHECK(!AreAliased(object, map_tmp));
   Label ok;
 
-  JumpIfSmi(object, &ok, Label::kNear);
+  Label::Distance dist = DEBUG_BOOL ? Label::kFar : Label::kNear;
+
+  JumpIfSmi(object, &ok, dist);
 
   LoadMap(map_tmp, object);
   CmpInstanceType(map_tmp, LAST_NAME_TYPE);
-  j(below_equal, &ok, Label::kNear);
+  j(below_equal, &ok, dist);
 
   CmpInstanceType(map_tmp, FIRST_JS_RECEIVER_TYPE);
-  j(above_equal, &ok, Label::kNear);
+  j(above_equal, &ok, dist);
 
   CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   CompareRoot(map_tmp, RootIndex::kBigIntMap);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   CompareRoot(object, RootIndex::kUndefinedValue);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   CompareRoot(object, RootIndex::kTrueValue);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   CompareRoot(object, RootIndex::kFalseValue);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   CompareRoot(object, RootIndex::kNullValue);
-  j(equal, &ok, Label::kNear);
+  j(equal, &ok, dist);
 
   Abort(abort_reason);
 
