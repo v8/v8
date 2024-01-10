@@ -1269,11 +1269,20 @@ DEFINE_WEAK_IMPLICATION(future, turboshaft_wasm)
 DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
+
+DEFINE_BOOL(turboshaft_instruction_selection, false,
+            "run instruction selection on Turboshaft IR directly")
+DEFINE_BOOL(turboshaft_load_elimination, false,
+            "enable Turboshaft's low-level load elimination for JS")
+DEFINE_BOOL(turboshaft_machine_lowering_opt, false,
+            "enable MachineOptimization during MachineLowering")
+DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
+DEFINE_BOOL(turboshaft_loop_unrolling, false,
+            "enable Turboshaft's loop unrolling")
+
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
-DEFINE_BOOL(turboshaft_instruction_selection, false,
-            "run instruction selection on Turboshaft IR directly")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_instruction_selection_experimental,
     "run instruction selection on Turboshaft IR directly for wasm, on "
@@ -1283,14 +1292,6 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
             "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
                             "run the CSA pipeline with turboshaft")
-DEFINE_BOOL(turboshaft_load_elimination, false,
-            "enable Turboshaft's low-level load elimination for JS")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
-                            "enable MachineOptimization during MachineLowering")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_peeling,
-                            "enable Turboshaft's loop peeling")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_unrolling,
-                            "enable Turboshaft's loop unrolling")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
                             "run (parts of) the frontend in Turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(
