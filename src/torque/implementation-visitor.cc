@@ -5388,16 +5388,26 @@ void ImplementationVisitor::GenerateEnumVerifiers(
 
     cc_contents << "class EnumVerifier {\n";
     for (const auto& desc : GlobalContext::Get().ast()->EnumDescriptions()) {
+      std::stringstream alias_checks;
       cc_contents << "  // " << desc.name << " (" << desc.pos << ")\n";
       cc_contents << "  void VerifyEnum_" << desc.name << "("
                   << desc.constexpr_generates
                   << " x) {\n"
                      "    switch(x) {\n";
       for (const auto& entry : desc.entries) {
-        cc_contents << "      case " << entry << ": break;\n";
+        if (entry.alias_entry.empty()) {
+          cc_contents << "      case " << entry.name << ": break;\n";
+        } else {
+          // We don't add a case for this, because it aliases another entry, so
+          // we would have two cases for the same value.
+          alias_checks << "    static_assert(" << entry.name
+                       << " == " << entry.alias_entry << ");\n";
+        }
       }
       if (desc.is_open) cc_contents << "      default: break;\n";
-      cc_contents << "    }\n  }\n\n";
+      cc_contents << "    }\n";
+      cc_contents << alias_checks.str();
+      cc_contents << "  }\n\n";
     }
     cc_contents << "};\n";
   }

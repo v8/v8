@@ -38,6 +38,7 @@ struct TypeswitchCase {
 struct EnumEntry {
   Identifier* name;
   base::Optional<TypeExpression*> type;
+  base::Optional<std::string> alias_entry;
 };
 
 class BuildFlags : public base::ContextualClass<BuildFlags> {
@@ -1527,8 +1528,12 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       const std::string entry_name = entry.name->value;
       const std::string entry_constexpr_type =
           CONSTEXPR_TYPE_PREFIX + entry_name;
-      enum_description.entries.push_back(constexpr_generates +
-                                         "::" + entry_name);
+      std::string alias_entry;
+      if (entry.alias_entry) {
+        alias_entry = constexpr_generates + "::" + *entry.alias_entry;
+      }
+      enum_description.entries.emplace_back(
+          constexpr_generates + "::" + entry_name, alias_entry);
 
       entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
           MakeNode<Identifier>(entry_constexpr_type),
@@ -2051,9 +2056,14 @@ base::Optional<ParseResult> MakeNameAndType(
 }
 
 base::Optional<ParseResult> MakeEnumEntry(ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {}, {ANNOTATION_SAME_ENUM_VALUE_AS});
+  std::vector<ConditionalAnnotation> conditions;
+  base::Optional<std::string> alias_entry =
+      annotations.GetStringParam(ANNOTATION_SAME_ENUM_VALUE_AS);
+
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
-  return ParseResult{EnumEntry{name, type}};
+  return ParseResult{EnumEntry{name, type, alias_entry}};
 }
 
 base::Optional<ParseResult> MakeNameAndExpression(
@@ -2697,7 +2707,8 @@ struct TorqueGrammar : Grammar {
       Optional<TypeExpression*>(Sequence({Token(":"), &type}));
 
   // Result: EnumEntry
-  Symbol enumEntry = {Rule({&name, optionalTypeSpecifier}, MakeEnumEntry)};
+  Symbol enumEntry = {
+      Rule({annotations, &name, optionalTypeSpecifier}, MakeEnumEntry)};
 
   // Result: Statement*
   Symbol varDeclaration = {

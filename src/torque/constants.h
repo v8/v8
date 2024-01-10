@@ -116,6 +116,7 @@ static const char* const ANNOTATION_CPP_OBJECT_DEFINITION =
     "@cppObjectDefinition";
 static const char* const ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION =
     "@cppObjectLayoutDefinition";
+static const char* const ANNOTATION_SAME_ENUM_VALUE_AS = "@sameEnumValueAs";
 // Generate C++ accessors with relaxed store semantics.
 // Weak<T> and MaybeObject fields always use relaxed store.
 static const char* const ANNOTATION_CPP_RELAXED_STORE = "@cppRelaxedStore";
