@@ -15,6 +15,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 void LoopPeelingPhase::Run(Zone* temp_zone) {
+  // Note that for wasm-gc it is relevant that the MachineOptimizationReducer is
+  // run prior to other phases. Any attempt to skip the loop peeling phase (e.g.
+  // if no loops are present) should evaluate how to run the
+  // MachineOptimizationReducer then.
   turboshaft::CopyingPhase<turboshaft::LoopPeelingReducer,
                            turboshaft::VariableReducer,
                            turboshaft::MachineOptimizationReducer,
