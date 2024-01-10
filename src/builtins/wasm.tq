@@ -218,18 +218,17 @@ builtin WasmTableGrow(table: Smi, deltaRaw: uint32, value: Object): Smi {
   }
 }
 
-builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
+builtin WasmTableGet(tableIndex: intptr, index: uint32): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
-    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
-    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
-    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
+    if (index >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
     const entry: Object = LoadFixedArrayElement(entries, entryIndex);
@@ -239,19 +238,19 @@ builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
   }
 }
 
-builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
+builtin WasmTableSet(tableIndex: intptr, index: uint32, value: Object):
+    Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
-    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
 
-    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
-    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
+    if (index >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
     StoreFixedArrayElement(entries, entryIndex, value);
@@ -261,18 +260,17 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
   }
 }
 
-builtin WasmTableGetFuncRef(tableIndex: intptr, index: int32): Object {
+builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
-    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
-    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
-    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
+    if (index >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
     const entry: Object = LoadFixedArrayElement(entries, entryIndex);
@@ -294,20 +292,19 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: int32): Object {
   }
 }
 
-builtin WasmTableSetFuncRef(tableIndex: intptr, index: int32, value: Object):
+builtin WasmTableSetFuncRef(tableIndex: intptr, index: uint32, value: Object):
     Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
-    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstanceData(trustedData);
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
 
-    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
-    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+    const entriesCount: uint32 = Unsigned(SmiToInt32(table.current_length));
+    if (index >= entriesCount) goto IndexOutOfRange;
 
     tail runtime::WasmFunctionTableSet(
         LoadContextFromInstanceData(trustedData), trustedData,
