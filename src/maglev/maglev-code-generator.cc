@@ -618,7 +618,7 @@ class ExceptionHandlerTrampolineBuilder {
       DCHECK(!source->allocation().IsRegister());
 
       switch (source->properties().value_representation()) {
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
@@ -1266,7 +1266,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
                                ValueRepresentation repr) {
     switch (repr) {
-      case ValueRepresentation::kWord64:
+      case ValueRepresentation::kIntPtr:
         UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreRegister(operand.GetRegister());
@@ -1292,7 +1292,7 @@ class MaglevFrameTranslationBuilder {
                                 ValueRepresentation repr) {
     int stack_slot = DeoptStackSlotFromStackSlot(operand);
     switch (repr) {
-      case ValueRepresentation::kWord64:
+      case ValueRepresentation::kIntPtr:
         UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreStackSlot(stack_slot);

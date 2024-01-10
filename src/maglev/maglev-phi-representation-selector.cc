@@ -353,7 +353,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kUint32:
@@ -367,7 +367,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kFloat64:
@@ -386,7 +386,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kHoleyFloat64:
@@ -406,12 +406,12 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
 
     case ValueRepresentation::kTagged:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -626,7 +626,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                                block, NewNodePosition::kEnd, deopt_frame);
           }
           break;
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
       phi->change_input(i, untagged);
@@ -743,7 +743,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -845,7 +845,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -923,7 +923,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 

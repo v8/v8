@@ -458,7 +458,7 @@ enum class ValueRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
-  kWord64
+  kIntPtr
 };
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
@@ -655,7 +655,7 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "Float64";
     case ValueRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       return os << "Word64";
   }
 }
@@ -911,7 +911,7 @@ class OpProperties {
   }
   static constexpr OpProperties ExternalReference() {
     return OpProperties(
-        kValueRepresentationBits::encode(ValueRepresentation::kWord64));
+        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
   }
   static constexpr OpProperties Int32() {
     return OpProperties(
@@ -928,6 +928,10 @@ class OpProperties {
   static constexpr OpProperties HoleyFloat64() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kHoleyFloat64));
+  }
+  static constexpr OpProperties IntPtr() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
@@ -2146,8 +2150,8 @@ class ValueNode : public Node {
       case ValueRepresentation::kInt32:
       case ValueRepresentation::kUint32:
         return MachineRepresentation::kWord32;
-      case ValueRepresentation::kWord64:
-        return MachineRepresentation::kWord64;
+      case ValueRepresentation::kIntPtr:
+        return MachineType::PointerRepresentation();
       case ValueRepresentation::kFloat64:
         return MachineRepresentation::kFloat64;
       case ValueRepresentation::kHoleyFloat64:
@@ -5244,7 +5248,7 @@ class LoadTypedArrayLength
  public:
   explicit LoadTypedArrayLength(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
-  static constexpr OpProperties kProperties = OpProperties::Uint32();
+  static constexpr OpProperties kProperties = OpProperties::IntPtr();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5284,7 +5288,7 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
   explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kUint32, ValueRepresentation::kUint32};
+      ValueRepresentation::kUint32, ValueRepresentation::kIntPtr};
 
   static constexpr int kIndexIndex = 0;
   static constexpr int kLengthIndex = 1;

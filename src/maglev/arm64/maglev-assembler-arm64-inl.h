@@ -1077,6 +1077,12 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   CompareAndBranch(r1.W(), r2.W(), cond, target);
 }
 
+void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
+                                             Condition cond, Label* target,
+                                             Label::Distance distance) {
+  CompareAndBranch(r1.X(), r2.X(), cond, target);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
@@ -1276,6 +1282,7 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kWord64:
       return Ldr(dst, src);
     default:
       UNREACHABLE();
@@ -1290,6 +1297,7 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kWord64:
       return Str(src, dst);
     default:
       UNREACHABLE();

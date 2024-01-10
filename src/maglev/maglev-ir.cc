@@ -416,7 +416,8 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
     case MachineRepresentation::kFloat64:
       return ValueRepresentation::kFloat64;
     case MachineRepresentation::kWord64:
-      return ValueRepresentation::kWord64;
+      DCHECK_EQ(kSystemPointerSize, 8);
+      return ValueRepresentation::kIntPtr;
     default:
       return ValueRepresentation::kInt32;
   }
@@ -505,7 +506,7 @@ void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
     CASE_REPR(Float64)
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -3005,8 +3006,6 @@ void CheckFixedArrayNonEmpty::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kWrongEnumIndices));
 }
 
-// TODO(leszeks): Unify this with CheckInt32Condition, by allowing the latter to
-// take Uint32 inputs.
 void CheckTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(index_input());
   UseRegister(length_input());
@@ -3015,7 +3014,9 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register index = ToRegister(index_input());
   Register length = ToRegister(length_input());
-  __ CompareInt32AndJumpIf(
+  // The index must be a zero-extended Uint32 for this to work.
+  __ AssertZeroExtended(index);
+  __ CompareIntPtrAndJumpIf(
       index, length, kUnsignedGreaterThanEqual,
       __ GetDeoptLabel(this, DeoptimizeReason::kOutOfBounds));
 }

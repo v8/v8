@@ -1185,7 +1185,7 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     }
 
     case ValueRepresentation::kTagged:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1232,7 +1232,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
     }
 
     case ValueRepresentation::kTagged:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1380,7 +1380,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
 
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1439,7 +1439,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
     }
 
     case ValueRepresentation::kInt32:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1545,7 +1545,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
       }
     }
     case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -1573,7 +1573,7 @@ int32_t ClampToUint8(int32_t value) {
 ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value,
                                                           ToNumberHint hint) {
   switch (value->properties().value_representation()) {
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
     case ValueRepresentation::kTagged: {
       if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
@@ -2925,7 +2925,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kNumber;
     case ValueRepresentation::kHoleyFloat64:
       return NodeType::kNumberOrOddball;
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
     case ValueRepresentation::kTagged:
       break;
@@ -4151,7 +4151,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
   RecordUseReprHintIfPhi(object, UseRepresentation::kInt32);
 
   switch (object->properties().value_representation()) {
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
     case ValueRepresentation::kTagged:
       NodeType old_type;
@@ -4185,7 +4185,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   // GetInt32ElementIndex, making this an Int32 Phi use.
 
   switch (object->properties().value_representation()) {
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
     case ValueRepresentation::kTagged:
       // TODO(victorgomes): Consider creating a CheckedObjectToUnsignedIndex.
@@ -6896,7 +6896,7 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
             {conversion}, TaggedToFloat64ConversionType::kOnlyNumber);
       }
       break;
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
@@ -8460,7 +8460,7 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     case ValueRepresentation::kInt32:
       return AddNewNode<Int32ToBoolean>({value}, flip);
 
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
 
     case ValueRepresentation::kTagged:
@@ -8598,7 +8598,7 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
       // We'll insert the required checks depending on the feedback.
       break;
 
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 
@@ -9719,7 +9719,7 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
       return FinishBlock<BranchIfInt32ToBooleanTrue>({node}, true_target,
                                                      false_target);
 
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
 
     case ValueRepresentation::kTagged:
@@ -10122,7 +10122,7 @@ void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
       // Could be the hole.
       break;
 
-    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 

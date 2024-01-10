@@ -928,6 +928,14 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   JumpIf(cond, target);
 }
 
+inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
+                                                    Condition cond,
+                                                    Label* target,
+                                                    Label::Distance distance) {
+  cmp(r1, r2);
+  JumpIf(cond, target);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,

@@ -17,7 +17,6 @@
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -956,6 +955,13 @@ void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   JumpIf(cond, target, distance);
 }
 
+void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
+                                             Condition cond, Label* target,
+                                             Label::Distance distance) {
+  cmpq(r1, r2);
+  JumpIf(cond, target, distance);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
@@ -1149,6 +1155,7 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Dest dst,
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kWord64:
       return movq(dst, src);
     default:
       UNREACHABLE();
