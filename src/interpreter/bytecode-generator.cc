@@ -1578,7 +1578,10 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     ControlScopeForDerivedConstructor control(this, result,
                                               &check_return_value);
 
-    GenerateBytecodeBodyWithoutImplicitFinalReturn();
+    {
+      HoleCheckElisionScope elider(this);
+      GenerateBytecodeBodyWithoutImplicitFinalReturn();
+    }
 
     if (check_return_value.empty()) {
       if (!builder()->RemainderOfBlockIsDead()) {

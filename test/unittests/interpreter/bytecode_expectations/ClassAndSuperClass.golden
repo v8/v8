@@ -89,7 +89,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 48
+bytecode array length: 49
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  118 S> */ B(LdaSmi), I8(1),
@@ -110,6 +110,7 @@ bytecodes: [
   /*  128 S> */ B(LdaSmi), I8(2),
   /*  136 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
 ]
 constant pool: [
@@ -133,7 +134,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 46
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  117 S> */ B(FindNonDefaultConstructorOrConstruct), R(1), R(0), R(6),
@@ -152,6 +153,7 @@ bytecodes: [
   /*  126 S> */ B(LdaSmi), I8(2),
   /*  134 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),
 ]
 constant pool: [
