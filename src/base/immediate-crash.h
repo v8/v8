@@ -79,7 +79,11 @@
 
 // GDB software breakpoint instruction.
 // Same as `bkpt` under the assembler.
+#if V8_OS_AIX
+#define TRAP_SEQUENCE1_() asm volatile(".vbyte 4,0x7D821008");
+#else
 #define TRAP_SEQUENCE1_() asm volatile(".4byte 0x7D821008");
+#endif
 #define TRAP_SEQUENCE2_() asm volatile("")
 
 #elif V8_HOST_ARCH_S390
