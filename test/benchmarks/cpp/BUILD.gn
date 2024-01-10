@@ -27,8 +27,8 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8_libbase",
-      "//third_party/google_benchmark:benchmark_main",
-      "//third_party/google_benchmark:google_benchmark",
+      "//third_party/google_benchmark_chrome:benchmark_main",
+      "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }
 
@@ -41,8 +41,8 @@ if (v8_enable_google_benchmark) {
 
     deps = [
       "//:v8_libbase",
-      "//third_party/google_benchmark:benchmark_main",
-      "//third_party/google_benchmark:google_benchmark",
+      "//third_party/google_benchmark_chrome:benchmark_main",
+      "//third_party/google_benchmark_chrome:google_benchmark",
     ]
   }
 }
