@@ -271,6 +271,10 @@ class V8_NODISCARD HandleScope {
   Address* prev_next_;
   Address* prev_limit_;
 
+#ifdef V8_ENABLE_CHECKS
+  int scope_level_ = 0;
+#endif
+
   // Close the handle scope resetting limits to a previous state.
   static V8_INLINE void CloseScope(Isolate* isolate, Address* prev_next,
                                    Address* prev_limit);

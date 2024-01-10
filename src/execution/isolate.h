@@ -2717,6 +2717,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data_ = nullptr;
 #endif
 
+#ifdef V8_ENABLE_CHECKS
+  ThreadId current_thread_id_;
+  int current_thread_counter_ = 0;
+#endif
+
   friend class heap::HeapTester;
   friend class GlobalSafepoint;
   friend class TestSerializer;

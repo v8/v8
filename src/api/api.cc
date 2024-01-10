@@ -903,9 +903,15 @@ void HandleScope::Initialize(Isolate* v8_isolate) {
   prev_next_ = current->next;
   prev_limit_ = current->limit;
   current->level++;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = current->level;
+#endif
 }
 
 HandleScope::~HandleScope() {
+#ifdef V8_ENABLE_CHECKS
+  CHECK_EQ(scope_level_, i_isolate_->handle_scope_data()->level);
+#endif
   i::HandleScope::CloseScope(i_isolate_, prev_next_, prev_limit_);
 }
 
