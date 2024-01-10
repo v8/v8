@@ -394,17 +394,8 @@ class TranslatedState {
   std::vector<TranslatedFrame>& frames() { return frames_; }
 
   TranslatedFrame* GetFrameFromJSFrameIndex(int jsframe_index);
-
-  struct ArgumentsInfo {
-    TranslatedFrame* function_frame;
-    TranslatedFrame* extra_args_frame;
-    int parameter_count_without_receiver;
-    int extra_args_count;
-    int arguments_count() const {
-      return extra_args_count + parameter_count_without_receiver;
-    }
-  };
-  ArgumentsInfo GetArgumentsInfoFromJSFrameIndex(int jsframe_index);
+  TranslatedFrame* GetArgumentsInfoFromJSFrameIndex(int jsframe_index,
+                                                    int* arguments_count);
 
   Isolate* isolate() { return isolate_; }
 

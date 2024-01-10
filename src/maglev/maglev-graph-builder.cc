@@ -987,10 +987,12 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
         zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
             interpreter::Register::invalid_value(), 0,
             parent_->current_deopt_scope_, true));
-    if (inlined_extra_arguments_) {
-      parent_deopt_frame_ = zone()->New<InlinedExtraArgumentsDeoptFrame>(
-          *compilation_unit_, *inlined_extra_arguments_, parent_deopt_frame_);
-      for (ValueNode* arg : *inlined_extra_arguments_) {
+    if (inlined_arguments_) {
+      parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
+          *compilation_unit_, caller_bytecode_offset_, GetClosure(),
+          *inlined_arguments_, parent_deopt_frame_);
+      GetClosure()->add_use();
+      for (ValueNode* arg : *inlined_arguments_) {
         arg->add_use();
       }
     }
@@ -5653,15 +5655,16 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
     SetArgument(i, arg_value);
   }
 
+  int arg_count = static_cast<int>(args.count());
   int formal_parameter_count =
       compilation_unit_->shared_function_info()
           .internal_formal_parameter_count_without_receiver();
-  int extra_arg_count = static_cast<int>(args.count()) - formal_parameter_count;
-  if (extra_arg_count > 0) {
-    inlined_extra_arguments_.emplace(
-        zone()->AllocateVector<ValueNode*>(extra_arg_count));
-    for (int i = 0; i < extra_arg_count; i++) {
-      (*inlined_extra_arguments_)[i] = args[i + formal_parameter_count];
+  if (arg_count != formal_parameter_count) {
+    inlined_arguments_.emplace(
+        zone()->AllocateVector<ValueNode*>(arg_count + 1));
+    (*inlined_arguments_)[0] = receiver;
+    for (int i = 0; i < arg_count; i++) {
+      (*inlined_arguments_)[i + 1] = args[i];
     }
   }
   inlined_new_target_ = new_target;
@@ -8124,10 +8127,8 @@ void MaglevGraphBuilder::VisitConstructForwardAllArgs() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
   if (is_inline()) {
-    int argc = parameter_count();
-    if (inlined_extra_arguments_) {
-      argc += static_cast<int>(inlined_extra_arguments_->size());
-    }
+    int argc = inlined_arguments_ ? static_cast<int>(inlined_arguments_->size())
+                                  : parameter_count();
     base::SmallVector<ValueNode*, 8> forwarded_args(argc);
     for (int i = 1 /* skip receiver */; i < argc; ++i) {
       forwarded_args[i] = GetTaggedArgument(i);

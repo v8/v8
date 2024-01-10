@@ -411,33 +411,6 @@ StateValuesAccess::TypedNode StateValuesAccess::iterator::operator*() {
   return TypedNode(node(), type());
 }
 
-ArgumentsIterator::ArgumentsIterator(FrameState frame_state) {
-  argument_count_ = frame_state.frame_state_info().parameter_count() - 1;
-  if (argument_count_ > 0) {
-    StateValuesAccess parameters_access(frame_state.parameters());
-    args_it_ = parameters_access.begin();
-    ++args_it_;  // Skip the receiver.
-  }
-  FrameState outer_state{frame_state.outer_frame_state()};
-  FrameStateInfo outer_info = outer_state.frame_state_info();
-  if (outer_info.type() == FrameStateType::kInlinedExtraArguments) {
-    StateValuesAccess extra_arguments_access(outer_state.parameters());
-    extra_args_it_ = extra_arguments_access.begin();
-    argument_count_ += outer_state.frame_state_info().parameter_count();
-  }
-}
-
-void ArgumentsIterator::Advance() {
-  argument_count_--;
-  if (!args_it_.done()) {
-    ++args_it_;
-  } else {
-    DCHECK(!extra_args_it_.done());
-    ++extra_args_it_;
-  }
-  DCHECK_GE(argument_count_, 0);
-}
-
 size_t StateValuesAccess::size() const {
   size_t count = 0;
   SparseInputMask mask = SparseInputMaskOf(node_->op());

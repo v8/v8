@@ -94,10 +94,6 @@ class JSInliner final : public AdvancedReducer {
       FrameStateType frame_state_type, SharedFunctionInfoRef shared,
       Node* context = nullptr, Node* callee = nullptr);
 
-  FrameState CreateInlinedExtraArgumentsFrameState(
-      Node* node, FrameState outer_frame_state,
-      int argument_count_without_receiver, SharedFunctionInfoRef shared);
-
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, StartNode start, Node* end,
                        Node* exception_target,

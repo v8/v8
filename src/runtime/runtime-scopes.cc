@@ -358,43 +358,35 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     TranslatedState translated_values(frame);
     translated_values.Prepare(frame->fp());
 
-    TranslatedState::ArgumentsInfo arguments_info =
+    int argument_count = 0;
+    TranslatedFrame* translated_frame =
         translated_values.GetArgumentsInfoFromJSFrameIndex(
-            inlined_jsframe_index);
-    TranslatedFrame::iterator iter = arguments_info.function_frame->begin();
-    iter++;  // Skip the function.
-    iter++;  // Skip the receiver.
+            inlined_jsframe_index, &argument_count);
+    TranslatedFrame::iterator iter = translated_frame->begin();
 
+    // Skip the function.
+    iter++;
+
+    // Skip the receiver.
+    iter++;
+    argument_count--;
+
+    *total_argc = argument_count;
     std::unique_ptr<Handle<Object>[]> param_data(
-        NewArray<Handle<Object>>(arguments_info.arguments_count()));
+        NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
-    int arg_index = 0;
-    // If we materialize any object, we should deoptimize the frame because we
-    // might alias an object that was eliminated by escape analysis.
-    for (; arg_index < arguments_info.parameter_count_without_receiver;
-         arg_index++) {
+    for (int i = 0; i < argument_count; i++) {
+      // If we materialize any object, we should deoptimize the frame because we
+      // might alias an object that was eliminated by escape analysis.
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
       Handle<Object> value = iter->GetValue();
-      param_data[arg_index] = value;
+      param_data[i] = value;
       iter++;
-    }
-    if (arguments_info.extra_args_frame) {
-      TranslatedFrame::iterator iter_extra =
-          arguments_info.extra_args_frame->begin();
-      for (; arg_index < arguments_info.arguments_count(); arg_index++) {
-        should_deoptimize =
-            should_deoptimize || iter_extra->IsMaterializedObject();
-        Handle<Object> value = iter_extra->GetValue();
-        param_data[arg_index] = value;
-        iter_extra++;
-      }
     }
 
     if (should_deoptimize) {
       translated_values.StoreMaterializedValuesAndDeopt(frame);
     }
-
-    *total_argc = arguments_info.arguments_count();
 
     return param_data;
   } else {

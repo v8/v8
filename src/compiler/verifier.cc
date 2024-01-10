@@ -583,9 +583,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       {
         const FrameStateFunctionInfo* func_info =
             state.frame_state_info().function_info();
-        CHECK_EQ(
-            func_info->parameter_count() < 0 ? 0 : func_info->parameter_count(),
-            StateValuesAccess(state.parameters()).size());
+        CHECK_EQ(func_info->parameter_count(),
+                 StateValuesAccess(state.parameters()).size());
         CHECK_EQ(func_info->local_count(),
                  StateValuesAccess(state.locals()).size());
 

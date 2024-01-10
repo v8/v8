@@ -2234,7 +2234,8 @@ class MaglevGraphBuilder {
 
   // TODO(victorgomes): Refactor all inlined data to a
   // base::Optional<InlinedGraphBuilderData>.
-  base::Optional<base::Vector<ValueNode*>> inlined_extra_arguments_;
+  // base::Vector<ValueNode*>* inlined_arguments_ = nullptr;
+  base::Optional<base::Vector<ValueNode*>> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
   ValueNode* inlined_new_target_ = nullptr;
 
