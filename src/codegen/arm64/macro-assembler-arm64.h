@@ -2014,7 +2014,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Abort execution if argument is not smi nor in the pointer compresssion
   // cage, enabled via --debug-code.
-  void AssertSmiOrHeapObjectInCompressionCage(Register object)
+  void AssertSmiOrHeapObjectInMainCompressionCage(Register object)
       NOOP_UNLESS_DEBUG_CODE;
 
   // ---- Calling / Jumping helpers ----

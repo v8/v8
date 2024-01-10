@@ -2330,7 +2330,7 @@ void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
     __ AssertSmi(x0);
     if (save_new_target) {
       if (PointerCompressionIsEnabled()) {
-        __ AssertSmiOrHeapObjectInCompressionCage(
+        __ AssertSmiOrHeapObjectInMainCompressionCage(
             kJavaScriptCallNewTargetRegister);
       }
       __ Push(kJavaScriptCallNewTargetRegister, padreg);
