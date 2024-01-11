@@ -45,6 +45,7 @@ namespace v8::internal::wasm {
   V(WasmTableSet)                                                              \
   V(WasmTableGetFuncRef)                                                       \
   V(WasmTableSetFuncRef)                                                       \
+  V(WasmFunctionTableGet)                                                      \
   V(WasmStackGuard)                                                            \
   V(WasmStackOverflow)                                                         \
   V(WasmAllocateFixedArray)                                                    \

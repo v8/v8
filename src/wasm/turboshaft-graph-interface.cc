@@ -2707,23 +2707,36 @@ class TurboshaftGraphBuildingInterface {
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const IndexImmediate& imm) {
     ValueType element_type = decoder->module_->tables[imm.index].type;
+    V<WasmTableObject> table = LoadTable(imm.index);
+    V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::TaggedSigned(),
+                              WasmTableObject::kCurrentLengthOffset);
+    V<Word32> in_bounds = __ Uint32LessThan(index.op, __ UntagSmi(size_smi));
+    __ TrapIfNot(in_bounds, OpIndex::Invalid(), TrapId::kTrapTableOutOfBounds);
+    V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
+                                    MemoryRepresentation::TaggedPointer(),
+                                    WasmTableObject::kEntriesOffset);
+    OpIndex entry =
+        __ LoadFixedArrayElement(entries, __ ChangeInt32ToIntPtr(index.op));
+
     if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_)) {
-      result->op = CallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmTableGetFuncRef>(
-          decoder, {__ IntPtrConstant(imm.index), index.op});
+      // If the entry has map type Tuple2, call WasmFunctionTableGet which will
+      // initialize the function table entry.
+      Label<Tagged> end(&asm_);
+      // The entry is a funcref, null or a Tuple2, so it can't be a a smi and it
+      // is safe to cast it to an object.
+      V<Map> entry_map = __ LoadMapField(V<Object>::Cast(entry));
+      V<Word32> instance_type = __ LoadInstanceTypeField(entry_map);
+      GOTO_IF_NOT(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE), end,
+                  entry);
+      GOTO(end, CallBuiltinThroughJumptable<
+                    BuiltinCallDescriptor::WasmFunctionTableGet>(
+                    decoder, {__ IntPtrConstant(imm.index), index.op}));
+
+      BIND(end, resolved_entry);
+      result->op = resolved_entry;
     } else {
-      V<WasmTableObject> table = LoadTable(imm.index);
-      V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
-                                MemoryRepresentation::TaggedSigned(),
-                                WasmTableObject::kCurrentLengthOffset);
-      V<Word32> in_bounds = __ Uint32LessThan(index.op, __ UntagSmi(size_smi));
-      __ TrapIfNot(in_bounds, OpIndex::Invalid(),
-                   TrapId::kTrapTableOutOfBounds);
-      V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
-                                      MemoryRepresentation::TaggedPointer(),
-                                      WasmTableObject::kEntriesOffset);
-      result->op =
-          __ LoadFixedArrayElement(entries, __ ChangeInt32ToIntPtr(index.op));
+      result->op = entry;
     }
     result->op = AnnotateResultIfReference(result->op, element_type);
   }

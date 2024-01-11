@@ -698,20 +698,8 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
-  struct WasmTableGetFuncRef : public Descriptor<WasmTableGetFuncRef> {
-    static constexpr auto kFunction = Builtin::kWasmTableGetFuncRef;
-    using arguments_t = std::tuple<V<WordPtr>, V<Word32>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory().CanAllocate();
-  };
-
-  struct WasmTableGet : public Descriptor<WasmTableGet> {
-    static constexpr auto kFunction = Builtin::kWasmTableGet;
+  struct WasmFunctionTableGet : public Descriptor<WasmFunctionTableGet> {
+    static constexpr auto kFunction = Builtin::kWasmFunctionTableGet;
     using arguments_t = std::tuple<V<WordPtr>, V<Word32>>;
     using results_t = std::tuple<V<Object>>;
 

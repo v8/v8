@@ -292,6 +292,15 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
   }
 }
 
+// Stub to wrap around the slow path (runtime call) of table.get for funcref
+// tables for which the reference is not yet initialized.
+builtin WasmFunctionTableGet(tableIndex: intptr, index: int32): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  tail runtime::WasmFunctionTableGet(
+      LoadContextFromInstanceData(trustedData), trustedData,
+      SmiFromIntPtr(tableIndex), SmiFromInt32(index));
+}
+
 builtin WasmTableSetFuncRef(tableIndex: intptr, index: uint32, value: Object):
     Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
