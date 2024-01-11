@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_BRANCH_CONDITION_DUPLICATION_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_BRANCH_CONDITION_DUPLICATION_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_DUPLICATION_OPTIMIZATION_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_DUPLICATION_OPTIMIZATION_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -13,9 +13,15 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// BranchConditionDuplication makes sure that the condition nodes of branches
-// are used only once. When it finds a branch node whose condition has multiples
-// uses, this condition is duplicated.
+// DuplicationOptimizationReducer introduces duplication where this can be
+// beneficial for generated code. It should run late in the pipeline so that the
+// duplication isn't optimized away by some other phases (such as GVN).
+//
+// In particular, it introduces duplication in 2 places:
+//
+// 1. Branch condition duplication: it tries to ensure that the condition nodes
+// of branches are used only once (under some conditions). When it finds a
+// branch node whose condition has multiples uses, this condition is duplicated.
 //
 // Doing this enables the InstructionSelector to generate more efficient code
 // for branches. For instance, consider this code:
@@ -55,11 +61,16 @@ namespace v8::internal::compiler::turboshaft {
 // In order to overcome this issue, BranchConditionDuplicator duplicates branch
 // conditions that are used more than once, so that they can be generated right
 // before each branch without worrying about breaking SSA.
+//
+// 2. Load/Store flexible second operand duplication: on Arm64, it tries to
+// duplicate the "index" input of Loads/Stores when it's a shift by a constant.
+// This allows the Instruction Selector to compute said shift using a flexible
+// second operand, which in most cases on recent Arm64 CPUs should be for free.
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
-class BranchConditionDuplicationReducer : public Next {
+class DuplicationOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
@@ -96,6 +107,38 @@ class BranchConditionDuplicationReducer : public Next {
                      __ MapToNewGraph(select.vfalse()), select.rep, select.hint,
                      select.implem);
   }
+
+#if V8_TARGET_ARCH_ARM64
+  // TODO(dmercadier): duplicating a shift to use a flexible second operand is
+  // not always worth it; this depends mostly on the CPU, the kind of shift, and
+  // the size of the loaded/stored data. Ideally, we would have cost models for
+  // all the CPUs we target, and use those to decide to duplicate shifts or not.
+  OpIndex REDUCE(Load)(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
+                       MemoryRepresentation loaded_rep,
+                       RegisterRepresentation result_rep, int32_t offset,
+                       uint8_t element_size_log2) {
+    if (offset == 0 && element_size_log2 == 0 && index.valid()) {
+      index = MaybeDuplicateOutputGraphShift(index.value());
+    }
+    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
+                            element_size_log2);
+  }
+
+  OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag maybe_indirect_pointer_tag) {
+    if (offset == 0 && element_size_log2 == 0 && index.valid()) {
+      index = MaybeDuplicateOutputGraphShift(index.value());
+    }
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_indirect_pointer_tag);
+  }
+#endif
 
  private:
   bool MaybeDuplicateCond(const Operation& cond, OpIndex input_idx,
@@ -182,10 +225,27 @@ class BranchConditionDuplicationReducer : public Next {
     return __ Shift(__ MapToNewGraph(shift.left()),
                     __ MapToNewGraph(shift.right()), shift.kind, shift.rep);
   }
+
+  OpIndex MaybeDuplicateOutputGraphShift(OpIndex index) {
+    OpIndex shifted;
+    int shifted_by;
+    ShiftOp::Kind shift_kind;
+    WordRepresentation shift_rep;
+    if (__ matcher().MatchConstantShift(index, &shifted, &shift_kind,
+                                        &shift_rep, &shifted_by) &&
+        !__ matcher().Get(index).saturated_use_count.IsZero()) {
+      // We don't check the use count of {shifted}, because it might have uses
+      // in the future that haven't been emitted yet.
+      DisableValueNumbering disable_gvn(this);
+      return __ Shift(shifted, __ Word32Constant(shifted_by), shift_kind,
+                      shift_rep);
+    }
+    return index;
+  }
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_BRANCH_CONDITION_DUPLICATION_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_DUPLICATION_OPTIMIZATION_REDUCER_H_
