@@ -893,25 +893,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void Dcheck(const BranchGenerator& branch, const char* message,
               const char* file, int line,
-              std::initializer_list<ExtraNode> extra_nodes = {});
+              std::initializer_list<ExtraNode> extra_nodes = {},
+              SourceLocation loc = SourceLocation::Current());
   void Dcheck(const NodeGenerator<BoolT>& condition_body, const char* message,
               const char* file, int line,
-              std::initializer_list<ExtraNode> extra_nodes = {});
+              std::initializer_list<ExtraNode> extra_nodes = {},
+              SourceLocation loc = SourceLocation::Current());
   void Dcheck(TNode<Word32T> condition_node, const char* message,
               const char* file, int line,
-              std::initializer_list<ExtraNode> extra_nodes = {});
+              std::initializer_list<ExtraNode> extra_nodes = {},
+              SourceLocation loc = SourceLocation::Current());
   void Check(const BranchGenerator& branch, const char* message,
              const char* file, int line,
-             std::initializer_list<ExtraNode> extra_nodes = {});
+             std::initializer_list<ExtraNode> extra_nodes = {},
+             SourceLocation loc = SourceLocation::Current());
   void Check(const NodeGenerator<BoolT>& condition_body, const char* message,
              const char* file, int line,
-             std::initializer_list<ExtraNode> extra_nodes = {});
+             std::initializer_list<ExtraNode> extra_nodes = {},
+             SourceLocation loc = SourceLocation::Current());
   void Check(TNode<Word32T> condition_node, const char* message,
              const char* file, int line,
-             std::initializer_list<ExtraNode> extra_nodes = {});
+             std::initializer_list<ExtraNode> extra_nodes = {},
+             SourceLocation loc = SourceLocation::Current());
   void FailAssert(const char* message,
                   const std::vector<FileAndLine>& files_and_lines,
-                  std::initializer_list<ExtraNode> extra_nodes = {});
+                  std::initializer_list<ExtraNode> extra_nodes = {},
+                  SourceLocation loc = SourceLocation::Current());
 
   void FastCheck(TNode<BoolT> condition);
 

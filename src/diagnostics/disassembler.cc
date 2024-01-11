@@ -369,7 +369,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
     // Comments.
     for (size_t i = 0; i < comments.size(); i++) {
+      if (v8_flags.log_colour) {
+        out << "\033[34m";
+      }
       out << "                  " << comments[i];
+      if (v8_flags.log_colour) {
+        out << "\033[;m";
+      }
       DumpBuffer(os, out);
     }
 

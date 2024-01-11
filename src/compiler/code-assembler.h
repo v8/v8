@@ -660,17 +660,27 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void AbortCSADcheck(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(const char* msg) {
-    if (!v8_flags.code_comments) return;
-    Comment(std::string(msg));
-  }
-  void Comment(std::string msg);
+
+  // Hack for supporting SourceLocation alongside template packs.
+  struct MessageWithSourceLocation {
+    const char* message;
+    SourceLocation loc;
+
+    // Allow implicit construction, necessary for the hack.
+    // NOLINTNEXTLINE
+    MessageWithSourceLocation(const char* message,
+                              SourceLocation loc = SourceLocation::Current())
+        : message(message), loc(loc) {}
+  };
   template <class... Args>
-  void Comment(Args&&... args) {
+  void Comment(MessageWithSourceLocation message, Args&&... args) {
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
-    USE((s << std::forward<Args>(args))...);
-    Comment(s.str());
+    USE(s << message.message, (s << std::forward<Args>(args))...);
+    if (message.loc.FileName()) {
+      s << " - " << message.loc.ToString();
+    }
+    EmitComment(std::move(s).str());
   }
 
   void StaticAssert(TNode<BoolT> value,
@@ -1452,6 +1462,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
                       TNode<WordT> offset);
+
+  void EmitComment(std::string msg);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.

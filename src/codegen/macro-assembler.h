@@ -82,10 +82,11 @@ static constexpr int kMaxCParameters = 256;
 
 class V8_NODISCARD FrameScope {
  public:
-  explicit FrameScope(MacroAssembler* masm, StackFrame::Type type)
+  explicit FrameScope(MacroAssembler* masm, StackFrame::Type type,
+                      SourceLocation loc = SourceLocation())
       :
 #ifdef V8_CODE_COMMENTS
-        comment_(masm, frame_name(type)),
+        comment_(masm, frame_name(type), loc),
 #endif
         masm_(masm),
         type_(type),

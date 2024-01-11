@@ -407,39 +407,52 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  V8_INLINE void RecordComment(const char* comment) {
+  V8_INLINE void RecordComment(const char* comment,
+                               SourceLocation loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::string(comment));
+      std::string comment_str(comment);
+      if (loc.FileName()) {
+        comment_str += " - " + loc.ToString();
+      }
+      code_comments_writer_.Add(pc_offset(), comment_str);
     }
   }
 
-  V8_INLINE void RecordComment(std::string comment) {
+  V8_INLINE void RecordComment(std::string comment,
+                               SourceLocation loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::move(comment));
+      std::string comment_str(comment);
+      if (loc.FileName()) {
+        comment_str += " - " + loc.ToString();
+      }
+      code_comments_writer_.Add(pc_offset(), comment_str);
     }
   }
 
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:
-    V8_NODISCARD CodeComment(Assembler* assembler, const std::string& comment)
+    V8_NODISCARD CodeComment(Assembler* assembler, std::string comment,
+                             SourceLocation loc = SourceLocation::Current())
         : assembler_(assembler) {
-      if (v8_flags.code_comments) Open(comment);
+      if (!v8_flags.code_comments) return;
+      Open(comment, loc);
     }
     ~CodeComment() {
-      if (v8_flags.code_comments) Close();
+      if (!v8_flags.code_comments) return;
+      Close();
     }
     static const int kIndentWidth = 2;
 
    private:
     int depth() const;
-    void Open(const std::string& comment);
+    void Open(const std::string& comment, const SourceLocation& loc);
     void Close();
     Assembler* assembler_;
   };
@@ -581,7 +594,12 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 };
 
 #ifdef V8_CODE_COMMENTS
+#if V8_SUPPORTS_SOURCE_LOCATION
+// We'll get the function name from the source location, no need to pass it in.
+#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, "")
+#else
 #define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
+#endif
 #define ASM_CODE_COMMENT_STRING(asm, comment) \
   AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
 #else

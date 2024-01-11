@@ -94,43 +94,47 @@ void CodeStubAssembler::HandleBreakOnNode() {
 
 void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
                                const char* message, const char* file, int line,
-                               std::initializer_list<ExtraNode> extra_nodes) {
+                               std::initializer_list<ExtraNode> extra_nodes,
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(branch, message, file, line, extra_nodes);
+    Check(branch, message, file, line, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
                                const char* message, const char* file, int line,
-                               std::initializer_list<ExtraNode> extra_nodes) {
+                               std::initializer_list<ExtraNode> extra_nodes,
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(condition_body, message, file, line, extra_nodes);
+    Check(condition_body, message, file, line, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
                                const char* message, const char* file, int line,
-                               std::initializer_list<ExtraNode> extra_nodes) {
+                               std::initializer_list<ExtraNode> extra_nodes,
+                               SourceLocation loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(condition_node, message, file, line, extra_nodes);
+    Check(condition_node, message, file, line, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Check(const BranchGenerator& branch,
                               const char* message, const char* file, int line,
-                              std::initializer_list<ExtraNode> extra_nodes) {
+                              std::initializer_list<ExtraNode> extra_nodes,
+                              SourceLocation loc) {
   Label ok(this);
   Label not_ok(this, Label::kDeferred);
   if (message != nullptr) {
-    Comment("[ Assert: ", message);
+    Comment({"[ Assert: ", loc}, message);
   } else {
-    Comment("[ Assert");
+    Comment({"[ Assert: ", loc});
   }
   branch(&ok, &not_ok);
 
@@ -139,31 +143,33 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   if (file != nullptr) {
     file_and_line.push_back({file, line});
   }
-  FailAssert(message, file_and_line, extra_nodes);
+  FailAssert(message, file_and_line, extra_nodes, loc);
 
   BIND(&ok);
-  Comment("] Assert");
+  Comment({"] Assert", SourceLocation()});
 }
 
 void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message, const char* file, int line,
-                              std::initializer_list<ExtraNode> extra_nodes) {
+                              std::initializer_list<ExtraNode> extra_nodes,
+                              SourceLocation loc) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
     TNode<BoolT> condition = condition_body();
     Branch(condition, ok, not_ok);
   };
 
-  Check(branch, message, file, line, extra_nodes);
+  Check(branch, message, file, line, extra_nodes, loc);
 }
 
 void CodeStubAssembler::Check(TNode<Word32T> condition_node,
                               const char* message, const char* file, int line,
-                              std::initializer_list<ExtraNode> extra_nodes) {
+                              std::initializer_list<ExtraNode> extra_nodes,
+                              SourceLocation loc) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
     Branch(condition_node, ok, not_ok);
   };
 
-  Check(branch, message, file, line, extra_nodes);
+  Check(branch, message, file, line, extra_nodes, loc);
 }
 
 void CodeStubAssembler::IncrementCallCount(
@@ -191,7 +197,7 @@ void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
 
 void CodeStubAssembler::FailAssert(
     const char* message, const std::vector<FileAndLine>& files_and_lines,
-    std::initializer_list<ExtraNode> extra_nodes) {
+    std::initializer_list<ExtraNode> extra_nodes, SourceLocation loc) {
   DCHECK_NOT_NULL(message);
   base::EmbeddedVector<char, 1024> chars;
   std::stringstream stream;

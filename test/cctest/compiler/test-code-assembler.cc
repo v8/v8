@@ -479,7 +479,9 @@ TEST(TestCodeAssemblerCodeComment) {
   CHECK(it.HasCurrent());
   bool found_comment = false;
   while (it.HasCurrent()) {
-    if (strcmp(it.GetComment(), "Comment1") == 0) found_comment = true;
+    if (strncmp(it.GetComment(), "Comment1", strlen("Comment1")) == 0) {
+      found_comment = true;
+    }
     it.Next();
   }
   CHECK(found_comment);

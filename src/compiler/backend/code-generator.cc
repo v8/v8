@@ -292,7 +292,7 @@ void CodeGenerator::AssembleCode() {
         buffer << " (in loop " << block->loop_header().ToInt() << ")";
       }
       buffer << " --";
-      masm()->RecordComment(buffer.str().c_str());
+      masm()->RecordComment(buffer.str().c_str(), SourceLocation());
     }
 
     frame_access_state()->MarkHasFrame(block->needs_frame());
@@ -852,7 +852,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
       buffer << source_position.InliningStack(masm()->isolate(), info);
     }
     buffer << " --";
-    masm()->RecordComment(buffer.str().c_str());
+    masm()->RecordComment(buffer.str().c_str(), SourceLocation());
   }
 }
 

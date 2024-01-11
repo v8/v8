@@ -871,7 +871,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchTableSwitch(instr);
       break;
     case kArchComment:
-      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)));
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)),
+                       SourceLocation());
       break;
     case kArchAbortCSADcheck:
       DCHECK(i.InputRegister(0) == edx);

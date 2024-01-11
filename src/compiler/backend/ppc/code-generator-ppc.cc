@@ -969,9 +969,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchComment:
 #ifdef V8_TARGET_ARCH_PPC64
-      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)),
+                       SourceLocation());
 #else
-      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)));
+      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)),
+                       SourceLocation());
 #endif
       break;
     case kArchCallCFunction: {

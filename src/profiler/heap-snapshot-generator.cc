@@ -3555,7 +3555,7 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
 }
 
 void HeapSnapshotJSONSerializer::SerializeLocation(
-    const SourceLocation& location) {
+    const EntrySourceLocation& location) {
   // The buffer needs space for 4 unsigned ints, 3 commas, \n and \0
   static const int kBufferSize =
       MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 4 + 3 + 2;
@@ -3574,7 +3574,7 @@ void HeapSnapshotJSONSerializer::SerializeLocation(
 }
 
 void HeapSnapshotJSONSerializer::SerializeLocations() {
-  const std::vector<SourceLocation>& locations = snapshot_->locations();
+  const std::vector<EntrySourceLocation>& locations = snapshot_->locations();
   for (size_t i = 0; i < locations.size(); i++) {
     if (i > 0) writer_->AddCharacter(',');
     SerializeLocation(locations[i]);

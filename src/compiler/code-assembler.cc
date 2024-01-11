@@ -535,7 +535,7 @@ void CodeAssembler::Unreachable() {
   raw_assembler()->Unreachable();
 }
 
-void CodeAssembler::Comment(std::string str) {
+void CodeAssembler::EmitComment(std::string str) {
   if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
 }
