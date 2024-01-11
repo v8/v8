@@ -5450,6 +5450,9 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   heap_allocator_ = &main_thread_local_heap->heap_allocator_;
   DCHECK_NOT_NULL(heap_allocator_);
 
+  // Set the stack start for the main thread that sets up the heap.
+  SetStackStart(base::Stack::GetStackStart());
+
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   heap_allocator_->UpdateAllocationTimeout();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
@@ -5942,10 +5945,16 @@ const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
 }
 
 void Heap::SetStackStart(void* stack_start) {
+  // If no main thread local heap has been set up (we're still in the
+  // deserialization process), we don't need to set the stack start.
+  if (main_thread_local_heap_ == nullptr) return;
   stack().SetStackStart(stack_start);
 }
 
-::heap::base::Stack& Heap::stack() { return isolate_->stack(); }
+::heap::base::Stack& Heap::stack() {
+  CHECK_NOT_NULL(main_thread_local_heap_);
+  return main_thread_local_heap_->stack_;
+}
 
 void Heap::StartTearDown() {
   if (owning_cpp_heap_) {

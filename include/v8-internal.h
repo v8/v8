@@ -1368,6 +1368,7 @@ class HandleHelper final {
     return lhs.ptr() == rhs.ptr();
   }
 
+  static V8_EXPORT bool IsOnStack(const void* ptr);
   static V8_EXPORT void VerifyOnStack(const void* ptr);
   static V8_EXPORT void VerifyOnMainThread();
 };

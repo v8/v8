@@ -765,13 +765,16 @@ void DisposeTracedReference(internal::Address* location) {
 }
 
 // static
-void v8::internal::HandleHelper::VerifyOnStack(const void* ptr) {
-  DCHECK_LE(v8::base::Stack::GetCurrentStackPosition(), ptr);
-  DCHECK_GE(v8::base::Stack::GetStackStartUnchecked(), ptr);
+bool HandleHelper::IsOnStack(const void* ptr) {
+  return v8::base::Stack::GetCurrentStackPosition() <= ptr &&
+         ptr <= v8::base::Stack::GetStackStartUnchecked();
 }
 
 // static
-void v8::internal::HandleHelper::VerifyOnMainThread() {
+void HandleHelper::VerifyOnStack(const void* ptr) { DCHECK(IsOnStack(ptr)); }
+
+// static
+void HandleHelper::VerifyOnMainThread() {
   // The following verifies that we are on the main thread, as
   // LocalHeap::Current is not set in that case.
   DCHECK_NULL(LocalHeap::Current());

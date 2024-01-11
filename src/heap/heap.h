@@ -1102,6 +1102,7 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
 
+  // Stack information of the main thread.
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
 
   // ===========================================================================

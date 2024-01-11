@@ -370,9 +370,21 @@ void LocalHeap::SleepInSafepoint() {
   });
 }
 
-bool LocalHeap::IsMainThreadOfClientIsolate() const {
-  return is_main_thread() && heap()->isolate()->has_shared_space();
+#ifdef DEBUG
+bool LocalHeap::IsSafeForConservativeStackScanning() const {
+  if (is_main_thread()) {
+    // The main thread of a client isolate must be in the trampoline.
+    if (heap()->isolate()->has_shared_space() && !is_in_trampoline())
+      return false;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  } else {
+    // Background threads must not use direct handles.
+    if (DirectHandleBase::NumberOfHandles() > 0) return false;
+#endif
+  }
+  return true;
 }
+#endif  // DEBUG
 
 void LocalHeap::FreeLinearAllocationAreas() {
   heap_allocator_.FreeLinearAllocationAreas();
