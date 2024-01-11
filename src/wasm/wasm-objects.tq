@@ -22,9 +22,6 @@ extern class WasmInstanceObject extends JSObject {
 // Represents the context of a function that is defined through the JS or C
 // APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
 // reference.
-// TODO(manoskouk): If V8_ENABLE_SANDBOX, we cannot encode the isolate_root as
-// a sandboxed pointer, because that would require having access to the isolate
-// root in the first place.
 extern class WasmApiFunctionRef extends HeapObject {
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
