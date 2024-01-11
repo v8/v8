@@ -3448,7 +3448,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         FallThrough();
         c->reachability = control_at(1)->innerReachability();
         current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
-        if (c->might_throw) {
+        // Cache `c->might_throw` so we can access it safely after `c`'s
+        // destructor is called in `PopContol()`.
+        bool might_throw = c->might_throw;
+        if (might_throw) {
           CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
           CALL_INTERFACE_IF_OK_AND_REACHABLE(Rethrow, c);
         }
@@ -3457,7 +3460,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         // We must mark the parent catch block as `might_throw`, since this
         // conceptually rethrows. Note that we do this regardless of whether
         // the code at this point is reachable.
-        if (c->might_throw && current_catch() != -1) {
+        if (might_throw && current_catch() != -1) {
           control_at(control_depth_of_current_catch())->might_throw = true;
         }
         return 1;
