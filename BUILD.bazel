@@ -150,6 +150,53 @@ v8_flag(name = "v8_enable_verify_predictable")
 v8_flag(name = "v8_enable_test_features")
 
 v8_flag(
+    name = "v8_enable_maglev",
+    default = True,
+)
+
+# Default setting for v8_enable_maglev
+selects.config_setting_group(
+    name = "maglev_by_default",
+    match_any = [
+        "@v8//bazel/config:v8_target_x64",
+        "@v8//bazel/config:v8_target_arm64",
+    ],
+)
+
+# Maglev enabled option.
+selects.config_setting_group(
+    name = "enable_maglev",
+    match_all = [
+        ":is_v8_enable_maglev",
+        ":maglev_by_default",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_maglev_x64",
+    match_all = [
+        ":enable_maglev",
+        "@v8//bazel/config:v8_target_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_maglev_arm64",
+    match_all = [
+        ":enable_maglev",
+        "@v8//bazel/config:v8_target_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_maglev_arm",
+    match_all = [
+        ":enable_maglev",
+        "@v8//bazel/config:v8_target_arm",
+    ],
+)
+
+v8_flag(
     name = "v8_enable_turbofan",
     default = True,
 )
@@ -465,6 +512,11 @@ v8_config(
     }) + select({
         ":enable_external_code_space": [
             "V8_EXTERNAL_CODE_SPACE",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_maglev": [
+            "V8_ENABLE_MAGLEV",
         ],
         "//conditions:default": [],
     }) + select({
@@ -2635,6 +2687,69 @@ filegroup(
         "@v8//bazel/config:is_windows_64bit": [
             "src/diagnostics/unwinding-info-win64.cc",
             "src/diagnostics/unwinding-info-win64.h",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_maglev": [
+            "src/maglev/maglev-assembler-inl.h",
+            "src/maglev/maglev-assembler.h",
+            "src/maglev/maglev-basic-block.h",
+            "src/maglev/maglev-code-gen-state.h",
+            "src/maglev/maglev-code-generator.h",
+            "src/maglev/maglev-compilation-info.h",
+            "src/maglev/maglev-compilation-unit.h",
+            "src/maglev/maglev-compiler.h",
+            "src/maglev/maglev-concurrent-dispatcher.h",
+            "src/maglev/maglev-graph-builder.h",
+            "src/maglev/maglev-graph-labeller.h",
+            "src/maglev/maglev-graph-printer.h",
+            "src/maglev/maglev-graph-processor.h",
+            "src/maglev/maglev-graph-verifier.h",
+            "src/maglev/maglev-graph.h",
+            "src/maglev/maglev-interpreter-frame-state.h",
+            "src/maglev/maglev-ir-inl.h",
+            "src/maglev/maglev-ir.h",
+            "src/maglev/maglev-phi-representation-selector.h",
+            "src/maglev/maglev-pipeline-statistics.h",
+            "src/maglev/maglev-regalloc-data.h",
+            "src/maglev/maglev-regalloc.h",
+            "src/maglev/maglev-register-frame-array.h",
+            "src/maglev/maglev.h",
+            "src/maglev/maglev-assembler.cc",
+            "src/maglev/maglev-code-generator.cc",
+            "src/maglev/maglev-compilation-info.cc",
+            "src/maglev/maglev-compilation-unit.cc",
+            "src/maglev/maglev-compiler.cc",
+            "src/maglev/maglev-concurrent-dispatcher.cc",
+            "src/maglev/maglev-graph-builder.cc",
+            "src/maglev/maglev-graph-printer.cc",
+            "src/maglev/maglev-interpreter-frame-state.cc",
+            "src/maglev/maglev-ir.cc",
+            "src/maglev/maglev-phi-representation-selector.cc",
+            "src/maglev/maglev-pipeline-statistics.cc",
+            "src/maglev/maglev-regalloc.cc",
+            "src/maglev/maglev.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_maglev_x64": [
+            "src/maglev/x64/maglev-assembler-x64-inl.h",
+            "src/maglev/x64/maglev-assembler-x64.cc",
+            "src/maglev/x64/maglev-ir-x64.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_maglev_arm64": [
+            "src/maglev/arm64/maglev-assembler-arm64-inl.h",
+            "src/maglev/arm64/maglev-assembler-arm64.cc",
+            "src/maglev/arm64/maglev-ir-arm64.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_maglev_arm": [
+            "src/maglev/arm/maglev-assembler-arm-inl.h",
+            "src/maglev/arm/maglev-assembler-arm.cc",
+            "src/maglev/arm/maglev-ir-arm.cc",
         ],
         "//conditions:default": [],
     }) + select({
