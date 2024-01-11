@@ -3774,6 +3774,9 @@ void Heap::ReportIneffectiveMarkCompactIfNeeded() {
                  consecutive_ineffective_mark_compacts_ == 0);
   if (consecutive_ineffective_mark_compacts_ ==
       kMaxConsecutiveIneffectiveMarkCompacts) {
+    if (v8_flags.heap_snapshot_on_oom) {
+      isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+    }
     FatalProcessOutOfMemory("Ineffective mark-compacts near heap limit");
   }
 }
