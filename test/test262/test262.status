@@ -2121,6 +2121,32 @@
   'intl402/Locale/prototype/firstDayOfWeek/valid-options': [FAIL],
   'intl402/Locale/prototype/getWeekInfo/firstDay-by-option': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14552
+  'built-ins/Atomics/add/bad-range': [FAIL],
+  'built-ins/Atomics/add/good-views': [FAIL],
+  'built-ins/Atomics/and/bad-range': [FAIL],
+  'built-ins/Atomics/and/good-views': [FAIL],
+  'built-ins/Atomics/compareExchange/bad-range': [FAIL],
+  'built-ins/Atomics/compareExchange/good-views': [FAIL],
+  'built-ins/Atomics/exchange/bad-range': [FAIL],
+  'built-ins/Atomics/exchange/good-views': [FAIL],
+  'built-ins/Atomics/load/bad-range': [FAIL],
+  'built-ins/Atomics/load/good-views': [FAIL],
+  'built-ins/Atomics/or/bad-range': [FAIL],
+  'built-ins/Atomics/or/good-views': [FAIL],
+  'built-ins/Atomics/store/bad-range': [FAIL],
+  'built-ins/Atomics/store/good-views': [FAIL],
+  'built-ins/Atomics/sub/bad-range': [FAIL],
+  'built-ins/Atomics/sub/good-views': [FAIL],
+  'built-ins/Atomics/xor/bad-range': [FAIL],
+  'built-ins/Atomics/xor/good-views': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=14530
+  'built-ins/Array/length/define-own-prop-length-error': [FAIL],
+
+  # https://github.com/tc39/test262/pull/3985
+  'built-ins/Set/prototype/difference/subclass-receiver-methods': [FAIL],
+
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -2474,6 +2500,7 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default': [FAIL],
   'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined': [FAIL],
+  'intl402/DurationFormat/constructor-options-style-conflict': [FAIL],
   'language/global-code/script-decl-lex-var-declared-via-eval-sloppy': [FAIL],
 }],
 # end import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
