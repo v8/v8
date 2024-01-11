@@ -390,16 +390,14 @@ void PrintSingleDeoptFrame(
         return;
       }
       os << " : {";
-      bool first = true;
+      os << "<closure>:"
+         << PrintNodeLabel(graph_labeller, frame.as_interpreted().closure())
+         << ":" << current_input_location->operand();
+      current_input_location++;
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
           [&](ValueNode* node, interpreter::Register reg) {
-            if (first) {
-              first = false;
-            } else {
-              os << ", ";
-            }
-            os << reg.ToString() << ":";
+            os << ", " << reg.ToString() << ":";
             if (lazy_deopt_info_if_top_frame &&
                 lazy_deopt_info_if_top_frame->IsResultRegister(reg)) {
               os << "<result>";
