@@ -21,6 +21,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/stub-cache.h"
@@ -1139,14 +1140,38 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
   return MaybeObjectHandle(Handle<InstructionStream>::null());
 }
 
-bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
+std::optional<KeyedLoadIC::HandlerInfo> KeyedLoadIC::GetHandlerInfoFor(
+    Handle<Map> receiver_map) {
   const MaybeObjectHandle& handler = nexus()->FindHandlerForMap(receiver_map);
-  if (handler.is_null()) return false;
-  return LoadHandler::GetKeyedAccessLoadMode(*handler) == STANDARD_LOAD;
+  if (handler.is_null()) return {};
+  KeyedAccessLoadMode load_mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
+  bool convert_hole = LoadHandler::GetConvertHole(*handler);
+  return HandlerInfo{load_mode, convert_hole};
+}
+
+KeyedLoadIC::HandlerInfo KeyedLoadIC::GeneralizeHandlerInfo(
+    std::optional<HandlerInfo> old_info, const HandlerInfo new_info) {
+  if (!old_info.has_value()) return new_info;
+  KeyedAccessLoadMode load_mode =
+      (old_info->load_mode == STANDARD_LOAD ? new_info.load_mode
+                                            : LOAD_IGNORE_OUT_OF_BOUNDS);
+  DCHECK_IMPLIES(old_info->load_mode == LOAD_IGNORE_OUT_OF_BOUNDS,
+                 new_info.load_mode == LOAD_IGNORE_OUT_OF_BOUNDS);
+  bool convert_hole = old_info->convert_hole || new_info.convert_hole;
+  DCHECK_IMPLIES(old_info->convert_hole, new_info.convert_hole);
+  return HandlerInfo{load_mode, convert_hole};
+}
+
+bool KeyedLoadIC::AllowedHandlerChange(std::optional<HandlerInfo> old_info,
+                                       const HandlerInfo new_info) {
+  if (!old_info.has_value()) return true;
+  // Only allow transitions to allow OOB or allow convert to a hole.
+  return old_info->load_mode < new_info.load_mode ||
+         old_info->convert_hole < new_info.convert_hole;
 }
 
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
-                                    KeyedAccessLoadMode load_mode) {
+                                    const HandlerInfo new_info) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
@@ -1154,7 +1179,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.empty()) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
+    Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1183,7 +1208,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
              target_receiver_maps.at(0)->elements_kind(),
              Handle<JSObject>::cast(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
-      Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
+      Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }
   }
@@ -1192,14 +1217,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
+  std::optional<KeyedLoadIC::HandlerInfo> old_info;
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
-    // If the {receiver_map} previously had a handler that didn't handle
-    // out-of-bounds access, but can generally handle it, we can just go
-    // on and update the handler appropriately below.
-    if (load_mode != LOAD_IGNORE_OUT_OF_BOUNDS ||
-        !CanChangeToAllowOutOfBounds(receiver_map)) {
-      // If the miss wasn't due to an unseen map, a polymorphic stub
-      // won't help, use the generic stub.
+    old_info = GetHandlerInfoFor(receiver_map);
+    if (!AllowedHandlerChange(old_info, new_info)) {
       set_slow_stub_reason("same map added twice");
       return;
     }
@@ -1215,7 +1236,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   MaybeObjectHandles handlers;
   handlers.reserve(target_receiver_maps.size());
-  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
+  HandlerInfo info = GeneralizeHandlerInfo(old_info, new_info);
+  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, info);
   DCHECK_LE(1, target_receiver_maps.size());
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
@@ -1259,7 +1281,7 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
 }  // namespace
 
 Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
-                                               KeyedAccessLoadMode load_mode) {
+                                               const HandlerInfo info) {
   // Has a getter interceptor, or is any has and has a query interceptor.
   if (receiver_map->has_indexed_interceptor() &&
       (!IsUndefined(receiver_map->GetIndexedInterceptor()->getter(),
@@ -1278,7 +1300,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
     if (IsAnyHas()) return LoadHandler::LoadSlow(isolate());
-    return LoadHandler::LoadIndexedString(isolate(), load_mode);
+    return LoadHandler::LoadIndexedString(isolate(), info.load_mode);
   }
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
@@ -1306,24 +1328,25 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (elements_kind == DICTIONARY_ELEMENTS) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
     return LoadHandler::LoadElement(isolate(), elements_kind, false,
-                                    is_js_array, load_mode);
+                                    is_js_array, info.load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
+      info.convert_hole &&
       (elements_kind == HOLEY_SMI_ELEMENTS ||
        elements_kind == HOLEY_ELEMENTS) &&
       AllowConvertHoleElementToUndefined(isolate(), receiver_map);
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
   return LoadHandler::LoadElement(isolate(), elements_kind,
                                   convert_hole_to_undefined, is_js_array,
-                                  load_mode);
+                                  info.load_mode);
 }
 
-void KeyedLoadIC::LoadElementPolymorphicHandlers(
-    MapHandles* receiver_maps, MaybeObjectHandles* handlers,
-    KeyedAccessLoadMode load_mode) {
+void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
+                                                 MaybeObjectHandles* handlers,
+                                                 const HandlerInfo info) {
   // Filter out deprecated maps to ensure their instances get migrated.
   receiver_maps->erase(
       std::remove_if(
@@ -1343,7 +1366,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
       }
     }
     handlers->push_back(
-        MaybeObjectHandle(LoadElementHandler(receiver_map, load_mode)));
+        MaybeObjectHandle(LoadElementHandler(receiver_map, info)));
   }
 }
 
@@ -1469,27 +1492,43 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
   return result;
 }
 
+MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<Object> object,
+                                          Handle<Object> key,
+                                          Handle<Name> name) {
+  Handle<Object> load_handle;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle, LoadIC::Load(object, name),
+                             Object);
+
+  if (vector_needs_update()) {
+    ConfigureVectorState(MEGAMORPHIC, key);
+    TraceIC("LoadIC", key);
+  }
+
+  DCHECK(!load_handle.is_null());
+  return load_handle;
+}
+
 MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                       Handle<Object> key) {
   if (MigrateDeprecated(isolate(), object)) {
     return RuntimeLoad(object, key);
   }
 
-  Handle<Object> load_handle;
-
   intptr_t maybe_index;
-  size_t index;
   Handle<Name> maybe_name;
   KeyType key_type = TryConvertKey(key, isolate(), &maybe_index, &maybe_name);
 
-  if (key_type == kName) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
-                               LoadIC::Load(object, maybe_name), Object);
-  } else if (key_type == kIntPtr && CanCache(object, state()) &&
-             IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object),
-                             &index)) {
+  if (key_type == kName) return LoadName(object, key, maybe_name);
+
+  MaybeHandle<Object> result = RuntimeLoad(object, key);
+  bool result_is_the_hole =
+      !result.is_null() && IsTheHole(*result.ToHandleChecked());
+  size_t index;
+  if (key_type == kIntPtr && CanCache(object, state()) &&
+      IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object), &index)) {
     KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
-    UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
+    HandlerInfo info{load_mode, result_is_the_hole};
+    UpdateLoadElement(Handle<HeapObject>::cast(object), info);
     if (is_vector_set()) {
       TraceIC("LoadIC", key);
     }
@@ -1500,9 +1539,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     TraceIC("LoadIC", key);
   }
 
-  if (!load_handle.is_null()) return load_handle;
-
-  return RuntimeLoad(object, key);
+  return result;
 }
 
 bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
