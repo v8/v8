@@ -154,7 +154,7 @@ Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
-    Handle<Map> map, int length, AllocationType allocation) {
+    DirectHandle<Map> map, int length, AllocationType allocation) {
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
   DCHECK_LT(0, length);
@@ -174,7 +174,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    Handle<Map> map, int length, Handle<HeapObject> filler,
+    DirectHandle<Map> map, int length, DirectHandle<HeapObject> filler,
     AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
@@ -288,8 +288,8 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    int parameter_count, Handle<FixedArray> constant_pool,
-    Handle<TrustedByteArray> handler_table) {
+    int parameter_count, DirectHandle<FixedArray> constant_pool,
+    DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -356,15 +356,16 @@ FactoryBase<Impl>::NewWasmTrustedInstanceData() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScript(Handle<PrimitiveHeapObject> source,
-                                            ScriptEventType script_event_type) {
+Handle<Script> FactoryBase<Impl>::NewScript(
+    DirectHandle<PrimitiveHeapObject> source,
+    ScriptEventType script_event_type) {
   return NewScriptWithId(source, isolate()->GetNextScriptId(),
                          script_event_type);
 }
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScriptWithId(
-    Handle<PrimitiveHeapObject> source, int script_id,
+    DirectHandle<PrimitiveHeapObject> source, int script_id,
     ScriptEventType script_event_type) {
   DCHECK(IsString(*source) || IsUndefined(*source));
   // Create and initialize script object.
@@ -403,8 +404,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 
 template <typename Impl>
 Handle<SloppyArgumentsElements> FactoryBase<Impl>::NewSloppyArgumentsElements(
-    int length, Handle<Context> context, Handle<FixedArray> arguments,
-    AllocationType allocation) {
+    int length, DirectHandle<Context> context,
+    DirectHandle<FixedArray> arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
       SloppyArgumentsElements::cast(AllocateRawWithImmortalMap(
           SloppyArgumentsElements::SizeFor(length), allocation,
@@ -428,11 +429,10 @@ Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
 
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
-    FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
+    FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), MaybeHandle<HeapObject>(),
-      Builtin::kCompileLazy, kind);
+      literal->GetName(isolate()), {}, Builtin::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
@@ -442,7 +442,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
-    Handle<SharedFunctionInfo> other) {
+    DirectHandle<SharedFunctionInfo> other) {
   Tagged<Map> map = read_only_roots().shared_function_info_map();
 
   Tagged<SharedFunctionInfo> shared =
@@ -515,14 +515,15 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
 
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
-    MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    Builtin builtin, FunctionKind kind) {
+    MaybeDirectHandle<String> maybe_name,
+    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
+    FunctionKind kind) {
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw = *shared;
   // Function names are assumed to be flat elsewhere.
-  Handle<String> shared_name;
+  DirectHandle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     DCHECK(shared_name->IsFlat());
@@ -532,7 +533,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
               SharedFunctionInfo::kNoSharedNameSentinel);
   }
 
-  Handle<HeapObject> function_data;
+  DirectHandle<HeapObject> function_data;
   if (maybe_function_data.ToHandle(&function_data)) {
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
@@ -571,7 +572,7 @@ FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
 template <typename Impl>
 Handle<ArrayBoilerplateDescription>
 FactoryBase<Impl>::NewArrayBoilerplateDescription(
-    ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
+    ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values) {
   auto result = NewStructInternal<ArrayBoilerplateDescription>(
       ARRAY_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -582,9 +583,9 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 
 template <typename Impl>
 Handle<RegExpBoilerplateDescription>
-FactoryBase<Impl>::NewRegExpBoilerplateDescription(Handle<FixedArray> data,
-                                                   Handle<String> source,
-                                                   Tagged<Smi> flags) {
+FactoryBase<Impl>::NewRegExpBoilerplateDescription(
+    DirectHandle<FixedArray> data, DirectHandle<String> source,
+    Tagged<Smi> flags) {
   auto result = NewStructInternal<RegExpBoilerplateDescription>(
       REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -597,7 +598,8 @@ FactoryBase<Impl>::NewRegExpBoilerplateDescription(Handle<FixedArray> data,
 template <typename Impl>
 Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
-    Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {
+    DirectHandle<FixedArray> raw_strings,
+    DirectHandle<FixedArray> cooked_strings) {
   DCHECK_EQ(raw_strings->length(), cooked_strings->length());
   DCHECK_LT(0, raw_strings->length());
   auto result = NewStructInternal<TemplateObjectDescription>(
@@ -874,8 +876,8 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
-                                                Handle<String> right,
+Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
+                                                DirectHandle<String> right,
                                                 int length, bool one_byte,
                                                 AllocationType allocation) {
   DCHECK(!IsThinString(*left));
@@ -950,25 +952,24 @@ V8_INLINE Handle<String> CharToString(FactoryBase<Impl>* factory,
 }  // namespace
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::NumberToString(Handle<Object> number,
+Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
                                                  NumberCacheMode mode) {
   SLOW_DCHECK(IsNumber(*number));
   if (IsSmi(*number)) return SmiToString(Smi::cast(*number), mode);
 
-  double double_value = Handle<HeapNumber>::cast(number)->value();
+  double double_value = DirectHandle<HeapNumber>::cast(number)->value();
   // Try to canonicalize doubles.
   int smi_value;
   if (DoubleToSmiInteger(double_value, &smi_value)) {
     return SmiToString(Smi::FromInt(smi_value), mode);
   }
-  return HeapNumberToString(Handle<HeapNumber>::cast(number), double_value,
-                            mode);
+  return HeapNumberToString(DirectHandle<HeapNumber>::cast(number),
+                            double_value, mode);
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::HeapNumberToString(Handle<HeapNumber> number,
-                                                     double value,
-                                                     NumberCacheMode mode) {
+Handle<String> FactoryBase<Impl>::HeapNumberToString(
+    DirectHandle<HeapNumber> number, double value, NumberCacheMode mode) {
   int hash = mode == NumberCacheMode::kIgnore
                  ? 0
                  : impl()->NumberToStringCacheHash(value);

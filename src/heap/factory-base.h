@@ -144,7 +144,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   Handle<FixedArray> NewFixedArrayWithMap(
-      Handle<Map> map, int length,
+      DirectHandle<Map> map, int length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with non-existing entries (the hole).
@@ -189,8 +189,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
-      int parameter_count, Handle<FixedArray> constant_pool,
-      Handle<TrustedByteArray> handler_table);
+      int parameter_count, DirectHandle<FixedArray> constant_pool,
+      DirectHandle<TrustedByteArray> handler_table);
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
 
@@ -205,35 +205,38 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
-      ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
+      ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values);
 
   Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
-      Handle<FixedArray> data, Handle<String> source, Tagged<Smi> flags);
+      DirectHandle<FixedArray> data, DirectHandle<String> source,
+      Tagged<Smi> flags);
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
-      Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
+      DirectHandle<FixedArray> raw_strings,
+      DirectHandle<FixedArray> cooked_strings);
 
   Handle<Script> NewScript(
-      Handle<PrimitiveHeapObject> source,
+      DirectHandle<PrimitiveHeapObject> source,
       ScriptEventType event_type = ScriptEventType::kCreate);
   Handle<Script> NewScriptWithId(
-      Handle<PrimitiveHeapObject> source, int script_id,
+      DirectHandle<PrimitiveHeapObject> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
   Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(
-      int length, Handle<Context> context, Handle<FixedArray> arguments,
+      int length, DirectHandle<Context> context,
+      DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-      FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
+      FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel);
 
   // Create a copy of a given SharedFunctionInfo for use as a placeholder in
   // off-thread compilation
   Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
-      Handle<SharedFunctionInfo> other);
+      DirectHandle<SharedFunctionInfo> other);
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
@@ -311,13 +314,14 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT Handle<String> NewConsString(
-      Handle<String> left, Handle<String> right, int length, bool one_byte,
-      AllocationType allocation = AllocationType::kYoung);
+      DirectHandle<String> left, DirectHandle<String> right, int length,
+      bool one_byte, AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT Handle<String> NumberToString(
-      Handle<Object> number, NumberCacheMode mode = NumberCacheMode::kBoth);
+      DirectHandle<Object> number,
+      NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> HeapNumberToString(
-      Handle<HeapNumber> number, double value,
+      DirectHandle<HeapNumber> number, double value,
       NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
@@ -381,14 +385,14 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
 
-  Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
-                                             Handle<HeapObject> filler,
+  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map, int length,
+                                             DirectHandle<HeapObject> filler,
                                              AllocationType allocation);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(AllocationType allocation);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      MaybeHandle<String> maybe_name,
-      MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,
+      MaybeDirectHandle<String> maybe_name,
+      MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
       FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);

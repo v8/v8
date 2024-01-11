@@ -23,7 +23,7 @@ namespace internal {
 
 LocalFactory::LocalFactory(Isolate* isolate) : roots_(isolate) {}
 
-void LocalFactory::ProcessNewScript(Handle<Script> script,
+void LocalFactory::ProcessNewScript(DirectHandle<Script> script,
                                     ScriptEventType script_event_type) {
   // TODO(leszeks): Actually add the script to the main Isolate's script list,
   // in a thread-safe way.
@@ -59,8 +59,8 @@ int LocalFactory::NumberToStringCacheHash(Tagged<Smi>) { return 0; }
 
 int LocalFactory::NumberToStringCacheHash(double) { return 0; }
 
-void LocalFactory::NumberToStringCacheSet(Handle<Object>, int, Handle<String>) {
-}
+void LocalFactory::NumberToStringCacheSet(DirectHandle<Object>, int,
+                                          DirectHandle<String>) {}
 
 Handle<Object> LocalFactory::NumberToStringCacheGet(Tagged<Object>, int) {
   return undefined_value();

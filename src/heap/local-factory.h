@@ -49,8 +49,8 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // the case of the LocalFactory.
   int NumberToStringCacheHash(Tagged<Smi> number);
   int NumberToStringCacheHash(double number);
-  void NumberToStringCacheSet(Handle<Object> number, int hash,
-                              Handle<String> js_string);
+  void NumberToStringCacheSet(DirectHandle<Object> number, int hash,
+                              DirectHandle<String> js_string);
   Handle<Object> NumberToStringCacheGet(Tagged<Object> number, int hash);
 
  private:
@@ -75,7 +75,7 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   inline AllocationType AllocationTypeForInPlaceInternalizableString();
   // ------
 
-  void ProcessNewScript(Handle<Script> script,
+  void ProcessNewScript(DirectHandle<Script> script,
                         ScriptEventType script_event_type);
   // ------
 
