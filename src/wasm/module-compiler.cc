@@ -1704,9 +1704,6 @@ int AddImportWrapperUnits(NativeModule* native_module,
         static_cast<int>(function.sig->parameter_count()), kNoSuspend);
     auto it = keys.insert(key);
     if (it.second) {
-      // Ensure that all keys exist in the cache, so that we can populate the
-      // cache later without locking.
-      (*native_module->import_wrapper_cache())[key] = nullptr;
       builder->AddImportUnit(func_index);
     }
   }
@@ -3954,7 +3951,8 @@ void CompilationStateImpl::PublishCompilationResults(
 
   // For import wrapper compilation units, add result to the cache.
   int num_imported_functions = native_module_->num_imported_functions();
-  WasmImportWrapperCache* cache = native_module_->import_wrapper_cache();
+  base::Optional<WasmImportWrapperCache::ModificationScope>
+      import_wrapper_cache_modification_scope;
   for (const auto& code : unpublished_code) {
     int func_index = code->index();
     DCHECK_LE(0, func_index);
@@ -3968,11 +3966,17 @@ void CompilationStateImpl::PublishCompilationResults(
       WasmImportWrapperCache::CacheKey key(
           kDefaultImportCallKind, canonical_type_index,
           static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+      if (!import_wrapper_cache_modification_scope.has_value()) {
+        import_wrapper_cache_modification_scope.emplace(
+            native_module_->import_wrapper_cache());
+      }
       // If two imported functions have the same key, only one of them should
       // have been added as a compilation unit. So it is always the first time
       // we compile a wrapper for this key here.
-      DCHECK_NULL((*cache)[key]);
-      (*cache)[key] = code.get();
+      WasmCode*& cache_slot =
+          import_wrapper_cache_modification_scope.value()[key];
+      DCHECK_NULL(cache_slot);
+      cache_slot = code.get();
       code->IncRef();
     }
   }

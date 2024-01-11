@@ -19,13 +19,16 @@ WasmCode*& WasmImportWrapperCache::ModificationScope::operator[](
 }
 
 void WasmImportWrapperCache::clear() {
-  if (entry_map_.empty()) return;
   std::vector<WasmCode*> ptrs;
-  ptrs.reserve(entry_map_.size());
-  for (auto& [key, code] : entry_map_) {
-    if (code) ptrs.push_back(code);
+  {
+    base::MutexGuard lock(&mutex_);
+    if (entry_map_.empty()) return;
+    ptrs.reserve(entry_map_.size());
+    for (auto& [key, code] : entry_map_) {
+      if (code) ptrs.push_back(code);
+    }
+    entry_map_.clear();
   }
-  entry_map_.clear();
   if (ptrs.empty()) return;
   WasmCode::DecrementRefCount(base::VectorOf(ptrs));
 }
@@ -61,6 +64,7 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
 
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
+  base::MutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_);
 }
 
