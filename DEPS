@@ -78,7 +78,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:d740e2026f68271ad436672df5a4c763d244451d',
+  'luci_go': 'git_revision:0d11be367258bfe14a13ff1afcf43a0bc6aedb45',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '05ae923a4aa3610bb2d0ddc222f34d9a94cb897f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'eba30cc9090708c7c7d5ea405a44a6464e781173',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '71983d684fc9a15aec7c9300e13b75082edd6923',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a656fc7fe0d4121e6729cd11fd3e9480d61c4318',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f582f5bb517bba92e76d8edec281211d65534e20',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '73730a049e81a4f396f40d5d2b36b5d70ba0ed1c',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '095b349ad3f382d15673e44c111e2e61f8c6b346',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ad697e33c117b4bf4f9b405dd7bb51ba1f1d5280',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -281,11 +281,11 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'f18cfa95e1521e7b9c1883dbadf264a56c1a861d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e4aac3ace5ad6e3737740daee3afeaa9c9ab0360',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'f80f02a81e1d26217a9d15094600813e93eee6fb',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '29eb3a55f4b66b674685ee2743bd2d07c09021f4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e09e0d462aa3ea87ba5caf4d91202a8847d5d1fe',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
