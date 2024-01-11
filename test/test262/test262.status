@@ -2167,6 +2167,9 @@
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
+  # https://github.com/tc39/test262/pull/3987
+  'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
@@ -2494,23 +2497,6 @@
   'intl402/Temporal/PlainMonthDay/from/fields-missing-properties': [FAIL],
   'intl402/Temporal/PlainMonthDay/from/fields-object': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/with/fields-missing-properties': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-get-with-error': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-abrupt': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-enumerable': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-non-object': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-value-abrupt': [FAIL],
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-value-non-string': [FAIL],
-  'language/import/import-attributes/json-extensibility-array': [FAIL],
-  'language/import/import-attributes/json-extensibility-object': [FAIL],
-  'language/import/import-attributes/json-idempotency': [FAIL],
-  'language/import/import-attributes/json-value-array': [FAIL],
-  'language/import/import-attributes/json-value-boolean': [FAIL],
-  'language/import/import-attributes/json-value-null': [FAIL],
-  'language/import/import-attributes/json-value-number': [FAIL],
-  'language/import/import-attributes/json-value-object': [FAIL],
-  'language/import/import-attributes/json-value-string': [FAIL],
-  'language/import/import-attributes/json-via-namespace': [FAIL],
-  'language/module-code/import-attributes/import-attribute-empty': [FAIL],
 }],
 # End import test262@873f2604
 ####
