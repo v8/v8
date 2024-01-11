@@ -287,6 +287,10 @@
 ['byteorder == big', {
   # Peephole optimization not supported on big-endian machines.
   'RegExpTest.Peephole*': [SKIP],
+
+  # Turboshaft Opmask tests not supported yet on big-endian.
+  'OpmaskTest.*': [SKIP],
+  'SimplifiedLoweringReducerTest.*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
