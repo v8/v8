@@ -291,7 +291,9 @@ FOREACH_SIMD_128_SHIFT_OPCODE(SIMD_SHIFT_MASK)
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifndef TURBOSHAFT_OPMASK_EXPORT_FIELD_MACRO_FOR_UNITTESTS
 #undef FIELD
+#endif
 
 }  // namespace v8::internal::compiler::turboshaft::Opmask
 
