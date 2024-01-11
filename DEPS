@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:85944ebc24a90ec1e489e85a46fdc68542c3146f',
+  'gn_version': 'git_revision:71305b07d708830ed7b96006dfa773a79ff313fe',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -283,7 +283,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e4aac3ace5ad6e3737740daee3afeaa9c9ab0360',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'f80f02a81e1d26217a9d15094600813e93eee6fb',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a1171ad54907ebbc41ca9c6f49dfc74df5e3a747',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e09e0d462aa3ea87ba5caf4d91202a8847d5d1fe',
   'third_party/logdog/logdog':
@@ -311,7 +311,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '40e35a76af71511ee701001df5bc1ba216472d67',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7fb9c8113a6cea9fb877f469e4d7eaeb41b66675',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '28c2eefa98993de1f78670863c4acdb6d4a7d941',
   'tools/luci-go': {
       'packages': [
         {
