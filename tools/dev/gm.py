@@ -549,8 +549,11 @@ class ManagedConfig(RawConfig):
       _write(args_gn, self.get_gn_args())
     else:
       self.update_build_distribution_args()
-    # If the target is to just build args.gn then we are done here.
-    if self.targets == {'gn_args'}:
+    # If the target is to just build args.gn then we are done here; otherwise
+    # drop that target because it's not something ninja can build.
+    if 'gn_args' in self.targets:
+      self.targets.remove('gn_args')
+    if len(self.targets) == 0:
       return 0
     return super().build()
 
