@@ -228,9 +228,6 @@ class LoadHandler final : public DataHandler {
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 
-  // Decodes the ConverHole bit from a {handler}
-  static bool GetConvertHole(MaybeObject handler);
-
   // Returns true iff the handler can be used in the "holder != lookup start
   // object" case.
   static bool CanHandleHolderNotLookupStart(Tagged<Object> handler);
