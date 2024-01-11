@@ -1964,6 +1964,27 @@ class MachineOptimizationReducer : public Next {
     return false;
   }
 
+  bool TryAdjustIndex(int32_t offset, OpIndex* index,
+                      const Operation& maybe_constant, uint8_t element_scale) {
+    if (!maybe_constant.Is<ConstantOp>()) return false;
+    const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
+    if (constant.rep != WordRepresentation::PointerSized() ||
+        !constant.IsIntegral()) {
+      // This can only happen in unreachable code. Ideally, we identify this
+      // situation and use `__ Unreachable()`. However, this is difficult to
+      // do from within this helper, so we just don't perform the reduction.
+      return false;
+    }
+    int64_t diff = constant.signed_integral();
+    int64_t new_index;
+    if (!base::bits::SignedAddOverflow64(offset, diff << element_scale,
+                                         &new_index)) {
+      *index = __ IntPtrConstant(new_index);
+      return true;
+    }
+    return false;
+  }
+
   bool TryAdjustElementScale(uint8_t* element_scale, OpIndex maybe_constant) {
     uint64_t diff;
     if (!matcher.MatchIntegralWordConstant(
@@ -1990,6 +2011,12 @@ class MachineOptimizationReducer : public Next {
       if (TryAdjustOffset(offset, index_op, *element_scale)) {
         index = OpIndex::Invalid();
         *element_scale = 0;
+      } else if (TryAdjustIndex(*offset, &index, index_op, *element_scale)) {
+        *element_scale = 0;
+        *offset = 0;
+        // This function cannot optimize the index further since at this point
+        // it's just a WordPtrConstant.
+        return index;
       } else if (const ShiftOp* shift_op = index_op.TryCast<ShiftOp>()) {
         if (shift_op->kind == ShiftOp::Kind::kShiftLeft &&
             TryAdjustElementScale(element_scale, shift_op->right())) {

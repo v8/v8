@@ -25,20 +25,14 @@ void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
 #if V8_ENABLE_WEBASSEMBLY
                WasmJSLoweringReducer,
 #endif
-
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
+               LoadStoreSimplificationReducer,
                // We make sure that DuplicationOptimizationReducer runs after
                // LoadStoreSimplificationReducer, so that it can optimize
                // Loads/Stores produced by LoadStoreSimplificationReducer
                // (which, for simplificy, doesn't use the Assembler helper
                // methods, but only calls Next::ReduceLoad/Store).
-               LoadStoreSimplificationReducer, DuplicationOptimizationReducer,
-               ValueNumberingReducer
-#else
-               DuplicationOptimizationReducer
-#endif
-               >::Run(temp_zone);
+               DuplicationOptimizationReducer,
+               ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

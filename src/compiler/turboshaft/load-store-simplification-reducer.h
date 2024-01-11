@@ -118,6 +118,17 @@ class LoadStoreSimplificationReducer : public Next {
       // as that is encoded by the MemoryRepresentation, it only specifies a
       // factor as a power of 2 to multiply the index with.
       DCHECK_IMPLIES(index.has_value(), element_size_log2 == 0);
+#elif V8_TARGET_ARCH_X64
+      if (kind.is_atomic && index.valid() && offset != 0) {
+        // Atomic stores/loads should not have both an index and an offset. We
+        // fold the offset into the index when this happens.
+        if (element_size_log2 != 0) {
+          index = __ WordPtrShiftLeft(index.value(), element_size_log2);
+          element_size_log2 = 0;
+        }
+        index = __ WordPtrAdd(index.value(), offset);
+        offset = 0;
+      }
 #endif
     }
   }
