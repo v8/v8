@@ -3840,8 +3840,7 @@ class LiftoffCompiler {
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
-               const FunctionSig* sig, uint32_t sig_index, const Value args[],
-               Value returns[]) {
+               const FunctionSig* sig, const Value args[], Value returns[]) {
     CallRef(decoder, func_ref.type, sig, kNoTailCall);
   }
 
@@ -3859,8 +3858,7 @@ class LiftoffCompiler {
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
-                     const FunctionSig* sig, uint32_t sig_index,
-                     const Value args[]) {
+                     const FunctionSig* sig, const Value args[]) {
     TierupCheckOnTailCall(decoder);
     CallRef(decoder, func_ref.type, sig, kTailCall);
   }

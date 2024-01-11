@@ -982,8 +982,7 @@ class WasmGraphBuildingInterface {
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
-               const FunctionSig* sig, uint32_t sig_index, const Value args[],
-               Value returns[]) {
+               const FunctionSig* sig, const Value args[], Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
     if (inlining_enabled(decoder) && !type_feedback_.empty()) {
       feedback = &next_call_feedback();
@@ -1029,7 +1028,7 @@ class WasmGraphBuildingInterface {
       DoCall(decoder,
              CallInfo::CallDirect(expected_function_index,
                                   feedback->call_count(i)),
-             decoder->module_->signature(sig_index), args, returns_direct);
+             sig, args, returns_direct);
       control_args.push_back(control());
       effect_args.push_back(effect());
       returns_values.push_back(returns_direct);
@@ -1077,8 +1076,7 @@ class WasmGraphBuildingInterface {
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
-                     const FunctionSig* sig, uint32_t sig_index,
-                     const Value args[]) {
+                     const FunctionSig* sig, const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
     if (inlining_enabled(decoder) && !type_feedback_.empty()) {
       feedback = &next_call_feedback();

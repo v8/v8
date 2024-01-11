@@ -1208,9 +1208,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(CallIndirect, const Value& index, const CallIndirectImmediate& imm,        \
     const Value args[], Value returns[])                                       \
   F(CallRef, const Value& func_ref, const FunctionSig* sig,                    \
-    uint32_t sig_index, const Value args[], const Value returns[])             \
+    const Value args[], const Value returns[])                                 \
   F(ReturnCallRef, const Value& func_ref, const FunctionSig* sig,              \
-    uint32_t sig_index, const Value args[])                                    \
+    const Value args[])                                                        \
   F(ReturnCall, const CallFunctionImmediate& imm, const Value args[])          \
   F(ReturnCallIndirect, const Value& index, const CallIndirectImmediate& imm,  \
     const Value args[])                                                        \
@@ -3926,8 +3926,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value func_ref = Pop(ValueType::RefNull(imm.index));
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, imm.index,
-                                       args.data(), returns);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, args.data(),
+                                       returns);
     MarkMightThrow();
     return 1 + imm.length;
   }
@@ -3945,7 +3945,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value func_ref = Pop(ValueType::RefNull(imm.index));
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallRef, func_ref, imm.sig,
-                                       imm.index, args.data());
+                                       args.data());
     EndControl();
     return 1 + imm.length;
   }

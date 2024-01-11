@@ -1786,8 +1786,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
-               const FunctionSig* sig, uint32_t sig_index, const Value args[],
-               Value returns[]) {
+               const FunctionSig* sig, const Value args[], Value returns[]) {
     feedback_slot_++;
     if (inlining_enabled(decoder) &&
         should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
@@ -1885,8 +1884,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
-                     const FunctionSig* sig, uint32_t sig_index,
-                     const Value args[]) {
+                     const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
