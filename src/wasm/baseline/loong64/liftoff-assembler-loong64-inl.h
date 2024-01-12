@@ -452,11 +452,24 @@ void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm, bool needs_shift) {
+                                         int32_t offset_imm,
+                                         uint32_t* protected_load_pc,
+                                         bool needs_shift) {
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
   LoadTaggedField(dst, src_op);
+
+  // Since LoadTaggedField might start with an instruction loading an immediate
+  // argument to a register, we have to compute the {protected_load_pc} after
+  // calling it.
+  // In case of compressed pointers, there is an additional instruction
+  // (pointer decompression) after the load.
+  uint8_t protected_instruction_offset_bias =
+      COMPRESS_POINTERS_BOOL ? 2 * kInstrSize : kInstrSize;
+  if (protected_load_pc) {
+    *protected_load_pc = pc_offset() - protected_instruction_offset_bias;
+  }
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -478,6 +491,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
+                                          uint32_t* protected_store_pc,
                                           SkipWriteBarrier skip_write_barrier) {
   UseScratchRegisterScope temps(this);
   Operand offset_op =
@@ -490,10 +504,18 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
     Add_d(effective_offset, offset_reg, Operand(offset_imm));
     offset_op = Operand(effective_offset);
   }
+
   if (offset_op.is_reg()) {
     StoreTaggedField(src, MemOperand(dst_addr, offset_op.rm()));
   } else {
     StoreTaggedField(src, MemOperand(dst_addr, offset_imm));
+  }
+
+  // Since StoreTaggedField might start with an instruction loading an immediate
+  // argument to a register, we have to compute the {protected_load_pc} after
+  // calling it.
+  if (protected_store_pc) {
+    *protected_store_pc = pc_offset() - kInstrSize;
   }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
@@ -557,10 +579,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     default:
       UNREACHABLE();
   }
-  // protected_store_pc should be the address of the load/store instruction.
+  // protected_load_pc should be the address of the load/store instruction.
   // The MacroAssembler load/store may contain some instructions for adjusting
-  // MemOperand, so use pc_offset-4 to locate.
-  if (protected_load_pc) *protected_load_pc = pc_offset() - 4;
+  // MemOperand, so use pc_offset - kInstrSize to locate.
+  if (protected_load_pc) *protected_load_pc = pc_offset() - kInstrSize;
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
@@ -602,8 +624,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
   // protected_store_pc should be the address of the load/store instruction.
   // The MacroAssembler load/store may contain some instructions for adjusting
-  // MemOperand, so use pc_offset-4 to locate.
-  if (protected_store_pc) *protected_store_pc = pc_offset() - 4;
+  // MemOperand, so use pc_offset - kInstrSize to locate.
+  if (protected_store_pc) *protected_store_pc = pc_offset() - kInstrSize;
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
