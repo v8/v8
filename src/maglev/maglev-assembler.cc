@@ -6,6 +6,7 @@
 
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-generator.h"
+#include "src/numbers/conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -270,7 +271,12 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
     case Opcode::kFloat64Constant: {
       double double_value =
           value->Cast<Float64Constant>()->value().get_scalar();
-      MoveHeapNumber(dst, double_value);
+      int smi_value;
+      if (DoubleToSmiInteger(double_value, &smi_value)) {
+        Move(dst, Smi::FromInt(smi_value));
+      } else {
+        MoveHeapNumber(dst, double_value);
+      }
       return;
     }
     default:
