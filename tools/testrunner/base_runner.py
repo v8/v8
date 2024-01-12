@@ -457,6 +457,10 @@ class BaseTestRunner(object):
           'allow_user_segv_handler=1',
           'allocator_may_return_null=1',
       ]
+      if self.build_config.component_build:
+        # Some abseil symbols are observed as defined more than once in
+        # component builds.
+        asan_options += ['detect_odr_violation=0']
       if not utils.GuessOS() in ['macos', 'windows']:
         # LSAN is not available on mac and windows.
         asan_options.append('detect_leaks=1')
