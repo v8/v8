@@ -1482,6 +1482,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Float64InsertHighWord32:
       __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
       break;
+    case kIA32Float64FromWord32Pair:
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(0), 0);
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
+      break;
     case kIA32Float64LoadLowWord32:
       __ Movd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;

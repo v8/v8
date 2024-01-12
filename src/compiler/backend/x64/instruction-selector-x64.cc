@@ -1442,18 +1442,16 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
       // fewer addressing modes available.
       inputs[input_count++] = g.UseUniqueRegister(value);
       inputs[input_count++] = g.UseUniqueRegister(base);
+      DCHECK_EQ(element_size_log2, 0);
       if (selector->valid(index)) {
         DCHECK_EQ(displacement, 0);
-        DCHECK_EQ(element_size_log2, 0);
         inputs[input_count++] = g.GetEffectiveIndexOperand(
             selector->value(index), &addressing_mode);
       } else if (displacement != 0) {
-        DCHECK_EQ(element_size_log2, 0);
         DCHECK(g.ValueFitsIntoImmediate(displacement));
         inputs[input_count++] = g.UseImmediate(displacement);
         addressing_mode = kMode_MRI;
       } else {
-        DCHECK_EQ(element_size_log2, 0);
         addressing_mode = kMode_MR;
       }
       opcode = GetSeqCstStoreOpcode(store_rep);
