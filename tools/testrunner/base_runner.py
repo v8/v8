@@ -437,6 +437,7 @@ class BaseTestRunner(object):
 
     self.options.command_prefix = shlex.split(self.options.command_prefix)
     self.options.extra_flags = sum(list(map(shlex.split, self.options.extra_flags)), [])
+    self.options.extra_d8_flags = []
 
   def _process_options(self):
     pass # pragma: no cover
@@ -620,6 +621,7 @@ class BaseTestRunner(object):
     return TestConfig(
         command_prefix=self.options.command_prefix,
         extra_flags=self.options.extra_flags,
+        extra_d8_flags=self.options.extra_d8_flags,
         framework_name=self.framework_name,
         isolates=self.options.isolates,
         log_process_stats=self.options.json_test_results,

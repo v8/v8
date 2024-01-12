@@ -27,6 +27,7 @@ class TestSuiteTest(unittest.TestCase):
     self.test_config = TestConfig(
         command_prefix=[],
         extra_flags=[],
+        extra_d8_flags=[],
         framework_name='standard_runner',
         isolates=False,
         log_process_stats=False,

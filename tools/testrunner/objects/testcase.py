@@ -585,6 +585,9 @@ class D8TestCase(TestCase):
   def _get_shell_flags(self):
     return ['--test']
 
+  def _get_extra_flags(self):
+    return self.test_config.extra_flags + self.test_config.extra_d8_flags
+
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""
     return (statusfile.FAIL in self.expected_outcomes or
