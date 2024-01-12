@@ -838,6 +838,7 @@ void GCTracer::PrintNVP() const {
           heap_->memory_allocator()->pool()->NumberOfChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
+    case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
       heap_->isolate()->PrintWithTimestamp(
           "pause=%.1f "
           "mutator=%.1f "
@@ -1107,8 +1108,6 @@ void GCTracer::PrintNVP() const {
       break;
     case Event::Type::START:
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
