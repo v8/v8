@@ -466,6 +466,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
 
+  Instruction* InstructionAt(ptrdiff_t offset) const {
+    return reinterpret_cast<Instruction*>(buffer_start_ + offset);
+  }
+
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
   void BlockTrampolinePoolFor(int instructions);

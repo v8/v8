@@ -794,6 +794,8 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  bool IsLoad();
+  bool IsStore();
   inline int BaseOpcode() const {
     return this->InstructionBits() & kBaseOpcodeMask;
   }

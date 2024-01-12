@@ -1,6 +1,8 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "src/codegen/riscv/base-constants-riscv.h"
+
 #include "src/codegen/riscv/constants-riscv.h"
 #include "src/execution/simulator.h"
 
@@ -226,6 +228,28 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
   uint32_t Bits = this->InstructionBits();
   uint32_t uimm = Bits & kRvvUimmMask;
   return uimm >> kRvvUimmShift;
+}
+
+template <class T>
+bool InstructionGetters<T>::IsLoad() {
+  return (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_LW ||
+#ifdef V8_TARGET_ARCH_RISCV64
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_LD ||
+#endif
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) ==
+             RO_FLW ||
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_FLD;
+}
+
+template <class T>
+bool InstructionGetters<T>::IsStore() {
+  return (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_SW ||
+#ifdef V8_TARGET_ARCH_RISCV64
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_SD ||
+#endif
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) ==
+             RO_FSW ||
+         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_FSD;
 }
 
 template class InstructionGetters<InstructionBase>;
