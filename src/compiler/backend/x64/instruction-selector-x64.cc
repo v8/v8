@@ -6509,9 +6509,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x32Shuffle(node_t node) {
 
   UNIMPLEMENTED();
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
   InstructionCode op = kX64I8x16Swizzle;
