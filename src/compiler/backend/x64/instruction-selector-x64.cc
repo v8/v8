@@ -117,8 +117,8 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
   DCHECK_NOT_NULL(scale);
   using namespace turboshaft;  // NOLINT(build/namespaces)
 
-  auto MatchScaleConstant = [=](const Operation& op, int& scale,
-                                bool* plus_one) {
+  auto MatchScaleConstant = [](const Operation& op, int& scale,
+                               bool* plus_one) {
     const ConstantOp* constant = op.TryCast<ConstantOp>();
     if (constant == nullptr) return false;
     if (constant->kind != ConstantOp::Kind::kWord32 &&
@@ -196,8 +196,8 @@ template <typename Adapter>
 struct BaseWithScaledIndexAndDisplacementMatch {
   using node_t = typename Adapter::node_t;
 
-  node_t base;
-  node_t index;
+  node_t base = {};
+  node_t index = {};
   int scale = 0;
   int64_t displacement = 0;
   DisplacementMode displacement_mode = kPositiveDisplacement;
@@ -557,6 +557,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool ValueFitsIntoImmediate(int64_t value) const {
+    // int32_t min will overflow if displacement mode is kNegativeDisplacement.
     return std::numeric_limits<int32_t>::min() < value &&
            value <= std::numeric_limits<int32_t>::max();
   }
@@ -770,7 +771,7 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
 
   const Operation& op = Get(operand);
   if (op.Is<LoadOp>() || op.Is<StoreOp>()) {
-    LoadStoreView load_or_store = LoadStoreView(op);
+    LoadStoreView load_or_store(op);
     if (ExternalReference reference;
         MatchExternalConstant(load_or_store.base, &reference) &&
         !load_or_store.index.valid()) {
@@ -1679,12 +1680,6 @@ base::Optional<int32_t> GetWord32Constant(
   return base::nullopt;
 }
 
-void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector, Node* node,
-                InstructionCode code) {
-  // TODO(nicohartmann@): Remove once everything is ported.
-  UNREACHABLE();
-}
-
 template <typename Adapter>
 static void VisitBinop(InstructionSelectorT<Adapter>* selector,
                        typename Adapter::node_t node, InstructionCode opcode) {
@@ -1812,8 +1807,7 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
     node_t node, FlagsContinuation* cont) {
   StackCheckKind kind;
   if constexpr (Adapter::IsTurboshaft) {
-    kind = this->turboshaft_graph()
-               ->Get(node)
+    kind = this->Get(node)
                .template Cast<turboshaft::StackPointerGreaterThanOp>()
                .kind;
   } else {
@@ -3483,9 +3477,9 @@ turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
   // operation, then there shouldn't be any such Projection in the graph. We
   // verify this in Debug mode.
 #ifdef DEBUG
-  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
-    if (const turboshaft::ProjectionOp* projection =
-            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
+  for (OpIndex use : turboshaft_uses(node)) {
+    if (const ProjectionOp* projection =
+            this->Get(use).TryCast<ProjectionOp>()) {
       DCHECK_EQ(projection->input(), node);
       if (projection->index == projection_index) {
         UNREACHABLE();
@@ -3493,7 +3487,7 @@ turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
     }
   }
 #endif  // DEBUG
-  return turboshaft::OpIndex::Invalid();
+  return OpIndex::Invalid();
 }
 
 namespace {
@@ -4193,6 +4187,7 @@ template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
+  // Try to combine with comparisons against 0 by simply inverting the branch.
   while (const ComparisonOp* equal =
              this->TryCast<Opmask::kWord32Equal>(value)) {
     if (!CanCover(user, value)) break;

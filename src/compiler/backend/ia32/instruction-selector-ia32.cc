@@ -35,6 +35,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
@@ -48,6 +49,282 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+struct LoadStoreView {
+  explicit LoadStoreView(const turboshaft::Operation& op) {
+    DCHECK(op.Is<turboshaft::LoadOp>() || op.Is<turboshaft::StoreOp>());
+    if (const turboshaft::LoadOp* load = op.TryCast<turboshaft::LoadOp>()) {
+      base = load->base();
+      index = load->index();
+      offset = load->offset;
+    } else {
+      DCHECK(op.Is<turboshaft::StoreOp>());
+      const turboshaft::StoreOp& store = op.Cast<turboshaft::StoreOp>();
+      base = store.base();
+      index = store.index();
+      offset = store.offset;
+    }
+  }
+  turboshaft::OpIndex base;
+  turboshaft::OptionalOpIndex index;
+  int32_t offset;
+};
+
+template <typename Adapter>
+struct BaseWithScaledIndexAndDisplacementMatch {
+  using node_t = typename Adapter::node_t;
+
+  node_t base = {};
+  node_t index = {};
+  int scale = 0;
+  int32_t displacement = 0;
+  DisplacementMode displacement_mode = kPositiveDisplacement;
+};
+
+// Copied from x64, dropped kWord64 constant support.
+bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
+                      turboshaft::OpIndex node, turboshaft::OpIndex* index,
+                      int* scale, bool* power_of_two_plus_one) {
+  DCHECK_NOT_NULL(index);
+  DCHECK_NOT_NULL(scale);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  auto MatchScaleConstant = [](const Operation& op, int& scale,
+                               bool* plus_one) {
+    const ConstantOp* constant = op.TryCast<ConstantOp>();
+    if (constant == nullptr) return false;
+    if (constant->kind != ConstantOp::Kind::kWord32) return false;
+
+    uint64_t value = constant->integral();
+    if (plus_one) *plus_one = false;
+    if (value == 1) return (scale = 0), true;
+    if (value == 2) return (scale = 1), true;
+    if (value == 4) return (scale = 2), true;
+    if (value == 8) return (scale = 3), true;
+    if (plus_one == nullptr) return false;
+    *plus_one = true;
+    if (value == 3) return (scale = 1), true;
+    if (value == 5) return (scale = 2), true;
+    if (value == 9) return (scale = 3), true;
+    return false;
+  };
+
+  const Operation& op = selector->Get(node);
+  if (const WordBinopOp* binop = op.TryCast<WordBinopOp>()) {
+    if (binop->kind != WordBinopOp::Kind::kMul) return false;
+    if (MatchScaleConstant(selector->Get(binop->right()), *scale,
+                           power_of_two_plus_one)) {
+      *index = binop->left();
+      return true;
+    }
+    if (MatchScaleConstant(selector->Get(binop->left()), *scale,
+                           power_of_two_plus_one)) {
+      *index = binop->right();
+      return true;
+    }
+    return false;
+  } else if (const ShiftOp* shift = op.TryCast<ShiftOp>()) {
+    if (shift->kind != ShiftOp::Kind::kShiftLeft) return false;
+    int32_t scale_value;
+    if (selector->MatchIntegralWord32Constant(shift->right(), &scale_value)) {
+      if (scale_value < 0 || scale_value > 3) return false;
+      *index = shift->left();
+      *scale = static_cast<int>(scale_value);
+      if (power_of_two_plus_one) *power_of_two_plus_one = false;
+      return true;
+    }
+  }
+  return false;
+}
+
+// Copied verbatim from x64 (just renamed).
+base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
+    turboshaft::OpIndex right) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+  result.displacement_mode = kPositiveDisplacement;
+
+  auto OwnedByAddressingOperand = [](OpIndex) {
+    // TODO(nicohartmann@): Consider providing this. For now we just allow
+    // everything to be covered regardless of other uses.
+    return true;
+  };
+
+  // Check (S + ...)
+  if (MatchScaledIndex(selector, left, &result.index, &result.scale, nullptr) &&
+      OwnedByAddressingOperand(left)) {
+    result.displacement_mode = kPositiveDisplacement;
+
+    // Check (S + (... binop ...))
+    if (const WordBinopOp* right_binop =
+            selector->Get(right).TryCast<WordBinopOp>()) {
+      // Check (S + (B - D))
+      if (right_binop->kind == WordBinopOp::Kind::kSub &&
+          OwnedByAddressingOperand(right)) {
+        if (!selector->MatchIntegralWord32Constant(right_binop->right(),
+                                                   &result.displacement)) {
+          return base::nullopt;
+        }
+        result.base = right_binop->left();
+        result.displacement_mode = kNegativeDisplacement;
+        return result;
+      }
+      // Check (S + (... + ...))
+      if (right_binop->kind == WordBinopOp::Kind::kAdd &&
+          OwnedByAddressingOperand(right)) {
+        if (selector->MatchIntegralWord32Constant(right_binop->right(),
+                                                  &result.displacement)) {
+          // (S + (B + D))
+          result.base = right_binop->left();
+        } else if (selector->MatchIntegralWord32Constant(
+                       right_binop->left(), &result.displacement)) {
+          // (S + (D + B))
+          result.base = right_binop->right();
+        } else {
+          // Treat it as (S + B)
+          result.base = right;
+          result.displacement = 0;
+        }
+        return result;
+      }
+    }
+
+    // Check (S + D)
+    if (selector->MatchIntegralWord32Constant(right, &result.displacement)) {
+      result.base = OpIndex{};
+      return result;
+    }
+
+    // Treat it as (S + B)
+    result.base = right;
+    result.displacement = 0;
+    return result;
+  }
+
+  // Check ((... + ...) + ...)
+  if (const WordBinopOp* left_add = selector->Get(left).TryCast<WordBinopOp>();
+      left_add && left_add->kind == WordBinopOp::Kind::kAdd &&
+      OwnedByAddressingOperand(left)) {
+    // Check ((S + ...) + ...)
+    if (MatchScaledIndex(selector, left_add->left(), &result.index,
+                         &result.scale, nullptr)) {
+      result.displacement_mode = kPositiveDisplacement;
+      // Check ((S + D) + B)
+      if (selector->MatchIntegralWord32Constant(left_add->right(),
+                                                &result.displacement)) {
+        result.base = right;
+        return result;
+      }
+      // Check ((S + B) + D)
+      if (selector->MatchIntegralWord32Constant(right, &result.displacement)) {
+        result.base = left_add->right();
+        return result;
+      }
+      // Treat it as (B + B) and use index as right B.
+      result.base = left;
+      result.index = right;
+      result.scale = 0;
+      DCHECK_EQ(result.displacement, 0);
+      return result;
+    }
+  }
+
+  DCHECK_EQ(result.index, OpIndex{});
+  DCHECK_EQ(result.scale, 0);
+  result.displacement_mode = kPositiveDisplacement;
+
+  // Check (B + D)
+  if (selector->MatchIntegralWord32Constant(right, &result.displacement)) {
+    result.base = left;
+    return result;
+  }
+
+  // Treat as (B + B) and use index as left B.
+  result.index = left;
+  result.base = right;
+  return result;
+}
+
+// Copied verbatim from x64 (just renamed).
+base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+TryMatchBaseWithScaledIndexAndDisplacement(
+    InstructionSelectorT<TurboshaftAdapter>* selector,
+    turboshaft::OpIndex node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
+  // displacements and scale factors that are used as inputs, so instead of
+  // enumerating all possible patterns by brute force, checking for node
+  // clusters using the following templates in the following order suffices
+  // to find all of the interesting cases (S = index * scale, B = base
+  // input, D = displacement input):
+  //
+  // (S + (B + D))
+  // (S + (B + B))
+  // (S + D)
+  // (S + B)
+  // ((S + D) + B)
+  // ((S + B) + D)
+  // ((B + D) + B)
+  // ((B + B) + D)
+  // (B + D)
+  // (B + B)
+  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+  result.displacement_mode = kPositiveDisplacement;
+
+  const Operation& op = selector->Get(node);
+  if (const LoadOp* load = op.TryCast<LoadOp>()) {
+    result.base = load->base();
+    result.index = load->index().value_or_invalid();
+    result.scale = load->element_size_log2;
+    result.displacement = load->offset;
+    if (load->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+  } else if (const StoreOp* store = op.TryCast<StoreOp>()) {
+    result.base = store->base();
+    result.index = store->index().value_or_invalid();
+    result.scale = store->element_size_log2;
+    result.displacement = store->offset;
+    if (store->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+  } else if (op.Is<WordBinopOp>()) {
+    // Nothing to do here, fall into the case below.
+#ifdef V8_ENABLE_WEBASSEMBLY
+  } else if (const Simd128LaneMemoryOp* lane_op =
+                 op.TryCast<Simd128LaneMemoryOp>()) {
+    result.base = lane_op->base();
+    result.index = lane_op->index();
+    result.scale = 0;
+    result.displacement = 0;
+    if (lane_op->kind.tagged_base) result.displacement -= kHeapObjectTag;
+    return result;
+  } else if (const Simd128LoadTransformOp* load_transform =
+                 op.TryCast<Simd128LoadTransformOp>()) {
+    result.base = load_transform->base();
+    result.index = load_transform->index();
+    DCHECK_EQ(load_transform->offset, 0);
+    result.scale = 0;
+    result.displacement = 0;
+    DCHECK(!load_transform->load_kind.tagged_base);
+    return result;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else {
+    return base::nullopt;
+  }
+
+  const WordBinopOp& binop = op.Cast<WordBinopOp>();
+  OpIndex left = binop.left();
+  OpIndex right = binop.right();
+  return TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(selector, left,
+                                                                right);
+}
+
+}  // namespace
+
 // Adds IA32-specific methods for generating operands.
 template <typename Adapter>
 class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
@@ -57,28 +334,20 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   explicit IA32OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
       : super(selector) {}
 
-  InstructionOperand UseByteRegister(Node* node) {
+  InstructionOperand UseByteRegister(node_t node) {
     // TODO(titzer): encode byte register use constraints.
     return UseFixed(node, edx);
   }
 
-  InstructionOperand DefineAsByteRegister(Node* node) {
-    // TODO(titzer): encode byte register def constraints.
-    return DefineAsRegister(node);
-  }
-
-  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
+  bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,
                           int effect_level) {
-    if ((input->opcode() != IrOpcode::kLoad &&
-         input->opcode() != IrOpcode::kLoadImmutable) ||
-        !selector()->CanCover(node, input)) {
-      return false;
-    }
+    if (!this->IsLoadOrLoadImmutable(input)) return false;
+    if (!selector()->CanCover(node, input)) return false;
     if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
     MachineRepresentation rep =
-        LoadRepresentationOf(input->op()).representation();
+        this->load_view(input).loaded_rep().representation();
     switch (opcode) {
       case kIA32And:
       case kIA32Or:
@@ -100,38 +369,40 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return false;
   }
 
-  bool CanBeImmediate(Node* node) {
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-      case IrOpcode::kExternalConstant:
-      case IrOpcode::kRelocatableInt32Constant:
-      case IrOpcode::kRelocatableInt64Constant:
-        return true;
-      case IrOpcode::kNumberConstant: {
-        const double value = OpParameter<double>(node->op());
-        return base::bit_cast<int64_t>(value) == 0;
-      }
-      case IrOpcode::kHeapConstant: {
-// TODO(bmeurer): We must not dereference handles concurrently. If we
-// really have to this here, then we need to find a way to put this
-// information on the HeapConstant node already.
-#if 0
-        // Constants in young generation cannot be used as immediates in V8
-        // because the GC does not scan code objects when collecting the young
-        // generation.
-        Handle<HeapObject> value = HeapConstantOf(node->op());
-        return !Heap::InYoungGeneration(*value);
-#else
-        return false;
-#endif
-      }
-      default:
-        return false;
+  bool CanBeImmediate(node_t node) {
+    if (this->IsExternalConstant(node)) return true;
+    if (!this->is_constant(node)) return false;
+    auto constant = this->constant_view(node);
+    if (constant.is_int32() || constant.is_relocatable_int32() ||
+        constant.is_relocatable_int64()) {
+      return true;
     }
+    if (constant.is_number()) {
+      const double value = constant.number_value();
+      return base::bit_cast<int64_t>(value) == 0;
+    }
+    // If we want to support HeapConstant nodes here, we must find a way
+    // to check that they're not in new-space without dereferencing the
+    // handle (which isn't safe to do concurrently).
+    return false;
+  }
+
+  int32_t GetImmediateIntegerValue(node_t node) {
+    DCHECK(CanBeImmediate(node));
+    auto constant = this->constant_view(node);
+    if (constant.is_int32()) return constant.int32_value();
+    DCHECK(constant.is_number());
+    return static_cast<int32_t>(constant.number_value());
+  }
+
+  bool ValueFitsIntoImmediate(int64_t value) const {
+    // int32_t min will overflow if displacement mode is kNegativeDisplacement.
+    return std::numeric_limits<int32_t>::min() < value &&
+           value <= std::numeric_limits<int32_t>::max();
   }
 
   AddressingMode GenerateMemoryOperandInputs(
-      Node* index, int scale, Node* base, int32_t displacement,
+      node_t index, int scale, node_t base, int32_t displacement,
       DisplacementMode displacement_mode, InstructionOperand inputs[],
       size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
@@ -139,16 +410,17 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     if (displacement_mode == kNegativeDisplacement) {
       displacement = base::bits::WraparoundNeg32(displacement);
     }
-    if (base != nullptr) {
-      if (base->opcode() == IrOpcode::kInt32Constant) {
-        displacement = base::bits::WraparoundAdd32(
-            displacement, OpParameter<int32_t>(base->op()));
-        base = nullptr;
+    if (this->valid(base) && this->is_constant(base)) {
+      auto constant_base = this->constant_view(base);
+      if (constant_base.is_int32()) {
+        displacement = base::bits::WraparoundAdd32(displacement,
+                                                   constant_base.int32_value());
+        base = node_t{};
       }
     }
-    if (base != nullptr) {
+    if (this->valid(base)) {
       inputs[(*input_count)++] = UseRegisterWithMode(base, register_mode);
-      if (index != nullptr) {
+      if (this->valid(index)) {
         DCHECK(scale >= 0 && scale <= 3);
         inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
         if (displacement != 0) {
@@ -171,7 +443,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
     } else {
       DCHECK(scale >= 0 && scale <= 3);
-      if (index != nullptr) {
+      if (this->valid(index)) {
         inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
@@ -210,7 +482,57 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       node_t node, InstructionOperand inputs[], size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
     if constexpr (Adapter::IsTurboshaft) {
-      UNIMPLEMENTED();
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const Operation& op = this->Get(node);
+      if (op.Is<LoadOp>() || op.Is<StoreOp>()) {
+        LoadStoreView load_or_store(op);
+        if (ExternalReference reference;
+            this->MatchExternalConstant(load_or_store.base, &reference) &&
+            !load_or_store.index.valid()) {
+          if (selector()->CanAddressRelativeToRootsRegister(reference)) {
+            const ptrdiff_t delta =
+                load_or_store.offset +
+                MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+                    selector()->isolate(), reference);
+            if (is_int32(delta)) {
+              inputs[(*input_count)++] =
+                  TempImmediate(static_cast<int32_t>(delta));
+              return kMode_Root;
+            }
+          }
+        }
+      }
+
+      auto m = TryMatchBaseWithScaledIndexAndDisplacement(selector(), node);
+      DCHECK(m.has_value());
+      if (TurboshaftAdapter::valid(m->base) &&
+          this->Get(m->base).template Is<LoadRootRegisterOp>()) {
+        DCHECK(!this->valid(m->index));
+        DCHECK_EQ(m->scale, 0);
+        DCHECK(ValueFitsIntoImmediate(m->displacement));
+        inputs[(*input_count)++] =
+            UseImmediate(static_cast<int>(m->displacement));
+        return kMode_Root;
+      } else if (ValueFitsIntoImmediate(m->displacement)) {
+        return GenerateMemoryOperandInputs(
+            m->index, m->scale, m->base, m->displacement, m->displacement_mode,
+            inputs, input_count, register_mode);
+      } else if (!TurboshaftAdapter::valid(m->base) &&
+                 m->displacement_mode == kPositiveDisplacement) {
+        // The displacement cannot be an immediate, but we can use the
+        // displacement as base instead and still benefit from addressing
+        // modes for the scale.
+        UNIMPLEMENTED();
+      } else {
+        const turboshaft::Operation& op = this->turboshaft_graph()->Get(node);
+        DCHECK_GE(op.input_count, 2);
+
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(op.input(0), register_mode);
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(op.input(1), register_mode);
+        return kMode_MR1;
+      }
     } else {
       {
         LoadMatcher<ExternalReferenceMatcher> m(node);
@@ -949,12 +1271,12 @@ namespace {
 
 // Shared routine for multiple binary operations.
 template <typename Adapter>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                InstructionCode opcode, FlagsContinuationT<Adapter>* cont) {
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, InstructionCode opcode,
+                FlagsContinuationT<Adapter>* cont) {
   IA32OperandGeneratorT<Adapter> g(selector);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   InstructionOperand inputs[6];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -977,8 +1299,7 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
     inputs[input_count++] = g.UseImmediate(right);
   } else {
     int effect_level = selector->GetEffectLevel(node, cont);
-    if (node->op()->HasProperty(Operator::kCommutative) &&
-        g.CanBeBetterLeftOperand(right) &&
+    if (selector->IsCommutative(node) && g.CanBeBetterLeftOperand(right) &&
         (!g.CanBeBetterLeftOperand(left) ||
          !g.CanBeMemoryOperand(opcode, node, right, effect_level))) {
       std::swap(left, right);
@@ -1005,15 +1326,10 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
                                  inputs, cont);
 }
 
-// Shared routine for multiple binary operations.
-template <typename T>
-void VisitBinop(InstructionSelectorT<TurboshaftAdapter>*, T, InstructionCode) {
-  UNIMPLEMENTED();
-}
-
-void VisitBinop(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
-                InstructionCode opcode) {
-  FlagsContinuationT<TurbofanAdapter> cont;
+template <typename Adapter>
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, InstructionCode opcode) {
+  FlagsContinuationT<Adapter> cont;
   VisitBinop(selector, node, opcode, &cont);
 }
 
@@ -1047,10 +1363,15 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
     node_t node, FlagsContinuation* cont) {
+  StackCheckKind kind;
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    kind = this->Get(node)
+               .template Cast<turboshaft::StackPointerGreaterThanOp>()
+               .kind;
   } else {
-    StackCheckKind kind = StackCheckKindOf(node->op());
+    kind = StackCheckKindOf(node->op());
+  }
+  {  // Temporary scope to minimize indentation change churn below.
     InstructionCode opcode = kArchStackPointerGreaterThan |
                              MiscField::encode(static_cast<int>(kind));
 
@@ -1071,10 +1392,9 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
                                    ? OperandGenerator::kUniqueRegister
                                    : OperandGenerator::kRegister;
 
-    Node* const value = node->InputAt(0);
+    node_t value = this->input_at(node, 0);
     if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
-      DCHECK(value->opcode() == IrOpcode::kLoad ||
-             value->opcode() == IrOpcode::kLoadImmutable);
+      DCHECK(this->IsLoadOrLoadImmutable(value));
 
       // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
       static constexpr int kMaxInputCount = 3;
@@ -1769,10 +2089,9 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    IA32OperandGeneratorT<Adapter> g(this);
+  IA32OperandGeneratorT<Adapter> g(this);
+
+  {  // Temporary scope to minimize indentation change churn below.
 
     // Prepare for C function call.
     if (call_descriptor->IsCFunctionCall()) {
@@ -1785,8 +2104,10 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
       // Poke any stack arguments.
       for (size_t n = 0; n < arguments->size(); ++n) {
         PushParameter input = (*arguments)[n];
-        if (input.node) {
+        if (this->valid(input.node)) {
           int const slot = static_cast<int>(n);
+          // TODO(jkummerow): The next line should use `input.node`, but
+          // fixing it causes mksnapshot failures. Investigate.
           InstructionOperand value = g.CanBeImmediate(node)
                                          ? g.UseImmediate(input.node)
                                          : g.UseRegister(input.node);
@@ -1801,7 +2122,7 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
         stack_decrement += kSystemPointerSize;
         // Skip holes in the param array. These represent both extra slots for
         // multi-slot values and padding slots for alignment.
-        if (input.node == nullptr) continue;
+        if (!this->valid(input.node)) continue;
         InstructionOperand decrement = g.UseImmediate(stack_decrement);
         stack_decrement = 0;
         if (g.CanBeImmediate(input.node)) {
@@ -1826,7 +2147,7 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
           Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
         }
       }
-    }
+    }  // End of temporary scope.
   }
 }
 
@@ -1834,15 +2155,13 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
+  {  // Temporary scope to minimize indentation change churn below.
     IA32OperandGeneratorT<Adapter> g(this);
 
     for (PushParameter output : *results) {
       if (!output.location.IsCallerFrameSlot()) continue;
       // Skip any alignment holes in nodes.
-      if (output.node != nullptr) {
+      if (this->valid(output.node)) {
         DCHECK(!call_descriptor->IsCFunctionCall());
         if (output.location.GetType() == MachineType::Float32()) {
           MarkAsFloat32(output.node);
@@ -1857,7 +2176,7 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
              g.UseImmediate(reverse_slot));
       }
     }
-  }
+  }  // End of temporary scope.
 }
 
 template <typename Adapter>
@@ -1865,15 +2184,52 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
   return true;
 }
 
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const turboshaft::Graph* graph = this->turboshaft_graph();
+  // Projections are always emitted right after the operation.
+  for (OpIndex next = graph->NextIndex(node); next.valid();
+       next = graph->NextIndex(next)) {
+    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
+    if (projection == nullptr) break;
+    if (projection->index == projection_index) return next;
+  }
+
+  // If there is no Projection with index {projection_index} following the
+  // operation, then there shouldn't be any such Projection in the graph. We
+  // verify this in Debug mode.
+#ifdef DEBUG
+  for (OpIndex use : turboshaft_uses(node)) {
+    if (const ProjectionOp* projection =
+            this->Get(use).TryCast<ProjectionOp>()) {
+      DCHECK_EQ(projection->input(), node);
+      if (projection->index == projection_index) {
+        UNREACHABLE();
+      }
+    }
+  }
+#endif  // DEBUG
+  return OpIndex::Invalid();
+}
+
 namespace {
 
 template <typename Adapter>
 void VisitCompareWithMemoryOperand(InstructionSelectorT<Adapter>* selector,
-                                   InstructionCode opcode, Node* left,
+                                   InstructionCode opcode,
+                                   typename Adapter::node_t left,
                                    InstructionOperand right,
                                    FlagsContinuationT<Adapter>* cont) {
-  DCHECK(left->opcode() == IrOpcode::kLoad ||
-         left->opcode() == IrOpcode::kLoadImmutable);
+  DCHECK(selector->IsLoadOrLoadImmutable(left));
   IA32OperandGeneratorT<Adapter> g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[4];
@@ -1906,15 +2262,14 @@ void VisitCompare(InstructionSelectorT<Adapter>* selector,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
-MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
-  if (hint_node->opcode() == IrOpcode::kLoad ||
-      hint_node->opcode() == IrOpcode::kLoadImmutable) {
-    MachineType hint = LoadRepresentationOf(hint_node->op());
-    if (node->opcode() == IrOpcode::kInt32Constant ||
-        node->opcode() == IrOpcode::kInt64Constant) {
-      int64_t constant = node->opcode() == IrOpcode::kInt32Constant
-                             ? OpParameter<int32_t>(node->op())
-                             : OpParameter<int64_t>(node->op());
+template <typename Adapter>
+MachineType MachineTypeForNarrow(InstructionSelectorT<Adapter>* selector,
+                                 typename Adapter::node_t node,
+                                 typename Adapter::node_t hint_node) {
+  if (selector->IsLoadOrLoadImmutable(hint_node)) {
+    MachineType hint = selector->load_view(hint_node).loaded_rep();
+    if (selector->is_integer_constant(node)) {
+      int64_t constant = selector->integer_constant(node);
       if (hint == MachineType::Int8()) {
         if (constant >= std::numeric_limits<int8_t>::min() &&
             constant <= std::numeric_limits<int8_t>::max()) {
@@ -1942,23 +2297,24 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
       }
     }
   }
-  return node->opcode() == IrOpcode::kLoad ||
-                 node->opcode() == IrOpcode::kLoadImmutable
-             ? LoadRepresentationOf(node->op())
+  return selector->IsLoadOrLoadImmutable(node)
+             ? selector->load_view(node).loaded_rep()
              : MachineType::None();
 }
 
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 template <typename Adapter>
-InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
-                                    Node* right,
+InstructionCode TryNarrowOpcodeSize(InstructionSelectorT<Adapter>* selector,
+                                    InstructionCode opcode,
+                                    typename Adapter::node_t left,
+                                    typename Adapter::node_t right,
                                     FlagsContinuationT<Adapter>* cont) {
   // TODO(epertoso): we can probably get some size information out of phi nodes.
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  MachineType left_type = MachineTypeForNarrow(left, right);
-  MachineType right_type = MachineTypeForNarrow(right, left);
+  MachineType left_type = MachineTypeForNarrow(selector, left, right);
+  MachineType right_type = MachineTypeForNarrow(selector, right, left);
   if (left_type == right_type) {
     switch (left_type.representation()) {
       case MachineRepresentation::kBit:
@@ -2017,15 +2373,13 @@ template <typename Adapter>
 void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, InstructionCode opcode,
                       FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    IA32OperandGeneratorT<TurbofanAdapter> g(selector);
-    Node* left = node->InputAt(0);
-    Node* right = node->InputAt(1);
+  {  // Temporary scope to minimize indentation change churn below.
+    IA32OperandGeneratorT<Adapter> g(selector);
+    auto left = selector->input_at(node, 0);
+    auto right = selector->input_at(node, 1);
 
     InstructionCode narrowed_opcode =
-        TryNarrowOpcodeSize(opcode, left, right, cont);
+        TryNarrowOpcodeSize(selector, opcode, left, right, cont);
 
     int effect_level = selector->GetEffectLevel(node, cont);
 
@@ -2034,7 +2388,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
     if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
         (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
          !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
-      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      if (!selector->IsCommutative(node)) cont->Commute();
       std::swap(left, right);
     }
 
@@ -2059,7 +2413,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
     }
 
     return VisitCompare(selector, opcode, left, right, cont,
-                        node->op()->HasProperty(Operator::kCommutative));
+                        selector->IsCommutative(node));
   }
 }
 
@@ -2136,11 +2490,107 @@ void VisitPairAtomicBinOp(InstructionSelectorT<TurbofanAdapter>* selector,
 }  // namespace
 
 // Shared routine for word comparison with zero.
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
+    node_t user, node_t value, FlagsContinuation* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (const ComparisonOp* equal = TryCast<Opmask::kWord32Equal>(value)) {
+    if (!CanCover(user, value)) break;
+    if (!MatchIntegralZero(equal->right())) break;
+
+    user = value;
+    value = equal->left();
+    cont->Negate();
+  }
+  if (CanCover(user, value)) {
+    const Operation& value_op = Get(value);
+    if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
+      switch (comparison->rep.MapTaggedToWord().value()) {
+        case RegisterRepresentation::Word32():
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWordCompare(this, value, cont);
+        case RegisterRepresentation::Float32():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat32Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
+        case RegisterRepresentation::Float64():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat64Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
+        default:
+          break;
+      }
+    } else if (value_op.Is<Opmask::kWord32Sub>()) {
+      return VisitWordCompare(this, value, cont);
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
+      return VisitWordCompare(this, value, kIA32Test, cont);
+    } else if (const ProjectionOp* projection =
+                   value_op.TryCast<ProjectionOp>()) {
+      // Check if this is the overflow output projection of an
+      // OverflowCheckedBinop operation.
+      if (projection->index == 1u) {
+        // We cannot combine the OverflowCheckedBinop operation with this branch
+        // unless the 0th projection (the use of the actual value of the
+        // operation is either {OpIndex::Invalid()}, which means there's no use
+        // of the actual value, or was already defined, which means it is
+        // scheduled *AFTER* this branch).
+        OpIndex node = projection->input();
+        OpIndex result = FindProjection(node, 0);
+        if (!result.valid() || IsDefined(result)) {
+          if (const OverflowCheckedBinopOp* binop =
+                  this->TryCast<OverflowCheckedBinopOp>(node)) {
+            DCHECK_EQ(binop->rep, WordRepresentation::Word32());
+            cont->OverwriteAndNegateIfEqual(kOverflow);
+            switch (binop->kind) {
+              case OverflowCheckedBinopOp::Kind::kSignedAdd:
+                return VisitBinop(this, node, kIA32Add, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedSub:
+                return VisitBinop(this, node, kIA32Sub, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedMul:
+                return VisitBinop(this, node, kIA32Imul, cont);
+            }
+            UNREACHABLE();
+          }
+        }
+      }
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      return VisitStackPointerGreaterThan(value, cont);
+    }
+  }
+
+  // Branch could not be combined with a compare, emit compare against 0.
+  IA32OperandGeneratorT<TurboshaftAdapter> g(this);
+  VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    UNREACHABLE();  // Template-specialized above.
   } else {
     // Try to combine with comparisons against 0 by simply inverting the branch.
     while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
@@ -4169,19 +4619,6 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGeneratorT<Adapter>* g, int first_input_index, node_t node) {
   UNREACHABLE();
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
 }
 
 // static
