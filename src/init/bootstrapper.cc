@@ -5447,6 +5447,11 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
                         Builtin::kSetPrototypeIsSupersetOf, 1, true);
   SimpleInstallFunction(isolate(), set_prototype, "isDisjointFrom",
                         Builtin::kSetPrototypeIsDisjointFrom, 1, true);
+
+  // The fast path in the Set constructor builtin checks for Set.prototype
+  // having been modified from its initial state. So, after adding new methods,
+  // we should reset the Set.prototype initial map.
+  native_context()->set_initial_set_prototype_map(set_prototype->map());
 }
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
