@@ -90,24 +90,18 @@ inline Register CalculateActualAddress(LiftoffAssembler* assm,
                                        uintptr_t offset_imm,
                                        Register result_reg = no_reg) {
   if (offset_reg == no_reg && offset_imm == 0) {
-    if (result_reg == no_reg) {
-      return addr_reg;
-    } else {
-      assm->mov(result_reg, addr_reg);
-      return result_reg;
-    }
+    if (result_reg == addr_reg || result_reg == no_reg) return addr_reg;
+    assm->mov(result_reg, addr_reg);
+    return result_reg;
   }
-  Register actual_addr_reg =
-      result_reg != no_reg ? result_reg : temps->Acquire();
+  if (result_reg == no_reg) result_reg = temps->Acquire();
   if (offset_reg == no_reg) {
-    assm->add(actual_addr_reg, addr_reg, Operand(offset_imm));
+    assm->add(result_reg, addr_reg, Operand(offset_imm));
   } else {
-    assm->add(actual_addr_reg, addr_reg, Operand(offset_reg));
-    if (offset_imm != 0) {
-      assm->add(actual_addr_reg, actual_addr_reg, Operand(offset_imm));
-    }
+    assm->add(result_reg, addr_reg, Operand(offset_reg));
+    if (offset_imm != 0) assm->add(result_reg, result_reg, Operand(offset_imm));
   }
-  return actual_addr_reg;
+  return result_reg;
 }
 
 inline Condition MakeUnsigned(Condition cond) {
@@ -1053,7 +1047,8 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Register dst_addr,
                           StoreType type,
                           void (*op)(LiftoffAssembler*, Register, Register,
                                      Register)) {
-  LiftoffRegList pinned{dst_addr, offset_reg, value, result};
+  LiftoffRegList pinned{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   switch (type.value()) {
     case StoreType::kI64Store8:
       __ LoadConstant(result.high(), WasmValue(0));
@@ -1104,14 +1099,18 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
   // Make sure {dst_low} and {dst_high} are not occupied by any other value.
   Register value_low = value.low_gp();
   Register value_high = value.high_gp();
-  LiftoffRegList pinned{dst_addr,   offset_reg, value_low,
-                        value_high, dst_low,    dst_high};
-  __ ClearRegister(dst_low, {&dst_addr, &offset_reg, &value_low, &value_high},
-                   pinned);
-  pinned = pinned | LiftoffRegList{dst_addr, offset_reg, value_low, value_high};
-  __ ClearRegister(dst_high, {&dst_addr, &offset_reg, &value_low, &value_high},
-                   pinned);
-  pinned = pinned | LiftoffRegList{dst_addr, offset_reg, value_low, value_high};
+  LiftoffRegList pinned{dst_low, dst_high};
+  auto regs_to_check = {&dst_addr, &offset_reg, &value_low, &value_high};
+  auto re_pin = [regs_to_check, &pinned] {
+    for (auto* reg : regs_to_check) {
+      if (*reg != no_reg) pinned.set(*reg);
+    }
+  };
+  re_pin();
+  __ ClearRegister(dst_low, regs_to_check, pinned);
+  re_pin();
+  __ ClearRegister(dst_high, regs_to_check, pinned);
+  re_pin();
 
   // Make sure that {result}, if it exists, also does not overlap with
   // {dst_low} and {dst_high}. We don't have to transfer the value stored in
@@ -1382,7 +1381,8 @@ void LiftoffAssembler::AtomicCompareExchange(
   void (Assembler::*load)(Register, Register, Condition) = nullptr;
   void (Assembler::*store)(Register, Register, Register, Condition) = nullptr;
 
-  LiftoffRegList pinned{dst_addr, offset_reg};
+  LiftoffRegList pinned{dst_addr};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   // We need to remember the high word of {result}, so we can set it to zero in
   // the end if necessary.
   Register result_high = no_reg;

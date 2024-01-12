@@ -672,7 +672,8 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  bool i64_offset) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   LiftoffRegList dont_overwrite =
-      cache_state()->used_registers | LiftoffRegList{dst_addr, offset_reg};
+      cache_state()->used_registers | LiftoffRegList{dst_addr};
+  if (offset_reg != no_reg) dont_overwrite.set(offset_reg);
   DCHECK(!dont_overwrite.has(result));
   if (dont_overwrite.has(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
@@ -735,7 +736,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  LiftoffRegList pinned = LiftoffRegList{dst_addr, offset_reg, value_reg};
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value_reg};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   __ ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   Operand dst_op = liftoff::GetMemOp(lasm, dst_addr, offset_reg, offset_imm);
 
@@ -877,8 +879,8 @@ void LiftoffAssembler::AtomicCompareExchange(
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  LiftoffRegList pinned =
-      LiftoffRegList{dst_addr, offset_reg, expected, value_reg};
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, expected, value_reg};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != rax) {
     movq(rax, expected.gp());

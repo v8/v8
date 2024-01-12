@@ -3342,6 +3342,13 @@ class LiftoffCompiler {
     return true;
   }
 
+  bool IndexStaticallyInBoundsAndAligned(const WasmMemory* memory,
+                                         const VarState& index_slot,
+                                         int access_size, uintptr_t* offset) {
+    return IndexStaticallyInBounds(memory, index_slot, access_size, offset) &&
+           IsAligned(*offset, access_size);
+  }
+
   V8_INLINE Register GetMemoryStart(int memory_index, LiftoffRegList pinned) {
     if (memory_index == __ cache_state()->cached_mem_index) {
       Register memory_start = __ cache_state()->cached_mem_start;
@@ -5041,20 +5048,28 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     bool i64_offset = imm.memory->is_memory64;
-    DCHECK_EQ(i64_offset ? kI64 : kI32,
-              __ cache_state()->stack_state.back().kind());
-    LiftoffRegister full_index = __ PopToRegister(pinned);
-
-    Register index =
-        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck, kCheckAlignment);
-    pinned.set(index);
-
+    auto& index_slot = __ cache_state() -> stack_state.back();
+    DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     uintptr_t offset = imm.offset;
-    CODE_COMMENT("atomic store to memory");
-    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     LiftoffRegList outer_pinned;
-    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
+    Register index = no_reg;
+
+    if (IndexStaticallyInBoundsAndAligned(imm.memory, index_slot, type.size(),
+                                          &offset)) {
+      __ cache_state() -> stack_state.pop_back();  // Pop index.
+      CODE_COMMENT("atomic store (constant offset)");
+    } else {
+      LiftoffRegister full_index = __ PopToRegister(pinned);
+      index =
+          BoundsCheckMem(decoder, imm.memory, type.size(), offset, full_index,
+                         pinned, kDoForceCheck, kCheckAlignment);
+      pinned.set(index);
+      CODE_COMMENT("atomic store");
+    }
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory) && index != no_reg) {
+      outer_pinned.set(index);
+    }
     __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       // TODO(14259): Implement memory tracing for multiple memories.
@@ -5068,17 +5083,24 @@ class LiftoffCompiler {
                      const MemoryAccessImmediate& imm) {
     ValueKind kind = type.value_type().kind();
     bool i64_offset = imm.memory->is_memory64;
-    DCHECK_EQ(i64_offset ? kI64 : kI32,
-              __ cache_state()->stack_state.back().kind());
-    LiftoffRegister full_index = __ PopToRegister();
-
-    Register index =
-        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       {}, kDoForceCheck, kCheckAlignment);
-    LiftoffRegList pinned{index};
-
+    auto& index_slot = __ cache_state() -> stack_state.back();
+    DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     uintptr_t offset = imm.offset;
-    CODE_COMMENT("atomic load from memory");
+    Register index = no_reg;
+    LiftoffRegList pinned;
+
+    if (IndexStaticallyInBoundsAndAligned(imm.memory, index_slot, type.size(),
+                                          &offset)) {
+      __ cache_state() -> stack_state.pop_back();  // Pop index.
+      CODE_COMMENT("atomic load (constant offset)");
+    } else {
+      LiftoffRegister full_index = __ PopToRegister();
+      index = BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
+                             full_index, {}, kDoForceCheck, kCheckAlignment);
+      pinned.set(index);
+      CODE_COMMENT("atomic load");
+    }
+
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
@@ -5118,20 +5140,27 @@ class LiftoffCompiler {
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
 #endif
-    bool i64_offset = imm.memory->is_memory64;
-    DCHECK_EQ(i64_offset ? kI64 : kI32,
-              __ cache_state()->stack_state.back().kind());
-    LiftoffRegister full_index = __ PopToRegister(pinned);
-
-    Register index =
-        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck, kCheckAlignment);
-    pinned.set(index);
-
-    CODE_COMMENT("atomic binop");
+    auto& index_slot = __ cache_state() -> stack_state.back();
     uintptr_t offset = imm.offset;
-    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
+    bool i64_offset = imm.memory->is_memory64;
+    DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
+    Register index = no_reg;
 
+    if (IndexStaticallyInBoundsAndAligned(imm.memory, index_slot, type.size(),
+                                          &offset)) {
+      __ cache_state() -> stack_state.pop_back();  // Pop index.
+      CODE_COMMENT("atomic binop (constant offset)");
+    } else {
+      LiftoffRegister full_index = __ PopToRegister(pinned);
+      index =
+          BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
+                         full_index, pinned, kDoForceCheck, kCheckAlignment);
+
+      pinned.set(index);
+      CODE_COMMENT("atomic binop");
+    }
+
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset);
     __ PushRegister(result_kind, result);
   }
@@ -5189,20 +5218,29 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
-    bool i64_offset = imm.memory->is_memory64;
-    DCHECK_EQ(i64_offset ? kI64 : kI32,
-              __ cache_state()->stack_state.back().kind());
-    LiftoffRegister full_index = __ PopToRegister(pinned);
-    Register index =
-        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
-                       pinned, kDoForceCheck, kCheckAlignment);
-    pinned.set(index);
-
-    uintptr_t offset = imm.offset;
-    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(reg_class_for(result_kind), pinned));
 
+    auto& index_slot = __ cache_state() -> stack_state.back();
+    uintptr_t offset = imm.offset;
+    bool i64_offset = imm.memory->is_memory64;
+    DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
+    Register index = no_reg;
+
+    if (IndexStaticallyInBoundsAndAligned(imm.memory, index_slot, type.size(),
+                                          &offset)) {
+      __ cache_state() -> stack_state.pop_back();  // Pop index.
+      CODE_COMMENT("atomic cmpxchg (constant offset)");
+    } else {
+      LiftoffRegister full_index = __ PopToRegister(pinned);
+      index =
+          BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
+                         full_index, pinned, kDoForceCheck, kCheckAlignment);
+      pinned.set(index);
+      CODE_COMMENT("atomic cmpxchg");
+    }
+
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     __ AtomicCompareExchange(addr, index, offset, expected, new_value, result,
                              type, i64_offset);
     __ PushRegister(result_kind, result);
