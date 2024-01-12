@@ -325,9 +325,10 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   DCHECK_NE(tag, kCodeIndirectPointerTag);
   DCHECK(!AreAliased(handle, destination));
 
-  CHECK(root_array_available_);
+  DCHECK(root_array_available_);
   Register table = destination;
-  li(table, ExternalReference::trusted_pointer_table_base_address(isolate()));
+  Ld_d(table,
+       MemOperand(kRootRegister, IsolateData::trusted_pointer_table_offset()));
   srli_d(handle, handle, kTrustedPointerHandleShift);
   Alsl_d(destination, handle, table, kTrustedPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(destination, 0));
