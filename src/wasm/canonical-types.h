@@ -171,7 +171,7 @@ class TypeCanonicalizer {
       canonical_singleton_groups_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
-  base::Mutex mutex_;
+  mutable base::Mutex mutex_;
 };
 
 // Returns a reference to the TypeCanonicalizer shared by the entire process.

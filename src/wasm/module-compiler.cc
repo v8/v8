@@ -839,15 +839,18 @@ size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(JSToWasmWrapperCompilationUnit, 40);
   size_t result = sizeof(CompilationStateImpl);
 
-  result += compilation_unit_queues_.EstimateCurrentMemoryConsumption();
+  {
+    base::MutexGuard guard{&mutex_};
+    result += compilation_unit_queues_.EstimateCurrentMemoryConsumption();
 
-  result += ContentSize(js_to_wasm_wrapper_units_);
-  result +=
-      js_to_wasm_wrapper_units_.size() *
-      (sizeof(JSToWasmWrapperCompilationUnit) + sizeof(TurbofanCompilationJob));
+    result += ContentSize(js_to_wasm_wrapper_units_);
+    result += js_to_wasm_wrapper_units_.size() *
+              (sizeof(JSToWasmWrapperCompilationUnit) +
+               sizeof(TurbofanCompilationJob));
+  }
 
   {
-    base::MutexGuard lock(&callbacks_mutex_);
+    base::MutexGuard guard{&callbacks_mutex_};
     result += ContentSize(callbacks_);
     // Concrete subclasses of CompilationEventCallback will be bigger, but we
     // can't know that here.
@@ -3588,6 +3591,7 @@ void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> top_tier_units,
     base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
         js_to_wasm_wrapper_units) {
+  base::MutexGuard guard{&mutex_};
   if (!js_to_wasm_wrapper_units.empty()) {
     // |js_to_wasm_wrapper_units_| will only be initialized once.
     DCHECK_NULL(js_to_wasm_wrapper_job_);

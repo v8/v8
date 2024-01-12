@@ -282,6 +282,7 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   size_t result = ContentSize(canonical_supertypes_);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
+  base::MutexGuard mutex_guard(&mutex_);
   result += ContentSize(canonical_groups_);
   result += ContentSize(canonical_singleton_groups_);
   result += allocator_.GetCurrentMemoryUsage();
