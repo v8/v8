@@ -2302,7 +2302,7 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   }
 
   if (m.has_value()) {
-    if (m->displacement == 0 || g.ValueFitsIntoImmediate(m->displacement)) {
+    if (g.ValueFitsIntoImmediate(m->displacement)) {
       EmitLea(this, kX64Lea32, node, m->index, m->scale, m->base,
               m->displacement, m->displacement_mode);
       return;

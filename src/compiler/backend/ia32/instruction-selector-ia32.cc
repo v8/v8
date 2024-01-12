@@ -72,6 +72,15 @@ struct LoadStoreView {
 };
 
 template <typename Adapter>
+struct ScaledIndexMatch {
+  using node_t = typename Adapter::node_t;
+
+  node_t base;
+  node_t index;
+  int scale;
+};
+
+template <typename Adapter>
 struct BaseWithScaledIndexAndDisplacementMatch {
   using node_t = typename Adapter::node_t;
 
@@ -136,6 +145,19 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
     }
   }
   return false;
+}
+
+base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
+    InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
+    bool allow_power_of_two_plus_one) {
+  ScaledIndexMatch<TurboshaftAdapter> match;
+  bool plus_one = false;
+  if (MatchScaledIndex(selector, node, &match.index, &match.scale,
+                       allow_power_of_two_plus_one ? &plus_one : nullptr)) {
+    match.base = plus_one ? match.index : turboshaft::OpIndex{};
+    return match;
+  }
+  return base::nullopt;
 }
 
 // Copied verbatim from x64 (just renamed).
@@ -402,7 +424,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   AddressingMode GenerateMemoryOperandInputs(
-      node_t index, int scale, node_t base, int32_t displacement,
+      optional_node_t index, int scale, node_t base, int32_t displacement,
       DisplacementMode displacement_mode, InstructionOperand inputs[],
       size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
@@ -422,7 +444,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       inputs[(*input_count)++] = UseRegisterWithMode(base, register_mode);
       if (this->valid(index)) {
         DCHECK(scale >= 0 && scale <= 3);
-        inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(this->value(index), register_mode);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
@@ -444,7 +467,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     } else {
       DCHECK(scale >= 0 && scale <= 3);
       if (this->valid(index)) {
-        inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(this->value(index), register_mode);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
@@ -574,7 +598,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  InstructionOperand GetEffectiveIndexOperand(Node* index,
+  InstructionOperand GetEffectiveIndexOperand(node_t index,
                                               AddressingMode* mode) {
     if (CanBeImmediate(index)) {
       *mode = kMode_MRI;
@@ -631,15 +655,11 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   return opcode;
 }
 
-template <typename T>
-void VisitRO(InstructionSelectorT<TurboshaftAdapter>* selector, T, ArchOpcode) {
-  UNIMPLEMENTED();
-}
-
-void VisitRO(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
-             ArchOpcode opcode) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
-  Node* input = node->InputAt(0);
+template <typename Adapter>
+void VisitRO(InstructionSelectorT<Adapter>* selector,
+             typename Adapter::node_t node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
+  typename Adapter::node_t input = selector->input_at(node, 0);
   // We have to use a byte register as input to movsxb.
   InstructionOperand input_op =
       opcode == kIA32Movsxbl ? g.UseFixed(input, eax) : g.Use(input);
@@ -649,54 +669,36 @@ void VisitRO(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
 template <typename Adapter>
 void VisitROWithTemp(InstructionSelectorT<Adapter>* selector,
                      typename Adapter::node_t node, ArchOpcode opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    IA32OperandGeneratorT<Adapter> g(selector);
-    InstructionOperand temps[] = {g.TempRegister()};
-    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-                   arraysize(temps), temps);
-  }
+  IA32OperandGeneratorT<Adapter> g(selector);
+  InstructionOperand temps[] = {g.TempRegister()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.Use(selector->input_at(node, 0)), arraysize(temps), temps);
 }
 
-template <typename T>
-void VisitROWithTempSimd(InstructionSelectorT<TurboshaftAdapter>*, T,
-                         ArchOpcode) {
-  UNIMPLEMENTED();
-}
-
-void VisitROWithTempSimd(InstructionSelectorT<TurbofanAdapter>* selector,
-                         Node* node, ArchOpcode opcode) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitROWithTempSimd(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(node->InputAt(0)), arraysize(temps),
-                 temps);
+                 g.UseUniqueRegister(selector->input_at(node, 0)),
+                 arraysize(temps), temps);
 }
 
-template <typename T>
-void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, T, InstructionCode) {
-  UNIMPLEMENTED();
-}
-
-void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
-             InstructionCode opcode) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector,
+             typename Adapter::node_t node, InstructionCode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
-template <typename T>
-void VisitRROFloat(InstructionSelectorT<TurboshaftAdapter>* selector, T,
-                   ArchOpcode) {
-  UNIMPLEMENTED();
-}
-
-void VisitRROFloat(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
-                   ArchOpcode opcode) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.Use(node->InputAt(1));
+template <typename Adapter>
+void VisitRROFloat(InstructionSelectorT<Adapter>* selector,
+                   typename Adapter::node_t node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
+  InstructionOperand operand0 = g.UseRegister(selector->input_at(node, 0));
+  InstructionOperand operand1 = g.Use(selector->input_at(node, 1));
   if (selector->IsSupported(AVX)) {
     selector->Emit(opcode, g.DefineAsRegister(node), operand0, operand1);
   } else {
@@ -883,16 +885,12 @@ void VisitI8x16Shift(InstructionSelectorT<TurbofanAdapter>* selector,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
-    OperandGenerator g(this);
+  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
+  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  OperandGenerator g(this);
 
-    Emit(kArchStackSlot, g.DefineAsRegister(node),
-         sequence()->AddImmediate(Constant(slot)), 0, nullptr);
-  }
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
 template <typename Adapter>
@@ -1102,12 +1100,14 @@ ArchOpcode GetSeqCstStoreOpcode(MachineRepresentation rep) {
 }
 
 template <typename Adapter>
-void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
-                         ArchOpcode opcode, MachineRepresentation rep) {
+void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node, ArchOpcode opcode,
+                         MachineRepresentation rep) {
+  using node_t = Adapter::node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
+  node_t base = selector->input_at(node, 0);
+  node_t index = selector->input_at(node, 1);
+  node_t value = selector->input_at(node, 2);
 
   AddressingMode addressing_mode;
   InstructionOperand value_operand = (rep == MachineRepresentation::kWord8)
@@ -1126,13 +1126,19 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter>
-void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
-                      StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
+                      const typename Adapter::StoreView& store) {
+  using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
+
+  node_t base = store.base();
+  optional_node_t index = store.index();
+  node_t value = store.value();
+  int32_t displacement = store.displacement();
+  uint8_t element_size_log2 = store.element_size_log2();
+  base::Optional<AtomicMemoryOrder> atomic_order = store.memory_order();
+  StoreRepresentation store_rep = store.stored_rep();
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
@@ -1147,10 +1153,14 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[] = {
-        g.UseUniqueRegister(base),
-        g.GetEffectiveIndexOperand(index, &addressing_mode),
-        g.UseUniqueRegister(value)};
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    addressing_mode = g.GenerateMemoryOperandInputs(
+        index, element_size_log2, base, displacement,
+        DisplacementMode::kPositiveDisplacement, inputs, &input_count,
+        IA32OperandGeneratorT<Adapter>::RegisterMode::kUniqueRegister);
+    DCHECK_LT(input_count, 4);
+    inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
@@ -1159,10 +1169,9 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
                                      : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
-    selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count,
-                   temps);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else if (is_seqcst) {
-    VisitAtomicExchange(selector, node, GetSeqCstStoreOpcode(rep), rep);
+    VisitAtomicExchange(selector, store, GetSeqCstStoreOpcode(rep), rep);
   } else {
     // Release and non-atomic stores emit MOV.
     // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
@@ -1180,7 +1189,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
     InstructionOperand inputs[4];
     size_t input_count = 0;
     AddressingMode addressing_mode =
-        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+        g.GetEffectiveAddressMemoryOperand(store, inputs, &input_count);
     InstructionCode code =
         GetStoreOpcode(rep) | AddressingModeField::encode(addressing_mode);
     inputs[input_count++] = val;
@@ -1198,12 +1207,7 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
-                     base::nullopt);
-  }
+  VisitStoreCommon(this, this->store_view(node));
 }
 
 template <typename Adapter>
@@ -1419,17 +1423,13 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
 }
 
 // Shared routine for multiple shift operations.
-template <typename T>
-static inline void VisitShift(InstructionSelectorT<TurboshaftAdapter>*, T,
-                              ArchOpcode) {
-  UNIMPLEMENTED();
-}
-
-static inline void VisitShift(InstructionSelectorT<TurbofanAdapter>* selector,
-                              Node* node, ArchOpcode opcode) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+template <typename Adapter>
+static inline void VisitShift(InstructionSelectorT<Adapter>* selector,
+                              typename Adapter::node_t node,
+                              ArchOpcode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
 
   if (g.CanBeImmediate(right)) {
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
@@ -1484,10 +1484,12 @@ void VisitMod(InstructionSelectorT<Adapter>* selector,
   }
 }
 
-template <typename Adapter>
-void EmitLea(InstructionSelectorT<Adapter>* selector, Node* result, Node* index,
-             int scale, Node* base, Node* displacement,
-             DisplacementMode displacement_mode) {
+// {Displacement} is either Adapter::node_t or int32_t.
+template <typename Adapter, typename Displacement>
+void EmitLea(InstructionSelectorT<Adapter>* selector,
+             typename Adapter::node_t result, typename Adapter::node_t index,
+             int scale, typename Adapter::node_t base,
+             Displacement displacement, DisplacementMode displacement_mode) {
   IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand inputs[4];
   size_t input_count = 0;
@@ -1511,7 +1513,11 @@ void EmitLea(InstructionSelectorT<Adapter>* selector, Node* result, Node* index,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    if (auto m = TryMatchScaledIndex(this, node, true)) {
+      EmitLea(this, node, m->index, m->scale, m->base, 0,
+              kPositiveDisplacement);
+      return;
+    }
   } else {
     Int32ScaleMatcher m(node, true);
     if (m.matches()) {
@@ -1521,8 +1527,8 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
               kPositiveDisplacement);
       return;
     }
-    VisitShift(this, node, kIA32Shl);
   }
+  VisitShift(this, node, kIA32Shl);
 }
 
 template <typename Adapter>
@@ -1535,23 +1541,19 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
   VisitShift(this, node, kIA32Sar);
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairAdd(node_t node) {
-  UNIMPLEMENTED();
-}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairAdd(node_t node) {
+  IA32OperandGeneratorT<Adapter> g(this);
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairAdd(node_t node) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(this);
-
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
+  node_t projection1 = FindProjection(node, 1);
+  if (this->valid(projection1)) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)),
-        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
-        g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+        g.UseRegister(this->input_at(node, 0)),
+        g.UseUniqueRegisterOrSlotOrConstant(this->input_at(node, 1)),
+        g.UseRegister(this->input_at(node, 2)),
+        g.UseUniqueRegister(this->input_at(node, 3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
                                     g.DefineAsRegister(projection1)};
@@ -1562,28 +1564,25 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairAdd(node_t node) {
   } else {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
-    Emit(kIA32Add, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-         g.Use(node->InputAt(2)));
+    Emit(kIA32Add, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)),
+         g.Use(this->input_at(node, 2)));
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairSub(node_t node) {
-  UNIMPLEMENTED();
-}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairSub(node_t node) {
+  IA32OperandGeneratorT<Adapter> g(this);
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairSub(node_t node) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(this);
-
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
+  node_t projection1 = FindProjection(node, 1);
+  if (this->valid(projection1)) {
     // We use UseUniqueRegister here to avoid register sharing with the temp
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)),
-        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
-        g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+        g.UseRegister(this->input_at(node, 0)),
+        g.UseUniqueRegisterOrSlotOrConstant(this->input_at(node, 1)),
+        g.UseRegister(this->input_at(node, 2)),
+        g.UseUniqueRegister(this->input_at(node, 3))};
 
     InstructionOperand outputs[] = {g.DefineSameAsFirst(node),
                                     g.DefineAsRegister(projection1)};
@@ -1594,33 +1593,28 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairSub(node_t node) {
   } else {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
-    Emit(kIA32Sub, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-         g.Use(node->InputAt(2)));
+    Emit(kIA32Sub, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)),
+         g.Use(this->input_at(node, 2)));
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairMul(node_t node) {
-  UNIMPLEMENTED();
-}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairMul(node_t node) {
+  IA32OperandGeneratorT<Adapter> g(this);
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairMul(node_t node) {
-  IA32OperandGeneratorT<TurbofanAdapter> g(this);
-
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
+  node_t projection1 = FindProjection(node, 1);
+  if (this->valid(projection1)) {
     // InputAt(3) explicitly shares ecx with OutputRegister(1) to save one
     // register and one mov instruction.
     InstructionOperand inputs[] = {
-        g.UseUnique(node->InputAt(0)),
-        g.UseUniqueRegisterOrSlotOrConstant(node->InputAt(1)),
-        g.UseUniqueRegister(node->InputAt(2)),
-        g.UseFixed(node->InputAt(3), ecx)};
+        g.UseUnique(this->input_at(node, 0)),
+        g.UseUniqueRegisterOrSlotOrConstant(this->input_at(node, 1)),
+        g.UseUniqueRegister(this->input_at(node, 2)),
+        g.UseFixed(this->input_at(node, 3), ecx)};
 
-    InstructionOperand outputs[] = {
-        g.DefineAsFixed(node, eax),
-        g.DefineAsFixed(NodeProperties::FindProjection(node, 1), ecx)};
+    InstructionOperand outputs[] = {g.DefineAsFixed(node, eax),
+                                    g.DefineAsFixed(projection1, ecx)};
 
     InstructionOperand temps[] = {g.TempRegister(edx)};
 
@@ -1628,25 +1622,28 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairMul(node_t node) {
   } else {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
-    Emit(kIA32Imul, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-         g.Use(node->InputAt(2)));
+    Emit(kIA32Imul, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)),
+         g.Use(this->input_at(node, 2)));
   }
 }
 
 template <typename Adapter>
 void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
-                          InstructionCode opcode, Node* node) {
+                          InstructionCode opcode,
+                          typename Adapter::node_t node) {
+  using node_t = Adapter::node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
 
-  Node* shift = node->InputAt(2);
+  node_t shift = selector->input_at(node, 2);
   InstructionOperand shift_operand;
   if (g.CanBeImmediate(shift)) {
     shift_operand = g.UseImmediate(shift);
   } else {
     shift_operand = g.UseFixed(shift, ecx);
   }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
+  InstructionOperand inputs[] = {g.UseFixed(selector->input_at(node, 0), eax),
+                                 g.UseFixed(selector->input_at(node, 1), edx),
                                  shift_operand};
 
   InstructionOperand outputs[2];
@@ -1654,8 +1651,8 @@ void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
   int32_t output_count = 0;
   int32_t temp_count = 0;
   outputs[output_count++] = g.DefineAsFixed(node, eax);
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
+  node_t projection1 = selector->FindProjection(node, 1);
+  if (selector->valid(projection1)) {
     outputs[output_count++] = g.DefineAsFixed(projection1, edx);
   } else {
     temps[temp_count++] = g.TempRegister(edx);
@@ -1666,29 +1663,17 @@ void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWord32PairShift(this, kIA32ShlPair, node);
-  }
+  VisitWord32PairShift(this, kIA32ShlPair, node);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWord32PairShift(this, kIA32ShrPair, node);
-  }
+  VisitWord32PairShift(this, kIA32ShrPair, node);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWord32PairShift(this, kIA32SarPair, node);
-  }
+  VisitWord32PairShift(this, kIA32SarPair, node);
 }
 
 template <typename Adapter>
@@ -1860,7 +1845,23 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
-  UNIMPLEMENTED();
+  IA32OperandGeneratorT<TurboshaftAdapter> g(this);
+  const turboshaft::WordBinopOp& add =
+      this->Get(node).template Cast<turboshaft::WordBinopOp>();
+  turboshaft::OpIndex left = add.left();
+  turboshaft::OpIndex right = add.right();
+
+  base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> m =
+      TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(this, left, right);
+  if (m.has_value()) {
+    if (g.ValueFitsIntoImmediate(m->displacement)) {
+      EmitLea(this, node, m->index, m->scale, m->base, m->displacement,
+              m->displacement_mode);
+      return;
+    }
+  }
+  // No lea pattern, use add.
+  VisitBinop(this, node, kIA32Add);
 }
 
 template <>
@@ -1895,7 +1896,15 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    IA32OperandGeneratorT<Adapter> g(this);
+    auto binop = this->word_binop_view(node);
+    auto left = binop.left();
+    auto right = binop.right();
+    if (this->MatchIntegralZero(left)) {
+      Emit(kIA32Neg, g.DefineSameAsFirst(node), g.Use(right));
+    } else {
+      VisitBinop(this, node, kIA32Sub);
+    }
   } else {
     IA32OperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
@@ -1907,23 +1916,27 @@ void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
-  Int32ScaleMatcher m(node, true);
-  if (m.matches()) {
-    Node* index = node->InputAt(0);
-    Node* base = m.power_of_two_plus_one() ? index : nullptr;
-    EmitLea(this, node, index, m.scale(), base, nullptr, kPositiveDisplacement);
-    return;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32Mul(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    if (auto m = TryMatchScaledIndex(this, node, true)) {
+      EmitLea(this, node, m->index, m->scale, m->base, 0,
+              kPositiveDisplacement);
+      return;
+    }
+  } else {
+    Int32ScaleMatcher m(node, true);
+    if (m.matches()) {
+      Node* index = node->InputAt(0);
+      Node* base = m.power_of_two_plus_one() ? index : nullptr;
+      EmitLea(this, node, index, m.scale(), base, nullptr,
+              kPositiveDisplacement);
+      return;
+    }
   }
-  IA32OperandGeneratorT<TurbofanAdapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  IA32OperandGeneratorT<Adapter> g(this);
+  auto left = this->input_at(node, 0);
+  auto right = this->input_at(node, 1);
   if (g.CanBeImmediate(right)) {
     Emit(kIA32Imul, g.DefineAsRegister(node), g.Use(left),
          g.UseImmediate(right));
@@ -2514,13 +2527,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         case RegisterRepresentation::Float32():
           switch (comparison->kind) {
             case ComparisonOp::Kind::kEqual:
-              cont->OverwriteAndNegateIfEqual(kEqual);
+              cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
               return VisitFloat32Compare(this, value, cont);
             case ComparisonOp::Kind::kSignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
               return VisitFloat32Compare(this, value, cont);
             case ComparisonOp::Kind::kSignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
               return VisitFloat32Compare(this, value, cont);
             default:
               UNREACHABLE();
@@ -2528,13 +2541,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         case RegisterRepresentation::Float64():
           switch (comparison->kind) {
             case ComparisonOp::Kind::kEqual:
-              cont->OverwriteAndNegateIfEqual(kEqual);
+              cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
               return VisitFloat64Compare(this, value, cont);
             case ComparisonOp::Kind::kSignedLessThan:
-              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
               return VisitFloat64Compare(this, value, cont);
             case ComparisonOp::Kind::kSignedLessThanOrEqual:
-              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
               return VisitFloat64Compare(this, value, cont);
             default:
               UNREACHABLE();
@@ -2934,13 +2947,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-    VisitStoreCommon(this, node, store_params.store_representation(),
-                     store_params.order());
-  }
+  VisitStoreCommon(this, this->store_view(node));
 }
 
 template <>
