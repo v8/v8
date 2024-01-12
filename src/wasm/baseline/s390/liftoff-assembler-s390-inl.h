@@ -639,12 +639,11 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
                                  bool i64_offset) {
-  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result})
-                      .gp();
-  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result, tmp1})
-                      .gp();
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   lay(ip,
@@ -733,12 +732,11 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
                                  bool i64_offset) {
-  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result})
-                      .gp();
-  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result, tmp1})
-                      .gp();
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   lay(ip,
@@ -827,12 +825,11 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
                                  bool i64_offset) {
-  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result})
-                      .gp();
-  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result, tmp1})
-                      .gp();
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   lay(ip,
@@ -921,12 +918,11 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type,
                                 bool i64_offset) {
-  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result})
-                      .gp();
-  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result, tmp1})
-                      .gp();
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   lay(ip,
@@ -1015,12 +1011,11 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
                                  bool i64_offset) {
-  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result})
-                      .gp();
-  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
-                                                           value, result, tmp1})
-                      .gp();
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
 
   PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   lay(ip,
@@ -1183,6 +1178,12 @@ void LiftoffAssembler::AtomicCompareExchange(
   lay(ip,
       MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
 
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, expected, new_value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
+  pinned.set(tmp1);
+  Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
+
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
@@ -1193,58 +1194,52 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
-      Push(r2, r3);
 #ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(r2, expected.gp());
-      lrvr(r3, new_value.gp());
-      ShiftRightU32(r2, r2, Operand(16));
-      ShiftRightU32(r3, r3, Operand(16));
+      lrvr(tmp1, expected.gp());
+      lrvr(tmp2, new_value.gp());
+      ShiftRightU32(tmp1, tmp1, Operand(16));
+      ShiftRightU32(tmp2, tmp2, Operand(16));
 #else
-      LoadU16(r2, expected.gp());
-      LoadU16(r3, new_value.gp());
+      LoadU16(tmp1, expected.gp());
+      LoadU16(tmp2, new_value.gp());
 #endif
-      AtomicCmpExchangeU16(ip, result.gp(), r2, r3, r0, r1);
+      AtomicCmpExchangeU16(ip, result.gp(), tmp1, tmp2, r0, r1);
       LoadU16(result.gp(), result.gp());
 #ifdef V8_TARGET_BIG_ENDIAN
       lrvr(result.gp(), result.gp());
       ShiftRightU32(result.gp(), result.gp(), Operand(16));
 #endif
-      Pop(r2, r3);
       break;
     }
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
-      Push(r2, r3);
 #ifdef V8_TARGET_BIG_ENDIAN
-      lrvr(r2, expected.gp());
-      lrvr(r3, new_value.gp());
+      lrvr(tmp1, expected.gp());
+      lrvr(tmp2, new_value.gp());
 #else
-      LoadU32(r2, expected.gp());
-      LoadU32(r3, new_value.gp());
+      LoadU32(tmp1, expected.gp());
+      LoadU32(tmp2, new_value.gp());
 #endif
-      CmpAndSwap(r2, r3, MemOperand(ip));
-      LoadU32(result.gp(), r2);
+      CmpAndSwap(tmp1, tmp2, MemOperand(ip));
+      LoadU32(result.gp(), tmp1);
 #ifdef V8_TARGET_BIG_ENDIAN
       lrvr(result.gp(), result.gp());
 #endif
-      Pop(r2, r3);
       break;
     }
     case StoreType::kI64Store: {
-      Push(r2, r3);
 #ifdef V8_TARGET_BIG_ENDIAN
-      lrvgr(r2, expected.gp());
-      lrvgr(r3, new_value.gp());
+      lrvgr(tmp1, expected.gp());
+      lrvgr(tmp2, new_value.gp());
 #else
-      mov(r2, expected.gp());
-      mov(r3, new_value.gp());
+      mov(tmp1, expected.gp());
+      mov(tmp2, new_value.gp());
 #endif
-      CmpAndSwap64(r2, r3, MemOperand(ip));
-      mov(result.gp(), r2);
+      CmpAndSwap64(tmp1, tmp2, MemOperand(ip));
+      mov(result.gp(), tmp1);
 #ifdef V8_TARGET_BIG_ENDIAN
       lrvgr(result.gp(), result.gp());
 #endif
-      Pop(r2, r3);
       break;
     }
     default:
