@@ -116,8 +116,12 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
+  enum class HandleKind { kIndirect, kDirect };
+  std::string GetHandleTypeName(HandleKind kind,
+                                const std::string& type_name) const;
+
   std::string TagglifiedCppTypeName() const;
-  std::string HandlifiedCppTypeName() const;
+  std::string HandlifiedCppTypeName(HandleKind kind) const;
 
   const Type* parent() const { return parent_; }
   bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }

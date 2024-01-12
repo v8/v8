@@ -4839,14 +4839,16 @@ void ImplementationVisitor::GenerateClassDefinitions(
         }
       }
       if (type->ShouldGenerateFactoryFunction()) {
-        std::string return_type = type->HandlifiedCppTypeName();
+        std::string return_type =
+            type->HandlifiedCppTypeName(Type::HandleKind::kIndirect);
         std::string function_name = "New" + type->name();
         std::stringstream parameters;
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
             std::string type_string =
-                f.name_and_type.type->HandlifiedCppTypeName();
+                f.name_and_type.type->HandlifiedCppTypeName(
+                    Type::HandleKind::kDirect);
             parameters << type_string << " " << f.name_and_type.name << ", ";
           }
         }
@@ -4859,7 +4861,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
                      << " TorqueGeneratedFactory<Impl>::" << function_name
                      << "(" << parameters.str() << ") {\n";
 
-        factory_impl << " int size = ";
+        factory_impl << "  int size = ";
         const ClassType* super = type->GetSuperClass();
         std::string gen_name = "TorqueGenerated" + type->name();
         std::string gen_name_T =
@@ -4879,14 +4881,14 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
         factory_impl << ");\n";
         factory_impl << "  Tagged<Map> map = factory()->read_only_roots()."
-                     << SnakeifyString(type->name()) << "_map();";
+                     << SnakeifyString(type->name()) << "_map();\n";
         factory_impl << "  Tagged<HeapObject> raw_object =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
         factory_impl << "  " << type->TagglifiedCppTypeName()
                      << " result = " << type->GetConstexprGeneratedTypeName()
                      << "::cast(raw_object);\n";
-        factory_impl << "  DisallowGarbageCollection no_gc;";
+        factory_impl << "  DisallowGarbageCollection no_gc;\n";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
                      << "     allocation_type == AllocationType::kYoung\n"
                      << "     ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n"
@@ -4914,10 +4916,10 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
         factory_impl << "template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) "
                      << return_type
-                     << "TorqueGeneratedFactory<Factory>::" << function_name
+                     << " TorqueGeneratedFactory<Factory>::" << function_name
                      << "(" << parameters.str() << ");\n";
         factory_impl << "template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) "
-                     << return_type << "TorqueGeneratedFactory<LocalFactory>::"
+                     << return_type << " TorqueGeneratedFactory<LocalFactory>::"
                      << function_name << "(" << parameters.str() << ");\n";
 
         factory_impl << "\n\n";

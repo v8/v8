@@ -70,12 +70,22 @@ std::string Type::SimpleName() const {
   return *aliases_.begin();
 }
 
+std::string Type::GetHandleTypeName(HandleKind kind,
+                                    const std::string& type_name) const {
+  switch (kind) {
+    case HandleKind::kIndirect:
+      return "Handle<" + type_name + ">";
+    case HandleKind::kDirect:
+      return "DirectHandle<" + type_name + ">";
+  }
+}
+
 // TODO(danno): HandlifiedCppTypeName should be used universally in Torque
 // where the C++ type of a Torque object is required.
-std::string Type::HandlifiedCppTypeName() const {
+std::string Type::HandlifiedCppTypeName(HandleKind kind) const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return "Handle<" + GetConstexprGeneratedTypeName() + ">";
+    return GetHandleTypeName(kind, GetConstexprGeneratedTypeName());
   } else {
     return GetConstexprGeneratedTypeName();
   }
