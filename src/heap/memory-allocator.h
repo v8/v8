@@ -58,16 +58,16 @@ class MemoryAllocator {
       DCHECK(!chunk->IsTrusted());
       DCHECK_NE(chunk->executable(), EXECUTABLE);
       chunk->ReleaseAllAllocatedMemory();
+      base::MutexGuard guard(&mutex_);
       pooled_chunks_.push_back(chunk);
     }
 
     MemoryChunk* TryGetPooled() {
-      if (!pooled_chunks_.empty()) {
-        MemoryChunk* chunk = pooled_chunks_.back();
-        pooled_chunks_.pop_back();
-        return chunk;
-      }
-      return nullptr;
+      base::MutexGuard guard(&mutex_);
+      if (pooled_chunks_.empty()) return nullptr;
+      MemoryChunk* chunk = pooled_chunks_.back();
+      pooled_chunks_.pop_back();
+      return chunk;
     }
 
     void ReleasePooledChunks();
@@ -79,6 +79,7 @@ class MemoryAllocator {
    private:
     MemoryAllocator* const allocator_;
     std::vector<MemoryChunk*> pooled_chunks_;
+    mutable base::Mutex mutex_;
 
     friend class MemoryAllocator;
   };

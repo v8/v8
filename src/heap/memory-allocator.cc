@@ -65,20 +65,26 @@ void MemoryAllocator::TearDown() {
 }
 
 void MemoryAllocator::Pool::ReleasePooledChunks() {
-  for (auto* chunk : pooled_chunks_) {
+  std::vector<MemoryChunk*> copied_pooled;
+  {
+    base::MutexGuard guard(&mutex_);
+    std::swap(copied_pooled, pooled_chunks_);
+  }
+  for (auto* chunk : copied_pooled) {
     DCHECK_NOT_NULL(chunk);
     VirtualMemory* reservation = chunk->reserved_memory();
     DCHECK(reservation->IsReserved());
     reservation->Free();
   }
-  pooled_chunks_.clear();
 }
 
 size_t MemoryAllocator::Pool::NumberOfCommittedChunks() const {
+  base::MutexGuard guard(&mutex_);
   return pooled_chunks_.size();
 }
 
 int MemoryAllocator::Pool::NumberOfChunks() const {
+  base::MutexGuard guard(&mutex_);
   return static_cast<int>(pooled_chunks_.size());
 }
 

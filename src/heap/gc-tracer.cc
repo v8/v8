@@ -725,6 +725,7 @@ void GCTracer::Print() const {
       "[%d:%p] "
       "%8.0f ms: "
       "%s%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
+      "pooled: %1.f MB, "
       "%.2f / %.2f ms %s (average mu = %.3f, current mu = %.3f) %s; %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
@@ -735,6 +736,9 @@ void GCTracer::Print() const {
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB,
+      static_cast<double>(
+          heap_->memory_allocator()->pool()->CommittedBufferedMemory()) /
+          MB,
       duration.InMillisecondsF(), total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),
       CurrentMarkCompactMutatorUtilization(), ToString(current_.gc_reason),
