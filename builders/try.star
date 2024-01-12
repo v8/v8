@@ -249,7 +249,7 @@ try_builder(
     cq_properties = CQ.BLOCK,
     executable = "recipe:chromium_trybot",
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 4200,
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     reclient_jobs = RECLIENT_JOBS.J150,
