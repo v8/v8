@@ -244,7 +244,7 @@ type IndirectPointer
     constexpr 'IndirectPointerHandle';
 // TODO(saelo): implement accessors and type checkers for these fields.
 type IndirectPointer<To: type> extends IndirectPointer;
-extern class InstructionStream extends HeapObject;
+extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
 type Number = Smi|HeapNumber;

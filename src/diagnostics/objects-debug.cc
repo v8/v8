@@ -1393,6 +1393,7 @@ void CodeWrapper::CodeWrapperVerify(Isolate* isolate) {
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
   Tagged<Code> code;
   if (!TryGetCode(&code, kAcquireLoad)) return;
   CHECK(

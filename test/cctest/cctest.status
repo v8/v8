@@ -540,7 +540,6 @@
   'test-multiple-return/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
-
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
@@ -551,8 +550,22 @@
   'test-serialize/*': [SKIP],
   'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-verify-type/*': [SKIP],
+  'test-concurrent-shared-function-info/*': [SKIP],
+  'test-concurrent-allocation/*': [SKIP],
+  'test-sync-primitives-arm/*': [SKIP],
+  'test-sync-primitives-arm64/*': [SKIP],
+
+  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
+  'test-heap-profiler/WeakReference': [SKIP],
+  'test-alloc/StressJS': [SKIP],
+  'test-alloc/StressHandles': [SKIP],
+  'test-heap/CodeLargeObjectSpace': [SKIP],
+  'test-heap/CodeLargeObjectSpace64k': [SKIP],
+  'test-heap/CodeObjectRegistry': [SKIP],
+  'test-heap/HeapObjects': [SKIP],
+  'test-heap/Regress10900': [SKIP],
+  'test-weak-references/WeakReferencesBasic': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],

@@ -4842,10 +4842,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    Sandbox* sandbox = GetProcessWideSandbox();
-    if (!sandbox->is_partially_reserved() &&
-        sandbox->Contains(chunk_->address()))
-      return;
+    if (InsideSandbox(chunk_->address())) return;
 #endif
 
     if (chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {

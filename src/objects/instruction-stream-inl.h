@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(InstructionStream)
-OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
 NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
 
 uint32_t InstructionStream::body_size() const {

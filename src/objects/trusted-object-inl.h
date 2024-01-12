@@ -27,10 +27,9 @@ ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
   // with the right instance type). In that case, bad things might happen if
   // these objects are e.g. processed by a Visitor as they can typically assume
   // that these slots are trusted. The following check defends against that by
-  // ensuring that the host object is outside of the sandbox (if the sandbox is
-  // properly configured). See also crbug.com/1505089.
-  Sandbox* sandbox = GetProcessWideSandbox();
-  SBXCHECK(sandbox->is_partially_reserved() || !sandbox->Contains(address()));
+  // ensuring that the host object is outside of the sandbox.
+  // See also crbug.com/1505089.
+  SBXCHECK(!InsideSandbox(address()));
 #endif
   return ProtectedPointerSlot(field_address(byte_offset));
 }

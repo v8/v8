@@ -57,6 +57,17 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
+    // Executable chunks are also trusted as they contain machine code and live
+    // outside the sandbox (when it is enabled). While mostly symbolic, this is
+    // needed for two reasons:
+    // 1. We have the invariant that IsTrustedObject(obj) implies
+    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
+    //    IS_TRUSTED flag on the host chunk. As InstructionStream objects are
+    //    trusted, their host chunks must also be marked as such.
+    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
+    //    remembered set. However, that will only be used if both the host
+    //    and the value chunk are marked as IS_TRUSTED.
+    SetFlag(IS_TRUSTED);
   }
 
   if (page_size == PageSize::kRegular) {
@@ -84,6 +95,10 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 #ifdef DEBUG
   ValidateOffsets(this);
 #endif
+
+  // "Trusted" chunks should never be located inside the sandbox as they
+  // couldn't be trusted in that case.
+  DCHECK_IMPLIES(IsFlagSet(IS_TRUSTED), !InsideSandbox(address()));
 }
 
 size_t MemoryChunk::CommittedPhysicalMemory() const {
