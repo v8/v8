@@ -727,7 +727,8 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,            \
       LiftoffRegister value, LiftoffRegister result, StoreType type,           \
       bool i64_offset) {                                                       \
-    LiftoffRegList pinned{dst_addr, offset_reg, value, result};                \
+    LiftoffRegList pinned{dst_addr, value, result};                            \
+    if (offset_reg != no_reg) pinned.set(offset_reg);                          \
     Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
     Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
     Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();       \
@@ -783,7 +784,8 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
                                  bool i64_offset) {
-  LiftoffRegList pinned{dst_addr, offset_reg, value, result};
+  LiftoffRegList pinned{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -843,7 +845,8 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type,
                                       bool i64_offset) {
-  LiftoffRegList pinned{dst_addr, offset_reg, value, result};
+  LiftoffRegList pinned{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -919,7 +922,8 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type, bool i64_offset) {
-  LiftoffRegList pinned{dst_addr, offset_reg, expected, new_value, result};
+  LiftoffRegList pinned{dst_addr, expected, new_value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
