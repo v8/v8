@@ -241,7 +241,7 @@ RECLIENT = struct(
 )
 
 RECLIENT_JOBS = struct(
-    J150 = 150,
+    J500 = 500,
 )
 
 def _reclient_properties(use_remoteexec, reclient_jobs, name, scandeps_server):

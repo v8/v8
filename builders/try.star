@@ -252,7 +252,7 @@ try_builder(
     execution_timeout = 4200,
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-    reclient_jobs = RECLIENT_JOBS.J150,
+    reclient_jobs = RECLIENT_JOBS.J500,
     disable_resultdb_exports = True,
 )
 
