@@ -231,10 +231,13 @@ bool InliningTree::SmallEnoughToInline(size_t initial_graph_size,
   size_t budget =
       std::max<size_t>(v8_flags.wasm_inlining_min_budget,
                        v8_flags.wasm_inlining_factor * initial_graph_size);
+  // Independent of the wasm_inlining_budget, for large functions we should
+  // still allow some inlining.
   size_t full_budget =
       std::max<size_t>(v8_flags.wasm_inlining_budget, initial_graph_size * 1.1);
-  return inlined_wire_byte_count + static_cast<size_t>(wire_byte_size_) <
-         std::min<size_t>(budget, full_budget);
+  size_t total_size = initial_graph_size + inlined_wire_byte_count +
+                      static_cast<size_t>(wire_byte_size_);
+  return total_size < std::min<size_t>(budget, full_budget);
 }
 
 }  // namespace v8::internal::wasm
