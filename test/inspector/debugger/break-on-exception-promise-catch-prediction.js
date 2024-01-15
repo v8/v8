@@ -157,6 +157,83 @@ function thenMethodWithTwoArgs(fn) {
   fn().then(() => console.log('not hit'), () => console.log('caught'));
 }
 
+async function caughtPromiseRace(fn) {
+  try {
+    await Promise.race([fn()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function caughtInTryPromiseRace(fn) {
+  const promise = fn();
+  try {
+    await Promise.race([promise]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function uncaughtPromiseRace(fn) {
+  await Promise.race([fn()]);
+}
+
+async function ignoredPromiseRace(fn) {
+  // Race will resolve to first promise, preventing exception from second
+  // from propagating. Is this caught or uncaught?
+  await Promise.race([Promise.resolve(), fn()]);
+}
+
+async function ignoredPromiseRaceInTry(fn) {
+  try {
+    // Race will resolve to first promise, preventing exception from second
+    // from propagating. Is this caught or uncaught?
+    await Promise.race([Promise.resolve(), fn()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function caughtPromiseAll(fn) {
+  try {
+    await Promise.all([fn()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function uncaughtPromiseAll(fn) {
+  await Promise.all([fn()]);
+}
+
+async function caughtPromiseAny(fn) {
+  try {
+    await Promise.any([fn()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function uncaughtPromiseAny(fn) {
+  await Promise.any([fn()]);
+}
+
+async function ignoredPromiseAny(fn) {
+  // Any will resolve to first promise, preventing exception from second
+  // from propagating. Is this caught or uncaught?
+  await Promise.any([Promise.resolve(), fn()]);
+}
+
+async function ignoredPromiseAnyInTry(fn) {
+  try {
+    // Any will resolve to first promise, preventing exception from second
+    // from propagating. Is this caught or uncaught?
+    await Promise.any([Promise.resolve(), fn()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
 function delay() {
   return new Promise(resolve => setTimeout(resolve, 0));
 }
@@ -187,7 +264,29 @@ async function testWrapper(throwFunc, handleFunc) {
 const basicThrowFunctions = [rejectAfterDelayInPromiseConstructor, promiseReject];
 const advancedThrowFunctions = [throwInPromiseConstructor, rejectInPromiseConstructor, rejectAfterDelayInTryInPromiseConstructor, rejectBindAfterDelay, throwFromAsync, throwFromAsyncAfterDelay, customRejectingThenable, customRejectingThenableAfterDelay];
 const basicCatchFunctions = [dontHandleAsync, awaitAndCreateInTry];
-const advancedCatchFunctions = [catchMethod, finallyMethod, catchMethodInTry, awaitInTry, awaitAndCreateInTryFinally, createInTry, fireAndForgetInTry, finallyAndCatchMethod, thenMethod, thenMethodWithTwoArgs];
+const advancedCatchFunctions = [
+    catchMethod,
+    finallyMethod,
+    catchMethodInTry,
+    awaitInTry,
+    awaitAndCreateInTryFinally,
+    createInTry,
+    fireAndForgetInTry,
+    finallyAndCatchMethod,
+    thenMethod,
+    thenMethodWithTwoArgs,
+    caughtPromiseRace,
+    caughtInTryPromiseRace,
+    uncaughtPromiseRace,
+    ignoredPromiseRace,
+    ignoredPromiseRaceInTry,
+    caughtPromiseAll,
+    uncaughtPromiseAll,
+    caughtPromiseAny,
+    uncaughtPromiseAny,
+    ignoredPromiseAny,
+    ignoredPromiseAnyInTry,
+];
 const helpers = [delay, testWrapper];
 
 const file = [...basicThrowFunctions, ...advancedThrowFunctions, ...basicCatchFunctions, ...advancedCatchFunctions, ...helpers].join('\n\n');
