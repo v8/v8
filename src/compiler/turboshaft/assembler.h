@@ -1598,6 +1598,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
   }
+  V<Word32> CheckedSmiUntag(V<Object> object, OpIndex frame_state,
+                            const FeedbackSource& feedback) {
+    return ConvertJSPrimitiveToUntaggedOrDeopt(
+        object, frame_state,
+        ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi,
+        ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32,
+        CheckForMinusZeroMode::kDontCheckForMinusZero, feedback);
+  }
 
   OpIndex TruncateJSPrimitiveToUntagged(
       V<Object> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,

@@ -77,7 +77,9 @@ bool IsSupported(CpuOperation op) {
 #elif defined(V8_TARGET_ARCH_ARM64)
       return true;
 #else
-#error "Maglev does not support this architecture."
+      // This architecture is not supported by the Maglev backend, and
+      // IsSupported should thus not be called.
+      UNREACHABLE();
 #endif
   }
 }

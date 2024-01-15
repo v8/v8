@@ -3412,6 +3412,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/machine-lowering-phase.h",
     "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
+    "src/compiler/turboshaft/maglev-graph-building-phase.h",
     "src/compiler/turboshaft/memory-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matcher.h",
     "src/compiler/turboshaft/operations.h",
@@ -5033,6 +5034,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/loop-unrolling-phase.cc",
     "src/compiler/turboshaft/loop-unrolling-reducer.cc",
     "src/compiler/turboshaft/machine-lowering-phase.cc",
+    "src/compiler/turboshaft/maglev-graph-building-phase.cc",
     "src/compiler/turboshaft/memory-optimization-reducer.cc",
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimize-phase.cc",
@@ -5053,6 +5055,18 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/use-map.cc",
     "src/compiler/turboshaft/utils.cc",
   ]
+
+  if (!v8_enable_maglev) {
+    # When Maglev is not enabled, Turboshaft still needs Maglev's graph builder.
+    sources += [
+      "src/maglev/maglev-compilation-info.cc",
+      "src/maglev/maglev-compilation-unit.cc",
+      "src/maglev/maglev-graph-builder.cc",
+      "src/maglev/maglev-graph-printer.cc",
+      "src/maglev/maglev-interpreter-frame-state.cc",
+      "src/maglev/maglev-ir.cc",
+    ]
+  }
 
   public_deps = [
     ":generate_bytecode_builtins_list",

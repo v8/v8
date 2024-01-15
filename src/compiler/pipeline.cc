@@ -90,6 +90,7 @@
 #include "src/compiler/turboshaft/loop-peeling-phase.h"
 #include "src/compiler/turboshaft/loop-unrolling-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
+#include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/recreate-schedule-phase.h"
@@ -385,22 +386,15 @@ class PipelineData {
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
-  turboshaft::PipelineData CreateTurboshaftPipeline(
+  turboshaft::PipelineData GetTurboshaftPipelineData(
       turboshaft::TurboshaftPipelineKind kind) {
-    return turboshaft::PipelineData{kind,
-                                    info_,
-                                    schedule_,
-                                    graph_zone_,
-                                    broker_,
-                                    isolate_,
-                                    source_positions_,
-                                    node_origins_,
-                                    sequence_,
-                                    frame_,
-                                    assembler_options_,
-                                    &max_unoptimized_frame_height_,
-                                    &max_pushed_argument_count_,
-                                    instruction_zone_};
+    if (!ts_data_.has_value()) {
+      ts_data_.emplace(kind, info_, schedule_, graph_zone_, broker_, isolate_,
+                       source_positions_, node_origins_, sequence_, frame_,
+                       assembler_options_, &max_unoptimized_frame_height_,
+                       &max_pushed_argument_count_, instruction_zone_);
+    }
+    return ts_data_.value();
   }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
@@ -696,6 +690,7 @@ class PipelineData {
   MachineGraph* mcgraph_ = nullptr;
   Schedule* schedule_ = nullptr;
   ObserveNodeManager* observe_node_manager_ = nullptr;
+  base::Optional<turboshaft::PipelineData> ts_data_;
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_. They are all set to nullptr when the instruction_zone_
@@ -759,7 +754,7 @@ class PipelineImpl final {
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
-  turboshaft::PipelineData CreateTurboshaftPipeline(
+  turboshaft::PipelineData GetTurboshaftPipelineData(
       turboshaft::TurboshaftPipelineKind kind);
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -2855,25 +2850,35 @@ bool PipelineImpl::CreateGraph() {
 
   data->BeginPhaseKind("V8.TFGraphCreation");
 
-  Run<GraphBuilderPhase>();
-  RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
+  if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
+    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
+        data->GetTurboshaftPipelineData(
+            turboshaft::TurboshaftPipelineKind::kJS));
 
-  // Perform function context specialization and inlining (if enabled).
-  Run<InliningPhase>();
-  RunPrintAndVerify(InliningPhase::phase_name(), true);
+    turboshaft::Tracing::Scope tracing_scope(data->info());
 
-  // Determine the Typer operation flags.
-  {
-    SharedFunctionInfoRef shared_info =
-        MakeRef(data->broker(), info()->shared_info());
-    if (is_sloppy(shared_info.language_mode()) &&
-        shared_info.IsUserJavaScript()) {
-      // Sloppy mode functions always have an Object for this.
-      data->AddTyperFlag(Typer::kThisIsReceiver);
-    }
-    if (IsClassConstructor(shared_info.kind())) {
-      // Class constructors cannot be [[Call]]ed.
-      data->AddTyperFlag(Typer::kNewTargetIsReceiver);
+    Run<turboshaft::MaglevGraphBuildingPhase>();
+  } else {
+    Run<GraphBuilderPhase>();
+    RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
+
+    // Perform function context specialization and inlining (if enabled).
+    Run<InliningPhase>();
+    RunPrintAndVerify(InliningPhase::phase_name(), true);
+
+    // Determine the Typer operation flags.
+    {
+      SharedFunctionInfoRef shared_info =
+          MakeRef(data->broker(), info()->shared_info());
+      if (is_sloppy(shared_info.language_mode()) &&
+          shared_info.IsUserJavaScript()) {
+        // Sloppy mode functions always have an Object for this.
+        data->AddTyperFlag(Typer::kThisIsReceiver);
+      }
+      if (IsClassConstructor(shared_info.kind())) {
+        // Class constructors cannot be [[Call]]ed.
+        data->AddTyperFlag(Typer::kNewTargetIsReceiver);
+      }
     }
   }
 
@@ -2887,143 +2892,145 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->BeginPhaseKind("V8.TFLowering");
 
-  // Trim the graph before typing to ensure all nodes are typed.
-  Run<EarlyGraphTrimmingPhase>();
-  RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
+  if (V8_LIKELY(!v8_flags.turboshaft_from_maglev)) {
+    // Trim the graph before typing to ensure all nodes are typed.
+    Run<EarlyGraphTrimmingPhase>();
+    RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
 
-  // Type the graph and keep the Typer running such that new nodes get
-  // automatically typed when they are created.
-  Run<TyperPhase>(data->CreateTyper());
-  RunPrintAndVerify(TyperPhase::phase_name());
+    // Type the graph and keep the Typer running such that new nodes get
+    // automatically typed when they are created.
+    Run<TyperPhase>(data->CreateTyper());
+    RunPrintAndVerify(TyperPhase::phase_name());
 
-  Run<TypedLoweringPhase>();
-  RunPrintAndVerify(TypedLoweringPhase::phase_name());
+    Run<TypedLoweringPhase>();
+    RunPrintAndVerify(TypedLoweringPhase::phase_name());
 
-  if (data->info()->loop_peeling()) {
-    Run<LoopPeelingPhase>();
-    RunPrintAndVerify(LoopPeelingPhase::phase_name(), true);
-  } else {
-    Run<LoopExitEliminationPhase>();
-    RunPrintAndVerify(LoopExitEliminationPhase::phase_name(), true);
-  }
+    if (data->info()->loop_peeling()) {
+      Run<LoopPeelingPhase>();
+      RunPrintAndVerify(LoopPeelingPhase::phase_name(), true);
+    } else {
+      Run<LoopExitEliminationPhase>();
+      RunPrintAndVerify(LoopExitEliminationPhase::phase_name(), true);
+    }
 
-  if (v8_flags.turbo_load_elimination) {
-    Run<LoadEliminationPhase>();
-    RunPrintAndVerify(LoadEliminationPhase::phase_name());
-  }
-  data->DeleteTyper();
+    if (v8_flags.turbo_load_elimination) {
+      Run<LoadEliminationPhase>();
+      RunPrintAndVerify(LoadEliminationPhase::phase_name());
+    }
+    data->DeleteTyper();
 
-  if (v8_flags.turbo_escape) {
-    Run<EscapeAnalysisPhase>();
-    RunPrintAndVerify(EscapeAnalysisPhase::phase_name());
-  }
+    if (v8_flags.turbo_escape) {
+      Run<EscapeAnalysisPhase>();
+      RunPrintAndVerify(EscapeAnalysisPhase::phase_name());
+    }
 
-  if (v8_flags.assert_types) {
-    Run<TypeAssertionsPhase>();
-    RunPrintAndVerify(TypeAssertionsPhase::phase_name());
-  }
+    if (v8_flags.assert_types) {
+      Run<TypeAssertionsPhase>();
+      RunPrintAndVerify(TypeAssertionsPhase::phase_name());
+    }
 
-  if (!v8_flags.turboshaft_frontend) {
-    // Perform simplified lowering. This has to run w/o the Typer decorator,
-    // because we cannot compute meaningful types anyways, and the computed
-    // types might even conflict with the representation/truncation logic.
-    Run<SimplifiedLoweringPhase>(linkage);
-    RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+    if (!v8_flags.turboshaft_frontend) {
+      // Perform simplified lowering. This has to run w/o the Typer decorator,
+      // because we cannot compute meaningful types anyways, and the computed
+      // types might even conflict with the representation/truncation logic.
+      Run<SimplifiedLoweringPhase>(linkage);
+      RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (data->has_js_wasm_calls()) {
-      DCHECK(data->info()->inline_js_wasm_calls());
-      Run<JSWasmInliningPhase>();
-      RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
-      if (data->inline_wasm_into_js()) {
-        Run<WasmTypingPhase>(-1);
-        RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
-        if (v8_flags.wasm_opt) {
-          Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
-                                       data->jsgraph());
-          RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
+      if (data->has_js_wasm_calls()) {
+        DCHECK(data->info()->inline_js_wasm_calls());
+        Run<JSWasmInliningPhase>();
+        RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
+        if (data->inline_wasm_into_js()) {
+          Run<WasmTypingPhase>(-1);
+          RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
+          if (v8_flags.wasm_opt) {
+            Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
+                                         data->jsgraph());
+            RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
+          }
+          Run<JSWasmLoweringPhase>();
+          RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
         }
-        Run<JSWasmLoweringPhase>();
-        RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
       }
-    }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    // From now on it is invalid to look at types on the nodes, because the
-    // types on the nodes might not make sense after representation selection
-    // due to the way we handle truncations; if we'd want to look at types
-    // afterwards we'd essentially need to re-type (large portions of) the
-    // graph.
+      // From now on it is invalid to look at types on the nodes, because the
+      // types on the nodes might not make sense after representation selection
+      // due to the way we handle truncations; if we'd want to look at types
+      // afterwards we'd essentially need to re-type (large portions of) the
+      // graph.
 
-    // In order to catch bugs related to type access after this point, we now
-    // remove the types from the nodes (currently only in Debug builds).
+      // In order to catch bugs related to type access after this point, we now
+      // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
-    Run<UntyperPhase>();
-    RunPrintAndVerify(UntyperPhase::phase_name(), true);
+      Run<UntyperPhase>();
+      RunPrintAndVerify(UntyperPhase::phase_name(), true);
 #endif
 
-    // Run generic lowering pass.
-    Run<GenericLoweringPhase>();
-    RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
+      // Run generic lowering pass.
+      Run<GenericLoweringPhase>();
+      RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
 
-    data->BeginPhaseKind("V8.TFBlockBuilding");
+      data->BeginPhaseKind("V8.TFBlockBuilding");
 
-    data->InitializeFrameData(linkage->GetIncomingDescriptor());
+      data->InitializeFrameData(linkage->GetIncomingDescriptor());
 
-    // Run early optimization pass.
-    Run<EarlyOptimizationPhase>();
-    RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
-  }
-
-  if (!v8_flags.turboshaft) {
-    Run<EffectControlLinearizationPhase>();
-    RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
-
-    if (v8_flags.turbo_store_elimination) {
-      Run<StoreStoreEliminationPhase>();
-      RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
+      // Run early optimization pass.
+      Run<EarlyOptimizationPhase>();
+      RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
     }
 
-    // Optimize control flow.
-    if (v8_flags.turbo_cf_optimization) {
-      Run<ControlFlowOptimizationPhase>();
-      RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
-    }
+    if (!v8_flags.turboshaft) {
+      Run<EffectControlLinearizationPhase>();
+      RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
 
-    Run<LateOptimizationPhase>();
-    RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+      if (v8_flags.turbo_store_elimination) {
+        Run<StoreStoreEliminationPhase>();
+        RunPrintAndVerify(StoreStoreEliminationPhase::phase_name(), true);
+      }
 
-    // Optimize memory access and allocation operations.
-    Run<MemoryOptimizationPhase>();
-    RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+      // Optimize control flow.
+      if (v8_flags.turbo_cf_optimization) {
+        Run<ControlFlowOptimizationPhase>();
+        RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
+      }
 
-    // Run value numbering and machine operator reducer to optimize load/store
-    // address computation (in particular, reuse the address computation
-    // whenever possible).
-    Run<MachineOperatorOptimizationPhase>(
-        MachineOperatorReducer::kPropagateSignallingNan);
-    RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
+      Run<LateOptimizationPhase>();
+      RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
 
-    Run<DecompressionOptimizationPhase>();
-    RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
+      // Optimize memory access and allocation operations.
+      Run<MemoryOptimizationPhase>();
+      RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+
+      // Run value numbering and machine operator reducer to optimize load/store
+      // address computation (in particular, reuse the address computation
+      // whenever possible).
+      Run<MachineOperatorOptimizationPhase>(
+          MachineOperatorReducer::kPropagateSignallingNan);
+      RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
+
+      Run<DecompressionOptimizationPhase>();
+      RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (data->has_js_wasm_calls() && data->inline_wasm_into_js()) {
-      Run<WasmJSLoweringPhase>();
-      RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
-    }
+      if (data->has_js_wasm_calls() && data->inline_wasm_into_js()) {
+        Run<WasmJSLoweringPhase>();
+        RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    Run<BranchConditionDuplicationPhase>();
-    RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
-  }
+      Run<BranchConditionDuplicationPhase>();
+      RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
+    }
 
-  data->source_positions()->RemoveDecorator();
-  if (data->info()->trace_turbo_json()) {
-    data->node_origins()->RemoveDecorator();
-  }
+    data->source_positions()->RemoveDecorator();
+    if (data->info()->trace_turbo_json()) {
+      data->node_origins()->RemoveDecorator();
+    }
 
-  ComputeScheduledGraph();
+    ComputeScheduledGraph();
+  }
 
   if (v8_flags.turboshaft) {
     UnparkedScopeIfNeeded scope(data->broker(),
@@ -3031,15 +3038,17 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
                                     v8_flags.turboshaft_trace_emitted);
 
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data->CreateTurboshaftPipeline(
+        data->GetTurboshaftPipelineData(
             turboshaft::TurboshaftPipelineKind::kJS));
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
-    if (base::Optional<BailoutReason> bailout =
-            Run<turboshaft::BuildGraphPhase>(linkage)) {
-      info()->AbortOptimization(*bailout);
-      data->EndPhaseKind();
-      return false;
+    if (!v8_flags.turboshaft_from_maglev) {
+      if (base::Optional<BailoutReason> bailout =
+              Run<turboshaft::BuildGraphPhase>(linkage)) {
+        info()->AbortOptimization(*bailout);
+        data->EndPhaseKind();
+        return false;
+      }
     }
 
     if (v8_flags.turboshaft_frontend) {
@@ -3315,7 +3324,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     UnparkedScopeIfNeeded scope(data.broker(),
                                 v8_flags.turboshaft_trace_reduction);
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data.CreateTurboshaftPipeline(
+        data.GetTurboshaftPipelineData(
             turboshaft::TurboshaftPipelineKind::kCSA));
     turboshaft::Tracing::Scope tracing_scope(data.info());
 
@@ -3774,7 +3783,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   {
     base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
-        pipeline.CreateTurboshaftPipeline(
+        pipeline.GetTurboshaftPipelineData(
             turboshaft::TurboshaftPipelineKind::kWasm));
     auto& turboshaft_pipeline = turboshaft_scope.value();
     turboshaft_pipeline.Value().SetIsWasm(env->module,
@@ -4065,9 +4074,9 @@ void PipelineImpl::ComputeScheduledGraph() {
   TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
 }
 
-turboshaft::PipelineData PipelineImpl::CreateTurboshaftPipeline(
+turboshaft::PipelineData PipelineImpl::GetTurboshaftPipelineData(
     turboshaft::TurboshaftPipelineKind kind) {
-  return data_->CreateTurboshaftPipeline(kind);
+  return data_->GetTurboshaftPipelineData(kind);
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC

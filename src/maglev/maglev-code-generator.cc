@@ -8,6 +8,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register.h"
@@ -1429,7 +1430,11 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       masm_(isolate->GetMainThreadIsolateUnsafe(), &code_gen_state_),
       graph_(graph),
       deopt_literals_(isolate->heap()->heap()),
-      retained_maps_(isolate->heap()) {}
+      retained_maps_(isolate->heap()) {
+  DCHECK(maglev::IsMaglevEnabled());
+  DCHECK_IMPLIES(compilation_info->toplevel_is_osr(),
+                 maglev::IsMaglevOsrEnabled());
+}
 
 bool MaglevCodeGenerator::Assemble() {
   if (!EmitCode()) {

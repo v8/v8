@@ -532,6 +532,27 @@ DEFINE_EXPERIMENTAL_FEATURE(
     maglev_future,
     "enable maglev features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(maglev_future, maglev)
+DEFINE_BOOL(
+    optimize_on_next_call_optimizes_to_maglev, false,
+    "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
+
+// We stress maglev by setting a very low interrupt budget for maglev. This
+// way, we still gather *some* feedback before compiling optimized code.
+DEFINE_BOOL(stress_maglev, false, "trigger maglev compilation earlier")
+DEFINE_IMPLICATION(stress_maglev, maglev)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, invocation_count_for_maglev, 4)
+
+#else
+DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
+DEFINE_BOOL_READONLY(
+    maglev_future, false,
+    "enable maglev features that we want to ship in the not-too-far future")
+DEFINE_BOOL_READONLY(stress_maglev, false, "trigger maglev compilation earlier")
+DEFINE_BOOL_READONLY(
+    optimize_on_next_call_optimizes_to_maglev, false,
+    "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
+#endif  //  V8_ENABLE_MAGLEV
+
 DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, true,
@@ -594,30 +615,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
     maglev_speculative_hoist_phi_untagging,
     "enable phi untagging to hoist untagging of loop phi inputs (could "
     "still cause deopt loops)")
-
-DEFINE_BOOL(
-    optimize_on_next_call_optimizes_to_maglev, false,
-    "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
-
-// We stress maglev by setting a very low interrupt budget for maglev. This
-// way, we still gather *some* feedback before compiling optimized code.
-DEFINE_BOOL(stress_maglev, false, "trigger maglev compilation earlier")
-DEFINE_IMPLICATION(stress_maglev, maglev)
-DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, invocation_count_for_maglev, 4)
-#else
-DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
-DEFINE_BOOL_READONLY(
-    maglev_future, false,
-    "enable maglev features that we want to ship in the not-too-far future")
-DEFINE_BOOL_READONLY(maglev_inlining, false,
-                     "enable inlining in the maglev optimizing compiler")
-DEFINE_BOOL_READONLY(maglev_untagged_phis, false,
-                     "enable phi untagging in the maglev optimizing compiler")
-DEFINE_BOOL_READONLY(stress_maglev, false, "trigger maglev compilation earlier")
-DEFINE_BOOL_READONLY(
-    optimize_on_next_call_optimizes_to_maglev, false,
-    "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
-#endif  // V8_ENABLE_MAGLEV
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
@@ -1293,6 +1290,10 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
             "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
                             "run the CSA pipeline with turboshaft")
+
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
+                            "build the Turboshaft graph from Maglev")
+
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
                             "run (parts of) the frontend in Turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(

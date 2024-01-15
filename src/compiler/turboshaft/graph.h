@@ -989,7 +989,7 @@ class Graph {
 
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
-      companion_ = std::make_unique<Graph>(graph_zone_, operations_.size());
+      companion_ = graph_zone_->New<Graph>(graph_zone_, operations_.size());
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
 #endif  // DEBUG
@@ -1101,7 +1101,7 @@ class Graph {
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
 #endif
 
-  std::unique_ptr<Graph> companion_ = {};
+  Graph* companion_ = nullptr;
 #ifdef DEBUG
   size_t generation_ = 1;
 #endif  // DEBUG

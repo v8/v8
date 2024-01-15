@@ -68,7 +68,7 @@ class V8_EXPORT_PRIVATE PipelineData
         address_of_max_pushed_argument_count_(
             address_of_max_pushed_argument_count),
         instruction_zone_(instruction_zone),
-        graph_(std::make_unique<turboshaft::Graph>(graph_zone_)) {}
+        graph_(graph_zone_->New<turboshaft::Graph>(graph_zone_)) {}
 
   bool has_graph() const { return graph_ != nullptr; }
   turboshaft::Graph& graph() const { return *graph_; }
@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE PipelineData
 
   LoopUnrollingAnalyzer* loop_unrolling_analyzer_ = nullptr;
 
-  std::unique_ptr<turboshaft::Graph> graph_;
+  turboshaft::Graph* graph_;
 };
 
 void PrintTurboshaftGraph(Zone* temp_zone, CodeTracer* code_tracer,
