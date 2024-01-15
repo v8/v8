@@ -1174,15 +1174,16 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type, bool i64_offset) {
-  PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
-  lay(ip,
-      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
 
   LiftoffRegList pinned = LiftoffRegList{dst_addr, expected, new_value, result};
   if (offset_reg != no_reg) pinned.set(offset_reg);
   Register tmp1 = GetUnusedRegister(kGpReg, pinned).gp();
   pinned.set(tmp1);
   Register tmp2 = GetUnusedRegister(kGpReg, pinned).gp();
+
+  PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
+  lay(ip,
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm));
 
   switch (type.value()) {
     case StoreType::kI32Store8:
