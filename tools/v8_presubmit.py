@@ -309,8 +309,7 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
       print('Could not find the formatter for % files' % self.file_type)
       sys.exit(1)
 
-    vpython_spec = join(TOOLS_PATH, '.vpython3')
-    command = ['vpython3', f'-vpython-spec={vpython_spec}', format_processor]
+    command = [sys.executable, format_processor]
     command.extend(options)
 
     return command
