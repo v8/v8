@@ -146,13 +146,16 @@ void InstructionStream::Finalize(Tagged<Code> code,
                                      code->constant_pool(), no_gc));
 
     // Publish the code pointer after the istream has been fully initialized.
-    writable_allocation.WriteHeaderSlot<Code, kCodeOffset>(code, kReleaseStore);
+    // TODO(sroettger): this write should go through writable_allocation. At
+    // this point, set_code could probably be removed entirely.
+    set_code(code, kReleaseStore);
   }
 
   // Trigger the write barriers after we dropped  the JIT write permissions.
   RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
                                 no_gc);
-  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, code, UPDATE_WRITE_BARRIER);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, code,
+                                         UPDATE_WRITE_BARRIER);
 
   code->FlushICache();
 }
@@ -167,21 +170,28 @@ Address InstructionStream::body_end() const {
 }
 
 Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
+#ifdef V8_ENABLE_SANDBOX
+  Tagged<Object> value =
+      RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
+          .Acquire_Load(GetIsolateForSandbox(*this));
+#else
   PtrComprCageBase cage_base = main_cage_base();
   Tagged<Object> value =
       TaggedField<Object, kCodeOffset>::Acquire_Load(cage_base, *this);
+#endif
   DCHECK(!ObjectInYoungGeneration(value));
   return value;
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
-  return Code::cast(raw_code(tag));
+  return ReadCodePointerField(kCodeOffset, GetIsolateForSandbox(*this));
 }
 
 void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag) {
   DCHECK(!ObjectInYoungGeneration(value));
-  TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, UPDATE_WRITE_BARRIER);
+  WriteCodePointerField(kCodeOffset, value);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value,
+                                         UPDATE_WRITE_BARRIER);
 }
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
