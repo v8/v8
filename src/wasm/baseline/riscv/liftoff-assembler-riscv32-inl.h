@@ -431,14 +431,22 @@ namespace liftoff {
 #define __ lasm->
 
 inline Register CalculateActualAddress(LiftoffAssembler* lasm,
+                                       UseScratchRegisterScope& temps,
                                        Register addr_reg, Register offset_reg,
                                        uintptr_t offset_imm,
-                                       Register result_reg) {
-  DCHECK_NE(offset_reg, no_reg);
-  DCHECK_NE(addr_reg, no_reg);
-  __ AddWord(result_reg, addr_reg, Operand(offset_reg));
-  if (offset_imm != 0) {
-    __ AddWord(result_reg, result_reg, Operand(offset_imm));
+                                       Register result_reg = no_reg) {
+  if (offset_reg == no_reg && offset_imm == 0) {
+    if (result_reg == addr_reg || result_reg == no_reg) return addr_reg;
+    lasm->mv(result_reg, addr_reg);
+    return result_reg;
+  }
+  if (result_reg == no_reg) result_reg = temps.Acquire();
+  if (offset_reg == no_reg) {
+    lasm->AddWord(result_reg, addr_reg, Operand(offset_imm));
+  } else {
+    lasm->AddWord(result_reg, addr_reg, Operand(offset_reg));
+    if (offset_imm != 0)
+      lasm->AddWord(result_reg, result_reg, Operand(offset_imm));
   }
   return result_reg;
 }
@@ -454,7 +462,8 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Register dst_addr,
   RegList result_list = {result.low_gp(), result.high_gp()};
   // Result registers does not need to be pushed.
   __ MultiPush(c_params - result_list);
-  liftoff::CalculateActualAddress(lasm, dst_addr, offset_reg, offset_imm,
+  UseScratchRegisterScope temps(lasm);
+  liftoff::CalculateActualAddress(lasm, temps, dst_addr, offset_reg, offset_imm,
                                   kScratchReg);
   __ Mv(kCArgRegs[1], value.low_gp());
   __ Mv(kCArgRegs[2], value.high_gp());
@@ -496,7 +505,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                         Register offset_reg, uintptr_t offset_imm,
                         LiftoffRegister value, LiftoffRegister result,
                         StoreType type, Binop op) {
-  LiftoffRegList pinned{dst_addr, offset_reg, value, result};
+  LiftoffRegList pinned{dst_addr, value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
   Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
   // Make sure that {result} is unique.
@@ -526,7 +536,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
-      lasm, dst_addr, offset_reg, offset_imm, temps.Acquire());
+      lasm, temps, dst_addr, offset_reg, offset_imm);
 
   // Allocate an additional {temp} register to hold the result that should be
   // stored to memory. Note that {temp} and {store_result} are not allowed to be
@@ -624,8 +634,8 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   LoadType type, LiftoffRegList pinned,
                                   bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  Register src_reg = liftoff::CalculateActualAddress(
-      this, src_addr, offset_reg, offset_imm, temps.Acquire());
+  Register src_reg = liftoff::CalculateActualAddress(this, temps, src_addr,
+                                                     offset_reg, offset_imm);
   Register dst_reg = no_reg;
   switch (type.value()) {
     case LoadType::kI32Load8U:
@@ -677,8 +687,8 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    StoreType type, LiftoffRegList pinned,
                                    bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  Register dst_reg = liftoff::CalculateActualAddress(
-      this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
+                                                     offset_reg, offset_imm);
   Register src_reg = no_reg;
   switch (type.value()) {
     case StoreType::kI32Store8:
@@ -733,7 +743,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);  // High word of result is always 0.
       result = result.low();
@@ -760,7 +770,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);
       result = result.low();
@@ -787,7 +797,7 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);
       result = result.low();
@@ -813,7 +823,7 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);
       result = result.low();
@@ -839,7 +849,7 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);
       result = result.low();
@@ -866,7 +876,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
       type.value() == StoreType::kI64Store32) {
     UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, temps.Acquire());
+        this, temps, dst_addr, offset_reg, offset_imm);
     if (type.value() == StoreType::kI64Store32) {
       mv(result.high_gp(), zero_reg);
       result = result.low();
@@ -884,11 +894,13 @@ void LiftoffAssembler::AtomicCompareExchange(
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type, bool i64_offset) {
   ASM_CODE_COMMENT(this);
-  LiftoffRegList pinned{dst_addr, offset_reg, expected, new_value, result};
+  LiftoffRegList pinned{dst_addr, expected, new_value, result};
+  if (offset_reg != no_reg) pinned.set(offset_reg);
 
   if (type.value() == StoreType::kI64Store) {
+    UseScratchRegisterScope temps(this);
     Register actual_addr = liftoff::CalculateActualAddress(
-        this, dst_addr, offset_reg, offset_imm, kScratchReg);
+        this, temps, dst_addr, offset_reg, offset_imm, kScratchReg);
     FrameScope scope(this, StackFrame::MANUAL);
     // NOTE:
     // a0~a4 are caller-saved registers and also used
@@ -909,8 +921,9 @@ void LiftoffAssembler::AtomicCompareExchange(
     CallCFunction(ExternalReference::atomic_pair_compare_exchange_function(), 5,
                   0);
     MultiPop(kJSCallerSaved - c_params - result_list);
+    Mv(kScratchReg, kReturnRegister1);
     Mv(result.low_gp(), kReturnRegister0);
-    Mv(result.high_gp(), kReturnRegister1);
+    Mv(result.high_gp(), kScratchReg);
     MultiPop(c_params - result_list);
     return;
   }
@@ -934,7 +947,7 @@ void LiftoffAssembler::AtomicCompareExchange(
 
   UseScratchRegisterScope temps(this);
   Register actual_addr = liftoff::CalculateActualAddress(
-      this, dst_addr, offset_reg, offset_imm, kScratchReg);
+      this, temps, dst_addr, offset_reg, offset_imm, kScratchReg);
 
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
