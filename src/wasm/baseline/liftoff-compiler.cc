@@ -1007,6 +1007,8 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallBuiltin(ool->builtin);
+    // It is safe to not check for existing safepoint at this address since we
+    // just emitted a call.
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
 
     if (ool->safepoint_info) {
@@ -8508,12 +8510,18 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint(int pc_offset = 0) {
+    if (pc_offset == 0) pc_offset = __ pc_offset_for_safepoint();
+    if (pc_offset == last_safepoint_offset_) return;
+    last_safepoint_offset_ = pc_offset;
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
     __ cache_state()->DefineSafepoint(safepoint);
   }
 
   void DefineSafepointWithCalleeSavedRegisters() {
-    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    int pc_offset = __ pc_offset_for_safepoint();
+    if (pc_offset == last_safepoint_offset_) return;
+    last_safepoint_offset_ = pc_offset;
+    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
     __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
   }
 
@@ -8600,6 +8608,10 @@ class LiftoffCompiler {
 
   // Current number of exception refs on the stack.
   int num_exceptions_ = 0;
+
+  // The pc_offset of the last defined safepoint. -1 if no safepoint has been
+  // defined yet.
+  int last_safepoint_offset_ = -1;
 
   // Updated during compilation on every "call" or "call_ref" instruction.
   // Holds the call target, or {FunctionTypeFeedback::kNonDirectCall} for
