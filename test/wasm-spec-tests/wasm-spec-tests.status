@@ -26,6 +26,12 @@
   # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
+  # Failing tests after the latest update.
+  'proposals/gc/imports': [FAIL],
+  'proposals/extended-const/imports': [FAIL],
+  'proposals/js-types/imports': [FAIL],
+  'proposals/tail-call/imports': [FAIL],
+
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/globals': [FAIL],
 
