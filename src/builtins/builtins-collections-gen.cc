@@ -630,7 +630,6 @@ void CollectionsBuiltinsAssembler::GetEntriesIfFastCollectionOrIterable(
     Goto(&exit);
   }
   BIND(&exit);
-  return;
 }
 
 void CollectionsBuiltinsAssembler::AddConstructorEntriesFromSet(
@@ -687,7 +686,6 @@ void CollectionsBuiltinsAssembler::AddConstructorEntriesFromSet(
                          IndexAdvanceMode::kPost);
   Goto(&exit);
   BIND(&exit);
-  return;
 }
 
 void CollectionsBuiltinsAssembler::AddConstructorEntriesFromFastCollection(

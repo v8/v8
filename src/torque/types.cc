@@ -37,7 +37,7 @@ Type::Type(TypeBase::Kind kind, const Type* parent,
       constexpr_version_(nullptr) {}
 
 std::string Type::ToString() const {
-  if (aliases_.size() == 0)
+  if (aliases_.empty())
     return ComputeName(ToExplicitString(), GetSpecializedFrom());
   if (aliases_.size() == 1) return *aliases_.begin();
   std::stringstream result;
@@ -321,7 +321,7 @@ void UnionType::Subtract(const Type* t) {
       ++it;
     }
   }
-  if (types_.size() == 0) types_.insert(TypeOracle::GetNeverType());
+  if (types_.empty()) types_.insert(TypeOracle::GetNeverType());
   RecomputeParent();
 }
 
@@ -992,7 +992,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
     os << *sig.parameter_types.types[i];
   }
   if (sig.parameter_types.var_args) {
-    if (sig.parameter_names.size()) os << ", ";
+    if (!sig.parameter_names.empty()) os << ", ";
     os << "...";
   }
   os << ")";
@@ -1004,7 +1004,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   for (size_t i = 0; i < sig.labels.size(); ++i) {
     if (i > 0) os << ", ";
     os << sig.labels[i].name;
-    if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
+    if (!sig.labels[i].types.empty()) os << "(" << sig.labels[i].types << ")";
   }
 }
 
@@ -1036,7 +1036,7 @@ std::ostream& operator<<(std::ostream& os, const TypeVector& types) {
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
   PrintCommaSeparatedList(os, p.types);
   if (p.var_args) {
-    if (p.types.size() > 0) os << ", ";
+    if (!p.types.empty()) os << ", ";
     os << "...";
   }
   return os;

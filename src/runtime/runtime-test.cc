@@ -1263,7 +1263,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   }
 
   MaybeObject maybe_object(*args.address_of_arg_at(0));
-  DebugPrintImpl(maybe_object, *output_stream.get());
+  DebugPrintImpl(maybe_object, *output_stream);
   return args[0];
 }
 

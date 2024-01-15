@@ -1423,7 +1423,7 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
       CollectPrivateMembersFromReceiver(isolate, receiver, desc, &results),
       Nothing<bool>());
 
-  if (results.size() == 0) {
+  if (results.empty()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NewError(not_found_message, desc),
                                  Nothing<bool>());
   } else if (results.size() > 1) {

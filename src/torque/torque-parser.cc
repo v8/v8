@@ -367,7 +367,7 @@ Expression* MakeCall(IdentifierExpression* callee,
   for (auto* statement : otherwise) {
     if (auto* e = ExpressionStatement::DynamicCast(statement)) {
       if (auto* id = IdentifierExpression::DynamicCast(e->expression)) {
-        if (id->generic_arguments.size() != 0) {
+        if (!id->generic_arguments.empty()) {
           ReportError("An otherwise label cannot have generic parameters");
         }
         labels.push_back(id->name);
@@ -623,7 +623,7 @@ namespace {
 bool HasAnnotation(ParseResultIterator* child_results, const char* annotation,
                    const char* declaration) {
   auto annotations = child_results->NextAs<std::vector<Annotation>>();
-  if (annotations.size()) {
+  if (!annotations.empty()) {
     if (annotations.size() > 1 || annotations[0].name->value != annotation) {
       Error(declaration, " declarations only support a single ", annotation,
             " annotation");
@@ -924,7 +924,7 @@ base::Optional<ParseResult> YieldIntegerLiteral(
   std::string value = child_results->matched_input().ToString();
   // Consume a leading minus.
   bool negative = false;
-  if (value.size() > 0 && value[0] == '-') {
+  if (!value.empty() && value[0] == '-') {
     negative = true;
     value = value.substr(1);
   }

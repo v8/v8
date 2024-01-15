@@ -227,7 +227,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
-    if (parameter_types.size() != 0) {
+    if (!parameter_types.empty()) {
       ReportError("%GetClassMapConstant must not take parameters");
     }
     if (instruction.specialization_types.size() != 1) {
@@ -600,7 +600,7 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
 
     PostCallableExceptionPreparation(
         catch_name,
-        result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
+        result_types.empty() ? TypeOracle::GetVoidType() : result_types[0],
         instruction.catch_block, &pre_call_stack,
         instruction.GetExceptionObjectDefinition());
   }

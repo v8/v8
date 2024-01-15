@@ -1948,7 +1948,7 @@ void FailCallableLookup(
         inapplicable_generics) {
   std::stringstream stream;
   stream << "\n" << reason << ": \n  " << name << "(" << parameter_types << ")";
-  if (labels.size() != 0) {
+  if (!labels.empty()) {
     stream << " labels ";
     for (size_t i = 0; i < labels.size(); ++i) {
       stream << labels[i]->name() << "(" << labels[i]->parameter_types << ")";
@@ -1959,7 +1959,7 @@ void FailCallableLookup(
     stream << "\n  " << name;
     PrintSignature(stream, signature, false);
   }
-  if (inapplicable_generics.size() != 0) {
+  if (!inapplicable_generics.empty()) {
     stream << "\nfailed to instantiate all of these generic declarations:";
     for (auto& failure : inapplicable_generics) {
       GenericCallable* generic = failure.first;
@@ -2433,7 +2433,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
           KytheData::AddBindingUse(expr->name->pos, *value);
         }
       }
-      if (expr->generic_arguments.size() != 0) {
+      if (!expr->generic_arguments.empty()) {
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
       }
@@ -2455,7 +2455,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
                                         "builtin " + expr->name->value);
   }
-  if (expr->generic_arguments.size() != 0) {
+  if (!expr->generic_arguments.empty()) {
     GenericCallable* generic = Declarations::LookupUniqueGeneric(name);
     Callable* specialization =
         GetOrCreateSpecialization(SpecializationKey<GenericCallable>{
