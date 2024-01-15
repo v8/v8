@@ -147,6 +147,7 @@
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
 #include "src/compiler/revectorizer.h"
+#include "src/compiler/turboshaft/wasm-revec-phase.h"
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 namespace v8 {
@@ -3810,7 +3811,12 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
                                      "Graph generation");
 
     data.BeginPhaseKind("V8.WasmOptimization");
-
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+    if (v8_flags.experimental_wasm_revectorize && detected->has_simd() &&
+        !env->enabled_features.has_memory64()) {
+      pipeline.Run<turboshaft::WasmRevecPhase>();
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
     const bool uses_wasm_gc_features = detected->has_gc() ||
                                        detected->has_stringref() ||
                                        detected->has_imported_strings();
