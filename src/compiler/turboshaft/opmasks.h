@@ -80,12 +80,22 @@ struct MaskBuilder {
     static_assert(OFFSET_OF(Operation, opcode) == 0);
     static_assert(sizeof(Operation::opcode) == sizeof(uint8_t));
     static_assert(sizeof(Operation) == 4);
+#if V8_TARGET_BIG_ENDIAN
+    return static_cast<uint64_t>(0xFF)
+           << ((sizeof(uint64_t) - sizeof(uint8_t)) * kBitsPerByte);
+#else
     return static_cast<uint64_t>(0xFF);
+#endif
   }
 
   static constexpr uint64_t EncodeBaseValue(Opcode opcode) {
     static_assert(OFFSET_OF(Operation, opcode) == 0);
+#if V8_TARGET_BIG_ENDIAN
+    return static_cast<uint64_t>(opcode)
+           << ((sizeof(uint64_t) - sizeof(Operation::opcode)) * kBitsPerByte);
+#else
     return static_cast<uint64_t>(opcode);
+#endif
   }
 
   static constexpr uint64_t BuildMask() {
@@ -105,12 +115,21 @@ struct MaskBuilder {
     static_assert(F::offset + F::size <= sizeof(uint64_t));
     constexpr uint64_t ones = static_cast<uint64_t>(-1) >>
                               ((sizeof(uint64_t) - F::size) * kBitsPerByte);
+#if V8_TARGET_BIG_ENDIAN
+    return ones << ((sizeof(uint64_t) - F::size - F::offset) * kBitsPerByte);
+#else
     return ones << (F::offset * kBitsPerByte);
+#endif
   }
 
   template <typename F>
   static constexpr uint64_t EncodeFieldValue(typename F::type value) {
+#if V8_TARGET_BIG_ENDIAN
+    return encode_for_mask(value)
+           << ((sizeof(uint64_t) - F::size - F::offset) * kBitsPerByte);
+#else
     return encode_for_mask(value) << (F::offset * kBitsPerByte);
+#endif
   }
 
   template <typename Fields::type... Args>
