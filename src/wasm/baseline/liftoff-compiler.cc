@@ -7948,7 +7948,6 @@ class LiftoffCompiler {
     if (needs_type_check) {
       CODE_COMMENT("Check indirect call signature");
       Register real_sig_id = tmp1;
-      Register formal_sig_id = tmp2;
 
       // Load the signature from {instance->ift_sig_ids[key]}
       if (imm.table_imm.index == 0) {
@@ -7968,11 +7967,10 @@ class LiftoffCompiler {
               LoadType::kI32Load, nullptr, false, false, true);
 
       // Compare against expected signature.
-      LOAD_INSTANCE_FIELD(formal_sig_id, IsorecursiveCanonicalTypes,
-                          kSystemPointerSize, pinned);
-      __ Load(LiftoffRegister(formal_sig_id), formal_sig_id, no_reg,
-              imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
-
+      // Since Liftoff code is never serialized (hence not reused across
+      // isolates / processes) the canonical signature ID is a static integer.
+      uint32_t canonical_sig_id =
+          decoder->module_->isorecursive_canonical_type_ids[imm.sig_imm.index];
       Label* sig_mismatch_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
       __ DropValues(1);
@@ -7981,8 +7979,8 @@ class LiftoffCompiler {
           !decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
-        __ emit_cond_jump(kEqual, &success_label, kI32, real_sig_id,
-                          formal_sig_id, frozen);
+        __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id,
+                               canonical_sig_id, frozen);
         if (needs_null_check) {
           __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
                                  frozen);
@@ -8013,7 +8011,7 @@ class LiftoffCompiler {
         uint32_t rtt_depth =
             GetSubtypingDepth(decoder->module_, imm.sig_imm.index);
         if (rtt_depth >= kMinimumSupertypeArraySize) {
-          LiftoffRegister list_length(formal_sig_id);
+          LiftoffRegister list_length(tmp2);
           int offset =
               ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
           __ LoadSmiAsInt32(list_length, type_info, offset);
@@ -8026,7 +8024,7 @@ class LiftoffCompiler {
             maybe_match, type_info, no_reg,
             ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                    rtt_depth * kTaggedSize));
-        Register formal_rtt = formal_sig_id;
+        Register formal_rtt = tmp2;
         LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt, ManagedObjectMaps, pinned);
         __ LoadTaggedPointer(
             formal_rtt, formal_rtt, no_reg,
@@ -8038,8 +8036,8 @@ class LiftoffCompiler {
         __ bind(&success_label);
       } else {
         FREEZE_STATE(trapping);
-        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kI32, real_sig_id,
-                          formal_sig_id, trapping);
+        __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch_label, real_sig_id,
+                               canonical_sig_id, trapping);
       }
     } else if (needs_null_check) {
       CODE_COMMENT("Check indirect call element for nullity");
