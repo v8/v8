@@ -1718,6 +1718,8 @@
 ['variant == stress_concurrent_inlining', {
   # Flaky under this variant, skipping per https://crbug.com/v8/12267#c4
   'compiler/inlined-call-polymorphic': [SKIP],
+  # Flaky under this variant, skipping per https://crbug.com/v8/14560#c2
+  'turboshaft/turboshaft-frontend-test': [SKIP]
 }],  # variant == stress_concurrent_inlining
 
 ##############################################################################
