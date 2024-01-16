@@ -547,20 +547,21 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK(enabled_features_.has_gc());
     uint8_t kind = consume_u8(" kind: ", tracer_);
     if (tracer_) tracer_->Description(TypeKindName(kind));
+    const bool is_final = true;
     switch (kind) {
       case kWasmFunctionTypeCode: {
         const FunctionSig* sig = consume_sig(&module_->signature_zone);
-        return {sig, kNoSuperType, v8_flags.wasm_final_types};
+        return {sig, kNoSuperType, is_final};
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
         const StructType* type = consume_struct(&module_->signature_zone);
-        return {type, kNoSuperType, v8_flags.wasm_final_types};
+        return {type, kNoSuperType, is_final};
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
         const ArrayType* type = consume_array(&module_->signature_zone);
-        return {type, kNoSuperType, v8_flags.wasm_final_types};
+        return {type, kNoSuperType, is_final};
       }
       default:
         if (tracer_) tracer_->NextLine();
@@ -574,8 +575,7 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
       module_->is_wasm_gc = true;
-      bool is_final =
-          v8_flags.wasm_final_types && kind == kWasmSubtypeFinalCode;
+      bool is_final = kind == kWasmSubtypeFinalCode;
       consume_bytes(1, is_final ? " subtype final, " : " subtype extensible, ",
                     tracer_);
       constexpr uint32_t kMaximumSupertypes = 1;
@@ -630,7 +630,8 @@ class ModuleDecoderImpl : public Decoder {
             consume_bytes(1, "function");
             const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
-            module_->types[i] = {sig, kNoSuperType, v8_flags.wasm_final_types};
+            const bool is_final = true;
+            module_->types[i] = {sig, kNoSuperType, is_final};
             type_canon->AddRecursiveSingletonGroup(module_.get(), i);
             break;
           }

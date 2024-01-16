@@ -1116,7 +1116,6 @@ TEST_F(WasmModuleVerifyTest, NoSupertypeSupertype) {
 TEST_F(WasmModuleVerifyTest, NonSpecifiedFinalType) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(wasm_final_types);
   static const uint8_t final_supertype[] = {
       SECTION(Type, ENTRY_COUNT(2),                 // --
               kWasmStructTypeCode, 1, kI32Code, 1,  // --
@@ -1128,7 +1127,6 @@ TEST_F(WasmModuleVerifyTest, NonSpecifiedFinalType) {
 TEST_F(WasmModuleVerifyTest, SpecifiedFinalType) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(wasm_final_types);
   static const uint8_t final_supertype[] = {
       SECTION(Type, ENTRY_COUNT(2),                 // --
               kWasmSubtypeFinalCode, 0,             // --

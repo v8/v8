@@ -268,8 +268,8 @@ class WasmGenerator {
         builder.AddReturn(type);
       }
       FunctionSig* sig = builder.Build();
-      int sig_id = gen->builder_->builder()->AddSignature(
-          sig, v8_flags.wasm_final_types);
+      const bool is_final = true;
+      int sig_id = gen->builder_->builder()->AddSignature(sig, is_final);
       gen->builder_->EmitI32V(sig_id);
     }
 
@@ -405,8 +405,9 @@ class WasmGenerator {
       // Base case: emit the try-table itself.
       builder_->Emit(kExprTryTable);
       blocks_.emplace_back(return_types.begin(), return_types.end());
+      const bool is_final = true;
       uint32_t try_sig_index = builder_->builder()->AddSignature(
-          ToSig(param_types, return_types), v8_flags.wasm_final_types);
+          ToSig(param_types, return_types), is_final);
       builder_->EmitI32V(try_sig_index);
       builder_->EmitU32V(static_cast<uint32_t>(catch_cases.size()));
       for (size_t j = 0; j < catch_cases.size(); ++j) {
@@ -3390,8 +3391,9 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     // We keep the signature for the first (main) function constant.
+    const bool is_final = true;
     function_signatures.push_back(
-        builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
+        builder.ForceAddSignature(sigs.i_iii(), is_final));
     current_type_index++;
 
     for (; current_type_index < num_types; current_type_index++) {
@@ -3401,8 +3403,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                           : current_type_index;
       FunctionSig* sig = GenerateSig(zone, &module_range, kFunctionSig,
                                      current_rec_group_end + 1);
-      uint32_t signature_index =
-          builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
+      uint32_t signature_index = builder.ForceAddSignature(sig, is_final);
       function_signatures.push_back(signature_index);
     }
 

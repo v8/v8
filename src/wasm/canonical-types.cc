@@ -131,8 +131,8 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
   for (ValueType type : sig->all()) DCHECK(!type.has_index());
 #endif
   CanonicalSingletonGroup group;
-  group.type.type_def =
-      TypeDefinition(sig, kNoSuperType, v8_flags.wasm_final_types);
+  const bool is_final = true;
+  group.type.type_def = TypeDefinition(sig, kNoSuperType, is_final);
   group.type.is_relative_supertype = false;
   int canonical_index = FindCanonicalGroup(group);
   if (canonical_index >= 0) return canonical_index;
@@ -145,8 +145,7 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
   for (auto type : sig->returns()) builder.AddReturn(type);
   for (auto type : sig->parameters()) builder.AddParam(type);
   const FunctionSig* allocated_sig = builder.Build();
-  group.type.type_def =
-      TypeDefinition(allocated_sig, kNoSuperType, v8_flags.wasm_final_types);
+  group.type.type_def = TypeDefinition(allocated_sig, kNoSuperType, is_final);
   group.type.is_relative_supertype = false;
   canonical_singleton_groups_.emplace(group, canonical_index);
   canonical_supertypes_.emplace_back(kNoSuperType);

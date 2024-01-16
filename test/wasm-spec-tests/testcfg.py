@@ -30,7 +30,7 @@ proposal_flags = [
     },
     {
         'name': 'gc',
-        'flags': ['--wasm-final-types']
+        'flags': []
     },
     {
         'name': 'multi-memory',

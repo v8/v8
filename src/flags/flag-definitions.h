@@ -1543,7 +1543,6 @@ DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
               "wasm_inlinining_factor does not apply")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
-DEFINE_BOOL(wasm_final_types, true, "enable final types as default for wasm-gc")
 
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
 
