@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --trace-turbo-inlining --experimental-wasm-gc --allow-natives-syntax
+// Flags: --trace-turbo-inlining --allow-natives-syntax
 // Flags: --turbofan --no-always-turbofan --no-always-sparkplug
-// Flags: --experimental-wasm-js-inlining
 // Concurrent inlining leads to additional traces.
 // Flags: --no-stress-concurrent-inlining
 

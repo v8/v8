@@ -26,16 +26,11 @@ proposal_flags = [
     },
     {
         'name': 'function-references',
-        # Some of these tests need `global.get` to be a constant instruction,
-        # which is part of the GC proposal. We'll ship both proposals at once
-        # anyway, so we might as well enable both for these tests.
-        'flags': [
-            '--experimental-wasm-typed-funcref', '--experimental-wasm-gc'
-        ]
+        'flags': []
     },
     {
         'name': 'gc',
-        'flags': ['--experimental-wasm-gc', '--wasm-final-types']
+        'flags': ['--wasm-final-types']
     },
     {
         'name': 'multi-memory',

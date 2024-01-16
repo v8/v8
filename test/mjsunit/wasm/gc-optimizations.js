@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-liftoff --no-wasm-lazy-compilation
 // Flags: --no-experimental-wasm-inlining --no-wasm-loop-unrolling
 // Flags: --no-wasm-loop-peeling
 

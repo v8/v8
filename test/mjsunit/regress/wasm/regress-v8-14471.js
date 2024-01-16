@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --experimental-wasm-stack-switching
-// Flags: --experimental-wasm-typed-funcref --wasm-to-js-generic-wrapper
+// Flags: --wasm-to-js-generic-wrapper
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 

@@ -287,8 +287,6 @@ class FastJSWasmCallTester {
         zone_(&allocator_, ZONE_NAME),
         builder_(zone_.New<WasmModuleBuilder>(&zone_)),
         old_budget_(i::v8_flags.invocation_count_for_turbofan) {
-    i::v8_flags.experimental_wasm_typed_funcref = true;
-    i::v8_flags.experimental_wasm_typed_funcref = true;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inline_js_wasm_calls = true;
     i::v8_flags.stress_background_compile = false;

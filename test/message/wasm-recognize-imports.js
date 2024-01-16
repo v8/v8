@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --allow-natives-syntax
-// Flags: --experimental-wasm-gc --experimental-wasm-imported-strings
-// Flags: --trace-wasm-inlining --liftoff --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-imported-strings
+// Flags: --trace-wasm-inlining --liftoff
 // Also explicitly enable inlining and disable debug code to avoid differences
 // between --future and --no-future or debug and release builds.
 // Flags: --experimental-wasm-inlining --no-debug-code

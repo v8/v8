@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --experimental-wasm-stack-switching
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
-// Flags: --experimental-wasm-typed-funcref
 
 // We pick a small stack size to run the stack overflow test quickly, but big
 // enough to run all the tests.

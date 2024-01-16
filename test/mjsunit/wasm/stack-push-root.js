@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 // Tests that code generator behaves correctly when pushing to the stack an
 // operand that is an offset of the root register.
 

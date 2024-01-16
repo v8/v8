@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --allow-natives-syntax --turbofan
+// Flags: --allow-natives-syntax --turbofan
 // Flags: --no-always-turbofan --no-always-sparkplug --expose-gc
-// Flags: --experimental-wasm-js-inlining
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -648,7 +647,7 @@ function testStackTrace(error, expected) {
         testStackTrace(e, [
           /RuntimeError: illegal cast/,
           /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-          /at getTrap .*\.js:640:19/,
+          /at getTrap .*\.js:639:19/,
         ]);
       }
     };
@@ -673,8 +672,8 @@ function testStackTrace(error, expected) {
       testStackTrace(e, [
         /RuntimeError: illegal cast/,
         /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-        /at inlined .*\.js:662:40/,
-        /at getTrapNested .*\.js:661:14/,
+        /at inlined .*\.js:661:40/,
+        /at getTrapNested .*\.js:660:14/,
       ]);
       assertOptimized(getTrapNested);
     }

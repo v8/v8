@@ -63,7 +63,6 @@ void DefineSignature(WasmModule* module,
 }
 
 TEST_F(WasmSubtypingTest, Subtyping) {
-  FLAG_SCOPE(experimental_wasm_gc);
   v8::internal::AccountingAllocator allocator;
   WasmModule module1_;
   WasmModule module2_;

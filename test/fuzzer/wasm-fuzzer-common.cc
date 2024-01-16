@@ -791,7 +791,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 #undef ENABLE_STAGED_FEATURES
 
       // Enable non-staged experimental features that we also want to fuzz.
-      v8_flags.experimental_wasm_gc = true;
+      // <currently none>
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();

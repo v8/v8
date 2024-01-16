@@ -34,11 +34,11 @@ proposal_flags = [
     },
     {
         'name': 'function-references',
-        'flags': ['--experimental-wasm-typed-funcref']
+        'flags': []
     },
     {
         'name': 'gc',
-        'flags': ['--experimental-wasm-gc']
+        'flags': []
     },
 ]
 

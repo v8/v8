@@ -214,56 +214,6 @@ TEST_F(ApiWasmTest, WasmErrorIsSharedCrossOrigin) {
   EXPECT_TRUE(message->IsSharedCrossOrigin());
 }
 
-TEST_F(ApiWasmTest, WasmEnableDisableGC) {
-  Local<Context> context_local = Context::New(isolate());
-  Context::Scope context_scope(context_local);
-  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
-  const bool expect_gc = i::v8_flags.experimental_wasm_gc;
-  // Inlining is enabled in --future.
-  const bool expect_inlining =
-      i::v8_flags.future || i::v8_flags.experimental_wasm_inlining;
-  // When using the flags, stringref and GC are controlled independently.
-  {
-    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);
-    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
-                                      true);
-    EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
-    EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
-  }
-  {
-    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, true);
-    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
-                                      false);
-    EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
-    EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  }
-  // When providing a callback, the callback will control GC, stringref,
-  // and inlining.
-  isolate()->SetWasmGCEnabledCallback([](auto) { return true; });
-  EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
-  EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
-  EXPECT_TRUE(i_isolate()->IsWasmInliningEnabled(context));
-  {
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    EXPECT_TRUE(enabled_features.has_gc());
-    EXPECT_TRUE(enabled_features.has_stringref());
-    EXPECT_TRUE(enabled_features.has_typed_funcref());
-    EXPECT_TRUE(enabled_features.has_inlining());
-  }
-  isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
-  EXPECT_EQ(expect_gc, i_isolate()->IsWasmGCEnabled(context));
-  EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  EXPECT_EQ(expect_inlining, i_isolate()->IsWasmInliningEnabled(context));
-  {
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    EXPECT_EQ(expect_gc, enabled_features.has_gc());
-    EXPECT_FALSE(enabled_features.has_stringref());
-    EXPECT_EQ(expect_gc, enabled_features.has_typed_funcref());
-    EXPECT_EQ(expect_inlining, enabled_features.has_inlining());
-  }
-  isolate()->SetWasmGCEnabledCallback(nullptr);
-}
-
 TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-js-inlining
-
 /**
  * Note: The wasm module builder is not available for performance tests.
  * To change the wasm code, switch the use_module_builder flag to true, update
