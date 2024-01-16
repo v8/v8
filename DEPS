@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b8562a4abd9528372f274b1155aec65c57ca84fa',
+  'gn_version': 'git_revision:5d76868385b81d6c4fb3256240a2ce449c37b5ee',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5d836edf8efbb4461468104beda3bd194b215ecf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8027e9a36e5ddd64cc492bbb33f4402b1f02910c',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7e93f2c1ecae914ca50f72fa8cc65edfc176a337',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3ee479b79be783bdc3a1641fd540f41e24f77e4c',
   'buildtools/linux64': {
     'packages': [
       {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6fd04d10d17ae5354fcf53f499c5837e7a438138',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'be17f2f1bd3bcb209b86897fd81c2c06d1f2b56d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -281,7 +281,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '53801f26327be0359ffd785d2c9b186067ac6ef6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e8bd6ce42bcf735487c7822e6ba18a87d3687240',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'aa4b8671c48b352d3f01e694f0227b2f9bdffeae',
   'third_party/libunwind/src':
