@@ -67,7 +67,7 @@ class MapCompare {
   Register map_ = Register::no_reg();
 };
 
-class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
+class MaglevAssembler : public MacroAssembler {
  public:
   class ScratchRegisterScope;
 
