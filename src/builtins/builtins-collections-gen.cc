@@ -48,11 +48,20 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     Variant variant, TNode<Context> context,
     TNode<NativeContext> native_context, TNode<HeapObject> collection,
     TNode<Object> initial_entries) {
+  CSA_DCHECK(this, Word32BinaryNot(IsNullOrUndefined(initial_entries)));
+
   enum Mode { kSlow, kFastJSArray, kFastCollection };
   TVARIABLE(IntPtrT, var_at_least_space_for, IntPtrConstant(0));
   TVARIABLE(HeapObject, var_entries_table, UndefinedConstant());
   TVARIABLE(Int32T, var_mode, Int32Constant(kSlow));
   Label if_fast_js_array(this), allocate_table(this);
+
+  // The slow path is taken if the initial add function is modified. This check
+  // must precede the kSet fast path below, which has the side effect of
+  // exhausting {initial_entries} if it is a JSSetIterator.
+  GotoIfInitialAddFunctionModified(variant, native_context, collection,
+                                   &allocate_table);
+
   GotoIf(IsFastJSArrayWithNoCustomIteration(context, initial_entries),
          &if_fast_js_array);
   if (variant == Variant::kSet) {
@@ -87,9 +96,6 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<HeapObject> table =
         AllocateTable(variant, var_at_least_space_for.value());
     StoreObjectField(collection, GetTableOffset(variant), table);
-    GotoIf(IsNullOrUndefined(initial_entries), &exit);
-    GotoIfInitialAddFunctionModified(variant, native_context, collection,
-                                     &slow_loop);
     if (variant == Variant::kSet) {
       GotoIf(Word32Equal(var_mode.value(), Int32Constant(kFastCollection)),
              &from_fast_collection);
@@ -262,7 +268,6 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
     TVariable<Object>* var_exception) {
   Label exit(this), loop(this);
   CSA_DCHECK(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
-
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
   TorqueStructIteratorRecord iterator =
@@ -377,6 +382,18 @@ void BaseCollectionsAssembler::GenerateConstructor(
   TNode<JSObject> collection = AllocateJSCollection(
       context, GetConstructor(variant, native_context), CAST(new_target));
 
+  Label add_constructor_entries(this);
+
+  // The empty case.
+  //
+  // This is handled specially to simplify AddConstructorEntries, which is
+  // complex and contains multiple fast paths.
+  GotoIfNot(IsNullOrUndefined(iterable), &add_constructor_entries);
+  TNode<HeapObject> table = AllocateTable(variant, IntPtrConstant(0));
+  StoreObjectField(collection, GetTableOffset(variant), table);
+  Return(collection);
+
+  BIND(&add_constructor_entries);
   AddConstructorEntries(variant, context, native_context, collection, iterable);
   Return(collection);
 
