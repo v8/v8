@@ -521,7 +521,7 @@ extras_accessors = [
     'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
     'Oddball, kind, int, offsetof(Oddball, kind_)',
-    'HeapNumber, value, double, kValueOffset',
+    'HeapNumber, value, double, offsetof(HeapNumber, value_)',
     'ExternalString, resource, Object, offsetof(ExternalString, resource_)',
     'SeqOneByteString, chars, char, OFFSET_OF_DATA_START(SeqOneByteString)',
     'SeqTwoByteString, chars, char, OFFSET_OF_DATA_START(SeqTwoByteString)',

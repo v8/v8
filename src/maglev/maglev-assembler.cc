@@ -21,9 +21,9 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
   // register. Even if it is not live in the next node, otherwise the
   // allocation call might trash it.
   register_snapshot.live_double_registers.set(value);
-  Allocate(register_snapshot, result, HeapNumber::kSize);
+  Allocate(register_snapshot, result, sizeof(HeapNumber));
   SetMapAsRoot(result, RootIndex::kHeapNumberMap);
-  StoreFloat64(FieldMemOperand(result, HeapNumber::kValueOffset), value);
+  StoreFloat64(FieldMemOperand(result, offsetof(HeapNumber, value_)), value);
 }
 
 void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
@@ -231,7 +231,7 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
       [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
          ZoneLabelRef is_false) {
         __ CompareDoubleAndJumpIfZeroOrNaN(
-            FieldMemOperand(value, HeapNumber::kValueOffset), *is_false);
+            FieldMemOperand(value, offsetof(HeapNumber, value_)), *is_false);
         __ Jump(*is_true);
       },
       value, is_true, is_false);
@@ -245,7 +245,7 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
       [](MaglevAssembler* masm, Register value, Register map,
          ZoneLabelRef is_true, ZoneLabelRef is_false) {
         __ TestInt32AndJumpIfAllClear(
-            FieldMemOperand(value, BigInt::kBitfieldOffset),
+            FieldMemOperand(value, offsetof(BigInt, bitfield_)),
             BigInt::LengthBits::kMask, *is_false);
         __ Jump(*is_true);
       },

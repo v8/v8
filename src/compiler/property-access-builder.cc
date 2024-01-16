@@ -221,7 +221,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
-                                                FieldAccess& field_access,
+                                                FieldAccess&& field_access,
                                                 bool is_inobject, Node** effect,
                                                 Node** control) {
   Node* storage = holder;
@@ -274,8 +274,9 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef name, Node* holder,
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);
     }
-    field_access.offset = HeapNumber::kValueOffset;
-    field_access.name = MaybeHandle<Name>();
+    FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
+    value_field_access.const_field_info = field_access.const_field_info;
+    field_access = value_field_access;
   }
   Node* value = *effect = graph()->NewNode(
       simplified()->LoadField(field_access), storage, *effect, *control);
@@ -318,7 +319,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       }
     }
   }
-  return BuildLoadDataField(name, storage, field_access,
+  return BuildLoadDataField(name, storage, std::move(field_access),
                             access_info.field_index().is_inobject(), effect,
                             control);
 }

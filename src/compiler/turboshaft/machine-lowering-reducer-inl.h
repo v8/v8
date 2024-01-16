@@ -570,7 +570,7 @@ class MachineLoweringReducer : public Next {
         GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done, V<Smi>::Cast(input));
 
         V<Float64> value = __ template LoadField<Float64>(
-            input, AccessBuilder::ForHeapNumberOrOddballValue());
+            input, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
         GOTO(done, __ TagSmi(__ ReversibleFloat64ToInt32(value)));
 
         BIND(done, result);
@@ -957,7 +957,7 @@ class MachineLoweringReducer : public Next {
           }
           ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, __ ReversibleFloat64ToInt32(value));
           }
           END_IF
@@ -995,7 +995,7 @@ class MachineLoweringReducer : public Next {
           }
           ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, __ ReversibleFloat64ToInt64(value));
           }
           END_IF
@@ -1015,7 +1015,7 @@ class MachineLoweringReducer : public Next {
         }
         ELSE {
           V<Float64> value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberOrOddballValue());
+              object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
           GOTO(done, __ ReversibleFloat64ToUint32(value));
         }
         END_IF
@@ -1038,7 +1038,7 @@ class MachineLoweringReducer : public Next {
           }
           ELSE {
             V<Float64> value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberOrOddballValue());
+                object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
             GOTO(done, value);
           }
           END_IF
@@ -1254,7 +1254,7 @@ class MachineLoweringReducer : public Next {
         }
         ELSE {
           V<Float64> number_value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberOrOddballValue());
+              object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(number_value));
         }
         END_IF
@@ -1541,7 +1541,7 @@ class MachineLoweringReducer : public Next {
                   kNoWriteBarrier};
         the_hole_value = __ template LoadField<Float64>(
             __ HeapConstant(factory_->the_hole_value()),
-            AccessBuilder::ForHeapNumberOrOddballValue());
+            AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
         break;
       }
       case NewArrayOp::Kind::kObject: {
@@ -2939,10 +2939,10 @@ class MachineLoweringReducer : public Next {
         bitfield.valid() ? bitfield : __ Word32Constant(zero_bitfield));
 
     // BigInts have no padding on 64 bit architectures with pointer compression.
-    if (BigInt::HasOptionalPadding()) {
-      __ InitializeField(bigint, AccessBuilder::ForBigIntOptionalPadding(),
-                         __ IntPtrConstant(0));
-    }
+#ifdef BIGINT_NEEDS_PADDING
+    __ InitializeField(bigint, AccessBuilder::ForBigIntOptionalPadding(),
+                       __ IntPtrConstant(0));
+#endif
     if (digit.valid()) {
       __ InitializeField(
           bigint, AccessBuilder::ForBigIntLeastSignificantDigit64(), digit);
@@ -2970,7 +2970,7 @@ class MachineLoweringReducer : public Next {
 
   V<Tagged> AllocateHeapNumberWithValue(V<Float64> value) {
     auto result = __ template Allocate<HeapNumber>(
-        __ IntPtrConstant(HeapNumber::kSize), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
     __ InitializeField(result, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->heap_number_map()));
     __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
@@ -3019,7 +3019,7 @@ class MachineLoweringReducer : public Next {
       }
     }
     return __ template LoadField<Float64>(
-        heap_object, AccessBuilder::ForHeapNumberOrOddballValue());
+        heap_object, AccessBuilder::ForHeapNumberOrOddballOrHoleValue());
   }
 
   OpIndex LoadFromSeqString(V<Tagged> receiver, V<WordPtr> position,

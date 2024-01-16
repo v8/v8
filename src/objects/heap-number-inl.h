@@ -15,26 +15,18 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/heap-number-tq-inl.inc"
+double HeapNumber::value() const { return value_.value(); }
+void HeapNumber::set_value(double value) { value_.set_value(value); }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(HeapNumber)
-
-uint64_t HeapNumber::value_as_bits() const {
-  // Bug(v8:8875): HeapNumber's double may be unaligned.
-  return base::ReadUnalignedValue<uint64_t>(field_address(kValueOffset));
-}
+uint64_t HeapNumber::value_as_bits() const { return value_.value_as_bits(); }
 
 void HeapNumber::set_value_as_bits(uint64_t bits) {
-  base::WriteUnalignedValue(field_address(kValueOffset), bits);
+  value_.set_value_as_bits(bits);
 }
 
-int HeapNumber::get_exponent() {
-  return ((ReadField<int>(kExponentOffset) & kExponentMask) >> kExponentShift) -
-         kExponentBias;
-}
-
-int HeapNumber::get_sign() {
-  return ReadField<int>(kExponentOffset) & kSignMask;
+Tagged<HeapNumber> HeapNumber::cast(Tagged<Object> object) {
+  SLOW_DCHECK(IsHeapNumber(object));
+  return HeapNumber::unchecked_cast(object);
 }
 
 }  // namespace internal

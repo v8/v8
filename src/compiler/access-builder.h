@@ -40,15 +40,16 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapNumber::value() and Oddball::to_number_raw() fields.
   // This is the same as ForHeapNumberValue, except it documents (and static
   // asserts) that both inputs are valid.
-  static FieldAccess ForHeapNumberOrOddballValue();
+  static FieldAccess ForHeapNumberOrOddballOrHoleValue();
 
   // Provides access to BigInt's bit field.
   static FieldAccess ForBigIntBitfield();
 
+#ifdef BIGINT_NEEDS_PADDING
   // Provides access to BigInt's 32 bit padding that is placed after the
-  // bitfield on 64 bit architectures without pointer compression. Do not use
-  // this on 32 bit architectures.
+  // bitfield on 64 bit architectures without pointer compression.
   static FieldAccess ForBigIntOptionalPadding();
+#endif
 
   // Provides access to BigInt's least significant digit on 64 bit
   // architectures. Do not use this on 32 bit architectures.

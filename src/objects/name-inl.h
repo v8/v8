@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/name-tq-inl.inc"
-
 inline Tagged<Symbol> Symbol::cast(Tagged<Object> obj) {
   SLOW_DCHECK(IsSymbol(obj));
   return Symbol::unchecked_cast(obj);

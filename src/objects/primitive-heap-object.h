@@ -13,24 +13,16 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/primitive-heap-object-tq.inc"
-
-V8_OBJECT class PrimitiveHeapObjectLayout : public HeapObjectLayout{
-  public : DECL_VERIFIER(PrimitiveHeapObject)
-} V8_OBJECT_END;
-
-static_assert(sizeof(PrimitiveHeapObjectLayout) == sizeof(HeapObjectLayout));
-static_assert(is_subtype_v<PrimitiveHeapObjectLayout, HeapObject>);
-
 // An abstract superclass for classes representing JavaScript primitive values
 // other than Smi. It doesn't carry any functionality but allows primitive
 // classes to be identified in the type system.
-class PrimitiveHeapObject : public HeapObject {
+V8_OBJECT class PrimitiveHeapObject : public HeapObjectLayout {
  public:
-  static_assert(kHeaderSize == HeapObject::kHeaderSize);
   DECL_CAST(PrimitiveHeapObject)
-  OBJECT_CONSTRUCTORS(PrimitiveHeapObject, HeapObject);
-};
+  DECL_VERIFIER(PrimitiveHeapObject)
+} V8_OBJECT_END;
+
+static_assert(sizeof(PrimitiveHeapObject) == sizeof(HeapObjectLayout));
 static_assert(is_subtype_v<PrimitiveHeapObject, HeapObject>);
 
 }  // namespace internal

@@ -603,7 +603,7 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   gasm_.Bind(&heap_number_label);
   Node* float_value = gasm_.LoadFromObject(
       MachineType::Float64(), input,
-      wasm::ObjectAccess::ToTagged(HeapNumber::kValueOffset));
+      wasm::ObjectAccess::ToTagged(AccessBuilder::ForHeapNumberValue().offset));
   // Check range of float value.
   gasm_.GotoIf(
       gasm_.Float64LessThan(float_value, gasm_.Float64Constant(kInt31MinValue)),

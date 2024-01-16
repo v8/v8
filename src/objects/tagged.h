@@ -85,15 +85,6 @@ struct is_subtype<Base, HeapObject,
                       std::is_base_of<HeapObjectLayout, Base>>>>
     : public std::true_type {};
 
-class PrimitiveHeapObject;
-class PrimitiveHeapObjectLayout;
-template <typename Base>
-struct is_subtype<Base, PrimitiveHeapObject,
-                  std::enable_if_t<std::disjunction_v<
-                      std::is_base_of<PrimitiveHeapObject, Base>,
-                      std::is_base_of<PrimitiveHeapObjectLayout, Base>>>>
-    : public std::true_type {};
-
 // For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
 // to be part of the MaybeObject hierarchy wrt is_subtype.
 // But `Tagged<MaybeObject>` is invalid. Currently, just `MaybeObject` should
@@ -536,7 +527,6 @@ template <class T>
 Tagged(T object) -> Tagged<T>;
 
 Tagged(const HeapObjectLayout* object) -> Tagged<HeapObject>;
-Tagged(const PrimitiveHeapObjectLayout* object) -> Tagged<PrimitiveHeapObject>;
 
 template <class T>
 Tagged(const T* object) -> Tagged<T>;

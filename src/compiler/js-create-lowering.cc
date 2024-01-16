@@ -1784,7 +1784,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
       double number = boilerplate_value.AsHeapNumber().value();
       // Allocate a mutable HeapNumber box and store the value into it.
       AllocationBuilder builder(jsgraph(), broker(), effect, control);
-      builder.Allocate(HeapNumber::kSize, allocation);
+      builder.Allocate(sizeof(HeapNumber), allocation);
       builder.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
       builder.Store(AccessBuilder::ForHeapNumberValue(),
                     jsgraph()->ConstantNoHole(number));

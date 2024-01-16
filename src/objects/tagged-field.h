@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_H_
 #define V8_OBJECTS_TAGGED_FIELD_H_
 
+#include "src/base/atomicops.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
 #include "src/objects/tagged-value.h"
@@ -44,21 +46,28 @@ class TaggedMember : public TaggedMemberBase {
 static_assert(alignof(TaggedMember<Object>) == alignof(Tagged_t));
 static_assert(sizeof(TaggedMember<Object>) == sizeof(Tagged_t));
 
-class UnalignedDoubleMember {
+template <typename T>
+class UnalignedValueMember {
+ public:
+  UnalignedValueMember() = default;
+
+  T value() const { return base::ReadUnalignedValue<T>(storage_); }
+  void set_value(T value) { base::WriteUnalignedValue(storage_, value); }
+
+ protected:
+  alignas(alignof(Tagged_t)) char storage_[sizeof(T)];
+};
+
+class UnalignedDoubleMember : public UnalignedValueMember<double> {
  public:
   UnalignedDoubleMember() = default;
-  double value() const {
-    double ret;
-    memcpy(&ret, storage_, sizeof(double));
-    return ret;
-  }
-  void set_value(double value) { memcpy(storage_, &value, sizeof(double)); }
-  void set_value_as_bits(uint64_t value) {
-    memcpy(storage_, &value, sizeof(double));
-  }
 
- private:
-  alignas(alignof(Tagged_t)) char storage_[sizeof(double)];
+  uint64_t value_as_bits() const {
+    return base::ReadUnalignedValue<uint64_t>(storage_);
+  }
+  void set_value_as_bits(uint64_t value) {
+    base::WriteUnalignedValue(storage_, value);
+  }
 };
 static_assert(alignof(UnalignedDoubleMember) == alignof(Tagged_t));
 static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
@@ -83,11 +92,11 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
   using OFFSET_OF_DATA_START_needs_class_with_FLEXIBLE_ARRAY_MEMBER = void; \
                                                                             \
   Type* name() {                                                            \
-    static_assert(alignof(Type) <= alignof(decltype(*this)));               \
+    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
     return reinterpret_cast<Type*>(this + 1);                               \
   }                                                                         \
   const Type* name() const {                                                \
-    static_assert(alignof(Type) <= alignof(decltype(*this)));               \
+    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
     return reinterpret_cast<const Type*>(this + 1);                         \
   }                                                                         \
   using FlexibleDataType = Type

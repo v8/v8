@@ -150,9 +150,8 @@ class WasmLoweringReducer : public Next {
 
     // Convert HeapNumber to SMI if possible.
     BIND(heap_number_label);
-    V<Float64> float_value =
-        __ Load(object, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Float64(), HeapNumber::kValueOffset);
+    V<Float64> float_value = __ template LoadField<Float64>(
+        object, AccessBuilder::ForHeapNumberValue());
     // Check range of float value.
     GOTO_IF(__ Float64LessThan(float_value, __ Float64Constant(kInt31MinValue)),
             end_label, object);

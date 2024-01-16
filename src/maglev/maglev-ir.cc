@@ -5581,7 +5581,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(object);
   __ LoadTaggedField(tmp, object, offset());
   __ AssertNotSmi(tmp);
-  __ StoreFloat64(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
+  __ StoreFloat64(FieldMemOperand(tmp, offsetof(HeapNumber, value_)), value);
 }
 
 namespace {

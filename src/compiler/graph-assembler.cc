@@ -146,7 +146,7 @@ Node* GraphAssembler::SetStackPointer(Node* node,
 
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
   return Load(MachineType::Float64(), heap_number,
-              IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+              IntPtrConstant(offsetof(HeapNumber, value_) - kHeapObjectTag));
 }
 
 #define SINGLETON_CONST_DEF(Name, Type)              \

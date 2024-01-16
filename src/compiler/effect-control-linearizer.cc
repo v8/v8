@@ -2226,7 +2226,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2247,7 +2247,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToUint32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2268,7 +2268,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt64(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2294,7 +2294,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   vfalse = ChangeInt32ToSmi(vfalse);
   __ Goto(&done, vfalse);
@@ -2318,7 +2318,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -4132,7 +4132,8 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
       break;
     }
   }
-  return __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+  return __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(),
+                      value);
 }
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
@@ -4428,7 +4429,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
 
   __ Bind(&if_not_smi);
   Node* vfalse =
-      __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(), value);
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ TruncateFloat64ToWord32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -5050,8 +5051,8 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
                 ChangeIntPtrToSmi(length));
 
   // Initialize the backing store with holes.
-  Node* the_hole = __ LoadField(AccessBuilder::ForHeapNumberOrOddballValue(),
-                                __ TheHoleConstant());
+  Node* the_hole = __ LoadField(
+      AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), __ TheHoleConstant());
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
@@ -6184,8 +6185,8 @@ void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
 }
 
 Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
-  Node* result =
-      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(HeapNumber::kSize));
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(sizeof(HeapNumber)));
   __ StoreField(AccessBuilder::ForMap(), result, __ HeapNumberMapConstant());
   __ StoreField(AccessBuilder::ForHeapNumberValue(), result, value);
   return result;
@@ -8519,11 +8520,11 @@ Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
   __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
                 bitfield ? bitfield : __ Int32Constant(zero_bitfield));
 
+#ifdef BIGINT_NEEDS_PADDING
   // BigInts have no padding on 64 bit architectures with pointer compression.
-  if (BigInt::HasOptionalPadding()) {
-    __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                  __ IntPtrConstant(0));
-  }
+  __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                __ IntPtrConstant(0));
+#endif
   if (digit) {
     __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
                   digit);

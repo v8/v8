@@ -35,6 +35,7 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/property-descriptor-object.h"
+#include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -1678,8 +1679,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   BIND(&if_heapnumber);
   {
     // Load the floating point value of {value}.
-    TNode<Float64T> value_value =
-        LoadObjectField<Float64T>(value_heapobject, HeapNumber::kValueOffset);
+    TNode<Float64T> value_value = LoadObjectField<Float64T>(
+        value_heapobject, offsetof(HeapNumber, value_));
 
     // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
     Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
@@ -1985,8 +1986,8 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
 TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
     TNode<HeapObject> object) {
   CSA_DCHECK(this, Word32Or(IsHeapNumber(object), IsTheHole(object)));
-  static_assert(HeapNumber::kValueOffset == Hole::kRawNumericValueOffset);
-  return LoadObjectField<Float64T>(object, HeapNumber::kValueOffset);
+  static_assert(offsetof(HeapNumber, value_) == Hole::kRawNumericValueOffset);
+  return LoadObjectField<Float64T>(object, offsetof(HeapNumber, value_));
 }
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
@@ -3504,7 +3505,7 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
                                              TNode<Float64T> value) {
-  StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value);
+  StoreObjectFieldNoWriteBarrier(object, offsetof(HeapNumber, value_), value);
 }
 
 void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
@@ -3893,7 +3894,8 @@ void CodeStubAssembler::StoreCellValue(TNode<Cell> cell, TNode<Object> value,
 }
 
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
-  TNode<HeapObject> result = Allocate(HeapNumber::kSize, AllocationFlag::kNone);
+  TNode<HeapObject> result =
+      Allocate(sizeof(HeapNumber), AllocationFlag::kNone);
   RootIndex heap_map_index = RootIndex::kHeapNumberMap;
   StoreMapNoWriteBarrier(result, heap_map_index);
   return UncheckedCast<HeapNumber>(result);
@@ -3936,21 +3938,21 @@ TNode<BigInt> CodeStubAssembler::AllocateBigInt(TNode<IntPtrT> length) {
 
 TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
   TNode<IntPtrT> size =
-      IntPtrAdd(IntPtrConstant(BigInt::kHeaderSize),
+      IntPtrAdd(IntPtrConstant(sizeof(BigInt)),
                 Signed(WordShl(length, kSystemPointerSizeLog2)));
   TNode<HeapObject> raw_result = Allocate(size);
   StoreMapNoWriteBarrier(raw_result, RootIndex::kBigIntMap);
-  if (FIELD_SIZE(BigInt::kOptionalPaddingOffset) != 0) {
-    DCHECK_EQ(4, FIELD_SIZE(BigInt::kOptionalPaddingOffset));
-    StoreObjectFieldNoWriteBarrier(raw_result, BigInt::kOptionalPaddingOffset,
-                                   Int32Constant(0));
-  }
+#ifdef BIGINT_NEEDS_PADDING
+  static_assert(arraysize(BigInt::padding_) == sizeof(int32_t));
+  StoreObjectFieldNoWriteBarrier(raw_result, offsetof(BigInt, padding_),
+                                 Int32Constant(0));
+#endif
   return UncheckedCast<BigInt>(raw_result);
 }
 
 void CodeStubAssembler::StoreBigIntBitfield(TNode<BigInt> bigint,
                                             TNode<Word32T> bitfield) {
-  StoreObjectFieldNoWriteBarrier(bigint, BigInt::kBitfieldOffset, bitfield);
+  StoreObjectFieldNoWriteBarrier(bigint, offsetof(BigInt, bitfield_), bitfield);
 }
 
 void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
@@ -3960,7 +3962,7 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
   CHECK_LT(digit_index, BigInt::kMaxLength);
   StoreObjectFieldNoWriteBarrier(
       bigint,
-      BigInt::kDigitsOffset +
+      OFFSET_OF_DATA_START(BigInt) +
           static_cast<int>(digit_index) * kSystemPointerSize,
       digit);
 }
@@ -3969,14 +3971,14 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
                                          TNode<IntPtrT> digit_index,
                                          TNode<UintPtrT> digit) {
   TNode<IntPtrT> offset =
-      IntPtrAdd(IntPtrConstant(BigInt::kDigitsOffset),
+      IntPtrAdd(IntPtrConstant(OFFSET_OF_DATA_START(BigInt)),
                 IntPtrMul(digit_index, IntPtrConstant(kSystemPointerSize)));
   StoreObjectFieldNoWriteBarrier(bigint, offset, digit);
 }
 
 TNode<Word32T> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
   return UncheckedCast<Word32T>(
-      LoadObjectField<Uint32T>(bigint, BigInt::kBitfieldOffset));
+      LoadObjectField<Uint32T>(bigint, offsetof(BigInt, bitfield_)));
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
@@ -3984,14 +3986,14 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
   CHECK_LE(0, digit_index);
   CHECK_LT(digit_index, BigInt::kMaxLength);
   return LoadObjectField<UintPtrT>(
-      bigint, BigInt::kDigitsOffset +
+      bigint, OFFSET_OF_DATA_START(BigInt) +
                   static_cast<int>(digit_index) * kSystemPointerSize);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
                                                    TNode<IntPtrT> digit_index) {
   TNode<IntPtrT> offset =
-      IntPtrAdd(IntPtrConstant(BigInt::kDigitsOffset),
+      IntPtrAdd(IntPtrConstant(OFFSET_OF_DATA_START(BigInt)),
                 IntPtrMul(digit_index, IntPtrConstant(kSystemPointerSize)));
   return LoadObjectField<UintPtrT>(bigint, offset);
 }
@@ -8164,10 +8166,10 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
   BIND(&not_smi);
   {
     // Make a hash from the two 32-bit values of the double.
-    TNode<Int32T> low =
-        LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
+    TNode<Int32T> low = LoadObjectField<Int32T>(heap_number_input,
+                                                offsetof(HeapNumber, value_));
     TNode<Int32T> high = LoadObjectField<Int32T>(
-        heap_number_input, HeapNumber::kValueOffset + kIntSize);
+        heap_number_input, offsetof(HeapNumber, value_) + kIntSize);
     TNode<Word32T> hash = Word32And(Word32Xor(low, high), mask);
     TNode<IntPtrT> entry_index =
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
@@ -8181,9 +8183,9 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 
     // Cache entry's key must match the heap number value we're looking for.
     TNode<Int32T> low_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, HeapNumber::kValueOffset);
+        number_key_heap_object, offsetof(HeapNumber, value_));
     TNode<Int32T> high_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, HeapNumber::kValueOffset + kIntSize);
+        number_key_heap_object, offsetof(HeapNumber, value_) + kIntSize);
     GotoIfNot(Word32Equal(low, low_compare), bailout);
     GotoIfNot(Word32Equal(high, high_compare), bailout);
 
@@ -12144,7 +12146,7 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
   // way we can also properly optimize stores of oddballs to typed arrays.
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
@@ -12152,7 +12154,7 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
   BIND(&if_heapnumber_or_oddball);
   {
     TNode<Float64T> value =
-        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
+        LoadObjectField<Float64T>(heap_object, offsetof(HeapNumber, value_));
     if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
       var_result = Float64ToUint8Clamped(value);
     } else {
@@ -12200,7 +12202,7 @@ TNode<Float32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float32T>(
   // way we can also properly optimize stores of oddballs to typed arrays.
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
@@ -12208,7 +12210,7 @@ TNode<Float32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float32T>(
   BIND(&if_heapnumber_or_oddball);
   {
     TNode<Float64T> value =
-        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
+        LoadObjectField<Float64T>(heap_object, offsetof(HeapNumber, value_));
     var_result = TruncateFloat64ToFloat32(value);
     Goto(&done);
   }
@@ -12248,7 +12250,7 @@ TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
   // way we can also properly optimize stores of oddballs to typed arrays.
   TNode<HeapObject> heap_object = CAST(var_input.value());
   GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
   Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
          &convert);
@@ -12256,7 +12258,7 @@ TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
   BIND(&if_heapnumber_or_oddball);
   {
     var_result =
-        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
+        LoadObjectField<Float64T>(heap_object, offsetof(HeapNumber, value_));
     Goto(&done);
   }
 

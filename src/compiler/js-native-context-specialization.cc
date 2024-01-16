@@ -2987,7 +2987,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
         if (access_info.HasTransitionMap()) {
           // Allocate a HeapNumber for the new property.
           AllocationBuilder a(jsgraph(), broker(), effect, control);
-          a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
+          a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
                      Type::OtherInternal());
           a.Store(AccessBuilder::ForMap(), broker()->heap_number_map());
           FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
@@ -3014,9 +3014,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
           storage = effect =
               graph()->NewNode(simplified()->LoadField(storage_access), storage,
                                effect, control);
-          field_access.offset = HeapNumber::kValueOffset;
-          field_access.name = MaybeHandle<Name>();
-          field_access.machine_type = MachineType::Float64();
+          FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
+          value_field_access.const_field_info = field_access.const_field_info;
+          value_field_access.is_store_in_literal =
+              field_access.is_store_in_literal;
+          field_access = value_field_access;
         }
         break;
       }

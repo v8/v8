@@ -26,7 +26,7 @@ class SharedStringAccessGuardIfNeeded;
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-V8_OBJECT class Name : public PrimitiveHeapObjectLayout {
+V8_OBJECT class Name : public PrimitiveHeapObject {
  public:
   // Tells whether the hash code has been computed.
   // Note: Use TryGetHash() whenever you want to use the hash, instead of a

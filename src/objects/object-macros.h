@@ -18,7 +18,7 @@
 
 // V8 objects are defined as:
 //
-//     V8_OBJECT class Foo : class Base {
+//     V8_OBJECT class Foo : public Base {
 //       ...
 //     } V8_OBJECT_END;
 //

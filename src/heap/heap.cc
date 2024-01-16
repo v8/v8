@@ -3115,9 +3115,6 @@ static_assert(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
 static_assert(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
-static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
-              (HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
-
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
   if (V8_COMPRESS_POINTERS_8GB_BOOL) return 0;
   switch (alignment) {

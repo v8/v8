@@ -15,6 +15,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/common-operator.h"
@@ -7428,7 +7429,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* HeapNumberToFloat64(Node* input) {
     return gasm_->LoadFromObject(
         MachineType::Float64(), input,
-        wasm::ObjectAccess::ToTagged(HeapNumber::kValueOffset));
+        wasm::ObjectAccess::ToTagged(
+            AccessBuilder::ForHeapNumberValue().offset));
   }
 
   Node* FromJSFast(Node* input, wasm::ValueType type) {

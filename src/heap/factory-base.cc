@@ -36,10 +36,10 @@ namespace internal {
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
-  static_assert(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = read_only_roots().heap_number_map();
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      HeapNumber::kSize, allocation, map, kDoubleUnaligned);
+      sizeof(HeapNumber), allocation, map, kDoubleUnaligned);
   return handle(Tagged<HeapNumber>::cast(result), isolate());
 }
 

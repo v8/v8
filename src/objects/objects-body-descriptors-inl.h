@@ -194,14 +194,10 @@ void BodyDescriptorBase::IterateProtectedPointer(Tagged<HeapObject> obj,
   v->VisitProtectedPointer(host, host->RawProtectedPointerField(offset));
 }
 
-class HeapNumber::BodyDescriptor final : public BodyDescriptorBase {
+class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return HeapNumber::kSize;
+    return sizeof(HeapNumber);
   }
 };
 
@@ -469,23 +465,15 @@ class V8_EXPORT_PRIVATE SwissNameDictionary::BodyDescriptor final
   }
 };
 
-class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
+class ByteArray::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return ByteArray::unchecked_cast(obj)->AllocatedSize();
   }
 };
 
-class TrustedByteArray::BodyDescriptor final : public BodyDescriptorBase {
+class TrustedByteArray::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return TrustedByteArray::unchecked_cast(obj)->AllocatedSize();
   }
@@ -550,34 +538,22 @@ class ExternalPointerArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class BigInt::BodyDescriptor final : public BodyDescriptorBase {
+class BigInt::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return BigInt::SizeFor(BigInt::unchecked_cast(obj)->length(kAcquireLoad));
   }
 };
 
-class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
+class FixedDoubleArray::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return FixedDoubleArray::unchecked_cast(obj)->AllocatedSize();
   }
 };
 
-class FeedbackMetadata::BodyDescriptor final : public BodyDescriptorBase {
+class FeedbackMetadata::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return FeedbackMetadata::SizeFor(
         FeedbackMetadata::unchecked_cast(obj)->slot_count(kAcquireLoad));
@@ -913,12 +889,8 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmNull::BodyDescriptor final : public BodyDescriptorBase {
+class WasmNull::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return WasmNull::kSize;
   }
@@ -945,12 +917,8 @@ class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {
+class CoverageInfo::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {}
-
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     Tagged<CoverageInfo> info = CoverageInfo::cast(object);
     return CoverageInfo::SizeFor(info->slot_count());

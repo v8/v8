@@ -241,9 +241,8 @@ Handle<Code> BuildTeardownFunction(
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
         V8_FALLTHROUGH;
       case MachineRepresentation::kFloat64: {
-        __ StoreObjectFieldNoWriteBarrier(
+        __ StoreHeapNumberValue(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),
-            __ IntPtrConstant(HeapNumber::kValueOffset),
             __ UncheckedCast<Float64T>(param));
       } break;
 #if V8_ENABLE_WEBASSEMBLY

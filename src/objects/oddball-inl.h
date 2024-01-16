@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/oddball-tq-inl.inc"
-
 Tagged<Oddball> Oddball::cast(Tagged<Object> object) {
   SLOW_DCHECK(IsOddball(object));
   return Tagged<Oddball>(object.ptr());

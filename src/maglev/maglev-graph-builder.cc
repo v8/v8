@@ -9029,7 +9029,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
       return BuildAllocateFastObject(value.object, allocation_type);
     case FastField::kMutableDouble: {
       ValueNode* new_alloc = ExtendOrReallocateCurrentRawAllocation(
-          HeapNumber::kSize, allocation_type);
+          sizeof(HeapNumber), allocation_type);
       AddNewNode<StoreMap>(
           {new_alloc},
           MakeRefAssumeMemoryFence(
@@ -9037,7 +9037,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
       // TODO(leszeks): Fix hole storage, in case this should be a custom NaN.
       AddNewNode<StoreFloat64>(
           {new_alloc, GetFloat64Constant(value.mutable_double_value)},
-          HeapNumber::kValueOffset);
+          static_cast<int>(offsetof(HeapNumber, value_)));
       EnsureType(new_alloc, NodeType::kNumber);
       return new_alloc;
     }

@@ -24,7 +24,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/objects/bigint.h"
+#include "src/objects/bigint-inl.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
@@ -531,16 +531,6 @@ bool IsNaN(Tagged<Object> obj) {
 bool IsMinusZero(Tagged<Object> obj) {
   return IsHeapNumber(obj) && i::IsMinusZero(HeapNumber::cast(obj)->value());
 }
-
-OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
-OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
-OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
-
-// ------------------------------------
-// Cast operations
-
-CAST_ACCESSOR(BigIntBase)
-CAST_ACCESSOR(BigInt)
 
 // static
 bool Object::HasValidElements(Tagged<Object> obj) {
@@ -1322,7 +1312,15 @@ AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map) {
   // TODO(ishell, v8:8875): Consider using aligned allocations for BigInt.
   if (USE_ALLOCATION_ALIGNMENT_BOOL) {
     int instance_type = map->instance_type();
+
+    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+                  (FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) ==
+                      kTaggedSize);
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
+
+    static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+                  (offsetof(HeapNumber, value_) & kDoubleAlignmentMask) ==
+                      kTaggedSize);
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
   return kTaggedAligned;
@@ -1606,12 +1604,6 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
   }
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
                                                     PACKED_ELEMENTS, 2);
-}
-
-Tagged<FreshlyAllocatedBigInt> FreshlyAllocatedBigInt::cast(
-    Tagged<Object> object) {
-  SLOW_DCHECK(IsBigInt(object));
-  return FreshlyAllocatedBigInt(object.ptr());
 }
 
 }  // namespace internal

@@ -1254,8 +1254,13 @@ void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
 }
 
-void PrimitiveHeapObjectLayout::PrimitiveHeapObjectVerify(Isolate* isolate) {
+void PrimitiveHeapObject::PrimitiveHeapObjectVerify(Isolate* isolate) {
   CHECK(IsPrimitiveHeapObject(this, isolate));
+}
+
+void HeapNumber::HeapNumberVerify(Isolate* isolate) {
+  PrimitiveHeapObjectVerify(isolate);
+  CHECK(IsHeapNumber(this, isolate));
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {

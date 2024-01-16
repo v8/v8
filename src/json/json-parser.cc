@@ -812,7 +812,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  static_assert(HeapNumber::kSize <= kMutableDoubleSize);
+  static_assert(sizeof(HeapNumber) <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -838,7 +838,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (IsAligned(mutable_double_address, kDoubleAlignment)) {
         mutable_double_address += kTaggedSize;
       } else {
-        filler_address += HeapNumber::kSize;
+        filler_address += sizeof(HeapNumber);
       }
     }
     for (int j = 0; j < i; j++) {

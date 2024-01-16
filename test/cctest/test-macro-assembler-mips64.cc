@@ -934,7 +934,7 @@ TEST(min_max_nan) {
   auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ LoadRoot(t8, RootIndex::kNanValue);
-    __ Ldc1(dst, FieldMemOperand(t8, HeapNumber::kValueOffset));
+    __ Ldc1(dst, FieldMemOperand(t8, offsetof(HeapNumber, value_)));
     __ Branch(back);
   };
 

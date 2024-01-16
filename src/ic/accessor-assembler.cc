@@ -2152,7 +2152,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Object> field = LoadObjectField(property_storage, offset);
     CSA_DCHECK(this, IsHeapNumber(CAST(field)));
     actual_property_storage = CAST(field);
-    actual_offset = IntPtrConstant(HeapNumber::kValueOffset);
+    actual_offset = IntPtrConstant(offsetof(HeapNumber, value_));
     Goto(&property_and_offset_ready);
 
     BIND(&property_and_offset_ready);

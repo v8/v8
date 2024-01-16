@@ -14,6 +14,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -39,44 +40,56 @@ FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier) {
 
 // static
 FieldAccess AccessBuilder::ForHeapNumberValue() {
-  FieldAccess access = {
-      kTaggedBase,      HeapNumber::kValueOffset,   MaybeHandle<Name>(),
-      OptionalMapRef(), TypeCache::Get()->kFloat64, MachineType::Float64(),
-      kNoWriteBarrier,  "HeapNumberValue"};
+  FieldAccess access = {kTaggedBase,
+                        offsetof(HeapNumber, value_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kFloat64,
+                        MachineType::Float64(),
+                        kNoWriteBarrier,
+                        "HeapNumberValue"};
   return access;
 }
 
 // static
-FieldAccess AccessBuilder::ForHeapNumberOrOddballValue() {
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+FieldAccess AccessBuilder::ForHeapNumberOrOddballOrHoleValue() {
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
+                                    Hole::kRawNumericValueOffset);
   return ForHeapNumberValue();
 }
 
 // static
 FieldAccess AccessBuilder::ForBigIntBitfield() {
-  FieldAccess access = {
-      kTaggedBase,      BigInt::kBitfieldOffset,  MaybeHandle<Name>(),
-      OptionalMapRef(), TypeCache::Get()->kInt32, MachineType::Uint32(),
-      kNoWriteBarrier,  "BigIntBitfield"};
+  FieldAccess access = {kTaggedBase,
+                        offsetof(BigInt, bitfield_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Uint32(),
+                        kNoWriteBarrier,
+                        "BigIntBitfield"};
   return access;
 }
 
+#ifdef BIGINT_NEEDS_PADDING
 // static
 FieldAccess AccessBuilder::ForBigIntOptionalPadding() {
-  DCHECK_EQ(FIELD_SIZE(BigInt::kOptionalPaddingOffset), 4);
+  static_assert(arraysize(BigInt::padding_) == sizeof(uint32_t));
   FieldAccess access = {
-      kTaggedBase,      BigInt::kOptionalPaddingOffset, MaybeHandle<Name>(),
-      OptionalMapRef(), TypeCache::Get()->kInt32,       MachineType::Uint32(),
+      kTaggedBase,      offsetof(BigInt, padding_), MaybeHandle<Name>(),
+      OptionalMapRef(), TypeCache::Get()->kInt32,   MachineType::Uint32(),
       kNoWriteBarrier,  "BigIntOptionalPadding"};
   return access;
 }
+#endif
 
 // static
 FieldAccess AccessBuilder::ForBigIntLeastSignificantDigit64() {
   DCHECK_EQ(BigInt::SizeFor(1) - BigInt::SizeFor(0), 8);
   FieldAccess access = {
-      kTaggedBase,      BigInt::kDigitsOffset,          MaybeHandle<Name>(),
+      kTaggedBase,      OFFSET_OF_DATA_START(BigInt),   MaybeHandle<Name>(),
       OptionalMapRef(), TypeCache::Get()->kBigUint64,   MachineType::Uint64(),
       kNoWriteBarrier,  "BigIntLeastSignificantDigit64"};
   return access;
