@@ -4038,7 +4038,6 @@ class LiftoffCompiler {
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
     __ PushRegister(kS128, dst);
-    return;
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* /* args */,

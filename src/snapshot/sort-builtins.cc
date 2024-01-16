@@ -145,7 +145,7 @@ void BuiltinsSorter::SortClusters() {
 
   clusters_.erase(
       std::remove_if(clusters_.begin(), clusters_.end(),
-                     [](const Cluster* x) { return x->targets_.size() == 0; }),
+                     [](const Cluster* x) { return x->targets_.empty(); }),
       clusters_.end());
 }
 

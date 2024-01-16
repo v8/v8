@@ -167,9 +167,7 @@ void HeapProfiler::TakeSnapshotToFile(
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags) {
-  if (sampling_heap_profiler_.get()) {
-    return false;
-  }
+  if (sampling_heap_profiler_) return false;
   sampling_heap_profiler_.reset(new SamplingHeapProfiler(
       heap(), names_.get(), sample_interval, stack_depth, flags));
   return true;
@@ -181,7 +179,7 @@ void HeapProfiler::StopSamplingHeapProfiler() {
 }
 
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
-  if (sampling_heap_profiler_.get()) {
+  if (sampling_heap_profiler_) {
     return sampling_heap_profiler_->GetAllocationProfile();
   } else {
     return nullptr;
