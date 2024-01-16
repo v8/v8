@@ -2134,7 +2134,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadElementsKindFromMap(Register result, Register map);
 
   // Compare the object in a register to a value from the root list.
-  void CompareRoot(const Register& obj, RootIndex index);
+  void CompareRoot(const Register& obj, RootIndex index,
+                   ComparisonMode mode = ComparisonMode::kDefault);
   void CompareTaggedRoot(const Register& with, RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.

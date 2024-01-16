@@ -1559,8 +1559,11 @@ void PrepareFunctionData(i::Isolate* isolate,
                          const i::wasm::FunctionSig* sig,
                          const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
-  if (function_data->c_wrapper_code(isolate) !=
-      *BUILTIN_CODE(isolate, Illegal)) {
+  // TODO(saelo): We need to use full pointer comparison here while not all Code
+  // objects have migrated into trusted space.
+  static_assert(!i::kAllCodeObjectsLiveInTrustedSpace);
+  if (!function_data->c_wrapper_code(isolate).SafeEquals(
+          *BUILTIN_CODE(isolate, Illegal))) {
     return;
   }
   // Compile wrapper code.

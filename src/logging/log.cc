@@ -2539,12 +2539,11 @@ void ExistingCodeLogger::LogCompiledFunctions(
                       AbstractCode::cast(shared->baseline_code(kAcquireLoad)),
                       isolate_));
     }
-    // TODO(saelo): remove once both Code and BytecodeArrays are both in trusted
-    // space. Currently this breaks because we must not compare objects in
-    // trusted space with ones inside the sandbox.
-    static_assert(!kCodeObjectLiveInTrustedSpace);
-    DCHECK_IMPLIES(IsCode(*pair.second), !IsTrustedSpaceObject(*pair.second));
-    if (!IsBytecodeArray(*pair.second) &&
+    // TODO(saelo): remove the "!IsTrustedSpaceObject" once builtin Code
+    // objects are also in trusted space. Currently this breaks because we must
+    // not compare objects in trusted space with ones inside the sandbox.
+    static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+    if (!IsTrustedSpaceObject(*pair.second) &&
         pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
     }

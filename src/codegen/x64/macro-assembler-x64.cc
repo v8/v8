@@ -204,8 +204,10 @@ void MacroAssembler::PushRoot(RootIndex index) {
   Push(RootAsOperand(index));
 }
 
-void MacroAssembler::CompareRoot(Register with, RootIndex index) {
-  if (!base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+void MacroAssembler::CompareRoot(Register with, RootIndex index,
+                                 ComparisonMode mode) {
+  if (mode == ComparisonMode::kFullPointer ||
+      !base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                        RootIndex::kLastStrongOrReadOnlyRoot)) {
     // Some smi roots contain system pointer size values like stack limits.
     cmpq(with, RootAsOperand(index));

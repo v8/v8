@@ -224,7 +224,11 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
   Handle<Code> function_data_code =
       handle(function_data->wrapper_code(isolate), isolate);
   Tagged<Code> wrapper = isolate->builtins()->code(Builtin::kJSToJSWrapper);
-  if (wrapper != *external_function_code) {
+  // TODO(saelo): we have to use full pointer comparison here until all Code
+  // objects are located in trusted space. Currently, builtin Code objects are
+  // still inside the main pointer compression cage.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+  if (!wrapper.SafeEquals(*external_function_code)) {
     return isolate->heap()->ToBoolean(false);
   }
   if (wrapper != *function_data_code) {

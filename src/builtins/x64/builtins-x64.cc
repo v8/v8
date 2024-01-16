@@ -4169,7 +4169,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check result for exception sentinel.
   Label exception_returned;
-  __ CompareRoot(rax, RootIndex::kException);
+  // The returned value may be a trusted object, living outside of the main
+  // pointer compression cage, so we need to use full pointer comparison here.
+  __ CompareRoot(rax, RootIndex::kException, ComparisonMode::kFullPointer);
   __ j(equal, &exception_returned);
 
   // Check that there is no exception, otherwise we

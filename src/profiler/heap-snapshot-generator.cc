@@ -1689,10 +1689,10 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
   if (code->kind() == CodeKind::BASELINE) {
     // TODO(saelo): Currently, the BytecodeArray (living in trusted space) is
     // referenced from this field through its wrapper object, so we need to
-    // handle this here. Once Code objects move into trusted space as well,
-    // they will again directly reference the BytecodeArray, at which point
-    // this special handling can be removed again.
-    static_assert(!kCodeObjectLiveInTrustedSpace);
+    // handle this here. Once InterpreterData objects move into trusted space
+    // as well, we can again directly reference the BytecodeArray, at which
+    // point this special handling can be removed.
+    static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
     Tagged<Object> bytecode_or_interpreter_data =
         code->bytecode_or_interpreter_data(isolate());
     if (IsBytecodeArray(bytecode_or_interpreter_data)) {

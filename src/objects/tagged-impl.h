@@ -91,13 +91,14 @@ class TaggedImpl {
     return static_cast<Tagged_t>(ptr_) != static_cast<Tagged_t>(other.ptr());
   }
 
-  // A variant of operator== which allows comparing InstructionStream object
-  // with non-InstructionStream objects even if the V8_EXTERNAL_CODE_SPACE is
-  // enabled.
+  // A variant of operator== which allows comparing objects in different
+  // pointer compression cages. In particular, this should be used when
+  // comparing objects in trusted- or code space with objects in the main
+  // pointer compression cage.
   constexpr bool SafeEquals(TaggedImpl other) const {
     static_assert(std::is_same<StorageType, Address>::value,
                   "Safe comparison is allowed only for full tagged values");
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL || V8_ENABLE_SANDBOX_BOOL) {
       return ptr_ == other.ptr();
     }
     return this->operator==(other);

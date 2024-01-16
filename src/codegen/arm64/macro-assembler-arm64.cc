@@ -3288,6 +3288,7 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
 
 void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
   ASM_CODE_COMMENT(this);
+  AssertSmiOrHeapObjectInMainCompressionCage(obj);
   UseScratchRegisterScope temps(this);
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
     CmpTagged(obj, Immediate(ReadOnlyRootPtr(index)));
@@ -3302,10 +3303,11 @@ void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
   CmpTagged(obj, temp);
 }
 
-void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
+void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
+                                 ComparisonMode mode) {
   ASM_CODE_COMMENT(this);
-  AssertSmiOrHeapObjectInMainCompressionCage(obj);
-  if (!base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+  if (mode == ComparisonMode::kFullPointer ||
+      !base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                        RootIndex::kLastStrongOrReadOnlyRoot)) {
     // Some smi roots contain system pointer size values like stack limits.
     UseScratchRegisterScope temps(this);

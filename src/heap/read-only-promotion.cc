@@ -71,9 +71,11 @@ class Committee final {
     // Return promotees as a sorted list. Note that sorting uses object
     // addresses; the list order is deterministic only if heap layout
     // itself is deterministic (see v8_flags.predictable).
+    // We must use full pointer comparison here as some objects may be located
+    // in trusted space, outside of the main pointer compression cage.
     std::vector<Tagged<HeapObject>> promotees{promo_accepted_.begin(),
                                               promo_accepted_.end()};
-    std::sort(promotees.begin(), promotees.end(), Object::Comparer());
+    std::sort(promotees.begin(), promotees.end(), Object::FullPtrComparer());
 
     return promotees;
   }

@@ -67,7 +67,7 @@ class AbstractCode : public HeapObject {
 // AbstractCode is either a Code or a BytecodeArray, and the latter lives in
 // trusted space (outside of the main pointer compression cage) while the
 // former still lives inside of the sandbox.
-static_assert(!kCodeObjectLiveInTrustedSpace);
+static_assert(!kAllCodeObjectsLiveInTrustedSpace);
 constexpr bool operator==(const Tagged<AbstractCode> lhs,
                           const Tagged<AbstractCode> rhs) {
   return lhs->ptr() == rhs->ptr();

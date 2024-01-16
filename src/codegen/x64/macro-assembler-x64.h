@@ -500,7 +500,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Trap();
   void DebugBreak();
 
-  void CompareRoot(Register with, RootIndex index);
+  void CompareRoot(Register with, RootIndex index,
+                   ComparisonMode mode = ComparisonMode::kDefault);
   void CompareTaggedRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 

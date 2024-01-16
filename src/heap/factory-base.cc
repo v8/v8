@@ -80,7 +80,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
   Tagged<Code> code = Tagged<Code>::cast(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
+      AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   code->init_self_indirect_pointer(isolate());
   code->initialize_flags(options.kind, options.is_turbofanned,

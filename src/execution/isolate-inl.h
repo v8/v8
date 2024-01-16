@@ -143,35 +143,46 @@ Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
     // (strict_termination_checks is false), simply return the exception marker.
     return ReadOnlyRoots(this).exception();
   }
-  DCHECK_EQ(has_exception(), result == ReadOnlyRoots(this).exception());
+
+  // Here we use full pointer comparison as the result might be an object
+  // outside of the main pointer compression heap (e.g. in trusted space).
+  DCHECK_EQ(has_exception(),
+            result.SafeEquals(ReadOnlyRoots(this).exception()));
+
 #ifdef V8_COMPRESS_POINTERS
-  // Check that the returned pointer is actually part of the current isolate,
-  // because that's the assumption in generated code (which might call this
-  // builtin).
-  if (!IsSmi(result)) {
-    DCHECK_EQ(result.ptr(), V8HeapCompressionScheme::DecompressTagged(
-                                this, static_cast<Tagged_t>(result.ptr())));
+  // Check that the returned pointer is actually part of the current isolate (or
+  // the shared isolate), because that's the assumption in generated code (which
+  // might call this builtin).
+  Isolate* isolate;
+  if (!IsSmi(result) &&
+      GetIsolateFromHeapObject(HeapObject::cast(result), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
   }
 #endif
+
   return result;
 }
 
 ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
 #ifdef V8_HOST_ARCH_64_BIT
-  DCHECK_EQ(has_exception(), pair.x == ReadOnlyRoots(this).exception().ptr());
+  Tagged<Object> x(pair.x), y(pair.y);
+
+  // Here we use full pointer comparison as the result might be an object
+  // outside of the main pointer compression heap (e.g. in trusted space).
+  DCHECK_EQ(has_exception(), x.SafeEquals(ReadOnlyRoots(this).exception()));
+
 #ifdef V8_COMPRESS_POINTERS
-  // Check that the returned pointer is actually part of the current isolate,
-  // because that's the assumption in generated code (which might call this
-  // builtin).
-  if (!HAS_SMI_TAG(pair.x)) {
-    DCHECK_EQ(pair.x, V8HeapCompressionScheme::DecompressTagged(
-                          this, static_cast<Tagged_t>(pair.x)));
+  // Check that the returned pointer is actually part of the current isolate (or
+  // the shared isolate), because that's the assumption in generated code (which
+  // might call this builtin).
+  Isolate* isolate;
+  if (!IsSmi(x) && GetIsolateFromHeapObject(HeapObject::cast(x), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
   }
-  if (!HAS_SMI_TAG(pair.y)) {
-    DCHECK_EQ(pair.y, V8HeapCompressionScheme::DecompressTagged(
-                          this, static_cast<Tagged_t>(pair.y)));
+  if (!IsSmi(y) && GetIsolateFromHeapObject(HeapObject::cast(y), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
   }
-#endif  // V8_COMPRESS_POINTERS
+#endif
 #endif  // V8_HOST_ARCH_64_BIT
   return pair;
 }

@@ -610,7 +610,11 @@ constexpr int kCodePointerTableEntryCodeObjectOffset = 8;
 
 // Constants that can be used to mark places that should be modified once
 // certain types of objects are moved out of the sandbox and into trusted space.
-constexpr bool kCodeObjectLiveInTrustedSpace = false;
+constexpr bool kRuntimeGeneratedCodeObjectsLiveInTrustedSpace = true;
+constexpr bool kBuiltinCodeObjectsLiveInTrustedSpace = false;
+constexpr bool kAllCodeObjectsLiveInTrustedSpace =
+    kRuntimeGeneratedCodeObjectsLiveInTrustedSpace &&
+    kBuiltinCodeObjectsLiveInTrustedSpace;
 
 constexpr bool kInterpreterDataObjectsLiveInTrustedSpace = false;
 

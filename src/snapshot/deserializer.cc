@@ -750,8 +750,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   } else {
     DCHECK_NE(space, SnapshotSpace::kCode);
   }
-  // TODO(saelo): some trusted objects are not yet in trusted space.
-  if (IsTrustedObject(*obj) && !IsCode(*obj)) {
+  if (IsTrustedObject(*obj)) {
     DCHECK_EQ(space, SnapshotSpace::kTrusted);
   } else {
     DCHECK_NE(space, SnapshotSpace::kTrusted);

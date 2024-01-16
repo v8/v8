@@ -471,6 +471,15 @@ class Object : public AllStatic {
     }
   };
 
+  // Same as above, but can be used when one of the objects may be located
+  // outside of the main pointer compression cage, for example in trusted
+  // space. In this case, we must not compare just the lower 32 bits.
+  struct FullPtrComparer {
+    bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
+      return a.ptr() < b.ptr();
+    }
+  };
+
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.

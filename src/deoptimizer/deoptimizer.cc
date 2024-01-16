@@ -334,7 +334,11 @@ class ActivationsFinder : public ThreadVisitor {
                 SafepointTable::FindEntry(isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           }
-          DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
+          // TODO(saelo): currently we have to use full pointer comparison as
+          // builtin Code is still inside the sandbox while runtime-generated
+          // Code is in trusted space.
+          static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+          DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
           // Replace the current pc on the stack with the trampoline.
@@ -908,9 +912,12 @@ void Deoptimizer::DoComputeOutputFrames() {
   // deoptimized.
   bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
                         DeoptimizeReason::kOSREarlyExit;
+  // TODO(saelo): We have to use full pointer comparisons here while not all
+  // Code objects have been migrated into trusted space.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
   if (IsJSFunction(function_) &&
       (compiled_code_->osr_offset().IsNone()
-           ? function_->code(isolate()) == compiled_code_
+           ? function_->code(isolate()).SafeEquals(compiled_code_)
            : (!osr_early_exit &&
               DeoptExitIsInsideOsrLoop(isolate(), function_,
                                        bytecode_offset_in_outermost_frame_,

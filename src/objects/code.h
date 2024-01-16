@@ -126,10 +126,11 @@ class Code : public ExposedTrustedObject {
   DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  // As BytecodeArrays are located in trusted space, but Code objects are not
-  // yet, BytecodeArrays are currently referenced via their wrapper object.
-  // This is transparent for the caller.
-  static_assert(!kCodeObjectLiveInTrustedSpace);
+  // As BytecodeArrays are located in trusted space, but InterpreterData
+  // objects are not yet, they are both currently referenced via their
+  // in-sandbox wrapper object. This is transparent for the caller. Once all
+  // objects are in trusted space, we should use a protected pointer here.
+  static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
   inline Tagged<HeapObject> bytecode_or_interpreter_data(
       IsolateForSandbox isolate) const;
   inline void set_bytecode_or_interpreter_data(

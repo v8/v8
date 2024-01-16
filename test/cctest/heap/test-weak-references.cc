@@ -57,15 +57,18 @@ TEST(WeakReferencesBasic) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(IsCode(*code));
 
-    lh->set_data1(HeapObjectReference::Weak(*code));
-    Tagged<HeapObject> code_heap_object;
-    CHECK(lh->data1().GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    // We cannot store the Code object itself into the tagged field as it will
+    // be located outside of the main pointer compression cage when the sandbox
+    // is enabled. So instead we use the Code's wrapper object.
+    lh->set_data1(HeapObjectReference::Weak(code->wrapper()));
+    Tagged<HeapObject> code_wrapper_heap_object;
+    CHECK(lh->data1().GetHeapObjectIfWeak(&code_wrapper_heap_object));
+    CHECK_EQ(code->wrapper(), code_wrapper_heap_object);
 
     heap::InvokeMajorGC(CcTest::heap());
 
-    CHECK(lh->data1().GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(*code, code_heap_object);
+    CHECK(lh->data1().GetHeapObjectIfWeak(&code_wrapper_heap_object));
+    CHECK_EQ(code->wrapper(), code_wrapper_heap_object);
   }  // code will go out of scope.
 
   heap::InvokeMajorGC(CcTest::heap());

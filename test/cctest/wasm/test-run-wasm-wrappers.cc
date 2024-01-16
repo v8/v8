@@ -182,7 +182,10 @@ TEST(WrapperReplacement) {
     CHECK_EQ(main_function_data->wrapper_budget(), 0);
     // Verify that the wrapper-code object has changed and the wrapper is now a
     // specific one.
-    CHECK_NE(wrapper_after_call, *wrapper_before_call);
+    // TODO(saelo): here we have to use full pointer comparison while not all
+    // Code objects have been moved into trusted space.
+    static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+    CHECK(!wrapper_after_call.SafeEquals(*wrapper_before_call));
     CHECK(IsSpecific(wrapper_after_call));
   }
   Cleanup();

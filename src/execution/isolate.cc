@@ -722,7 +722,11 @@ bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
                        Builtin builtin) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> const function = JSFunction::cast(object);
-  return function->code(isolate) == isolate->builtins()->code(builtin);
+  // Currently we have to use full pointer comparison here as builtin Code
+  // objects are still inside the sandbox while runtime-generated Code objects
+  // are in trusted space.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+  return function->code(isolate).SafeEquals(isolate->builtins()->code(builtin));
 }
 
 // Check if the function is one of the known async function or
