@@ -560,7 +560,7 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
   DoubleRegister converted_back = temps.AcquireDouble();
 
   // Convert the input float64 value to uint32.
-  Fcvtzu(dst.W(), src);
+  Fcvtzu(dst, src);
   // Convert that uint32 value back to float64.
   Ucvtf(converted_back, dst);
   // Check that the result of the float64->uint32->float64 is equal to the input
