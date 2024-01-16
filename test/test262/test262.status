@@ -2125,9 +2125,6 @@
   'intl402/Locale/prototype/firstDayOfWeek/valid-options': [FAIL],
   'intl402/Locale/prototype/getWeekInfo/firstDay-by-option': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14530
-  'built-ins/Array/length/define-own-prop-length-error': [FAIL],
-
 
   ######################## NEEDS INVESTIGATION ###########################
 
