@@ -38,6 +38,90 @@ namespace compiler {
 
 #define __ masm()->
 
+enum class FirstMacroFusionInstKind {
+  // TEST
+  kTest,
+  // CMP
+  kCmp,
+  // AND
+  kAnd,
+  // ADD, SUB
+  kAddSub,
+  // INC, DEC
+  kIncDec,
+  // Not valid as a first macro fusion instruction.
+  kInvalid
+};
+
+enum class SecondMacroFusionInstKind {
+  // JA, JB and variants.
+  kAB,
+  // JE, JL, JG and variants.
+  kELG,
+  // Not a fusible jump.
+  kInvalid,
+};
+
+bool IsMacroFused(FirstMacroFusionInstKind first_kind,
+                  SecondMacroFusionInstKind second_kind) {
+  switch (first_kind) {
+    case FirstMacroFusionInstKind::kTest:
+    case FirstMacroFusionInstKind::kAnd:
+      return true;
+    case FirstMacroFusionInstKind::kCmp:
+    case FirstMacroFusionInstKind::kAddSub:
+      return second_kind == SecondMacroFusionInstKind::kAB ||
+             second_kind == SecondMacroFusionInstKind::kELG;
+    case FirstMacroFusionInstKind::kIncDec:
+      return second_kind == SecondMacroFusionInstKind::kELG;
+    case FirstMacroFusionInstKind::kInvalid:
+      return false;
+  }
+}
+
+SecondMacroFusionInstKind GetSecondMacroFusionInstKind(
+    FlagsCondition condition) {
+  switch (condition) {
+    // JE,JZ
+    case kEqual:
+      // JNE,JNZ
+    case kNotEqual:
+    // JL,JNGE
+    case kSignedLessThan:
+    // JLE,JNG
+    case kSignedLessThanOrEqual:
+    // JG,JNLE
+    case kSignedGreaterThan:
+    // JGE,JNL
+    case kSignedGreaterThanOrEqual:
+      return SecondMacroFusionInstKind::kELG;
+    // JB,JC
+    case kUnsignedLessThan:
+    // JNA,JBE
+    case kUnsignedLessThanOrEqual:
+    // JA,JNBE
+    case kUnsignedGreaterThan:
+    // JAE,JNC,JNB
+    case kUnsignedGreaterThanOrEqual:
+      return SecondMacroFusionInstKind::kAB;
+    default:
+      return SecondMacroFusionInstKind::kInvalid;
+  }
+}
+
+bool ShouldAlignForJCCErratum(Instruction* instr,
+                              FirstMacroFusionInstKind first_kind) {
+  if (!CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) return false;
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode == kFlags_branch || mode == kFlags_deoptimize) {
+    FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
+    if (IsMacroFused(first_kind, GetSecondMacroFusionInstKind(condition))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Adds X64 specific methods for decoding operands.
 class X64OperandConverter : public InstructionOperandConverter {
  public:
@@ -1759,28 +1843,60 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BINOP(andq);
       break;
     case kX64Cmp8:
-      ASSEMBLE_COMPARE(cmpb, testb);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kCmp)) {
+        ASSEMBLE_COMPARE(aligned_cmpb, aligned_testb);
+      } else {
+        ASSEMBLE_COMPARE(cmpb, testb);
+      }
       break;
     case kX64Cmp16:
-      ASSEMBLE_COMPARE(cmpw, testw);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kCmp)) {
+        ASSEMBLE_COMPARE(aligned_cmpw, aligned_testw);
+      } else {
+        ASSEMBLE_COMPARE(cmpw, testw);
+      }
       break;
     case kX64Cmp32:
-      ASSEMBLE_COMPARE(cmpl, testl);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kCmp)) {
+        ASSEMBLE_COMPARE(aligned_cmpl, aligned_testl);
+      } else {
+        ASSEMBLE_COMPARE(cmpl, testl);
+      }
       break;
     case kX64Cmp:
-      ASSEMBLE_COMPARE(cmpq, testq);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kCmp)) {
+        ASSEMBLE_COMPARE(aligned_cmpq, aligned_testq);
+      } else {
+        ASSEMBLE_COMPARE(cmpq, testq);
+      }
       break;
     case kX64Test8:
-      ASSEMBLE_TEST(testb);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kTest)) {
+        ASSEMBLE_TEST(aligned_testb);
+      } else {
+        ASSEMBLE_TEST(testb);
+      }
       break;
     case kX64Test16:
-      ASSEMBLE_TEST(testw);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kTest)) {
+        ASSEMBLE_TEST(aligned_testw);
+      } else {
+        ASSEMBLE_TEST(testw);
+      }
       break;
     case kX64Test32:
-      ASSEMBLE_TEST(testl);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kTest)) {
+        ASSEMBLE_TEST(aligned_testl);
+      } else {
+        ASSEMBLE_TEST(testl);
+      }
       break;
     case kX64Test:
-      ASSEMBLE_TEST(testq);
+      if (ShouldAlignForJCCErratum(instr, FirstMacroFusionInstKind::kTest)) {
+        ASSEMBLE_TEST(aligned_testq);
+      } else {
+        ASSEMBLE_TEST(testq);
+      }
       break;
     case kX64Imul32:
       ASSEMBLE_MULT(imull);
@@ -6651,7 +6767,13 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   }
   __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
-  if (!branch->fallthru) __ jmp(flabel, flabel_distance);
+  if (!branch->fallthru) {
+    if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+      __ aligned_jmp(flabel, flabel_distance);
+    } else {
+      __ jmp(flabel, flabel_distance);
+    }
+  }
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -6691,7 +6813,11 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   }
 
   if (!branch->fallthru) {
-    __ jmp(flabel, flabel_distance);
+    if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+      __ aligned_jmp(flabel, flabel_distance);
+    } else {
+      __ jmp(flabel, flabel_distance);
+    }
   }
 }
 

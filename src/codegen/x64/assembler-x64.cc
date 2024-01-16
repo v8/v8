@@ -456,6 +456,35 @@ void Assembler::Align(int m) {
   Nop(delta);
 }
 
+void Assembler::AlignForJCCErratum(int inst_size) {
+  DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+  // Code alignment can break jump optimization info, so we early return in this
+  // case. This is because jump optimization will do the code generation twice:
+  // the first run collects the optimizable far jumps and the second run
+  // replaces them by near jumps. For example, if aaa is a far jump and bbb is
+  // another instruction at the jump target, aaa will be recorded in
+  // |jump_optimization_info|:
+  //
+  // ...aaa...bbb
+  //       ^  ^
+  //       |  jump target (start of a 32-byte boundary)
+  //       |  pc_offset + 127
+  //       pc_offset
+  //
+  // However, if bbb need to be aligned at the start of a 32-byte boundary,
+  // the second run might crash because the distance is no longer a int8:
+  //
+  //   aaa......bbb
+  //      ^     ^
+  //      |     jump target (start of a 32-byte boundary)
+  //      |     pc_offset + 127
+  //      pc_offset - delta
+  if (jump_optimization_info()) return;
+  constexpr int kJCCErratumAlignment = 32;
+  int delta = kJCCErratumAlignment - (pc_offset() & (kJCCErratumAlignment - 1));
+  if (delta <= inst_size) Nop(delta);
+}
+
 void Assembler::CodeTargetAlign() {
   Align(16);  // Preferred alignment of jump targets on x64.
   auto jump_opt = jump_optimization_info();
