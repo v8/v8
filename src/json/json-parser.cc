@@ -660,8 +660,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont,
     const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback) {
   size_t start = cont.index;
+  DCHECK_LE(start, property_stack.size());
   int length = static_cast<int>(property_stack.size() - start);
   int named_length = length - cont.elements;
+  DCHECK_LE(0, named_length);
 
   Handle<Map> initial_map = factory()->ObjectLiteralMapFromCache(
       isolate_->native_context(), named_length);
