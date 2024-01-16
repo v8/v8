@@ -3842,9 +3842,9 @@ void Isolate::Deinit() {
   // We must stop the logger before we tear down other components.
   sampler::Sampler* sampler = v8_file_logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
+  v8_file_logger_->StopProfilerThread();
 
   FreeThreadResources();
-  v8_file_logger_->StopProfilerThread();
 
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
