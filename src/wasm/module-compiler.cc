@@ -849,15 +849,23 @@ size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
                sizeof(TurbofanCompilationJob));
   }
 
-  {
-    base::MutexGuard guard{&callbacks_mutex_};
-    result += ContentSize(callbacks_);
-    // Concrete subclasses of CompilationEventCallback will be bigger, but we
-    // can't know that here.
-    result += callbacks_.size() * sizeof(CompilationEventCallback);
-
-    result += ContentSize(compilation_progress_);
-  }
+  // To read the size of {callbacks_} and {compilation_progress_}, we'd
+  // need to acquire the {callbacks_mutex_}, which can cause deadlocks
+  // when that mutex is already held elsewhere and another thread calls
+  // into this function. So we rely on heuristics and informed guesses
+  // instead: {compilation_progress_} contains an entry for every declared
+  // function in the module...
+  result += sizeof(uint8_t) * native_module_->module()->num_declared_functions;
+  // ...and there are typically no more than a handful of {callbacks_}.
+  constexpr size_t kAssumedNumberOfCallbacks = 4;
+  constexpr size_t size_of_vector =
+      kAssumedNumberOfCallbacks *
+      sizeof(std::unique_ptr<CompilationEventCallback>);
+  // Concrete subclasses of CompilationEventCallback will be bigger, but we
+  // can't know that here.
+  constexpr size_t size_of_payload =
+      kAssumedNumberOfCallbacks * sizeof(CompilationEventCallback);
+  result += size_of_vector + size_of_payload;
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("CompilationStateImpl: %zu\n", result);
