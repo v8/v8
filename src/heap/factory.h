@@ -199,12 +199,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<String> InternalizeString(base::Vector<const char> str,
                                    bool convert_encoding = false) {
-    return InternalizeString(base::Vector<const uint8_t>::cast(str));
+    return InternalizeString(base::Vector<const uint8_t>::cast(str),
+                             convert_encoding);
   }
 
   Handle<String> InternalizeString(const char* str,
                                    bool convert_encoding = false) {
-    return InternalizeString(base::OneByteVector(str));
+    return InternalizeString(base::OneByteVector(str), convert_encoding);
   }
 
   template <typename SeqString>
