@@ -38,7 +38,7 @@ import shutil
 from enum import IntEnum
 from pathlib import Path
 
-V8_DIR = Path(__file__).absolute().parent.parent.parent
+V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 
 USE_PTY = "linux" in sys.platform
