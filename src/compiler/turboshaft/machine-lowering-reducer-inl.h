@@ -1795,6 +1795,32 @@ class MachineLoweringReducer : public Next {
                              StringAtOp::Kind kind) {
     if (kind == StringAtOp::Kind::kCharCode) {
       Label<Word32> done(this);
+
+      if (const ConstantOp* cst =
+              __ matcher().template TryCast<ConstantOp>(string);
+          cst && cst->kind == ConstantOp::Kind::kHeapObject) {
+        // For constant SeqString, we have a fast-path that doesn't run through
+        // the loop. It requires fewer loads (we only load the map once, but not
+        // the instance type), uses static 1/2-byte, and only uses a single
+        // comparison to check that the string has indeed the correct SeqString
+        // map.
+        UnparkedScopeIfNeeded unpark(broker_);
+        HeapObjectRef ref = MakeRef(broker_, cst->handle());
+        if (ref.IsString()) {
+          StringRef str = ref.AsString();
+          if (str.IsSeqString()) {
+            V<Map> dynamic_map = __ LoadMapField(string);
+            Handle<Map> expected_map = str.map(broker_).object();
+            IF (__ TaggedEqual(dynamic_map, __ HeapConstant(expected_map))) {
+              bool one_byte = str.IsOneByteRepresentation();
+              GOTO(done,
+                   LoadFromSeqString(string, pos, __ Word32Constant(one_byte)));
+            }
+            END_IF
+          }
+        }
+      }
+
       // TODO(dmercadier): the runtime label should be deferred, and because
       // Labels/Blocks don't have deferred annotation, we achieve this by
       // marking all branches to this Label as UNLIKELY, but 1) it's easy to
@@ -3144,18 +3170,16 @@ class MachineLoweringReducer : public Next {
 
   bool DependOnNoUndetectableObjectsProtector() {
     if (!undetectable_objects_protector_) {
-      UnparkedScopeIfNeeded unpark(PipelineData::Get().broker());
+      UnparkedScopeIfNeeded unpark(broker_);
       undetectable_objects_protector_ =
-          PipelineData::Get()
-              .broker()
-              ->dependencies()
-              ->DependOnNoUndetectableObjectsProtector();
+          broker_->dependencies()->DependOnNoUndetectableObjectsProtector();
     }
     return *undetectable_objects_protector_;
   }
 
   Isolate* isolate_ = PipelineData::Get().isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
+  JSHeapBroker* broker_ = PipelineData::Get().broker();
   base::Optional<bool> undetectable_objects_protector_ = {};
 };
 
