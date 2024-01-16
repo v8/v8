@@ -75,8 +75,6 @@ TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32Large) {
   FinalizeAndRun(&can_convert, &cannot_convert);
 }
 
-// TODO(olivf): Fix arm64
-#ifndef V8_TARGET_ARCH_ARM64
 TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32TooLarge) {
   as.CodeEntry();
   as.Move(kFPReturnRegister0,
@@ -87,7 +85,6 @@ TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32TooLarge) {
   as.jmp(&can_convert);
   FinalizeAndRun(&cannot_convert, &can_convert);
 }
-#endif  // V8_TARGET_ARCH_ARM64
 
 TEST_F(MaglevAssemblerTest, TryTruncateDoubleToUint32Negative) {
   as.CodeEntry();
