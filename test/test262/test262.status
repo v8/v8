@@ -2023,6 +2023,10 @@
   'built-ins/Temporal/PlainYearMonth/prototype/until/round-cross-unit-boundary': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/since/round-cross-unit-boundary': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/round-cross-unit-boundary': [FAIL],
+
+  'staging/Intl402/Temporal/old/islamic-calendars': [FAIL],
+  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
+
   # Timeouts
   'built-ins/Temporal/Duration/prototype/round/zero-year-month-week-length': [SKIP],
   'built-ins/Temporal/Duration/prototype/total/zero-year-month-week-length': [SKIP],
@@ -2121,31 +2125,8 @@
   'intl402/Locale/prototype/firstDayOfWeek/valid-options': [FAIL],
   'intl402/Locale/prototype/getWeekInfo/firstDay-by-option': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=14552
-  'built-ins/Atomics/add/bad-range': [FAIL],
-  'built-ins/Atomics/add/good-views': [FAIL],
-  'built-ins/Atomics/and/bad-range': [FAIL],
-  'built-ins/Atomics/and/good-views': [FAIL],
-  'built-ins/Atomics/compareExchange/bad-range': [FAIL],
-  'built-ins/Atomics/compareExchange/good-views': [FAIL],
-  'built-ins/Atomics/exchange/bad-range': [FAIL],
-  'built-ins/Atomics/exchange/good-views': [FAIL],
-  'built-ins/Atomics/load/bad-range': [FAIL],
-  'built-ins/Atomics/load/good-views': [FAIL],
-  'built-ins/Atomics/or/bad-range': [FAIL],
-  'built-ins/Atomics/or/good-views': [FAIL],
-  'built-ins/Atomics/store/bad-range': [FAIL],
-  'built-ins/Atomics/store/good-views': [FAIL],
-  'built-ins/Atomics/sub/bad-range': [FAIL],
-  'built-ins/Atomics/sub/good-views': [FAIL],
-  'built-ins/Atomics/xor/bad-range': [FAIL],
-  'built-ins/Atomics/xor/good-views': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=14530
   'built-ins/Array/length/define-own-prop-length-error': [FAIL],
-
-  # https://github.com/tc39/test262/pull/3985
-  'built-ins/Set/prototype/difference/subclass-receiver-methods': [FAIL],
 
 
   ######################## NEEDS INVESTIGATION ###########################
