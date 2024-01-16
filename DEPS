@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5215f514510223d9f52dc521cbfa6a6ffe488b81',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5d836edf8efbb4461468104beda3bd194b215ecf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7e93f2c1ecae914ca50f72fa8cc65edfc176a337',
   'buildtools/linux64': {
@@ -285,7 +285,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'aa4b8671c48b352d3f01e694f0227b2f9bdffeae',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e09e0d462aa3ea87ba5caf4d91202a8847d5d1fe',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '39b08ebb0a9a7ea824c5d80a9a5a920367b5d97c',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
