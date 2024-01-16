@@ -61,7 +61,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
       return m_commandLineAPI.Get(m_isolate);
     }
     v8::Local<v8::Object> global() const { return m_global.Get(m_isolate); }
-    v8::Local<v8::Set> installedMethods() const {
+    v8::Local<v8::PrimitiveArray> installedMethods() const {
       return m_installedMethods.Get(m_isolate);
     }
     v8::Local<v8::ArrayBuffer> thisReference() const {
@@ -72,7 +72,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
     v8::Global<v8::Context> m_context;
     v8::Global<v8::Object> m_commandLineAPI;
     v8::Global<v8::Object> m_global;
-    v8::Global<v8::Set> m_installedMethods;
+    v8::Global<v8::PrimitiveArray> m_installedMethods;
     v8::Global<v8::ArrayBuffer> m_thisReference;
   };
 

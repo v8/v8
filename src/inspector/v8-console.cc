@@ -954,7 +954,15 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
   if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
   if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
     return;
-  USE(scope->installedMethods()->Delete(context, name).FromMaybe(false));
+
+  v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();
+  for (int i = 0; i < methods->Length(); ++i) {
+    v8::Local<v8::Value> methodName = methods->Get(scope->m_isolate, i);
+    if (methodName.IsEmpty() || !methodName->IsName()) continue;
+    if (!name->StrictEquals(methodName)) continue;
+    methods->Set(scope->m_isolate, i, v8::Undefined(scope->m_isolate));
+    break;
+  }
 }
 
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
@@ -963,23 +971,24 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     : m_isolate(context->GetIsolate()),
       m_context(m_isolate, context),
       m_commandLineAPI(m_isolate, commandLineAPI),
-      m_global(m_isolate, global),
-      m_installedMethods(m_isolate, v8::Set::New(context->GetIsolate())) {
+      m_global(m_isolate, global) {
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
+  m_installedMethods.Reset(m_isolate,
+                           v8::PrimitiveArray::New(m_isolate, names->Length()));
+
   m_thisReference = v8::Global<v8::ArrayBuffer>(
       m_isolate, v8::ArrayBuffer::New(context->GetIsolate(),
                                       sizeof(CommandLineAPIScope*)));
   *static_cast<CommandLineAPIScope**>(
       thisReference()->GetBackingStore()->Data()) = this;
-  v8::Local<v8::Set> methods = installedMethods();
+  v8::Local<v8::PrimitiveArray> methods = installedMethods();
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (!names->Get(context, i).ToLocal(&name) || !name->IsName()) continue;
     if (global->Has(context, name).FromMaybe(true)) continue;
-    if (!methods->Add(context, name).ToLocal(&methods)) continue;
     if (!global
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),
@@ -987,13 +996,10 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
                  CommandLineAPIScope::accessorSetterCallback, thisReference(),
                  v8::DontEnum)
              .FromMaybe(false)) {
-      bool removed = installedMethods()->Delete(context, name).FromMaybe(false);
-      DCHECK(removed);
-      USE(removed);
       continue;
     }
+    methods->Set(m_isolate, i, name.As<v8::Name>());
   }
-  m_installedMethods.Reset(m_isolate, methods);
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
@@ -1002,10 +1008,10 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   *static_cast<CommandLineAPIScope**>(
       thisReference()->GetBackingStore()->Data()) = nullptr;
-  v8::Local<v8::Array> names = installedMethods()->AsArray();
-  for (uint32_t i = 0; i < names->Length(); ++i) {
-    v8::Local<v8::Value> name;
-    if (!names->Get(context(), i).ToLocal(&name) || !name->IsName()) continue;
+  v8::Local<v8::PrimitiveArray> names = installedMethods();
+  for (int i = 0; i < names->Length(); ++i) {
+    v8::Local<v8::Value> name = names->Get(m_isolate, i);
+    if (name.IsEmpty() || !name->IsName()) continue;
     if (name->IsString()) {
       v8::Local<v8::Value> descriptor;
       bool success =
