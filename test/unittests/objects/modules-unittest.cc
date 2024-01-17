@@ -79,7 +79,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     Location loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(0, loc.GetLineNumber());
     CHECK_EQ(7, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
     Local<ModuleRequest> module_request_1 =
         module_requests->Get(context(), 1).As<ModuleRequest>();
@@ -90,7 +90,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(1, loc.GetLineNumber());
     CHECK_EQ(15, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_1->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_1->GetImportAttributes()->Length());
   }
 
   // Instantiation should fail.
@@ -206,7 +206,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
     Location loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(0, loc.GetLineNumber());
     CHECK_EQ(7, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
     Local<ModuleRequest> module_request_1 =
         module_requests->Get(context(), 1).As<ModuleRequest>();
@@ -219,7 +219,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
     CHECK_EQ(15, loc.GetColumnNumber());
 
     Local<FixedArray> import_attributes_1 =
-        module_request_1->GetImportAssertions();
+        module_request_1->GetImportAttributes();
     CHECK_EQ(3, import_attributes_1->Length());
     Local<String> assertion_key =
         import_attributes_1->Get(context(), 0).As<String>();
