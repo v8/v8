@@ -222,9 +222,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     // Give the embedder a chance to handle the condition. If it doesn't,
     // just crash.
     if (g_oom_error_callback) g_oom_error_callback(location, details);
-    // Note: The error message needs to be consistent with other OOM error
-    // messages (e.g. below) so that ClusterFuzz recognizes it.
-    FATAL("Fatal process out of memory: %s", location);
+    base::FatalOOM(base::OOMType::kProcess, location);
     UNREACHABLE();
   }
 
@@ -335,18 +333,10 @@ void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
     // crbug.com/614440.
     FatalErrorCallback fatal_callback = i_isolate->exception_behavior();
     if (fatal_callback == nullptr) {
-      // Be careful when changing the error message below; it's matched by
-      // ClusterFuzz.
-      base::OS::PrintError("\n#\n# Fatal %s out of memory: %s\n#\n\n",
-                           details.is_heap_oom ? "JavaScript" : "process",
-                           location);
-#ifdef V8_FUZZILLI
-      // Ignore OOM crashes for fuzzing but exit with an error such that
-      // samples are discarded by Fuzzilli.
-      _exit(1);
-#else
-      base::OS::Abort();
-#endif  // V8_FUZZILLI
+      base::OOMType type = details.is_heap_oom ? base::OOMType::kJavaScript
+                                               : base::OOMType::kProcess;
+      base::FatalOOM(type, location);
+      UNREACHABLE();
     } else {
       fatal_callback(location,
                      details.is_heap_oom

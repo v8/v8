@@ -82,6 +82,18 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
                                                               const char*));
 
+enum class OOMType {
+  // We ran out of memory in the JavaScript heap.
+  kJavaScript,
+  // The process ran out of memory.
+  kProcess,
+};
+
+// A simpler version of V8::FatalProcessOutOfMemory that is available in
+// src/base. Will simply terminate the process with an OOM message that is
+// recognizes as such by fuzzers and other tooling.
+[[noreturn]] V8_BASE_EXPORT void FatalOOM(OOMType type, const char* msg);
+
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
 #if !defined(DEBUG) && defined(OFFICIAL_BUILD)
