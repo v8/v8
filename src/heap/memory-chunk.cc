@@ -168,6 +168,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet(OLD_TO_OLD);
   ReleaseSlotSet(OLD_TO_CODE);
   ReleaseSlotSet(OLD_TO_SHARED);
+  ReleaseSlotSet(TRUSTED_TO_TRUSTED);
   ReleaseTypedSlotSet(OLD_TO_NEW);
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);
