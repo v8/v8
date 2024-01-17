@@ -8,8 +8,11 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/flags/flags.h"
+#include "src/handles/handles-inl.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-info.h"
@@ -375,7 +378,11 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
 
 void MaglevConcurrentDispatcher::AwaitCompileJobs() {
   // Use Join to wait until there are no more queued or running jobs.
-  job_handle_->Join();
+  {
+    AllowGarbageCollection allow_before_parking;
+    isolate_->main_thread_local_isolate()->BlockMainThreadWhileParked(
+        [this]() { job_handle_->Join(); });
+  }
   // Join kills the job handle, so drop it and post a new one.
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
@@ -387,10 +394,8 @@ void MaglevConcurrentDispatcher::Flush(BlockingBehavior behavior) {
     std::unique_ptr<MaglevCompilationJob> job;
     incoming_queue_.Dequeue(&job);
   }
-  if (behavior == BlockingBehavior::kBlock) {
-    job_handle_->Cancel();
-    job_handle_ = V8::GetCurrentPlatform()->PostJob(
-        TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
+  if (behavior == BlockingBehavior::kBlock && job_handle_->IsValid()) {
+    AwaitCompileJobs();
   }
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
