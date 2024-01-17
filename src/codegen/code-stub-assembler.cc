@@ -9705,9 +9705,9 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(
 }
 
 template <class Dictionary>
-void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   CSA_DCHECK(this, Word32BinaryNot(IsEmptyPropertyDictionary(dictionary)));
   TNode<Smi> capacity = GetCapacity<Dictionary>(dictionary);
   TNode<Smi> nof = GetNumberOfElements<Dictionary>(dictionary);
@@ -9736,15 +9736,29 @@ void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
   SetNumberOfElements<Dictionary>(dictionary, new_nof);
 
   TVARIABLE(IntPtrT, var_key_index);
-  FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
+  if (insertion_index.has_value()) {
+    var_key_index = *insertion_index;
+    // The index could have been set on the slow-path by a C-Call, in which case
+    // it is not pointing to the insertion entry but contains a sentinel value.
+    Label valid_insertion_index(this, &var_key_index);
+    GotoIfNot(
+        IntPtrEqual(var_key_index.value(),
+                    IntPtrConstant(InternalIndex::NotFound().raw_value())),
+        &valid_insertion_index);
+    FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
+    Goto(&valid_insertion_index);
+    BIND(&valid_insertion_index);
+  } else {
+    FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
+  }
   InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
                           enum_index);
 }
 
 template <>
-void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
@@ -9763,11 +9777,13 @@ void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
   Goto(&not_private);
 
   BIND(&not_private);
+  // TODO(pthier): Use insertion_index if it was provided.
   SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
 }
 
 template void CodeStubAssembler::AddToDictionary<NameDictionary>(
-    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*);
+    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*,
+    base::Optional<TNode<IntPtrT>>);
 
 template <class Dictionary>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
