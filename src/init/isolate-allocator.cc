@@ -9,6 +9,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
+#include "src/heap/trusted-range.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
@@ -90,6 +91,10 @@ void IsolateAllocator::InitializeOncePerProcess() {
   ExternalCodeCompressionScheme::InitBase(V8HeapCompressionScheme::base());
 #endif  // V8_EXTERNAL_CODE_SPACE
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+
+#ifdef V8_ENABLE_SANDBOX
+  TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
+#endif
 }
 
 IsolateAllocator::IsolateAllocator() {
@@ -131,6 +136,14 @@ VirtualMemoryCage* IsolateAllocator::GetPtrComprCage() {
 
 const VirtualMemoryCage* IsolateAllocator::GetPtrComprCage() const {
   return const_cast<IsolateAllocator*>(this)->GetPtrComprCage();
+}
+
+const VirtualMemoryCage* IsolateAllocator::GetTrustedPtrComprCage() const {
+#ifdef V8_ENABLE_SANDBOX
+  return TrustedRange::GetProcessWideTrustedRange();
+#else
+  return GetPtrComprCage();
+#endif
 }
 
 }  // namespace internal

@@ -40,10 +40,17 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
     return COMPRESS_POINTERS_BOOL ? GetPtrComprCage()->base() : kNullAddress;
   }
 
+  Address GetTrustedPtrComprCageBase() const {
+    return COMPRESS_POINTERS_BOOL ? GetTrustedPtrComprCage()->base()
+                                  : kNullAddress;
+  }
+
   // When pointer compression is on, return the pointer compression
   // cage. Otherwise return nullptr.
   VirtualMemoryCage* GetPtrComprCage();
   const VirtualMemoryCage* GetPtrComprCage() const;
+
+  const VirtualMemoryCage* GetTrustedPtrComprCage() const;
 
   static void InitializeOncePerProcess();
 

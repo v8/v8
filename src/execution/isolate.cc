@@ -3578,7 +3578,8 @@ v8::PageAllocator* Isolate::page_allocator() const {
 }
 
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
+    : isolate_data_(this, isolate_allocator->GetPtrComprCageBase(),
+                    isolate_allocator->GetTrustedPtrComprCageBase()),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
@@ -3706,6 +3707,10 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateExternalPointerTableOffset);
 #endif
 #ifdef V8_ENABLE_SANDBOX
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.trusted_cage_base_)),
+      Internals::kIsolateTrustedCageBaseOffset);
+
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.trusted_pointer_table_)),
            Internals::kIsolateTrustedPointerTableOffset);

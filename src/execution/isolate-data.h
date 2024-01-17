@@ -107,8 +107,9 @@ class Isolate;
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-#define ISOLATE_DATA_FIELDS_SANDBOX(V)                      \
-  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize, \
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                             \
+  V(kTrustedCageBaseOffset, kSystemPointerSize, trusted_cage_base) \
+  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize,        \
     trusted_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
@@ -120,8 +121,15 @@ class Isolate;
 // indirectly via the root register.
 class IsolateData final {
  public:
-  IsolateData(Isolate* isolate, Address cage_base)
-      : cage_base_(cage_base), stack_guard_(isolate) {}
+  IsolateData(Isolate* isolate, Address cage_base, Address trusted_cage_base)
+      : cage_base_(cage_base),
+        stack_guard_(isolate)
+#ifdef V8_ENABLE_SANDBOX
+        ,
+        trusted_cage_base_(trusted_cage_base)
+#endif
+  {
+  }
 
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
@@ -327,7 +335,10 @@ class IsolateData final {
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
 #endif  // V8_COMPRESS_POINTERS
+
 #ifdef V8_ENABLE_SANDBOX
+  const Address trusted_cage_base_;
+
   TrustedPointerTable trusted_pointer_table_;
 #endif  // V8_ENABLE_SANDBOX
 
