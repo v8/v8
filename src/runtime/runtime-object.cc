@@ -43,7 +43,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
   if (result.is_null()) {
     return result;
   }
-  if (is_found) *is_found = it.IsFound();
+  if (is_found) {
+    *is_found = it.state() != LookupIterator::INTEGER_INDEXED_EXOTIC &&
+                it.state() != LookupIterator::NOT_FOUND;
+  }
 
   return result;
 }

@@ -182,6 +182,16 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 }
 
 // static
+bool LoadHandler::GetConvertHole(MaybeObject handler) {
+  DisallowGarbageCollection no_gc;
+  if (IsSmi(handler)) {
+    int const raw_handler = handler.ToSmi().value();
+    return ConvertHoleBits::decode(raw_handler);
+  }
+  return false;
+}
+
+// static
 KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
     MaybeObject handler) {
   DisallowGarbageCollection no_gc;
