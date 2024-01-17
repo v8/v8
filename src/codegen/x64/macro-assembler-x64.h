@@ -781,6 +781,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                         Operand field_operand);
 #endif  // V8_ENABLE_SANDBOX
 
+  void LoadProtectedPointerField(Register destination, Operand field_operand);
+
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
   // load_rax/store_rax if possible/necessary.

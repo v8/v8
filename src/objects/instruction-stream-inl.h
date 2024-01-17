@@ -151,11 +151,11 @@ void InstructionStream::Finalize(Tagged<Code> code,
     set_code(code, kReleaseStore);
   }
 
-  // Trigger the write barriers after we dropped  the JIT write permissions.
+  // Trigger the write barriers after we dropped the JIT write permissions.
   RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
                                 no_gc);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, code,
-                                         UPDATE_WRITE_BARRIER);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kCodeOffset, code,
+                                              UPDATE_WRITE_BARRIER);
 
   code->FlushICache();
 }
@@ -170,28 +170,25 @@ Address InstructionStream::body_end() const {
 }
 
 Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
-#ifdef V8_ENABLE_SANDBOX
   Tagged<Object> value =
-      RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
-          .Acquire_Load(GetIsolateForSandbox(*this));
-#else
-  PtrComprCageBase cage_base = main_cage_base();
-  Tagged<Object> value =
-      TaggedField<Object, kCodeOffset>::Acquire_Load(cage_base, *this);
-#endif
+      TaggedField<Object, kCodeOffset,
+                  TrustedSpaceCompressionScheme>::Acquire_Load(*this);
   DCHECK(!ObjectInYoungGeneration(value));
+  DCHECK(IsSmi(value) || IsTrustedSpaceObject(HeapObject::cast(value)));
   return value;
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
-  return ReadCodePointerField(kCodeOffset, GetIsolateForSandbox(*this));
+  return Code::cast(raw_code(tag));
 }
 
 void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag) {
   DCHECK(!ObjectInYoungGeneration(value));
-  WriteCodePointerField(kCodeOffset, value);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value,
-                                         UPDATE_WRITE_BARRIER);
+  DCHECK(IsTrustedSpaceObject(value));
+  TaggedField<Code, kCodeOffset, TrustedSpaceCompressionScheme>::Release_Store(
+      *this, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kCodeOffset, value,
+                                              UPDATE_WRITE_BARRIER);
 }
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
