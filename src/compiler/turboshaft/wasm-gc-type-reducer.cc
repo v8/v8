@@ -254,7 +254,17 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
     wasm::ValueType input_type =
         types_table_.GetPredecessorValue(ResolveAliases(phi.input(i)), i);
     if (input_type == wasm::ValueType()) return;
-    union_type = wasm::Union(union_type, input_type, module_, module_).type;
+    // <bottom> types have to be skipped as an unreachable predecessor doesn't
+    // change our type knowledge.
+    // TODO(mliedtke): Ideally, we'd skip unreachable predecessors here
+    // completely, as we might loosen the known type due to an unreachable
+    // predecessor.
+    if (input_type == wasm::kWasmBottom) continue;
+    if (union_type == wasm::kWasmBottom) {
+      union_type = input_type;
+    } else {
+      union_type = wasm::Union(union_type, input_type, module_, module_).type;
+    }
   }
   RefineTypeKnowledge(graph_.Index(phi), union_type);
 }
@@ -282,6 +292,7 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
                               module_)) {
           // The type check always succeeds, the target is impossible to be
           // reached.
+          DCHECK_EQ(target.PredecessorCount(), 1);
           block_is_unreachable_.Add(target.index().id());
         }
       }
@@ -291,6 +302,7 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
       if (branch.if_true == &target) {
         if (GetResolvedType(is_null.object()).is_non_nullable()) {
           // The target is impossible to be reached.
+          DCHECK_EQ(target.PredecessorCount(), 1);
           block_is_unreachable_.Add(target.index().id());
           return;
         }
