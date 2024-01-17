@@ -7945,8 +7945,12 @@ class LiftoffCompiler {
         decoder->module_, decoder->module_);
     bool needs_null_check = table_type.is_nullable();
 
-    if (needs_type_check) {
-      CODE_COMMENT("Check indirect call signature");
+    // We do both the type check and the null check by checking the signature,
+    // so this shares most code. For the null check we then only check if the
+    // stored signature is != -1.
+    if (needs_type_check || needs_null_check) {
+      CODE_COMMENT(needs_type_check ? "Check signature"
+                                    : "Check for null entry");
       Register real_sig_id = tmp1;
 
       // Load the signature from {instance->ift_sig_ids[key]}
@@ -7975,8 +7979,14 @@ class LiftoffCompiler {
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
       __ DropValues(1);
 
-      if (decoder->enabled_.has_gc() &&
-          !decoder->module_->types[imm.sig_imm.index].is_final) {
+      if (!needs_type_check) {
+        DCHECK(needs_null_check);
+        // Only check for -1 (nulled table entry).
+        FREEZE_STATE(frozen);
+        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
+                               frozen);
+      } else if (decoder->enabled_.has_gc() &&
+                 !decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id,
@@ -8039,33 +8049,10 @@ class LiftoffCompiler {
         __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch_label, real_sig_id,
                                canonical_sig_id, trapping);
       }
-    } else if (needs_null_check) {
-      CODE_COMMENT("Check indirect call element for nullity");
-      Register real_sig_id = tmp1;
-
-      // Load the signature from {instance->ift_sig_ids[key]}
-      if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
-                                       pinned);
-      } else {
-        __ LoadTaggedPointer(real_sig_id, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kSigIdsOffset));
-      }
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, buffer_offset,
-              LoadType::kI32Load, nullptr, false, false, true);
-
-      Label* sig_mismatch_label =
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
-      __ DropValues(1);
-
-      FREEZE_STATE(frozen);
-      __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
-                             frozen);
     } else {
       __ DropValues(1);
     }
+
     {
       CODE_COMMENT("Execute indirect call");
 
