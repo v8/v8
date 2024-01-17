@@ -356,8 +356,8 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
   DoubleRegister converted_back = kScratchDoubleReg;
 
   // Convert the input float64 value to int64.
-  Cvttsd2si(dst, src);
-  // Truncate and zero extend to int32.
+  Cvttsd2siq(dst, src);
+  // Truncate and zero extend to uint32.
   movl(dst, dst);
   // Convert that value back to float64.
   Cvtqsi2sd(converted_back, dst);
