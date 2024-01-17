@@ -3548,10 +3548,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                    TNode<Smi> enum_index);
 
   template <class Dictionary>
-  void AddToDictionary(
-      TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
-      Label* bailout,
-      base::Optional<TNode<IntPtrT>> insertion_index = base::nullopt);
+  void AddToDictionary(TNode<Dictionary> dictionary, TNode<Name> key,
+                       TNode<Object> value, Label* bailout);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,

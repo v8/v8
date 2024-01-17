@@ -959,8 +959,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     // seeing global objects here (which would need special handling).
 
     TVARIABLE(IntPtrT, var_name_index);
-    Label dictionary_found(this, &var_name_index),
-        not_found(this, &var_name_index);
+    Label dictionary_found(this, &var_name_index), not_found(this);
     TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
 
     // When dealing with class fields defined with DefineKeyedOwnIC or
@@ -1047,8 +1046,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
       UpdateMayHaveInterestingProperty(properties, name);
       AddToDictionary<PropertyDictionary>(properties, name, p->value(),
-                                          &add_dictionary_property_slow,
-                                          var_name_index.value());
+                                          &add_dictionary_property_slow);
       exit_point->Return(p->value());
 
       BIND(&add_dictionary_property_slow);
