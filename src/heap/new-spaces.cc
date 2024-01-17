@@ -948,9 +948,15 @@ bool PagedSpaceForNewSpace::ShouldAllocatedPage() const {
   return false;
 }
 
-bool PagedSpaceForNewSpace::TryAddPage() {
+bool PagedSpaceForNewSpace::TryAllocatePage() {
   if (!ShouldAllocatedPage()) return false;
   return AllocatePage();
+}
+
+void PagedSpaceForNewSpace::AllocatePageUpToCapacityForTesting() {
+  while (current_capacity_ < target_capacity_) {
+    if (!AllocatePage()) return;
+  }
 }
 
 bool PagedSpaceForNewSpace::AllocatePage() {

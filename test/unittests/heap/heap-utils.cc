@@ -163,8 +163,7 @@ void HeapInternalsBase::SimulateFullSpace(
       Heap::SweepingForcedFinalizationMode::kV8Only);
   if (v8_flags.minor_ms) {
     auto* space = heap->paged_new_space()->paged_space();
-    while (space->TryAddPage()) {
-    }
+    space->AllocatePageUpToCapacityForTesting();
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }

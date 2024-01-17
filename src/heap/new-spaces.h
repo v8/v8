@@ -9,6 +9,7 @@
 #include <memory>
 #include <numeric>
 
+#include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -19,7 +20,6 @@
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -560,7 +560,12 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   bool ShouldReleaseEmptyPage() const;
 
-  bool TryAddPage();
+  // Tries to allocate a new page. This method is allowed to exceed
+  // `target_capacity_` is certain cases.
+  bool TryAllocatePage();
+
+  // Allocates pages as long as current capacity is below the target capacity.
+  void AllocatePageUpToCapacityForTesting();
 
   void ForceAllocationSuccessUntilNextGC() { force_allocation_success_ = true; }
 
