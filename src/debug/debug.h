@@ -361,6 +361,9 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<Script> script, int start_position, int end_position,
       std::vector<Handle<SharedFunctionInfo>>* candidates);
 
+  MaybeHandle<SharedFunctionInfo> GetTopLevelWithRecompile(
+      Handle<Script> script, bool* did_compile = nullptr);
+
   static Handle<Object> GetSourceBreakLocations(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
 

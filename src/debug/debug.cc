@@ -1901,7 +1901,8 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
   }
 }
 
-bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
+bool CompileTopLevel(Isolate* isolate, Handle<Script> script,
+                     MaybeHandle<SharedFunctionInfo>* result = nullptr) {
   UnoptimizedCompileState compile_state;
   ReusableUnoptimizedCompileState reusable_state(isolate);
   UnoptimizedCompileFlags flags =
@@ -1918,6 +1919,7 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
     }
     return false;
   }
+  *result = maybe_result;
   return true;
 }
 }  // namespace
@@ -2093,19 +2095,10 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
         script->shared_function_info_count() > 0) {
-      DCHECK_LE(script->shared_function_info_count(),
-                script->shared_function_infos()->length());
-      MaybeObject maybeToplevel = script->shared_function_infos()->get(0);
-      Tagged<HeapObject> heap_object;
-      const bool topLevelInfoExists =
-          maybeToplevel.GetHeapObject(&heap_object) &&
-          !IsUndefined(heap_object);
-      if (!topLevelInfoExists) {
-        triedTopLevelCompile = true;
-        const bool success = CompileTopLevel(isolate_, script);
-        if (!success) return false;
-        continue;
-      }
+      MaybeHandle<SharedFunctionInfo> shared =
+          GetTopLevelWithRecompile(script, &triedTopLevelCompile);
+      if (shared.is_null()) return false;
+      if (triedTopLevelCompile) continue;
     }
 
     bool was_compiled = false;
@@ -2132,6 +2125,26 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     return true;
   }
   UNREACHABLE();
+}
+
+MaybeHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
+    Handle<Script> script, bool* did_compile) {
+  DCHECK_LE(kFunctionLiteralIdTopLevel, script->shared_function_info_count());
+  DCHECK_LE(script->shared_function_info_count(),
+            script->shared_function_infos()->length());
+  MaybeObject maybeToplevel = script->shared_function_infos()->get(0);
+  Tagged<HeapObject> heap_object;
+  const bool topLevelInfoExists =
+      maybeToplevel.GetHeapObject(&heap_object) && !IsUndefined(heap_object);
+  if (topLevelInfoExists) {
+    if (did_compile) *did_compile = false;
+    return handle(SharedFunctionInfo::cast(heap_object), isolate_);
+  }
+
+  MaybeHandle<SharedFunctionInfo> shared;
+  CompileTopLevel(isolate_, script, &shared);
+  if (did_compile) *did_compile = true;
+  return shared;
 }
 
 // We need to find a SFI for a literal that may not yet have been compiled yet,
