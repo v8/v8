@@ -331,6 +331,7 @@ V<Word32> GraphBuilder::BuildUint32Mod(V<Word32> lhs, V<Word32> rhs) {
     // The {rhs} is not a power of two, do a generic Uint32Mod.
     GOTO(done, __ Uint32Mod(lhs, rhs));
   }
+  END_IF
 
   BIND(done, result);
   return result;

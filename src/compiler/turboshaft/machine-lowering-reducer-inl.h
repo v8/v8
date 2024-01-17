@@ -1505,6 +1505,7 @@ class MachineLoweringReducer : public Next {
       GOTO(allocate_string,
            __ HeapConstant(factory_->cons_one_byte_string_map()));
     }
+    END_IF
 
     // Allocate the resulting ConsString.
     BIND(allocate_string, map);
@@ -2005,6 +2006,7 @@ class MachineLoweringReducer : public Next {
         ELSE {
           GOTO(done, __ HeapConstant(factory_->false_value()));
         }
+        END_IF
 
         BIND(done, result);
         return result;

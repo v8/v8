@@ -967,6 +967,11 @@ class GenericAssemblerOpInterface : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
+  ~GenericAssemblerOpInterface() {
+    // If the {if_scope_stack_} is not empty, it means that a END_IF is missing.
+    DCHECK(if_scope_stack_.empty());
+  }
+
   // These methods are used by the assembler macros (IF, ELSE, ELSE_IF, END_IF).
   template <typename L>
   auto ControlFlowHelper_Bind(L& label)
