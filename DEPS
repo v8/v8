@@ -71,7 +71,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:5d76868385b81d6c4fb3256240a2ce449c37b5ee',
+  'gn_version': 'git_revision:8bd36a27c0764c869d40ac4102a24720b781b389',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -123,9 +123,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f273bb8ce08caf960e7ee4d9f465d94bbd319708',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ff4e12a9f367bbc4a48f34480dcd50b6d749443e',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b38006383e1209828a8919501889686c21beaa6b',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '455972ce702bacc51ac997d8a657d75124057ff9',
   'buildtools/linux64': {
     'packages': [
       {
@@ -281,7 +281,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e8bd6ce42bcf735487c7822e6ba18a87d3687240',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '24cb5545a9a648f580ef7ce7b758689578f0a2a7',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'ea028d4d2b8a901f6302f5371c68a24480766e2b',
   'third_party/libunwind/src':
@@ -327,7 +327,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '5fe3232525316469e2709210e7acb8f7044d629a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '5ff8c1facf6b2e54811969ae7b90152bc1f44269',
     'condition': 'not build_with_chromium',
   }
 }
