@@ -261,17 +261,18 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  // Load the instance cache entries into the Ssa Environment.
+  // Load the instance cache entries into the SSA Environment.
   void LoadInstanceCacheIntoSsa(SsaEnv* ssa_env) {
     builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
-  // Reload the instance cache entries into the Ssa Environment, if memory can
+  // Reload the instance cache entries into the SSA Environment, if memory can
   // actually grow.
   void ReloadInstanceCacheIntoSsa(SsaEnv* ssa_env, const WasmModule* module) {
-    if (module->memories.empty()) return;
-    const WasmMemory* memory0 = &module->memories[0];
-    if (memory0->initial_pages == memory0->maximum_pages) return;
+    if (!builder_->has_cached_memory()) return;
+    const WasmMemory* cached_memory =
+        &module->memories[builder_->cached_memory_index()];
+    if (cached_memory->initial_pages == cached_memory->maximum_pages) return;
     LoadInstanceCacheIntoSsa(ssa_env);
   }
 
