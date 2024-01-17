@@ -34,12 +34,10 @@ import re
 import subprocess
 import sys
 import shutil
+import time
 
 from enum import IntEnum
 from pathlib import Path
-
-V8_DIR = Path(__file__).resolve().parent.parent.parent
-GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 
 USE_PTY = "linux" in sys.platform
 if USE_PTY:
@@ -153,6 +151,10 @@ if out_dir_override and Path(out_dir_override).is_file:
 else:
   OUTDIR = Path("out")
 
+V8_DIR = Path(__file__).resolve().parent.parent.parent
+GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
+RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
+
 BUILD_DISTRIBUTION_RE = re.compile(r"use_(remoteexec|goma) = (false|true)")
 RECLIENT_CFG_RE = re.compile(r"rbe_cfg_dir = \"[^\"]+\"\n")
 
@@ -192,6 +194,27 @@ def detect_reclient():
     return Reclient.CUSTOM
   return Reclient.NONE
 
+
+def detect_reclient_cert():
+  now = int(time.time())
+  # We cache the cert expiration time in a file, because that's much faster
+  # to read than invoking `gcertstatus`.
+  if RECLIENT_CERT_CACHE.exists():
+    with open(RECLIENT_CERT_CACHE, 'r') as f:
+      cached_time = int(f.read())
+    if now < cached_time:
+      return True
+  cmd = ["gcertstatus", "-nocheck_ssh", "-format=simple"]
+  ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  if ret.returncode != 0:
+    return False
+  MARGIN = 300  # Request fresh cert if less than 5 mins remain.
+  lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
+  if lifetime < 0:
+    return False
+  with open(RECLIENT_CERT_CACHE, 'w') as f:
+    f.write(str(now + lifetime))
+  return True
 
 # Note: this function is reused by update-compile-commands.py. When renaming
 # this, please update that file too!
@@ -736,6 +759,11 @@ def main(argv):
       _call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
     goma_ctl = GOMADIR / "goma_ctl.py"
     _call(f"{goma_ctl} ensure_start")
+  # If we have Reclient with the Google configuration, check for current
+  # certificate.
+  if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):
+    print("Found Reclient/Google setup without cert, running 'gcert' for you:")
+    subprocess.check_call("gcert", shell=True)
   for c in configs:
     return_code += configs[c].build()
   if return_code == 0:
