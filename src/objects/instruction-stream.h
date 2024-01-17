@@ -137,7 +137,7 @@ class InstructionStream : public TrustedObject {
   V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
   V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
   V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, ISTREAM_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS
 
   static_assert(kCodeAlignment >= kHeaderSize);

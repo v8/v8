@@ -1635,10 +1635,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                         MemOperand field_operand);
 #endif
 
-  // Load a protected pointer field.
-  void LoadProtectedPointerField(Register destination,
-                                 MemOperand field_operand);
-
   // Instruction set functions ------------------------------------------------
   // Logical macros.
   inline void Bics(const Register& rd, const Register& rn,
