@@ -1138,8 +1138,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // Either source_position_table for non-baseline code or
     // bytecode_offset_table for baseline code.
     Handle<ByteArray> position_table_;
-    Handle<DeoptimizationData> deoptimization_data_;
-    Handle<HeapObject> interpreter_data_;
+    MaybeHandle<DeoptimizationData> deoptimization_data_;
+    MaybeHandle<HeapObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;

@@ -92,9 +92,23 @@ INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<FixedArray>,
                    kDeoptimizationDataOrInterpreterDataOffset,
-                   kind() != CodeKind::BASELINE,
-                   kind() != CodeKind::BASELINE &&
+                   uses_deoptimization_data(),
+                   uses_deoptimization_data() &&
                        !ObjectInYoungGeneration(value))
+
+inline bool Code::uses_deoptimization_data() const {
+  return kind() == CodeKind::MAGLEV || kind() == CodeKind::TURBOFAN;
+}
+
+inline void Code::clear_deoptimization_data_and_interpreter_data() {
+  TaggedField<Object, kDeoptimizationDataOrInterpreterDataOffset>::store(
+      *this, Smi::zero());
+}
+
+inline bool Code::has_deoptimization_data_or_interpreter_data() const {
+  return TaggedField<Object, kDeoptimizationDataOrInterpreterDataOffset>::load(
+             *this) != Smi::zero();
+}
 
 Tagged<HeapObject> Code::bytecode_or_interpreter_data(
     IsolateForSandbox isolate) const {
@@ -259,7 +273,7 @@ int Code::InstructionStreamObjectSize() const {
 int Code::SizeIncludingMetadata() const {
   int size = InstructionStreamObjectSize();
   size += relocation_size();
-  if (kind() != CodeKind::BASELINE) {
+  if (uses_deoptimization_data()) {
     size += deoptimization_data()->Size();
   }
   return size;
@@ -501,7 +515,11 @@ bool Code::IsWeakObjectInDeoptimizationLiteralArray(Tagged<Object> object) {
 }
 
 void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
-  if (kind() == CodeKind::BASELINE) return;
+  if (!uses_deoptimization_data()) {
+    DCHECK(kind() == CodeKind::BASELINE ||
+           !has_deoptimization_data_or_interpreter_data());
+    return;
+  }
 
   auto deopt_data = DeoptimizationData::cast(deoptimization_data());
   if (deopt_data->length() == 0) return;

@@ -4553,6 +4553,7 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   Handle<InstructionStream> code(
       Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
           .set_self_reference(masm.CodeObject())
+          .set_deoptimization_data(DeoptimizationData::Empty(isolate))
           .Build()
           ->instruction_stream(),
       isolate);

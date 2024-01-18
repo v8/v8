@@ -95,8 +95,7 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
       local_isolate_(isolate_->main_thread_local_isolate()),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()),
-      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
+      position_table_(isolate_->factory()->empty_byte_array()) {}
 
 Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
                                   const CodeDesc& desc, CodeKind kind)
@@ -104,8 +103,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       local_isolate_(local_isolate),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()),
-      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
+      position_table_(isolate_->factory()->empty_byte_array()) {}
 
 Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
     int length, AllocationType allocation) {
@@ -181,9 +179,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         code_desc_.constant_pool_offset_relative(),
         code_desc_.code_comments_offset_relative(),
         code_desc_.unwinding_info_offset_relative(),
-        /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
-            ? interpreter_data_
-            : deoptimization_data_,
+        interpreter_data_,
+        deoptimization_data_,
         /*bytecode_offsets_or_source_position_table=*/position_table_,
         istream,
         /*instruction_start=*/kNullAddress,
@@ -2640,7 +2637,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
   DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
   DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(isolate()),
-            read_only_roots().empty_fixed_array());
+            Smi::zero());
   // .. because we don't explicitly initialize these flags:
   DCHECK(!code->marked_for_deoptimization());
   DCHECK(!code->can_have_weak_objects());
@@ -2664,8 +2661,8 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
       code->constant_pool_offset(),
       code->code_comments_offset(),
       code->unwinding_info_offset(),
-      handle(code->raw_deoptimization_data_or_interpreter_data(isolate()),
-             isolate()),
+      MaybeHandle<HeapObject>{},
+      MaybeHandle<DeoptimizationData>{},
       /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
       /*instruction_stream=*/MaybeHandle<InstructionStream>{},
       off_heap_entry,

@@ -96,13 +96,22 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_unwinding_info_offset(options.unwinding_info_offset);
 
   if (options.kind == CodeKind::BASELINE) {
+    DCHECK(options.deoptimization_data.is_null());
     code->set_bytecode_or_interpreter_data(
-        *options.bytecode_or_deoptimization_data);
+        *options.bytecode_or_interpreter_data.ToHandleChecked());
     code->set_bytecode_offset_table(
         *options.bytecode_offsets_or_source_position_table);
-  } else {
+  } else if (options.kind == CodeKind::MAGLEV ||
+             options.kind == CodeKind::TURBOFAN) {
+    DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->set_deoptimization_data(
-        FixedArray::cast(*options.bytecode_or_deoptimization_data));
+        *options.deoptimization_data.ToHandleChecked());
+    code->set_source_position_table(
+        *options.bytecode_offsets_or_source_position_table);
+  } else {
+    DCHECK(options.deoptimization_data.is_null() &&
+           options.bytecode_or_interpreter_data.is_null());
+    code->clear_deoptimization_data_and_interpreter_data();
     code->set_source_position_table(
         *options.bytecode_offsets_or_source_position_table);
   }

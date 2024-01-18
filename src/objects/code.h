@@ -124,6 +124,16 @@ class Code : public ExposedTrustedObject {
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
   DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
+
+  // Whether this type of Code uses deoptimization data, in which case the
+  // deoptimization_data field will be populated.
+  inline bool uses_deoptimization_data() const;
+
+  // If neither deoptimization data nor bytecode/interpreter data are used
+  // (e.g. for builtin code), the respective field will contain Smi::zero().
+  inline void clear_deoptimization_data_and_interpreter_data();
+  inline bool has_deoptimization_data_or_interpreter_data() const;
+
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
   // As BytecodeArrays are located in trusted space, but InterpreterData
@@ -330,6 +340,10 @@ class Code : public ExposedTrustedObject {
 #define CODE_DATA_FIELDS(V)                                                   \
   /* Strong pointer fields. */                                                \
   V(kStartOfStrongFieldsOffset, 0)                                            \
+  /* The deoptimization_data_or_interpreter_data field contains: */           \
+  /*  - A DeoptimizationData for optimized code (maglev or turbofan) */       \
+  /*  - A BytecodeArray or InterpreterData for baseline code */               \
+  /*  - Smi::zero() for all other types of code (e.g. builtin) */             \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kWrapperOffset, kTaggedSize)                                              \
@@ -407,7 +421,7 @@ class Code : public ExposedTrustedObject {
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data(
+  Tagged<Object> raw_deoptimization_data_or_interpreter_data(
       IsolateForSandbox isolate) const;
   Tagged<ByteArray> raw_position_table() const;
 

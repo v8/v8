@@ -1707,7 +1707,7 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
     SetInternalReference(entry, "bytecode_offset_table",
                          code->bytecode_offset_table(),
                          Code::kPositionTableOffset);
-  } else {
+  } else if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> deoptimization_data =
         DeoptimizationData::cast(code->deoptimization_data());
     TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);

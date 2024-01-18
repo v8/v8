@@ -482,9 +482,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   Handle<ByteArray> source_positions =
       source_position_table_builder_.ToSourcePositionTable(isolate());
 
-  // Allocate deoptimization data.
-  Handle<DeoptimizationData> deopt_data = GenerateDeoptimizationData();
-
   // Allocate and install the code.
   CodeDesc desc;
   masm()->GetCode(isolate()->main_thread_local_isolate(), &desc, safepoints(),
@@ -500,17 +497,21 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  MaybeHandle<Code> maybe_code =
-      Factory::CodeBuilder(isolate(), desc, info()->code_kind())
-          .set_builtin(info()->builtin())
-          .set_inlined_bytecode_size(info()->inlined_bytecode_size())
-          .set_source_position_table(source_positions)
-          .set_deoptimization_data(deopt_data)
-          .set_is_turbofanned()
-          .set_stack_slots(frame()->GetTotalFrameSlotCount())
-          .set_profiler_data(info()->profiler_data())
-          .set_osr_offset(info()->osr_offset())
-          .TryBuild();
+  Factory::CodeBuilder builder(isolate(), desc, info()->code_kind());
+  builder.set_builtin(info()->builtin())
+      .set_inlined_bytecode_size(info()->inlined_bytecode_size())
+      .set_source_position_table(source_positions)
+      .set_is_turbofanned()
+      .set_stack_slots(frame()->GetTotalFrameSlotCount())
+      .set_profiler_data(info()->profiler_data())
+      .set_osr_offset(info()->osr_offset());
+
+  if (info()->code_kind() == CodeKind::TURBOFAN) {
+    // Deoptimization data is only used in this case.
+    builder.set_deoptimization_data(GenerateDeoptimizationData());
+  }
+
+  MaybeHandle<Code> maybe_code = builder.TryBuild();
 
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
