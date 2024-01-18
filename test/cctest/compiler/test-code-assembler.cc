@@ -419,12 +419,16 @@ TEST(TestOutOfScopeVariable) {
   CodeAssemblerLabel block2(&m);
   CodeAssemblerLabel block3(&m);
   CodeAssemblerLabel block4(&m);
-  m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
+  m.Branch(m.WordEqual(m.BitcastTaggedToWordForTagAndSmiBits(
+                           m.UncheckedParameter<AnyTaggedT>(0)),
+                       m.IntPtrConstant(0)),
            &block1, &block4);
   m.Bind(&block4);
   {
     TVariable<IntPtrT> var_object(&m);
-    m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
+    m.Branch(m.WordEqual(m.BitcastTaggedToWordForTagAndSmiBits(
+                             m.UncheckedParameter<AnyTaggedT>(0)),
+                         m.IntPtrConstant(0)),
              &block2, &block3);
 
     m.Bind(&block2);

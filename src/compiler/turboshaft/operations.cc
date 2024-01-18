@@ -46,6 +46,9 @@ base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
                                         JSHeapBroker* broker) {
   if (!target) return base::nullopt;
   if (target->kind != ConstantOp::Kind::kHeapObject) return base::nullopt;
+  // TODO(nicohartmann@): For builtin compilation we don't have a broker. We
+  // could try to access the heap directly instead.
+  if (broker == nullptr) return base::nullopt;
   UnparkedScopeIfNeeded scope(broker);
   AllowHandleDereference allow_handle_dereference;
   HeapObjectRef ref = MakeRef(broker, target->handle());

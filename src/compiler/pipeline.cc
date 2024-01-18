@@ -3297,10 +3297,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     data.set_profile_data(profile_data);
   }
 
-  pipeline.Run<CsaEarlyOptimizationPhase>();
-  pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
-
   if (!v8_flags.turboshaft_csa) {
+    pipeline.Run<CsaEarlyOptimizationPhase>();
+    pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
+
     // Optimize memory access and allocation operations.
     pipeline.Run<MemoryOptimizationPhase>();
     pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
@@ -3335,6 +3335,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
         pipeline.Run<turboshaft::BuildGraphPhase>(&linkage);
     CHECK(!bailout.has_value());
 
+    pipeline.Run<turboshaft::CsaLoadEliminationPhase>();
     pipeline.Run<turboshaft::CsaLateEscapeAnalysisPhase>();
     pipeline.Run<turboshaft::CsaBranchEliminationPhase>();
     pipeline.Run<turboshaft::CsaOptimizePhase>();

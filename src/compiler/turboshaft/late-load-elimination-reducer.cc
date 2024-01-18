@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/objects/code-inl.h"
 
@@ -63,11 +64,13 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kMemoryBarrier:
       case Opcode::kStackCheck:
       case Opcode::kParameter:
+      case Opcode::kDebugBreak:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kArraySet:
       case Opcode::kStructSet:
+      case Opcode::kSetStackPointer:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitely break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
@@ -165,6 +168,15 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
+  // If we have a raw base and we allow those to be inner pointers, we can
+  // overwrite arbitrary values and need to invalidate anything that is
+  // potentially aliasing.
+  const bool invalidate_maybe_aliasing =
+      !store.kind.tagged_base &&
+      raw_base_assumption_ == RawBaseAssumption::kMaybeInnerPointer;
+
+  if (invalidate_maybe_aliasing) memory_.InvalidateMaybeAliasing();
+
   if (!store.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
@@ -174,7 +186,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
   OpIndex value = store.value();
 
   // Updating the known stored values.
-  memory_.Invalidate(store);
+  if (!invalidate_maybe_aliasing) memory_.Invalidate(store);
   memory_.Insert(store);
 
   // Updating aliases if the value stored was known as non-aliasing.
@@ -189,6 +201,15 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 // call if it was an argument of the call.
 void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
                                               const CallOp& op) {
+  const Operation& callee = graph_.Get(op.callee());
+  if (const ConstantOp* external_constant =
+          callee.template TryCast<Opmask::kExternalConstant>()) {
+    if (external_constant->external_reference() ==
+        ExternalReference::check_object_type()) {
+      return;
+    }
+  }
+
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
@@ -199,8 +220,8 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
     // This is a stack check that cannot write heap memory.
     return;
   }
-  if (auto builtin_id = TryGetBuiltinId(
-          graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {
+  if (auto builtin_id =
+          TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_)) {
     switch (*builtin_id) {
       // TODO(dmercadier): extend this list.
       case Builtin::kCopyFastSmiOrObjectElements:

@@ -1758,9 +1758,12 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
         }
       case Kind::kExtractHighHalf:
       case Kind::kExtractLowHalf:
+        return false;
       case Kind::kZeroExtend:
       case Kind::kSignExtend:
-        return false;
+        DCHECK_EQ(from, RegisterRepresentation::Word32());
+        DCHECK_EQ(to, RegisterRepresentation::Word64());
+        return reverse_kind == Kind::kTruncate;
       case Kind::kTruncate:
         DCHECK_EQ(from, RegisterRepresentation::Word64());
         DCHECK_EQ(to, RegisterRepresentation::Word32());

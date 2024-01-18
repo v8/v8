@@ -361,8 +361,8 @@ class BranchEliminationReducer : public Next {
       // TODO(nicohartmann@): Temporarily disable this "optimization" because
       // it prevents dead code elimination in some cases. Reevaluate this and
       // reenable if phases have been reordered properly.
-      // Asm().CloneAndInlineBlock(old_dst);
-      // return OpIndex::Invalid();
+      Asm().CloneAndInlineBlock(destination_origin);
+      return OpIndex::Invalid();
     }
 
     goto no_change;

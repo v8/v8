@@ -8,6 +8,7 @@
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
+#include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 #include "src/compiler/turboshaft/loop-unrolling-reducer.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
@@ -20,6 +21,16 @@
 #include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+void CsaLoadEliminationPhase::Run(Zone* temp_zone) {
+  CopyingPhase<VariableReducer, MachineOptimizationReducer,
+               RequiredOptimizationReducer,
+               ValueNumberingReducer>::Run(temp_zone);
+
+  CopyingPhase<VariableReducer, LateLoadEliminationReducer,
+               MachineOptimizationReducer, RequiredOptimizationReducer,
+               ValueNumberingReducer>::Run(temp_zone);
+}
 
 void CsaLateEscapeAnalysisPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, LateEscapeAnalysisReducer,

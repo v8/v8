@@ -1238,15 +1238,17 @@ OpIndex GraphBuilder::Process(
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
       }
-      OpEffects effects = OpEffects().CanCallAnything();
-      // TODO(nicohartmann@): Disabling `can_allocate` effect is currently
-      // broken and causes crashes. We think there is a builtin that has the
-      // `CallDescriptor::kNoAllocate` flag set incorrectly. See:
-      // https://crbug.com/1489500
-      //
-      // if ((call_descriptor->flags() & CallDescriptor::kNoAllocate) != 0) {
-      //   effects.can_allocate = false;
-      // }
+      OpEffects effects =
+          OpEffects().CanDependOnChecks().CanChangeControlFlow().CanDeopt();
+      if ((call_descriptor->flags() & CallDescriptor::kNoAllocate) == 0) {
+        effects = effects.CanAllocate();
+      }
+      if (!op->HasProperty(Operator::kNoWrite)) {
+        effects = effects.CanWriteMemory();
+      }
+      if (!op->HasProperty(Operator::kNoRead)) {
+        effects = effects.CanReadMemory();
+      }
       OpIndex result =
           __ Call(callee, frame_state_idx, base::VectorOf(arguments),
                   ts_descriptor, effects);
@@ -1359,6 +1361,13 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kStaticAssert: {
+      if (V8_UNLIKELY(PipelineData::Get().pipeline_kind() ==
+                      TurboshaftPipelineKind::kCSA)) {
+        // TODO(nicohartmann@): CSA code contains some static asserts (even in
+        // release builds) that we cannot prove currently, so we skip them here
+        // for now.
+        return OpIndex::Invalid();
+      }
       __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();
     }
