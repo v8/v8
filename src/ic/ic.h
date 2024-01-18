@@ -227,6 +227,9 @@ class KeyedLoadIC : public LoadIC {
     bool convert_hole;
   };
 
+  static constexpr HandlerInfo kInBoundsNoHollyAccess =
+      HandlerInfo{KeyedAccessLoadMode::kInBounds, false};
+
   KeyedLoadIC(Isolate* isolate, Handle<FeedbackVector> vector,
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}

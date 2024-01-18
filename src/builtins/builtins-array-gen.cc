@@ -93,7 +93,7 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
   // because the fast branch is taken only when the source and the target
   // elements kinds match.
   EmitElementStore(CAST(a()), k_number, num_value, source_elements_kind_,
-                   KeyedAccessStoreMode::STANDARD_STORE, &detached, context());
+                   KeyedAccessStoreMode::kInBounds, &detached, context());
   Goto(&done);
 
   BIND(&slow);

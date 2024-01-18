@@ -4235,12 +4235,12 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     return ReduceResult::Fail();
   }
 
-  // TODO(victorgomes): Deal with LOAD_IGNORE_OUT_OF_BOUNDS.
-  if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) {
+  // TODO(victorgomes): Deal with OOB access.
+  if (LoadModeHandlesOOB(keyed_mode.load_mode())) {
     return ReduceResult::Fail();
   }
 
-  DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
+  DCHECK(LoadModeIsInBounds(keyed_mode.load_mode()));
 
   // Ensure that {object} is actually a String.
   BuildCheckString(object);
@@ -4364,8 +4364,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     return ReduceResult::Fail();
   }
   if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
-      keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS) {
-    // TODO(victorgomes): Handle STORE_IGNORE_OUT_OF_BOUNDS mode.
+      StoreModeIgnoresTypeArrayOOB(keyed_mode.store_mode())) {
+    // TODO(victorgomes): Handle OOB mode.
     return ReduceResult::Fail();
   }
   if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
@@ -4387,10 +4387,10 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   AddNewNode<CheckTypedArrayBounds>({index, length});
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
-      DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
+      DCHECK(LoadModeIsInBounds(keyed_mode.load_mode()));
       return BuildLoadTypedArrayElement(object, index, elements_kind);
     case compiler::AccessMode::kStore:
-      DCHECK_EQ(keyed_mode.store_mode(), STANDARD_STORE);
+      DCHECK(StoreModeIsInBounds(keyed_mode.store_mode()));
       BuildStoreTypedArrayElement(object, index, elements_kind);
       return ReduceResult::Done();
     case compiler::AccessMode::kHas:
@@ -4413,7 +4413,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
       base::VectorOf(access_info.lookup_start_object_maps());
   // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
   // values).
-  if (load_mode != STANDARD_LOAD) {
+  if (LoadModeHandlesOOB(load_mode)) {
     return ReduceResult::Fail();
   }
 
@@ -4508,7 +4508,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
               {elements_array}, FixedArray::kLengthOffset)});
     }
     index = GetInt32ElementIndex(index_object);
-    if (keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
+    if (keyed_mode.store_mode() == KeyedAccessStoreMode::kGrowAndHandleCOW) {
       if (elements_array_length == nullptr) {
         elements_array_length =
             AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
@@ -4560,7 +4560,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
       // Handle COW if needed.
       if (IsSmiOrObjectElementsKind(elements_kind)) {
-        if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
+        if (keyed_mode.store_mode() == KeyedAccessStoreMode::kHandleCOW) {
           elements_array =
               AddNewNode<EnsureWritableFastElements>({elements_array, object});
         } else {
@@ -4631,7 +4631,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   // TODO(leszeks): Add non-deopting bounds check (has to support undefined
   // values).
   if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
-      keyed_mode.load_mode() != STANDARD_LOAD) {
+      LoadModeHandlesOOB(keyed_mode.load_mode())) {
     return ReduceResult::Fail();
   }
 
@@ -4668,7 +4668,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
         // with no element accessors and no throwing behavior for elements (and
         // we need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
-             IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
+             StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return ReduceResult::Fail();

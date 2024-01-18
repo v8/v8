@@ -83,19 +83,19 @@ char IC::TransitionMarkFromState(IC::State state) {
 namespace {
 
 const char* GetModifier(KeyedAccessLoadMode mode) {
-  if (mode == LOAD_IGNORE_OUT_OF_BOUNDS) return ".IGNORE_OOB";
+  if (mode == KeyedAccessLoadMode::kHandleOOB) return ".IGNORE_OOB";
   return "";
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {
   switch (mode) {
-    case STORE_HANDLE_COW:
+    case KeyedAccessStoreMode::kHandleCOW:
       return ".COW";
-    case STORE_AND_GROW_HANDLE_COW:
+    case KeyedAccessStoreMode::kGrowAndHandleCOW:
       return ".STORE+COW";
-    case STORE_IGNORE_OUT_OF_BOUNDS:
+    case KeyedAccessStoreMode::kIgnoreTypedArrayOOB:
       return ".IGNORE_OOB";
-    case STANDARD_STORE:
+    case KeyedAccessStoreMode::kInBounds:
       return "";
   }
   UNREACHABLE();
@@ -1152,13 +1152,12 @@ std::optional<KeyedLoadIC::HandlerInfo> KeyedLoadIC::GetHandlerInfoFor(
 KeyedLoadIC::HandlerInfo KeyedLoadIC::GeneralizeHandlerInfo(
     std::optional<HandlerInfo> old_info, const HandlerInfo new_info) {
   if (!old_info.has_value()) return new_info;
-  KeyedAccessLoadMode load_mode =
-      (old_info->load_mode == STANDARD_LOAD ? new_info.load_mode
-                                            : LOAD_IGNORE_OUT_OF_BOUNDS);
+  KeyedAccessLoadMode load_mode = (LoadModeIsInBounds(old_info->load_mode)
+                                       ? new_info.load_mode
+                                       : KeyedAccessLoadMode::kHandleOOB);
   DCHECK_IMPLIES(
-      old_info->load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
-          old_info->convert_hole,
-      new_info.load_mode == LOAD_IGNORE_OUT_OF_BOUNDS || new_info.convert_hole);
+      LoadModeHandlesOOB(old_info->load_mode) || old_info->convert_hole,
+      LoadModeHandlesOOB(new_info.load_mode) || new_info.convert_hole);
   bool convert_hole = old_info->convert_hole || new_info.convert_hole;
   return HandlerInfo{load_mode, convert_hole};
 }
@@ -1316,11 +1315,12 @@ KeyedLoadIC::HandlerInfo GetHandlerInfo(Isolate* isolate,
                                         Handle<Object> receiver, size_t index,
                                         bool is_found) {
   if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
-    return KeyedLoadIC::HandlerInfo{STANDARD_LOAD, false};
+    return KeyedLoadIC::kInBoundsNoHollyAccess;
   }
   bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
-  KeyedAccessLoadMode load_mode =
-      is_oob_access ? LOAD_IGNORE_OUT_OF_BOUNDS : STANDARD_LOAD;
+  KeyedAccessLoadMode load_mode = is_oob_access
+                                      ? KeyedAccessLoadMode::kHandleOOB
+                                      : KeyedAccessLoadMode::kInBounds;
   DCHECK(IsHeapObject(*receiver));
   Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
   bool is_hole = !is_found && !is_oob_access &&
@@ -1337,8 +1337,9 @@ KeyedLoadIC::HandlerInfo GetUpdatedHandlerInfoForMap(
   // Check if the elements kind allow reading a hole.
   bool allow_reading_hole_element =
       AllowReadingHoleElement(map->elements_kind());
-  KeyedAccessLoadMode load_mode =
-      allow_convert_hole_to_undefined ? info.load_mode : STANDARD_LOAD;
+  KeyedAccessLoadMode load_mode = allow_convert_hole_to_undefined
+                                      ? info.load_mode
+                                      : KeyedAccessLoadMode::kInBounds;
   bool convert_hole = allow_convert_hole_to_undefined &&
                       allow_reading_hole_element && info.convert_hole;
   return KeyedLoadIC::HandlerInfo{load_mode, convert_hole};
@@ -2247,7 +2248,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     // there is only a change in the store_mode we can still stay monomorphic.
     if (receiver_map.is_identical_to(previous_receiver_map) &&
         new_receiver_map.is_identical_to(receiver_map) &&
-        old_store_mode == STANDARD_STORE && store_mode != STANDARD_STORE) {
+        StoreModeIsInBounds(old_store_mode) &&
+        !StoreModeIsInBounds(store_mode)) {
       if (IsJSArrayMap(*receiver_map) &&
           JSArray::MayHaveReadOnlyLength(*receiver_map)) {
         set_slow_stub_reason(
@@ -2288,8 +2290,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
-  if (old_store_mode != STANDARD_STORE) {
-    if (store_mode == STANDARD_STORE) {
+  if (!StoreModeIsInBounds(old_store_mode)) {
+    if (StoreModeIsInBounds(store_mode)) {
       store_mode = old_store_mode;
     } else if (store_mode != old_store_mode) {
       set_slow_stub_reason("store mode mismatch");
@@ -2300,7 +2302,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // If the store mode isn't the standard mode, make sure that all polymorphic
   // receivers are either external arrays, or all "normal" arrays with writable
   // length. Otherwise, use the megamorphic stub.
-  if (store_mode != STANDARD_STORE) {
+  if (!StoreModeIsInBounds(store_mode)) {
     size_t external_arrays = 0;
     for (MapAndHandler map_and_handler : target_maps_and_handlers) {
       Handle<Map> map = map_and_handler.first;
@@ -2374,7 +2376,8 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         receiver_map->has_fast_packed_elements()) {
       // Allow fast behaviour for in-bounds stores while making it miss and
       // properly handle the out of bounds store case.
-      code = StoreHandler::StoreFastElementBuiltin(isolate(), STANDARD_STORE);
+      code = StoreHandler::StoreFastElementBuiltin(
+          isolate(), KeyedAccessStoreMode::kInBounds);
     } else {
       code = StoreHandler::StoreFastElementBuiltin(isolate(), store_mode);
       if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
@@ -2494,13 +2497,14 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, size_t index) {
       IsJSArray(*receiver) && oob_access && index <= JSArray::kMaxArrayIndex &&
       !receiver->WouldConvertToSlowElements(static_cast<uint32_t>(index));
   if (allow_growth) {
-    return STORE_AND_GROW_HANDLE_COW;
+    return KeyedAccessStoreMode::kGrowAndHandleCOW;
   }
   if (receiver->map()->has_typed_array_or_rab_gsab_typed_array_elements() &&
       oob_access) {
-    return STORE_IGNORE_OUT_OF_BOUNDS;
+    return KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
   }
-  return receiver->elements()->IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;
+  return receiver->elements()->IsCowArray() ? KeyedAccessStoreMode::kHandleCOW
+                                            : KeyedAccessStoreMode::kInBounds;
 }
 
 }  // namespace
@@ -2571,7 +2575,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   Handle<Map> old_receiver_map;
   bool is_arguments = false;
   bool key_is_valid_index = (key_type == kIntPtr);
-  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds;
   if (use_ic && IsJSReceiver(*object) && key_is_valid_index) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
@@ -2605,7 +2609,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
         set_slow_stub_reason("arguments receiver");
-      } else if (IsJSArray(*object) && IsGrowStoreMode(store_mode) &&
+      } else if (IsJSArray(*object) && StoreModeCanGrow(store_mode) &&
                  JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
         set_slow_stub_reason("array has read only length");
       } else if (IsJSObject(*object) && MayHaveTypedArrayInPrototypeChain(
@@ -2677,7 +2681,7 @@ MaybeHandle<Object> StoreInArrayLiteralIC::Store(Handle<JSArray> array,
 
   // TODO(neis): Convert HeapNumber to Smi if possible?
 
-  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds;
   if (IsSmi(*index)) {
     DCHECK_GE(Smi::ToInt(*index), 0);
     uint32_t index32 = static_cast<uint32_t>(Smi::ToInt(*index));

@@ -370,7 +370,8 @@ class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property.
   static inline Handle<Smi> StoreSlow(
-      Isolate* isolate, KeyedAccessStoreMode store_mode = STANDARD_STORE);
+      Isolate* isolate,
+      KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds);
 
   // Creates a Smi-handler for storing a property on a proxy.
   static inline Handle<Smi> StoreProxy(Isolate* isolate);

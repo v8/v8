@@ -2334,27 +2334,62 @@ enum IsolateAddressId {
   V(TrapArrayTooLarge)             \
   V(TrapStringOffsetOutOfBounds)
 
-enum KeyedAccessLoadMode {
-  STANDARD_LOAD,
-  LOAD_IGNORE_OUT_OF_BOUNDS,
+enum class KeyedAccessLoadMode {
+  kInBounds,
+  kHandleOOB,
 };
 
-enum KeyedAccessStoreMode {
-  STANDARD_STORE,
-  STORE_AND_GROW_HANDLE_COW,
-  STORE_IGNORE_OUT_OF_BOUNDS,
-  STORE_HANDLE_COW
+inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
+  return load_mode == KeyedAccessLoadMode::kInBounds;
+}
+
+inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
+  return load_mode == KeyedAccessLoadMode::kHandleOOB;
+}
+
+enum class KeyedAccessStoreMode {
+  kInBounds,
+  kGrowAndHandleCOW,
+  kIgnoreTypedArrayOOB,
+  kHandleCOW,
 };
+
+inline std::ostream& operator<<(std::ostream& os, KeyedAccessStoreMode mode) {
+  switch (mode) {
+    case KeyedAccessStoreMode::kInBounds:
+      return os << "kInBounds";
+    case KeyedAccessStoreMode::kGrowAndHandleCOW:
+      return os << "kGrowAndHandleCOW";
+    case KeyedAccessStoreMode::kIgnoreTypedArrayOOB:
+      return os << "kIgnoreTypedArrayOOB";
+    case KeyedAccessStoreMode::kHandleCOW:
+      return os << "kHandleCOW";
+  }
+  UNREACHABLE();
+}
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_HANDLE_COW ||
-         store_mode == STORE_AND_GROW_HANDLE_COW;
+inline bool StoreModeIsInBounds(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kInBounds;
 }
 
-inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_AND_GROW_HANDLE_COW;
+inline bool StoreModeHandlesCOW(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kHandleCOW ||
+         store_mode == KeyedAccessStoreMode::kGrowAndHandleCOW;
+}
+
+inline bool StoreModeSupportsTypeArray(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kInBounds ||
+         store_mode == KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
+}
+
+inline bool StoreModeIgnoresTypeArrayOOB(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
+}
+
+inline bool StoreModeCanGrow(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kGrowAndHandleCOW;
 }
 
 enum class IcCheckType { kElement, kProperty };

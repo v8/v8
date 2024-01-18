@@ -2230,7 +2230,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // no element accessors and no throwing behavior for elements (and we
         // need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
-             IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
+             StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
                 broker(), &prototype_maps)) {
           return NoChange();
@@ -3206,7 +3206,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   // the store mode).
   if (IsAnyStore(keyed_mode.access_mode()) &&
       IsSmiOrObjectElementsKind(elements_kind) &&
-      !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
+      !StoreModeHandlesCOW(keyed_mode.store_mode())) {
     effect = graph()->NewNode(
         simplified()->CheckMaps(CheckMapsFlag::kNone,
                                 ZoneRefSet<Map>(broker()->fixed_array_map())),
@@ -3228,10 +3228,10 @@ JSNativeContextSpecialization::BuildElementAccess(
                 elements, effect, control);
 
   // Check if we might need to grow the {elements} backing store.
-  if (keyed_mode.IsStore() && IsGrowStoreMode(keyed_mode.store_mode())) {
+  if (keyed_mode.IsStore() && StoreModeCanGrow(keyed_mode.store_mode())) {
     // For growing stores we validate the {index} below.
   } else if (keyed_mode.IsLoad() &&
-             keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
+             LoadModeHandlesOOB(keyed_mode.load_mode()) &&
              CanTreatHoleAsUndefined(receiver_maps)) {
     // Check that the {index} is a valid array index, we do the actual
     // bounds check below and just skip the store below if it's out of
@@ -3276,7 +3276,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Check if we can return undefined for out-of-bounds loads.
-    if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
+    if (LoadModeHandlesOOB(keyed_mode.load_mode()) &&
         CanTreatHoleAsUndefined(receiver_maps)) {
       Node* check =
           graph()->NewNode(simplified()->NumberLessThan(), index, length);
@@ -3456,11 +3456,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Ensure that copy-on-write backing store is writable.
     if (IsSmiOrObjectElementsKind(elements_kind) &&
-        keyed_mode.store_mode() == STORE_HANDLE_COW) {
+        keyed_mode.store_mode() == KeyedAccessStoreMode::kHandleCOW) {
       elements = effect =
           graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
                            elements, effect, control);
-    } else if (IsGrowStoreMode(keyed_mode.store_mode())) {
+    } else if (StoreModeCanGrow(keyed_mode.store_mode())) {
       // Determine the length of the {elements} backing store.
       Node* elements_length = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
@@ -3505,7 +3505,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       // If we didn't grow {elements}, it might still be COW, in which case we
       // copy it now.
       if (IsSmiOrObjectElementsKind(elements_kind) &&
-          keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
+          keyed_mode.store_mode() == KeyedAccessStoreMode::kGrowAndHandleCOW) {
         elements = effect =
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
                              receiver, elements, effect, control);
@@ -3664,10 +3664,9 @@ JSNativeContextSpecialization::
   enum Situation { kBoundsCheckDone, kHandleOOB_SmiAndRangeCheckComputed };
   Situation situation;
   TNode<BoolT> check;
-  if ((keyed_mode.IsLoad() &&
-       keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) ||
+  if ((keyed_mode.IsLoad() && LoadModeHandlesOOB(keyed_mode.load_mode())) ||
       (keyed_mode.IsStore() &&
-       keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS)) {
+       StoreModeIgnoresTypeArrayOOB(keyed_mode.store_mode()))) {
     // Only check that the {index} is in SignedSmall range. We do the actual
     // bounds check below and just skip the property access if it's out of
     // bounds for the {receiver}.
@@ -3864,7 +3863,7 @@ JSNativeContextSpecialization::
 Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* receiver, Node* index, Node* length, Node** effect, Node** control,
     KeyedAccessLoadMode load_mode) {
-  if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
+  if (LoadModeHandlesOOB(load_mode) &&
       dependencies()->DependOnNoElementsProtector()) {
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(
