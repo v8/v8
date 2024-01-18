@@ -1288,6 +1288,62 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
   return AllowConvertHoleElementToUndefined(isolate, receiver_map);
 }
 
+bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
+  size_t length;
+  if (IsJSArray(*receiver)) {
+    length = Object::Number(JSArray::cast(*receiver)->length());
+  } else if (IsJSTypedArray(*receiver)) {
+    length = JSTypedArray::cast(*receiver)->GetLength();
+  } else if (IsJSObject(*receiver)) {
+    length = JSObject::cast(*receiver)->elements()->length();
+  } else if (IsString(*receiver)) {
+    length = String::cast(*receiver)->length();
+  } else {
+    return false;
+  }
+  return index >= length;
+}
+
+bool AllowReadingHoleElement(ElementsKind elements_kind) {
+  // TODO(victorgomes): TF does not support reading holes in holey double
+  // arrays. Checking only for HOLEY_SMI_ELEMENTS and HOLEY_ELEMENTS avoid
+  // a deopt-loop.
+  return (elements_kind == HOLEY_SMI_ELEMENTS ||
+          elements_kind == HOLEY_ELEMENTS);
+}
+
+KeyedLoadIC::HandlerInfo GetHandlerInfo(Isolate* isolate,
+                                        Handle<Object> receiver, size_t index,
+                                        bool is_found) {
+  if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
+    return KeyedLoadIC::HandlerInfo{STANDARD_LOAD, false};
+  }
+  bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
+  KeyedAccessLoadMode load_mode =
+      is_oob_access ? LOAD_IGNORE_OUT_OF_BOUNDS : STANDARD_LOAD;
+  DCHECK(IsHeapObject(*receiver));
+  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
+  bool is_hole = !is_found && !is_oob_access &&
+                 AllowReadingHoleElement(receiver_map->elements_kind());
+  return KeyedLoadIC::HandlerInfo{load_mode, is_hole};
+}
+
+KeyedLoadIC::HandlerInfo GetUpdatedHandlerInfoForMap(
+    Isolate* isolate, Handle<Map> map, KeyedLoadIC::HandlerInfo info) {
+  // Check if we can convert the result to undefined, either due to an OOB or
+  // reading a hole.
+  bool allow_convert_hole_to_undefined =
+      AllowConvertHoleElementToUndefined(isolate, map);
+  // Check if the elements kind allow reading a hole.
+  bool allow_reading_hole_element =
+      AllowReadingHoleElement(map->elements_kind());
+  KeyedAccessLoadMode load_mode =
+      allow_convert_hole_to_undefined ? info.load_mode : STANDARD_LOAD;
+  bool convert_hole = allow_convert_hole_to_undefined &&
+                      allow_reading_hole_element && info.convert_hole;
+  return KeyedLoadIC::HandlerInfo{load_mode, convert_hole};
+}
+
 }  // namespace
 
 Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
@@ -1343,15 +1399,12 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
-  bool convert_hole_to_undefined =
-      info.convert_hole &&
-      (elements_kind == HOLEY_SMI_ELEMENTS ||
-       elements_kind == HOLEY_ELEMENTS) &&
-      AllowConvertHoleElementToUndefined(isolate(), receiver_map);
+  DCHECK_IMPLIES(info.convert_hole, AllowReadingHoleElement(elements_kind) &&
+                                        AllowConvertHoleElementToUndefined(
+                                            isolate(), receiver_map));
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
-  return LoadHandler::LoadElement(isolate(), elements_kind,
-                                  convert_hole_to_undefined, is_js_array,
-                                  info.load_mode);
+  return LoadHandler::LoadElement(isolate(), elements_kind, info.convert_hole,
+                                  is_js_array, info.load_mode);
 }
 
 void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
@@ -1375,8 +1428,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
     }
-    handlers->push_back(
-        MaybeObjectHandle(LoadElementHandler(receiver_map, info)));
+    handlers->push_back(MaybeObjectHandle(LoadElementHandler(
+        receiver_map,
+        GetUpdatedHandlerInfoForMap(isolate(), receiver_map, info))));
   }
 }
 
@@ -1452,37 +1506,6 @@ bool CanCache(Handle<Object> receiver, InlineCacheState state) {
   if (!v8_flags.use_ic || state == NO_FEEDBACK) return false;
   if (!IsJSReceiver(*receiver) && !IsString(*receiver)) return false;
   return !IsAccessCheckNeeded(*receiver) && !IsJSPrimitiveWrapper(*receiver);
-}
-
-bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
-  size_t length;
-  if (IsJSArray(*receiver)) {
-    length = Object::Number(JSArray::cast(*receiver)->length());
-  } else if (IsJSTypedArray(*receiver)) {
-    length = JSTypedArray::cast(*receiver)->GetLength();
-  } else if (IsJSObject(*receiver)) {
-    length = JSObject::cast(*receiver)->elements()->length();
-  } else if (IsString(*receiver)) {
-    length = String::cast(*receiver)->length();
-  } else {
-    return false;
-  }
-  return index >= length;
-}
-
-KeyedLoadIC::HandlerInfo GetHandlerInfo(Isolate* isolate,
-                                        Handle<Object> receiver, size_t index,
-                                        bool is_found) {
-  if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
-    return KeyedLoadIC::HandlerInfo{STANDARD_LOAD, false};
-  }
-  bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
-  KeyedAccessLoadMode load_mode =
-      is_oob_access ? LOAD_IGNORE_OUT_OF_BOUNDS : STANDARD_LOAD;
-  // !is_found && !is_oob_access -> is_hole.
-  DCHECK(!is_found);
-  bool is_hole = !is_oob_access;
-  return KeyedLoadIC::HandlerInfo{load_mode, is_hole};
 }
 
 }  // namespace
