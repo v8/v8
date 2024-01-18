@@ -4762,54 +4762,57 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   template <RememberedSetType old_to_new_type>
   void UpdateUntypedOldToNewPointers() {
-    if (chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) {
-      const PtrComprCageBase cage_base = heap_->isolate();
-      // Marking bits are cleared already when the page is already swept. This
-      // is fine since in that case the sweeper has already removed dead invalid
-      // objects as well.
-      RememberedSet<old_to_new_type>::Iterate(
-          chunk_,
-          [this, cage_base](MaybeObjectSlot slot) {
-            CheckAndUpdateOldToNewSlot(slot, cage_base);
-            // A new space string might have been promoted into the shared heap
-            // during GC.
-            if (record_old_to_shared_slots_) {
-              CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
-            }
-            // Always keep slot since all slots are dropped at once after
-            // iteration.
-            return KEEP_SLOT;
-          },
-          SlotSet::KEEP_EMPTY_BUCKETS);
-    }
+    if (!chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) return;
+
+    const PtrComprCageBase cage_base = heap_->isolate();
+    // Marking bits are cleared already when the page is already swept. This
+    // is fine since in that case the sweeper has already removed dead invalid
+    // objects as well.
+    RememberedSet<old_to_new_type>::Iterate(
+        chunk_,
+        [this, cage_base](MaybeObjectSlot slot) {
+          CheckAndUpdateOldToNewSlot(slot, cage_base);
+          // A new space string might have been promoted into the shared heap
+          // during GC.
+          if (record_old_to_shared_slots_) {
+            CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
+          }
+          // Always keep slot since all slots are dropped at once after
+          // iteration.
+          return KEEP_SLOT;
+        },
+        SlotSet::KEEP_EMPTY_BUCKETS);
 
     // Full GCs will empty new space, so [old_to_new_type] is empty.
     chunk_->ReleaseSlotSet(old_to_new_type);
   }
 
   void UpdateUntypedOldToOldPointers() {
-    if (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
-      const PtrComprCageBase cage_base = heap_->isolate();
+    if (!chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) return;
 
+    const PtrComprCageBase cage_base = heap_->isolate();
+    if (chunk_->executable()) {
       // When updating pointer in an InstructionStream (in particular, the
-      // pointer to relocation info), we need to use a WriteProtectedSlot that
-      // ensures the code page is unlocked.
-      base::Optional<WritableJitPage> jit_page;
-      if (chunk_->executable()) {
-        jit_page.emplace(chunk_->area_start(), chunk_->area_size());
-      }
-
+      // pointer to relocation info), we need to use WriteProtectedSlots that
+      // ensure that the code page is unlocked.
+      WritableJitPage jit_page(chunk_->area_start(), chunk_->area_size());
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
           [&](MaybeObjectSlot slot) {
-            if (jit_page.has_value()) {
-              WritableJitAllocation jit_allocation =
-                  jit_page->LookupAllocationContaining(slot.address());
-              UpdateSlot(cage_base, WriteProtectedSlot<ObjectSlot>(
-                                        jit_allocation, slot.address()));
-            } else {
-              UpdateSlot(cage_base, slot);
-            }
+            WritableJitAllocation jit_allocation =
+                jit_page.LookupAllocationContaining(slot.address());
+            UpdateSlot(cage_base, WriteProtectedSlot<ObjectSlot>(
+                                      jit_allocation, slot.address()));
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
+          },
+          SlotSet::KEEP_EMPTY_BUCKETS);
+    } else {
+      RememberedSet<OLD_TO_OLD>::Iterate(
+          chunk_,
+          [&](MaybeObjectSlot slot) {
+            UpdateSlot(cage_base, slot);
             // A string might have been promoted into the shared heap during
             // GC.
             if (record_old_to_shared_slots_) {
@@ -4820,33 +4823,35 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return KEEP_SLOT;
           },
           SlotSet::KEEP_EMPTY_BUCKETS);
-      chunk_->ReleaseSlotSet(OLD_TO_OLD);
     }
+
+    chunk_->ReleaseSlotSet(OLD_TO_OLD);
   }
 
   void UpdateUntypedOldToCodePointers() {
-    if (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>()) {
-      const PtrComprCageBase cage_base = heap_->isolate();
+    if (!chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>()) return;
+
+    const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
-      const PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
+    const PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
 #else
-      const PtrComprCageBase code_cage_base = cage_base;
+    const PtrComprCageBase code_cage_base = cage_base;
 #endif
-      RememberedSet<OLD_TO_CODE>::Iterate(
-          chunk_,
-          [=](MaybeObjectSlot slot) {
-            Tagged<HeapObject> host = HeapObject::FromAddress(
-                slot.address() - Code::kInstructionStreamOffset);
-            DCHECK(IsCode(host, cage_base));
-            UpdateStrongCodeSlot(host, cage_base, code_cage_base,
-                                 InstructionStreamSlot(slot.address()));
-            // Always keep slot since all slots are dropped at once after
-            // iteration.
-            return KEEP_SLOT;
-          },
-          SlotSet::FREE_EMPTY_BUCKETS);
-      chunk_->ReleaseSlotSet(OLD_TO_CODE);
-    }
+    RememberedSet<OLD_TO_CODE>::Iterate(
+        chunk_,
+        [=](MaybeObjectSlot slot) {
+          Tagged<HeapObject> host = HeapObject::FromAddress(
+              slot.address() - Code::kInstructionStreamOffset);
+          DCHECK(IsCode(host, cage_base));
+          UpdateStrongCodeSlot(host, cage_base, code_cage_base,
+                               InstructionStreamSlot(slot.address()));
+          // Always keep slot since all slots are dropped at once after
+          // iteration.
+          return KEEP_SLOT;
+        },
+        SlotSet::FREE_EMPTY_BUCKETS);
+
+    chunk_->ReleaseSlotSet(OLD_TO_CODE);
   }
 
   void UpdateUntypedTrustedToTrustedPointers() {
@@ -4859,39 +4864,44 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // memory corruption inside the trusted space here.
     if (InsideSandbox(chunk_->address())) return;
 #endif
+    if (!chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) return;
 
-    // When updating the InstructionStream -> Code pointer, we need to use a
-    // WriteProtectedSlot that ensures the code page is unlocked.
-    base::Optional<WritableJitPage> jit_page;
+    // TODO(saelo) we can probably drop all the cage_bases here once we no
+    // longer need to pass them into our slot implementations.
+    const PtrComprCageBase unused_cage_base(kNullAddress);
+
     if (chunk_->executable()) {
-      jit_page.emplace(chunk_->area_start(), chunk_->area_size());
-    }
+      // When updating the InstructionStream -> Code pointer, we need to use
+      // WriteProtectedSlots that ensure that the code page is unlocked.
+      WritableJitPage jit_page(chunk_->area_start(), chunk_->area_size());
 
-    if (chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
-      // TODO(saelo) we can probably drop all the cage_bases here once we no
-      // longer need to pass them into our slot implementations.
-      const PtrComprCageBase unused_cage_base(kNullAddress);
       RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
           chunk_,
           [&](MaybeObjectSlot slot) {
-            if (jit_page.has_value()) {
-              WritableJitAllocation jit_allocation =
-                  jit_page->LookupAllocationContaining(slot.address());
-              UpdateStrongSlot(unused_cage_base,
-                               WriteProtectedSlot<ProtectedPointerSlot>(
-                                   jit_allocation, slot.address()));
-
-            } else {
-              UpdateStrongSlot(unused_cage_base,
-                               ProtectedPointerSlot(slot.address()));
-            }
+            WritableJitAllocation jit_allocation =
+                jit_page.LookupAllocationContaining(slot.address());
+            UpdateStrongSlot(unused_cage_base,
+                             WriteProtectedSlot<ProtectedPointerSlot>(
+                                 jit_allocation, slot.address()));
             // Always keep slot since all slots are dropped at once after
             // iteration.
             return KEEP_SLOT;
           },
           SlotSet::FREE_EMPTY_BUCKETS);
-      chunk_->ReleaseSlotSet(TRUSTED_TO_TRUSTED);
+    } else {
+      RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
+          chunk_,
+          [&](MaybeObjectSlot slot) {
+            UpdateStrongSlot(unused_cage_base,
+                             ProtectedPointerSlot(slot.address()));
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
+          },
+          SlotSet::FREE_EMPTY_BUCKETS);
     }
+
+    chunk_->ReleaseSlotSet(TRUSTED_TO_TRUSTED);
   }
 
   void UpdateTypedPointers() {
