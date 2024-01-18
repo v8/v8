@@ -26,6 +26,17 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                            return !lhs.no_info_available();
                          });
 
+  if (effect_epoch_ != other.effect_epoch_) {
+    effect_epoch_ = std::max(effect_epoch_, other.effect_epoch_) + 1;
+  }
+  DestructivelyIntersect(
+      available_expressions, other.available_expressions,
+      [&](const AvailableExpression& lhs, const AvailableExpression& rhs) {
+        DCHECK_IMPLIES(lhs.node == rhs.node,
+                       lhs.effect_epoch == rhs.effect_epoch);
+        return lhs.node == rhs.node && lhs.effect_epoch >= effect_epoch_;
+      });
+
   this->any_map_for_any_node_is_unstable = any_merged_map_is_unstable;
 
   auto merge_loaded_properties =

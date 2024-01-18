@@ -615,6 +615,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     maglev_speculative_hoist_phi_untagging,
     "enable phi untagging to hoist untagging of loop phi inputs (could "
     "still cause deopt loops)")
+DEFINE_BOOL(maglev_cse, false, "common subexpression elimination")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")

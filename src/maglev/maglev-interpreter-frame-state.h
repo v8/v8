@@ -254,7 +254,9 @@ struct KnownNodeAspects {
         loaded_properties(zone),
         loaded_context_constants(zone),
         loaded_context_slots(zone),
-        node_infos(zone) {}
+        available_expressions(zone),
+        node_infos(zone),
+        effect_epoch_(0) {}
 
   // Copy constructor is defaulted but private so that we explicitly call the
   // Clone method.
@@ -287,6 +289,11 @@ struct KnownNodeAspects {
     }
     clone->loaded_constant_properties = loaded_constant_properties;
     clone->loaded_context_constants = loaded_context_constants;
+
+    // To account for the back-jump we must not allow effects to be reshuffled
+    // across loop headers.
+    // TODO(olivf): Only do this if the loop contains write effects.
+    clone->effect_epoch_++;
     return clone;
   }
 
@@ -408,8 +415,17 @@ struct KnownNodeAspects {
   // Flushed after side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 
+  struct AvailableExpression {
+    ValueNode* node;
+    uint32_t effect_epoch;
+  };
+  ZoneMap<uint32_t, AvailableExpression> available_expressions;
+  uint32_t effect_epoch() const { return effect_epoch_; }
+  void increment_effect_epoch() { effect_epoch_++; }
+
  private:
   NodeInfos node_infos;
+  uint32_t effect_epoch_;
 
   friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
       const KnownNodeAspects&);

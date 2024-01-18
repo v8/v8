@@ -1610,7 +1610,9 @@ enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 enum class ConvertReceiverMode : unsigned {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
   kNotNullOrUndefined,  // Guaranteed to never be null or undefined.
-  kAny                  // No specific knowledge about receiver.
+  kAny,                 // No specific knowledge about receiver.
+
+  kLast = kAny
 };
 
 inline size_t hash_value(ConvertReceiverMode mode) {

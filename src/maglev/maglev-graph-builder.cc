@@ -2152,6 +2152,18 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitCompareOperation() {
+  // Compare opcodes are not always commutative. We sort the ones which are for
+  // better CSE coverage.
+  auto SortCommute = [](ValueNode*& left, ValueNode*& right) {
+    if (!v8_flags.maglev_cse) return;
+    if (kOperation != Operation::kEqual &&
+        kOperation != Operation::kStrictEqual) {
+      return;
+    }
+    if (left > right) {
+      std::swap(left, right);
+    }
+  };
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
     case CompareOperationHint::kNone:
@@ -2176,6 +2188,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
             OperationValue<kOperation>(left_value, right_value)));
         return;
       }
+      SortCommute(left, right);
       SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
       return;
     }
@@ -2193,6 +2206,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
             OperationValue<kOperation>(left_value, right_value)));
         return;
       }
+      SortCommute(left, right);
       SetAccumulator(AddNewNode<Float64Compare>({left, right}, kOperation));
       return;
     }

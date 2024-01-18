@@ -10,8 +10,10 @@
 #include <map>
 #include <type_traits>
 
+#include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -832,6 +834,11 @@ class MaglevGraphBuilder {
 
   void AddInitializedNodeToGraph(Node* node) {
     current_block_->nodes().Add(node);
+    if (v8_flags.maglev_cse) {
+      if (node->properties().can_write()) {
+        known_node_aspects().increment_effect_epoch();
+      }
+    }
     if (has_graph_labeller())
       graph_labeller()->RegisterNode(node, compilation_unit_,
                                      BytecodeOffset(iterator_.current_offset()),
@@ -858,9 +865,91 @@ class MaglevGraphBuilder {
     return AttachExtraInfoAndAddToGraph(node);
   }
 
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeOrGetEquivalent(std::initializer_list<ValueNode*> inputs,
+                                   Args&&... args) {
+    static constexpr Opcode op = Node::opcode_of<NodeT>;
+    static_assert(Node::participate_in_cse(op));
+    static_assert(IsValueNode(op));
+    DCHECK(v8_flags.maglev_cse);
+    size_t tmp_value_number =
+        fast_hash_combine(NodeT::ValueNumberSeed(std::forward<Args>(args)...),
+                          base::hash_value(op));
+
+    static auto GetValueNumberOfInput = [](ValueNode* inp) -> size_t {
+      if (inp->value_number == 0) {
+        return base::hash_value(inp);
+      }
+      return inp->value_number;
+    };
+
+    for (const auto& inp : inputs) {
+      tmp_value_number =
+          fast_hash_combine(tmp_value_number, GetValueNumberOfInput(inp));
+    }
+
+    uint32_t value_number = static_cast<uint32_t>(tmp_value_number);
+    auto exists = known_node_aspects().available_expressions.find(value_number);
+    if (exists != known_node_aspects().available_expressions.end()) {
+      auto candidate = exists->second.node;
+      const bool sanity_check =
+          candidate->Is<NodeT>() &&
+          static_cast<size_t>(candidate->input_count()) == inputs.size();
+      DCHECK_IMPLIES(sanity_check,
+                     (StaticPropertiesForOpcode(op) &
+                      candidate->properties()) == candidate->properties());
+      const bool epoch_check =
+          StaticPropertiesForOpcode(op).is_pure() ||
+          known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
+      if (sanity_check && epoch_check) {
+        int i = 0;
+        for (const auto& inp : inputs) {
+          if (inp != candidate->input(i).node()) {
+            break;
+          }
+          i++;
+        }
+        if (static_cast<size_t>(i) == inputs.size()) {
+          // Currently, we maintain the invariant that ValueNumberSeed never
+          // has any collisions, thus we don't need to check anything else.
+          return static_cast<NodeT*>(candidate);
+        }
+      }
+      if (!epoch_check) {
+        known_node_aspects().available_expressions.erase(exists);
+      }
+    }
+    NodeT* node =
+        NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
+    node->value_number = value_number;
+    known_node_aspects().available_expressions[value_number] = {
+        node, !node->properties().is_pure()
+                  ? known_node_aspects().effect_epoch()
+                  : std::numeric_limits<uint32_t>::max()};
+    return AttachExtraInfoAndAddToGraph(node);
+  }
+
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
+    constexpr Opcode op = Node::opcode_of<NodeT>;
+    if constexpr (Node::participate_in_cse(op)) {
+      if (v8_flags.maglev_cse) {
+        if constexpr (IsCommutativeNode(op)) {
+          DCHECK_EQ(inputs.size(), 2);
+          ValueNode* a = *inputs.begin();
+          ValueNode* b = *(inputs.begin() + 1);
+          if (a > b) {
+            std::swap(a, b);
+          }
+          return AddNewNodeOrGetEquivalent<NodeT>({a, b},
+                                                  std::forward<Args>(args)...);
+        } else {
+          return AddNewNodeOrGetEquivalent<NodeT>(inputs,
+                                                  std::forward<Args>(args)...);
+        }
+      }
+    }
     NodeT* node =
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
     return AttachExtraInfoAndAddToGraph(node);
@@ -1423,12 +1512,17 @@ class MaglevGraphBuilder {
     DCHECK_EQ(interpreter::Register(target0.index() + 1), target1);
     DCHECK_EQ(value->ReturnCount(), 2);
 
-    DCHECK_NE(0, new_nodes_.count(value));
+    if (!v8_flags.maglev_cse) {
+      // TODO(olivf): CSE might deduplicate this value and the one below.
+      DCHECK_NE(0, new_nodes_.count(value));
+    }
     DCHECK(HasOutputRegister(target0));
     current_interpreter_frame_.set(target0, value);
 
     ValueNode* second_value = GetSecondValue(value);
-    DCHECK_NE(0, new_nodes_.count(second_value));
+    if (!v8_flags.maglev_cse) {
+      DCHECK_NE(0, new_nodes_.count(second_value));
+    }
     DCHECK(HasOutputRegister(target1));
     current_interpreter_frame_.set(target1, second_value);
 
@@ -2263,6 +2357,12 @@ class MaglevGraphBuilder {
   }
   std::unordered_set<Node*> new_nodes_;
 #endif
+
+ private:
+  size_t fast_hash_combine(size_t seed, size_t h) {
+    // Implementation from boost. Good enough for GVN.
+    return h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  }
 };
 
 }  // namespace maglev
