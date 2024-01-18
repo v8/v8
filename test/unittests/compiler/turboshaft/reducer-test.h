@@ -166,9 +166,9 @@ class ReducerTest : public TestWithNativeContextAndZone {
 
   void SetUp() override {
     pipeline_data_.emplace(TurboshaftPipelineKind::kJS, info_, schedule_,
-                           graph_zone_, broker_, isolate_, source_positions_,
-                           node_origins_, sequence_, frame_, assembler_options_,
-                           &max_unoptimized_frame_height_,
+                           graph_zone_, this->zone(), broker_, isolate_,
+                           source_positions_, node_origins_, sequence_, frame_,
+                           assembler_options_, &max_unoptimized_frame_height_,
                            &max_pushed_argument_count_, instruction_zone_);
   }
   void TearDown() override { pipeline_data_.reset(); }

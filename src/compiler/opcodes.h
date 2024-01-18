@@ -25,6 +25,7 @@
   V(Deoptimize)            \
   V(DeoptimizeIf)          \
   V(DeoptimizeUnless)      \
+  V(Assert)                \
   V(TrapIf)                \
   V(TrapUnless)            \
   V(Return)                \

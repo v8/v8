@@ -119,6 +119,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(DeoptimizeUnless)
       DECLARE_IMPOSSIBLE_CASE(TrapIf)
       DECLARE_IMPOSSIBLE_CASE(TrapUnless)
+      DECLARE_IMPOSSIBLE_CASE(Assert)
       DECLARE_IMPOSSIBLE_CASE(Return)
       DECLARE_IMPOSSIBLE_CASE(TailCall)
       DECLARE_IMPOSSIBLE_CASE(Terminate)

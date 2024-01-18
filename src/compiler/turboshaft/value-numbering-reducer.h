@@ -113,25 +113,36 @@ class ValueNumberingReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-#define EMIT_OP(Name)                                                       \
-  template <class... Args>                                                  \
-  OpIndex Reduce##Name(Args... args) {                                      \
-    OpIndex next_index = Asm().output_graph().next_operation_index();       \
-    USE(next_index);                                                        \
-    OpIndex result = Next::Reduce##Name(args...);                           \
-    if (ShouldSkipOptimizationStep()) return result;                        \
-    /* Throwing operations have a non-trivial lowering, so they don't work  \
-     * with value numbering. */                                             \
-    if constexpr (MayThrow(Opcode::k##Name)) return result;                 \
-    if constexpr (Opcode::k##Name == Opcode::kCatchBlockBegin) {            \
-      /* CatchBlockBegin are never interesting to GVN, but additionally     \
-       * split-edge can transform CatchBlockBeginOp into PhiOp, which means \
-       * that there is no guarantee here than {result} is indeed a          \
-       * CatchBlockBegin. */                                                \
-      return result;                                                        \
-    }                                                                       \
-    DCHECK_EQ(next_index, result);                                          \
-    return AddOrFind<Name##Op>(result);                                     \
+  template <typename Op>
+  static constexpr bool CanBeGVNed() {
+    constexpr Opcode opcode = operation_to_opcode_map<Op>::value;
+    /* Throwing operations have a non-trivial lowering, so they don't work
+     * with value numbering. */
+    if constexpr (MayThrow(opcode)) return false;
+    if constexpr (opcode == Opcode::kCatchBlockBegin) {
+      /* CatchBlockBegin are never interesting to GVN, but additionally
+       * split-edge can transform CatchBlockBeginOp into PhiOp, which means
+       * that there is no guarantee here than {result} is indeed a
+       * CatchBlockBegin. */
+      return false;
+    }
+    if constexpr (opcode == Opcode::kComment) {
+      /* We don't want to GVN comments. */
+      return false;
+    }
+    return true;
+  }
+
+#define EMIT_OP(Name)                                                 \
+  template <class... Args>                                            \
+  OpIndex Reduce##Name(Args... args) {                                \
+    OpIndex next_index = Asm().output_graph().next_operation_index(); \
+    USE(next_index);                                                  \
+    OpIndex result = Next::Reduce##Name(args...);                     \
+    if (ShouldSkipOptimizationStep()) return result;                  \
+    if constexpr (!CanBeGVNed<Name##Op>()) return result;             \
+    DCHECK_EQ(next_index, result);                                    \
+    return AddOrFind<Name##Op>(result);                               \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP

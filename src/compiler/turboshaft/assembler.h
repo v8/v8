@@ -14,6 +14,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
+#include "src/base/string-format.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/codegen/callable.h"
@@ -27,6 +28,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/runtime-call-descriptors.h"
@@ -50,6 +52,8 @@ enum class Builtin : int32_t;
 }
 
 namespace v8::internal::compiler::turboshaft {
+
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class AssemblerT>
 class CatchScopeImpl;
@@ -2957,6 +2961,28 @@ class TurboshaftAssemblerOpInterface
 
   void DebugBreak() { ReduceIfReachableDebugBreak(); }
 
+  void AssertImpl(V<Word32> condition, const char* condition_string,
+                  const char* file, int line) {
+#ifdef DEBUG
+    // We use 256 characters as a buffer size. This can be increased if
+    // necessary.
+    static constexpr size_t kMaxAssertCommentLength = 256;
+    base::Vector<char> buffer =
+        PipelineData::Get().shared_zone()->AllocateVector<char>(
+            kMaxAssertCommentLength);
+    int result = base::SNPrintF(buffer, "Assert: %s    [%s:%d]",
+                                condition_string, file, line);
+    DCHECK_LT(0, result);
+    Comment(buffer.data());
+    IF_NOT (LIKELY(condition)) {
+      Comment(buffer.data());
+      Comment("ASSERT FAILED");
+      DebugBreak();
+    }
+    END_IF
+#endif
+  }
+
   void DebugPrint(OpIndex input, RegisterRepresentation rep) {
     CHECK(v8_flags.turboshaft_enable_debug_features);
     ReduceIfReachableDebugPrint(input, rep);
@@ -3909,6 +3935,8 @@ class TSAssembler
   using Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
                                TSReducerBase>>::Assembler;
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

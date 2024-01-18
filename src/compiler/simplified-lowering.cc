@@ -2271,6 +2271,24 @@ class RepresentationSelector {
         return VisitPhi<T>(node, truncation, lowering);
       case IrOpcode::kCall:
         return VisitCall<T>(node, lowering);
+      case IrOpcode::kAssert: {
+        const auto& p = AssertParametersOf(node->op());
+        if (p.semantics() == BranchSemantics::kMachine) {
+          // If this is a machine condition already, we don't need to do
+          // anything.
+          ProcessInput<T>(node, 0, UseInfo::Any());
+        } else {
+          DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
+          ProcessInput<T>(node, 0, UseInfo::Bool());
+          if (lower<T>()) {
+            ChangeOp(node, common()->Assert(BranchSemantics::kMachine,
+                                            p.condition_string(), p.file(),
+                                            p.line()));
+          }
+        }
+        EnqueueInput<T>(node, NodeProperties::FirstControlIndex(node));
+        return;
+      }
 
       //------------------------------------------------------------------
       // JavaScript operators.

@@ -1024,6 +1024,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Boolean> ObjectIsUndetectable(TNode<Object> value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason,
                 const FeedbackSource& feedback = {});
+  Node* Assert(Node* cond, const char* condition_string = "",
+               const char* file = "", int line = -1);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
   TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);

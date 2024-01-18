@@ -42,21 +42,20 @@ class WasmRevecAnalyzer;
 class V8_EXPORT_PRIVATE PipelineData
     : public base::ContextualClass<PipelineData> {
  public:
-  explicit PipelineData(TurboshaftPipelineKind pipeline_kind,
-                        OptimizedCompilationInfo* const& info,
-                        Schedule*& schedule, Zone*& graph_zone,
-                        JSHeapBroker*& broker, Isolate* const& isolate,
-                        SourcePositionTable*& source_positions,
-                        NodeOriginTable*& node_origins,
-                        InstructionSequence*& sequence, Frame*& frame,
-                        AssemblerOptions& assembler_options,
-                        size_t* address_of_max_unoptimized_frame_height,
-                        size_t* address_of_max_pushed_argument_count,
-                        Zone*& instruction_zone)
+  explicit PipelineData(
+      TurboshaftPipelineKind pipeline_kind,
+      OptimizedCompilationInfo* const& info, Schedule*& schedule,
+      Zone*& graph_zone, Zone* shared_zone, JSHeapBroker*& broker,
+      Isolate* const& isolate, SourcePositionTable*& source_positions,
+      NodeOriginTable*& node_origins, InstructionSequence*& sequence,
+      Frame*& frame, AssemblerOptions& assembler_options,
+      size_t* address_of_max_unoptimized_frame_height,
+      size_t* address_of_max_pushed_argument_count, Zone*& instruction_zone)
       : pipeline_kind_(pipeline_kind),
         info_(info),
         schedule_(schedule),
         graph_zone_(graph_zone),
+        shared_zone_(shared_zone),
         broker_(broker),
         isolate_(isolate),
         source_positions_(source_positions),
@@ -78,6 +77,10 @@ class V8_EXPORT_PRIVATE PipelineData
   OptimizedCompilationInfo* info() const { return info_; }
   Schedule* schedule() const { return schedule_; }
   Zone* graph_zone() const { return graph_zone_; }
+  // The {shared_zone_} outlives the entire compilation pipeline. It is shared
+  // between all phases (including code gen where the graph zone is gone
+  // already).
+  Zone* shared_zone() const { return shared_zone_; }
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const { return isolate_; }
   SourcePositionTable* source_positions() const { return source_positions_; }
@@ -158,6 +161,7 @@ class V8_EXPORT_PRIVATE PipelineData
   OptimizedCompilationInfo* const& info_;
   Schedule*& schedule_;
   Zone*& graph_zone_;
+  Zone* shared_zone_;
   JSHeapBroker*& broker_;
   Isolate* const& isolate_;
   SourcePositionTable*& source_positions_;

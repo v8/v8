@@ -2789,8 +2789,20 @@ void InstructionSelectorT<Adapter>::VisitDeadValue(Node* node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitComment(node_t node) {
   OperandGenerator g(this);
-  InstructionOperand operand(g.UseImmediate(node));
-  Emit(kArchComment, 0, nullptr, 1, &operand);
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::CommentOp& comment =
+        this->turboshaft_graph()
+            ->Get(node)
+            .template Cast<turboshaft::CommentOp>();
+    using ptrsize_int_t =
+        std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
+    InstructionOperand operand = sequence()->AddImmediate(
+        Constant{reinterpret_cast<ptrsize_int_t>(comment.message)});
+    Emit(kArchComment, 0, nullptr, 1, &operand);
+  } else {
+    InstructionOperand operand(g.UseImmediate(node));
+    Emit(kArchComment, 0, nullptr, 1, &operand);
+  }
 }
 
 template <typename Adapter>

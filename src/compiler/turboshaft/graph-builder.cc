@@ -2222,6 +2222,13 @@ OpIndex GraphBuilder::Process(
       __ Comment(OpParameter<const char*>(node->op()));
       return OpIndex::Invalid();
 
+    case IrOpcode::kAssert: {
+      const AssertParameters& p = AssertParametersOf(node->op());
+      __ AssertImpl(Map(node->InputAt(0)), p.condition_string(), p.file(),
+                    p.line());
+      return OpIndex::Invalid();
+    }
+
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
       // TODO(nicohartmann@): We might want a dedicated operation/kind for that
       // as well.

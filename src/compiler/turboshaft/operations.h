@@ -4552,7 +4552,7 @@ struct LoadFieldByIndexOp : FixedArityOperationT<2, LoadFieldByIndexOp> {
 
 struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   // Prevent any reordering.
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  static constexpr OpEffects effects = OpEffects().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5899,7 +5899,8 @@ struct SpeculativeNumberBinopOp
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged()>();
   }
 
   void Validate(const Graph& graph) const {

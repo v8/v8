@@ -390,9 +390,10 @@ class PipelineData {
   turboshaft::PipelineData GetTurboshaftPipelineData(
       turboshaft::TurboshaftPipelineKind kind) {
     if (!ts_data_.has_value()) {
-      ts_data_.emplace(kind, info_, schedule_, graph_zone_, broker_, isolate_,
-                       source_positions_, node_origins_, sequence_, frame_,
-                       assembler_options_, &max_unoptimized_frame_height_,
+      ts_data_.emplace(kind, info_, schedule_, graph_zone_, info_->zone(),
+                       broker_, isolate_, source_positions_, node_origins_,
+                       sequence_, frame_, assembler_options_,
+                       &max_unoptimized_frame_height_,
                        &max_pushed_argument_count_, instruction_zone_);
     }
     return ts_data_.value();

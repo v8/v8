@@ -464,6 +464,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(DeoptimizeUnless)
       CASE(TrapIf)
       CASE(TrapUnless)
+      CASE(Assert)
       CASE(TailCall)
       CASE(Terminate)
       CASE(Throw)
