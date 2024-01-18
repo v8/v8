@@ -192,8 +192,7 @@ class WasmTableObject
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance_object,
       wasm::ValueType type, uint32_t initial, bool has_maximum,
-      uint32_t maximum, Handle<FixedArray>* entries,
-      Handle<Object> initial_value);
+      uint32_t maximum, Handle<Object> initial_value);
 
   V8_EXPORT_PRIVATE static void AddDispatchTable(
       Isolate* isolate, Handle<WasmTableObject> table,

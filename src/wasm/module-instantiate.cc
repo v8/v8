@@ -1298,7 +1298,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       // tables later, in {SetTableInitialValues}.
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, instance_object, table.type, table.initial_size,
-          table.has_maximum_size, table.maximum_size, nullptr,
+          table.has_maximum_size, table.maximum_size,
           IsSubtypeOf(table.type, kWasmExternRef, module_)
               ? Handle<Object>::cast(isolate_->factory()->null_value())
               : Handle<Object>::cast(isolate_->factory()->wasm_null()));

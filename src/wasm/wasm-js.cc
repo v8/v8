@@ -1262,12 +1262,10 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::WasmTableObject> table_obj =
-      i::WasmTableObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
-                              type, static_cast<uint32_t>(initial), has_maximum,
-                              static_cast<uint32_t>(maximum), &fixed_array,
-                              DefaultReferenceValue(i_isolate, type));
+  i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
+      i_isolate, i::Handle<i::WasmInstanceObject>(), type,
+      static_cast<uint32_t>(initial), has_maximum,
+      static_cast<uint32_t>(maximum), DefaultReferenceValue(i_isolate, type));
 
   // The infrastructure for `new Foo` calls allocates an object, which is
   // available here as {info.This()}. We're going to discard this object

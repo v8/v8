@@ -140,12 +140,12 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object,
     wasm::ValueType type, uint32_t initial, bool has_maximum, uint32_t maximum,
-    Handle<FixedArray>* entries, Handle<Object> initial_value) {
+    Handle<Object> initial_value) {
   CHECK(type.is_object_reference());
 
-  Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
+  Handle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
   for (int i = 0; i < static_cast<int>(initial); ++i) {
-    backing_store->set(i, *initial_value);
+    entries->set(i, *initial_value);
   }
 
   Handle<Object> max;
@@ -162,15 +162,12 @@ Handle<WasmTableObject> WasmTableObject::New(
   DisallowGarbageCollection no_gc;
 
   if (!instance_object.is_null()) table_obj->set_instance(*instance_object);
-  table_obj->set_entries(*backing_store);
+  table_obj->set_entries(*entries);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
-  if (entries != nullptr) {
-    *entries = backing_store;
-  }
   return Handle<WasmTableObject>::cast(table_obj);
 }
 

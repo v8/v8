@@ -261,7 +261,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       isolate_, trusted_instance_data_, table_index, table_size);
   Handle<WasmTableObject> table_obj = WasmTableObject::New(
       isolate_, instance_object_, table.type, table.initial_size,
-      table.has_maximum_size, table.maximum_size, nullptr,
+      table.has_maximum_size, table.maximum_size,
       IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
           ? Handle<Object>::cast(isolate_->factory()->null_value())
           : Handle<Object>::cast(isolate_->factory()->wasm_null()));

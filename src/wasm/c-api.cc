@@ -2004,12 +2004,12 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
     if (maximum > i::wasm::max_table_init_entries()) return nullptr;
   }
 
-  i::Handle<i::FixedArray> backing_store;
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       isolate, i::Handle<i::WasmInstanceObject>(), i_type, minimum, has_maximum,
-      maximum, &backing_store, isolate->factory()->null_value());
+      maximum, isolate->factory()->null_value());
 
   if (ref) {
+    i::Handle<i::FixedArray> entries{table_obj->entries(), isolate};
     i::Handle<i::JSReceiver> init = impl(ref)->v8_object();
     DCHECK(i::wasm::max_table_init_entries() <= i::kMaxInt);
     for (int i = 0; i < static_cast<int>(minimum); i++) {
@@ -2017,7 +2017,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       // just been created, so it can't be imported by any instances
       // yet that might require updating.
       DCHECK_EQ(table_obj->dispatch_tables()->length(), 0);
-      backing_store->set(i, *init);
+      entries->set(i, *init);
     }
   }
   return implement<Table>::type::make(store, table_obj);
