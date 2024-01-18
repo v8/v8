@@ -352,25 +352,43 @@ class InstantiateBytesResultResolver
       i::Handle<i::WasmInstanceObject> instance) override {
     if (context_.IsEmpty()) return;
     Local<Context> context = context_.Get(isolate_);
+    WasmAsyncSuccess success = WasmAsyncSuccess::kSuccess;
 
     // The result is a JSObject with 2 fields which contain the
     // WasmInstanceObject and the WasmModuleObject.
     Local<Object> result = Object::New(isolate_);
-    result
-        ->CreateDataProperty(context, v8_str(isolate_, "module"),
-                             module_.Get(isolate_))
-        .Check();
-    result
-        ->CreateDataProperty(
-            context, v8_str(isolate_, "instance"),
-            Utils::ToLocal(i::Handle<i::Object>::cast(instance)))
-        .Check();
+    if (V8_UNLIKELY(result
+                        ->CreateDataProperty(context,
+                                             v8_str(isolate_, "module"),
+                                             module_.Get(isolate_))
+                        .IsNothing())) {
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+      // We assume that a TerminationException is the only reason why
+      // `CreateDataProperty` can fail here. We should revisit
+      // https://crbug.com/1515227 again if this CHECK fails.
+      CHECK(i::IsTerminationException(i_isolate->exception()));
+      result = Utils::ToLocal(
+          handle(i::JSObject::cast(i_isolate->exception()), i_isolate));
+      success = WasmAsyncSuccess::kFail;
+    }
+    if (V8_UNLIKELY(
+            result
+                ->CreateDataProperty(
+                    context, v8_str(isolate_, "instance"),
+                    Utils::ToLocal(i::Handle<i::Object>::cast(instance)))
+                .IsNothing())) {
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+      CHECK(i::IsTerminationException(i_isolate->exception()));
+      result = Utils::ToLocal(
+          handle(i::JSObject::cast(i_isolate->exception()), i_isolate));
+      success = WasmAsyncSuccess::kFail;
+    }
 
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
     CHECK(callback);
     callback(isolate_, context, promise_resolver_.Get(isolate_), result,
-             WasmAsyncSuccess::kSuccess);
+             success);
   }
 
   void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
