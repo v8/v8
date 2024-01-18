@@ -4118,6 +4118,12 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_use_perfetto) {
     sources -= [ "//base/trace_event/common/trace_event_common.h" ]
+    sources += [
+      "src/tracing/code-data-source.h",
+      "src/tracing/code-trace-context.h",
+      "src/tracing/perfetto-logger.h",
+      "src/tracing/perfetto-utils.h",
+    ]
   }
 
   if (v8_enable_sparkplug) {
@@ -5631,6 +5637,14 @@ v8_source_set("v8_base_without_compiler") {
         "src/maglev/x64/maglev-ir-x64.cc",
       ]
     }
+  }
+
+  if (v8_use_perfetto) {
+    sources += [
+      "src/tracing/code-data-source.cc",
+      "src/tracing/perfetto-logger.cc",
+      "src/tracing/perfetto-utils.cc",
+    ]
   }
 
   if (v8_enable_webassembly) {
@@ -8114,6 +8128,7 @@ if (!build_with_chromium && v8_use_perfetto) {
 
       # TODO(skyostil): Support non-POSIX platforms.
       "//third_party/perfetto/protos/perfetto/config:cpp",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
       "//third_party/perfetto/protos/perfetto/trace/track_event:zero",
       "//third_party/perfetto/src/tracing:in_process_backend",
       "//third_party/perfetto/src/tracing:platform_impl",
