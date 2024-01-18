@@ -418,6 +418,9 @@ class WritableJitAllocation {
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
+  template <typename T, size_t offset>
+  V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                 RelaxedStoreTag);
   template <typename T>
   V8_INLINE void WriteHeaderSlot(Address address, T value, RelaxedStoreTag);
 

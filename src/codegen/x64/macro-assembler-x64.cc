@@ -628,6 +628,20 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
 }
 #endif  // V8_ENABLE_SANDBOX
 
+void MacroAssembler::LoadProtectedPointerField(Register destination,
+                                               Operand field_operand) {
+  DCHECK(root_array_available());
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(!AreAliased(destination, kScratchRegister));
+  movl(destination, field_operand);
+  movq(kScratchRegister,
+       Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  orq(destination, kScratchRegister);
+#else
+  LoadTaggedField(destination, field_operand);
+#endif
+}
+
 void MacroAssembler::CallEphemeronKeyBarrier(Register object,
                                              Register slot_address,
                                              SaveFPRegsMode fp_mode) {
@@ -4009,11 +4023,9 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
-  DCHECK(!AreAliased(scratch, kScratchRegister));
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadCodePointerField(scratch,
-                       Operand(kJavaScriptCallCodeStartRegister, offset),
-                       kScratchRegister);
+  LoadProtectedPointerField(scratch,
+                            Operand(kJavaScriptCallCodeStartRegister, offset));
   TestCodeIsMarkedForDeoptimization(scratch);
   TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, not_zero);
 }

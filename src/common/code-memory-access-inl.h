@@ -119,6 +119,14 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
   }
 }
 
+template <typename T, size_t offset>
+void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                            RelaxedStoreTag) {
+  static_assert(offset != HeapObject::kMapOffset);
+  TaggedField<T, offset, TrustedSpaceCompressionScheme>::Relaxed_Store(
+      HeapObject::FromAddress(address_), value);
+}
+
 template <typename T>
 V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
                                                       RelaxedStoreTag tag) {
@@ -128,7 +136,8 @@ V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
   Tagged<T> tagged(value);
   switch (offset) {
     case InstructionStream::kCodeOffset:
-      WriteHeaderSlot<T, InstructionStream::kCodeOffset>(tagged, tag);
+      WriteProtectedPointerHeaderSlot<T, InstructionStream::kCodeOffset>(tagged,
+                                                                         tag);
       break;
     case InstructionStream::kRelocationInfoOffset:
       WriteHeaderSlot<T, InstructionStream::kRelocationInfoOffset>(tagged, tag);

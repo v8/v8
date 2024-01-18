@@ -3680,6 +3680,15 @@ MakeSlotValue<WriteProtectedSlot<ObjectSlot>, HeapObjectReferenceType::STRONG>(
   return heap_object;
 }
 
+#ifdef V8_ENABLE_SANDBOX
+template <>
+Tagged<Object> MakeSlotValue<WriteProtectedSlot<ProtectedPointerSlot>,
+                             HeapObjectReferenceType::STRONG>(
+    Tagged<HeapObject> heap_object) {
+  return heap_object;
+}
+#endif
+
 template <>
 Tagged<Object>
 MakeSlotValue<OffHeapObjectSlot, HeapObjectReferenceType::STRONG>(
@@ -3739,10 +3748,11 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
           std::is_same<TSlot, MaybeObjectSlot>::value ||
           std::is_same<TSlot, OffHeapObjectSlot>::value ||
           std::is_same<TSlot, InstructionStreamSlot>::value ||
+          std::is_same<TSlot, ProtectedPointerSlot>::value ||
           std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value ||
-          std::is_same<TSlot, ProtectedPointerSlot>::value,
+          std::is_same<TSlot, WriteProtectedSlot<ProtectedPointerSlot>>::value,
       "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
-      "InstructionStreamSlot, WriteProtectedSlot, or ProtectedPointerSlot are "
+      "InstructionStreamSlot, ProtectedPointerSlot, or WriteProtectedSlot are "
       "expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
@@ -4780,13 +4790,18 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedOldToOldPointers() {
     if (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
       const PtrComprCageBase cage_base = heap_->isolate();
+
+      // When updating pointer in an InstructionStream (in particular, the
+      // pointer to relocation info), we need to use a WriteProtectedSlot that
+      // ensures the code page is unlocked.
       base::Optional<WritableJitPage> jit_page;
       if (chunk_->executable()) {
         jit_page.emplace(chunk_->area_start(), chunk_->area_size());
       }
+
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [this, cage_base, &jit_page](MaybeObjectSlot slot) {
+          [&](MaybeObjectSlot slot) {
             if (jit_page.has_value()) {
               WritableJitAllocation jit_allocation =
                   jit_page->LookupAllocationContaining(slot.address());
@@ -4845,15 +4860,31 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (InsideSandbox(chunk_->address())) return;
 #endif
 
+    // When updating the InstructionStream -> Code pointer, we need to use a
+    // WriteProtectedSlot that ensures the code page is unlocked.
+    base::Optional<WritableJitPage> jit_page;
+    if (chunk_->executable()) {
+      jit_page.emplace(chunk_->area_start(), chunk_->area_size());
+    }
+
     if (chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
       // TODO(saelo) we can probably drop all the cage_bases here once we no
       // longer need to pass them into our slot implementations.
       const PtrComprCageBase unused_cage_base(kNullAddress);
       RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
           chunk_,
-          [=](MaybeObjectSlot slot) {
-            UpdateStrongSlot(unused_cage_base,
-                             ProtectedPointerSlot(slot.address()));
+          [&](MaybeObjectSlot slot) {
+            if (jit_page.has_value()) {
+              WritableJitAllocation jit_allocation =
+                  jit_page->LookupAllocationContaining(slot.address());
+              UpdateStrongSlot(unused_cage_base,
+                               WriteProtectedSlot<ProtectedPointerSlot>(
+                                   jit_allocation, slot.address()));
+
+            } else {
+              UpdateStrongSlot(unused_cage_base,
+                               ProtectedPointerSlot(slot.address()));
+            }
             // Always keep slot since all slots are dropped at once after
             // iteration.
             return KEEP_SLOT;
