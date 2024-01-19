@@ -330,6 +330,25 @@ class LoopUnrollingReducer : public Next {
   bool IsRunningBuiltinPipeline() const {
     return PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA;
   }
+  bool StopUnrollingIfUnreachable(
+      base::Optional<Block*> output_graph_header = base::nullopt) {
+    if (__ generating_unreachable_operations()) {
+      // By unrolling the loop, we realized that it was actually exiting early
+      // (probably because a Branch inside the loop was using a loop Phi in a
+      // condition, and unrolling showed that this loop Phi became true or
+      // false), and that lasts iterations were unreachable. We thus don't both
+      // unrolling the next iterations of the loop.
+      unrolling_ = UnrollingStatus::kNotUnrolling;
+      if (output_graph_header.has_value()) {
+        // The loop that we're unrolling has a header (which means that we're
+        // only partially unrolling), which needs to be turned into a Merge (and
+        // its PendingLoopPhis into regular Phis).
+        __ FinalizeLoop(*output_graph_header);
+      }
+      return true;
+    }
+    return false;
+  }
 
   ZoneUnorderedSet<Block*> loop_body_{__ phase_zone()};
   // The analysis should be ran ahead of time so that the LoopUnrollingPhase
@@ -362,22 +381,14 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(Block* header) {
   unrolling_ = UnrollingStatus::kUnrollingFirstIteration;
   Block* output_graph_header =
       __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true);
+  if (StopUnrollingIfUnreachable(output_graph_header)) return;
 
   // Emitting the subsequent folded iterations. We set `unrolling_` to
   // kUnrolling so that stack checks are skipped.
   unrolling_ = UnrollingStatus::kUnrolling;
   for (int i = 0; i < unroll_count - 1; i++) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
-    if (__ generating_unreachable_operations()) {
-      // By unrolling the loop, we realized that it was actually exiting early
-      // (probably because a Branch inside the loop was using a loop Phi in a
-      // condition, and unrolling showed that this loop Phi became true or
-      // false), and that lasts iterations were unreachable. We thus don't both
-      // unrolling the next iterations of the loop.
-      unrolling_ = UnrollingStatus::kNotUnrolling;
-      __ FinalizeLoop(output_graph_header);
-      return;
-    }
+    if (StopUnrollingIfUnreachable(output_graph_header)) return;
   }
 
   // ReduceInputGraphGoto ignores backedge Gotos while kUnrolling is true, which
@@ -471,15 +482,7 @@ void LoopUnrollingReducer<Next>::FullyUnrollLoop(Block* header) {
   unrolling_ = UnrollingStatus::kUnrolling;
   for (int i = 0; i < iter_count; i++) {
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
-    if (__ generating_unreachable_operations()) {
-      // By unrolling the loop, we realized that it was actually exiting early
-      // (probably because a Branch inside the loop was using a loop Phi in a
-      // condition, and unrolling showed that this loop Phi became true or
-      // false), and that lasts iterations were unreachable. We thus don't both
-      // unrolling the next iterations of the loop.
-      unrolling_ = UnrollingStatus::kNotUnrolling;
-      return;
-    }
+    if (StopUnrollingIfUnreachable()) return;
   }
 
   // The loop actually finishes on the header rather than its last block. We
