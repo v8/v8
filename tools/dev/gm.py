@@ -188,10 +188,10 @@ def detect_reclient():
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
   custom_vars = v8_solution.get("custom_vars", {})
-  if custom_vars.get("download_remoteexec_cfg"):
-    return Reclient.GOOGLE
   if custom_vars.get("rbe_instance"):
     return Reclient.CUSTOM
+  if custom_vars.get("download_remoteexec_cfg"):
+    return Reclient.GOOGLE
   return Reclient.NONE
 
 
