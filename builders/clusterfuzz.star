@@ -4,16 +4,17 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
-def clusterfuzz_builder(properties, close_tree = True, use_remoteexec = RECLIENT.DEFAULT, **kwargs):
+def clusterfuzz_builder(properties = None, close_tree = True, default_target = "v8_clusterfuzz", **kwargs):
+    properties = dict(properties or {})
     properties["builder_group"] = "client.v8.clusterfuzz"
-    properties["default_targets"] = ["v8_clusterfuzz"]
+    properties["default_targets"] = [default_target]
     return v8_builder(
         bucket = "ci",
         close_tree = close_tree,
         properties = properties,
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
-        use_remoteexec = use_remoteexec,
+        use_remoteexec = RECLIENT.DEFAULT,
         experiments = {"v8.resultdb": 100},
         **kwargs
     )
@@ -126,6 +127,24 @@ in_category(
         name = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-sandbox-testing"}},
+    ),
+)
+
+in_category(
+    "FuzzTest",
+    clusterfuzz_builder(
+        name = "V8 Centipede Linux64 ASAN  - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        default_target = "v8_gen_fuzztest_configs",
+        close_tree = False,
+        work_in_progress = True,
+    ),
+    clusterfuzz_builder(
+        name = "V8 Centipede Linux64 ASAN  - debug builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        default_target = "v8_gen_fuzztest_configs",
+        close_tree = False,
+        work_in_progress = True,
     ),
 )
 
