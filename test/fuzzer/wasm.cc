@@ -63,10 +63,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ErrorThrower thrower(i_isolate, "wasm fuzzer");
   Handle<WasmModuleObject> module_object;
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
-  bool compiles =
-      GetWasmEngine()
-          ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
-          .ToHandle(&module_object);
+  bool compiles = GetWasmEngine()
+                      ->SyncCompile(i_isolate, enabled_features,
+                                    CompileTimeImports{}, &thrower, wire_bytes)
+                      .ToHandle(&module_object);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);

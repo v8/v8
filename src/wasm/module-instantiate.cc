@@ -324,25 +324,6 @@ bool IsStringOrExternRef(wasm::ValueType type) {
   return IsStringRef(type) || IsExternRef(type);
 }
 
-bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
-  if (!type.is_object_reference() || !type.has_index()) return false;
-  uint32_t reftype = type.ref_index();
-  if (!module->has_array(reftype)) return false;
-  return module->isorecursive_canonical_type_ids[reftype] ==
-         TypeCanonicalizer::kPredefinedArrayI16Index;
-  // Note: if we ever relax the requirements back to *any* i16 array, we can
-  // simply check {module->array_type(reftype)->element_type() == kWasmI16}
-  // here.
-}
-
-bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
-  if (!type.is_object_reference() || !type.has_index()) return false;
-  uint32_t reftype = type.ref_index();
-  if (!module->has_array(reftype)) return false;
-  return module->isorecursive_canonical_type_ids[reftype] ==
-         TypeCanonicalizer::kPredefinedArrayI8Index;
-}
-
 bool IsDataViewGetterSig(const wasm::FunctionSig* sig,
                          wasm::ValueType return_type) {
   return sig->parameter_count() == 3 && sig->return_count() == 1 &&
@@ -367,9 +348,7 @@ WellKnownImport CheckForWellKnownImport(
     Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
-  WellKnownImport kLinkError = WellKnownImport::kLinkError;
   if (trusted_instance_data.is_null()) return kGeneric;
-  static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
   // Check for plain JS functions.
   if (IsJSFunction(*callable)) {
     Tagged<SharedFunctionInfo> sfi = JSFunction::cast(*callable)->shared();
@@ -379,135 +358,6 @@ WellKnownImport CheckForWellKnownImport(
     // recognize receiver-requiring methods even when they're (erroneously)
     // being imported such that they don't get a receiver.
     switch (sfi->builtin_id()) {
-      // =================================================================
-      // WebAssembly.String.* imports. See:
-      // https://github.com/WebAssembly/js-string-builtins
-      // Contrary to the optional/unobservable internal optimizations
-      // handled by this function, the JS String Builtins spec wants us
-      // to throw a LinkError when the signature was incorrect.
-      case Builtin::kWebAssemblyStringCast:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringCast;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringTest:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringTest;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringCharCodeAt:
-        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringCharCodeAt;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringCodePointAt:
-        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringCodePointAt;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringCompare:
-        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmExternRef &&
-            sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringCompare;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringConcat:
-        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmExternRef &&
-            sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringConcat;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringEquals:
-        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmExternRef &&
-            sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringEquals;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringFromCharCode:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringFromCharCode;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringFromCodePoint:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringFromCodePoint;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringFromWtf16Array:
-        // i16array, i32, i32 -> extern
-        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI16Array(sig->GetParam(0), trusted_instance_data->module()) &&
-            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
-            sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringFromWtf16Array;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringFromUtf8Array:
-        // i8array, i32, i32 -> extern
-        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI8Array(sig->GetParam(0), trusted_instance_data->module()) &&
-            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
-            sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringFromUtf8Array;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringIntoUtf8Array:
-        // string, i8array, i32 -> i32
-        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            IsI8Array(sig->GetParam(1), trusted_instance_data->module()) &&
-            sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringIntoUtf8Array;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringLength:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringLength;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringMeasureUtf8:
-        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringMeasureUtf8;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringSubstring:
-        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
-            sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringSubstring;
-        }
-        return kLinkError;
-      case Builtin::kWebAssemblyStringToWtf16Array:
-        // string, i16array, i32 -> i32
-        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            sig->GetParam(0) == kWasmExternRef &&
-            IsI16Array(sig->GetParam(1), trusted_instance_data->module()) &&
-            sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
-          return WellKnownImport::kStringToWtf16Array;
-        }
-        return kLinkError;
-
         // =================================================================
         // String-related imports that aren't part of the JS String Builtins
         // proposal.
@@ -723,16 +573,26 @@ WellKnownImport CheckForWellKnownImport(
 WasmImportData::WasmImportData(
     Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
-    uint32_t expected_canonical_type_index)
+    uint32_t expected_canonical_type_index, WellKnownImport preknown_import)
     : callable_(callable) {
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
-                      expected_canonical_type_index);
+                      expected_canonical_type_index, preknown_import);
 }
 
 ImportCallKind WasmImportData::ComputeKind(
     Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     const wasm::FunctionSig* expected_sig,
-    uint32_t expected_canonical_type_index) {
+    uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
+  // If we already have a compile-time import, simply pass that through.
+  if (IsCompileTimeImport(preknown_import)) {
+    well_known_status_ = preknown_import;
+    DCHECK(IsJSFunction(*callable_));
+    DCHECK_EQ(JSFunction::cast(*callable_)
+                  ->shared()
+                  ->internal_formal_parameter_count_without_receiver(),
+              expected_sig->parameter_count());
+    return ImportCallKind::kJSFunctionArityMatch;
+  }
   Isolate* isolate = callable_->GetIsolate();
   if (WasmExportedFunction::IsWasmExportedFunction(*callable_)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable_);
@@ -934,7 +794,7 @@ class InstanceBuilder {
   bool ProcessImportedFunction(
       Handle<WasmTrustedInstanceData> trusted_instance_data, int import_index,
       int func_index, Handle<String> module_name, Handle<String> import_name,
-      Handle<Object> value);
+      Handle<Object> value, WellKnownImport preknown_import);
 
   // Initialize imported tables of type funcref.
   bool InitializeImportedIndirectFunctionTable(
@@ -1149,14 +1009,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate,
 MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.InstanceBuilder.Build");
-  // Check that an imports argument was provided, if the module requires it.
-  // No point in continuing otherwise.
-  if (!module_->import_table.empty() && ffi_.is_null()) {
-    thrower_->TypeError(
-        "Imports argument must be present and must be an object");
-    return {};
-  }
-
+  // Will check whether {ffi_} is available.
   SanitizeImports();
   if (thrower_->error()) return {};
 
@@ -1539,8 +1392,8 @@ bool InstanceBuilder::ExecuteStartFunction() {
 MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
                                                   Handle<String> module_name,
                                                   Handle<String> import_name) {
-  // We pre-validated in the js-api layer that the ffi object is present, and
-  // a JSObject, if the module has imports.
+  // The caller checked that the ffi object is present; and we checked in
+  // the JS-API layer that the ffi object, if present, is a JSObject.
   DCHECK(!ffi_.is_null());
   // Look up the module first.
   Handle<Object> module;
@@ -1615,12 +1468,8 @@ bool MaybeMarkError(ValueOrError value, ErrorThrower* thrower) {
 // module instantiation fails.
 MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
     uint32_t index, Handle<String> import_name) {
-  // Check that a foreign function interface object was provided.
-  if (ffi_.is_null()) {
-    thrower_->LinkError("%s: missing imports object",
-                        ImportName(index, import_name).c_str());
-    return {};
-  }
+  // The caller checked that the ffi object is present.
+  DCHECK(!ffi_.is_null());
 
   // Perform lookup of the given {import_name} without causing any observable
   // side-effect. We only accept accesses that resolve to data properties,
@@ -1727,9 +1576,58 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   }
 }
 
+// Returns the name, Builtin ID, and "length" (in the JSFunction sense, i.e.
+// number of parameters) for the function representing the given import.
+std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
+#define CASE(CamelName, name, length)       \
+  case WellKnownImport::kString##CamelName: \
+    return std::make_tuple(name, Builtin::kWebAssemblyString##CamelName, length)
+  switch (wki) {
+    CASE(Cast, "cast", 1);
+    CASE(CharCodeAt, "charCodeAt", 2);
+    CASE(CodePointAt, "codePointAt", 2);
+    CASE(Compare, "compare", 2);
+    CASE(Concat, "concat", 2);
+    CASE(Equals, "equals", 2);
+    CASE(FromCharCode, "fromCharCode", 1);
+    CASE(FromCodePoint, "fromCodePoint", 1);
+    CASE(FromUtf8Array, "decodeStringFromUTF8Array", 3);
+    CASE(FromWtf16Array, "fromCharCodeArray", 3);
+    CASE(IntoUtf8Array, "encodeStringIntoUTF8Array", 3);
+    CASE(Length, "length", 1);
+    CASE(MeasureUtf8, "measureStringAsUTF8", 1);
+    CASE(Substring, "substring", 3);
+    CASE(Test, "test", 1);
+    CASE(ToWtf16Array, "intoCharCodeArray", 3);
+    default:
+      UNREACHABLE();  // Only call this for compile-time imports.
+  }
+#undef CASE
+}
+
+Handle<JSFunction> CreateFunctionForCompileTimeImport(Isolate* isolate,
+                                                      WellKnownImport wki) {
+  auto [name, builtin, length] = NameBuiltinLength(wki);
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+  Handle<String> name_str = factory->InternalizeUtf8String(name);
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name_str, builtin);
+  info->set_internal_formal_parameter_count(JSParameterCount(length));
+  info->set_length(length);
+  info->set_native(true);
+  info->set_language_mode(LanguageMode::kStrict);
+  Handle<JSFunction> fun =
+      Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
+  return fun;
+}
+
 void InstanceBuilder::SanitizeImports() {
   base::Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
+  const WellKnownImportsList& well_known_imports =
+      module_->type_feedback.well_known_imports;
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     const WasmImport& import = module_->import_table[index];
 
@@ -1740,6 +1638,23 @@ void InstanceBuilder::SanitizeImports() {
     Handle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate_, wire_bytes, import.field_name, kInternalize);
+
+    if (import.kind == kExternalFunction) {
+      WellKnownImport wki = well_known_imports.get(import.index);
+      if (IsCompileTimeImport(wki)) {
+        Handle<JSFunction> fun =
+            CreateFunctionForCompileTimeImport(isolate_, wki);
+        sanitized_imports_.push_back({module_name, import_name, fun});
+        continue;
+      }
+    }
+
+    if (ffi_.is_null()) {
+      // No point in continuing if we don't have an imports object.
+      thrower_->TypeError(
+          "Imports argument must be present and must be an object");
+      return;
+    }
 
     int int_index = static_cast<int>(index);
     MaybeHandle<Object> result =
@@ -1758,7 +1673,7 @@ void InstanceBuilder::SanitizeImports() {
 bool InstanceBuilder::ProcessImportedFunction(
     Handle<WasmTrustedInstanceData> trusted_instance_data, int import_index,
     int func_index, Handle<String> module_name, Handle<String> import_name,
-    Handle<Object> value) {
+    Handle<Object> value, WellKnownImport preknown_import) {
   // Function imports must be callable.
   if (!IsCallable(*value)) {
     thrower_->LinkError(
@@ -1782,7 +1697,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
   WasmImportData resolved(trusted_instance_data, func_index, js_receiver,
-                          expected_sig, canonical_type_index);
+                          expected_sig, canonical_type_index, preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
@@ -2220,6 +2135,8 @@ void InstanceBuilder::CompileImportWrappers(
       trusted_instance_data->module_object()->native_module();
   WasmImportWrapperCache::ModificationScope cache_scope(
       native_module->import_wrapper_cache());
+  const WellKnownImportsList& preknown_imports =
+      module_->type_feedback.well_known_imports;
 
   // Compilation is done in two steps:
   // 1) Insert nullptr entries in the cache for wrappers that need to be
@@ -2240,7 +2157,8 @@ void InstanceBuilder::CompileImportWrappers(
     uint32_t canonical_type_index =
         module_->isorecursive_canonical_type_ids[sig_index];
     WasmImportData resolved({}, func_index, js_receiver, sig,
-                            canonical_type_index);
+                            canonical_type_index,
+                            preknown_imports.get(func_index));
     if (UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend())) {
       continue;
     }
@@ -2289,6 +2207,8 @@ int InstanceBuilder::ProcessImports(
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
 
   CompileImportWrappers(trusted_instance_data);
+  const WellKnownImportsList& preknown_imports =
+      module_->type_feedback.well_known_imports;
   int num_imports = static_cast<int>(module_->import_table.size());
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module_->import_table[index];
@@ -2302,7 +2222,8 @@ int InstanceBuilder::ProcessImports(
         uint32_t func_index = import.index;
         DCHECK_EQ(num_imported_functions, func_index);
         if (!ProcessImportedFunction(trusted_instance_data, index, func_index,
-                                     module_name, import_name, value)) {
+                                     module_name, import_name, value,
+                                     preknown_imports.get(func_index))) {
           return -1;
         }
         num_imported_functions++;

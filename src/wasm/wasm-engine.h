@@ -64,17 +64,19 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
   virtual ~InstantiationResultResolver() = default;
 };
 
-// Native modules cached by their wire bytes.
+// Native modules cached by their wire bytes and compile-time imports.
 class NativeModuleCache {
  public:
   struct Key {
     // Store the prefix hash as part of the key for faster lookup, and to
     // quickly check existing prefixes for streaming compilation.
     size_t prefix_hash;
+    CompileTimeImports compile_imports;
     base::Vector<const uint8_t> bytes;
 
     bool operator==(const Key& other) const {
-      bool eq = bytes == other.bytes;
+      bool eq =
+          bytes == other.bytes && compile_imports == other.compile_imports;
       DCHECK_IMPLIES(eq, prefix_hash == other.prefix_hash);
       return eq;
     }
@@ -84,6 +86,10 @@ class NativeModuleCache {
         DCHECK_IMPLIES(!bytes.empty() && !other.bytes.empty(),
                        bytes != other.bytes);
         return prefix_hash < other.prefix_hash;
+      }
+      if (compile_imports != other.compile_imports) {
+        return compile_imports.ToIntegral() <
+               other.compile_imports.ToIntegral();
       }
       if (bytes.size() != other.bytes.size()) {
         return bytes.size() < other.bytes.size();
@@ -101,9 +107,12 @@ class NativeModuleCache {
   };
 
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
-      ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes);
-  bool GetStreamingCompilationOwnership(size_t prefix_hash);
-  void StreamingCompilationFailed(size_t prefix_hash);
+      ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
+      CompileTimeImports compile_imports);
+  bool GetStreamingCompilationOwnership(size_t prefix_hash,
+                                        CompileTimeImports compile_imports);
+  void StreamingCompilationFailed(size_t prefix_hash,
+                                  CompileTimeImports compile_imports);
   std::shared_ptr<NativeModule> Update(
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
@@ -150,7 +159,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Synchronously validates the given bytes. Returns whether the bytes
   // represent a valid encoded Wasm module.
   bool SyncValidate(Isolate* isolate, WasmFeatures enabled,
-                    ModuleWireBytes bytes);
+                    CompileTimeImports compile_imports, ModuleWireBytes bytes);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
@@ -167,6 +176,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // module.
   MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
                                             WasmFeatures enabled,
+                                            CompileTimeImports compile_imports,
                                             ErrorThrower* thrower,
                                             ModuleWireBytes bytes);
 
@@ -183,6 +193,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, WasmFeatures enabled,
+                    CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
                     ModuleWireBytes bytes, bool is_shared,
                     const char* api_method_name_for_errors);
@@ -194,7 +205,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
                         MaybeHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, WasmFeatures enabled, Handle<Context> context,
+      Isolate* isolate, WasmFeatures enabled,
+      CompileTimeImports compile_imports, Handle<Context> context,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
@@ -285,6 +297,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmFeatures enabled_features,
+      CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
   // Try getting a cached {NativeModule}, or get ownership for its creation.
@@ -294,9 +307,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // call {UpdateNativeModuleCache} to update the entry and wake up other
   // threads. The {wire_bytes}' underlying array should be valid at least until
   // the call to {UpdateNativeModuleCache}.
+  // The provided {CompileTimeImports} are considered part of the caching key,
+  // because they change the generated code as well as the behavior of the
+  // {imports()} function of any WasmModuleObjects we'll create for this
+  // NativeModule later.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-      Isolate* isolate);
+      CompileTimeImports compile_imports, Isolate* isolate);
 
   // Replace the temporary {nullopt} with the new native module, or
   // erase it if any error occurred. Wake up blocked threads waiting for this
@@ -319,11 +336,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // prepared a module with the same prefix hash. The caller should wait until
   // the stream is finished and call {MaybeGetNativeModule} to either get the
   // module from the cache or get ownership for the compilation of these bytes.
-  bool GetStreamingCompilationOwnership(size_t prefix_hash);
+  bool GetStreamingCompilationOwnership(size_t prefix_hash,
+                                        CompileTimeImports compile_imports);
 
   // Remove the prefix hash from the cache when compilation failed. If
   // compilation succeeded, {UpdateNativeModuleCache} should be called instead.
-  void StreamingCompilationFailed(size_t prefix_hash);
+  void StreamingCompilationFailed(size_t prefix_hash,
+                                  CompileTimeImports compile_imports);
 
   void FreeNativeModule(NativeModule*);
   void ClearWeakScriptHandle(Isolate* isolate,
@@ -387,6 +406,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, WasmFeatures enabled,
+      CompileTimeImports compile_imports,
       base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);

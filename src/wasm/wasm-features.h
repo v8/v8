@@ -85,6 +85,18 @@ constexpr WasmFeatures WasmFeatures::None() { return {}; }
 // static
 constexpr WasmFeatures WasmFeatures::ForAsmjs() { return {}; }
 
+enum class CompileTimeImport {
+  kJsString,
+  kTextEncoder,
+  kTextDecoder,
+};
+
+inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {
+  return os << static_cast<int>(imp);
+}
+
+using CompileTimeImports = base::EnumSet<CompileTimeImport, int>;
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

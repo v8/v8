@@ -106,30 +106,36 @@ function MakeBuilder() {
   let arrayref = wasmRefNullType(kArrayI16);
   let array8ref = wasmRefNullType(kArrayI8);
 
-  kStringCast = builder.addImport('String', 'cast', kSig_e_r);
-  kStringTest = builder.addImport('String', 'test', kSig_i_r);
+  kStringCast = builder.addImport('wasm:js-string', 'cast', kSig_e_r);
+  kStringTest = builder.addImport('wasm:js-string', 'test', kSig_i_r);
   kStringFromWtf16Array = builder.addImport(
-      'String', 'fromWtf16Array',
+      'wasm:js-string', 'fromCharCodeArray',
       makeSig([arrayref, kWasmI32, kWasmI32], [kRefExtern]));
   kStringFromUtf8Array = builder.addImport(
-      'String', 'fromUtf8Array',
+      'wasm:text-decoder', 'decodeStringFromUTF8Array',
       makeSig([array8ref, kWasmI32, kWasmI32], [kRefExtern]));
   kStringToWtf16Array = builder.addImport(
-      'String', 'toWtf16Array',
+      'wasm:js-string', 'intoCharCodeArray',
       makeSig([kWasmExternRef, arrayref, kWasmI32], [kWasmI32]));
-  kStringMeasureUtf8 = builder.addImport('String', 'measureUtf8', kSig_i_r);
+  kStringMeasureUtf8 =
+      builder.addImport('wasm:text-encoder', 'measureStringAsUTF8', kSig_i_r);
   kStringIntoUtf8Array = builder.addImport(
-      'String', 'intoUtf8Array',
+      'wasm:text-encoder', 'encodeStringIntoUTF8Array',
       makeSig([kWasmExternRef, array8ref, kWasmI32], [kWasmI32]));
-  kStringFromCharCode = builder.addImport('String', 'fromCharCode', kSig_e_i);
-  kStringFromCodePoint = builder.addImport('String', 'fromCodePoint', kSig_e_i);
-  kStringCharCodeAt = builder.addImport('String', 'charCodeAt', kSig_i_ri);
-  kStringCodePointAt = builder.addImport('String', 'codePointAt', kSig_i_ri);
-  kStringLength = builder.addImport('String', 'length', kSig_i_r);
-  kStringConcat = builder.addImport('String', 'concat', kSig_e_rr);
-  kStringSubstring = builder.addImport('String', 'substring', kSig_e_rii);
-  kStringEquals = builder.addImport('String', 'equals', kSig_i_rr);
-  kStringCompare = builder.addImport('String', 'compare', kSig_i_rr);
+  kStringFromCharCode =
+      builder.addImport('wasm:js-string', 'fromCharCode', kSig_e_i);
+  kStringFromCodePoint =
+      builder.addImport('wasm:js-string', 'fromCodePoint', kSig_e_i);
+  kStringCharCodeAt =
+      builder.addImport('wasm:js-string', 'charCodeAt', kSig_i_ri);
+  kStringCodePointAt =
+      builder.addImport('wasm:js-string', 'codePointAt', kSig_i_ri);
+  kStringLength = builder.addImport('wasm:js-string', 'length', kSig_i_r);
+  kStringConcat = builder.addImport('wasm:js-string', 'concat', kSig_e_rr);
+  kStringSubstring =
+      builder.addImport('wasm:js-string', 'substring', kSig_e_rii);
+  kStringEquals = builder.addImport('wasm:js-string', 'equals', kSig_i_rr);
+  kStringCompare = builder.addImport('wasm:js-string', 'compare', kSig_i_rr);
   kStringIndexOfImported = builder.addImport('m', 'indexOf', kSig_i_rri);
   kStringToLowerCaseImported = builder.addImport('m', 'toLowerCase', kSig_r_r);
 
@@ -137,13 +143,13 @@ function MakeBuilder() {
 }
 
 let kImports = {
-  String: WebAssembly.String,
   strings: interestingStrings,
   m: {
     indexOf: Function.prototype.call.bind(String.prototype.indexOf),
     toLowerCase: Function.prototype.call.bind(String.prototype.toLowerCase),
   },
 };
+let kBuiltins = { builtins: ["js-string", "text-decoder", "text-encoder"] };
 
 (function TestStringCast() {
   print(arguments.callee.name);
@@ -163,7 +169,7 @@ let kImports = {
       kExprCallFunction, kStringCast,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   assertEquals('foo', instance.exports.cast('foo'));
   assertThrows(
@@ -201,7 +207,7 @@ let kImports = {
       kExprCallFunction, kStringTest,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   assertEquals(1, instance.exports.test("foo"));
   assertEquals(0, instance.exports.test(123));
@@ -223,7 +229,7 @@ let kImports = {
     kExprLocalGet, 2,
     kExprCallFunction, kStringIndexOfImported,
   ]);
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   assertEquals(2, instance.exports.indexOf('xxfooxx', 'foo', 0));
   assertEquals(2, instance.exports.indexOf('xxfooxx', 'foo', -2));
@@ -260,7 +266,7 @@ let kImports = {
     kExprCallFunction, kStringCast,
     kExprCallFunction, kStringToLowerCaseImported,
   ]);
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   assertEquals(
       'make this lowercase!',
@@ -287,7 +293,7 @@ let kImports = {
     builder.addGlobal(kRefExtern, false, [kExprGlobalGet, i])
       .exportAs("global" + i);
   }
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let [i, str] of interestingStrings.entries()) {
     assertEquals(str, instance.exports["string_const" + i]());
     assertEquals(str, instance.exports["global" + i].value);
@@ -312,7 +318,7 @@ let kImports = {
       kExprCallFunction, kStringLength,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let str of interestingStrings) {
     assertEquals(str.length, instance.exports.string_length(str));
   }
@@ -351,7 +357,7 @@ let kImports = {
       kExprCallFunction, kStringConcat,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   for (let head of interestingStrings) {
     for (let tail of interestingStrings) {
@@ -405,7 +411,7 @@ let kImports = {
       kExprCallFunction, kStringEquals,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   for (let head of interestingStrings) {
     for (let tail of interestingStrings) {
@@ -476,7 +482,7 @@ let kImports = {
       kExprCallFunction, kStringSubstring,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let str of interestingStrings) {
     for (let i = 0; i < str.length; i++) {
       assertEquals(str.charCodeAt(i),
@@ -577,7 +583,7 @@ let kImports = {
       kExprCallFunction, kStringCompare,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let lhs of interestingStrings) {
     for (let rhs of interestingStrings) {
       const expected = lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
@@ -620,7 +626,7 @@ let kImports = {
       kExprCallFunction, kStringCompare,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   assertThrows(() => instance.exports.compareLhsNullable(null, "abc"),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.compareLhsNullable("abc", null),
@@ -641,7 +647,7 @@ let kImports = {
       kExprCallFunction, kStringFromCodePoint,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let char of "Az1#\n\ucccc\ud800\udc00") {
     assertEquals(char, instance.exports.asString(char.codePointAt(0)));
   }
@@ -661,7 +667,7 @@ let kImports = {
       kExprCallFunction, kStringFromCharCode,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   let inputs = "Az1#\n\ucccc\ud800\udc00";
   for (let i = 0; i < inputs.length; i++) {
     assertEquals(inputs.charAt(i),
@@ -777,7 +783,7 @@ function makeWtf8TestDataSegment() {
       kExprCallFunction, kStringFromUtf8Array,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     let start = offset;
     let end = offset + length;
@@ -894,7 +900,7 @@ function makeWtf16TestDataSegment(strings) {
       kExprCallFunction, kStringFromWtf16Array,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     let start = offset / 2;
     let end = start + length;
@@ -965,7 +971,7 @@ function makeWtf16TestDataSegment(strings) {
       kExprCallFunction, kStringToWtf16Array,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let str of interestingStrings) {
     assertEquals(str, instance.exports.encode(str, str.length, 0));
     assertEquals(str, instance.exports.encode(str, str.length + 20, 10));
@@ -1003,7 +1009,7 @@ function makeWtf16TestDataSegment(strings) {
       kExprCallFunction, kStringMeasureUtf8,
     ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
   for (let str of interestingStrings) {
     let wtf8 = encodeWtf8(str);
     assertEquals(wtf8.length, instance.exports.string_measure_utf8(str));
@@ -1064,7 +1070,7 @@ function makeWtf16TestDataSegment(strings) {
         kExprCallFunction, kStringIntoUtf8Array,
       ]);
 
-  let instance = builder.instantiate(kImports);
+  let instance = builder.instantiate(kImports, kBuiltins);
 
   for (let str of interestingStrings) {
     let replaced = ReplaceIsolatedSurrogates(str);

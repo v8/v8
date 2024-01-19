@@ -8768,8 +8768,9 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
   {
     i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+    // TODO(14179): Provide an API method that supports compile options.
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, &thrower,
+        i_isolate, enabled_features, i::wasm::CompileTimeImports{}, &thrower,
         i::wasm::ModuleWireBytes(start, start + length));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());

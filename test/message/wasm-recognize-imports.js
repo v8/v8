@@ -113,26 +113,26 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let a16ref = wasmRefNullType(kArrayI16);
   let a8ref = wasmRefNullType(kArrayI8);
 
-  builder.addImport('String', 'cast', kSig_e_r);
-  builder.addImport('String', 'test', kSig_i_r);
-  builder.addImport('String', 'fromWtf16Array',
+  builder.addImport('wasm:js-string', 'cast', kSig_e_r);
+  builder.addImport('wasm:js-string', 'test', kSig_i_r);
+  builder.addImport('wasm:js-string', 'fromCharCodeArray',
                     makeSig([a16ref, kWasmI32, kWasmI32], [kRefExtern]));
-  builder.addImport('String', 'fromUtf8Array',
+  builder.addImport('wasm:text-decoder', 'decodeStringFromUTF8Array',
                     makeSig([a8ref, kWasmI32, kWasmI32], [kRefExtern]));
-  builder.addImport('String', 'toWtf16Array',
+  builder.addImport('wasm:js-string', 'intoCharCodeArray',
                     makeSig([kWasmExternRef, a16ref, kWasmI32], [kWasmI32]));
-  builder.addImport('String', 'fromCharCode', kSig_e_i);
-  builder.addImport('String', 'fromCodePoint', kSig_e_i);
-  builder.addImport('String', 'charCodeAt', kSig_i_ri);
-  builder.addImport('String', 'codePointAt', kSig_i_ri);
-  builder.addImport('String', 'length', kSig_i_r);
-  builder.addImport('String', 'concat', kSig_e_rr);
-  builder.addImport('String', 'substring', kSig_e_rii);
-  builder.addImport('String', 'equals', kSig_i_rr);
-  builder.addImport('String', 'compare', kSig_i_rr);
+  builder.addImport('wasm:js-string', 'fromCharCode', kSig_e_i);
+  builder.addImport('wasm:js-string', 'fromCodePoint', kSig_e_i);
+  builder.addImport('wasm:js-string', 'charCodeAt', kSig_i_ri);
+  builder.addImport('wasm:js-string', 'codePointAt', kSig_i_ri);
+  builder.addImport('wasm:js-string', 'length', kSig_i_r);
+  builder.addImport('wasm:js-string', 'concat', kSig_e_rr);
+  builder.addImport('wasm:js-string', 'substring', kSig_e_rii);
+  builder.addImport('wasm:js-string', 'equals', kSig_i_rr);
+  builder.addImport('wasm:js-string', 'compare', kSig_i_rr);
 
-  builder.addImport('String', 'measureUtf8', kSig_i_r);
-  builder.addImport('String', 'intoUtf8Array',
+  builder.addImport('wasm:text-encoder', 'measureStringAsUTF8', kSig_i_r);
+  builder.addImport('wasm:text-encoder', 'encodeStringIntoUTF8Array',
                     makeSig([kWasmExternRef, a8ref, kWasmI32], [kWasmI32]));
 
   builder.addImport('related', 'intToString', kSig_e_ii);
@@ -149,7 +149,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       Function.prototype.call.bind(String.prototype.toLowerCase);
 
   builder.instantiate({
-    String: WebAssembly.String,
-    related: {intToString, doubleToString, stringIndexOf, stringToLowerCase}
+    related: {intToString, doubleToString, stringIndexOf, stringToLowerCase},
+  }, {
+    builtins: ['js-string', 'text-decoder', 'text-encoder'],
   });
 })();

@@ -57,13 +57,18 @@ struct WasmModule;
 
 V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, WasmFeatures enabled_features, ErrorThrower* thrower,
+    Isolate* isolate, WasmFeatures enabled_features,
+    CompileTimeImports compile_imports, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info);
 
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
+
+WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
+                                       base::Vector<const uint8_t> wire_bytes,
+                                       CompileTimeImports imports);
 
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
@@ -136,6 +141,7 @@ class WrapperQueue {
 class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
+                  CompileTimeImports compile_imports,
                   base::OwnedVector<const uint8_t> bytes,
                   Handle<Context> context,
                   Handle<NativeContext> incumbent_context,
@@ -270,6 +276,7 @@ class AsyncCompileJob {
   Isolate* const isolate_;
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
+  const CompileTimeImports compile_imports_;
   const DynamicTiering dynamic_tiering_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its

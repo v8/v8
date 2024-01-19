@@ -1523,6 +1523,162 @@ void TierUpNowForTesting(Isolate* isolate,
   CHECK(!native_module->compilation_state()->failed());
 }
 
+bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
+  if (!type.is_object_reference() || !type.has_index()) return false;
+  uint32_t reftype = type.ref_index();
+  if (!module->has_array(reftype)) return false;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI16Index;
+}
+
+bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
+  if (!type.is_object_reference() || !type.has_index()) return false;
+  uint32_t reftype = type.ref_index();
+  if (!module->has_array(reftype)) return false;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI8Index;
+}
+
+// Validates the signatures of recognized compile-time imports, and stores
+// them on the {module}'s {well_known_imports} list.
+WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
+                                       base::Vector<const uint8_t> wire_bytes,
+                                       CompileTimeImports imports) {
+  DCHECK_EQ(module->origin, kWasmOrigin);
+  if (imports.empty()) return {};
+
+  static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
+  static constexpr ValueType kExternRef = kWasmExternRef;
+  static constexpr ValueType kI32 = kWasmI32;
+
+  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern".
+  static constexpr ValueType kReps_e_i[] = {kRefExtern, kI32};
+  static constexpr ValueType kReps_e_rr[] = {kRefExtern, kExternRef,
+                                             kExternRef};
+  static constexpr ValueType kReps_e_rii[] = {kRefExtern, kExternRef, kI32,
+                                              kI32};
+  static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
+  static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
+
+  static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
+  static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
+  static constexpr FunctionSig kSig_e_rr(1, 2, kReps_e_rr);
+  static constexpr FunctionSig kSig_e_rii(1, 3, kReps_e_rii);
+
+  static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
+  static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
+  static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
+
+  std::vector<WellKnownImport> statuses;
+  statuses.reserve(module->num_imported_functions);
+  for (const WasmImport& import : module->import_table) {
+    if (import.kind != kExternalFunction) continue;
+    base::Vector<const uint8_t> module_name = wire_bytes.SubVector(
+        import.module_name.offset(), import.module_name.end_offset());
+    constexpr size_t kMinInterestingLength = 10;
+    if (module_name.size() < kMinInterestingLength ||
+        module_name.SubVector(0, 5) != base::StaticOneByteVector("wasm:")) {
+      statuses.push_back(WellKnownImport::kUninstantiated);
+      continue;
+    }
+    base::Vector<const uint8_t> collection = module_name.SubVectorFrom(5);
+    // TODO(14179): Can we get the actual offset?
+    // Idea: work backwards from {import.module_name.offset()}, we only have
+    // to find the beginning of the i32v giving the string length.
+    constexpr uint32_t kErrorOffset = 0;
+    WellKnownImport status = WellKnownImport::kUninstantiated;
+    const WasmFunction& func = module->functions[import.index];
+    const FunctionSig* sig = func.sig;
+    WireBytesRef field_name = import.field_name;
+    base::Vector<const uint8_t> name =
+        wire_bytes.SubVector(field_name.offset(), field_name.end_offset());
+    if (collection == base::StaticOneByteVector("js-string") &&
+        imports.contains(CompileTimeImport::kJsString)) {
+#define RETURN_ERROR(module_name, import_name)                     \
+  return WasmError(kErrorOffset,                                   \
+                   "Imported builtin function \"wasm:" module_name \
+                   "\" \"" import_name "\" has incorrect signature")
+
+#define CHECK_SIG(import_name, kSigName, kEnumName)      \
+  if (name == base::StaticOneByteVector(#import_name)) { \
+    if (*sig != kSigName) {                              \
+      RETURN_ERROR("js-string", #import_name);           \
+    }                                                    \
+    status = WellKnownImport::kEnumName;                 \
+  } else  // NOLINT(readability/braces)
+
+      CHECK_SIG(cast, kSig_e_r, kStringCast)
+      CHECK_SIG(test, kSig_i_r, kStringTest)
+      CHECK_SIG(fromCharCode, kSig_e_i, kStringFromCharCode)
+      CHECK_SIG(fromCodePoint, kSig_e_i, kStringFromCodePoint)
+      CHECK_SIG(charCodeAt, kSig_i_ri, kStringCharCodeAt)
+      CHECK_SIG(codePointAt, kSig_i_ri, kStringCodePointAt)
+      CHECK_SIG(length, kSig_i_r, kStringLength)
+      CHECK_SIG(concat, kSig_e_rr, kStringConcat)
+      CHECK_SIG(substring, kSig_e_rii, kStringSubstring)
+      CHECK_SIG(equals, kSig_i_rr, kStringEquals)
+      CHECK_SIG(compare, kSig_i_rr, kStringCompare)
+      if (name == base::StaticOneByteVector("fromCharCodeArray")) {
+        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
+            !IsI16Array(sig->GetParam(0), module) ||  // --
+            sig->GetParam(1) != kI32 ||               // --
+            sig->GetParam(2) != kI32 ||               // --
+            sig->GetReturn() != kRefExtern) {
+          RETURN_ERROR("js-string", "fromCharCodeArray");
+        }
+        status = WellKnownImport::kStringFromWtf16Array;
+      } else if (name == base::StaticOneByteVector("intoCharCodeArray")) {
+        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
+            sig->GetParam(0) != kExternRef ||
+            !IsI16Array(sig->GetParam(1), module) ||  // --
+            sig->GetParam(2) != kI32 ||               // --
+            sig->GetReturn() != kI32) {
+          RETURN_ERROR("js-string", "intoCharCodeArray");
+        }
+        status = WellKnownImport::kStringToWtf16Array;
+      }
+#undef CHECK_SIG
+    } else if (collection == base::StaticOneByteVector("text-encoder") &&
+               imports.contains(CompileTimeImport::kTextEncoder)) {
+      if (name == base::StaticOneByteVector("measureStringAsUTF8")) {
+        if (*sig != kSig_i_r) {
+          RETURN_ERROR("text-encoder", "measureStringAsUTF8");
+        }
+        status = WellKnownImport::kStringMeasureUtf8;
+      } else if (name ==
+                 base::StaticOneByteVector("encodeStringIntoUTF8Array")) {
+        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
+            sig->GetParam(0) != kExternRef ||        // --
+            !IsI8Array(sig->GetParam(1), module) ||  // --
+            sig->GetParam(2) != kI32 ||              // --
+            sig->GetReturn() != kI32) {
+          RETURN_ERROR("text-encoder", "encodeStringIntoUTF8Array");
+        }
+        status = WellKnownImport::kStringIntoUtf8Array;
+      }
+    } else if (collection == base::StaticOneByteVector("text-decoder") &&
+               imports.contains(CompileTimeImport::kTextDecoder)) {
+      if (name == base::StaticOneByteVector("decodeStringFromUTF8Array")) {
+        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
+            !IsI8Array(sig->GetParam(0), module) ||  // --
+            sig->GetParam(1) != kI32 ||              // --
+            sig->GetParam(2) != kI32 ||              // --
+            sig->GetReturn() != kRefExtern) {
+          RETURN_ERROR("text-decoder", "decodeStringFromUTF8Array");
+        }
+        status = WellKnownImport::kStringFromUtf8Array;
+      }
+    }
+#undef RETURN_ERROR
+    statuses.push_back(status);
+  }
+  // We're operating on a fresh WasmModule instance here, so we don't need to
+  // check for incompatibilities with previously seen imports.
+  DCHECK_EQ(module->num_imported_functions, statuses.size());
+  module->type_feedback.well_known_imports.Initialize(base::VectorOf(statuses));
+  return {};
+}
+
 namespace {
 
 void RecordStats(Tagged<Code> code, Counters* counters) {
@@ -1533,7 +1689,6 @@ void RecordStats(Tagged<Code> code, Counters* counters) {
 
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
 
-namespace {
 const char* GetCompilationEventName(const WasmCompilationUnit& unit,
                                     const CompilationEnv& env) {
   ExecutionTier tier = unit.tier();
@@ -1549,7 +1704,6 @@ const char* GetCompilationEventName(const WasmCompilationUnit& unit,
   }
   return "wasm.OtherCompilation";
 }
-}  // namespace
 
 constexpr uint8_t kMainTaskId = 0;
 
@@ -2079,7 +2233,8 @@ class BackgroundCompileJob final : public JobTask {
 }  // namespace
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, WasmFeatures enabled_features, ErrorThrower* thrower,
+    Isolate* isolate, WasmFeatures enabled_features,
+    CompileTimeImports compile_imports, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info) {
@@ -2091,7 +2246,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   // bytes of the temporary key and the new key have the same base pointer and
   // we can skip the full bytes comparison.
   std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
-      module->origin, wire_bytes_copy.as_vector(), isolate);
+      module->origin, wire_bytes_copy.as_vector(), compile_imports, isolate);
   if (native_module) {
     // Ensure that we have the right wrappers in this isolate.
     CompileJsToWasmWrappers(isolate, module.get());
@@ -2119,8 +2274,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           module.get(), include_liftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module = engine->NewNativeModule(isolate, enabled_features, module,
-                                          code_size_estimate);
+  native_module = engine->NewNativeModule(
+      isolate, enabled_features, compile_imports, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->compilation_state()->set_compilation_id(compilation_id);
 
@@ -2150,12 +2305,14 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, WasmFeatures enabled_features,
-    base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
-    Handle<NativeContext> incumbent_context, const char* api_method_name,
+    CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
+    Handle<Context> context, Handle<NativeContext> incumbent_context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled_features),
+      compile_imports_(compile_imports),
       dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes)),
@@ -2393,7 +2550,8 @@ void AsyncCompileJob::CreateNativeModule(
   // information needed at instantiation time.
 
   native_module_ = GetWasmEngine()->NewNativeModule(
-      isolate_, enabled_features_, std::move(module), code_size_estimate);
+      isolate_, enabled_features_, compile_imports_, std::move(module),
+      code_size_estimate);
   native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
 }
@@ -2401,7 +2559,7 @@ void AsyncCompileJob::CreateNativeModule(
 bool AsyncCompileJob::GetOrCreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   native_module_ = GetWasmEngine()->MaybeGetNativeModule(
-      module->origin, wire_bytes_.module_bytes(), isolate_);
+      module->origin, wire_bytes_.module_bytes(), compile_imports_, isolate_);
   if (native_module_ == nullptr) {
     CreateNativeModule(std::move(module), code_size_estimate);
     return false;
@@ -2528,9 +2686,19 @@ void AsyncCompileJob::Failed() {
   constexpr bool kValidate = true;
   ModuleResult result = DecodeWasmModule(
       enabled_features_, wire_bytes_.module_bytes(), kValidate, kWasmOrigin);
-  CHECK(result.failed());
   ErrorThrower thrower(isolate_, api_method_name_);
-  thrower.CompileFailed(std::move(result).error());
+  if (result.failed()) {
+    thrower.CompileFailed(std::move(result).error());
+  } else {
+    // The only possible reason why {result} might be okay is if the failure
+    // was due to compile-time imports checking.
+    CHECK(!job->compile_imports_.empty());
+    WasmError error = ValidateAndSetBuiltinImports(result.value().get(),
+                                                   wire_bytes_.module_bytes(),
+                                                   job->compile_imports_);
+    CHECK(error.has_error());
+    thrower.LinkError("%s", error.message().c_str());
+  }
   resolver_->OnCompilationFailed(thrower.Reify());
 }
 
@@ -2743,8 +2911,17 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
         const WasmModule* module = result.value().get();
         if (WasmError validation_error =
                 ValidateFunctions(module, job->wire_bytes_.module_bytes(),
-                                  job->enabled_features_, kOnlyLazyFunctions))
+                                  job->enabled_features_, kOnlyLazyFunctions)) {
           result = ModuleResult{std::move(validation_error)};
+        }
+      }
+      if (result.ok()) {
+        const WasmModule* module = result.value().get();
+        if (WasmError link_error = ValidateAndSetBuiltinImports(
+                module, job->wire_bytes_.module_bytes(),
+                job->compile_imports_)) {
+          result = ModuleResult{std::move(link_error)};
+        }
       }
     }
     if (result.failed()) {
@@ -2964,7 +3141,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   decoder_.StartCodeSection({static_cast<uint32_t>(code_section_start),
                              static_cast<uint32_t>(code_section_length)});
 
-  if (!GetWasmEngine()->GetStreamingCompilationOwnership(prefix_hash_)) {
+  if (!GetWasmEngine()->GetStreamingCompilationOwnership(
+          prefix_hash_, job_->compile_imports_)) {
     // Known prefix, wait until the end of the stream and check the cache.
     prefix_cache_hit_ = true;
     return true;
@@ -3079,6 +3257,14 @@ void AsyncStreamingProcessor::OnFinishedStream(
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->bytes_copy_ = std::move(bytes);
 
+  if (!after_error) {
+    if (WasmError error = ValidateAndSetBuiltinImports(
+            module_result.value().get(), job_->wire_bytes_.module_bytes(),
+            job_->compile_imports_)) {
+      after_error = true;
+    }
+  }
+
   // Record event metrics.
   auto duration = base::TimeTicks::Now() - job_->start_time_;
   job_->metrics_event_.success = !after_error;
@@ -3092,7 +3278,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (after_error) {
     if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
       // Clean up the temporary cache entry.
-      GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
+      GetWasmEngine()->StreamingCompilationFailed(prefix_hash_,
+                                                  job_->compile_imports_);
     }
     // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
     job_->Failed();
@@ -3183,7 +3370,8 @@ void AsyncStreamingProcessor::OnAbort() {
   }
   if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
     // Clean up the temporary cache entry.
-    GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
+    GetWasmEngine()->StreamingCompilationFailed(prefix_hash_,
+                                                job_->compile_imports_);
   }
   // {Abort} invalidates the {AsyncCompileJob}, which in turn deletes {this}.
   job_->Abort();
@@ -3203,9 +3391,9 @@ bool AsyncStreamingProcessor::Deserialize(
   HandleScope scope(job_->isolate_);
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
 
-  MaybeHandle<WasmModuleObject> result =
-      DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes,
-                              base::VectorOf(job_->stream_->url()));
+  MaybeHandle<WasmModuleObject> result = DeserializeNativeModule(
+      job_->isolate_, module_bytes, wire_bytes, job_->compile_imports_,
+      base::VectorOf(job_->stream_->url()));
 
   if (result.is_null()) return false;
 

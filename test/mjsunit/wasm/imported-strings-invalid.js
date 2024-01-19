@@ -9,49 +9,83 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let kRefExtern = wasmRefType(kWasmExternRef);
 let kSig_e_v = makeSig([], [kRefExtern]);
 
-// Part I: Test that the WebAssembly.String.* functions throw when called
+// Part I: Test that the String builtins throw when called
 // with arguments of incorrect types.
 
 let length = 3;
-let array_maker = (() => {
+let instance = (() => {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  let array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
-  let array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  let good_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  builder.endRecGroup();
+  builder.startRecGroup();
+  let good_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  builder.endRecGroup();
+  builder.startRecGroup();
+  let bad_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  let bad_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
   builder.endRecGroup();
 
   let wtf16_data = builder.addPassiveDataSegment([97, 0, 98, 0, 99, 0]);
   let wtf8_data = builder.addPassiveDataSegment([97, 98, 99]);
 
+  let use_i16_array = builder.addImport(
+      'wasm:js-string', 'fromCharCodeArray',
+      makeSig([wasmRefType(good_array_i16), kWasmI32, kWasmI32], [kRefExtern]));
+  let use_i8_array = builder.addImport(
+      'wasm:text-decoder', 'decodeStringFromUTF8Array',
+      makeSig([wasmRefType(good_array_i8), kWasmI32, kWasmI32], [kRefExtern]));
+
+  builder.addExport('use_i16_array', use_i16_array);
+  builder.addExport('use_i8_array', use_i8_array);
 
   builder.addFunction(
-      "make_i16_array", makeSig([], [wasmRefType(array_i16)]))
+      "bad_i16_array", makeSig([], [wasmRefType(bad_array_i16)]))
     .exportFunc()
     .addBody([
       kExprI32Const, 0, kExprI32Const, length,
-      kGCPrefix, kExprArrayNewData, array_i16, wtf16_data
-    ]).index;
+      kGCPrefix, kExprArrayNewData, bad_array_i16, wtf16_data
+    ]);
 
   builder.addFunction(
-      "make_i8_array", makeSig([], [wasmRefType(array_i8)]))
+      "good_i16_array", makeSig([], [wasmRefType(good_array_i16)]))
     .exportFunc()
     .addBody([
       kExprI32Const, 0, kExprI32Const, length,
-      kGCPrefix, kExprArrayNewData, array_i8, wtf8_data
-    ]).index;
+      kGCPrefix, kExprArrayNewData, good_array_i16, wtf16_data
+    ]);
 
-  return builder.instantiate();
+  builder.addFunction(
+      "bad_i8_array", makeSig([], [wasmRefType(bad_array_i8)]))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0, kExprI32Const, length,
+      kGCPrefix, kExprArrayNewData, bad_array_i8, wtf8_data
+    ]);
+
+  builder.addFunction(
+      "good_i8_array", makeSig([], [wasmRefType(good_array_i8)]))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0, kExprI32Const, length,
+      kGCPrefix, kExprArrayNewData, good_array_i8, wtf8_data
+    ]);
+
+  return builder.instantiate({}, {builtins: ['js-string', 'text-decoder']});
 })();
 
-let a16 = array_maker.exports.make_i16_array();
-let a8 = array_maker.exports.make_i8_array();
+let good_a16 = instance.exports.good_i16_array();
+let bad_a16 = instance.exports.bad_i16_array();
+let good_a8 = instance.exports.good_i8_array();
+let bad_a8 = instance.exports.bad_i8_array();
 
-assertThrows(() => WebAssembly.String.fromWtf16Array(a16, 0, length),
-             WebAssembly.RuntimeError);
-assertThrows(() => WebAssembly.String.fromUtf8Array(a8, 0, length),
-             WebAssembly.RuntimeError);
-assertThrows(() => WebAssembly.String.toWtf16Array("foo", a16, 0),
-             WebAssembly.RuntimeError);
+assertEquals("abc", instance.exports.use_i16_array(good_a16, 0, length));
+assertEquals("abc", instance.exports.use_i8_array(good_a8, 0, length));
+
+assertThrows(() => instance.exports.use_i16_array(bad_a16, 0, length),
+             TypeError);
+assertThrows(() => instance.exports.use_i8_array(bad_a8, 0, length),
+             TypeError);
 
 // Part II: Test that instantiating the module throws a LinkError when the
 // string imports use incorrect types.
@@ -72,25 +106,46 @@ let b1 = MakeInvalidImporterBuilder();
 let b2 = MakeInvalidImporterBuilder();
 let b3 = MakeInvalidImporterBuilder();
 let b4 = MakeInvalidImporterBuilder();
+let b5 = MakeInvalidImporterBuilder();
 
 let array16ref = wasmRefNullType(array_i16);
 let array8ref = wasmRefNullType(array_i8);
 
-b1.addImport('String', 'fromWtf16Array',
+b1.addImport('wasm:js-string', 'fromCharCodeArray',
              makeSig([array16ref, kWasmI32, kWasmI32], [kRefExtern]));
-b2.addImport('String', 'fromUtf8Array',
+b2.addImport('wasm:text-decoder', 'decodeStringFromUTF8Array',
              makeSig([array8ref, kWasmI32, kWasmI32], [kRefExtern]));
-b3.addImport('String', 'toWtf16Array',
+b3.addImport('wasm:js-string', 'intoCharCodeArray',
              makeSig([kWasmExternRef, array16ref, kWasmI32], [kWasmI32]));
+b4.addImport('wasm:text-encoder', 'encodeStringIntoUTF8Array',
+             makeSig([kWasmExternRef, array8ref, kWasmI32], [kWasmI32]));
 // One random example of a non-array-related incorrect type (incorrect result).
-b4.addImport('String', 'charCodeAt',
+b5.addImport('wasm:js-string', 'charCodeAt',
              makeSig([kWasmExternRef, kWasmI32], [kWasmI64]));
 
-assertThrows(() => b1.instantiate({ String: WebAssembly.String }),
-             WebAssembly.LinkError);
-assertThrows(() => b2.instantiate({ String: WebAssembly.String }),
-             WebAssembly.LinkError);
-assertThrows(() => b3.instantiate({ String: WebAssembly.String }),
-             WebAssembly.LinkError);
-assertThrows(() => b4.instantiate({ String: WebAssembly.String }),
-             WebAssembly.LinkError);
+let kBuiltins = { builtins: ['js-string', 'text-encoder', 'text-decoder'] };
+assertThrows(() => b1.instantiate({}, kBuiltins), WebAssembly.LinkError);
+assertThrows(() => b2.instantiate({}, kBuiltins), WebAssembly.LinkError);
+assertThrows(() => b3.instantiate({}, kBuiltins), WebAssembly.LinkError);
+assertThrows(() => b4.instantiate({}, kBuiltins), WebAssembly.LinkError);
+assertThrows(() => b4.instantiate({}, kBuiltins), WebAssembly.LinkError);
+
+(function () {
+  let bytes = b5.toBuffer();
+  assertTrue(WebAssembly.validate(bytes));
+  // All ways to specify compile-time imports agree that one import has
+  // an invalid signature.
+  // (1) new WebAssembly.Module
+  assertThrows(
+    () => new WebAssembly.Module(bytes, kBuiltins), WebAssembly.LinkError);
+  // (2) WebAssembly.validate
+  assertFalse(WebAssembly.validate(bytes, kBuiltins));
+  // (3) WebAssembly.compile
+  assertThrowsAsync(
+      WebAssembly.compile(bytes, kBuiltins), WebAssembly.LinkError);
+  // (4) WebAssembly.instantiate
+  assertThrowsAsync(
+    WebAssembly.instantiate(bytes, {}, kBuiltins), WebAssembly.LinkError);
+
+  // For compileStreaming/instantiateStreaming, see separate test.
+})();

@@ -396,12 +396,14 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
   JSArray::SetContent(array_object, storage);
-  array_object->set_length(Smi::FromInt(num_imports));
 
   Handle<JSFunction> object_function =
       Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
 
   // Populate the result array.
+  const WellKnownImportsList& well_known_imports =
+      module->type_feedback.well_known_imports;
+  int cursor = 0;
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module->import_table[index];
 
@@ -411,6 +413,9 @@ Handle<JSArray> GetImports(Isolate* isolate,
     Handle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
+        if (IsCompileTimeImport(well_known_imports.get(import.index))) {
+          continue;
+        }
         if (enabled_features.has_type_reflection()) {
           auto& func = module->functions[import.index];
           type_value = GetTypeForFunction(isolate, func.sig);
@@ -469,9 +474,10 @@ Handle<JSArray> GetImports(Isolate* isolate,
       JSObject::AddProperty(isolate, entry, type_string, type_value, NONE);
     }
 
-    storage->set(index, *entry);
+    storage->set(cursor++, *entry);
   }
 
+  array_object->set_length(Smi::FromInt(cursor));
   return array_object;
 }
 

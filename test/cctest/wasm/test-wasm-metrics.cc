@@ -284,7 +284,7 @@ COMPILE_TEST(TestEventMetrics) {
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
   GetWasmEngine()->AsyncCompile(
-      isolate, enabled_features,
+      isolate, enabled_features, CompileTimeImports{},
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),
       ModuleWireBytes(buffer.begin(), buffer.end()), true,

@@ -46,8 +46,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
-  native_module =
-      GetWasmEngine()->NewNativeModule(isolate, enabled_features, module, 0);
+  // TODO(14179): Add fuzzer support for compile-time imports.
+  native_module = GetWasmEngine()->NewNativeModule(
+      isolate, enabled_features, CompileTimeImports{}, module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
@@ -873,9 +874,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
+  // TODO(14179): Add fuzzer support for compile-time imports.
+  CompileTimeImports compile_imports;
 
-  bool valid =
-      GetWasmEngine()->SyncValidate(i_isolate, enabled_features, wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                             compile_imports, wire_bytes);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -894,7 +897,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, &thrower, wire_bytes);
+      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

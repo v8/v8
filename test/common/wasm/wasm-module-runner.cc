@@ -26,8 +26,8 @@ MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 ModuleWireBytes bytes) {
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  MaybeHandle<WasmModuleObject> module =
-      GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
+  MaybeHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
+      isolate, enabled_features, CompileTimeImports{}, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }

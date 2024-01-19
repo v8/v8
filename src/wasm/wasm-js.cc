@@ -37,6 +37,8 @@
 #include "src/wasm/wasm-serialization.h"
 #include "src/wasm/wasm-value.h"
 
+using v8::internal::wasm::CompileTimeImport;
+using v8::internal::wasm::CompileTimeImports;
 using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
@@ -45,13 +47,16 @@ class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
       Isolate* isolate, const char* api_method_name,
+      CompileTimeImports compile_imports,
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
-      : isolate_(isolate), resolver_(std::move(resolver)) {
+      : isolate_(isolate),
+        compile_imports_(compile_imports),
+        resolver_(std::move(resolver)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
     streaming_decoder_ = i::wasm::GetWasmEngine()->StartStreamingCompilation(
-        i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
-        api_method_name, resolver_);
+        i_isolate, enabled_features, compile_imports_,
+        handle(i_isolate->context(), i_isolate), api_method_name, resolver_);
   }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
@@ -94,6 +99,7 @@ class WasmStreaming::WasmStreamingImpl {
 
  private:
   Isolate* const isolate_;
+  CompileTimeImports compile_imports_;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
   std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };
@@ -521,9 +527,61 @@ enum CompilationMethod {
 void RecordCompilationMethod(i::Isolate* isolate, CompilationMethod method) {
   isolate->counters()->wasm_compilation_method()->AddSample(method);
 }
+
+CompileTimeImports ArgumentToCompileOptions(
+    Local<Value> arg_value, i::Isolate* isolate,
+    i::wasm::WasmFeatures enabled_features) {
+  if (!enabled_features.has_imported_strings()) return {};
+  i::Handle<i::Object> arg = Utils::OpenHandle(*arg_value);
+  if (!i::IsJSReceiver(*arg)) return {};
+  i::Handle<i::JSReceiver> receiver = i::Handle<i::JSReceiver>::cast(arg);
+  i::Handle<i::Object> builtins;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, builtins,
+      i::JSReceiver::GetProperty(isolate, receiver, "builtins"), {});
+  if (!i::IsJSReceiver(*builtins)) return {};
+  i::Handle<i::Object> length_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, length_obj,
+      i::Object::GetLengthFromArrayLike(
+          isolate, i::Handle<i::JSReceiver>::cast(builtins)),
+      {});
+  double raw_length = i::Object::Number(*length_obj);
+  // Technically we should probably iterate up to 2^53-1 if {length_obj} says
+  // so, but lengths above 2^32 probably don't happen in practice (and would be
+  // very slow if they do), so just use a saturating to-uint32 conversion
+  // for simplicity.
+  uint32_t len = raw_length >= i::kMaxUInt32
+                     ? i::kMaxUInt32
+                     : static_cast<uint32_t>(raw_length);
+  CompileTimeImports result;
+  for (uint32_t i = 0; i < len; i++) {
+    i::LookupIterator it(isolate, builtins, i);
+    Maybe<bool> maybe_found = i::JSReceiver::HasProperty(&it);
+    MAYBE_RETURN(maybe_found, {});
+    if (!maybe_found.FromJust()) continue;
+    i::Handle<i::Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+                                     i::Object::GetProperty(&it), {});
+    if (i::IsString(*value)) {
+      i::Tagged<i::String> builtin = i::String::cast(*value);
+      // TODO(jkummerow): We could make other string comparisons to known
+      // constants in this file more efficient by migrating them to this
+      // style (rather than `...->StringEquals(v8_str(...))`).
+      if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
+        result.Add(CompileTimeImport::kJsString);
+      } else if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
+        result.Add(CompileTimeImport::kTextEncoder);
+      } else if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
+        result.Add(CompileTimeImport::kTextDecoder);
+      }
+    }
+  }
+  return result;
+}
 }  // namespace
 
-// WebAssembly.compile(bytes) -> Promise
+// WebAssembly.compile(bytes, options) -> Promise
 void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   constexpr const char* kAPIMethodName = "WebAssembly.compile()";
@@ -556,11 +614,18 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     resolver->OnCompilationFailed(thrower.Reify());
     return;
   }
-  // Asynchronous compilation handles copying wire bytes if necessary.
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
+    i_isolate->clear_exception();
+    return;
+  }
+  // Asynchronous compilation handles copying wire bytes if necessary.
   i::wasm::GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
-                                         std::move(resolver), bytes, is_shared,
-                                         kAPIMethodName);
+                                         compile_imports, std::move(resolver),
+                                         bytes, is_shared, kAPIMethodName);
 }
 
 void WasmStreamingCallbackForTesting(
@@ -595,7 +660,7 @@ void WasmStreamingPromiseFailedCallback(
   streaming->Abort(info[0]);
 }
 
-// WebAssembly.compileStreaming(Response | Promise<Response>)
+// WebAssembly.compileStreaming(Response | Promise<Response>, options)
 //   -> Promise<WebAssembly.Module>
 void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -627,13 +692,22 @@ void WebAssemblyCompileStreaming(
     return;
   }
 
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
+    i_isolate->clear_exception();
+    return;
+  }
+
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
-              isolate, kAPIMethodName, resolver));
+              isolate, kAPIMethodName, compile_imports, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(
@@ -661,7 +735,7 @@ void WebAssemblyCompileStreaming(
                                          reject_callback));
 }
 
-// WebAssembly.validate(bytes) -> bool
+// WebAssembly.validate(bytes, options) -> bool
 void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -681,6 +755,13 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    return_value.Set(v8::False(isolate));
+    i_isolate->clear_exception();
+    return;
+  }
   bool validated = false;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -689,11 +770,11 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, bytes_copy);
+        i_isolate, enabled_features, compile_imports, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    validated = i::wasm::GetWasmEngine()->SyncValidate(i_isolate,
-                                                       enabled_features, bytes);
+    validated = i::wasm::GetWasmEngine()->SyncValidate(
+        i_isolate, enabled_features, compile_imports, bytes);
   }
 
   return_value.Set(validated);
@@ -718,7 +799,7 @@ bool TransferPrototype(i::Isolate* isolate, i::Handle<i::JSObject> destination,
 }
 }  // namespace
 
-// new WebAssembly.Module(bytes) -> WebAssembly.Module
+// new WebAssembly.Module(bytes, options) -> WebAssembly.Module
 void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -748,6 +829,12 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    // TODO(14179): Does this need different error message handling?
+    return;
+  }
   i::MaybeHandle<i::WasmModuleObject> maybe_module_obj;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -756,11 +843,11 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, &thrower, bytes_copy);
+        i_isolate, enabled_features, compile_imports, &thrower, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
     maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, &thrower, bytes);
+        i_isolate, enabled_features, compile_imports, &thrower, bytes);
   }
 
   i::Handle<i::WasmModuleObject> module_obj;
@@ -900,7 +987,8 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(Utils::ToLocal(instance_obj));
 }
 
-// WebAssembly.instantiateStreaming(Response | Promise<Response> [, imports])
+// WebAssembly.instantiateStreaming(
+//     Response | Promise<Response> [, imports [, options]])
 //   -> Promise<ResultObject>
 // (where ResultObject has a "module" and an "instance" field)
 void WebAssemblyInstantiateStreaming(
@@ -954,13 +1042,23 @@ void WebAssemblyInstantiateStreaming(
       new AsyncInstantiateCompileResultResolver(isolate, context,
                                                 result_resolver, ffi));
 
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    compilation_resolver->OnCompilationFailed(
+        handle(i_isolate->exception(), i_isolate));
+    i_isolate->clear_exception();
+    return;
+  }
+
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
-              isolate, kAPIMethodName, compilation_resolver));
+              isolate, kAPIMethodName, compile_imports, compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(
@@ -989,7 +1087,7 @@ void WebAssemblyInstantiateStreaming(
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
-// WebAssembly.instantiate(bytes, imports) ->
+// WebAssembly.instantiate(bytes, imports, options) ->
 //     {module: WebAssembly.Module, instance: WebAssembly.Instance}
 void WebAssemblyInstantiateImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -1067,11 +1165,20 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  // Asynchronous compilation handles copying wire bytes if necessary.
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-  i::wasm::GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
-                                         std::move(compilation_resolver), bytes,
-                                         is_shared, kAPIMethodName);
+  CompileTimeImports compile_imports =
+      ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
+  if (i_isolate->has_exception()) {
+    compilation_resolver->OnCompilationFailed(
+        handle(i_isolate->exception(), i_isolate));
+    i_isolate->clear_exception();
+    return;
+  }
+
+  // Asynchronous compilation handles copying wire bytes if necessary.
+  i::wasm::GetWasmEngine()->AsyncCompile(
+      i_isolate, enabled_features, compile_imports,
+      std::move(compilation_resolver), bytes, is_shared, kAPIMethodName);
 }
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
@@ -2992,43 +3099,6 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
   return proto;
 }
 
-void InstallStrings(Isolate* isolate, Handle<JSObject> webassembly) {
-  Handle<JSObject> string = isolate->factory()->NewJSObjectWithNullProto();
-  JSObject::AddProperty(isolate, webassembly, "String", string, DONT_ENUM);
-  SimpleInstallFunction(isolate, string, "cast",
-                        Builtin::kWebAssemblyStringCast, 1, true);
-  SimpleInstallFunction(isolate, string, "test",
-                        Builtin::kWebAssemblyStringTest, 1, true);
-  SimpleInstallFunction(isolate, string, "fromWtf16Array",
-                        Builtin::kWebAssemblyStringFromWtf16Array, 3, true);
-  SimpleInstallFunction(isolate, string, "toWtf16Array",
-                        Builtin::kWebAssemblyStringToWtf16Array, 3, true);
-  SimpleInstallFunction(isolate, string, "intoUtf8Array",
-                        Builtin::kWebAssemblyStringIntoUtf8Array, 3, true);
-  SimpleInstallFunction(isolate, string, "fromUtf8Array",
-                        Builtin::kWebAssemblyStringFromUtf8Array, 3, true);
-  SimpleInstallFunction(isolate, string, "fromCharCode",
-                        Builtin::kWebAssemblyStringFromCharCode, 1, true);
-  SimpleInstallFunction(isolate, string, "fromCodePoint",
-                        Builtin::kWebAssemblyStringFromCodePoint, 1, true);
-  SimpleInstallFunction(isolate, string, "codePointAt",
-                        Builtin::kWebAssemblyStringCodePointAt, 2, true);
-  SimpleInstallFunction(isolate, string, "charCodeAt",
-                        Builtin::kWebAssemblyStringCharCodeAt, 2, true);
-  SimpleInstallFunction(isolate, string, "length",
-                        Builtin::kWebAssemblyStringLength, 1, true);
-  SimpleInstallFunction(isolate, string, "measureUtf8",
-                        Builtin::kWebAssemblyStringMeasureUtf8, 1, true);
-  SimpleInstallFunction(isolate, string, "concat",
-                        Builtin::kWebAssemblyStringConcat, 2, true);
-  SimpleInstallFunction(isolate, string, "substring",
-                        Builtin::kWebAssemblyStringSubstring, 3, true);
-  SimpleInstallFunction(isolate, string, "equals",
-                        Builtin::kWebAssemblyStringEquals, 2, true);
-  SimpleInstallFunction(isolate, string, "compare",
-                        Builtin::kWebAssemblyStringCompare, 2, true);
-}
-
 namespace {
 constexpr wasm::ValueType kWasmExceptionTagParams[] = {
     wasm::kWasmExternRef,
@@ -3312,16 +3382,14 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     SetupConstructor(isolate, suspender_constructor, WASM_SUSPENDER_OBJECT_TYPE,
                      WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
   }
-
-  // Setup importable strings.
-  if (enabled_features.has_imported_strings()) {
-    InstallStrings(isolate, webassembly);
-  }
 }
 
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<NativeContext> context) {
+  // Currently nothing to do here; the code below serves as an example
+  // that future conditionally-exposed features can follow.
+#if 0
   Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
@@ -3334,13 +3402,14 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
   if (!webassembly->map()->is_extensible()) return;
 
-  if (isolate->IsWasmImportedStringsEnabled(context)) {
-    Handle<String> string_string = isolate->factory()->String_string();
-    if (!JSObject::HasRealNamedProperty(isolate, webassembly, string_string)
+  if (isolate->IsMyWasmFeatureEnabled(context)) {
+    Handle<String> feature = isolate->factory()->...;
+    if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
              .FromMaybe(true)) {
-      InstallStrings(isolate, webassembly);
+      InstallFeature(isolate, webassembly);
     }
   }
+#endif
 }
 
 namespace wasm {
@@ -3351,7 +3420,7 @@ std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   return std::make_unique<WasmStreaming>(
       std::make_unique<WasmStreaming::WasmStreamingImpl>(
           reinterpret_cast<v8::Isolate*>(isolate), "StartStreamingForTesting",
-          resolver));
+          CompileTimeImports{}, resolver));
 }
 }  // namespace wasm
 

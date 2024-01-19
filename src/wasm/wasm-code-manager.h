@@ -687,6 +687,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   WasmFeatures enabled_features() const { return enabled_features_; }
+  CompileTimeImports compile_imports() const { return compile_imports_; }
 
   // Returns the builtin that corresponds to the given address (which
   // must be a far jump table slot). Returns {kNoBuiltinId} on failure.
@@ -773,8 +774,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(WasmFeatures enabled_features, DynamicTiering dynamic_tiering,
-               VirtualMemory code_space,
+  NativeModule(WasmFeatures enabled_features,
+               CompileTimeImports compile_imports,
+               DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -842,6 +844,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // were enabled at the time of the creation of this native module,
   // to be consistent across asynchronous compilations later.
   const WasmFeatures enabled_features_;
+
+  // Compile-time imports requested for this module.
+  const CompileTimeImports compile_imports_;
 
   // The decoded module, stored in a shared_ptr such that background compile
   // tasks can keep this alive.
@@ -1013,7 +1018,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmFeatures enabled_features,
-      size_t code_size_estimate, std::shared_ptr<const WasmModule> module);
+      CompileTimeImports compile_imports, size_t code_size_estimate,
+      std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);

@@ -1673,7 +1673,8 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         trusted_instance_data->module_object()->native_module();
-    wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index);
+    wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index,
+                                  wasm::WellKnownImport::kUninstantiated);
     wasm::ImportCallKind kind = resolved.kind();
     callable = resolved.callable();  // Update to ultimate target.
     DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);

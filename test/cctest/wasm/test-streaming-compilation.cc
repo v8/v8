@@ -211,8 +211,8 @@ class StreamTester {
 
     WasmFeatures features = WasmFeatures::FromIsolate(i_isolate);
     stream_ = GetWasmEngine()->StartStreamingCompilation(
-        i_isolate, features, v8::Utils::OpenHandle(*context),
-        "WebAssembly.compileStreaming()",
+        i_isolate, features, CompileTimeImports{},
+        v8::Utils::OpenHandle(*context), "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
                                        &module_object_));
   }

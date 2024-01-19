@@ -88,8 +88,8 @@ CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,
     Handle<Context> context = v8::Utils::OpenHandle(*support->GetContext());
     std::shared_ptr<StreamingDecoder> stream =
         GetWasmEngine()->StartStreamingCompilation(
-            i_isolate, enabled_features, context, "wasm-streaming-fuzzer",
-            resolver);
+            i_isolate, enabled_features, CompileTimeImports{}, context,
+            "wasm-streaming-fuzzer", resolver);
 
     if (data.size() > 0) {
       size_t split = config % data.size();
@@ -130,8 +130,8 @@ CompilationResult CompileSync(Isolate* isolate, WasmFeatures enabled_features,
   Handle<WasmModuleObject> module_object;
   CompilationResult result;
   if (!GetWasmEngine()
-           ->SyncCompile(isolate, enabled_features, &thrower,
-                         ModuleWireBytes{data})
+           ->SyncCompile(isolate, enabled_features, CompileTimeImports{},
+                         &thrower, ModuleWireBytes{data})
            .ToHandle(&module_object)) {
     Handle<Object> error = thrower.Reify();
     Handle<String> error_msg =

@@ -751,7 +751,7 @@ class WasmGraphBuildingInterface {
                              const Value args[], Value returns[]) {
     if (!decoder->module_) return false;  // Only needed for tests.
     if (index >= decoder->module_->num_imported_functions) return false;
-    WellKnownImportsList& well_known_imports =
+    const WellKnownImportsList& well_known_imports =
         decoder->module_->type_feedback.well_known_imports;
     using WKI = WellKnownImport;
     WKI import = well_known_imports.get(index);
