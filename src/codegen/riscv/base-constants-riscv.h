@@ -794,6 +794,9 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  uint32_t OperandFunct3() const {
+    return this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask);
+  }
   bool IsLoad();
   bool IsStore();
   inline int BaseOpcode() const {

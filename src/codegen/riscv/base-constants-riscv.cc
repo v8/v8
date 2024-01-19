@@ -232,24 +232,23 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
 
 template <class T>
 bool InstructionGetters<T>::IsLoad() {
-  return (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_LW ||
+  return OperandFunct3() == RO_LB || OperandFunct3() == RO_LBU ||
+         OperandFunct3() == RO_LH || OperandFunct3() == RO_LHU ||
+         OperandFunct3() == RO_LW ||
 #ifdef V8_TARGET_ARCH_RISCV64
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_LD ||
+         OperandFunct3() == RO_LD || OperandFunct3() == RO_LWU ||
 #endif
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) ==
-             RO_FLW ||
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_FLD;
+         BaseOpcode() == LOAD_FP;
 }
 
 template <class T>
 bool InstructionGetters<T>::IsStore() {
-  return (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_SW ||
+  return OperandFunct3() == RO_SB || OperandFunct3() == RO_SH ||
+         OperandFunct3() == RO_SW ||
 #ifdef V8_TARGET_ARCH_RISCV64
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_SD ||
+         OperandFunct3() == RO_SD ||
 #endif
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) ==
-             RO_FSW ||
-         (this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask)) == RO_FSD;
+         BaseOpcode() == STORE_FP;
 }
 
 template class InstructionGetters<InstructionBase>;
