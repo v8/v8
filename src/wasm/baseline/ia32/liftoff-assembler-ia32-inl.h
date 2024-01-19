@@ -956,17 +956,16 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Binop op, Register dst_addr,
   Register base = esi;
   Register offset = edi;
 
-  // Swap base and offset register if necessary to avoid unnecessary
-  // moves.
-  if (dst_addr == offset || offset_reg == base) {
-    std::swap(dst_addr, offset_reg);
-  }
   // Spill all these registers if they are still holding other values.
   __ SpillRegisters(old_hi, old_lo, new_hi, base, offset);
   if (offset_reg == no_reg) {
     if (dst_addr != base) __ mov(base, dst_addr);
     offset = no_reg;
   } else {
+    // Potentially swap base and offset register to avoid unnecessary moves.
+    if (dst_addr == offset || offset_reg == base) {
+      std::swap(dst_addr, offset_reg);
+    }
     __ ParallelRegisterMove(
         {{LiftoffRegister{base}, LiftoffRegister{dst_addr}, kI32},
          {LiftoffRegister{offset}, LiftoffRegister{offset_reg}, kI32}});

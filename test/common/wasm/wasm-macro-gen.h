@@ -319,18 +319,23 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 //------------------------------------------------------------------------------
 // Int32 Const operations
 //------------------------------------------------------------------------------
-#define WASM_I32V(val) kExprI32Const, U32V_5(val)
+#define WASM_I32V(val) WASM_I32V_5(val)
 
-#define WASM_I32V_1(val) \
-  static_cast<uint8_t>(CheckI32v((val), 1), kExprI32Const), U32V_1(val)
-#define WASM_I32V_2(val) \
-  static_cast<uint8_t>(CheckI32v((val), 2), kExprI32Const), U32V_2(val)
-#define WASM_I32V_3(val) \
-  static_cast<uint8_t>(CheckI32v((val), 3), kExprI32Const), U32V_3(val)
-#define WASM_I32V_4(val) \
-  static_cast<uint8_t>(CheckI32v((val), 4), kExprI32Const), U32V_4(val)
-#define WASM_I32V_5(val) \
-  static_cast<uint8_t>(CheckI32v((val), 5), kExprI32Const), U32V_5(val)
+#define WASM_I32V_1(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 1), kExprI32Const), \
+      U32V_1(static_cast<int32_t>(val))
+#define WASM_I32V_2(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 2), kExprI32Const), \
+      U32V_2(static_cast<int32_t>(val))
+#define WASM_I32V_3(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 3), kExprI32Const), \
+      U32V_3(static_cast<int32_t>(val))
+#define WASM_I32V_4(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 4), kExprI32Const), \
+      U32V_4(static_cast<int32_t>(val))
+#define WASM_I32V_5(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 5), kExprI32Const), \
+      U32V_5(static_cast<int32_t>(val))
 
 //------------------------------------------------------------------------------
 // Int64 Const operations
