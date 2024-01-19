@@ -110,11 +110,6 @@
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/tasks/cancelable-task.h"
-
-#if defined(V8_USE_PERFETTO)
-#include "src/tracing/perfetto-logger.h"
-#endif  // defined(V8_USE_PERFETTO)
-
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/address-map.h"
 #include "src/utils/ostreams.h"
@@ -3801,10 +3796,6 @@ void Isolate::UpdateLogObjectRelocation() {
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
-#if defined(V8_USE_PERFETTO)
-  PerfettoLogger::UnregisterIsolate(this);
-#endif  // defined(V8_USE_PERFETTO)
-
   // All client isolates should already be detached when the shared heap isolate
   // tears down.
   if (is_shared_space_isolate()) {
@@ -4997,10 +4988,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     ETWJITInterface::MaybeSetHandlerNow(this);
   }
 #endif  // defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-
-#if defined(V8_USE_PERFETTO)
-  PerfettoLogger::RegisterIsolate(this);
-#endif  // defined(V8_USE_PERFETTO)
 
   initialized_ = true;
 
