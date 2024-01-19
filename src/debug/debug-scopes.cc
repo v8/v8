@@ -200,6 +200,20 @@ class ScopeChainRetriever {
   }
 };
 
+// Walks a ScopeInfo outwards until it finds a EVAL scope.
+MaybeHandle<ScopeInfo> FindEvalScope(Isolate* isolate,
+                                     Tagged<ScopeInfo> start_scope) {
+  Tagged<ScopeInfo> scope = start_scope;
+  while (scope->scope_type() != ScopeType::EVAL_SCOPE &&
+         scope->HasOuterScopeInfo()) {
+    scope = scope->OuterScopeInfo();
+  }
+
+  return scope->scope_type() == ScopeType::EVAL_SCOPE
+             ? MaybeHandle<ScopeInfo>(scope, isolate)
+             : kNullMaybeHandle;
+}
+
 }  // namespace
 
 void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
@@ -253,7 +267,27 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   flags.set_is_reparse(true);
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
-  if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
+  if (flags.is_toplevel() &&
+      script->compilation_type() == Script::CompilationType::kEval) {
+    // Re-parsing a full eval script requires us to correctly set the outer
+    // language mode and potentially an outer scope info.
+    //
+    // We walk the runtime scope chain and look for an EVAL scope. If we don't
+    // find one, we assume sloppy mode and no outer scope info.
+
+    DCHECK(flags.is_eval());
+
+    Handle<ScopeInfo> eval_scope;
+    if (FindEvalScope(isolate_, *scope_info).ToHandle(&eval_scope)) {
+      flags.set_outer_language_mode(eval_scope->language_mode());
+      if (eval_scope->HasOuterScopeInfo()) {
+        maybe_outer_scope = handle(eval_scope->OuterScopeInfo(), isolate_);
+      }
+    } else {
+      DCHECK_EQ(flags.outer_language_mode(), LanguageMode::kSloppy);
+      DCHECK(maybe_outer_scope.is_null());
+    }
+  } else if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
     flags.set_is_eval(true);
     if (!IsNativeContext(*context_)) {
       maybe_outer_scope = handle(context_->scope_info(), isolate_);
