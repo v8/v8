@@ -3003,8 +3003,10 @@ void InstallStrings(Isolate* isolate, Handle<JSObject> webassembly) {
                         Builtin::kWebAssemblyStringFromWtf16Array, 3, true);
   SimpleInstallFunction(isolate, string, "toWtf16Array",
                         Builtin::kWebAssemblyStringToWtf16Array, 3, true);
-  SimpleInstallFunction(isolate, string, "fromWtf8Array",
-                        Builtin::kWebAssemblyStringFromWtf8Array, 3, true);
+  SimpleInstallFunction(isolate, string, "intoUtf8Array",
+                        Builtin::kWebAssemblyStringIntoUtf8Array, 3, true);
+  SimpleInstallFunction(isolate, string, "fromUtf8Array",
+                        Builtin::kWebAssemblyStringFromUtf8Array, 3, true);
   SimpleInstallFunction(isolate, string, "fromCharCode",
                         Builtin::kWebAssemblyStringFromCharCode, 1, true);
   SimpleInstallFunction(isolate, string, "fromCodePoint",
@@ -3015,6 +3017,8 @@ void InstallStrings(Isolate* isolate, Handle<JSObject> webassembly) {
                         Builtin::kWebAssemblyStringCharCodeAt, 2, true);
   SimpleInstallFunction(isolate, string, "length",
                         Builtin::kWebAssemblyStringLength, 1, true);
+  SimpleInstallFunction(isolate, string, "measureUtf8",
+                        Builtin::kWebAssemblyStringMeasureUtf8, 1, true);
   SimpleInstallFunction(isolate, string, "concat",
                         Builtin::kWebAssemblyStringConcat, 2, true);
   SimpleInstallFunction(isolate, string, "substring",

@@ -117,7 +117,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addImport('String', 'test', kSig_i_r);
   builder.addImport('String', 'fromWtf16Array',
                     makeSig([a16ref, kWasmI32, kWasmI32], [kRefExtern]));
-  builder.addImport('String', 'fromWtf8Array',
+  builder.addImport('String', 'fromUtf8Array',
                     makeSig([a8ref, kWasmI32, kWasmI32], [kRefExtern]));
   builder.addImport('String', 'toWtf16Array',
                     makeSig([kWasmExternRef, a16ref, kWasmI32], [kWasmI32]));
@@ -130,6 +130,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addImport('String', 'substring', kSig_e_rii);
   builder.addImport('String', 'equals', kSig_i_rr);
   builder.addImport('String', 'compare', kSig_i_rr);
+
+  builder.addImport('String', 'measureUtf8', kSig_i_r);
+  builder.addImport('String', 'intoUtf8Array',
+                    makeSig([kWasmExternRef, a8ref, kWasmI32], [kWasmI32]));
 
   builder.addImport('related', 'intToString', kSig_e_ii);
   builder.addImport('related', 'doubleToString', kSig_e_d);

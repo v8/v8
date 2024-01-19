@@ -48,7 +48,7 @@ let a8 = array_maker.exports.make_i8_array();
 
 assertThrows(() => WebAssembly.String.fromWtf16Array(a16, 0, length),
              WebAssembly.RuntimeError);
-assertThrows(() => WebAssembly.String.fromWtf8Array(a8, 0, length),
+assertThrows(() => WebAssembly.String.fromUtf8Array(a8, 0, length),
              WebAssembly.RuntimeError);
 assertThrows(() => WebAssembly.String.toWtf16Array("foo", a16, 0),
              WebAssembly.RuntimeError);
@@ -78,7 +78,7 @@ let array8ref = wasmRefNullType(array_i8);
 
 b1.addImport('String', 'fromWtf16Array',
              makeSig([array16ref, kWasmI32, kWasmI32], [kRefExtern]));
-b2.addImport('String', 'fromWtf8Array',
+b2.addImport('String', 'fromUtf8Array',
              makeSig([array8ref, kWasmI32, kWasmI32], [kRefExtern]));
 b3.addImport('String', 'toWtf16Array',
              makeSig([kWasmExternRef, array16ref, kWasmI32], [kWasmI32]));

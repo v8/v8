@@ -1395,7 +1395,7 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kLinkError:
         return false;
 
-      // WebAssembly.String.* imports.
+      // JS String Builtins proposal.
       case WKI::kStringCast: {
         result = ExternRefToString(args[0]);
         decoder->detected_->Add(kFeature_imported_strings);
@@ -1478,15 +1478,31 @@ class TurboshaftGraphBuildingInterface {
         result = __ AnnotateWasmType(result, kWasmRefString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
-      case WKI::kStringFromWtf8Array:
-        result = StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kWtf8,
-                                        args[0], args[1], args[2]);
+      case WKI::kStringFromUtf8Array:
+        result =
+            StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kLossyUtf8,
+                                   args[0], args[1], args[2]);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
+      case WKI::kStringIntoUtf8Array: {
+        V<String> string = ExternRefToString(args[0]);
+        result = StringEncodeWtf8ArrayImpl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, string,
+            V<WasmArray>::Cast(NullCheck(args[1])), args[2].op);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringLength: {
         V<Tagged> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(
             string, compiler::AccessBuilder::ForStringLength());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringMeasureUtf8: {
+        V<String> string = ExternRefToString(args[0]);
+        result = StringMeasureWtf8Impl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, string);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -1591,7 +1607,7 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kStringIndexOfImported: {
         // As the `string` and `search` parameters are externrefs, we have to
         // make sure they are strings. To enforce this, we inline only if a
-        // (successful) `WebAssembly.String.cast` was performed before.
+        // (successful) `"js-string":"cast"` was performed before.
         if (!(IsExplicitStringCast(args[0]) && IsExplicitStringCast(args[1]))) {
           return false;
         }
@@ -1628,7 +1644,7 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kStringToLowerCaseImported: {
         // We have to make sure that the externref `string` parameter is a
         // string. To enforce this, we inline only if a (successful)
-        // `WebAssembly.String.cast` was performed before.
+        // `"js-string":"cast"` was performed before.
 #if V8_INTL_SUPPORT
         if (!IsExplicitStringCast(args[0])) {
           return false;
@@ -3295,18 +3311,21 @@ class TurboshaftGraphBuildingInterface {
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
+    result->op = StringMeasureWtf8Impl(decoder, variant,
+                                       V<String>::Cast(NullCheck(str)));
+  }
+
+  OpIndex StringMeasureWtf8Impl(FullDecoder* decoder,
+                                const unibrow::Utf8Variant variant,
+                                V<String> string) {
     switch (variant) {
       case unibrow::Utf8Variant::kUtf8:
-        result->op = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringMeasureUtf8>(
-            decoder, {V<String>::Cast(NullCheck(str))});
-        break;
+        return CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringMeasureUtf8>(decoder, {string});
       case unibrow::Utf8Variant::kLossyUtf8:
       case unibrow::Utf8Variant::kWtf8:
-        result->op = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringMeasureWtf8>(
-            decoder, {V<String>::Cast(NullCheck(str))});
-        break;
+        return CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringMeasureWtf8>(decoder, {string});
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
@@ -3337,10 +3356,18 @@ class TurboshaftGraphBuildingInterface {
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    result->op = CallBuiltinThroughJumptable<
+    result->op = StringEncodeWtf8ArrayImpl(
+        decoder, variant, V<String>::Cast(NullCheck(str)),
+        V<WasmArray>::Cast(NullCheck(array)), start.op);
+  }
+
+  OpIndex StringEncodeWtf8ArrayImpl(FullDecoder* decoder,
+                                    const unibrow::Utf8Variant variant,
+                                    V<String> str, V<WasmArray> array,
+                                    V<Word32> start) {
+    return CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringEncodeWtf8Array>(
-        decoder, {V<String>::Cast(NullCheck(str)),
-                  V<WasmArray>::Cast(NullCheck(array)), start.op,
+        decoder, {str, array, start,
                   __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
   }
 

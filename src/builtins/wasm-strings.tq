@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file defines the builtins that are installed on the WebAssembly.String
-// object.
+// This file defines the builtins that are used as the non-optimized versions
+// of the "JS String Builtins", i.e. from Liftoff code, and for exported
+// functions.
 
 macro Trap(context: Context, error: constexpr MessageTemplate): never {
   runtime::ThrowWasmError(context, SmiConstant(error));
@@ -34,15 +35,32 @@ transitioning javascript builtin WebAssemblyStringFromWtf16Array(
   return wasm::WasmStringNewWtf16Array(array, start, end);
 }
 
-const kWtf8: constexpr int31 generates 'unibrow::Utf8Variant::kWtf8';
+const kLossyUtf8:
+    constexpr int31 generates 'unibrow::Utf8Variant::kLossyUtf8';
 
-transitioning javascript builtin WebAssemblyStringFromWtf8Array(
+transitioning javascript builtin WebAssemblyStringFromUtf8Array(
     js-implicit context: Context)(...arguments): JSAny {
   const array =
       WasmCastToSpecialPrimitiveArray(context, arguments[0], SmiConstant(8));
   const start = ChangeNumberToUint32(ToInteger_Inline(arguments[1]));
   const end = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
-  return wasm::WasmStringNewWtf8Array(start, end, array, SmiConstant(kWtf8));
+  return wasm::WasmStringNewWtf8Array(
+      start, end, array, SmiConstant(kLossyUtf8));
+}
+
+transitioning javascript builtin WebAssemblyStringIntoUtf8Array(
+    js-implicit context: Context)(...arguments): JSAny {
+  try {
+    const string = Cast<String>(arguments[0]) otherwise goto IllegalCast;
+    const array =
+        WasmCastToSpecialPrimitiveArray(context, arguments[1], SmiConstant(8));
+    const start = ChangeNumberToUint32(ToInteger_Inline(arguments[2]));
+    return runtime::WasmStringEncodeWtf8Array(
+        context, SmiConstant(kLossyUtf8), string, array,
+        ChangeUint32ToTagged(start));
+  } label IllegalCast deferred {
+    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
+  }
 }
 
 transitioning javascript builtin WebAssemblyStringToWtf16Array(
@@ -112,6 +130,17 @@ transitioning javascript builtin WebAssemblyStringLength(
   try {
     const string = Cast<String>(arguments[0]) otherwise goto IllegalCast;
     return string.length_smi;
+  } label IllegalCast deferred {
+    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
+  }
+}
+
+transitioning javascript builtin WebAssemblyStringMeasureUtf8(
+    js-implicit context: Context)(...arguments): JSAny {
+  try {
+    const string = Cast<String>(arguments[0]) otherwise goto IllegalCast;
+    // WTF-8 length equals Lossy-UTF-8 length.
+    return runtime::WasmStringMeasureWtf8(context, string);
   } label IllegalCast deferred {
     Trap(context, MessageTemplate::kWasmTrapIllegalCast);
   }

@@ -790,7 +790,7 @@ builtin WasmStringNewWtf8(
 builtin WasmStringNewWtf8Array(
     start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String
     |Null {
-  // This can be called from Wasm and from WebAssembly.String.* JS builtins.
+  // This can be called from Wasm and from "JS String Builtins".
   const context = LoadContextFromWasmOrJsFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
@@ -918,7 +918,7 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
 
     return StringFromTwoByteSlice(length, substring);
   } label OffsetOutOfRange deferred {
-    // This can be called from Wasm and from WebAssembly.String.* JS builtins.
+    // This can be called from Wasm and from "JS String Builtins".
     const context = LoadContextFromWasmOrJsFrame();
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));

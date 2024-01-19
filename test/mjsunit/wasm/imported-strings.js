@@ -54,6 +54,14 @@ function HasIsolatedSurrogate(str) {
   }
   return false;
 }
+function ReplaceIsolatedSurrogates(str, replacement='\ufffd') {
+  let replaced = '';
+  for (let codepoint of str) {
+    replaced +=
+      IsSurrogate(codepoint.codePointAt(0)) ? replacement : codepoint;
+  }
+  return replaced;
+}
 
 function encodeWtf16LE(str) {
   // String iterator coalesces surrogate pairs.
@@ -71,8 +79,10 @@ let kArrayI8;
 let kStringCast;
 let kStringTest;
 let kStringFromWtf16Array;
-let kStringFromWtf8Array;
+let kStringFromUtf8Array;
+let kStringIntoUtf8Array;
 let kStringToWtf16Array;
+let kStringMeasureUtf8;
 let kStringFromCharCode;
 let kStringFromCodePoint;
 let kStringCharCodeAt;
@@ -101,12 +111,16 @@ function MakeBuilder() {
   kStringFromWtf16Array = builder.addImport(
       'String', 'fromWtf16Array',
       makeSig([arrayref, kWasmI32, kWasmI32], [kRefExtern]));
-  kStringFromWtf8Array = builder.addImport(
-      'String', 'fromWtf8Array',
+  kStringFromUtf8Array = builder.addImport(
+      'String', 'fromUtf8Array',
       makeSig([array8ref, kWasmI32, kWasmI32], [kRefExtern]));
   kStringToWtf16Array = builder.addImport(
       'String', 'toWtf16Array',
       makeSig([kWasmExternRef, arrayref, kWasmI32], [kWasmI32]));
+  kStringMeasureUtf8 = builder.addImport('String', 'measureUtf8', kSig_i_r);
+  kStringIntoUtf8Array = builder.addImport(
+      'String', 'intoUtf8Array',
+      makeSig([kWasmExternRef, array8ref, kWasmI32], [kWasmI32]));
   kStringFromCharCode = builder.addImport('String', 'fromCharCode', kSig_e_i);
   kStringFromCodePoint = builder.addImport('String', 'fromCodePoint', kSig_e_i);
   kStringCharCodeAt = builder.addImport('String', 'charCodeAt', kSig_i_ri);
@@ -693,12 +707,27 @@ function makeWtf8TestDataSegment() {
       data.push(byte);
     }
   }
-  for (let bytes of ['trailing high byte \xa9',
-                     'interstitial high \xa9 byte',
-                     'invalid \xc0 byte',
-                     'invalid three-byte \xed\xd0\x80',
-                     'surrogate \xed\xa0\x80\xed\xb0\x80 pair']) {
-    invalid[bytes] = { offset: data.length, length: bytes.length };
+  let invalid_inputs = [
+    'trailing high byte \xa9',
+    'interstitial high \xa9 byte',
+    'invalid \xc0 byte',
+    'invalid three-byte \xed\xd0\x80',
+    'surrogate \xed\xa0\x80\xed\xb0\x80 pair'
+  ];
+  let invalid_replaced = [
+    'trailing high byte \uFFFD',
+    'interstitial high \uFFFD byte',
+    'invalid \uFFFD byte',
+    'invalid three-byte \uFFFD\u0400',
+    'surrogate \uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD pair'
+  ];
+  for (let i = 0; i < invalid_inputs.length; i++) {
+    let bytes = invalid_inputs[i];
+    invalid[bytes] = {
+      offset: data.length,
+      length: bytes.length,
+      replaced: invalid_replaced[i]
+    };
     for (let i = 0; i < bytes.length; i++) {
       data.push(bytes.charCodeAt(i));
     }
@@ -706,7 +735,7 @@ function makeWtf8TestDataSegment() {
   return { valid, invalid, data: Uint8Array.from(data) };
 };
 
-(function TestStringNewWtf8Array() {
+(function TestStringNewUtf8Array() {
   print(arguments.callee.name);
   let builder = MakeBuilder();
   let data = makeWtf8TestDataSegment();
@@ -723,12 +752,12 @@ function makeWtf8TestDataSegment() {
       kGCPrefix, kExprArrayNewData, kArrayI8, data_index
     ]).index;
 
-  builder.addFunction("new_wtf8", kSig_e_ii)
+  builder.addFunction("new_utf8", kSig_e_ii)
     .exportFunc()
     .addBody([
       kExprCallFunction, make_i8_array,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kExprCallFunction, kStringFromWtf8Array,
+      kExprCallFunction, kStringFromUtf8Array,
     ]);
 
   builder.addFunction("bounds_check", kSig_e_ii)
@@ -738,27 +767,38 @@ function makeWtf8TestDataSegment() {
       ...wasmI32Const("ascii".length),
       kGCPrefix, kExprArrayNewData, kArrayI8, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kExprCallFunction, kStringFromWtf8Array,
+      kExprCallFunction, kStringFromUtf8Array,
     ]);
 
   builder.addFunction("null_array", kSig_e_v).exportFunc()
     .addBody([
       kExprRefNull, kArrayI8,
       kExprI32Const, 0, kExprI32Const, 0,
-      kExprCallFunction, kStringFromWtf8Array,
+      kExprCallFunction, kStringFromUtf8Array,
     ]);
 
   let instance = builder.instantiate(kImports);
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     let start = offset;
     let end = offset + length;
-    assertEquals(str, instance.exports.new_wtf8(start, end));
+    if (HasIsolatedSurrogate(str)) {
+      // Isolated surrogates have the three-byte pattern ED [A0,BF] [80,BF].
+      // When the sloppy decoder gets to the second byte, it will reject
+      // the sequence, and then retry parsing at the second byte.
+      // Seeing the second byte can't start a sequence, it replaces the
+      // second byte and continues with the next, which also can't start
+      // a sequence.  The result is that one isolated surrogate is replaced
+      // by three U+FFFD codepoints.
+      assertEquals(ReplaceIsolatedSurrogates(str, '\ufffd\ufffd\ufffd'),
+                   instance.exports.new_utf8(start, end));
+    } else {
+      assertEquals(str, instance.exports.new_utf8(start, end));
+    }
   }
-  for (let [str, {offset, length}] of Object.entries(data.invalid)) {
+  for (let [str, {offset, length, replaced}] of Object.entries(data.invalid)) {
     let start = offset;
     let end = offset + length;
-    assertThrows(() => instance.exports.new_wtf8(start, end),
-                 WebAssembly.RuntimeError, "invalid WTF-8 string");
+    assertEquals(replaced, instance.exports.new_utf8(start, end));
   }
 
   assertEquals("ascii", instance.exports.bounds_check(0, "ascii".length));
@@ -941,6 +981,110 @@ function makeWtf16TestDataSegment(strings) {
   for (let str of interestingStrings) {
     let message = "array element access out of bounds";
     assertThrows(() => instance.exports.encode(str, str.length, 1),
+                 WebAssembly.RuntimeError, message);
+  }
+})();
+
+(function TestStringMeasureUtf8() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("string_measure_utf8", kSig_i_r)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringMeasureUtf8,
+    ]);
+
+  builder.addFunction("string_measure_utf8_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kExternRefCode,
+      kExprCallFunction, kStringMeasureUtf8,
+    ]);
+
+  let instance = builder.instantiate(kImports);
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    assertEquals(wtf8.length, instance.exports.string_measure_utf8(str));
+  }
+
+  assertThrows(() => instance.exports.string_measure_utf8_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+})();
+
+(function TestStringEncodeUtf8Array() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  // Allocate an array that's exactly the expected size, and encode
+  // into it.  Then decode it.
+  // (str, length, offset=0) -> str
+  builder.addFunction("encode_utf8", kSig_e_rii)
+    .exportFunc()
+    .addLocals(wasmRefNullType(kArrayI8), 1)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      // Allocate buffer.
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayNewDefault, kArrayI8,
+      kExprLocalSet, 3,
+
+      // Write buffer, store number of bytes written.
+      kExprLocalGet, 0,
+      kExprLocalGet, 3,
+      kExprLocalGet, 2,
+      kExprCallFunction, kStringIntoUtf8Array,
+      kExprLocalSet, 4,
+
+      // Read buffer.
+      kExprLocalGet, 3,
+      kExprLocalGet, 2,
+      kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
+      kExprCallFunction, kStringFromUtf8Array,
+    ]);
+
+
+  builder.addFunction("encode_null_string", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kExternRefCode,
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8,
+        kExprI32Const, 0,
+        kExprCallFunction, kStringIntoUtf8Array,
+      ]);
+  builder.addFunction("encode_null_array", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8,
+        kExprI32Const, 0, kExprI32Const, 0,
+        kExprCallFunction, kStringFromUtf8Array,
+        kExprRefNull, kArrayI8,
+        kExprI32Const, 0,
+        kExprCallFunction, kStringIntoUtf8Array,
+      ]);
+
+  let instance = builder.instantiate(kImports);
+
+  for (let str of interestingStrings) {
+    let replaced = ReplaceIsolatedSurrogates(str);
+    if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
+    let wtf8 = encodeWtf8(replaced);
+    assertEquals(replaced,
+                 instance.exports.encode_utf8(str, wtf8.length, 0));
+    assertEquals(replaced,
+                 instance.exports.encode_utf8(str, wtf8.length + 20, 10));
+  }
+
+  assertThrows(() => instance.exports.encode_null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.encode_null_string(),
+               WebAssembly.RuntimeError, "illegal cast");
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    let message = "array element access out of bounds";
+    assertThrows(() => instance.exports.encode_utf8(str, wtf8.length, 1),
                  WebAssembly.RuntimeError, message);
   }
 })();

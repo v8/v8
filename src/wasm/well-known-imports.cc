@@ -69,44 +69,48 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "IntToString";
     case WellKnownImport::kParseFloat:
       return "ParseFloat";
-
-      // JS String Builtins:
-    case WellKnownImport::kStringCast:
-      return "String.cast";
-    case WellKnownImport::kStringTest:
-      return "String.test";
-    case WellKnownImport::kStringCharCodeAt:
-      return "String.charCodeAt";
-    case WellKnownImport::kStringCodePointAt:
-      return "String.codePointAt";
-    case WellKnownImport::kStringCompare:
-      return "String.compare";
-    case WellKnownImport::kStringConcat:
-      return "String.concat";
-    case WellKnownImport::kStringEquals:
-      return "String.equals";
-    case WellKnownImport::kStringFromCharCode:
-      return "String.fromCharCode";
-    case WellKnownImport::kStringFromCodePoint:
-      return "String.fromCodePoint";
-    case WellKnownImport::kStringFromWtf16Array:
-      return "String.fromWtf16Array";
-    case WellKnownImport::kStringFromWtf8Array:
-      return "String.fromWtf8Array";
     case WellKnownImport::kStringIndexOf:
     case WellKnownImport::kStringIndexOfImported:
       return "String.indexOf";
-    case WellKnownImport::kStringLength:
-      return "String.length";
-    case WellKnownImport::kStringSubstring:
-      return "String.substring";
     case WellKnownImport::kStringToLocaleLowerCaseStringref:
       return "String.toLocaleLowerCase";
     case WellKnownImport::kStringToLowerCaseStringref:
     case WellKnownImport::kStringToLowerCaseImported:
       return "String.toLowerCase";
+
+      // JS String Builtins:
+    case WellKnownImport::kStringCast:
+      return "js-string:cast";
+    case WellKnownImport::kStringCharCodeAt:
+      return "js-string:charCodeAt";
+    case WellKnownImport::kStringCodePointAt:
+      return "js-string:codePointAt";
+    case WellKnownImport::kStringCompare:
+      return "js-string:compare";
+    case WellKnownImport::kStringConcat:
+      return "js-string:concat";
+    case WellKnownImport::kStringEquals:
+      return "js-string:equals";
+    case WellKnownImport::kStringFromCharCode:
+      return "js-string:fromCharCode";
+    case WellKnownImport::kStringFromCodePoint:
+      return "js-string:fromCodePoint";
+    case WellKnownImport::kStringFromUtf8Array:
+      return "text-decoder:decodeStringFromUTF8Array";
+    case WellKnownImport::kStringFromWtf16Array:
+      return "js-string:fromCharCodeArray";
+    case WellKnownImport::kStringIntoUtf8Array:
+      return "text-encoder:encodeStringIntoUTF8Array";
+    case WellKnownImport::kStringLength:
+      return "js-string:length";
+    case WellKnownImport::kStringMeasureUtf8:
+      return "text-encoder:measureStringAsUTF8";
+    case WellKnownImport::kStringSubstring:
+      return "js-string:substring";
+    case WellKnownImport::kStringTest:
+      return "js-string:test";
     case WellKnownImport::kStringToWtf16Array:
-      return "String.toWtf16Array";
+      return "js-string:intoCharCodeArray";
   }
 }
 

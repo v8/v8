@@ -458,13 +458,22 @@ WellKnownImport CheckForWellKnownImport(
           return WellKnownImport::kStringFromWtf16Array;
         }
         return kLinkError;
-      case Builtin::kWebAssemblyStringFromWtf8Array:
+      case Builtin::kWebAssemblyStringFromUtf8Array:
         // i8array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
             IsI8Array(sig->GetParam(0), trusted_instance_data->module()) &&
             sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
             sig->GetReturn(0) == kRefExtern) {
-          return WellKnownImport::kStringFromWtf8Array;
+          return WellKnownImport::kStringFromUtf8Array;
+        }
+        return kLinkError;
+      case Builtin::kWebAssemblyStringIntoUtf8Array:
+        // string, i8array, i32 -> i32
+        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            IsI8Array(sig->GetParam(1), trusted_instance_data->module()) &&
+            sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringIntoUtf8Array;
         }
         return kLinkError;
       case Builtin::kWebAssemblyStringLength:
@@ -472,6 +481,13 @@ WellKnownImport CheckForWellKnownImport(
             sig->GetParam(0) == kWasmExternRef &&
             sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringLength;
+        }
+        return kLinkError;
+      case Builtin::kWebAssemblyStringMeasureUtf8:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringMeasureUtf8;
         }
         return kLinkError;
       case Builtin::kWebAssemblyStringSubstring:

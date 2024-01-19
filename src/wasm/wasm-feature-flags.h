@@ -46,10 +46,9 @@
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
   /* Imported Strings Proposal. */                                             \
-  /* https://github.com/WebAssembly/design/issues/1480 */                      \
-  /* Prototype spec: https://bit.ly/wasm-imported-strings */                   \
+  /* https://github.com/WebAssembly/js-string-builtins */                      \
   /* V8 side owner: jkummerow */                                               \
-  V(imported_strings, "imported strings", false)                               \
+  V(imported_strings, "imported strings", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

@@ -762,11 +762,17 @@ class WasmGraphBuildingInterface {
       case WKI::kLinkError:
         return false;
 
-      // WebAssembly.String.* imports.
+      // JS String Builtins proposal.
       case WKI::kStringCast:
-      case WKI::kStringTest:
-        // Implemented only for Turboshaft.
-        return false;
+        result = ExternRefToString(decoder, args[0]);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringTest: {
+        WasmTypeCheckConfig config{args[0].type, kWasmRefString};
+        result = builder_->RefTestAbstract(args[0].node, config);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringCharCodeAt: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         TFNode* view = builder_->StringAsWtf16(
@@ -835,18 +841,34 @@ class WasmGraphBuildingInterface {
         builder_->SetType(result, kWasmRefString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
-      case WKI::kStringFromWtf8Array:
+      case WKI::kStringFromUtf8Array:
         result = builder_->StringNewWtf8Array(
-            unibrow::Utf8Variant::kWtf8, args[0].node,
+            unibrow::Utf8Variant::kLossyUtf8, args[0].node,
             NullCheckFor(args[0].type), args[1].node, args[2].node,
             decoder->position());
         builder_->SetType(result, kWasmRefString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
+      case WKI::kStringIntoUtf8Array: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringEncodeWtf8Array(
+            unibrow::Utf8Variant::kLossyUtf8, string,
+            compiler::kWithoutNullCheck, args[1].node,
+            NullCheckFor(args[1].type), args[2].node, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringLength: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         result = builder_->StringMeasureWtf16(
             string, compiler::kWithoutNullCheck, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringMeasureUtf8: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringMeasureWtf8(string, compiler::kWithNullCheck,
+                                             decoder->position());
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
