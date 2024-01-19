@@ -285,7 +285,6 @@ void CreateInterpreterDataForDeserializedCode(
     }
 
     if (!log_code_creation) continue;
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
 
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
     Script::PositionInfo info;
