@@ -3868,8 +3868,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
                       JSToWasmWrapperFrameConstants::kInstanceDataParamOffset));
   }
 
-  __ Call(BUILTIN_CODE(masm->isolate(), JSToWasmHandleReturns),
-          RelocInfo::CODE_TARGET);
+  __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 
   Label return_promise;
   if (stack_switch) {
