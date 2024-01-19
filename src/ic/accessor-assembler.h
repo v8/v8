@@ -257,6 +257,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       return IsDefineNamedOwn() || IsDefineKeyedOwn();
     }
 
+    StubCache* stub_cache(Isolate* isolate) const {
+      return IsAnyDefineOwn() ? isolate->define_own_stub_cache()
+                              : isolate->store_stub_cache();
+    }
+
    private:
     TNode<Context> context_;
     base::Optional<TNode<Object>> receiver_;

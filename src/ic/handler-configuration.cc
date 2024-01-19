@@ -595,6 +595,11 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsMap(handler)) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
+  } else if (IsCode(handler)) {
+    Tagged<Code> code = Code::cast(handler);
+    os << "StoreHandler(builtin = ";
+    ShortPrint(code, os);
+    os << ")" << std::endl;
   } else {
     os << "StoreHandler(<unexpected>)(" << Brief(handler) << ")" << std::endl;
   }

@@ -829,9 +829,10 @@ StubCache* IC::stub_cache() {
   // HasICs and each of the store own ICs require its own stub cache.
   // Until we create them, don't allow accessing the load/store stub caches.
   DCHECK(!IsAnyHas());
-  DCHECK(!IsAnyDefineOwn());
   if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
+  } else if (IsAnyDefineOwn()) {
+    return isolate()->define_own_stub_cache();
   } else {
     DCHECK(IsAnyStore());
     return isolate()->store_stub_cache();
@@ -840,7 +841,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  if (!IsAnyHas() && !IsAnyDefineOwn()) {
+  if (!IsAnyHas()) {
     stub_cache()->Set(*name, *map, *handler);
   }
 }
@@ -1618,6 +1619,11 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
           return false;
         case LookupIterator::DATA: {
           if (it->IsReadOnly()) return false;
+          if (IsAnyDefineOwn() && it->property_attributes() != NONE) {
+            // IC doesn't support reconfiguration of property attributes,
+            // so just bail out to the slow handler.
+            return false;
+          }
           Handle<JSObject> holder = it->GetHolder<JSObject>();
           if (receiver.is_identical_to(holder)) {
             it->PrepareForDataProperty(value);

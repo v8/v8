@@ -1389,12 +1389,10 @@ void FeedbackNexus::Print(std::ostream& os) {
   switch (slot_kind) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
-    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-    case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kDefineNamedOwn: {
+    case FeedbackSlotKind::kStoreInArrayLiteral: {
       os << InlineCacheState2String(ic_state());
       break;
     }
@@ -1454,6 +1452,8 @@ void FeedbackNexus::Print(std::ostream& os) {
       }
       break;
     }
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kSetKeyedSloppy:

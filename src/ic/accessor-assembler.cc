@@ -1365,16 +1365,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proto_handler);
     {
-      if (p->IsAnyDefineOwn()) {
-        // Normally, proto handlers are not created for DefineOwnICs, however
-        // such a handler might be fetched from the StoreIC's megamorphic stub
-        // cache. Treat them as slow ones.
-        Goto(&if_slow);
-
-      } else {
-        HandleStoreICProtoHandler(p, CAST(strong_handler), &if_slow, miss,
-                                  ic_mode, support_elements);
-      }
+      // Note, although DefineOwnICs don't reqiure checking for prototype
+      // chain modifications the proto handlers shape is still used for
+      // StoreHandler::StoreElementTransition in order to store both Code
+      // handler and transition target map.
+      HandleStoreICProtoHandler(p, CAST(strong_handler), &if_slow, miss,
+                                ic_mode, support_elements);
     }
 
     // |handler| is a heap object. Must be code, call it.
@@ -1799,7 +1795,6 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, TNode<StoreHandler> handler, Label* slow,
     Label* miss, ICMode ic_mode, ElementSupport support_elements) {
-  DCHECK(!p->IsAnyDefineOwn());
   Comment("HandleStoreICProtoHandler");
 
   OnCodeHandler on_code_handler;
@@ -3720,9 +3715,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     // Check megamorphic case.
     GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
 
-    TryProbeStubCache(isolate()->store_stub_cache(), p->receiver(),
-                      receiver_map, CAST(p->name()), &if_handler, &var_handler,
-                      &miss);
+    TryProbeStubCache(p->stub_cache(isolate()), p->receiver(), receiver_map,
+                      CAST(p->name()), &if_handler, &var_handler, &miss);
   }
 
   BIND(&no_feedback);

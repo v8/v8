@@ -1127,8 +1127,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TVARIABLE(MaybeObject, var_handler);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
 
-    TryProbeStubCache(isolate()->store_stub_cache(), receiver, name,
-                      &found_handler, &var_handler, &stub_cache_miss);
+    TryProbeStubCache(p->stub_cache(isolate()), receiver, name, &found_handler,
+                      &var_handler, &stub_cache_miss);
 
     BIND(&found_handler);
     {
