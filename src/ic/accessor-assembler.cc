@@ -4609,6 +4609,42 @@ void AccessorAssembler::GenerateStoreIC() {
   StoreIC(&p);
 }
 
+void AccessorAssembler::GenerateStoreIC_Megamorphic() {
+  using Descriptor = StoreWithVectorDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                               MegamorphicSymbolConstant()));
+
+  TryProbeStubCache(isolate()->store_stub_cache(), receiver, CAST(name),
+                    &if_handler, &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    StoreICParameters p(context, receiver, name, value, flags, slot, vector,
+                        StoreICMode::kDefault);
+    HandleStoreICHandlerCase(&p, var_handler.value(), &miss,
+                             ICMode::kNonGlobalIC);
+  }
+
+  BIND(&miss);
+  {
+    direct_exit.ReturnCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                  vector, receiver, name);
+  }
+}
+
 void AccessorAssembler::GenerateStoreICTrampoline() {
   using Descriptor = StoreDescriptor;
 
@@ -4621,6 +4657,20 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
 
   TailCallBuiltin(Builtin::kStoreIC, context, receiver, name, value, slot,
                   vector);
+}
+
+void AccessorAssembler::GenerateStoreICTrampoline_Megamorphic() {
+  using Descriptor = StoreDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtin::kStoreIC_Megamorphic, context, receiver, name, value,
+                  slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreICBaseline() {

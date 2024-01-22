@@ -3956,15 +3956,24 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     compiler::AccessMode access_mode) {
   // Check for the megamorphic case.
   if (feedback.maps().empty()) {
-    // We don't have a builtin to fast path megamorphic stores.
-    // TODO(leszeks): Maybe we should?
-    if (access_mode != compiler::AccessMode::kLoad) return ReduceResult::Fail();
     // We can't do megamorphic loads for lookups where the lookup start isn't
     // the receiver (e.g. load from super).
     if (receiver != lookup_start_object) return ReduceResult::Fail();
 
-    return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
-        {receiver, GetConstant(feedback.name())}, feedback_source);
+    switch (access_mode) {
+      case compiler::AccessMode::kLoad:
+        return BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
+            {receiver, GetConstant(feedback.name())}, feedback_source);
+      case compiler::AccessMode::kStore:
+        return BuildCallBuiltin<Builtin::kStoreIC_Megamorphic>(
+            {receiver, GetConstant(feedback.name()), GetAccumulatorTagged()},
+            feedback_source);
+      case compiler::AccessMode::kDefine:
+        return ReduceResult::Fail();
+      case compiler::AccessMode::kHas:
+      case compiler::AccessMode::kStoreInLiteral:
+        UNREACHABLE();
+    }
   }
 
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());

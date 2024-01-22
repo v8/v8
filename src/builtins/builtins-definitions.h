@@ -665,7 +665,9 @@ namespace internal {
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreGlobalICBaseline, StoreGlobalBaseline)                              \
   TFH(StoreIC, StoreWithVector)                                                \
+  TFH(StoreIC_Megamorphic, StoreWithVector)                                    \
   TFH(StoreICTrampoline, Store)                                                \
+  TFH(StoreICTrampoline_Megamorphic, Store)                                    \
   TFH(StoreICBaseline, StoreBaseline)                                          \
   TFH(DefineNamedOwnIC, StoreWithVector)                                       \
   TFH(DefineNamedOwnICTrampoline, Store)                                       \
