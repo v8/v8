@@ -161,6 +161,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
+  size_t instructions_size() const {
+    return static_cast<size_t>(instructions_size_);
+  }
   base::Vector<const uint8_t> reloc_info() const {
     return {protected_instructions_data().end(),
             static_cast<size_t>(reloc_info_size_)};
