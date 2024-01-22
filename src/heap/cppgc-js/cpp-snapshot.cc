@@ -544,7 +544,6 @@ class CppGraphBuilderImpl final {
   struct MergedNodeItem {
     EmbedderGraph::Node* node_;
     v8::Local<v8::Value> value_;
-    uint16_t wrapper_class_id_;
   };
 
   CppHeap& cpp_heap_;

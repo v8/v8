@@ -90,7 +90,6 @@ FullObjectSlot TracedNode::Publish(Tagged<Object> object,
   DCHECK(!is_weak());
   DCHECK(!markbit());
   DCHECK(!is_droppable());
-  set_class_id(0);
   if (needs_young_bit_update) {
     set_is_in_young_list(true);
   }
