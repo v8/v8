@@ -3347,8 +3347,13 @@ class LiftoffCompiler {
   bool IndexStaticallyInBoundsAndAligned(const WasmMemory* memory,
                                          const VarState& index_slot,
                                          int access_size, uintptr_t* offset) {
-    return IndexStaticallyInBounds(memory, index_slot, access_size, offset) &&
-           IsAligned(*offset, access_size);
+    uintptr_t new_offset = *offset;
+    if (IndexStaticallyInBounds(memory, index_slot, access_size, &new_offset) &&
+        IsAligned(new_offset, access_size)) {
+      *offset = new_offset;
+      return true;
+    }
+    return false;
   }
 
   V8_INLINE Register GetMemoryStart(int memory_index, LiftoffRegList pinned) {
@@ -5062,8 +5067,8 @@ class LiftoffCompiler {
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       index =
-          BoundsCheckMem(decoder, imm.memory, type.size(), offset, full_index,
-                         pinned, kDoForceCheck, kCheckAlignment);
+          BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
+                         full_index, pinned, kDoForceCheck, kCheckAlignment);
       pinned.set(index);
       CODE_COMMENT("atomic store");
     }
