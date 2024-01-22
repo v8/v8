@@ -140,7 +140,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     TNode<IntPtrT> page = PageFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), page,
-             IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
+             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -156,8 +156,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> bitmap =
-        IntPtrAdd(page, IntPtrConstant(MemoryChunk::kMarkingBitmapOffset));
+    TNode<IntPtrT> bitmap = IntPtrAdd(
+        page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.

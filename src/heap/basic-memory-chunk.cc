@@ -15,51 +15,31 @@
 namespace v8 {
 namespace internal {
 
-// Verify write barrier offsets match the the real offsets.
-static_assert(BasicMemoryChunk::Flag::IS_EXECUTABLE ==
-              heap_internals::MemoryChunk::kIsExecutableBit);
-static_assert(BasicMemoryChunk::Flag::IN_WRITABLE_SHARED_SPACE ==
-              heap_internals::MemoryChunk::kInWritableSharedSpaceBit);
-static_assert(BasicMemoryChunk::Flag::INCREMENTAL_MARKING ==
-              heap_internals::MemoryChunk::kMarkingBit);
-static_assert(BasicMemoryChunk::Flag::FROM_PAGE ==
-              heap_internals::MemoryChunk::kFromPageBit);
-static_assert(BasicMemoryChunk::Flag::TO_PAGE ==
-              heap_internals::MemoryChunk::kToPageBit);
-static_assert(BasicMemoryChunk::Flag::READ_ONLY_HEAP ==
-              heap_internals::MemoryChunk::kReadOnlySpaceBit);
-static_assert(BasicMemoryChunk::Flag::IS_TRUSTED ==
-              heap_internals::MemoryChunk::kIsTrustedBit);
-static_assert(BasicMemoryChunk::kFlagsOffset ==
-              heap_internals::MemoryChunk::kFlagsOffset);
-static_assert(BasicMemoryChunk::kHeapOffset ==
-              heap_internals::MemoryChunk::kHeapOffset);
-
 // static
-constexpr BasicMemoryChunk::MainThreadFlags BasicMemoryChunk::kAllFlagsMask;
+constexpr BasicMemoryChunk::MainThreadFlags MemoryChunkHeader::kAllFlagsMask;
 // static
 constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kPointersToHereAreInterestingMask;
+    MemoryChunkHeader::kPointersToHereAreInterestingMask;
 // static
 constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kPointersFromHereAreInterestingMask;
+    MemoryChunkHeader::kPointersFromHereAreInterestingMask;
 // static
 constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kEvacuationCandidateMask;
+    MemoryChunkHeader::kEvacuationCandidateMask;
 // static
 constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kIsInYoungGenerationMask;
+    MemoryChunkHeader::kIsInYoungGenerationMask;
 // static
-constexpr BasicMemoryChunk::MainThreadFlags BasicMemoryChunk::kIsLargePageMask;
+constexpr BasicMemoryChunk::MainThreadFlags MemoryChunkHeader::kIsLargePageMask;
 // static
 constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kSkipEvacuationSlotsRecordingMask;
+    MemoryChunkHeader::kSkipEvacuationSlotsRecordingMask;
 
 BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
                                    size_t chunk_size, Address area_start,
                                    Address area_end, VirtualMemory reservation)
-    : size_(chunk_size),
-      heap_(heap),
+    : MemoryChunkHeader(heap),
+      size_(chunk_size),
       area_start_(area_start),
       area_end_(area_end),
       allocated_bytes_(area_end - area_start),
@@ -93,11 +73,11 @@ void BasicMemoryChunk::SynchronizedHeapLoad() const {
 
 class BasicMemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
-  static_assert(BasicMemoryChunk::kSizeOffset ==
+  static_assert(MemoryChunkLayout::kSizeOffset ==
                 offsetof(BasicMemoryChunk, size_));
-  static_assert(BasicMemoryChunk::kFlagsOffset ==
+  static_assert(MemoryChunkLayout::kFlagsOffset ==
                 offsetof(BasicMemoryChunk, main_thread_flags_));
-  static_assert(BasicMemoryChunk::kHeapOffset ==
+  static_assert(MemoryChunkLayout::kHeapOffset ==
                 offsetof(BasicMemoryChunk, heap_));
   static_assert(offsetof(BasicMemoryChunk, size_) ==
                 MemoryChunkLayout::kSizeOffset);

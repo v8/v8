@@ -2197,9 +2197,9 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     and_(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
+    test_b(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
   } else {
-    test(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
+    test(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

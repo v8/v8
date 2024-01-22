@@ -137,9 +137,10 @@ class Page : public MemoryChunk {
 };
 
 // Validate our estimates on the header size.
-static_assert(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
-static_assert(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
-static_assert(sizeof(Page) <= MemoryChunk::kHeaderSize);
+static_assert(sizeof(BasicMemoryChunk) <=
+              MemoryChunkLayout::kBasicMemoryChunkHeaderSize);
+static_assert(sizeof(MemoryChunk) <= MemoryChunkLayout::kMemoryChunkHeaderSize);
+static_assert(sizeof(Page) <= MemoryChunkLayout::kMemoryChunkHeaderSize);
 
 }  // namespace internal
 

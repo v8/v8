@@ -1689,6 +1689,8 @@ filegroup(
         "src/heap/memory-balancer.h",
         "src/heap/memory-chunk.cc",
         "src/heap/memory-chunk.h",
+        "src/heap/memory-chunk-header.cc",
+        "src/heap/memory-chunk-header.h",
         "src/heap/memory-chunk-inl.h",
         "src/heap/memory-chunk-layout.cc",
         "src/heap/memory-chunk-layout.h",

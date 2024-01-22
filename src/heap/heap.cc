@@ -7243,8 +7243,7 @@ bool Heap::PageFlagsAreConsistent(Tagged<HeapObject> object) {
     return true;
   }
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  heap_internals::MemoryChunk* slim_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* slim_chunk = MemoryChunkHeader::FromHeapObject(object);
 
   // Slim chunk flags consistency.
   CHECK_EQ(chunk->InYoungGeneration(), slim_chunk->InYoungGeneration());

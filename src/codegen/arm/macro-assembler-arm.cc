@@ -2848,7 +2848,7 @@ void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
   DCHECK(!AreAliased(object, scratch));
   DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
-  ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  ldr(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   tst(scratch, Operand(mask));
   b(cc, condition_met);
 }

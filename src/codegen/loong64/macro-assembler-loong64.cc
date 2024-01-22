@@ -4502,7 +4502,7 @@ void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
   temps.Include(t8);
   Register scratch = temps.Acquire();
   And(scratch, object, Operand(~kPageAlignmentMask));
-  Ld_d(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  Ld_d(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
 }

@@ -107,6 +107,12 @@ specific_include_rules = {
   "external-pointer-table\.cc": [
     "+src/heap/read-only-spaces.h",
   ],
+  # keep the includes to a minimum since this header will be included via write barriers.
+  "memory-chunk-header\.h": [
+    "-src",
+    "+src/base/build_config.h",
+    "+src/flags/flags.h",
+  ],
   "script\.h": [
     "+src/heap/factory.h",
     "+src/heap/factory-base.h",

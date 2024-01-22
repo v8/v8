@@ -7,6 +7,7 @@
 
 #include "src/handles/traced-handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8::internal {
 

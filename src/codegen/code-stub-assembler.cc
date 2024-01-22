@@ -5014,8 +5014,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 #ifdef DEBUG
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
     TNode<IntPtrT> object_page = PageFromAddress(object_word);
-    TNode<IntPtrT> page_flags =
-        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
+    TNode<IntPtrT> page_flags = Load<IntPtrT>(
+        object_page, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     CSA_DCHECK(
         this,
         WordNotEqual(
@@ -5415,8 +5415,9 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
   Label finished(this);
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<IntPtrT> object_page = PageFromAddress(object_word);
-  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(Load(
-      MachineType::IntPtr(), object_page, IntPtrConstant(Page::kFlagsOffset)));
+  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
+      Load(MachineType::IntPtr(), object_page,
+           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
   Branch(
       WordEqual(WordAnd(page_flags,
                         IntPtrConstant(
@@ -7826,7 +7827,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
   TNode<IntPtrT> page = PageFromAddress(object_word);
   return UncheckedCast<IntPtrT>(
       Load(MachineType::Pointer(), page,
-           IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
+           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
 }
 
 template <typename TIndex>
@@ -12750,8 +12751,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   // tracking is disabled.
   TNode<IntPtrT> object_page = PageFromAddress(object_word);
   {
-    TNode<IntPtrT> page_flags =
-        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
+    TNode<IntPtrT> page_flags = Load<IntPtrT>(
+        object_page, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     GotoIf(WordEqual(
                WordAnd(page_flags,
                        IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
