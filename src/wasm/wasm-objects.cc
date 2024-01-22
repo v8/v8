@@ -44,11 +44,13 @@ using WasmModule = wasm::WasmModule;
 
 namespace {
 
-enum DispatchTableElements : int {
-  kDispatchTableInstanceOffset,
-  kDispatchTableIndexOffset,
+// The WasmTableObject::uses field holds pairs of <instance, index>. This enum
+// helps compute the respective offset.
+enum TableUses : int {
+  kInstanceOffset,
+  kIndexOffset,
   // Marker:
-  kDispatchTableNumElements
+  kNumElements
 };
 
 }  // namespace
@@ -167,31 +169,30 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
 
-  table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
-  return Handle<WasmTableObject>::cast(table_obj);
+  table_obj->set_uses(ReadOnlyRoots(isolate).empty_fixed_array());
+  return table_obj;
 }
 
-void WasmTableObject::AddDispatchTable(
+void WasmTableObject::AddUse(
     Isolate* isolate, Handle<WasmTableObject> table_obj,
     Handle<WasmTrustedInstanceData> trusted_instance_data, int table_index) {
-  Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables(), isolate);
-  int old_length = dispatch_tables->length();
-  DCHECK_EQ(0, old_length % kDispatchTableNumElements);
+  Handle<FixedArray> old_uses(table_obj->uses(), isolate);
+  int old_length = old_uses->length();
+  DCHECK_EQ(0, old_length % TableUses::kNumElements);
 
   if (trusted_instance_data.is_null()) return;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
-  // Grow the dispatch table and add a new entry at the end.
-  Handle<FixedArray> new_dispatch_tables =
-      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables,
-                                                kDispatchTableNumElements);
+  // Grow the uses table and add a new entry at the end.
+  Handle<FixedArray> new_uses = isolate->factory()->CopyFixedArrayAndGrow(
+      old_uses, TableUses::kNumElements);
 
-  new_dispatch_tables->set(old_length + kDispatchTableInstanceOffset,
-                           trusted_instance_data->instance_object());
-  new_dispatch_tables->set(old_length + kDispatchTableIndexOffset,
-                           Smi::FromInt(table_index));
+  new_uses->set(old_length + TableUses::kInstanceOffset,
+                trusted_instance_data->instance_object());
+  new_uses->set(old_length + TableUses::kIndexOffset,
+                Smi::FromInt(table_index));
 
-  table_obj->set_dispatch_tables(*new_dispatch_tables);
+  table_obj->set_uses(*new_uses);
 }
 
 int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
@@ -225,21 +226,19 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   }
   table->set_current_length(new_size);
 
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  Handle<FixedArray> uses(table->uses(), isolate);
+  DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
   // Tables are stored in the instance object, no code patching is
   // necessary. We simply have to grow the raw tables in each instance
   // that has imported this table.
 
   // TODO(titzer): replace the dispatch table with a weak list of all
   // the instances that import a given table.
-  for (int i = 0; i < dispatch_tables->length();
-       i += kDispatchTableNumElements) {
-    int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
+  for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
+    int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
 
     Handle<WasmTrustedInstanceData> trusted_instance_data{
-        WasmInstanceObject::cast(dispatch_tables->get(i))
+        WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate};
 
@@ -441,9 +440,8 @@ void WasmTableObject::UpdateDispatchTables(
     Handle<WasmTrustedInstanceData> target_instance_data) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
-  Handle<FixedArray> dispatch_tables =
-      handle(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  Handle<FixedArray> uses = handle(table->uses(), isolate);
+  DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
   Handle<Object> call_ref =
       func->imported
@@ -458,14 +456,11 @@ void WasmTableObject::UpdateDispatchTables(
 
   int original_sig_id = func->sig_index;
 
-  for (int i = 0, len = dispatch_tables->length(); i < len;
-       i += kDispatchTableNumElements) {
-    int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    Handle<WasmInstanceObject> instance_object =
-        handle(WasmInstanceObject::cast(
-                   dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-               isolate);
+  for (int i = 0, len = uses->length(); i < len; i += TableUses::kNumElements) {
+    int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
+    Handle<WasmInstanceObject> instance_object = handle(
+        WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset)),
+        isolate);
     int sig_id = target_instance_data->module()
                      ->isorecursive_canonical_type_ids[original_sig_id];
     Handle<WasmIndirectFunctionTable> ift = handle(
@@ -498,16 +493,13 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
                                            Handle<WasmJSFunction> function) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  Handle<FixedArray> uses(table->uses(), isolate);
+  DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  for (int i = 0; i < dispatch_tables->length();
-       i += kDispatchTableNumElements) {
-    int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
+  for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
+    int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     Handle<WasmTrustedInstanceData> trusted_instance_data(
-        WasmInstanceObject::cast(
-            dispatch_tables->get(i + kDispatchTableInstanceOffset))
+        WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate);
     WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
@@ -521,21 +513,18 @@ void WasmTableObject::UpdateDispatchTables(
     Handle<WasmCapiFunction> capi_function) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  Handle<FixedArray> uses(table->uses(), isolate);
+  DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
   // Reconstruct signature.
   std::unique_ptr<wasm::ValueType[]> reps;
   wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
       capi_function->GetSerializedSignature(), &reps);
 
-  for (int i = 0; i < dispatch_tables->length();
-       i += kDispatchTableNumElements) {
-    int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
+  for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
+    int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     Handle<WasmTrustedInstanceData> trusted_instance_data(
-        WasmInstanceObject::cast(
-            dispatch_tables->get(i + kDispatchTableInstanceOffset))
+        WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate);
     wasm::NativeModule* native_module =
@@ -572,13 +561,12 @@ void WasmTableObject::UpdateDispatchTables(
 void WasmTableObject::ClearDispatchTables(int index) {
   DisallowGarbageCollection no_gc;
   Isolate* isolate = GetIsolate();
-  Tagged<FixedArray> tables = dispatch_tables();
-  DCHECK_EQ(0, tables->length() % kDispatchTableNumElements);
-  for (int i = 0, e = tables->length(); i < e; i += kDispatchTableNumElements) {
-    int table_index =
-        Smi::cast(tables->get(i + kDispatchTableIndexOffset)).value();
+  Tagged<FixedArray> uses = this->uses();
+  DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
+  for (int i = 0, e = uses->length(); i < e; i += TableUses::kNumElements) {
+    int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     Tagged<WasmInstanceObject> target_instance_object =
-        WasmInstanceObject::cast(tables->get(i + kDispatchTableInstanceOffset));
+        WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset));
     Tagged<WasmTrustedInstanceData> target_instance_data =
         target_instance_object->trusted_data(isolate);
     Tagged<WasmIndirectFunctionTable> function_table =

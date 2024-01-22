@@ -2020,7 +2020,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       // This doesn't call WasmTableObject::Set because the table has
       // just been created, so it can't be imported by any instances
       // yet that might require updating.
-      DCHECK_EQ(table_obj->dispatch_tables()->length(), 0);
+      DCHECK_EQ(table_obj->uses()->length(), 0);
       entries->set(i, *init);
     }
   }

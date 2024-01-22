@@ -1253,8 +1253,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       auto table_object = handle(
           WasmTableObject::cast(trusted_data->tables()->get(table_index)),
           isolate_);
-      WasmTableObject::AddDispatchTable(isolate_, table_object, trusted_data,
-                                        table_index);
+      WasmTableObject::AddUse(isolate_, table_object, trusted_data,
+                              table_index);
     }
   }
 

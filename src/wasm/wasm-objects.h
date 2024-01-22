@@ -194,7 +194,10 @@ class WasmTableObject
       wasm::ValueType type, uint32_t initial, bool has_maximum,
       uint32_t maximum, Handle<Object> initial_value);
 
-  V8_EXPORT_PRIVATE static void AddDispatchTable(
+  // Store that a specific instance uses this table, in order to update the
+  // instance's dispatch table when this table grows (and hence needs to
+  // allocate a new dispatch table).
+  V8_EXPORT_PRIVATE static void AddUse(
       Isolate* isolate, Handle<WasmTableObject> table,
       Handle<WasmTrustedInstanceData> instance_object, int table_index);
 

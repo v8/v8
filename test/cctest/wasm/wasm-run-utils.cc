@@ -267,8 +267,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           ? Handle<Object>::cast(isolate_->factory()->null_value())
           : Handle<Object>::cast(isolate_->factory()->wasm_null()));
 
-  WasmTableObject::AddDispatchTable(isolate_, table_obj, trusted_instance_data_,
-                                    table_index);
+  WasmTableObject::AddUse(isolate_, table_obj, trusted_instance_data_,
+                          table_index);
 
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
