@@ -1790,8 +1790,7 @@ class MachineOptimizationReducer : public Next {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
             OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
-            if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
-              broker->dependencies()->DependOnStableMap(*map);
+            if (MapLoadCanBeConstantFolded(map)) {
               return __ HeapConstant(map->object());
             }
           }
@@ -2397,6 +2396,27 @@ class MachineOptimizationReducer : public Next {
       return value != 0;
     }
     return base::nullopt;
+  }
+
+  // Returns true if loading the map of an object with map {map} can be constant
+  // folded and done at compile time or not. For instance, doing this for
+  // strings is not safe, since the map of a string could change during a GC,
+  // but doing this for a HeapNumber is always safe.
+  bool MapLoadCanBeConstantFolded(OptionalMapRef map) {
+    if (!map.has_value()) return false;
+
+    if (map->IsJSObjectMap() && map->is_stable()) {
+      broker->dependencies()->DependOnStableMap(*map);
+      // For JS objects, this is only safe is the map is stable.
+      return true;
+    }
+
+    if (map->instance_type() ==
+        any_of(BIG_INT_BASE_TYPE, HEAP_NUMBER_TYPE, ODDBALL_TYPE)) {
+      return true;
+    }
+
+    return false;
   }
 
   static constexpr bool IsNegativePowerOfTwo(int64_t x) {
