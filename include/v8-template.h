@@ -5,6 +5,9 @@
 #ifndef INCLUDE_V8_TEMPLATE_H_
 #define INCLUDE_V8_TEMPLATE_H_
 
+#include <cstddef>
+#include <string_view>
+
 #include "v8-data.h"               // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
@@ -778,7 +781,11 @@ class V8_EXPORT ObjectTemplate : public Template {
       Isolate* isolate,
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
 
-  /** Creates a new instance of this template.*/
+  /**
+   * Creates a new instance of this template.
+   *
+   * \param context The context in which the instance is created.
+   */
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(Local<Context> context);
 
   /**
@@ -948,6 +955,37 @@ class V8_EXPORT ObjectTemplate : public Template {
                                    Local<FunctionTemplate> constructor);
   static void CheckCast(Data* that);
   friend class FunctionTemplate;
+};
+
+/**
+ * A template to create dictionary objects at runtime.
+ */
+class V8_EXPORT DictionaryTemplate final {
+ public:
+  /** Creates a new template. Also declares data properties that can be passed
+   * on instantiation of the template. Properties can only be declared on
+   * construction and are then immutable. The values are passed on creating the
+   * object via `NewInstance()`.
+   *
+   * \param names the keys that can be passed on instantiation.
+   */
+  static Local<DictionaryTemplate> New(
+      Isolate* isolate, MemorySpan<const std::string_view> names);
+
+  /**
+   * Creates a new instance of this template.
+   *
+   * \param context The context used to create the dictionary object.
+   * \param property_values Values of properties that were declared using
+   *   `DeclareDataProperties()`. The span only passes values and expectes the
+   *   order to match the declaration. Non-existent properties are signaled via
+   *   empty `MaybeLocal`s.
+   */
+  V8_WARN_UNUSED_RESULT Local<Object> NewInstance(
+      Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values);
+
+ private:
+  DictionaryTemplate();
 };
 
 /**

@@ -24,6 +24,7 @@
 #include "include/v8-primitive-object.h"
 #include "include/v8-profiler.h"
 #include "include/v8-source-location.h"
+#include "include/v8-template.h"
 #include "include/v8-unwinder-state.h"
 #include "include/v8-util.h"
 #include "include/v8-wasm.h"
@@ -86,6 +87,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -101,6 +103,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/objects/string.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/templates.h"
 #include "src/objects/value-serializer.h"
@@ -1947,6 +1950,24 @@ void ObjectTemplate::SetCodeLike() {
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   self->set_code_like(true);
+}
+
+Local<DictionaryTemplate> DictionaryTemplate::New(
+    Isolate* isolate, MemorySpan<const std::string_view> names) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  API_RCS_SCOPE(i_isolate, DictionaryTemplate, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  return Utils::ToLocal(i::DictionaryTemplateInfo::Create(i_isolate, names));
+}
+
+Local<Object> DictionaryTemplate::NewInstance(
+    Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  API_RCS_SCOPE(i_isolate, DictionaryTemplate, NewInstance);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  auto self = Utils::OpenDirectHandle(this);
+  return ToApiHandle<Object>(i::DictionaryTemplateInfo::NewInstance(
+      Utils::OpenHandle(*context), self, property_values));
 }
 
 // --- S c r i p t s ---

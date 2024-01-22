@@ -44,6 +44,7 @@ class CoverageInfo;
 class DebugInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
+class DictionaryTemplateInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
 class Isolate;
@@ -987,6 +988,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSAtomicsMutex> NewJSAtomicsMutex();
 
   Handle<JSAtomicsCondition> NewJSAtomicsCondition();
+
+  Handle<DictionaryTemplateInfo> NewDictionaryTemplateInfo(
+      Handle<FixedArray> property_names);
 
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {

@@ -114,6 +114,7 @@ namespace internal {
   V(CallHandlerInfo)                            \
   V(Callable)                                   \
   V(Cell)                                       \
+  V(DictionaryTemplateInfo)                     \
   V(InstructionStream)                          \
   V(Code)                                       \
   V(CompilationCacheTable)                      \

@@ -4235,6 +4235,17 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   return cond;
 }
 
+Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
+    Handle<FixedArray> property_names) {
+  const int size = DictionaryTemplateInfo::SizeFor();
+  Handle<Map> map = read_only_roots().dictionary_template_info_map_handle();
+  Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
+  obj->set_property_names(*property_names);
+  obj->set_fully_populated_map(HeapObjectReference::ClearedValue(isolate()));
+  return handle(obj, isolate());
+}
+
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
                                               Handle<SharedFunctionInfo> sfi,
                                               Handle<Context> context)

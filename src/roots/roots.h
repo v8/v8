@@ -108,6 +108,7 @@ class RootVisitor;
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
+  V(Map, dictionary_template_info_map, DictionaryTemplateInfoMap)              \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \

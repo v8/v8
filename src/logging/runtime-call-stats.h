@@ -153,6 +153,8 @@ class RuntimeCallTimer final {
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
   V(debug_GetPrivateMembers)                               \
+  V(DictionaryTemplate_New)                                \
+  V(DictionaryTemplate_NewInstance)                        \
   V(Error_New)                                             \
   V(External_New)                                          \
   V(Float32Array_New)                                      \
