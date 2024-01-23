@@ -2694,10 +2694,12 @@ TEST(OptimizedPretenuringAllocationFolding) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || v8_flags.always_turbofan) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation)
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.stress_concurrent_allocation)
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
+  ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   base::ScopedVector<char> source(1024);
