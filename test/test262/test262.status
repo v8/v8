@@ -2488,4 +2488,15 @@
 # End import test262@873f2604
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Iterator/prototype/Symbol.toStringTag/weird-setter': [SKIP],
+  'built-ins/Iterator/prototype/constructor/prop-desc': [SKIP],
+  'built-ins/Iterator/prototype/constructor/weird-setter': [SKIP],
+  'language/module-code/import-attributes/allow-nlt-before-with': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
