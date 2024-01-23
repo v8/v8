@@ -9411,7 +9411,8 @@ TNode<IntPtrT> CodeStubAssembler::NameToIndexHashTableLookup(
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
-    TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
+    TVariable<IntPtrT>* var_name_index, Label* if_not_found_no_insertion_index,
+    LookupMode mode, Label* if_not_found_with_insertion_index) {
   static_assert(std::is_same<Dictionary, NameDictionary>::value ||
                     std::is_same<Dictionary, GlobalDictionary>::value ||
                     std::is_same<Dictionary, NameToIndexHashTable>::value,
@@ -9419,8 +9420,13 @@ void CodeStubAssembler::NameDictionaryLookup(
   DCHECK_IMPLIES(var_name_index != nullptr,
                  MachineType::PointerRepresentation() == var_name_index->rep());
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
+  DCHECK_IMPLIES(if_not_found_with_insertion_index != nullptr,
+                 var_name_index != nullptr);
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
+  if (if_not_found_with_insertion_index == nullptr) {
+    if_not_found_with_insertion_index = if_not_found_no_insertion_index;
+  }
 
   Label if_not_computed(this, Label::kDeferred);
 
@@ -9454,7 +9460,7 @@ void CodeStubAssembler::NameDictionaryLookup(
 
     TNode<HeapObject> current =
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
-    GotoIf(TaggedEqual(current, undefined), if_not_found);
+    GotoIf(TaggedEqual(current, undefined), if_not_found_with_insertion_index);
     if (mode == kFindExisting) {
       if (Dictionary::TodoShape::kMatchNeedsHoleCheck) {
         GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
@@ -9463,7 +9469,8 @@ void CodeStubAssembler::NameDictionaryLookup(
       GotoIf(TaggedEqual(current, unique_name), if_found);
     } else {
       DCHECK_EQ(kFindInsertionIndex, mode);
-      GotoIf(TaggedEqual(current, TheHoleConstant()), if_not_found);
+      GotoIf(TaggedEqual(current, TheHoleConstant()),
+             if_not_found_with_insertion_index);
     }
     Goto(&next_probe);
 
@@ -9508,14 +9515,19 @@ void CodeStubAssembler::NameDictionaryLookup(
         std::make_pair(MachineType::Pointer(), isolate_ptr),
         std::make_pair(MachineType::TaggedPointer(), dictionary),
         std::make_pair(MachineType::TaggedPointer(), unique_name)));
+
     if (var_name_index) *var_name_index = EntryToIndex<Dictionary>(entry);
     if (mode == kFindExisting) {
       GotoIf(IntPtrEqual(entry,
                          IntPtrConstant(InternalIndex::NotFound().raw_value())),
-             if_not_found);
+             if_not_found_no_insertion_index);
       Goto(if_found);
     } else {
-      Goto(if_not_found);
+      CSA_DCHECK(
+          this,
+          WordNotEqual(entry,
+                       IntPtrConstant(InternalIndex::NotFound().raw_value())));
+      Goto(if_not_found_with_insertion_index);
     }
   }
 }
@@ -9525,10 +9537,11 @@ template V8_EXPORT_PRIVATE void
 CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
                                                         TNode<Name>, Label*,
                                                         TVariable<IntPtrT>*,
-                                                        Label*, LookupMode);
+                                                        Label*, LookupMode,
+                                                        Label*);
 template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
-                      TVariable<IntPtrT>*, Label*, LookupMode);
+                      TVariable<IntPtrT>*, Label*, LookupMode, Label*);
 
 TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   const TNode<ExternalReference> function_addr =
@@ -9548,10 +9561,13 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
 template <>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
-    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
-    LookupMode mode) {
+    Label* if_found, TVariable<IntPtrT>* var_name_index,
+    Label* if_not_found_no_insertion_index, LookupMode mode,
+    Label* if_not_found_with_insertion_index) {
+  // TODO(pthier): Support path for not found with valid insertion index for
+  // SwissNameDictionary.
   SwissNameDictionaryFindEntry(dictionary, unique_name, if_found,
-                               var_name_index, if_not_found);
+                               var_name_index, if_not_found_no_insertion_index);
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -9708,9 +9724,9 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(
 }
 
 template <class Dictionary>
-void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   CSA_DCHECK(this, Word32BinaryNot(IsEmptyPropertyDictionary(dictionary)));
   TNode<Smi> capacity = GetCapacity<Dictionary>(dictionary);
   TNode<Smi> nof = GetNumberOfElements<Dictionary>(dictionary);
@@ -9738,16 +9754,21 @@ void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
   SetNextEnumerationIndex<Dictionary>(dictionary, new_enum_index);
   SetNumberOfElements<Dictionary>(dictionary, new_nof);
 
-  TVARIABLE(IntPtrT, var_key_index);
-  FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
-  InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
-                          enum_index);
+  if (insertion_index.has_value()) {
+    InsertEntry<Dictionary>(dictionary, key, value, *insertion_index,
+                            enum_index);
+  } else {
+    TVARIABLE(IntPtrT, var_key_index);
+    FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
+    InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
+                            enum_index);
+  }
 }
 
 template <>
-void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
@@ -9766,11 +9787,13 @@ void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
   Goto(&not_private);
 
   BIND(&not_private);
+  // TODO(pthier): Use insertion_index if it was provided.
   SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
 }
 
 template void CodeStubAssembler::AddToDictionary<NameDictionary>(
-    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*);
+    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*,
+    base::Optional<TNode<IntPtrT>>);
 
 template <class Dictionary>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(

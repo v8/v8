@@ -3511,24 +3511,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNameDictionaryFlags(TNode<Dictionary>, TNode<Smi> flags);
 
-  // Looks up an entry in a NameDictionaryBase successor. If the entry is found
-  // control goes to {if_found} and {var_name_index} contains an index of the
-  // key field of the entry found. If the key is not found control goes to
-  // {if_not_found}.
   enum LookupMode { kFindExisting, kFindInsertionIndex };
 
   template <typename Dictionary>
   TNode<HeapObject> LoadName(TNode<HeapObject> key);
 
+  // Looks up an entry in a NameDictionaryBase successor.
+  // For {mode} == kFindExisting:
+  //   If the entry is found control goes to {if_found} and {var_name_index}
+  //   contains an index of the key field of the entry found.
+  //   If the key is not found and {if_not_found_with_insertion_index} is
+  //   provided, control goes to {if_not_found_with_insertion_index} and
+  //   {var_name_index} contains the index of the key field to insert the given
+  //   name at.
+  //   Otherwise control goes to {if_not_found_no_insertion_index}.
+  // For {mode} == kFindInsertionIndex:
+  //   {if_not_found_no_insertion_index} and {if_not_found_with_insertion_index}
+  //   are treated equally. If {if_not_found_with_insertion_index} is provided,
+  //   control goes to {if_not_found_with_insertion_index}, otherwise control
+  //   goes to {if_not_found_no_insertion_index}. In both cases {var_name_index}
+  //   contains the index of the key field to insert the given name at.
   template <typename Dictionary>
   void NameDictionaryLookup(TNode<Dictionary> dictionary,
                             TNode<Name> unique_name, Label* if_found,
                             TVariable<IntPtrT>* var_name_index,
-                            Label* if_not_found,
-                            LookupMode mode = kFindExisting);
+                            Label* if_not_found_no_insertion_index,
+                            LookupMode mode = kFindExisting,
+                            Label* if_not_found_with_insertion_index = nullptr);
 
   TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 
+  // Looks up an entry in a NameDictionaryBase successor. If the entry is found
+  // control goes to {if_found} and {var_name_index} contains an index of the
+  // key field of the entry found. If the key is not found control goes to
+  // {if_not_found}.
   void NumberDictionaryLookup(TNode<NumberDictionary> dictionary,
                               TNode<IntPtrT> intptr_index, Label* if_found,
                               TVariable<IntPtrT>* var_entry,
@@ -3548,8 +3564,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                    TNode<Smi> enum_index);
 
   template <class Dictionary>
-  void AddToDictionary(TNode<Dictionary> dictionary, TNode<Name> key,
-                       TNode<Object> value, Label* bailout);
+  void AddToDictionary(
+      TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
+      Label* bailout,
+      base::Optional<TNode<IntPtrT>> insertion_index = base::nullopt);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,
