@@ -179,7 +179,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   if (!IsCommitted()) {
     if (!Commit()) return false;
   }
-  DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
+  DCHECK(MemoryChunkHeader::IsAligned(new_capacity));
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, target_capacity_);
   const size_t delta = new_capacity - target_capacity_;
@@ -219,7 +219,7 @@ void SemiSpace::RewindPages(int num_pages) {
 }
 
 void SemiSpace::ShrinkTo(size_t new_capacity) {
-  DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
+  DCHECK(MemoryChunkHeader::IsAligned(new_capacity));
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, target_capacity_);
   if (IsCommitted()) {

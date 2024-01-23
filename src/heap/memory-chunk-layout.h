@@ -45,8 +45,8 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   enum Header {
     // BasicMemoryChunk fields:
     FIELD(uintptr_t, Flags),
-    FIELD(Heap*, Heap),
     FIELD(size_t, Size),
+    FIELD(Heap*, Heap),
     FIELD(Address, AreaStart),
     FIELD(Address, AreaEnd),
     FIELD(size_t, AllocatedBytes),
@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static intptr_t ObjectStartOffsetInCodePage();
   static intptr_t ObjectEndOffsetInCodePage();
   static size_t AllocatableMemoryInCodePage();
-  static intptr_t ObjectStartOffsetInDataPage();
+  static size_t ObjectStartOffsetInDataPage();
   static size_t AllocatableMemoryInDataPage();
   static intptr_t ObjectStartOffsetInReadOnlyPage();
   static size_t AllocatableMemoryInReadOnlyPage();

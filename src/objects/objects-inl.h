@@ -1579,8 +1579,7 @@ Relocatable::~Relocatable() {
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(Address object) {
-  uint32_t value = static_cast<uint32_t>(object);
-  return value & kPageAlignmentMask;
+  return MemoryChunkHeader::AddressToOffset(object);
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,

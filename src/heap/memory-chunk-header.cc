@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-chunk-header.h"
 
+#include "src/heap/base-space.h"
 #include "src/heap/basic-memory-chunk.h"
 
 namespace v8 {
@@ -18,7 +19,21 @@ bool MemoryChunkHeader::InReadOnlySpace() const {
   return IsFlagSet(READ_ONLY_HEAP);
 }
 
-#endif
+#endif  // THREAD_SANITIZER
+
+#ifdef DEBUG
+
+bool MemoryChunkHeader::IsTrusted() const {
+  bool is_trusted = IsFlagSet(IS_TRUSTED);
+  DCHECK_EQ(is_trusted,
+            MemoryChunk()->owner()->identity() == TRUSTED_SPACE ||
+                MemoryChunk()->owner()->identity() == TRUSTED_LO_SPACE);
+  return is_trusted;
+}
+
+#endif  // DEBUG
+
+Heap* MemoryChunkHeader::GetHeap() { return MemoryChunk()->heap(); }
 
 }  // namespace internal
 }  // namespace v8

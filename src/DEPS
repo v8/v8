@@ -39,6 +39,7 @@ include_rules = [
   # TODO(v8:10496): Don't expose memory chunk outside of heap/.
   "+src/heap/memory-chunk.h",
   "+src/heap/memory-chunk-inl.h",
+  "+src/heap/memory-chunk-header.h",
   "+src/heap/paged-spaces-inl.h",
   "+src/heap/parked-scope-inl.h",
   "+src/heap/parked-scope.h",

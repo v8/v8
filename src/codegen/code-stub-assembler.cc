@@ -12805,9 +12805,22 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Comment("] TrapAllocationMemento");
 }
 
+TNode<IntPtrT> CodeStubAssembler::PageHeaderFromAddress(
+    TNode<IntPtrT> address) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return WordAnd(
+      address,
+      IntPtrConstant(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+}
+
+TNode<IntPtrT> CodeStubAssembler::PageFromPageHeader(TNode<IntPtrT> address) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return address;
+}
+
 TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-  return WordAnd(address, IntPtrConstant(~kPageAlignmentMask));
+  return PageFromPageHeader(PageHeaderFromAddress(address));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(

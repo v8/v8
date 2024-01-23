@@ -16,9 +16,9 @@ class BasicMemoryChunk;
 template <typename T>
 class Tagged;
 
-class MemoryChunkHeader {
+class V8_EXPORT_PRIVATE MemoryChunkHeader {
  public:
-  explicit MemoryChunkHeader(Heap* heap) : heap_(heap) {}
+  MemoryChunkHeader() = default;
 
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
@@ -116,20 +116,25 @@ class MemoryChunkHeader {
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
 
-  // TODO(sroettger): can these be private?
-  static constexpr intptr_t kAlignment =
-      (static_cast<uintptr_t>(1) << kPageSizeBits);
-  static constexpr intptr_t kAlignmentMask = kAlignment - 1;
+  V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
   static constexpr Address BaseAddress(Address a) {
+    // If this changes, we also need to update
+    // CodeStubAssembler::PageHeaderFromAddress and
+    // MacroAssembler::MemoryChunkHeaderFromObject
     return a & ~kAlignmentMask;
+  }
+
+  V8_INLINE static MemoryChunkHeader* FromAddress(Address addr) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<MemoryChunkHeader*>(BaseAddress(addr));
   }
 
   template <typename HeapObject>
   V8_INLINE static MemoryChunkHeader* FromHeapObject(
       Tagged<HeapObject> object) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunkHeader*>(BaseAddress(object.ptr()));
+    return FromAddress(object.ptr());
   }
 
   V8_INLINE BasicMemoryChunk* MemoryChunk() {
@@ -169,11 +174,21 @@ class MemoryChunkHeader {
   }
 
   V8_INLINE MainThreadFlags GetFlags() const { return main_thread_flags_; }
-
-  V8_INLINE Heap* GetHeap() {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
+  V8_INLINE void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
+  V8_INLINE void ClearFlag(Flag flag) {
+    main_thread_flags_ = main_thread_flags_.without(flag);
   }
+  // Set or clear multiple flags at a time. `mask` indicates which flags are
+  // should be replaced with new `flags`.
+  V8_INLINE void ClearFlags(MainThreadFlags flags) {
+    main_thread_flags_ &= ~flags;
+  }
+  V8_INLINE void SetFlags(MainThreadFlags flags,
+                          MainThreadFlags mask = kAllFlagsMask) {
+    main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
+  }
+
+  Heap* GetHeap();
 
 #ifdef THREAD_SANITIZER
   bool InReadOnlySpace() const;
@@ -185,19 +200,70 @@ class MemoryChunkHeader {
 
   V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
 
-  // static constexpr size_t kFlagsOffset = 0;
+  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
+  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
+  bool CanAllocate() const {
+    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
+  }
+
+  bool IsEvacuationCandidate() const {
+    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
+    return IsFlagSet(EVACUATION_CANDIDATE);
+  }
+
+  bool ShouldSkipEvacuationSlotRecording() const {
+    MainThreadFlags flags = GetFlags();
+    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
+           ((flags & COMPACTION_WAS_ABORTED) == 0);
+  }
+
+  Executability executable() const {
+    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  }
+
+  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
+  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
+  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
+  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
+  bool InNewLargeObjectSpace() const {
+    return InYoungGeneration() && IsLargePage();
+  }
+  bool IsPinned() const { return IsFlagSet(PINNED); }
+
+  V8_INLINE static constexpr bool IsAligned(Address address) {
+    return (address & kAlignmentMask) == 0;
+  }
+
+#ifdef DEBUG
+  bool IsTrusted() const;
+#else
+  bool IsTrusted() const { return IsFlagSet(IS_TRUSTED); }
+#endif
+
+  static intptr_t GetAlignmentForAllocation() { return kAlignment; }
+  // The macro and code stub assemblers need access to the alignment mask to
+  // implement functionality from this class. In particular, this is used to
+  // implement the header lookups and to calculate the object offsets in the
+  // page.
+  static constexpr intptr_t GetAlignmentMaskForAssembler() {
+    return kAlignmentMask;
+  }
+
+  static constexpr uint32_t AddressToOffset(Address address) {
+    return static_cast<uint32_t>(address) & kAlignmentMask;
+  }
+
+  // TODO(sroettger): make this private when we don't inherit from this class
+  // anymore.
  protected:
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_{NO_FLAGS};
 
-  // TODO(v8:7464): Find a way to remove this.
-  // This goes against the spirit for the BasicMemoryChunk, but until C++14/17
-  // is the default it needs to live here because MemoryChunk is not standard
-  // layout under C++11.
-  // TODO(sroettger): move heap out of the header
-  Heap* heap_;
+  static constexpr intptr_t kAlignment =
+      (static_cast<uintptr_t>(1) << kPageSizeBits);
+  static constexpr intptr_t kAlignmentMask = kAlignment - 1;
 };
 
 }  // namespace internal

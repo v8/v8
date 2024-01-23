@@ -37,11 +37,12 @@ class Page : public MemoryChunk {
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
+    return reinterpret_cast<Page*>(
+        MemoryChunkHeader::FromAddress(addr)->MemoryChunk());
   }
   static Page* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<Page*>(o.ptr() & ~kPageAlignmentMask);
+    return FromAddress(o.ptr());
   }
 
   static Page* cast(BasicMemoryChunk* chunk) {
@@ -69,7 +70,7 @@ class Page : public MemoryChunk {
 
   // Checks whether an address is page aligned.
   static bool IsAlignedToPageSize(Address addr) {
-    return (addr & kPageAlignmentMask) == 0;
+    return MemoryChunkHeader::IsAligned(addr);
   }
 
   static Page* ConvertNewToOld(Page* old_page);

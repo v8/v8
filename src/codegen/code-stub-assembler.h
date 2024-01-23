@@ -3875,6 +3875,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void TrapAllocationMemento(TNode<JSObject> object, Label* memento_found);
 
+  // Helpers to look up MemoryChunk/Page metadata for a given address.
+  // Equivalent to MemoryChunkHeader::FromAddress().
+  TNode<IntPtrT> PageHeaderFromAddress(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunkHeader::MemoryChunk().
+  TNode<IntPtrT> PageFromPageHeader(TNode<IntPtrT> address);
+  // Equivalent to BasicMemoryChunk::FromAddress().
   TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.

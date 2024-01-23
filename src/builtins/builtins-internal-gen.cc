@@ -165,8 +165,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       int shift = MarkingBitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
                   MarkingBitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(r0, IntPtrConstant((kPageAlignmentMask >> shift) &
-                                      ~(MarkingBitmap::kBytesPerCell - 1)));
+      r0 = WordAnd(
+          r0, IntPtrConstant(
+                  (MemoryChunkHeader::GetAlignmentMaskForAssembler() >> shift) &
+                  ~(MarkingBitmap::kBytesPerCell - 1)));
       *cell = IntPtrAdd(bitmap, Signed(r0));
     }
     {

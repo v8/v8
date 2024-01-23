@@ -231,8 +231,9 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
   // predictable address (see mkgrokdump) so we don't supply a hint and rely on
   // the deterministic behaviour of the BoundedPageAllocator.
   if (hint == kNullAddress) {
-    hint = reinterpret_cast<Address>(AlignedAddress(
-        isolate_->heap()->GetRandomMmapAddr(), MemoryChunk::kAlignment));
+    hint = reinterpret_cast<Address>(
+        AlignedAddress(isolate_->heap()->GetRandomMmapAddr(),
+                       MemoryChunkHeader::GetAlignmentForAllocation()));
   }
 #endif
 
@@ -242,8 +243,9 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
   DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
   Address base = AllocateAlignedMemory(
-      chunk_size, area_size, MemoryChunk::kAlignment, space->identity(),
-      executable, reinterpret_cast<void*>(hint), &reservation);
+      chunk_size, area_size, MemoryChunkHeader::GetAlignmentForAllocation(),
+      space->identity(), executable, reinterpret_cast<void*>(hint),
+      &reservation);
   if (base == kNullAddress) return {};
 
   size_ += reservation.size();

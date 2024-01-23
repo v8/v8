@@ -38,8 +38,8 @@ constexpr BasicMemoryChunk::MainThreadFlags
 BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
                                    size_t chunk_size, Address area_start,
                                    Address area_end, VirtualMemory reservation)
-    : MemoryChunkHeader(heap),
-      size_(chunk_size),
+    : size_(chunk_size),
+      heap_(heap),
       area_start_(area_start),
       area_end_(area_end),
       allocated_bytes_(area_end - area_start),
@@ -53,13 +53,6 @@ bool BasicMemoryChunk::InOldSpace() const {
 
 bool BasicMemoryChunk::InLargeObjectSpace() const {
   return owner()->identity() == LO_SPACE;
-}
-
-bool BasicMemoryChunk::IsTrusted() const {
-  bool is_trusted = IsFlagSet(IS_TRUSTED);
-  DCHECK_EQ(is_trusted, owner()->identity() == TRUSTED_SPACE ||
-                            owner()->identity() == TRUSTED_LO_SPACE);
-  return is_trusted;
 }
 
 #ifdef THREAD_SANITIZER

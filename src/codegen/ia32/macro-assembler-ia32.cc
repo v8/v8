@@ -2185,17 +2185,24 @@ void MacroAssembler::LoadLabelAddress(Register dst, Label* lbl) {
   DCHECK(pc_offset() - kStart == kInsDelta);
 }
 
+void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
+                                                 Register header) {
+  constexpr intptr_t alignment_mask =
+      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+  if (header == object) {
+    and_(header, Immediate(~alignment_mask));
+  } else {
+    mov(header, Immediate(~alignment_mask));
+    and_(header, object);
+  }
+}
+
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met,
                                    Label::Distance condition_met_distance) {
   ASM_CODE_COMMENT(this);
   DCHECK(cc == zero || cc == not_zero);
-  if (scratch == object) {
-    and_(scratch, Immediate(~kPageAlignmentMask));
-  } else {
-    mov(scratch, Immediate(~kPageAlignmentMask));
-    and_(scratch, object);
-  }
+  MemoryChunkHeaderFromObject(object, scratch);
   if (mask < (1 << kBitsPerByte)) {
     test_b(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
   } else {

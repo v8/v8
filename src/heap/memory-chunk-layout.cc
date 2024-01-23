@@ -48,7 +48,7 @@ size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
   return memory;
 }
 
-intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
+size_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
   return RoundUp(MemoryChunk::kHeaderSize,
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }

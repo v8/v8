@@ -91,68 +91,14 @@ class BasicMemoryChunk : public MemoryChunkHeader {
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
 
-  // Return all current flags.
-  MainThreadFlags GetFlags() const { return main_thread_flags_; }
-  void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
-  void ClearFlag(Flag flag) {
-    main_thread_flags_ = main_thread_flags_.without(flag);
-  }
-  // Set or clear multiple flags at a time. `mask` indicates which flags are
-  // should be replaced with new `flags`.
-  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
-  void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
-    main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
-  }
-
-  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
-
-  bool CanAllocate() const {
-    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
-  }
-
-  bool IsEvacuationCandidate() const {
-    DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
-    return IsFlagSet(EVACUATION_CANDIDATE);
-  }
-
-  bool ShouldSkipEvacuationSlotRecording() const {
-    MainThreadFlags flags = GetFlags();
-    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
-           ((flags & COMPACTION_WAS_ABORTED) == 0);
-  }
-
-  Executability executable() const {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-  }
-
-  bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
-  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
-  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
-  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
-  bool InYoungGeneration() const {
-    return (GetFlags() & kIsInYoungGenerationMask) != 0;
-  }
-  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
-  bool InNewLargeObjectSpace() const {
-    return InYoungGeneration() && IsLargePage();
-  }
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
-
-  bool InWritableSharedSpace() const {
-    return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
-  }
 
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
     // been sealed and can be written to.
     return !InReadOnlySpace() || heap_ != nullptr;
   }
-
-  bool IsPinned() const { return IsFlagSet(PINNED); }
-
-  bool IsTrusted() const;
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
@@ -198,6 +144,8 @@ class BasicMemoryChunk : public MemoryChunkHeader {
  protected:
   // Overall size of the chunk, including the header and guards.
   size_t size_;
+
+  Heap* heap_;
 
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
