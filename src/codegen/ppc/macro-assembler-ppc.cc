@@ -3036,7 +3036,7 @@ void MacroAssembler::CheckPageFlag(
   DCHECK(cc == ne || cc == eq);
   DCHECK(scratch != r0);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
-  LoadU64(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset), r0);
+  LoadU64(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset), r0);
 
   mov(r0, Operand(mask));
   and_(r0, scratch, r0, SetRC);
