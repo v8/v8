@@ -607,11 +607,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return compilation_state_.get();
   }
 
-  // Create a {CompilationEnv} object for compilation. The caller has to ensure
-  // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
-  // being used.
-  CompilationEnv CreateCompilationEnv() const;
-
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;
   }

@@ -11,6 +11,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
@@ -371,10 +372,6 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
-  return {test_module_.get(), enabled_features_, kNoDynamicTiering};
-}
-
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
@@ -387,6 +384,12 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
+  // In this test setup, the NativeModule gets allocated before functions get
+  // added. The tiering budget array, which gets allocated in the NativeModule
+  // constructor, therefore does not have slots for functions that get added
+  // later. By disabling dynamic tiering, the tiering budget does not get
+  // accessed by generated code.
+  FlagScope<bool> no_dynamic_tiering(&v8_flags.wasm_dynamic_tiering, false);
   const bool kUsesLiftoff = true;
   // Compute the estimate based on {kMaxFunctions} because we might still add
   // functions later. Assume 1k of code per function.
@@ -470,20 +473,17 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   function_->code = {builder_->AddBytes(bytes),
                      static_cast<uint32_t>(bytes.size())};
 
-  base::Vector<const uint8_t> wire_bytes = builder_->instance_object()
-                                               ->module_object()
-                                               ->native_module()
-                                               ->wire_bytes();
+  NativeModule* native_module =
+      builder_->instance_object()->module_object()->native_module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
-  CompilationEnv env = builder_->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end()};
-  NativeModule* native_module =
-      builder_->instance_object()->module_object()->native_module();
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

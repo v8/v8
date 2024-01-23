@@ -4219,6 +4219,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/parallel-move.h",
       "src/wasm/canonical-types.h",
       "src/wasm/code-space-access.h",
+      "src/wasm/compilation-environment-inl.h",
       "src/wasm/compilation-environment.h",
       "src/wasm/constant-expression-interface.h",
       "src/wasm/constant-expression.h",

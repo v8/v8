@@ -15,6 +15,7 @@
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/value-type.h"
@@ -223,7 +224,7 @@ class DebugInfoImpl {
 
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
-    CompilationEnv env = native_module_->CreateCompilationEnv();
+    CompilationEnv env = CompilationEnv::ForModule(native_module_);
     auto* function = &env.module->functions[func_index];
     base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
     FunctionBody body{function->sig, function->code.offset(),

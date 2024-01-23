@@ -252,8 +252,6 @@ class TestingModuleBuilder {
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
 
-  CompilationEnv CreateCompilationEnv();
-
   TestExecutionTier test_execution_tier() const { return execution_tier_; }
 
   ExecutionTier execution_tier() const {

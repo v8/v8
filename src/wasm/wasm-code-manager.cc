@@ -913,10 +913,6 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   }
 }
 
-CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), enabled_features_, compilation_state()->dynamic_tiering()};
-}
-
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<uint8_t> reloc_info;

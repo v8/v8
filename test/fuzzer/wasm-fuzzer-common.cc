@@ -14,6 +14,7 @@
 #include "src/execution/isolate.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
@@ -56,7 +57,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
 
   // Compile all functions with Liftoff.
   WasmCodeRefScope code_ref_scope;
-  auto env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module.get());
   ModuleWireBytes wire_bytes_accessor{wire_bytes};
   for (size_t i = module->num_imported_functions; i < module->functions.size();
        ++i) {

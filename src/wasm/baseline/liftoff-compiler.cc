@@ -24,6 +24,7 @@
 #include "src/utils/utils.h"
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
@@ -8731,7 +8732,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
   base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
-  CompilationEnv env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                          function_bytes.end()};
 

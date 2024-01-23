@@ -14,6 +14,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
@@ -1685,7 +1686,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
                         ->code(Builtin::kWasmToJsWrapperAsm)
                         ->instruction_start();
     } else {
-      wasm::CompilationEnv env = native_module->CreateCompilationEnv();
+      wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
       wasm::WasmCompilationResult result =
           compiler::CompileWasmImportCallWrapper(&env, kind, sig, false,
                                                  expected_arity, suspend);

@@ -2794,6 +2794,7 @@ filegroup(
             "src/wasm/code-space-access.cc",
             "src/wasm/code-space-access.h",
             "src/wasm/compilation-environment.h",
+            "src/wasm/compilation-environment-inl.h",
             "src/wasm/constant-expression.cc",
             "src/wasm/constant-expression.h",
             "src/wasm/constant-expression-interface.cc",

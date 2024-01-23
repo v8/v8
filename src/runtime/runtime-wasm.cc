@@ -14,6 +14,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/value-type.h"
@@ -615,7 +616,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  wasm::CompilationEnv env = native_module->CreateCompilationEnv();
+  wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
   // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
   int expected_arity = -1;
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
