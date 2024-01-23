@@ -76,7 +76,7 @@ class StackHandlerIterator {
     // Make sure the handler has already been unwound to this frame. With stack
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
-    DCHECK_IMPLIES(!v8_flags.experimental_wasm_stack_switching,
+    DCHECK_IMPLIES(frame->isolate()->wasm_stacks() == nullptr,
                    frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
@@ -141,12 +141,11 @@ void StackFrameIterator::Advance() {
 
   // Advance to the calling frame.
   frame_ = SingletonFor(type, &state);
-
   // When we're done iterating over the stack frames, the handler
   // chain must have been completely unwound. Except for wasm stack-switching:
   // we stop at the end of the current segment.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK_IMPLIES(done() && !v8_flags.experimental_wasm_stack_switching,
+  DCHECK_IMPLIES(done() && isolate()->wasm_stacks() == nullptr,
                  handler_ == nullptr);
 #else
   DCHECK_IMPLIES(done(), handler_ == nullptr);
@@ -744,7 +743,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
-    DCHECK(v8_flags.experimental_wasm_stack_switching);
+    DCHECK(isolate_->wasm_stacks() != nullptr);  // I.e., JSPI active
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif
@@ -838,7 +837,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
-    DCHECK(v8_flags.experimental_wasm_stack_switching);
+    DCHECK(isolate_->wasm_stacks() != nullptr);  // I.e., JSPI active
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif
@@ -1274,7 +1273,7 @@ void CommonFrame::ComputeCallerState(State* state) const {
   if (state->fp == kNullAddress) {
     // An empty FP signals the first frame of a stack segment. The caller is
     // on a different stack, or is unbound (suspended stack).
-    DCHECK(v8_flags.experimental_wasm_stack_switching);
+    // DCHECK(isolate_->wasm_stacks() != nullptr); // I.e., JSPI active
     return;
   }
 #endif
@@ -1493,8 +1492,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   Address central_stack_sp = Memory<Address>(
       fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
   FullObjectSlot parameters_limit(
-      v8_flags.experimental_wasm_stack_switching && type == WASM_TO_JS &&
-              central_stack_sp != kNullAddress
+      type == WASM_TO_JS && central_stack_sp != kNullAddress
           ? central_stack_sp
           : frame_header_base.address() - spill_slot_space);
   FullObjectSlot spill_space_end =
@@ -1722,8 +1720,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   Address central_stack_sp =
       Memory<Address>(fp() + WasmToJSWrapperConstants::kCentralStackSPOffset);
   FullObjectSlot parameters_limit(
-      v8_flags.experimental_wasm_stack_switching && is_wasm_to_js &&
-              central_stack_sp != kNullAddress
+      is_wasm_to_js && central_stack_sp != kNullAddress
           ? central_stack_sp
           : frame_header_base.address() - spill_slots_size);
 #else

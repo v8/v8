@@ -10412,6 +10412,9 @@ CALLBACK_SETTER(WasmImportedStringsEnabledCallback,
                 WasmImportedStringsEnabledCallback,
                 wasm_imported_strings_enabled_callback)
 
+CALLBACK_SETTER(WasmJSPIEnabledCallback, WasmJSPIEnabledCallback,
+                wasm_jspi_enabled_callback)
+
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
@@ -10431,6 +10434,7 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
     i::WasmJs::InstallConditionalFeatures(i_isolate,
                                           Utils::OpenHandle(*context));
   }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

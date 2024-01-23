@@ -2213,7 +2213,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::wasm::Suspend suspend = i::wasm::kNoSuspend;
   i::wasm::Promise promise = i::wasm::kNoPromise;
-  if (i::v8_flags.experimental_wasm_stack_switching) {
+
+  if (i_isolate->IsWasmJSPIEnabled(i_isolate->native_context())) {
     // Optional third argument for JS Promise Integration.
     if (!info[2]->IsNullOrUndefined() && !info[2]->IsObject()) {
       thrower.TypeError(
@@ -3376,20 +3377,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Create the Suspender object.
   if (enabled_features.has_stack_switching()) {
-    Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Suspender", WebAssemblySuspender);
-    native_context->set_wasm_suspender_constructor(*suspender_constructor);
-    SetupConstructor(isolate, suspender_constructor, WASM_SUSPENDER_OBJECT_TYPE,
-                     WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
+    InstallSuspenderConstructor(isolate, native_context);
   }
 }
 
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<NativeContext> context) {
-  // Currently nothing to do here; the code below serves as an example
-  // that future conditionally-exposed features can follow.
-#if 0
   Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
@@ -3402,14 +3396,37 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
   if (!webassembly->map()->is_extensible()) return;
 
-  if (isolate->IsMyWasmFeatureEnabled(context)) {
-    Handle<String> feature = isolate->factory()->...;
-    if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
+  /*
+    If you need to install some optional features, follow the pattern:
+
+    if (isolate->IsMyWasmFeatureEnabled(context)) {
+      Handle<String> feature = isolate->factory()->...;
+      if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
+               .FromMaybe(true)) {
+        InstallFeature(isolate, webassembly);
+      }
+    }
+  */
+
+  // Install JSPI-related features.
+  if (isolate->IsWasmJSPIEnabled(context)) {
+    Handle<String> suspender_string = v8_str(isolate, "Suspender");
+    if (!JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
              .FromMaybe(true)) {
-      InstallFeature(isolate, webassembly);
+      InstallSuspenderConstructor(isolate, context);
     }
   }
-#endif
+}
+
+// static
+void WasmJs::InstallSuspenderConstructor(Isolate* isolate,
+                                         Handle<NativeContext> context) {
+  Handle<JSObject> webassembly(context->wasm_webassembly_object(), isolate);
+  Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
+      isolate, webassembly, "Suspender", WebAssemblySuspender);
+  context->set_wasm_suspender_constructor(*suspender_constructor);
+  SetupConstructor(isolate, suspender_constructor, WASM_SUSPENDER_OBJECT_TYPE,
+                   WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
 }
 
 namespace wasm {

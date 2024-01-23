@@ -259,6 +259,9 @@ class Genesis {
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
+#if V8_ENABLE_WEBASSEMBLY
+  void InitializeWasmJSPI();
+#endif
 
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,

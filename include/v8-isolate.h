@@ -1592,6 +1592,8 @@ class V8_EXPORT Isolate {
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
 
+  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
+
   /**
    * Register callback to control whether compile hints magic comments are
    * enabled.

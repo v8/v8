@@ -8072,7 +8072,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // source position 0 encodes the call to the imported JS code.
     SetSourcePosition(call, 0);
 
-    if (v8_flags.experimental_wasm_stack_switching && suspend) {
+    if (suspend) {
       call = BuildSuspend(call, Param(1), Param(0));
     }
 

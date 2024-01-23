@@ -1260,7 +1260,6 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 // Allocate a new suspender, and prepare for stack switching by updating the
 // active continuation, active suspender and stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
   HandleScope scope(isolate);
   Handle<WasmSuspenderObject> suspender = WasmSuspenderObject::New(isolate);
 

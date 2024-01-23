@@ -1608,23 +1608,25 @@ void ReportLiveCodeFromFrameForGC(
 void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
-  if (v8_flags.experimental_wasm_stack_switching) {
-    wasm::StackMemory* current = isolate->wasm_stacks();
-    DCHECK_NOT_NULL(current);
-    do {
-      if (current->IsActive()) {
+
+  wasm::StackMemory* current = isolate->wasm_stacks();
+
+  if (current != nullptr) {
+      do {
+        if (current->IsActive()) {
         // The active stack's jump buffer does not match the current state, use
         // the thread info below instead.
         current = current->next();
         continue;
-      }
+        }
       for (StackFrameIterator it(isolate, current); !it.done(); it.Advance()) {
         StackFrame* const frame = it.frame();
         ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
       }
       current = current->next();
-    } while (current != isolate->wasm_stacks());
+      } while (current != isolate->wasm_stacks());
   }
+
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* const frame = it.frame();
     ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);

@@ -513,6 +513,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     wasm_imported_strings_enabled_callback, nullptr)                          \
   V(JavaScriptCompileHintsMagicEnabledCallback,                               \
     compile_hints_magic_enabled_callback, nullptr)                            \
+  V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)             \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -595,7 +596,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
     FIELD_ACCESSOR(uintptr_t, stack_limit)
     FIELD_ACCESSOR(ThreadState*, thread_state)
-
 #if USE_SIMULATOR
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
@@ -800,6 +800,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InstallConditionalFeatures(Handle<NativeContext> context);
 
+#if V8_ENABLE_WEBASSEMBLY
+  void WasmInitJSPIFeature();
+#endif
+
   bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
 
   bool IsWasmGCEnabled(Handle<NativeContext> context);
@@ -807,7 +811,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
   bool IsWasmInliningIntoJSEnabled(Handle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
-
+  bool IsWasmJSPIEnabled(Handle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Context>, pending_handler_context)
@@ -2700,7 +2704,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  wasm::StackMemory* wasm_stacks_;
+  wasm::StackMemory* wasm_stacks_ = nullptr;
 #endif
 
   // Enables the host application to provide a mechanism for recording a

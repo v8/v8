@@ -600,9 +600,9 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Iterate over pointers on native execution stack.
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  if (v8_flags.experimental_wasm_stack_switching) {
-    wasm::StackMemory* current = wasm_stacks_;
-    DCHECK_NOT_NULL(current);
+
+  wasm::StackMemory* current = wasm_stacks_;
+  if (current != nullptr) {
     do {
       if (current->IsActive()) {
         // The active stack's jump buffer does not match the current state, use
@@ -2036,23 +2036,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         ReadOnlyRoots(this).undefined_value());
   }
 
-  int visited_frames = 0;
-
-#if V8_ENABLE_WEBASSEMBLY
-  // Iterate the chain of stack segments for wasm stack switching.
-  Tagged<WasmContinuationObject> current_stack;
-  if (v8_flags.experimental_wasm_stack_switching) {
-    current_stack =
-        WasmContinuationObject::cast(root(RootIndex::kActiveContinuation));
-  }
-#endif
-
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
+  int visited_frames = 0;
   for (StackFrameIterator iter(this);; iter.Advance(), visited_frames++) {
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.experimental_wasm_stack_switching &&
-        iter.frame()->type() == StackFrame::STACK_SWITCH) {
+    if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
       Tagged<Code> code =
           builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
       HandlerTable table(code);
@@ -2177,31 +2166,30 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // out to user code that could throw.
         UNREACHABLE();
       }
-      case StackFrame::WASM_TO_JS:
-        if (v8_flags.experimental_wasm_stack_switching) {
-          Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
-          if (!IsUndefined(suspender_obj)) {
-            Tagged<WasmSuspenderObject> suspender =
-                WasmSuspenderObject::cast(suspender_obj);
-            // If the wasm-to-js wrapper was on a secondary stack and switched
-            // to the central stack, handle the implicit switch back.
-            Address central_stack_sp = *reinterpret_cast<Address*>(
+      case StackFrame::WASM_TO_JS: {
+        Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
+        if (!IsUndefined(suspender_obj)) {
+          Tagged<WasmSuspenderObject> suspender =
+              WasmSuspenderObject::cast(suspender_obj);
+          // If the wasm-to-js wrapper was on a secondary stack and switched
+          // to the central stack, handle the implicit switch back.
+          Address central_stack_sp = *reinterpret_cast<Address*>(
+              frame->fp() +
+              WasmImportWrapperFrameConstants::kCentralStackSPOffset);
+          bool switched_stacks = central_stack_sp != kNullAddress;
+          if (switched_stacks) {
+            DCHECK_EQ(1, suspender->has_js_frames());
+            suspender->set_has_js_frames(0);
+            thread_local_top()->is_on_central_stack_flag_ = false;
+            Address secondary_stack_limit = Memory<Address>(
                 frame->fp() +
-                WasmImportWrapperFrameConstants::kCentralStackSPOffset);
-            bool switched_stacks = central_stack_sp != kNullAddress;
-            if (switched_stacks) {
-              DCHECK_EQ(1, suspender->has_js_frames());
-              suspender->set_has_js_frames(0);
-              thread_local_top()->is_on_central_stack_flag_ = false;
-              Address secondary_stack_limit = Memory<Address>(
-                  frame->fp() +
-                  WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
-              stack_guard()->SetStackLimitForStackSwitching(
-                  secondary_stack_limit);
-            }
+                WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
+            stack_guard()->SetStackLimitForStackSwitching(
+                secondary_stack_limit);
           }
         }
         break;
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
       case StackFrame::MAGLEV:
@@ -2243,7 +2231,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #if DEBUG
         DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(this, frame->pc()));
 #endif
-        if (v8_flags.experimental_wasm_stack_switching) {
+        {
           Tagged<Code> code = stub_frame->LookupCode();
           if (code->builtin_id() == Builtin::kWasmToJsWrapperCSA) {
             // If the wasm-to-js wrapper was on a secondary stack and switched
@@ -2380,7 +2368,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   }
 
   UNREACHABLE();
-}
+}  // namespace internal
 
 namespace {
 
@@ -3090,6 +3078,21 @@ bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
   }
   // Otherwise use the runtime flag.
   return v8_flags.experimental_wasm_stringref;
+#else
+  return false;
+#endif
+}
+
+bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
+  if (jspi_callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (jspi_callback(api_context)) return true;
+  }
+
+  // Otherwise use the runtime flag.
+  return v8_flags.experimental_wasm_stack_switching;
 #else
   return false;
 #endif
@@ -4964,22 +4967,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.experimental_wasm_stack_switching) {
-    std::unique_ptr<wasm::StackMemory> stack(
-        wasm::StackMemory::GetCurrentStackView(this));
-    this->wasm_stacks() = stack.get();
-    if (v8_flags.trace_wasm_stack_switching) {
-      PrintF("Set up native stack object (limit: %p, base: %p)\n",
-             stack->jslimit(), reinterpret_cast<void*>(stack->base()));
-    }
-    HandleScope scope(this);
-    Handle<WasmContinuationObject> continuation = WasmContinuationObject::New(
-        this, std::move(stack), wasm::JumpBuffer::Active, AllocationType::kOld);
-    heap()
-        ->roots_table()
-        .slot(RootIndex::kActiveContinuation)
-        .store(*continuation);
-  }
+  // Set up for JSPI
+  if (v8_flags.experimental_wasm_stack_switching) WasmInitJSPIFeature();
+
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
@@ -5511,6 +5501,27 @@ void Isolate::FireCallCompletedCallbackInternal(
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+void Isolate::WasmInitJSPIFeature() {
+  if (IsUndefined(root(RootIndex::kActiveContinuation))) {
+    std::unique_ptr<wasm::StackMemory> stack(
+        wasm::StackMemory::GetCurrentStackView(this));
+    this->wasm_stacks() = stack.get();
+    if (v8_flags.trace_wasm_stack_switching) {
+      PrintF("Set up native stack object (limit: %p, base: %p)\n",
+             stack->jslimit(), reinterpret_cast<void*>(stack->base()));
+    }
+    HandleScope scope(this);
+    Handle<WasmContinuationObject> continuation = WasmContinuationObject::New(
+        this, std::move(stack), wasm::JumpBuffer::Active, AllocationType::kOld);
+    heap()
+        ->roots_table()
+        .slot(RootIndex::kActiveContinuation)
+        .store(*continuation);
+  }
+}
+#endif
 
 void Isolate::UpdatePromiseHookProtector() {
   if (Protectors::IsPromiseHookIntact(this)) {

@@ -342,6 +342,9 @@ using SharedArrayBufferConstructorEnabledCallback =
 using JavaScriptCompileHintsMagicEnabledCallback =
     bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly JSPI is enabled ---
+using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
+
 /**
  * HostImportModuleDynamicallyCallback is called when we
  * require the embedder to load a module. This is used as part of the dynamic
