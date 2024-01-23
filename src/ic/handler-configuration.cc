@@ -173,22 +173,15 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
   if (IsSmi(handler)) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
-    if ((kind == Kind::kElement || kind == Kind::kIndexedString) &&
-        AllowOutOfBoundsBits::decode(raw_handler)) {
-      return KeyedAccessLoadMode::kHandleOOB;
+    if (kind == Kind::kElement || kind == Kind::kIndexedString) {
+      int handle_holes =
+          static_cast<int>(AllowHandlingHole::decode(raw_handler)) << 1;
+      int handle_oob =
+          static_cast<int>(AllowOutOfBoundsBits::decode(raw_handler));
+      return static_cast<KeyedAccessLoadMode>(handle_holes | handle_oob);
     }
   }
   return KeyedAccessLoadMode::kInBounds;
-}
-
-// static
-bool LoadHandler::GetConvertHole(MaybeObject handler) {
-  DisallowGarbageCollection no_gc;
-  if (IsSmi(handler)) {
-    int const raw_handler = handler.ToSmi().value();
-    return ConvertHoleBits::decode(raw_handler);
-  }
-  return false;
 }
 
 // static
@@ -381,8 +374,8 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
            << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
            << ", is JSArray = "
            << LoadHandler::IsJsArrayBits::decode(raw_handler)
-           << ", convert hole = "
-           << LoadHandler::ConvertHoleBits::decode(raw_handler)
+           << ", alow reading holes = "
+           << LoadHandler::AllowHandlingHole::decode(raw_handler)
            << ", elements kind = "
            << ElementsKindToString(
                   LoadHandler::ElementsKindBits::decode(raw_handler));

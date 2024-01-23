@@ -2334,8 +2334,10 @@ enum IsolateAddressId {
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode {
-  kInBounds,
-  kHandleOOB,
+  kInBounds = 0b00,
+  kHandleOOB = 0b01,
+  kHandleHoles = 0b10,
+  kHandleOOBAndHoles = 0b11,
 };
 
 inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
@@ -2343,7 +2345,15 @@ inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
 }
 
 inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
-  return load_mode == KeyedAccessLoadMode::kHandleOOB;
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return (static_cast<T>(load_mode) &
+          static_cast<T>(KeyedAccessLoadMode::kHandleOOB)) != 0;
+}
+
+inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return (static_cast<T>(load_mode) &
+          static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }
 
 enum class KeyedAccessStoreMode {

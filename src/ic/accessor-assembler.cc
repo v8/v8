@@ -572,9 +572,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     BIND(&if_hole);
     {
-      Comment("convert hole");
+      Comment("read hole and convert to undefined");
 
-      GotoIfNot(IsSetWord32<LoadHandler::ConvertHoleBits>(handler_word), miss);
+      GotoIfNot(IsSetWord32<LoadHandler::AllowHandlingHole>(handler_word),
+                miss);
       GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       exit_point->Return(access_mode == LoadAccessMode::kHas
                              ? TNode<Object>(FalseConstant())
