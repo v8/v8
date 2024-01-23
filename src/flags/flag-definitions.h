@@ -2164,9 +2164,6 @@ DEFINE_BOOL(soft_abort, false,
 // TODO(saelo): introduce a --sandbox-fuzzing mode as well here
 DEFINE_IMPLICATION(hole_fuzzing, soft_abort)
 
-DEFINE_BOOL(experimental_value_unavailable, true,
-            "enable experimental <value unavailable> in scopes")
-
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")

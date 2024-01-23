@@ -617,37 +617,29 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
     if (IsOptimizedOut(*value, isolate_)) {
-      if (v8_flags.experimental_value_unavailable) {
-        JSObject::SetAccessor(scope, name,
-                              isolate_->factory()->value_unavailable_accessor(),
-                              NONE)
-            .Check();
-        return false;
-      }
-      // Reflect optimized out variables as undefined in scope object.
-      value = isolate_->factory()->undefined_value();
+      JSObject::SetAccessor(
+          scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)
+          .Check();
     } else if (IsTheHole(*value, isolate_)) {
-      if (scope_type == ScopeTypeScript &&
-          JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
+      const bool is_overriden_repl_let =
+          scope_type == ScopeTypeScript &&
+          JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true);
+      if (!is_overriden_repl_let) {
         // We also use the hole to represent overridden let-declarations via
-        // REPL mode in a script context. Catch this case.
-        return false;
-      }
-      if (v8_flags.experimental_value_unavailable) {
+        // REPL mode in a script context. Don't install the unavailable accessor
+        // in that case.
         JSObject::SetAccessor(scope, name,
                               isolate_->factory()->value_unavailable_accessor(),
                               NONE)
             .Check();
-        return false;
       }
-      // Reflect variables under TDZ as undefined in scope object.
-      value = isolate_->factory()->undefined_value();
+    } else {
+      // Overwrite properties. Sometimes names in the same scope can collide,
+      // e.g. with extension objects introduced via local eval.
+      Object::SetPropertyOrElement(isolate_, scope, name, value,
+                                   Just(ShouldThrow::kDontThrow))
+          .Check();
     }
-    // Overwrite properties. Sometimes names in the same scope can collide, e.g.
-    // with extension objects introduced via local eval.
-    Object::SetPropertyOrElement(isolate_, scope, name, value,
-                                 Just(ShouldThrow::kDontThrow))
-        .Check();
     return false;
   };
 
