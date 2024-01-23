@@ -3715,7 +3715,13 @@ void InstructionSelectorT<Adapter>::VisitI32x4ExtractLane(node_t node) {
     }                                                                         \
     InstructionOperand operand0 = g.UseRegister(this->input_at(node, 0));     \
     InstructionOperand operand1 = g.UseImmediate(lane);                       \
-    InstructionOperand operand2 = g.Use(this->input_at(node, 1));             \
+    auto input1 = this->input_at(node, 1);                                    \
+    InstructionOperand operand2;                                              \
+    if constexpr (OPCODE == kIA32F64x2ReplaceLane) {                          \
+      operand2 = g.UseRegister(input1);                                       \
+    } else {                                                                  \
+      operand2 = g.Use(input1);                                               \
+    }                                                                         \
     /* When no-AVX, define dst == src to save a move. */                      \
     InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)      \
                                               : g.DefineSameAsFirst(node);    \
