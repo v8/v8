@@ -39,9 +39,9 @@ namespace internal {
 // Frequent use cases (assuming --expose-gc):
 // 1. Just perform a GC to check whether things improve: `gc()`
 // 2. Test that certain objects indeed are reclaimed:
-//   `await gc{type:'major', execution:'async'})`
+//   `await gc({type:'major', execution:'async'})`
 // 3. Same as 2. but with checking why things did go wrong in a snapshot:
-//   `await gc{type:'major-snapshot', execution:'async'})`
+//   `await gc({type:'major-snapshot', execution:'async'})`
 class GCExtension : public v8::Extension {
  public:
   explicit GCExtension(const char* fun_name)
