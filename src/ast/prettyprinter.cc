@@ -256,6 +256,13 @@ void CallPrinter::VisitInitializeClassStaticElementsStatement(
 
 void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
 
+void CallPrinter::VisitConditionalChain(ConditionalChain* node) {
+  for (size_t i = 0; i < node->conditional_chain_length(); ++i) {
+    Find(node->condition_at(i));
+    Find(node->then_expression_at(i));
+  }
+  Find(node->else_expression());
+}
 
 void CallPrinter::VisitConditional(Conditional* node) {
   Find(node->condition());
@@ -1176,6 +1183,17 @@ void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   PrintLiteralIndented("NAME", node->raw_name(), false);
 }
 
+void AstPrinter::VisitConditionalChain(ConditionalChain* node) {
+  IndentedScope indent(this, "CONDITIONAL_CHAIN", node->position());
+  PrintIndentedVisit("CONDITION", node->condition_at(0));
+  PrintIndentedVisit("THEN", node->then_expression_at(0));
+  for (size_t i = 1; i < node->conditional_chain_length(); ++i) {
+    IndentedScope indent(this, "ELSE IF", node->condition_position_at(i));
+    PrintIndentedVisit("CONDITION", node->condition_at(i));
+    PrintIndentedVisit("THEN", node->then_expression_at(i));
+  }
+  PrintIndentedVisit("ELSE", node->else_expression());
+}
 
 void AstPrinter::VisitConditional(Conditional* node) {
   IndentedScope indent(this, "CONDITIONAL", node->position());

@@ -631,6 +631,9 @@ class PreParserFactory {
                                    int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewConditionalChain(size_t initial_size, int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewConditional(const PreParserExpression& condition,
                                      const PreParserExpression& then_expression,
                                      const PreParserExpression& else_expression,
@@ -1368,6 +1371,18 @@ class PreParser : public ParserBase<PreParser> {
       int pos) {
     return false;
   }
+
+  V8_INLINE bool CollapseConditionalChain(PreParserExpression* x,
+                                          PreParserExpression cond,
+                                          PreParserExpression then_expression,
+                                          PreParserExpression else_expression,
+                                          int pos,
+                                          const SourceRange& then_range) {
+    return false;
+  }
+
+  V8_INLINE void AppendConditionalChainElse(PreParserExpression* x,
+                                            const SourceRange& else_range) {}
 
   V8_INLINE NaryOperation* CollapseNaryExpression(PreParserExpression* x,
                                                   PreParserExpression y,

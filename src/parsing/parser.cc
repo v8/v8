@@ -217,6 +217,33 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
   return false;
 }
 
+bool Parser::CollapseConditionalChain(Expression** x, Expression* cond,
+                                      Expression* then_expression,
+                                      Expression* else_expression, int pos,
+                                      const SourceRange& then_range) {
+  if (*x && (*x)->IsConditionalChain()) {
+    ConditionalChain* conditional_chain = (*x)->AsConditionalChain();
+    if (then_expression != nullptr) {
+      conditional_chain->AddChainEntry(cond, then_expression, pos);
+      AppendConditionalChainSourceRange(conditional_chain, then_range);
+    }
+    if (else_expression != nullptr) {
+      conditional_chain->set_else_expression(else_expression);
+      DCHECK_GT(conditional_chain->conditional_chain_length(), 1);
+    }
+    return true;
+  }
+  return false;
+}
+
+void Parser::AppendConditionalChainElse(Expression** x,
+                                        const SourceRange& else_range) {
+  if (*x && (*x)->IsConditionalChain()) {
+    ConditionalChain* conditional_chain = (*x)->AsConditionalChain();
+    AppendConditionalChainElseSourceRange(conditional_chain, else_range);
+  }
+}
+
 bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
                                     Token::Value op, int pos,
                                     const SourceRange& range) {

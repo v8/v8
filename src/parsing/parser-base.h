@@ -1181,6 +1181,7 @@ class ParserBase {
   // a pattern.
   V8_INLINE ExpressionT ParseExpression();
   V8_INLINE ExpressionT ParseAssignmentExpression();
+  V8_INLINE ExpressionT ParseConditionalChainAssignmentExpression();
 
   // These methods do not wrap the parsing of the expression inside a new
   // expression_scope; they use the outer expression_scope instead. They should
@@ -1191,6 +1192,9 @@ class ParserBase {
   // specification).
   ExpressionT ParseExpressionCoverGrammar();
   ExpressionT ParseAssignmentExpressionCoverGrammar();
+  ExpressionT ParseAssignmentExpressionCoverGrammarContinuation(
+      int lhs_beg_pos, ExpressionT expression);
+  ExpressionT ParseConditionalChainAssignmentExpressionCoverGrammar();
 
   ExpressionT ParseArrowParametersWithRest(ExpressionListT* list,
                                            AccumulationScope* scope,
@@ -1222,6 +1226,8 @@ class ParserBase {
 
   ExpressionT ParseYieldExpression();
   V8_INLINE ExpressionT ParseConditionalExpression();
+  ExpressionT ParseConditionalChainExpression(ExpressionT condition,
+                                              int condition_pos);
   ExpressionT ParseConditionalContinuation(ExpressionT expression, int pos);
   ExpressionT ParseLogicalExpression();
   ExpressionT ParseCoalesceExpression(ExpressionT expression);
@@ -2103,6 +2109,15 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression() {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseConditionalChainAssignmentExpression() {
+  ExpressionParsingScope expression_scope(impl());
+  ExpressionT result = ParseConditionalChainAssignmentExpressionCoverGrammar();
+  expression_scope.ValidateExpression();
+  return result;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseAssignmentExpression() {
   ExpressionParsingScope expression_scope(impl());
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
@@ -2938,6 +2953,34 @@ void ParserBase<Impl>::ParseArguments(
   }
 }
 
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar() {
+  // AssignmentExpression ::
+  //   ArrowFunction
+  //   YieldExpression
+  //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+  int lhs_beg_pos = peek_position();
+
+  if (peek() == Token::YIELD && is_generator()) {
+    return ParseYieldExpression();
+  }
+
+  FuncNameInferrerState fni_state(&fni_);
+
+  DCHECK_IMPLIES(!has_error(), next_arrow_function_info_.HasInitialState());
+
+  ExpressionT expression = ParseLogicalExpression();
+
+  Token::Value op = peek();
+
+  if (!Token::IsArrowOrAssignmentOp(op) || peek() == Token::CONDITIONAL)
+    return expression;
+
+  return ParseAssignmentExpressionCoverGrammarContinuation(lhs_beg_pos,
+                                                           expression);
+}
+
 // Precedence = 2
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
@@ -2962,6 +3005,22 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) return expression;
+
+  return ParseAssignmentExpressionCoverGrammarContinuation(lhs_beg_pos,
+                                                           expression);
+}
+
+// Precedence = 2
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
+    int lhs_beg_pos, ExpressionT expression) {
+  // AssignmentExpression ::
+  //   ConditionalExpression
+  //   ArrowFunction
+  //   YieldExpression
+  //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+  Token::Value op = peek();
 
   // Arrow functions.
   if (V8_UNLIKELY(op == Token::ARROW)) {
@@ -3144,7 +3203,7 @@ ParserBase<Impl>::ParseConditionalExpression() {
   int pos = peek_position();
   ExpressionT expression = ParseLogicalExpression();
   return peek() == Token::CONDITIONAL
-             ? ParseConditionalContinuation(expression, pos)
+             ? ParseConditionalChainExpression(expression, pos)
              : expression;
 }
 
@@ -3203,6 +3262,87 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
     }
   }
   return expression;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseConditionalChainExpression(ExpressionT condition,
+                                                  int condition_pos) {
+  // ConditionalChainExpression ::
+  // ConditionalExpression_1 ? AssignmentExpression_1 :
+  // ConditionalExpression_2 ? AssignmentExpression_2 :
+  // ConditionalExpression_3 ? AssignmentExpression_3 :
+  // ...
+  // ConditionalExpression_n ? AssignmentExpression_n
+
+  ExpressionT expr = impl()->NullExpression();
+  ExpressionT else_expression = impl()->NullExpression();
+  bool else_found = false;
+  ZoneVector<int> else_ranges_beg_pos(impl()->zone());
+  do {
+    SourceRange then_range;
+    ExpressionT then_expression;
+    {
+      SourceRangeScope range_scope(scanner(), &then_range);
+      Consume(Token::CONDITIONAL);
+      // In parsing the first assignment expression in conditional
+      // expressions we always accept the 'in' keyword; see ECMA-262,
+      // section 11.12, page 58.
+      AcceptINScope scope(this, true);
+      then_expression = ParseAssignmentExpression();
+    }
+
+    else_ranges_beg_pos.emplace_back(scanner()->peek_location().beg_pos);
+    int condition_or_else_pos = peek_position();
+    SourceRange condition_or_else_range = SourceRange();
+    ExpressionT condition_or_else_expression;
+    {
+      SourceRangeScope condition_or_else_range_scope(scanner(),
+                                                     &condition_or_else_range);
+      Expect(Token::COLON);
+      condition_or_else_expression =
+          ParseConditionalChainAssignmentExpression();
+    }
+
+    else_found = (peek() != Token::CONDITIONAL);
+
+    if (else_found) {
+      else_expression = condition_or_else_expression;
+
+      if (impl()->IsNull(expr)) {
+        // When we have a single conditional expression, we don't create a
+        // conditional chain expression. Instead, we just return a conditional
+        // expression.
+        SourceRange else_range = condition_or_else_range;
+        expr = factory()->NewConditional(condition, then_expression,
+                                         else_expression, condition_pos);
+        impl()->RecordConditionalSourceRange(expr, then_range, else_range);
+        return expr;
+      }
+    }
+
+    if (impl()->IsNull(expr)) {
+      // For the first conditional expression, we create a conditional chain.
+      expr = factory()->NewConditionalChain(1, condition_pos);
+    }
+
+    impl()->CollapseConditionalChain(&expr, condition, then_expression,
+                                     else_expression, condition_pos,
+                                     then_range);
+
+    if (!else_found) {
+      condition = condition_or_else_expression;
+      condition_pos = condition_or_else_pos;
+    }
+  } while (!else_found);
+
+  int end_pos = scanner()->location().end_pos;
+  for (const auto& else_range_beg_pos : else_ranges_beg_pos) {
+    impl()->AppendConditionalChainElse(
+        &expr, SourceRange(else_range_beg_pos, end_pos));
+  }
+
+  return expr;
 }
 
 template <typename Impl>

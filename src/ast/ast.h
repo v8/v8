@@ -91,6 +91,7 @@ namespace internal {
   V(ClassLiteral)               \
   V(CompareOperation)           \
   V(CompoundAssignment)         \
+  V(ConditionalChain)           \
   V(Conditional)                \
   V(CountOperation)             \
   V(EmptyParentheses)           \
@@ -2037,6 +2038,77 @@ class Spread final : public Expression {
   Expression* expression_;
 };
 
+class ConditionalChain : public Expression {
+ public:
+  Expression* condition_at(size_t index) const {
+    return conditional_chain_entries_[index].condition;
+  }
+  Expression* then_expression_at(size_t index) const {
+    return conditional_chain_entries_[index].then_expression;
+  }
+  int condition_position_at(size_t index) const {
+    return conditional_chain_entries_[index].condition_position;
+  }
+  size_t conditional_chain_length() const {
+    return conditional_chain_entries_.size();
+  }
+  Expression* else_expression() const { return else_expression_; }
+  void set_else_expression(Expression* s) { else_expression_ = s; }
+
+  void AddChainEntry(Expression* cond, Expression* then, int pos) {
+    conditional_chain_entries_.emplace_back(cond, then, pos);
+  }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+
+  ConditionalChain(Zone* zone, size_t initial_size, int pos)
+      : Expression(pos, kConditionalChain),
+        conditional_chain_entries_(zone),
+        else_expression_(nullptr) {
+    conditional_chain_entries_.reserve(initial_size);
+  }
+
+  // Conditional Chain Expression stores the conditional chain entries out of
+  // line, along with their operation's position. The else expression is stored
+  // inline. This Expression is reserved for ternary operations that have more
+  // than one conditional chain entry. For ternary operations with only one
+  // conditional chain entry, the Conditional Expression is used instead.
+  //
+  // So an conditional chain:
+  //
+  //    cond ? then : cond ? then : cond ? then : else
+  //
+  // is stored as:
+  //
+  //    [(cond, then), (cond, then),...] else
+  //    '-----------------------------' '----'
+  //    conditional chain entries       else
+  //
+  // Example:
+  //
+  //    Expression: v1 == 1 ? "a" : v2 == 2 ? "b" : "c"
+  //
+  // conditionat_chain_entries_: [(v1 == 1, "a", 0), (v2 == 2, "b", 14)]
+  // else_expression_: "c"
+  //
+  // Example of a NOT expected expression:
+  //
+  //    Expression: v1 == 1 ? "a" : "b"
+  //
+
+  struct ConditionalChainEntry {
+    Expression* condition;
+    Expression* then_expression;
+    int condition_position;
+    ConditionalChainEntry(Expression* cond, Expression* then, int pos)
+        : condition(cond), then_expression(then), condition_position(pos) {}
+  };
+  ZoneVector<ConditionalChainEntry> conditional_chain_entries_;
+  Expression* else_expression_;
+};
+
 class Conditional final : public Expression {
  public:
   Expression* condition() const { return condition_; }
@@ -3206,6 +3278,10 @@ class AstNodeFactory final {
 
   Spread* NewSpread(Expression* expression, int pos, int expr_pos) {
     return zone_->New<Spread>(expression, pos, expr_pos);
+  }
+
+  ConditionalChain* NewConditionalChain(size_t initial_size, int pos) {
+    return zone_->New<ConditionalChain>(zone_, initial_size, pos);
   }
 
   Conditional* NewConditional(Expression* condition,

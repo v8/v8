@@ -3294,6 +3294,51 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }
 
+void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
+  ConditionalChainControlFlowBuilder conditional_builder(
+      builder(), block_coverage_builder_, expr,
+      expr->conditional_chain_length());
+
+  HoleCheckElisionMergeScope merge_elider(this);
+  {
+    bool should_visit_else_expression = true;
+    HoleCheckElisionScope elider(this);
+    for (size_t i = 0; i < expr->conditional_chain_length(); ++i) {
+      if (expr->condition_at(i)->ToBooleanIsTrue()) {
+        // Generate then block unconditionally as always true.
+        should_visit_else_expression = false;
+        HoleCheckElisionMergeScope::Branch branch(merge_elider);
+        conditional_builder.ThenAt(i);
+        VisitForAccumulatorValue(expr->then_expression_at(i));
+        break;
+      } else if (expr->condition_at(i)->ToBooleanIsFalse()) {
+        // Generate else block unconditionally by skipping the then block.
+        HoleCheckElisionMergeScope::Branch branch(merge_elider);
+        conditional_builder.ElseAt(i);
+      } else {
+        VisitForTest(
+            expr->condition_at(i), conditional_builder.then_labels_at(i),
+            conditional_builder.else_labels_at(i), TestFallthrough::kThen);
+        {
+          HoleCheckElisionMergeScope::Branch branch(merge_elider);
+          conditional_builder.ThenAt(i);
+          VisitForAccumulatorValue(expr->then_expression_at(i));
+        }
+        conditional_builder.JumpToEnd();
+        {
+          HoleCheckElisionMergeScope::Branch branch(merge_elider);
+          conditional_builder.ElseAt(i);
+        }
+      }
+    }
+
+    if (should_visit_else_expression) {
+      VisitForAccumulatorValue(expr->else_expression());
+    }
+  }
+  merge_elider.Merge();
+}
+
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
   ConditionalControlFlowBuilder conditional_builder(
       builder(), block_coverage_builder_, expr);
@@ -7672,6 +7717,15 @@ int BytecodeGenerator::AllocateNaryBlockCoverageSlotIfEnabled(
              ? BlockCoverageBuilder::kNoCoverageArraySlot
              : block_coverage_builder_->AllocateNaryBlockCoverageSlot(node,
                                                                       index);
+}
+
+int BytecodeGenerator::AllocateConditionalChainBlockCoverageSlotIfEnabled(
+    ConditionalChain* node, SourceRangeKind kind, size_t index) {
+  return (block_coverage_builder_ == nullptr)
+             ? BlockCoverageBuilder::kNoCoverageArraySlot
+             : block_coverage_builder_
+                   ->AllocateConditionalChainBlockCoverageSlot(node, kind,
+                                                               index);
 }
 
 void BytecodeGenerator::BuildIncrementBlockCoverageCounterIfEnabled(
