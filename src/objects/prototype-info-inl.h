@@ -106,7 +106,8 @@ void PrototypeInfo::AddDerivedMap(Handle<PrototypeInfo> info, Handle<Map> to,
     info->set_derived_maps(derived, kReleaseStore);
     return;
   }
-  auto derived = Tagged<WeakArrayList>::cast(info->derived_maps());
+  auto derived =
+      handle(Tagged<WeakArrayList>::cast(info->derived_maps()), isolate);
   // Index 0 is the map for object create
   int i = 1;
   for (; i < derived->length(); ++i) {
@@ -117,8 +118,7 @@ void PrototypeInfo::AddDerivedMap(Handle<PrototypeInfo> info, Handle<Map> to,
     }
   }
 
-  auto bigger =
-      WeakArrayList::EnsureSpace(isolate, handle(derived, isolate), i + 1);
+  auto bigger = WeakArrayList::EnsureSpace(isolate, derived, i + 1);
   bigger->Set(i, HeapObjectReference::Weak(*to));
   bigger->set_length(i + 1);
   if (*bigger != *derived) {
