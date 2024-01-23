@@ -1919,7 +1919,7 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script,
     }
     return false;
   }
-  *result = maybe_result;
+  if (result) *result = maybe_result;
   return true;
 }
 }  // namespace
