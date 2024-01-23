@@ -252,6 +252,14 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       : dispatcher_(dispatcher) {}
 
   void Run(JobDelegate* delegate) override {
+    if (dispatcher_->is_flushing()) {
+      DCHECK(incoming_queue()->IsEmpty());
+      while (!destruction_queue()->IsEmpty()) {
+        std::unique_ptr<MaglevCompilationJob> job;
+        destruction_queue()->Dequeue(&job);
+      }
+      return;
+    }
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
@@ -395,7 +403,9 @@ void MaglevConcurrentDispatcher::Flush(BlockingBehavior behavior) {
     incoming_queue_.Dequeue(&job);
   }
   if (behavior == BlockingBehavior::kBlock && job_handle_->IsValid()) {
+    flushing_ = true;
     AwaitCompileJobs();
+    flushing_ = false;
   }
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
