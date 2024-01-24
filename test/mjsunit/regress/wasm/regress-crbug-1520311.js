@@ -28,14 +28,14 @@ let instance = builder.instantiate();
 const kStoreIndex = 1;
 instance.exports.store(kStoreIndex);
 
-let i64 = new BigInt64Array(instance.exports.memory.buffer);
+let i64 = new DataView(instance.exports.memory.buffer);
 
-assertEquals(0n, i64[0]);
-assertEquals(42n, i64[kStoreIndex]);
+assertEquals(0n, i64.getBigInt64(0, true));
+assertEquals(42n, i64.getBigInt64(kStoreIndex * 8, true));
 
 const kLoadIndex = 10;
 const kLoadValue = 1234n;
-i64[kLoadIndex] = kLoadValue;
+i64.setBigInt64(kLoadIndex * 8, kLoadValue, true);
 let load = instance.exports.load;
 assertEquals(0n, load(kLoadIndex * 8));
 assertEquals(kLoadValue, load(kLoadIndex));
