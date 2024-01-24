@@ -8287,13 +8287,27 @@ Maybe<void> v8::Array::Iterate(Local<Context> context,
 }
 
 v8::TypecheckWitness::TypecheckWitness(Isolate* isolate)
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // An empty local suffices.
+    : cached_map_()
+#else
     // We need to reserve a handle that we can patch later.
-    // TODO(13270): When we switch to CSS, we can use a direct pointer
-    // instead of a handle.
-    : cached_map_(v8::Number::New(isolate, 1)) {}
+    // We initialize it with something that cannot compare equal to any map.
+    : cached_map_(v8::Number::New(isolate, 1))
+#endif
+{
+}
 
 void v8::TypecheckWitness::Update(Local<Value> baseline) {
   i::Tagged<i::Object> obj = *Utils::OpenDirectHandle(*baseline);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  if (IsSmi(obj)) {
+    cached_map_ = Local<Data>();
+  } else {
+    i::Tagged<i::HeapObject> map = i::HeapObject::cast(obj)->map();
+    cached_map_ = Local<Data>::FromAddress(map->ptr());
+  }
+#else
   i::Tagged<i::Object> map = i::Smi::zero();
   if (!IsSmi(obj)) map = i::HeapObject::cast(obj)->map();
   // Design overview: in the {TypecheckWitness} constructor, we create
@@ -8302,12 +8316,12 @@ void v8::TypecheckWitness::Update(Local<Value> baseline) {
   // to allow having short-lived HandleScopes (e.g. in {FastIterateArray}
   // above) while a {TypecheckWitness} is alive: it therefore cannot hold
   // on to one of the short-lived handles.
-  // Calling {OpenHandle} on the {cached_map_} only serves to "reinterpret_cast"
-  // it to an {i::Handle} on which we can call {PatchValue}.
-  // TODO(13270): When we switch to CSS, this can become simpler: we can
-  // then simply overwrite the direct pointer.
+  // Calling {OpenIndirectHandle} on the {cached_map_} only serves to
+  // "reinterpret_cast" it to an {i::IndirectHandle} on which we can call
+  // {PatchValue}.
   auto cache = Utils::OpenIndirectHandle(*cached_map_);
   cache.PatchValue(map);
+#endif
 }
 
 Local<v8::Map> v8::Map::New(Isolate* v8_isolate) {
