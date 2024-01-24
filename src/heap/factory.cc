@@ -1301,6 +1301,13 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
                                           DirectHandle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
+
+  Handle<FixedArray> side_data;
+  if (v8_flags.const_tracking_let) {
+    side_data = NewFixedArray(scope_info->ContextLocalCount());
+  } else {
+    side_data = empty_fixed_array();
+  }
   Tagged<Context> context =
       NewContextInternal(handle(outer->script_context_map(), isolate()),
                          Context::SizeFor(variadic_part_length),
@@ -1308,6 +1315,7 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
+  context->set(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX, *side_data);
   DCHECK(context->IsScriptContext());
   return handle(context, isolate());
 }
@@ -1320,6 +1328,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 Handle<Context> Factory::NewModuleContext(DirectHandle<SourceTextModule> module,
                                           DirectHandle<NativeContext> outer,
                                           DirectHandle<ScopeInfo> scope_info) {
+  // TODO(v8:13567): Const tracking let in module contexts.
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Tagged<Context> context = NewContextInternal(
@@ -2015,6 +2024,19 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
   cell->set_name(*name, mode);
   cell->set_value(*value, mode);
   cell->set_property_details_raw(details.AsSmi(), SKIP_WRITE_BARRIER);
+  return handle(cell, isolate());
+}
+
+Handle<ConstTrackingLetCell> Factory::NewConstTrackingLetCell(
+    AllocationType allocation) {
+  static_assert(ConstTrackingLetCell::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<ConstTrackingLetCell> cell = Tagged<ConstTrackingLetCell>::cast(
+      AllocateRawWithImmortalMap(ConstTrackingLetCell::kSize, allocation,
+                                 *global_const_tracking_let_cell_map()));
+  DisallowGarbageCollection no_gc;
+  cell->set_dependent_code(
+      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
+      SKIP_WRITE_BARRIER);
   return handle(cell, isolate());
 }
 

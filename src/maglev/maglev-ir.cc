@@ -3037,6 +3037,54 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                            NegateCondition(ToCondition(condition())), fail);
 }
 
+void CheckConstTrackingLetCell::SetValueLocationConstraints() {
+  UseRegister(context_input());
+  set_temporaries_needed(1);
+}
+
+void CheckConstTrackingLetCell::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  __ RecordComment("CheckConstTrackingLetCell");
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Label done;
+
+  Register context = ToRegister(context_input());
+  Register scratch = temps.Acquire();
+
+  __ GenerateCheckConstTrackingLetCellFooter(context, scratch, index_, &done);
+
+  __ EmitEagerDeopt(this, DeoptimizeReason::kConstTrackingLet);
+  __ bind(&done);
+}
+
+void CheckConstTrackingLetCellTagged::SetValueLocationConstraints() {
+  UseRegister(context_input());
+  UseRegister(value_input());
+  set_temporaries_needed(1);
+}
+
+void CheckConstTrackingLetCellTagged::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  __ RecordComment("CheckConstTrackingLetCellTagged");
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Label done;
+
+  Register context = ToRegister(context_input());
+  Register scratch = temps.Acquire();
+
+  // If we're storing the same value which is already in the context slot, jump
+  // to done.
+  Register value = ToRegister(value_input());
+  __ LoadTaggedField(scratch, context, Context::OffsetOfElementAt(index_));
+  __ CmpTagged(value, scratch);
+  __ JumpIf(kEqual, &done, Label::kNear);
+
+  __ GenerateCheckConstTrackingLetCellFooter(context, scratch, index_, &done);
+
+  __ EmitEagerDeopt(this, DeoptimizeReason::kConstTrackingLet);
+  __ bind(&done);
+}
+
 void CheckString::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
@@ -6448,6 +6496,16 @@ void CheckMapsWithMigration::PrintParams(
 void CheckInt32Condition::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << condition() << ", " << reason() << ")";
+}
+
+void CheckConstTrackingLetCell::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << index_ << ")";
+}
+
+void CheckConstTrackingLetCellTagged::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << index_ << ")";
 }
 
 void CheckedNumberOrOddballToFloat64::PrintParams(

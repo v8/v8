@@ -13267,6 +13267,18 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
   Goto(&context_search);
   BIND(&context_search);
   {
+#if DEBUG
+    // Const tracking let data is stored in the extension slot of a
+    // ScriptContext - however, it's unrelated to the sloppy eval variable
+    // extension. We should never iterate through a ScriptContext here.
+    auto scope_info = LoadScopeInfo(cur_context.value());
+    TNode<Int32T> flags =
+        LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+    auto scope_type = DecodeWord32<ScopeInfo::ScopeTypeBits>(flags);
+    CSA_DCHECK(this, Word32NotEqual(scope_type,
+                                    Int32Constant(ScopeType::SCRIPT_SCOPE)));
+#endif
+
     // Check if context has an extension slot.
     TNode<BoolT> has_extension =
         LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));

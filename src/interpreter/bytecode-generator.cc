@@ -1780,7 +1780,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       if (variable->binding_needs_init()) {
         DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
         builder()->LoadTheHole().StoreContextSlot(execution_context()->reg(),
-                                                  variable->index(), 0);
+                                                  variable, 0);
       }
       break;
     case VariableLocation::LOOKUP: {
@@ -1820,8 +1820,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::CONTEXT: {
       DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
       VisitFunctionLiteral(decl->fun());
-      builder()->StoreContextSlot(execution_context()->reg(), variable->index(),
-                                  0);
+      builder()->StoreContextSlot(execution_context()->reg(), variable, 0);
       break;
     }
     case VariableLocation::LOOKUP: {
@@ -4248,7 +4247,7 @@ void BytecodeGenerator::BuildVariableAssignment(
           // elide subsequent checks.
           RememberHoleCheckInCurrentBlock(variable);
         }
-        builder()->StoreContextSlot(context_reg, variable->index(), depth);
+        builder()->StoreContextSlot(context_reg, variable, depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
       }
@@ -7553,7 +7552,7 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
-        execution_context()->reg(), variable->index(), 0);
+        execution_context()->reg(), variable, 0);
   }
 
   // Copy parameters into context if necessary.
@@ -7566,7 +7565,7 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     builder()->LoadAccumulatorWithRegister(parameter).StoreContextSlot(
-        execution_context()->reg(), variable->index(), 0);
+        execution_context()->reg(), variable, 0);
   }
 }
 

@@ -1689,6 +1689,8 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
 
 Type Typer::Visitor::TypeJSStoreContext(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeJSStoreScriptContext(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
   return Type::OtherInternal();
 }

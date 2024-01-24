@@ -2018,6 +2018,13 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PropertyDetails details = property_details(kAcquireLoad);
   details.PrintAsSlowTo(os, true);
   os << "\n - cell_type: " << details.cell_type();
+  os << "\n - dependent code: " << dependent_code();
+  os << "\n";
+}
+
+void ConstTrackingLetCell::ConstTrackingLetCellPrint(std::ostream& os) {
+  PrintHeader(os, "ConstTrackingLetCell");
+  os << "\n - dependent code: " << dependent_code();
   os << "\n";
 }
 
@@ -3220,6 +3227,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       ShortPrint(cell->value(kAcquireLoad), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
+      break;
+    }
+    case CONST_TRACKING_LET_CELL_TYPE: {
+      os << "<ConstTrackingLetCell>";
       break;
     }
     case ACCESSOR_INFO_TYPE: {

@@ -47,6 +47,7 @@ enum InstanceType : uint16_t;
   V(Code)                               \
   V(CodeWrapper)                        \
   V(ConsString)                         \
+  V(ConstTrackingLetCell)               \
   V(DataHandler)                        \
   V(DebugInfo)                          \
   V(EmbedderDataArray)                  \

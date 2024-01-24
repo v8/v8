@@ -546,6 +546,26 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
       kValueCanBeSmi);
 }
 
+void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
+                                                              Register data,
+                                                              int index,
+                                                              Label* done) {
+  // Load the const tracking let side data.
+  LoadTaggedField(
+      data, context,
+      Context::OffsetOfElementAt(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+  LoadTaggedField(
+      data, data,
+      Context::OffsetOfElementAt(index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+
+  // If the field is already marked as "not a constant", storing a
+  // different value is fine. But if it's anything else (including the hole,
+  // which means no value was stored yet), deopt this code. The lower tier code
+  // will update the side data and invalidate DependentCode if needed.
+  CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
+                         done, Label::kNear);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

@@ -2453,9 +2453,9 @@ void MaglevGraphBuilder::BuildLoadContextSlot(
       context, Context::OffsetOfElementAt(slot_index), kMutable));
 }
 
-void MaglevGraphBuilder::BuildStoreContextSlot(ValueNode* context, size_t depth,
-                                               int slot_index,
-                                               ValueNode* value) {
+void MaglevGraphBuilder::BuildStoreContextSlotHelper(
+    ValueNode* context, size_t depth, int slot_index, ValueNode* value,
+    bool update_const_tracking_let_side_data) {
   MinimizeContextChainDepth(&context, &depth);
 
   if (compilation_unit_->info()->specialize_to_function_context()) {
@@ -2473,8 +2473,29 @@ void MaglevGraphBuilder::BuildStoreContextSlot(ValueNode* context, size_t depth,
         kImmutable);
   }
 
+  if (update_const_tracking_let_side_data) {
+    BuildCheckConstTrackingLetCell(context, value, slot_index);
+  }
+
   StoreAndCacheContextSlot(context, Context::OffsetOfElementAt(slot_index),
                            value);
+}
+
+void MaglevGraphBuilder::BuildStoreContextSlot(ValueNode* context, size_t depth,
+                                               int slot_index,
+                                               ValueNode* value) {
+  constexpr bool kUpdateConstTrackingLetSideData = false;
+  BuildStoreContextSlotHelper(context, depth, slot_index, value,
+                              kUpdateConstTrackingLetSideData);
+}
+
+void MaglevGraphBuilder::BuildStoreScriptContextSlot(ValueNode* context,
+                                                     size_t depth,
+                                                     int slot_index,
+                                                     ValueNode* value) {
+  bool kUpdateConstTrackingLetSideData = v8_flags.const_tracking_let;
+  BuildStoreContextSlotHelper(context, depth, slot_index, value,
+                              kUpdateConstTrackingLetSideData);
 }
 
 void MaglevGraphBuilder::VisitLdaContextSlot() {
@@ -2510,6 +2531,19 @@ void MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
   BuildStoreContextSlot(context, 0, slot_index, GetRawAccumulator());
+}
+
+void MaglevGraphBuilder::VisitStaScriptContextSlot() {
+  ValueNode* context = LoadRegisterTagged(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+  BuildStoreScriptContextSlot(context, depth, slot_index, GetRawAccumulator());
+}
+
+void MaglevGraphBuilder::VisitStaCurrentScriptContextSlot() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+  BuildStoreScriptContextSlot(context, 0, slot_index, GetRawAccumulator());
 }
 
 void MaglevGraphBuilder::VisitStar() {
@@ -2613,6 +2647,10 @@ ReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
   }
   auto script_context = GetConstant(global_access_feedback.script_context());
   int offset = Context::OffsetOfElementAt(global_access_feedback.slot_index());
+  if (v8_flags.const_tracking_let) {
+    BuildCheckConstTrackingLetCell(script_context, GetRawAccumulator(), offset);
+  }
+
   StoreAndCacheContextSlot(script_context, offset, GetRawAccumulator());
   return ReduceResult::Done();
 }
@@ -7412,6 +7450,19 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   }
   SetKnownValue(node, ref);
   return ReduceResult::Done();
+}
+
+void MaglevGraphBuilder::BuildCheckConstTrackingLetCell(ValueNode* context,
+                                                        ValueNode* value,
+                                                        int index) {
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kTagged:
+      AddNewNode<CheckConstTrackingLetCellTagged>({context, value}, index);
+      break;
+    default:
+      AddNewNode<CheckConstTrackingLetCell>({context}, index);
+      break;
+  }
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
