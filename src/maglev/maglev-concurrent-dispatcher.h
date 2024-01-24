@@ -116,15 +116,12 @@ class V8_EXPORT_PRIVATE MaglevConcurrentDispatcher final {
 
   bool is_enabled() const { return static_cast<bool>(job_handle_); }
 
-  bool is_flushing() const { return flushing_; }
-
  private:
   Isolate* const isolate_;
   std::unique_ptr<JobHandle> job_handle_;
   QueueT incoming_queue_;
   QueueT outgoing_queue_;
   QueueT destruction_queue_;
-  std::atomic_bool flushing_ = false;
 };
 
 }  // namespace maglev
