@@ -249,6 +249,10 @@ class Int64LoweringReducer : public Next {
     if (kind.is_atomic) {
       if (loaded_rep == MemoryRepresentation::Int64() ||
           loaded_rep == MemoryRepresentation::Uint64()) {
+        // TODO(jkummerow): Support non-zero scales in AtomicWord32PairOp, and
+        // remove the corresponding bailout in MachineOptimizationReducer to
+        // allow generating them.
+        CHECK_EQ(element_scale, 0);
         return __ AtomicWord32PairLoad(base, index, offset);
       }
       if (result_rep == RegisterRepresentation::Word64()) {
@@ -282,8 +286,10 @@ class Int64LoweringReducer : public Next {
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
       if (kind.is_atomic) {
-        // Linear wasm doesn't use element_size_log2.
-        DCHECK_EQ(element_size_log2, 0);
+        // TODO(jkummerow): Support non-zero scales in AtomicWord32PairOp, and
+        // remove the corresponding bailout in MachineOptimizationReducer to
+        // allow generating them.
+        CHECK_EQ(element_size_log2, 0);
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       return __ Tuple(

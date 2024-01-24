@@ -1700,7 +1700,14 @@ class MachineOptimizationReducer : public Next {
                                maybe_indirect_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
-
+#if V8_TARGET_ARCH_32_BIT
+    if (kind.is_atomic && stored_rep.SizeInBytes() == 8) {
+      // AtomicWord32PairOp (as used by Int64Lowering) cannot handle
+      // element_scale != 0 currently.
+      // TODO(jkummerow): Add support for element_scale in AtomicWord32PairOp.
+      goto no_change;
+    }
+#endif
     if (stored_rep.SizeInBytes() <= 4) {
       value = TryRemoveWord32ToWord64Conversion(value);
     }
@@ -1758,6 +1765,14 @@ class MachineOptimizationReducer : public Next {
                               offset, element_scale);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
+#if V8_TARGET_ARCH_32_BIT
+    if (kind.is_atomic && loaded_rep.SizeInBytes() == 8) {
+      // AtomicWord32PairOp (as used by Int64Lowering) cannot handle
+      // element_scale != 0 currently.
+      // TODO(jkummerow): Add support for element_scale in AtomicWord32PairOp.
+      goto no_change;
+    }
+#endif
 
     while (true) {
       index =
