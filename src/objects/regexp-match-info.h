@@ -81,6 +81,13 @@ class RegExpMatchInfo
   inline int capture(int index) const;
   inline void set_capture(int index, int value);
 
+  static constexpr int capture_start_index(int capture_index) {
+    return capture_index * 2;
+  }
+  static constexpr int capture_end_index(int capture_index) {
+    return capture_index * 2 + 1;
+  }
+
   static constexpr int kMinCapacity = 2;
 
   // Redeclare these here since they are used from generated code.

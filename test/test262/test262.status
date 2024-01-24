@@ -271,24 +271,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13173
-  'built-ins/RegExp/duplicate-named-capturing-groups-syntax': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-group-property-enumeration-order': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-match-indices': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-replace': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-exec': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-matchall': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-match': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-replaceall': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-search': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-split': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-test': [FAIL],
-  'built-ins/RegExp/prototype/exec/duplicate-named-groups-properties': [FAIL],
-  'built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties': [FAIL],
-  'built-ins/String/prototype/match/duplicate-named-groups-properties': [FAIL],
-  'built-ins/String/prototype/match/duplicate-named-indices-groups-properties': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/duplicate-named-capturing-groups-syntax': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=13174
   'built-ins/RegExp/prototype/Symbol.match/flags-tostring-error': [FAIL],
   'built-ins/RegExp/prototype/Symbol.match/get-flags-err': [FAIL],

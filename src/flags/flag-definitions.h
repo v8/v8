@@ -275,8 +275,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
-  V(js_regexp_modifiers, "RegExp modifiers")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)   \
+  V(js_regexp_modifiers, "RegExp modifiers") \
+  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
