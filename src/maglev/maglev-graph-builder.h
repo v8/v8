@@ -1053,13 +1053,8 @@ class MaglevGraphBuilder {
                                 ValueNode* value);
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
-  void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,
-                                   int slot_index, ValueNode* value,
-                                   bool update_side_data);
   void BuildStoreContextSlot(ValueNode* context, size_t depth, int slot_index,
                              ValueNode* value);
-  void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
-                                   int slot_index, ValueNode* value);
 
   void BuildStoreReceiverMap(ValueNode* receiver, compiler::MapRef map);
 
@@ -1924,11 +1919,6 @@ class MaglevGraphBuilder {
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
   ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
-
-  // Checks whether we're invalidating the constness of a const tracking let
-  // variable, and if yes, deopts.
-  void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,
-                                      int index);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);

@@ -1706,12 +1706,6 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
-    if (lookup_result.mode == VariableMode::kLet &&
-        v8_flags.const_tracking_let) {
-      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
-                                              lookup_result.slot_index, value,
-                                              isolate());
-    }
 
     Tagged<Object> previous_value =
         script_context->get(lookup_result.slot_index);

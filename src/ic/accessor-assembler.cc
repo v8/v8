@@ -3391,9 +3391,8 @@ void AccessorAssembler::ScriptContextTableLookup(
     TNode<IntPtrT> context_local_index =
         IndexOfLocalName(scope_info, name, &loop);
 
-    TNode<IntPtrT> var_index =
-        IntPtrAdd(IntPtrConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS),
-                  context_local_index);
+    TNode<IntPtrT> var_index = IntPtrAdd(
+        IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
     TNode<Object> result = LoadContextElement(script_context, var_index);
     GotoIf(IsTheHole(result), found_hole);
     Return(result);
@@ -3804,8 +3803,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(pp->context(), context_index);
-    StoreContextElementAndUpdateSideData(script_context, slot_index,
-                                         pp->value());
+    StoreContextElement(script_context, slot_index, pp->value());
     Return(pp->value());
   }
 

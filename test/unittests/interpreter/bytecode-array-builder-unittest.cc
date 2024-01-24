@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/ast/scopes.h"
-#include "src/common/globals.h"
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -16,7 +15,6 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "test/common/flag-utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -33,8 +31,6 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  FlagScope<bool> const_tracking_let(&i::v8_flags.const_tracking_let, true);
-
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
   Factory* factory = isolate()->factory();
@@ -126,37 +122,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
-  Variable var1(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
-                InitializationFlag::kCreatedInitialized);
-  var1.AllocateTo(VariableLocation::CONTEXT, 1);
-  Variable var3(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
-                InitializationFlag::kCreatedInitialized);
-  var3.AllocateTo(VariableLocation::CONTEXT, 3);
-  Variable let_var(&scope, name, VariableMode::kLet,
-                   VariableKind::NORMAL_VARIABLE,
-                   InitializationFlag::kCreatedInitialized);
-  let_var.AllocateTo(VariableLocation::CONTEXT, 1);
-
   builder.PushContext(reg)
       .PopContext(reg)
       .LoadContextSlot(reg, 1, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, &var1, 0)
+      .StoreContextSlot(reg, 1, 0)
       .LoadContextSlot(reg, 2, 0, BytecodeArrayBuilder::kImmutableSlot)
-      .StoreContextSlot(reg, &var3, 0)
-      .LoadContextSlot(reg, 1, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, &let_var, 0);
+      .StoreContextSlot(reg, 3, 0);
 
   // Emit context operations which operate on the local context.
   builder
       .LoadContextSlot(Register::current_context(), 1, 0,
                        BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(Register::current_context(), &var1, 0)
+      .StoreContextSlot(Register::current_context(), 1, 0)
       .LoadContextSlot(Register::current_context(), 2, 0,
                        BytecodeArrayBuilder::kImmutableSlot)
-      .StoreContextSlot(Register::current_context(), &var3, 0)
-      .LoadContextSlot(Register::current_context(), 1, 0,
-                       BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(Register::current_context(), &let_var, 0);
+      .StoreContextSlot(Register::current_context(), 3, 0);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
@@ -395,12 +375,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       reg, reg, DefineKeyedOwnPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
-  Variable var(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
-               InitializationFlag::kCreatedInitialized);
-  var.AllocateTo(VariableLocation::CONTEXT, 1024);
-
   builder.LoadContextSlot(reg, 1024, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, &var, 0);
+      .StoreContextSlot(reg, 1024, 0);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::kNotInside)

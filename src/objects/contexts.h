@@ -16,7 +16,6 @@
 namespace v8 {
 namespace internal {
 
-class ConstTrackingLetCell;
 class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
@@ -531,10 +530,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots hold values in debug evaluate contexts.
-    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-
-    // This slot holds the const tracking let side data.
-    CONST_TRACKING_LET_SIDE_DATA_INDEX = MIN_CONTEXT_SLOTS,
+    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS
   };
 
   static const int kExtensionSize =
@@ -658,16 +654,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   }
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
-
-  static Tagged<ConstTrackingLetCell> GetOrCreateConstTrackingLetCell(
-      Handle<Context> context, size_t index, Isolate* isolate);
-
-  bool ConstTrackingLetSideDataIsConst(size_t index) const;
-
-  static void UpdateConstTrackingLetSideData(Handle<Context> script_context,
-                                             int index,
-                                             Handle<Object> new_value,
-                                             Isolate* isolate);
 
   static const int kNotFound = -1;
 

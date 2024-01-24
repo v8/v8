@@ -268,8 +268,6 @@ class MergePointInterpreterFrameState;
 
 #define NODE_LIST(V)                        \
   V(AssertInt32)                            \
-  V(CheckConstTrackingLetCell)              \
-  V(CheckConstTrackingLetCellTagged)        \
   V(CheckDynamicValue)                      \
   V(CheckInt32IsSmi)                        \
   V(CheckUint32IsSmi)                       \
@@ -5461,67 +5459,6 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
                            base::bits::WhichPowerOfTwo<size_t>(
                                base::bits::RoundUpToPowerOfTwo32(
                                    kDeoptimizeReasonCount))>;
-};
-
-class CheckConstTrackingLetCell
-    : public FixedInputNodeT<1, CheckConstTrackingLetCell> {
-  using Base = FixedInputNodeT<1, CheckConstTrackingLetCell>;
-
- public:
-  explicit CheckConstTrackingLetCell(uint64_t bitfield, int index)
-      : Base(bitfield), index_(index) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr int kContextIndex = 0;
-  Input& context_input() { return input(kContextIndex); }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    context_input().node()->SetTaggedResultNeedsDecompress();
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  int index_;
-};
-
-class CheckConstTrackingLetCellTagged
-    : public FixedInputNodeT<2, CheckConstTrackingLetCellTagged> {
-  using Base = FixedInputNodeT<2, CheckConstTrackingLetCellTagged>;
-
- public:
-  explicit CheckConstTrackingLetCellTagged(uint64_t bitfield, int index)
-      : Base(bitfield), index_(index) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  static constexpr int kContextIndex = 0;
-  static constexpr int kValueIndex = 1;
-  Input& context_input() { return input(kContextIndex); }
-  Input& value_input() { return input(kValueIndex); }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    context_input().node()->SetTaggedResultNeedsDecompress();
-    value_input().node()->SetTaggedResultNeedsDecompress();
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  int index_;
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
