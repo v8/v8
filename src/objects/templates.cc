@@ -4,6 +4,7 @@
 
 #include "src/objects/templates.h"
 
+#include <algorithm>
 #include <cstdint>
 
 #include "src/api/api-inl.h"
@@ -208,18 +209,10 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
     if (!property_values[i].ToLocal(&property_value)) {
       continue;
     }
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      properties = SwissNameDictionary::Add(
-          isolate, Handle<SwissNameDictionary>::cast(properties),
-          Handle<String>::cast(handle(property_names->get(i), isolate)),
-          Utils::OpenHandle(*property_value), PropertyDetails::Empty());
-
-    } else {
-      properties = NameDictionary::Add(
-          isolate, Handle<NameDictionary>::cast(properties),
-          Handle<String>::cast(handle(property_names->get(i), isolate)),
-          Utils::OpenHandle(*property_value), PropertyDetails::Empty());
-    }
+    properties = PropertyDictionary::Add(
+        isolate, Handle<PropertyDictionary>::cast(properties),
+        Handle<String>::cast(handle(property_names->get(i), isolate)),
+        Utils::OpenHandle(*property_value), PropertyDetails::Empty());
   }
   object->set_raw_properties_or_hash(*properties);
   return object;
@@ -237,13 +230,9 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
 
   const int property_names_len = property_names->length();
   CHECK_EQ(property_names_len, static_cast<int>(property_values.size()));
-  int num_properties_set = 0;
-  for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
-    if (property_values[i].IsEmpty()) {
-      continue;
-    }
-    num_properties_set++;
-  }
+  const int num_properties_set = static_cast<int>(std::count_if(
+      property_values.begin(), property_values.end(),
+      [](const auto& maybe_value) { return !maybe_value.IsEmpty(); }));
 
   if (V8_UNLIKELY(num_properties_set > JSObject::kMaxInObjectProperties)) {
     return CreateSlowJSObjectWithProperties(
