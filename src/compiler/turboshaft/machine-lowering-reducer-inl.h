@@ -746,6 +746,35 @@ class MachineLoweringReducer : public Next {
                   ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned);
         return AllocateHeapNumberWithValue(input);
       }
+      case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+          kHeapNumberOrUndefined: {
+        DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+        DCHECK_EQ(input_interpretation,
+                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned);
+        Label<Tagged> done(this);
+        Label<> allocate_heap_number(this);
+
+        // First check whether {input} is a NaN at all...
+        IF (UNLIKELY(__ Float64IsNaN(input))) {
+          // ...and only if {input} is a NaN, perform the expensive signaling
+          // NaN bit check. See http://crbug.com/v8/8264 for details.
+          GOTO_IF_NOT(__ Word32Equal(__ Float64ExtractHighWord32(input),
+                                     kHoleNanUpper32),
+                      allocate_heap_number);
+          GOTO(done, __ HeapConstant(factory_->undefined_value()));
+        }
+        ELSE {
+          GOTO(allocate_heap_number);
+        }
+        END_IF
+
+        if (BIND(allocate_heap_number)) {
+          GOTO(done, AllocateHeapNumberWithValue(input));
+        }
+
+        BIND(done, result);
+        return result;
+      }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi: {
         DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
         DCHECK_EQ(input_interpretation,

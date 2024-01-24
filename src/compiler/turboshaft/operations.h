@@ -4045,6 +4045,7 @@ struct ConvertUntaggedToJSPrimitiveOp
     kBigInt,
     kBoolean,
     kHeapNumber,
+    kHeapNumberOrUndefined,
     kNumber,
     kSmi,
     kString,
@@ -4099,6 +4100,11 @@ struct ConvertUntaggedToJSPrimitiveOp
       case JSPrimitiveKind::kHeapNumber:
         DCHECK_IMPLIES(
             minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero,
+            input_rep == RegisterRepresentation::Float64());
+        break;
+      case JSPrimitiveKind::kHeapNumberOrUndefined:
+        DCHECK_IMPLIES(
+            minus_zero_mode == CheckForMinusZeroMode::kDontCheckForMinusZero,
             input_rep == RegisterRepresentation::Float64());
         break;
       case JSPrimitiveKind::kSmi:

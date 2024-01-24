@@ -434,6 +434,7 @@
   V(ArgumentsLength)                    \
   V(AssertType)                         \
   V(BooleanNot)                         \
+  V(ChangeFloat64HoleToTagged)          \
   V(CheckBounds)                        \
   V(CheckClosure)                       \
   V(CheckEqualsInternalizedString)      \

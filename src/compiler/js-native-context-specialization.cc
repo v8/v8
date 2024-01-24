@@ -3306,9 +3306,8 @@ JSNativeContextSpecialization::BuildElementAccess(
             graph()->NewNode(simplified()->LoadElement(element_access),
                              elements, index, etrue, if_true);
 
-        // Handle loading from holey backing stores correctly, by either
-        // mapping the hole to undefined if possible, or deoptimizing
-        // otherwise.
+        // Handle loading from holey backing stores correctly by mapping
+        // the hole to undefined.
         if (elements_kind == HOLEY_ELEMENTS ||
             elements_kind == HOLEY_SMI_ELEMENTS) {
           // Turn the hole into undefined.
@@ -3317,10 +3316,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
           // Return the signaling NaN hole directly if all uses are
           // truncating.
-          vtrue = etrue = graph()->NewNode(
-              simplified()->CheckFloat64Hole(
-                  CheckFloat64HoleMode::kAllowReturnHole, FeedbackSource()),
-              vtrue, etrue, if_true);
+          vtrue = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
+                                   vtrue);
         }
       }
 
@@ -3358,16 +3355,18 @@ JSNativeContextSpecialization::BuildElementAccess(
         }
       } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.
-        CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
         // Check if we are allowed to return the hole directly.
         if (CanTreatHoleAsUndefined(receiver_maps)) {
           // Return the signaling NaN hole directly if all uses are
           // truncating.
-          mode = CheckFloat64HoleMode::kAllowReturnHole;
+          value = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
+                                   value);
+        } else {
+          value = effect = graph()->NewNode(
+              simplified()->CheckFloat64Hole(
+                  CheckFloat64HoleMode::kNeverReturnHole, FeedbackSource()),
+              value, effect, control);
         }
-        value = effect = graph()->NewNode(
-            simplified()->CheckFloat64Hole(mode, FeedbackSource()), value,
-            effect, control);
       }
     }
   } else if (keyed_mode.access_mode() == AccessMode::kHas) {

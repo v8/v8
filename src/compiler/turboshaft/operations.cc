@@ -1055,6 +1055,9 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Boolean";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber:
       return os << "HeapNumber";
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+        kHeapNumberOrUndefined:
+      return os << "HeapNumberOrUndefined";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi:

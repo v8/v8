@@ -529,6 +529,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                          value, effect(), control()));
   }
 
+  // TODO(victorgomes): Use the new ChangeFloat64HoleToTagged here.
   // May deopt for holey double elements.
   TNode<Object> TryConvertHoleToUndefined(TNode<Object> value,
                                           ElementsKind kind) {

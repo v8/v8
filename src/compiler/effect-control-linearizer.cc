@@ -81,6 +81,7 @@ class EffectControlLinearizer {
   Node* LowerChangeUint64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
+  Node* LowerChangeFloat64HoleToTagged(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
   Node* LowerChangeTaggedSignedToInt64(Node* node);
   Node* LowerChangeTaggedToBit(Node* node);
@@ -1063,6 +1064,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeFloat64ToTaggedPointer:
       if (v8_flags.turboshaft) return false;
       result = LowerChangeFloat64ToTaggedPointer(node);
+      break;
+    case IrOpcode::kChangeFloat64HoleToTagged:
+      result = LowerChangeFloat64HoleToTagged(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt32:
       if (v8_flags.turboshaft) return false;
@@ -6067,6 +6071,34 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
 
   __ Bind(&done);
   return value;
+}
+
+Node* EffectControlLinearizer::LowerChangeFloat64HoleToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = node->InputAt(0);
+
+  auto if_nan = __ MakeDeferredLabel();
+  auto allocate_heap_number = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  // First check whether {value} is a NaN at all...
+  __ Branch(__ Float64Equal(value, value), &allocate_heap_number, &if_nan);
+
+  __ Bind(&if_nan);
+  {
+    // ...and only if {value} is a NaN, perform the expensive bit
+    // check. See http://crbug.com/v8/8264 for details.
+    __ GotoIfNot(__ Word32Equal(__ Float64ExtractHighWord32(value),
+                                __ Int32Constant(kHoleNanUpper32)),
+                 &allocate_heap_number);
+    __ Goto(&done, __ UndefinedConstant());
+  }
+
+  __ Bind(&allocate_heap_number);
+  __ Goto(&done, AllocateHeapNumberWithValue(value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,

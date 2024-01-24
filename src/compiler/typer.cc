@@ -2372,6 +2372,10 @@ Type Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
   return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
 }
 
+Type Typer::Visitor::TypeChangeFloat64HoleToTagged(Node* node) {
+  return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
+}
+
 Type Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
   Type type = Operand(node, 0);
   type = Type::Intersect(type, Type::NonInternal(), zone());
