@@ -4461,6 +4461,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   // 3. Do the load.
   ValueNode* result;
   if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+    // TODO(victorgomes): Use LoadModeHandlesHoles for holey double arrays.
     if (CanTreatHoleAsUndefined(maps)) {
       result =
           AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements_array, index});
@@ -4474,11 +4475,18 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     DCHECK(!IsDoubleElementsKind(elements_kind));
     result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
     if (IsHoleyElementsKind(elements_kind)) {
-      if (CanTreatHoleAsUndefined(maps)) {
+      if (CanTreatHoleAsUndefined(maps) &&
+          (elements_kind != HOLEY_SMI_ELEMENTS ||
+           LoadModeHandlesHoles(load_mode))) {
         result = AddNewNode<ConvertHoleToUndefined>({result});
       } else {
         result = AddNewNode<CheckNotHole>({result});
+        if (IsSmiElementsKind(elements_kind)) {
+          EnsureType(result, NodeType::kSmi);
+        }
       }
+    } else if (IsSmiElementsKind(elements_kind)) {
+      EnsureType(result, NodeType::kSmi);
     }
   }
   return result;

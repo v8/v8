@@ -174,11 +174,9 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
     if (kind == Kind::kElement || kind == Kind::kIndexedString) {
-      int handle_holes =
-          static_cast<int>(AllowHandlingHole::decode(raw_handler)) << 1;
-      int handle_oob =
-          static_cast<int>(AllowOutOfBoundsBits::decode(raw_handler));
-      return static_cast<KeyedAccessLoadMode>(handle_holes | handle_oob);
+      bool handle_oob = AllowOutOfBoundsBits::decode(raw_handler);
+      bool handle_holes = AllowHandlingHole::decode(raw_handler);
+      return CreateKeyedAccessLoadMode(handle_oob, handle_holes);
     }
   }
   return KeyedAccessLoadMode::kInBounds;

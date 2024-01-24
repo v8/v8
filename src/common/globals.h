@@ -2340,6 +2340,19 @@ enum class KeyedAccessLoadMode {
   kHandleOOBAndHoles = 0b11,
 };
 
+inline KeyedAccessLoadMode CreateKeyedAccessLoadMode(bool handle_oob,
+                                                     bool handle_holes) {
+  return static_cast<KeyedAccessLoadMode>(
+      static_cast<int>(handle_oob) | (static_cast<int>(handle_holes) << 1));
+}
+
+inline KeyedAccessLoadMode GeneralizeKeyedAccessLoadMode(
+    KeyedAccessLoadMode mode1, KeyedAccessLoadMode mode2) {
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return static_cast<KeyedAccessLoadMode>(static_cast<T>(mode1) |
+                                          static_cast<T>(mode2));
+}
+
 inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
   return load_mode == KeyedAccessLoadMode::kInBounds;
 }

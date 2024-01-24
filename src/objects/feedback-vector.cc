@@ -1202,21 +1202,19 @@ Tagged<Name> FeedbackNexus::GetName() const {
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
-
   // TODO(victorgomes): The KeyedAccessLoadMode::kInBounds is doing double duty
   // here. It shouldn't be used for property loads.
-  if (GetKeyType() == IcCheckType::kProperty)
+  if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
-
+  }
   std::vector<MapAndHandler> maps_and_handlers;
   ExtractMapsAndHandlers(&maps_and_handlers);
+  KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
   for (MapAndHandler map_and_handler : maps_and_handlers) {
-    KeyedAccessLoadMode mode =
-        LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second);
-    if (LoadModeHandlesOOB(mode)) return mode;
+    mode = GeneralizeKeyedAccessLoadMode(
+        mode, LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second));
   }
-
-  return KeyedAccessLoadMode::kInBounds;
+  return mode;
 }
 
 namespace {

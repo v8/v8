@@ -1157,13 +1157,6 @@ KeyedAccessLoadMode KeyedLoadIC::GetKeyedAccessLoadModeFor(
   return LoadHandler::GetKeyedAccessLoadMode(*handler);
 }
 
-KeyedAccessLoadMode GeneralizeLoadMode(KeyedAccessLoadMode old_mode,
-                                       KeyedAccessLoadMode new_mode) {
-  using T = std::underlying_type<KeyedAccessLoadMode>::type;
-  return static_cast<KeyedAccessLoadMode>(static_cast<T>(old_mode) |
-                                          static_cast<T>(new_mode));
-}
-
 // Returns whether the load mode transition is allowed.
 bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
                           KeyedAccessLoadMode new_mode) {
@@ -1171,7 +1164,7 @@ bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
   // undefined.
   using T = std::underlying_type<KeyedAccessLoadMode>::type;
   return ((static_cast<T>(old_mode) ^
-           static_cast<T>(GeneralizeLoadMode(old_mode, new_mode))) &
+           static_cast<T>(GeneralizeKeyedAccessLoadMode(old_mode, new_mode))) &
           0b11) != 0;
 }
 
@@ -1242,7 +1235,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   MaybeObjectHandles handlers;
   handlers.reserve(target_receiver_maps.size());
   KeyedAccessLoadMode load_mode =
-      GeneralizeLoadMode(old_load_mode, new_load_mode);
+      GeneralizeKeyedAccessLoadMode(old_load_mode, new_load_mode);
   LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
   DCHECK_LE(1, target_receiver_maps.size());
   if (target_receiver_maps.size() == 1) {
