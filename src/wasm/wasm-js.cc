@@ -3376,7 +3376,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // Create the Suspender object.
-  if (enabled_features.has_stack_switching()) {
+  if (enabled_features.has_jspi()) {
     InstallSuspenderConstructor(isolate, native_context);
   }
 }

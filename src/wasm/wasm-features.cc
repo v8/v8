@@ -50,7 +50,7 @@ WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
     features.Add(kFeature_imported_strings);
   }
   if (isolate->IsWasmJSPIEnabled(context)) {
-    features.Add(kFeature_stack_switching);
+    features.Add(kFeature_jspi);
   }
   // This space intentionally left blank for future Wasm origin trials.
   return features;

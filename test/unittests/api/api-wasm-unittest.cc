@@ -246,13 +246,11 @@ TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
   i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
   // Test enabling/disabling via flag.
   {
-    i::FlagScope<bool> flag_strings(
-        &i::v8_flags.experimental_wasm_stack_switching, true);
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, true);
     EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
   }
   {
-    i::FlagScope<bool> flag_strings(
-        &i::v8_flags.experimental_wasm_stack_switching, false);
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, false);
     EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
   }
   // Test enabling/disabling via callback.

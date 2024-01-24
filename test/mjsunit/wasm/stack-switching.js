@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-stack-switching
+// Flags: --allow-natives-syntax --experimental-wasm-jspi
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
 
 // We pick a small stack size to run the stack overflow test quickly, but big

@@ -3092,7 +3092,7 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
   }
 
   // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_stack_switching;
+  return v8_flags.experimental_wasm_jspi;
 #else
   return false;
 #endif
@@ -4968,7 +4968,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Set up for JSPI
-  if (v8_flags.experimental_wasm_stack_switching) WasmInitJSPIFeature();
+  if (v8_flags.experimental_wasm_jspi) WasmInitJSPIFeature();
 
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.

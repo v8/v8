@@ -45,6 +45,11 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
+  /* JavaScript Promise Integration proposal. */                               \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
+  /* V8 side owner: thibaudm, fgm */                                           \
+  V(jspi, "javascript promise integration", false)                             \
+                                                                               \
   /* Imported Strings Proposal. */                                             \
   /* https://github.com/WebAssembly/js-string-builtins */                      \
   /* V8 side owner: jkummerow */                                               \
