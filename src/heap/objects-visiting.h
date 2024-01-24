@@ -24,12 +24,10 @@ namespace internal {
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BigInt)                             \
-  V(BytecodeArray)                      \
   V(BytecodeWrapper)                    \
   V(CallHandlerInfo)                    \
   V(CallSiteInfo)                       \
   V(Cell)                               \
-  V(Code)                               \
   V(CodeWrapper)                        \
   V(ConsString)                         \
   V(CoverageInfo)                       \
@@ -42,7 +40,6 @@ namespace internal {
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
   V(Hole)                               \
-  V(InstructionStream)                  \
   V(InterpreterData)                    \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
@@ -91,13 +88,13 @@ namespace internal {
   IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmTrustedInstanceData)   \
   IF_WASM(V, WasmTypeInfo)              \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
 TORQUE_VISITOR_ID_LIST(FORWARD_DECLARE)
+TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 // The base class for visitors that need to dispatch on object type. The default
@@ -149,6 +146,7 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
                                        Tagged<TypeName> object);
   TYPED_VISITOR_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
+  TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Tagged<Map> map,
                                               Tagged<ConsString> object);

@@ -1937,6 +1937,12 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::unchecked_cast(*this)->AllocatedSize();
   }
+  if (instance_type == TRUSTED_FIXED_ARRAY_TYPE) {
+    return TrustedFixedArray::unchecked_cast(*this)->AllocatedSize();
+  }
+  if (instance_type == TRUSTED_BYTE_ARRAY_TYPE) {
+    return TrustedByteArray::unchecked_cast(*this)->AllocatedSize();
+  }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
         FeedbackMetadata::unchecked_cast(*this)->slot_count(kAcquireLoad));

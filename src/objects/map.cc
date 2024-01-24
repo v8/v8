@@ -98,9 +98,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   }
 
   switch (instance_type) {
-    case BYTECODE_ARRAY_TYPE:
-      return kVisitBytecodeArray;
-
     case EXTERNAL_POINTER_ARRAY_TYPE:
       return kVisitExternalPointerArray;
 
@@ -159,9 +156,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case MAP_TYPE:
       return kVisitMap;
-
-    case INSTRUCTION_STREAM_TYPE:
-      return kVisitInstructionStream;
 
     case CELL_TYPE:
       return kVisitCell;
@@ -223,9 +217,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case SWISS_NAME_DICTIONARY_TYPE:
       return kVisitSwissNameDictionary;
-
-    case CODE_TYPE:
-      return kVisitCode;
 
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
@@ -398,8 +389,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return kVisitWasmInstanceObject;
-    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      return kVisitWasmTrustedInstanceData;
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:
@@ -436,6 +425,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   case TYPE_UPPER_CASE##_TYPE:               \
     return kVisit##TypeCamelCase;
       SIMPLE_HEAP_OBJECT_LIST2(CASE)
+      CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(CASE)
 #undef CASE
 
     default:

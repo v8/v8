@@ -258,6 +258,14 @@ bool InReadOnlySpace(Tagged<HeapObject> obj) {
   return IsReadOnlyHeapObject(obj);
 }
 
+bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
+#ifdef V8_ENABLE_SANDBOX
+  return !InsideSandbox(obj.address()) || InReadOnlySpace(obj);
+#else
+  return true;
+#endif
+}
+
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps

@@ -1088,8 +1088,11 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
 
 template <typename Op, typename... Args>
 auto BodyDescriptorApply(InstanceType type, Args&&... args) {
-#define CALL_APPLY(ClassName)                                  \
-  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor>( \
+#define CALL_APPLY(ClassName)                                         \
+  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor, false>( \
+      std::forward<Args>(args)...)
+#define CALL_APPLY_TRUSTED(ClassName)                                \
+  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor, true>( \
       std::forward<Args>(args)...)
 
   if (type < FIRST_NONSTRING_TYPE) {
@@ -1285,8 +1288,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return CALL_APPLY(WasmInstanceObject);
-    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      return CALL_APPLY(WasmTrustedInstanceData);
     case WASM_NULL_TYPE:
       return CALL_APPLY(WasmNull);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1316,16 +1317,12 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Foreign);
     case MAP_TYPE:
       return CALL_APPLY(Map);
-    case INSTRUCTION_STREAM_TYPE:
-      return CALL_APPLY(InstructionStream);
     case CELL_TYPE:
       return CALL_APPLY(Cell);
     case PROPERTY_CELL_TYPE:
       return CALL_APPLY(PropertyCell);
     case SYMBOL_TYPE:
       return CALL_APPLY(Symbol);
-    case BYTECODE_ARRAY_TYPE:
-      return CALL_APPLY(BytecodeArray);
     case SMALL_ORDERED_HASH_SET_TYPE:
       return CALL_APPLY(SmallOrderedHashTable<SmallOrderedHashSet>);
     case SMALL_ORDERED_HASH_MAP_TYPE:
@@ -1334,8 +1331,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SmallOrderedHashTable<SmallOrderedNameDictionary>);
     case SWISS_NAME_DICTIONARY_TYPE:
       return CALL_APPLY(SwissNameDictionary);
-    case CODE_TYPE:
-      return CALL_APPLY(Code);
     case PREPARSE_DATA_TYPE:
       return CALL_APPLY(PreparseData);
     case INTERPRETER_DATA_TYPE:
@@ -1381,8 +1376,14 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
           MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
 #undef MAKE_TORQUE_BODY_DESCRIPTOR_APPLY
 
+#define MAKE_TRUSTED_OBJECT_CASE(TypeCamelCase, TYPE_UPPER_CASE) \
+  case TYPE_UPPER_CASE##_TYPE:                                   \
+    return CALL_APPLY_TRUSTED(TypeCamelCase);
+      CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(MAKE_TRUSTED_OBJECT_CASE)
+#undef MAKE_TRUSTED_OBJECT_CASE
+
     case FILLER_TYPE:
-      return Op::template apply<FreeSpaceFillerBodyDescriptor>(
+      return Op::template apply<FreeSpaceFillerBodyDescriptor, false>(
           std::forward<Args>(args)...);
 
     case FREE_SPACE_TYPE:
@@ -1421,9 +1422,22 @@ void HeapObject::IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
 }
 
 struct CallIterateBody {
-  template <typename BodyDescriptor, typename ObjectVisitor>
+  template <typename BodyDescriptor, bool kIsTrusted, typename ObjectVisitor>
   static void apply(Tagged<Map> map, Tagged<HeapObject> obj, int object_size,
                     ObjectVisitor* v) {
+    if constexpr (kIsTrusted) {
+      DCHECK(IsTrustedObject(obj));
+      // This CHECK defends against an attacker crafting fake trusted objects
+      // inside the sandbox. See also crbug.com/c/1505089 for more details.
+      SBXCHECK(OutsideSandboxOrInReadonlySpace(obj));
+    } else {
+      // If this DCHECK fails, it means that a trusted object was not added to
+      // the HEAP_OBJECT_TRUSTED_TYPE_LIST.
+      // Note: This would normally be just !IsTrustedObject(obj), however we
+      // might see trusted objects here before they've been migrated to trusted
+      // space, hence the second condition.
+      DCHECK(!IsTrustedObject(obj) || !IsTrustedSpaceObject(obj));
+    }
     BodyDescriptor::IterateBody(map, obj, object_size, v);
   }
 };

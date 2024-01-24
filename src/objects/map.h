@@ -39,12 +39,10 @@ enum InstanceType : uint16_t;
 #define POINTER_VISITOR_ID_LIST(V)      \
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
-  V(BytecodeArray)                      \
   V(BytecodeWrapper)                    \
   V(CallHandlerInfo)                    \
   V(CallSiteInfo)                       \
   V(Cell)                               \
-  V(Code)                               \
   V(CodeWrapper)                        \
   V(ConsString)                         \
   V(DataHandler)                        \
@@ -56,7 +54,6 @@ enum InstanceType : uint16_t;
   V(FeedbackCell)                       \
   V(FreeSpace)                          \
   V(Hole)                               \
-  V(InstructionStream)                  \
   V(InterpreterData)                    \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
@@ -105,7 +102,6 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmTrustedInstanceData)   \
   IF_WASM(V, WasmTypeInfo)              \
   V(WeakCell)                           \
   SIMPLE_HEAP_OBJECT_LIST1(V)
@@ -114,19 +110,24 @@ enum InstanceType : uint16_t;
   TORQUE_DATA_ONLY_VISITOR_ID_LIST(V) \
   TORQUE_POINTER_VISITOR_ID_LIST(V)
 
+#define TRUSTED_VISITOR_ID_LIST(V) CONCRETE_TRUSTED_OBJECT_TYPE_LIST1(V)
+
 // Objects with the same visitor id are processed in the same way by
 // the heap visitors. The visitor ids for data only objects must precede
 // other visitor ids. We rely on kDataOnlyVisitorIdCount for quick check
 // of whether an object contains only data or may contain pointers.
 enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
+  // clang-format off
   DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-      TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-          kDataOnlyVisitorIdCount,
+  TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  kDataOnlyVisitorIdCount,
   POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-      TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  TRUSTED_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  kVisitorIdCount
+// clang-format on
 #undef VISITOR_ID_ENUM_DECL
-          kVisitorIdCount
 };
 
 enum class ObjectFields {

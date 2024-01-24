@@ -37,10 +37,8 @@ namespace internal {
 #define SIMPLE_HEAP_OBJECT_LIST_GENERATOR(APPLY, V)                      \
   APPLY(V, ArrayList, ARRAY_LIST)                                        \
   APPLY(V, ByteArray, BYTE_ARRAY)                                        \
-  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)                         \
   APPLY(V, ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY)        \
   APPLY(V, FixedArray, FIXED_ARRAY)                                      \
-  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)                       \
   APPLY(V, FixedDoubleArray, FIXED_DOUBLE_ARRAY)                         \
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
@@ -97,7 +95,6 @@ namespace internal {
   IF_WASM(V, WasmStruct)
 
 // TODO(jgruber): Move more types to SIMPLE_HEAP_OBJECT_LIST_GENERATOR.
-// TODO(saelo): Consider adding a TRUSTED_OBJECT_TYPE_LIST_BASE(V).
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
   V(AccessCheckNeeded)                          \
@@ -110,13 +107,10 @@ namespace internal {
   V(Boolean)                                    \
   V(BooleanWrapper)                             \
   V(ExternalPointerArray)                       \
-  V(BytecodeArray)                              \
   V(CallHandlerInfo)                            \
   V(Callable)                                   \
   V(Cell)                                       \
   V(DictionaryTemplateInfo)                     \
-  V(InstructionStream)                          \
-  V(Code)                                       \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
   V(Constructor)                                \
@@ -270,8 +264,6 @@ namespace internal {
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
-  V(TrustedObject)                              \
-  V(ExposedTrustedObject)                       \
   V(TurboshaftFloat64RangeType)                 \
   V(TurboshaftFloat64SetType)                   \
   V(TurboshaftFloat64Type)                      \
@@ -307,7 +299,6 @@ namespace internal {
   IF_WASM(V, WasmStruct)                        \
   IF_WASM(V, WasmTypeInfo)                      \
   IF_WASM(V, WasmTableObject)                   \
-  IF_WASM(V, WasmTrustedInstanceData)           \
   IF_WASM(V, WasmValueObject)                   \
   IF_WASM(V, WasmSuspenderObject)               \
   IF_WASM(V, WasmContinuationObject)            \
@@ -336,6 +327,47 @@ namespace internal {
 #else
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT
+
+//
+// Trusted Objects.
+//
+// Objects that are considered trusted. They must inherit from TrustedObject
+// and live in trusted space, outside of the sandbox.
+//
+
+#define ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
+  APPLY(V, TrustedObject, TRUSTED_OBJECT)                \
+  APPLY(V, ExposedTrustedObject, EXPOSED_TRUSTED_OBJECT)
+
+// Concrete trusted objects. These must:
+// - (Transitively) inherit from TrustedObject
+// - Have a unique instance type
+// - Define a custom body descriptor
+#define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
+  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)         \
+  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)       \
+  APPLY(V, BytecodeArray, BYTECODE_ARRAY)                \
+  APPLY(V, Code, CODE)                                   \
+  APPLY(V, InstructionStream, INSTRUCTION_STREAM)        \
+  IF_WASM(APPLY, V, WasmTrustedInstanceData, WASM_TRUSTED_INSTANCE_DATA)
+
+#define TRUSTED_OBJECT_LIST1_ADAPTER(V, Name, NAME) V(Name)
+#define TRUSTED_OBJECT_LIST2_ADAPTER(V, Name, NAME) V(Name, NAME)
+
+// The format is:
+//   V(TypeCamelCase)
+#define CONCRETE_TRUSTED_OBJECT_TYPE_LIST1(V) \
+  CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(TRUSTED_OBJECT_LIST1_ADAPTER, V)
+// The format is:
+//   V(TypeCamelCase, TYPE_UPPER_CASE)
+#define CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(V) \
+  CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(TRUSTED_OBJECT_LIST2_ADAPTER, V)
+
+// The format is:
+//   V(TypeCamelCase)
+#define HEAP_OBJECT_TRUSTED_TYPE_LIST(V)                                  \
+  ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(TRUSTED_OBJECT_LIST1_ADAPTER, V) \
+  CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(TRUSTED_OBJECT_LIST1_ADAPTER, V)
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) V(HashTable)
 
@@ -393,6 +425,7 @@ namespace internal {
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
+  HEAP_OBJECT_TRUSTED_TYPE_LIST(V)  \
   HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
@@ -425,6 +458,7 @@ namespace internal {
 // These forward-declarations expose heap object types to most of our codebase.
 #define DEF_FWD_DECLARATION(Type) class Type;
 HEAP_OBJECT_ORDINARY_TYPE_LIST(DEF_FWD_DECLARATION)
+HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
 #undef DEF_FWD_DECLARATION
 

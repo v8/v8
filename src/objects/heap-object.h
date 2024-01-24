@@ -550,6 +550,11 @@ STRUCT_LIST(DECL_STRUCT_PREDICATE)
 V8_INLINE bool InAnySharedSpace(Tagged<HeapObject> obj);
 V8_INLINE bool InWritableSharedSpace(Tagged<HeapObject> obj);
 V8_INLINE bool InReadOnlySpace(Tagged<HeapObject> obj);
+// Whether the object is located outside of the sandbox or in read-only
+// space. Currently only needed due to Code objects. Once they are fully
+// migrated into trusted space, this can be replaced by !InsideSandbox().
+static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+V8_INLINE bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj);
 
 }  // namespace internal
 }  // namespace v8
