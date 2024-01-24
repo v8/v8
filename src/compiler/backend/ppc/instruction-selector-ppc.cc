@@ -6,6 +6,7 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/execution/ppc/frame-constants-ppc.h"
 #include "src/roots/roots-inl.h"
 
@@ -34,15 +35,17 @@ class PPCOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       InstructionSelectorT<Adapter>* selector)
       : super(selector) {}
 
-  InstructionOperand UseOperand(Node* node, ImmediateMode mode) {
+  InstructionOperand UseOperand(node_t node, ImmediateMode mode) {
     if (CanBeImmediate(node, mode)) {
       return UseImmediate(node);
     }
     return UseRegister(node);
   }
 
-  bool CanBeImmediate(Node* node, ImmediateMode mode) {
-    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+  bool CanBeImmediate(node_t node, ImmediateMode mode) {
+    if (!this->is_constant(node)) return false;
+    auto constant = this->constant_view(node);
+    if (constant.is_compressed_heap_object()) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -50,9 +53,8 @@ class PPCOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      CompressedHeapObjectMatcher m(node);
-      if (m.HasResolvedValue() &&
-          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+      Handle<HeapObject> value = constant.heap_object_value();
+      if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
                                   root_index, selector()->isolate()),
@@ -61,13 +63,8 @@ class PPCOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       return false;
     }
 
-    int64_t value;
-    if (node->opcode() == IrOpcode::kInt32Constant)
-      value = OpParameter<int32_t>(node->op());
-    else if (node->opcode() == IrOpcode::kInt64Constant)
-      value = OpParameter<int64_t>(node->op());
-    else
-      return false;
+    if (!selector()->is_integer_constant(node)) return false;
+    int64_t value = selector()->integer_constant(node);
     return CanBeImmediate(value, mode);
   }
 
@@ -98,19 +95,19 @@ namespace {
 
 template <typename Adapter>
 void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-             Node* node) {
+             typename Adapter::node_t node) {
   PPCOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-              Node* node) {
+              typename Adapter::node_t node) {
   PPCOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseRegister(node->InputAt(1)));
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseRegister(selector->input_at(node, 1)));
 }
 
 template <typename Adapter>
@@ -142,19 +139,19 @@ void VisitTryTruncateDouble(InstructionSelectorT<Adapter>* selector,
 #endif
 
 // Shared routine for multiple binary operations.
-template <typename Adapter, typename Matcher>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                InstructionCode opcode, ImmediateMode operand_mode,
-                FlagsContinuationT<Adapter>* cont) {
+template <typename Adapter>
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, InstructionCode opcode,
+                ImmediateMode operand_mode, FlagsContinuationT<Adapter>* cont) {
   PPCOperandGeneratorT<Adapter> g(selector);
-  Matcher m(node);
   InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
 
-  inputs[input_count++] = g.UseRegister(m.left().node());
-  inputs[input_count++] = g.UseOperand(m.right().node(), operand_mode);
+  inputs[input_count++] = g.UseRegister(selector->input_at(node, 0));
+  inputs[input_count++] =
+      g.UseOperand(selector->input_at(node, 1), operand_mode);
 
   if (cont->IsDeoptimize()) {
     // If we can deoptimize as a result of the binop, we need to make sure that
@@ -175,27 +172,24 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 // Shared routine for multiple binary operations.
-template <typename Adapter, typename Matcher>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                InstructionCode opcode, ImmediateMode operand_mode) {
+template <typename Adapter>
+void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                typename Adapter::node_t node, InstructionCode opcode,
+                ImmediateMode operand_mode) {
   FlagsContinuationT<Adapter> cont;
-  VisitBinop<Adapter, Matcher>(selector, node, opcode, operand_mode, &cont);
+  VisitBinop<Adapter>(selector, node, opcode, operand_mode, &cont);
 }
 
 }  // namespace
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
-    OperandGenerator g(this);
+  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
+  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  OperandGenerator g(this);
 
-    Emit(kArchStackSlot, g.DefineAsRegister(node),
-         sequence()->AddImmediate(Constant(slot)), 0, nullptr);
-  }
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
 template <typename Adapter>
@@ -209,47 +203,48 @@ void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
 }
 
 template <typename Adapter>
-static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector, Node* node,
+static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector,
+                            typename Adapter::node_t node,
                             LoadRepresentation load_rep) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+  using node_t = typename Adapter::node_t;
+  PPCOperandGeneratorT<Adapter> g(selector);
+  auto load_view = selector->load_view(node);
+  node_t base = load_view.base();
+  node_t offset = selector->value(load_view.index());
+
+  InstructionCode opcode = kArchNop;
+  ImmediateMode mode;
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    mode = kInt34Imm;
   } else {
-    PPCOperandGeneratorT<Adapter> g(selector);
-    Node* base = node->InputAt(0);
-    Node* offset = node->InputAt(1);
-    InstructionCode opcode = kArchNop;
-    ImmediateMode mode;
-    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-      mode = kInt34Imm;
-    } else {
-      mode = kInt16Imm;
-    }
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kFloat32:
-        opcode = kPPC_LoadFloat32;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kPPC_LoadDouble;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsSigned() ? kPPC_LoadWordS8 : kPPC_LoadWordU8;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsSigned() ? kPPC_LoadWordS16 : kPPC_LoadWordU16;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = kPPC_LoadWordU32;
-        break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:
+    mode = kInt16Imm;
+  }
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      opcode = kPPC_LoadFloat32;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kPPC_LoadDouble;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kPPC_LoadWordS8 : kPPC_LoadWordU8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kPPC_LoadWordS16 : kPPC_LoadWordU16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kPPC_LoadWordU32;
+      break;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
-        opcode = kPPC_LoadWordS32;
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+      opcode = kPPC_LoadWordS32;
+      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+      break;
 #else
-        UNREACHABLE();
+      UNREACHABLE();
 #endif
-        break;
       case MachineRepresentation::kIndirectPointer:
         UNREACHABLE();
       case MachineRepresentation::kSandboxedPointer:
@@ -266,29 +261,28 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         opcode = kPPC_LoadDecompressTagged;
         break;
 #else
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:         // Fall through.
 #endif
-    case MachineRepresentation::kWord64:
-      opcode = kPPC_LoadWord64;
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kPPC_LoadSimd128;
-      // Vectors do not support MRI mode, only MRR is available.
-      mode = kNoImmediate;
-      break;
-    case MachineRepresentation::kSimd256:  // Fall through.
-    case MachineRepresentation::kMapWord:  // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-    }
+      case MachineRepresentation::kWord64:
+        opcode = kPPC_LoadWord64;
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+        break;
+      case MachineRepresentation::kSimd128:
+        opcode = kPPC_LoadSimd128;
+        // Vectors do not support MRI mode, only MRR is available.
+        mode = kNoImmediate;
+        break;
+      case MachineRepresentation::kSimd256:  // Fall through.
+      case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kNone:
+        UNREACHABLE();
+  }
 
-  bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
-                    node->opcode() == IrOpcode::kWord64AtomicLoad);
+  bool is_atomic = load_view.is_atomic();
 
-  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+  if (selector->is_load_root_register(base)) {
     selector->Emit(opcode |= AddressingModeField::encode(kMode_Root),
                    g.DefineAsRegister(node), g.UseRegister(offset),
                    g.UseImmediate(is_atomic));
@@ -305,18 +299,13 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector, Node* node,
                    g.DefineAsRegister(node), g.UseRegister(base),
                    g.UseRegister(offset), g.UseImmediate(is_atomic));
   }
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   typename Adapter::LoadView load = this->load_view(node);
   LoadRepresentation load_rep = load.loaded_rep();
   VisitLoadCommon(this, node, load_rep);
-  }
 }
 
 template <typename Adapter>
@@ -326,17 +315,17 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
 }
 
 template <typename Adapter>
-void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
+void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node,
                       StoreRepresentation store_rep,
                       base::Optional<AtomicMemoryOrder> atomic_order) {
+  using node_t = typename Adapter::node_t;
   PPCOperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* offset = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
-  // TODO(miladfarca): maybe use atomic_order?
-  bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicStore ||
-                    node->opcode() == IrOpcode::kWord64AtomicStore);
+  auto store_view = selector->store_view(node);
+  node_t base = store_view.base();
+  node_t offset = selector->value(store_view.index());
+  node_t value = store_view.value();
+  bool is_atomic = store_view.is_atomic();
 
   MachineRepresentation rep = store_rep.representation();
   WriteBarrierKind write_barrier_kind = kNoWriteBarrier;
@@ -377,11 +366,10 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
     size_t const temp_count = arraysize(temps);
     InstructionCode code;
     if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(node->opcode(), IrOpcode::kStoreIndirectPointer);
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      Node* tag = node->InputAt(3);
+      node_t tag = store_view.indirect_pointer_tag();
       inputs[input_count++] = g.UseImmediate(tag);
     } else {
       code = kArchStoreWithWriteBarrier;
@@ -398,7 +386,6 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
     } else {
       mode = kInt16Imm;
     }
-    NodeMatcher m(value);
     switch (rep) {
       case MachineRepresentation::kFloat32:
         opcode = kPPC_StoreFloat32;
@@ -413,14 +400,24 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
       case MachineRepresentation::kWord16:
         opcode = kPPC_StoreWord16;
         break;
-      case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord32: {
         opcode = kPPC_StoreWord32;
-        if (m.IsWord32ReverseBytes()) {
+        bool is_w32_reverse_bytes = false;
+        if constexpr (Adapter::IsTurboshaft) {
+          using namespace turboshaft;  // NOLINT(build/namespaces)
+          const Operation& reverse_op = selector->Get(value);
+          is_w32_reverse_bytes = reverse_op.Is<Opmask::kWord32ReverseBytes>();
+        } else {
+          NodeMatcher m(value);
+          is_w32_reverse_bytes = m.IsWord32ReverseBytes();
+        }
+        if (is_w32_reverse_bytes) {
           opcode = kPPC_StoreByteRev32;
-          value = value->InputAt(0);
+          value = selector->input_at(value, 0);
           mode = kNoImmediate;
         }
         break;
+      }
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
@@ -444,15 +441,25 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
         opcode = kPPC_StoreCompressTagged;
         break;
-      case MachineRepresentation::kWord64:
+      case MachineRepresentation::kWord64: {
         opcode = kPPC_StoreWord64;
         if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        if (m.IsWord64ReverseBytes()) {
+        bool is_w64_reverse_bytes = false;
+        if constexpr (Adapter::IsTurboshaft) {
+          using namespace turboshaft;  // NOLINT(build/namespaces)
+          const Operation& reverse_op = selector->Get(value);
+          is_w64_reverse_bytes = reverse_op.Is<Opmask::kWord64ReverseBytes>();
+        } else {
+          NodeMatcher m(value);
+          is_w64_reverse_bytes = m.IsWord64ReverseBytes();
+        }
+        if (is_w64_reverse_bytes) {
           opcode = kPPC_StoreByteRev64;
-          value = value->InputAt(0);
+          value = selector->input_at(value, 0);
           mode = kNoImmediate;
         }
         break;
+      }
       case MachineRepresentation::kSimd128:
         opcode = kPPC_StoreSimd128;
         // Vectors do not support MRI mode, only MRR is available.
@@ -464,7 +471,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         UNREACHABLE();
     }
 
-    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    if (selector->is_load_root_register(base)) {
       selector->Emit(opcode | AddressingModeField::encode(kMode_Root),
                      g.NoOutput(), g.UseRegister(offset), g.UseRegister(value),
                      g.UseImmediate(is_atomic));
@@ -491,12 +498,8 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
-                     base::nullopt);
-  }
+  VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
+                   base::nullopt);
 }
 
 template <typename Adapter>
@@ -515,6 +518,60 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
+}
+
+static void VisitLogical(InstructionSelectorT<TurboshaftAdapter>* selector,
+                         turboshaft::OpIndex node, ArchOpcode opcode,
+                         bool left_can_cover, bool right_can_cover,
+                         ImmediateMode imm_mode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  PPCOperandGeneratorT<TurboshaftAdapter> g(selector);
+  const WordBinopOp& logical_op = selector->Get(node).Cast<WordBinopOp>();
+  const Operation& lhs = selector->Get(logical_op.left());
+  const Operation& rhs = selector->Get(logical_op.right());
+
+  // Map instruction to equivalent operation with inverted right input.
+  ArchOpcode inv_opcode = opcode;
+  switch (opcode) {
+    case kPPC_And:
+      inv_opcode = kPPC_AndComplement;
+      break;
+    case kPPC_Or:
+      inv_opcode = kPPC_OrComplement;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  // Select Logical(y, ~x) for Logical(Xor(x, -1), y).
+  if (lhs.Is<Opmask::kBitwiseXor>() && left_can_cover) {
+    const WordBinopOp& xor_op = lhs.Cast<WordBinopOp>();
+    int64_t xor_rhs_val;
+    if (selector->MatchSignedIntegralConstant(xor_op.right(), &xor_rhs_val) &&
+        xor_rhs_val == -1) {
+      // TODO(all): support shifted operand on right.
+      selector->Emit(inv_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(logical_op.right()),
+                     g.UseRegister(xor_op.left()));
+      return;
+    }
+  }
+
+  // Select Logical(x, ~y) for Logical(x, Xor(y, -1)).
+  if (rhs.Is<Opmask::kBitwiseXor>() && right_can_cover) {
+    const WordBinopOp& xor_op = rhs.Cast<WordBinopOp>();
+    int64_t xor_rhs_val;
+    if (selector->MatchSignedIntegralConstant(xor_op.right(), &xor_rhs_val) &&
+        xor_rhs_val == -1) {
+      // TODO(all): support shifted operand on right.
+      selector->Emit(inv_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(logical_op.left()),
+                     g.UseRegister(xor_op.left()));
+      return;
+    }
+  }
+
+  VisitBinop<TurboshaftAdapter>(selector, node, opcode, imm_mode);
 }
 
 template <typename Adapter, typename Matcher>
@@ -560,7 +617,7 @@ static void VisitLogical(InstructionSelectorT<Adapter>* selector, Node* node,
     }
   }
 
-  VisitBinop<Adapter, Matcher>(selector, node, opcode, imm_mode);
+  VisitBinop<Adapter>(selector, node, opcode, imm_mode);
 }
 
 static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
@@ -587,57 +644,154 @@ static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
 }
 #endif
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  PPCOperandGeneratorT<TurboshaftAdapter> g(this);
+
+  const WordBinopOp& bitwise_and = Get(node).Cast<WordBinopOp>();
+  int mb = 0;
+  int me = 0;
+  if (is_integer_constant(bitwise_and.right()) &&
+      IsContiguousMask32(integer_constant(bitwise_and.right()), &mb, &me)) {
+    int sh = 0;
+    node_t left = bitwise_and.left();
+    const Operation& lhs = Get(left);
+    if ((lhs.Is<Opmask::kWord32ShiftRightLogical>() ||
+         lhs.Is<Opmask::kWord32ShiftLeft>()) &&
+        CanCover(node, left)) {
+      // Try to absorb left/right shift into rlwinm
+      int32_t shift_by;
+      const WordBinopOp& shift_op = lhs.Cast<WordBinopOp>();
+      if (MatchIntegralWord32Constant(shift_op.right(), &shift_by) &&
+          base::IsInRange(shift_by, 0, 31)) {
+        left = shift_op.left();
+        sh = integer_constant(shift_op.right());
+        if (lhs.Is<Opmask::kWord32ShiftRightLogical>()) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (mb > 31 - sh) mb = 31 - sh;
+          sh = (32 - sh) & 0x1F;
+        } else {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (me < sh) me = sh;
+        }
+      }
+    }
+    if (mb >= me) {
+      Emit(kPPC_RotLeftAndMask32, g.DefineAsRegister(node), g.UseRegister(left),
+           g.TempImmediate(sh), g.TempImmediate(mb), g.TempImmediate(me));
+      return;
+    }
+  }
+  VisitLogical(this, node, kPPC_And, CanCover(node, bitwise_and.left()),
+               CanCover(node, bitwise_and.right()), kInt16Imm_Unsigned);
+}
+
 // TODO(mbrandy): Absorb rotate-right into rlwinm?
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    PPCOperandGeneratorT<Adapter> g(this);
-    Int32BinopMatcher m(node);
-    int mb = 0;
-    int me = 0;
-    if (m.right().HasResolvedValue() &&
-        IsContiguousMask32(m.right().ResolvedValue(), &mb, &me)) {
-      int sh = 0;
-      Node* left = m.left().node();
-      if ((m.left().IsWord32Shr() || m.left().IsWord32Shl()) &&
-          CanCover(node, left)) {
-        // Try to absorb left/right shift into rlwinm
-        Int32BinopMatcher mleft(m.left().node());
-        if (mleft.right().IsInRange(0, 31)) {
-          left = mleft.left().node();
-          sh = mleft.right().ResolvedValue();
-          if (m.left().IsWord32Shr()) {
-            // Adjust the mask such that it doesn't include any rotated bits.
-            if (mb > 31 - sh) mb = 31 - sh;
-            sh = (32 - sh) & 0x1F;
-          } else {
-            // Adjust the mask such that it doesn't include any rotated bits.
-            if (me < sh) me = sh;
-          }
+  PPCOperandGeneratorT<Adapter> g(this);
+  Int32BinopMatcher m(node);
+  int mb = 0;
+  int me = 0;
+  if (m.right().HasResolvedValue() &&
+      IsContiguousMask32(m.right().ResolvedValue(), &mb, &me)) {
+    int sh = 0;
+    Node* left = m.left().node();
+    if ((m.left().IsWord32Shr() || m.left().IsWord32Shl()) &&
+        CanCover(node, left)) {
+      // Try to absorb left/right shift into rlwinm
+      Int32BinopMatcher mleft(m.left().node());
+      if (mleft.right().IsInRange(0, 31)) {
+        left = mleft.left().node();
+        sh = mleft.right().ResolvedValue();
+        if (m.left().IsWord32Shr()) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (mb > 31 - sh) mb = 31 - sh;
+          sh = (32 - sh) & 0x1F;
+        } else {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (me < sh) me = sh;
         }
       }
-      if (mb >= me) {
-        Emit(kPPC_RotLeftAndMask32, g.DefineAsRegister(node),
-             g.UseRegister(left), g.TempImmediate(sh), g.TempImmediate(mb),
-             g.TempImmediate(me));
-        return;
-      }
     }
+    if (mb >= me) {
+      Emit(kPPC_RotLeftAndMask32, g.DefineAsRegister(node), g.UseRegister(left),
+           g.TempImmediate(sh), g.TempImmediate(mb), g.TempImmediate(me));
+      return;
+    }
+  }
     VisitLogical<Adapter, Int32BinopMatcher>(
         this, node, &m, kPPC_And, CanCover(node, m.left().node()),
         CanCover(node, m.right().node()), kInt16Imm_Unsigned);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64And(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  PPCOperandGeneratorT<TurboshaftAdapter> g(this);
+
+  const WordBinopOp& bitwise_and = Get(node).Cast<WordBinopOp>();
+  int mb = 0;
+  int me = 0;
+  if (is_integer_constant(bitwise_and.right()) &&
+      IsContiguousMask64(integer_constant(bitwise_and.right()), &mb, &me)) {
+    int sh = 0;
+    node_t left = bitwise_and.left();
+    const Operation& lhs = Get(left);
+    if ((lhs.Is<Opmask::kWord64ShiftRightLogical>() ||
+         lhs.Is<Opmask::kWord64ShiftLeft>()) &&
+        CanCover(node, left)) {
+      // Try to absorb left/right shift into rldic
+      int64_t shift_by;
+      const WordBinopOp& shift_op = lhs.Cast<WordBinopOp>();
+      if (MatchIntegralWord64Constant(shift_op.right(), &shift_by) &&
+          base::IsInRange(shift_by, 0, 63)) {
+        left = shift_op.left();
+        sh = integer_constant(shift_op.right());
+        if (lhs.Is<Opmask::kWord64ShiftRightLogical>()) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (mb > 63 - sh) mb = 63 - sh;
+          sh = (64 - sh) & 0x3F;
+        } else {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (me < sh) me = sh;
+        }
+      }
+    }
+    if (mb >= me) {
+      bool match = false;
+      ArchOpcode opcode;
+      int mask;
+      if (me == 0) {
+        match = true;
+        opcode = kPPC_RotLeftAndClearLeft64;
+        mask = mb;
+      } else if (mb == 63) {
+        match = true;
+        opcode = kPPC_RotLeftAndClearRight64;
+        mask = me;
+      } else if (sh && me <= sh && lhs.Is<Opmask::kWord64ShiftLeft>()) {
+        match = true;
+        opcode = kPPC_RotLeftAndClear64;
+        mask = mb;
+      }
+      if (match) {
+        Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+             g.TempImmediate(sh), g.TempImmediate(mask));
+        return;
+      }
+    }
+  }
+  VisitLogical(this, node, kPPC_And, CanCover(node, bitwise_and.left()),
+               CanCover(node, bitwise_and.right()), kInt16Imm_Unsigned);
+}
+
 // TODO(mbrandy): Absorb rotate-right into rldic?
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     int mb = 0;
@@ -690,14 +844,16 @@ void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
     VisitLogical<Adapter, Int64BinopMatcher>(
         this, node, &m, kPPC_And, CanCover(node, m.left().node()),
         CanCover(node, m.right().node()), kInt16Imm_Unsigned);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
+    VisitLogical(this, node, kPPC_Or, CanCover(node, op.left()),
+                 CanCover(node, op.right()), kInt16Imm_Unsigned);
   } else {
     Int32BinopMatcher m(node);
     VisitLogical<Adapter, Int32BinopMatcher>(
@@ -710,7 +866,10 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
+    VisitLogical(this, node, kPPC_Or, CanCover(node, op.left()),
+                 CanCover(node, op.right()), kInt16Imm_Unsigned);
   } else {
     Int64BinopMatcher m(node);
     VisitLogical<Adapter, Int64BinopMatcher>(
@@ -730,8 +889,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
     if (m.right().Is(-1)) {
       Emit(kPPC_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
     } else {
-      VisitBinop<Adapter, Int32BinopMatcher>(this, node, kPPC_Xor,
-                                             kInt16Imm_Unsigned);
+      VisitBinop<Adapter>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
     }
   }
 }
@@ -788,12 +946,48 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
     if (m.right().Is(-1)) {
       Emit(kPPC_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
     } else {
-      VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Xor,
-                                             kInt16Imm_Unsigned);
+      VisitBinop<Adapter>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
     }
   }
 }
 #endif
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const turboshaft::Graph* graph = this->turboshaft_graph();
+  // Projections are always emitted right after the operation.
+  for (OpIndex next = graph->NextIndex(node); next.valid();
+       next = graph->NextIndex(next)) {
+    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
+    if (projection == nullptr) break;
+    if (projection->index == projection_index) return next;
+  }
+
+  // If there is no Projection with index {projection_index} following the
+  // operation, then there shouldn't be any such Projection in the graph. We
+  // verify this in Debug mode.
+#ifdef DEBUG
+  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
+    if (const turboshaft::ProjectionOp* projection =
+            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
+      DCHECK_EQ(projection->input(), node);
+      if (projection->index == projection_index) {
+        UNREACHABLE();
+      }
+    }
+  }
+#endif  // DEBUG
+  return turboshaft::OpIndex::Invalid();
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
@@ -975,148 +1169,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
     VisitRRO(this, kPPC_ShiftRightAlg32, node, kShift32Imm);
   }
 }
-
-#if !V8_TARGET_ARCH_PPC64
-template <typename Adapter>
-void VisitPairBinop(InstructionSelectorT<Adapter>* selector,
-                    InstructionCode opcode, InstructionCode opcode2,
-                    Node* node) {
-  PPCOperandGeneratorT<Adapter> g(selector);
-
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
-    // We use UseUniqueRegister here to avoid register sharing with the output
-    // registers.
-    InstructionOperand inputs[] = {
-        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
-        g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
-
-    InstructionOperand outputs[] = {
-        g.DefineAsRegister(node),
-        g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
-
-    selector->Emit(opcode, 2, outputs, 4, inputs);
-  } else {
-    // The high word of the result is not used, so we emit the standard 32 bit
-    // instruction.
-    selector->Emit(opcode2, g.DefineSameAsFirst(node),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(2)));
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairAdd(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitPairBinop(this, kPPC_AddPair, kPPC_Add32, node);
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairSub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitPairBinop(this, kPPC_SubPair, kPPC_Sub, node);
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32PairMul(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    PPCOperandGeneratorT<Adapter> g(this);
-    Node* projection1 = NodeProperties::FindProjection(node, 1);
-    if (projection1) {
-      InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
-                                     g.UseUniqueRegister(node->InputAt(1)),
-                                     g.UseUniqueRegister(node->InputAt(2)),
-                                     g.UseUniqueRegister(node->InputAt(3))};
-
-      InstructionOperand outputs[] = {
-          g.DefineAsRegister(node),
-          g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
-
-      InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-
-      Emit(kPPC_MulPair, 2, outputs, 4, inputs, 2, temps);
-    } else {
-      // The high word of the result is not used, so we emit the standard 32 bit
-      // instruction.
-      Emit(kPPC_Mul32, g.DefineSameAsFirst(node),
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
-    }
-  }
-}
-
-namespace {
-// Shared routine for multiple shift operations.
-template <typename Adapter>
-void VisitPairShift(InstructionSelectorT<Adapter>* selector,
-                    InstructionCode opcode, Node* node) {
-  PPCOperandGeneratorT<Adapter> g(selector);
-  // We use g.UseUniqueRegister here to guarantee that there is
-  // no register aliasing of input registers with output registers.
-  Int32Matcher m(node->InputAt(2));
-  InstructionOperand shift_operand;
-  if (m.HasResolvedValue()) {
-    shift_operand = g.UseImmediate(m.node());
-  } else {
-    shift_operand = g.UseUniqueRegister(m.node());
-  }
-
-  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
-                                 g.UseUniqueRegister(node->InputAt(1)),
-                                 shift_operand};
-
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
-
-  InstructionOperand outputs[2];
-  InstructionOperand temps[1];
-  int32_t output_count = 0;
-  int32_t temp_count = 0;
-
-  outputs[output_count++] = g.DefineAsRegister(node);
-  if (projection1) {
-    outputs[output_count++] = g.DefineAsRegister(projection1);
-  } else {
-    temps[temp_count++] = g.TempRegister();
-  }
-
-  selector->Emit(opcode, output_count, outputs, 3, inputs, temp_count, temps);
-}
-}  // namespace
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitPairShift(this, kPPC_ShiftLeftPair, node);
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitPairShift(this, kPPC_ShiftRightPair, node);
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitPairShift(this, kPPC_ShiftRightAlgPair, node);
-  }
-}
-#endif
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
@@ -1324,53 +1376,57 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitBinop<Adapter, Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
-  }
+  VisitBinop<Adapter>(this, node, kPPC_Add32, kInt16Imm);
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Add64, kInt16Imm);
-  }
+  VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm);
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-    Int32BinopMatcher m(node);
-    if (m.left().Is(0)) {
-      Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
+      if (this->MatchIntegralZero(sub.left())) {
+        Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+      } else {
+        VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate);
+      }
     } else {
-      VisitBinop<Adapter, Int32BinopMatcher>(this, node, kPPC_Sub,
-                                             kInt16Imm_Negate);
+      Int32BinopMatcher m(node);
+      if (m.left().Is(0)) {
+        Emit(kPPC_Neg, g.DefineAsRegister(node),
+             g.UseRegister(m.right().node()));
+      } else {
+        VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate);
+      }
     }
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Sub(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
+    if (this->MatchIntegralZero(sub.left())) {
+      Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+    } else {
+      VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate);
+    }
   } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     if (m.left().Is(0)) {
       Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
     } else {
-      VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Sub,
-                                             kInt16Imm_Negate);
+      VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate);
     }
   }
 }
@@ -1384,73 +1440,60 @@ void VisitCompare(InstructionSelectorT<Adapter>* selector,
                   InstructionOperand right, FlagsContinuationT<Adapter>* cont);
 template <typename Adapter>
 void EmitInt32MulWithOverflow(InstructionSelectorT<Adapter>* selector,
-                              Node* node, FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    PPCOperandGeneratorT<Adapter> g(selector);
-    Int32BinopMatcher m(node);
-    InstructionOperand result_operand = g.DefineAsRegister(node);
-    InstructionOperand high32_operand = g.TempRegister();
-    InstructionOperand temp_operand = g.TempRegister();
-    {
-      InstructionOperand outputs[] = {result_operand, high32_operand};
-      InstructionOperand inputs[] = {g.UseRegister(m.left().node()),
-                                     g.UseRegister(m.right().node())};
-      selector->Emit(kPPC_Mul32WithHigh32, 2, outputs, 2, inputs);
-    }
-    {
-      InstructionOperand shift_31 = g.UseImmediate(31);
-      InstructionOperand outputs[] = {temp_operand};
-      InstructionOperand inputs[] = {result_operand, shift_31};
-      selector->Emit(kPPC_ShiftRightAlg32, 1, outputs, 2, inputs);
-    }
-
-    VisitCompare(selector, kPPC_Cmp32, high32_operand, temp_operand, cont);
+                              typename Adapter::node_t node,
+                              FlagsContinuationT<Adapter>* cont) {
+  PPCOperandGeneratorT<Adapter> g(selector);
+  typename Adapter::node_t lhs = selector->input_at(node, 0);
+  typename Adapter::node_t rhs = selector->input_at(node, 1);
+  InstructionOperand result_operand = g.DefineAsRegister(node);
+  InstructionOperand high32_operand = g.TempRegister();
+  InstructionOperand temp_operand = g.TempRegister();
+  {
+    InstructionOperand outputs[] = {result_operand, high32_operand};
+    InstructionOperand inputs[] = {g.UseRegister(lhs), g.UseRegister(rhs)};
+    selector->Emit(kPPC_Mul32WithHigh32, 2, outputs, 2, inputs);
   }
+  {
+    InstructionOperand shift_31 = g.UseImmediate(31);
+    InstructionOperand outputs[] = {temp_operand};
+    InstructionOperand inputs[] = {result_operand, shift_31};
+    selector->Emit(kPPC_ShiftRightAlg32, 1, outputs, 2, inputs);
+  }
+
+  VisitCompare(selector, kPPC_Cmp32, high32_operand, temp_operand, cont);
 }
 
 template <typename Adapter>
 void EmitInt64MulWithOverflow(InstructionSelectorT<Adapter>* selector,
-                              Node* node, FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    PPCOperandGeneratorT<Adapter> g(selector);
-    Int64BinopMatcher m(node);
-    InstructionOperand result = g.DefineAsRegister(node);
-    InstructionOperand left = g.UseRegister(m.left().node());
-    InstructionOperand high = g.TempRegister();
-    InstructionOperand result_sign = g.TempRegister();
-    InstructionOperand right = g.UseRegister(m.right().node());
-    selector->Emit(kPPC_Mul64, result, left, right);
-    selector->Emit(kPPC_MulHighS64, high, left, right);
-    selector->Emit(kPPC_ShiftRightAlg64, result_sign, result,
-                   g.TempImmediate(63));
-    // Test whether {high} is a sign-extension of {result}.
-    selector->EmitWithContinuation(kPPC_Cmp64, high, result_sign, cont);
-  }
+                              typename Adapter::node_t node,
+                              FlagsContinuationT<Adapter>* cont) {
+  PPCOperandGeneratorT<Adapter> g(selector);
+  typename Adapter::node_t lhs = selector->input_at(node, 0);
+  typename Adapter::node_t rhs = selector->input_at(node, 1);
+  InstructionOperand result = g.DefineAsRegister(node);
+  InstructionOperand left = g.UseRegister(lhs);
+  InstructionOperand high = g.TempRegister();
+  InstructionOperand result_sign = g.TempRegister();
+  InstructionOperand right = g.UseRegister(rhs);
+  selector->Emit(kPPC_Mul64, result, left, right);
+  selector->Emit(kPPC_MulHighS64, high, left, right);
+  selector->Emit(kPPC_ShiftRightAlg64, result_sign, result,
+                 g.TempImmediate(63));
+  // Test whether {high} is a sign-extension of {result}.
+  selector->EmitWithContinuation(kPPC_Cmp64, high, result_sign, cont);
 }
 
 }  // namespace
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Mul(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Mul32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Mul(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Mul64, node);
-  }
 }
 #endif
 
@@ -1500,174 +1543,102 @@ void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Div32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Div64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_DivU32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_DivU64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Mod32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_Mod64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_ModU32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_ModU64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat32ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Float32ToDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundInt32ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Int32ToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Uint32ToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Int32ToDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeUint32ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Uint32ToDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToInt32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToUint32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToUint32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToUint32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord8, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord16, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -1693,11 +1664,7 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToInt64, node);
-  }
 }
 
 template <typename Adapter>
@@ -1753,42 +1720,26 @@ void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord8, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord16, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_ExtendSignWord32, node);
-  }
 }
 
 template <typename Adapter>
@@ -1799,58 +1750,34 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64NoPhis(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_Uint32ToUint64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToUint64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToInt64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitRR(this, kArchTruncateDoubleToI, node);
-  }
+  VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundFloat64ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_DoubleToInt32, node);
-  }
 }
 
 template <typename Adapter>
@@ -1890,173 +1817,101 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): inspect input to see if nop is appropriate.
     VisitRR(this, kPPC_Int64ToInt32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Int64ToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Int64ToDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Int64ToDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Uint64ToFloat32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Uint64ToDouble, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat32ToInt32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_BitcastFloat32ToInt32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_BitcastDoubleToInt64, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastInt32ToFloat32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_BitcastInt32ToFloat32, node);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_BitcastInt64ToDouble, node);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_AddDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Add(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): detect multiply-add
     VisitRRR(this, kPPC_AddDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): detect multiply-subtract
     VisitRRR(this, kPPC_SubDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Mul(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_MulDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Mul(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // TODO(mbrandy): detect negate
     VisitRRR(this, kPPC_MulDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_DivDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Div(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_DivDouble, node);
-  }
 }
 
 template <typename Adapter>
@@ -2073,74 +1928,42 @@ void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Max(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_MaxDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Max(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_MaxDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_Float64SilenceNaN, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Min(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_MinDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRR(this, kPPC_MinDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_AbsDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_AbsDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_SqrtDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
@@ -2170,92 +1993,52 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_SqrtDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_FloorDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_FloorDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_CeilDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_CeilDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_TruncateDouble | MiscField::encode(1), node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_TruncateDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_RoundDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_NegDouble, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRR(this, kPPC_NegDouble, node);
-  }
 }
 
 template <typename Adapter>
@@ -2265,12 +2048,11 @@ void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter, Int32BinopMatcher>(
-          this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
+      return VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32, kInt16Imm,
+                                 &cont);
     }
     FlagsContinuation cont;
-    VisitBinop<Adapter, Int32BinopMatcher>(this, node, kPPC_AddWithOverflow32,
-                                           kInt16Imm, &cont);
+    VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
   }
 }
 
@@ -2281,12 +2063,12 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter, Int32BinopMatcher>(
-          this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate, &cont);
+      return VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32,
+                                 kInt16Imm_Negate, &cont);
     }
     FlagsContinuation cont;
-    VisitBinop<Adapter, Int32BinopMatcher>(this, node, kPPC_SubWithOverflow32,
-                                           kInt16Imm_Negate, &cont);
+    VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate,
+                        &cont);
   }
 }
 
@@ -2298,12 +2080,10 @@ void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Add64,
-                                                    kInt16Imm, &cont);
+      return VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm, &cont);
     }
     FlagsContinuation cont;
-    VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Add64, kInt16Imm,
-                                           &cont);
+    VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm, &cont);
   }
 }
 
@@ -2314,12 +2094,10 @@ void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(node_t node) {
   } else {
     if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Sub,
-                                                    kInt16Imm_Negate, &cont);
+      return VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
     }
     FlagsContinuation cont;
-    VisitBinop<Adapter, Int64BinopMatcher>(this, node, kPPC_Sub,
-                                           kInt16Imm_Negate, &cont);
+    VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
   }
 }
 
@@ -2340,9 +2118,6 @@ void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
 
 template <typename Adapter>
 static bool CompareLogical(FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     switch (cont->condition()) {
       case kUnsignedLessThan:
       case kUnsignedGreaterThanOrEqual:
@@ -2353,7 +2128,6 @@ static bool CompareLogical(FlagsContinuationT<Adapter>* cont) {
         return false;
     }
     UNREACHABLE();
-  }
 }
 
 namespace {
@@ -2372,44 +2146,37 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, InstructionCode opcode,
                       FlagsContinuationT<Adapter>* cont, bool commutative,
                       ImmediateMode immediate_mode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(selector);
-    Node* left = node->InputAt(0);
-    Node* right = node->InputAt(1);
+    typename Adapter::node_t lhs = selector->input_at(node, 0);
+    typename Adapter::node_t rhs = selector->input_at(node, 1);
 
     // Match immediates on left or right side of comparison.
-    if (g.CanBeImmediate(right, immediate_mode)) {
-      VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
+    if (g.CanBeImmediate(rhs, immediate_mode)) {
+      VisitCompare(selector, opcode, g.UseRegister(lhs), g.UseImmediate(rhs),
                    cont);
-    } else if (g.CanBeImmediate(left, immediate_mode)) {
+    } else if (g.CanBeImmediate(lhs, immediate_mode)) {
       if (!commutative) cont->Commute();
-      VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
+      VisitCompare(selector, opcode, g.UseRegister(rhs), g.UseImmediate(lhs),
                    cont);
     } else {
-      VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
+      VisitCompare(selector, opcode, g.UseRegister(lhs), g.UseRegister(rhs),
                    cont);
     }
-  }
 }
 
 template <typename Adapter>
 void VisitWord32Compare(InstructionSelectorT<Adapter>* selector,
                         typename Adapter::node_t node,
                         FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     ImmediateMode mode =
         (CompareLogical(cont) ? kInt16Imm_Unsigned : kInt16Imm);
     VisitWordCompare(selector, node, kPPC_Cmp32, cont, false, mode);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
-void VisitWord64Compare(InstructionSelectorT<Adapter>* selector, Node* node,
+void VisitWord64Compare(InstructionSelectorT<Adapter>* selector,
+                        typename Adapter::node_t node,
                         FlagsContinuationT<Adapter>* cont) {
   ImmediateMode mode = (CompareLogical(cont) ? kInt16Imm_Unsigned : kInt16Imm);
   VisitWordCompare(selector, node, kPPC_Cmp64, cont, false, mode);
@@ -2421,15 +2188,11 @@ template <typename Adapter>
 void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node,
                          FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(selector);
-    Node* left = node->InputAt(0);
-    Node* right = node->InputAt(1);
-    VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(left),
-                 g.UseRegister(right), cont);
-  }
+    typename Adapter::node_t lhs = selector->input_at(node, 0);
+    typename Adapter::node_t rhs = selector->input_at(node, 1);
+    VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(lhs),
+                 g.UseRegister(rhs), cont);
 }
 
 // Shared routine for multiple float64 compare operations.
@@ -2437,15 +2200,11 @@ template <typename Adapter>
 void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node,
                          FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(selector);
-    Node* left = node->InputAt(0);
-    Node* right = node->InputAt(1);
-    VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(left),
-                 g.UseRegister(right), cont);
-  }
+    typename Adapter::node_t lhs = selector->input_at(node, 0);
+    typename Adapter::node_t rhs = selector->input_at(node, 1);
+    VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(lhs),
+                 g.UseRegister(rhs), cont);
 }
 
 }  // namespace
@@ -2454,9 +2213,6 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     // Try to combine with comparisons against 0 by simply inverting the branch.
     while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
       Int32BinopMatcher m(value);
@@ -2534,24 +2290,24 @@ void InstructionSelectorT<Adapter>::VisitWordCompareZero(
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Adapter, Int32BinopMatcher>(
-                    this, node, kPPC_AddWithOverflow32, kInt16Imm, cont);
+                return VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32,
+                                           kInt16Imm, cont);
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Adapter, Int32BinopMatcher>(
-                    this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate, cont);
+                return VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32,
+                                           kInt16Imm_Negate, cont);
               case IrOpcode::kInt32MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kNotEqual);
                 return EmitInt32MulWithOverflow(this, node, cont);
 #if V8_TARGET_ARCH_PPC64
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Adapter, Int64BinopMatcher>(
-                    this, node, kPPC_Add64, kInt16Imm, cont);
+                return VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm,
+                                           cont);
               case IrOpcode::kInt64SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Adapter, Int64BinopMatcher>(
-                    this, node, kPPC_Sub, kInt16Imm_Negate, cont);
+                return VisitBinop<Adapter>(this, node, kPPC_Sub,
+                                           kInt16Imm_Negate, cont);
               case IrOpcode::kInt64MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kNotEqual);
                 return EmitInt64MulWithOverflow(this, node, cont);
@@ -2604,7 +2360,125 @@ void InstructionSelectorT<Adapter>::VisitWordCompareZero(
   PPCOperandGeneratorT<Adapter> g(this);
   VisitCompare(this, kPPC_Cmp32, g.UseRegister(value), g.TempImmediate(0),
                cont);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
+    node_t user, node_t value, FlagsContinuation* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (const ComparisonOp* equal =
+             this->TryCast<Opmask::kWord32Equal>(value)) {
+    if (!CanCover(user, value)) break;
+    if (!MatchIntegralZero(equal->right())) break;
+
+    user = value;
+    value = equal->left();
+    cont->Negate();
   }
+
+  if (CanCover(user, value)) {
+    const Operation& value_op = Get(value);
+    if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
+      switch (comparison->rep.MapTaggedToWord().value()) {
+        case RegisterRepresentation::Word32():
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWord32Compare(this, value, cont);
+        case RegisterRepresentation::Word64():
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWord64Compare(this, value, cont);
+        case RegisterRepresentation::Float32():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+              return VisitFloat32Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
+        case RegisterRepresentation::Float64():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+              return VisitFloat64Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
+        default:
+          break;
+      }
+    } else if (const ProjectionOp* projection =
+                   value_op.TryCast<ProjectionOp>()) {
+      // Check if this is the overflow output projection of an
+      // <Operation>WithOverflow node.
+      if (projection->index == 1u) {
+        // We cannot combine the <Operation>WithOverflow with this branch
+        // unless the 0th projection (the use of the actual value of the
+        // <Operation> is either nullptr, which means there's no use of the
+        // actual value, or was already defined, which means it is scheduled
+        // *AFTER* this branch).
+        OpIndex node = projection->input();
+        OpIndex result = FindProjection(node, 0);
+        if (!result.valid() || IsDefined(result)) {
+          if (const OverflowCheckedBinopOp* binop =
+                  TryCast<OverflowCheckedBinopOp>(node)) {
+            const bool is64 = binop->rep == WordRepresentation::Word64();
+            switch (binop->kind) {
+              case OverflowCheckedBinopOp::Kind::kSignedAdd:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node,
+                                  is64 ? kPPC_Add64 : kPPC_AddWithOverflow32,
+                                  kInt16Imm, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedSub:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node,
+                                  is64 ? kPPC_Sub : kPPC_SubWithOverflow32,
+                                  kInt16Imm_Negate, cont);
+              case OverflowCheckedBinopOp::Kind::kSignedMul:
+                if (is64) {
+                  cont->OverwriteAndNegateIfEqual(kNotEqual);
+                  return EmitInt64MulWithOverflow(this, node, cont);
+                } else {
+                  cont->OverwriteAndNegateIfEqual(kNotEqual);
+                  return EmitInt32MulWithOverflow(this, node, cont);
+                }
+            }
+          }
+        }
+      }
+    } else if (value_op.Is<Opmask::kWord32Sub>()) {
+      return VisitWord32Compare(this, value, cont);
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
+      return VisitWordCompare(this, value, kPPC_Tst32, cont, true,
+                              kInt16Imm_Unsigned);
+    } else if (value_op.Is<Opmask::kWord64Sub>()) {
+      return VisitWord64Compare(this, value, cont);
+    } else if (value_op.Is<Opmask::kWord64BitwiseAnd>()) {
+      return VisitWordCompare(this, value, kPPC_Tst64, cont, true,
+                              kInt16Imm_Unsigned);
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      return VisitStackPointerGreaterThan(value, cont);
+    }
+  }
+
+  // Branch could not be combined with a compare, emit compare against 0.
+  PPCOperandGeneratorT<TurboshaftAdapter> g(this);
+  VisitCompare(this, kPPC_Cmp32, g.UseRegister(value), g.TempImmediate(0),
+               cont);
 }
 
 template <typename Adapter>
@@ -2649,23 +2523,21 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t const node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Equal(
+    node_t const node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   if (isolate() && (V8_STATIC_ROOTS_BOOL ||
                     (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
-  PPCOperandGeneratorT<Adapter> g(this);
-  const RootsTable& roots_table = isolate()->roots_table();
-  RootIndex root_index;
-  Node* left = nullptr;
-  Handle<HeapObject> right;
-  // HeapConstants and CompressedHeapConstants can be treated the same when
-  // using them as an input to a 32-bit comparison. Check whether either is
-  // present.
-  {
+    PPCOperandGeneratorT<TurbofanAdapter> g(this);
+    const RootsTable& roots_table = isolate()->roots_table();
+    RootIndex root_index;
+    Node* left = nullptr;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    {
       CompressedHeapObjectBinopMatcher m(node);
       if (m.right().HasResolvedValue()) {
       left = m.left().node();
@@ -2677,7 +2549,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t const node) {
           right = m2.right().ResolvedValue();
       }
       }
-  }
+    }
   if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
       DCHECK_NE(left, nullptr);
       if (RootsTable::IsReadOnly(root_index)) {
@@ -2690,7 +2562,38 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t const node) {
   }
   }
   VisitWord32Compare(this, node, &cont);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(
+    node_t const node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& equal = Get(node);
+  DCHECK(equal.Is<ComparisonOp>());
+  OpIndex left = equal.input(0);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+    PPCOperandGeneratorT<TurboshaftAdapter> g(this);
+    const RootsTable& roots_table = isolate()->roots_table();
+    RootIndex root_index;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    if (MatchTaggedConstant(node, &right) && !right.is_null() &&
+        roots_table.IsRootHandle(right, &root_index)) {
+      if (RootsTable::IsReadOnly(root_index)) {
+        Tagged_t ptr =
+            MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+        if (g.CanBeImmediate(ptr, kInt16Imm)) {
+          return VisitCompare(this, kPPC_Cmp32, g.UseRegister(left),
+                              g.TempImmediate(ptr), &cont);
+        }
+      }
+    }
   }
+  VisitWord32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
@@ -2722,54 +2625,34 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Equal(node_t const node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitWord64Compare(this, node, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64LessThan(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
-  }
 }
 #endif
 
@@ -2837,9 +2720,6 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   PPCOperandGeneratorT<Adapter> g(this);
 
   // Prepare for C function call.
@@ -2851,7 +2731,7 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kStackFrameExtraParamSlot;
     for (PushParameter input : (*arguments)) {
-      if (input.node == nullptr) continue;
+      if (!this->valid(input.node)) continue;
       Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
            g.TempImmediate(slot));
       ++slot;
@@ -2862,12 +2742,11 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     for (PushParameter input : base::Reversed(*arguments)) {
       stack_decrement += kSystemPointerSize;
       // Skip any alignment holes in pushed nodes.
-      if (input.node == nullptr) continue;
+      if (!this->valid(input.node)) continue;
       InstructionOperand decrement = g.UseImmediate(stack_decrement);
       stack_decrement = 0;
       Emit(kPPC_Push, g.NoOutput(), decrement, g.UseRegister(input.node));
     }
-  }
   }
 }
 
@@ -3712,15 +3591,12 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
 
     for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
-    if (output.node != nullptr) {
+    if (this->valid(output.node)) {
       DCHECK(!call_descriptor->IsCFunctionCall());
       if (output.location.GetType() == MachineType::Float32()) {
         MarkAsFloat32(output.node);
@@ -3733,7 +3609,6 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
       int reverse_slot = -output.location.GetLocation() - offset;
       Emit(kPPC_Peek, g.DefineAsRegister(output.node),
            g.UseImmediate(reverse_slot));
-    }
     }
   }
 }
@@ -3877,19 +3752,6 @@ void InstructionSelectorT<Adapter>::VisitF64x2NearestInt(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4NearestInt(node_t node) {
   UNREACHABLE();
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
 }
 
 MachineOperatorBuilder::Flags

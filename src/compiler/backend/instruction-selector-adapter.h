@@ -293,6 +293,10 @@ struct TurbofanAdapter {
           UNREACHABLE();
       }
     }
+    bool is_atomic() const {
+      return node_->opcode() == IrOpcode::kWord32AtomicStore ||
+             node_->opcode() == IrOpcode::kWord64AtomicStore;
+    }
 
     node_t base() const { return node_->InputAt(0); }
     optional_node_t index() const { return node_->InputAt(1); }
@@ -930,6 +934,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected
                                          : MemoryAccessKind::kNormal;
     }
+    bool is_atomic() const { return op_->kind.is_atomic; }
 
     node_t base() const { return op_->base(); }
     optional_node_t index() const { return op_->index(); }

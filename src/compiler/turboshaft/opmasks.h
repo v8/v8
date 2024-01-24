@@ -177,6 +177,13 @@ using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
 using kBitwiseAnd = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseAnd>;
 using kBitwiseXor = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseXor>;
 
+using WordUnaryMask =
+    MaskBuilder<WordUnaryOp, FIELD(WordUnaryOp, kind), FIELD(WordUnaryOp, rep)>;
+using kWord32ReverseBytes = WordUnaryMask::For<WordUnaryOp::Kind::kReverseBytes,
+                                               WordRepresentation::Word32()>;
+using kWord64ReverseBytes = WordUnaryMask::For<WordUnaryOp::Kind::kReverseBytes,
+                                               WordRepresentation::Word64()>;
+
 using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
                                    FIELD(FloatUnaryOp, rep)>;
 
@@ -216,6 +223,8 @@ using kWord32ShiftRightLogical =
                    WordRepresentation::Word32()>;
 using kWord32RotateRight =
     ShiftMask::For<ShiftOp::Kind::kRotateRight, WordRepresentation::Word32()>;
+using kWord64ShiftLeft =
+    ShiftMask::For<ShiftOp::Kind::kShiftLeft, WordRepresentation::Word64()>;
 using kWord64ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word64()>;

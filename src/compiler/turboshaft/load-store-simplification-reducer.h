@@ -26,7 +26,7 @@ class LoadStoreSimplificationReducer : public Next {
   // *(base + index * element_size_log2 + displacement), but architectures
   // typically support only a limited `element_size_log2`.
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
   static constexpr int kMaxElementSizeLog2 = 0;
 #else
   static constexpr int kMaxElementSizeLog2 = 3;
@@ -90,7 +90,7 @@ class LoadStoreSimplificationReducer : public Next {
       // TODO(12783): This needs to be extended for all architectures that don't
       // have loads with the base + index * element_size + offset pattern.
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
       // If an index is present, the element_size_log2 is changed to zero
       // (above). So any load follows the form *(base + offset). To simplify
       // instruction selection, both static and dynamic offsets are stored in
