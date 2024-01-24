@@ -3106,7 +3106,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<turboshaft::DecompressionOptimizationPhase>();
 
 #if defined(V8_TARGET_ARCH_X64) or defined(V8_TARGET_ARCH_ARM64) or \
-    defined(V8_TARGET_ARCH_ARM)
+    defined(V8_TARGET_ARCH_ARM) or defined(V8_TARGET_ARCH_IA32)
     if (v8_flags.turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!SelectInstructionsTurboshaft(linkage)) {

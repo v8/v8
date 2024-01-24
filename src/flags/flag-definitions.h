@@ -1269,8 +1269,14 @@ DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
 
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_BOOL(turboshaft_instruction_selection, true,
+            "run instruction selection on Turboshaft IR directly")
+#else
 DEFINE_BOOL(turboshaft_instruction_selection, false,
             "run instruction selection on Turboshaft IR directly")
+#endif  // V8_TARGET_ARCH_X64
+
 DEFINE_BOOL(turboshaft_load_elimination, false,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_machine_lowering_opt, false,
