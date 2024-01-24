@@ -7349,6 +7349,13 @@ void v8::ObjectTemplate::CheckCast(Data* that) {
                   "Value is not an ObjectTemplate");
 }
 
+void v8::DictionaryTemplate::CheckCast(Data* that) {
+  auto obj = Utils::OpenDirectHandle(that);
+  Utils::ApiCheck(i::IsDictionaryTemplateInfo(*obj),
+                  "v8::DictionaryTemplate::Cast",
+                  "Value is not an DictionaryTemplate");
+}
+
 void v8::FunctionTemplate::CheckCast(Data* that) {
   auto obj = Utils::OpenDirectHandle(that);
   Utils::ApiCheck(i::IsFunctionTemplateInfo(*obj), "v8::FunctionTemplate::Cast",

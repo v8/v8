@@ -4,7 +4,10 @@
 
 #include "src/objects/templates.h"
 
+#include <cstdint>
+
 #include "src/api/api-inl.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -266,12 +269,13 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
           can_use_cached_map = false;
           break;
         }
-        // Double representation means mutable heap number. In this can we need
+        // Double representation means mutable heap number. In this case we need
         // to allocate a new heap number to put in the dictionary.
         if (details.representation().Equals(Representation::Double())) {
-          property_values[i] =
-              ToApiHandle<v8::Object>(isolate->factory()->NewHeapNumber(
-                  HeapNumber::cast(*value)->value()));
+          // We allowed coercion in `FitsRepresentation` above which means that
+          // we may deal with a Smi here.
+          property_values[i] = ToApiHandle<v8::Object>(
+              isolate->factory()->NewHeapNumber(Object::Number(*value)));
         }
       }
       if (V8_LIKELY(can_use_cached_map)) {

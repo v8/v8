@@ -984,7 +984,11 @@ class V8_EXPORT DictionaryTemplate final {
   V8_WARN_UNUSED_RESULT Local<Object> NewInstance(
       Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values);
 
+  V8_INLINE static DictionaryTemplate* Cast(Data* data);
+
  private:
+  static void CheckCast(Data* that);
+
   DictionaryTemplate();
 };
 
@@ -1031,6 +1035,13 @@ ObjectTemplate* ObjectTemplate::Cast(Data* data) {
   CheckCast(data);
 #endif
   return reinterpret_cast<ObjectTemplate*>(data);
+}
+
+DictionaryTemplate* DictionaryTemplate::Cast(Data* data) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(data);
+#endif
+  return reinterpret_cast<DictionaryTemplate*>(data);
 }
 
 Signature* Signature::Cast(Data* data) {
