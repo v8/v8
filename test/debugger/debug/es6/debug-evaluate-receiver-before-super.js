@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-value-unavailable
+
 // Test that debug-evaluate doesn't crash when this is used before super() call
 // in constructor.
 
