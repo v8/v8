@@ -540,7 +540,7 @@ SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
                                  const intptr_t* external_references,
                                  const StartupData* existing_snapshot,
                                  bool owns_isolate)
-    : data_(new i::SnapshotCreatorImpl(
+    : impl_(new i::SnapshotCreatorImpl(
           reinterpret_cast<i::Isolate*>(v8_isolate), external_references,
           existing_snapshot, owns_isolate)) {}
 
@@ -549,50 +549,43 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
     : SnapshotCreator(nullptr, external_references, existing_snapshot) {}
 
 SnapshotCreator::SnapshotCreator(const v8::Isolate::CreateParams& params)
-    : data_(new i::SnapshotCreatorImpl(params)) {}
+    : impl_(new i::SnapshotCreatorImpl(params)) {}
 
 SnapshotCreator::SnapshotCreator(v8::Isolate* isolate,
                                  const v8::Isolate::CreateParams& params)
-    : data_(new i::SnapshotCreatorImpl(reinterpret_cast<i::Isolate*>(isolate),
+    : impl_(new i::SnapshotCreatorImpl(reinterpret_cast<i::Isolate*>(isolate),
                                        params)) {}
 
 SnapshotCreator::~SnapshotCreator() {
-  DCHECK_NOT_NULL(data_);
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  delete impl;
+  DCHECK_NOT_NULL(impl_);
+  delete impl_;
 }
 
 Isolate* SnapshotCreator::GetIsolate() {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return reinterpret_cast<v8::Isolate*>(impl->isolate());
+  return reinterpret_cast<v8::Isolate*>(impl_->isolate());
 }
 
 void SnapshotCreator::SetDefaultContext(
     Local<Context> context, SerializeInternalFieldsCallback callback) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  impl->SetDefaultContext(Utils::OpenHandle(*context), callback);
+  impl_->SetDefaultContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
                                    SerializeInternalFieldsCallback callback) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddContext(Utils::OpenHandle(*context), callback);
+  return impl_->AddContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddData(object);
+  return impl_->AddData(object);
 }
 
 size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddData(Utils::OpenHandle(*context), object);
+  return impl_->AddData(Utils::OpenHandle(*context), object);
 }
 
 StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->CreateBlob(function_code_handling);
+  return impl_->CreateBlob(function_code_handling);
 }
 
 bool StartupData::CanBeRehashed() const {
