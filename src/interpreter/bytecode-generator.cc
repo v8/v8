@@ -6829,20 +6829,72 @@ bool BytecodeGenerator::IsLocalVariableWithInternalizedStringHint(
              TypeHint::kInternalizedString;
 }
 
+static bool IsTypeof(Expression* expr) {
+  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
+  return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
+}
+
+static bool IsCharU(const AstRawString* str) {
+  return str->length() == 1 && str->FirstCharacter() == 'u';
+}
+
+static bool IsLiteralCompareTypeof(CompareOperation* expr,
+                                   Expression** sub_expr,
+                                   TestTypeOfFlags::LiteralFlag* flag,
+                                   const AstStringConstants* ast_constants) {
+  if (IsTypeof(expr->left()) && expr->right()->IsStringLiteral()) {
+    Literal* right_lit = expr->right()->AsLiteral();
+
+    if (Token::IsEqualityOp(expr->op())) {
+      // typeof(x) === 'string'
+      *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, right_lit);
+    } else if (expr->op() == Token::GT && IsCharU(right_lit->AsRawString())) {
+      // typeof(x) > 'u'
+      // Minifier may convert `typeof(x) === 'undefined'` to this form,
+      // since `undefined` is the only valid value that is greater than 'u'.
+      // Check the test OnlyUndefinedGreaterThanU in bytecodes-unittest.cc
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+    } else {
+      return false;
+    }
+
+    *sub_expr = expr->left()->AsUnaryOperation()->expression();
+    return true;
+  }
+
+  if (IsTypeof(expr->right()) && expr->left()->IsStringLiteral()) {
+    Literal* left_lit = expr->left()->AsLiteral();
+
+    if (Token::IsEqualityOp(expr->op())) {
+      // 'string' === typeof(x)
+      *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, left_lit);
+    } else if (expr->op() == Token::LT && IsCharU(left_lit->AsRawString())) {
+      // 'u' < typeof(x)
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+    } else {
+      return false;
+    }
+
+    *sub_expr = expr->right()->AsUnaryOperation()->expression();
+    return true;
+  }
+
+  return false;
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &literal)) {
+  TestTypeOfFlags::LiteralFlag flag;
+  if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, ast_string_constants())) {
     // Emit a fast literal comparion for expressions of the form:
     // typeof(x) === 'string'.
     VisitForTypeOfValue(sub_expr);
     builder()->SetExpressionPosition(expr);
-    TestTypeOfFlags::LiteralFlag literal_flag =
-        TestTypeOfFlags::GetFlagForLiteral(ast_string_constants(), literal);
-    if (literal_flag == TestTypeOfFlags::LiteralFlag::kOther) {
+    if (flag == TestTypeOfFlags::LiteralFlag::kOther) {
       builder()->LoadFalse();
     } else {
-      builder()->CompareTypeOf(literal_flag);
+      builder()->CompareTypeOf(flag);
     }
   } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
     DCHECK(expr->op() == Token::EQ_STRICT);

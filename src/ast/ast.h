@@ -1995,7 +1995,6 @@ class CompareOperation final : public Expression {
   Expression* right() const { return right_; }
 
   // Match special cases.
-  bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
   bool IsLiteralStrictCompareBoolean(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);

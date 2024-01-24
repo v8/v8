@@ -869,29 +869,6 @@ bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
           MatchSmiLiteralOperation(right_, left_, subexpr, literal));
 }
 
-static bool IsTypeof(Expression* expr) {
-  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
-}
-
-// Check for the pattern: typeof <expression> equals <string literal>.
-static bool MatchLiteralCompareTypeof(Expression* left, Token::Value op,
-                                      Expression* right, Expression** expr,
-                                      Literal** literal) {
-  if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
-    *expr = left->AsUnaryOperation()->expression();
-    *literal = right->AsLiteral();
-    return true;
-  }
-  return false;
-}
-
-bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
-                                              Literal** literal) {
-  return MatchLiteralCompareTypeof(left_, op(), right_, expr, literal) ||
-         MatchLiteralCompareTypeof(right_, op(), left_, expr, literal);
-}
-
 static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
