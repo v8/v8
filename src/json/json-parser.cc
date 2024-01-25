@@ -672,7 +672,10 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
 //   3. Otherwise, it searches for whether there is any transition in the
 //      current map that matches the key.
 //   4. For all of the above, it checks whether the field represntation of the
-//      found map matches the representation of the value, and bails out if not.
+//      found map matches the representation of the value. If it doesn't, it
+//      migrates the map, potentially deprecating it too.
+//   5. If there is no transition, it tries to allocate a new map transition,
+//      bailing out if this fails.
 class JSDataObjectBuilder {
  public:
   JSDataObjectBuilder(Isolate* isolate, int expected_named_properties)
@@ -729,10 +732,44 @@ class JSDataObjectBuilder {
         AdvanceToNextProperty();
         return true;
 
-      case TransitionResult::kNoMapFound:
       case TransitionResult::kFoundMapWithDescriptorLocation:
-        // We will need to go to the slow path.
+        // We will need to go to the slow path, without trying to create a map
+        // for this case.
         return false;
+
+      case TransitionResult::kNoMapFound: {
+        // Try to stay on a semi-fast path (being able to stamp out the object
+        // fields after creating the correct map) by manually creating the next
+        // map here.
+
+        Tagged<DescriptorArray> descriptors =
+            current_map_->instance_descriptors(isolate_);
+        InternalIndex descriptor_number =
+            descriptors->SearchWithCache(isolate_, *key, *current_map_);
+        if (descriptor_number.is_found()) {
+          // Duplicate property, we need to bail out of even the semi-fast path
+          // because we can no longer stamp out values linearly.
+          return false;
+        }
+
+        Representation representation =
+            Object::OptimalRepresentation(*value, isolate_);
+        Handle<FieldType> type =
+            Object::OptimalType(*value, isolate_, representation);
+        MaybeHandle<Map> maybe_map = Map::CopyWithField(
+            isolate_, current_map_, key, type, NONE, PropertyConstness::kConst,
+            representation, INSERT_TRANSITION);
+        if (!maybe_map.ToHandle(&next_map_)) {
+          // TODO(leszeks): Consider switching to a dictionary map eagerly.
+          return false;
+        }
+        if (next_map_->is_dictionary_map()) {
+          return false;
+        }
+        *is_mutable_double_field = representation.IsDouble();
+        AdvanceToNextProperty();
+        return true;
+      }
     }
   }
 
@@ -745,7 +782,7 @@ class JSDataObjectBuilder {
       // TODO(leszeks): Do we actually want to use the final map fast path when
       // we know that the current map _can't_ reach the final map? Will we even
       // hit this case given that we check for matching instance size?
-      RewindExpectedFinalMapFastPath();
+      RewindExpectedFinalMapFastPathToCurrent();
     }
     // It's only safe to emit a dictionary map when we've not set up any
     // properties, as the caller assumes it can set up the first N properties
@@ -812,7 +849,7 @@ class JSDataObjectBuilder {
       // We were on the expected map fast path, but this missed that fast
       // path, so rewind the optimistic setting of the current map and disable
       // this fast path.
-      RewindExpectedFinalMapFastPath();
+      RewindExpectedFinalMapFastPathToCurrent();
       property_count_in_expected_final_map_ = 0;
     }
 
@@ -849,10 +886,13 @@ class JSDataObjectBuilder {
           Object::OptimalRepresentation(*value, isolate_);
       representation = representation.generalize(expected_representation);
       if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
+        // Reconfigure the map for the value, deprecating if necessary. This
+        // will only happen for double representation fields.
         if (IsOnExpectedFinalMapFastPath()) {
           // If we're on the fast path, we might have advanced the current map
           // to the expected map already, despite not yet committing the
-          // next_map to current_map. Make sure to rewind in case this happened.
+          // next_map to current_map. Make sure to rewind to the "real" next
+          // map if this happened.
           //
           // An alternative would be to deprecate the expected final map, and
           // migrate it to the new representation, but this would mean
@@ -860,16 +900,28 @@ class JSDataObjectBuilder {
           // between the current map and the new expected final map; if we later
           // fall off the fast path anyway, then all those newly allocated maps
           // will end up unused.
-          RewindExpectedFinalMapFastPath();
+          RewindExpectedFinalMapFastPathToNext();
+          property_count_in_expected_final_map_ = 0;
         }
-        return false;
+        DCHECK(representation.IsDouble());
+        MapUpdater mu(isolate_, next_map_);
+        next_map_ = mu.ReconfigureToDataField(
+            descriptor_index, current_details.attributes(),
+            current_details.constness(), representation,
+            FieldType::Any(isolate_));
+
+        // We only want to stay on the fast path if we got a fast map.
+        if (next_map_->is_dictionary_map()) return false;
+        *is_mutable_double_field = true;
+      } else {
+        // Do the in-place reconfiguration.
+        DCHECK(!representation.IsDouble());
+        Handle<FieldType> value_type =
+            Object::OptimalType(*value, isolate_, representation);
+        MapUpdater::GeneralizeField(isolate_, next_map_, descriptor_index,
+                                    current_details.constness(), representation,
+                                    value_type);
       }
-      DCHECK(!representation.IsDouble());
-      Handle<FieldType> value_type =
-          Object::OptimalType(*value, isolate_, representation);
-      MapUpdater::GeneralizeField(isolate_, next_map_, descriptor_index,
-                                  current_details.constness(), representation,
-                                  value_type);
     } else if (expected_representation.IsHeapObject() &&
                !FieldType::NowContains(
                    next_map_->instance_descriptors(isolate_)->GetFieldType(
@@ -902,7 +954,7 @@ class JSDataObjectBuilder {
     return current_property_index_ < property_count_in_expected_final_map_;
   }
 
-  void RewindExpectedFinalMapFastPath() {
+  void RewindExpectedFinalMapFastPathToCurrent() {
     DCHECK_GT(property_count_in_expected_final_map_, 0);
     if (current_property_index_ == 0) {
       DCHECK_EQ(0, current_map_->NumberOfOwnDescriptors());
@@ -913,6 +965,16 @@ class JSDataObjectBuilder {
         handle(expected_final_map_->FindFieldOwner(
                    isolate_, InternalIndex(current_property_index_ - 1)),
                isolate_);
+  }
+
+  void RewindExpectedFinalMapFastPathToNext() {
+    DCHECK_EQ(*next_map_, *expected_final_map_);
+    next_map_ = handle(expected_final_map_->FindFieldOwner(
+                           isolate_, InternalIndex(current_property_index_)),
+                       isolate_);
+    // TODO(leszeks): Not strictly necessary here, we only need to rewind the
+    // current_map if the next_map fails to be applied.
+    current_map_ = handle(Map::cast(next_map_->GetBackPointer()), isolate_);
   }
 
   Isolate* isolate_;
