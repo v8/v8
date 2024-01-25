@@ -86,14 +86,9 @@ class FastApiCallReducer : public Next {
       __ StoreOffHeap(stack_slot, __ Word32Constant(0),
                       MemoryRepresentation::Int32(),
                       offsetof(v8::FastApiCallbackOptions, fallback));
-      // Allocate a new data slot in the stack and initialize it with the
-      // {data_argument}.
-      OpIndex data_stack_slot =
-          __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-      __ StoreOffHeap(data_stack_slot, __ BitcastTaggedToWordPtr(data_argument),
-                      MemoryRepresentation::PointerSized());
-      // data = data_stack_slot
-      __ StoreOffHeap(stack_slot, data_stack_slot,
+      // data = data_argument
+      OpIndex data_argument_to_pass = AdaptLocalArgument(data_argument);
+      __ StoreOffHeap(stack_slot, data_argument_to_pass,
                       MemoryRepresentation::PointerSized(),
                       offsetof(v8::FastApiCallbackOptions, data));
       // wasm_memory = 0
@@ -134,6 +129,20 @@ class FastApiCallReducer : public Next {
   }
 
  private:
+  OpIndex AdaptLocalArgument(OpIndex argument) {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // With direct locals, the argument can be passed directly.
+    return __ BitcastTaggedToWordPtr(argument);
+#else
+    // With indirect locals, the argument has to be stored on the stack and the
+    // slot address is passed.
+    OpIndex stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
+    __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
+                    MemoryRepresentation::PointerSized());
+    return stack_slot;
+#endif
+  }
+
   std::pair<OpIndex, OpIndex> AdaptOverloadedFastCallArgument(
       OpIndex argument, const FastApiCallFunctionVector& c_functions,
       const fast_api_call::OverloadsResolutionResult& resolution_result,
@@ -159,14 +168,11 @@ class FastApiCallReducer : public Next {
           V<Word32> instance_type = __ LoadInstanceTypeField(map);
           GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), next);
 
-          OpIndex stack_slot =
-              __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-          __ StoreOffHeap(stack_slot, __ BitcastHeapObjectToWordPtr(argument),
-                          MemoryRepresentation::PointerSized());
+          OpIndex argument_to_pass = AdaptLocalArgument(argument);
           OpIndex target_address = __ ExternalConstant(
               ExternalReference::Create(c_functions[func_index].address,
                                         ExternalReference::FAST_C_CALL));
-          GOTO(done, target_address, stack_slot);
+          GOTO(done, target_address, argument_to_pass);
           break;
         }
         case CTypeInfo::SequenceType::kIsTypedArray: {
@@ -239,11 +245,7 @@ class FastApiCallReducer : public Next {
         } else {
           switch (arg_type.GetType()) {
             case CTypeInfo::Type::kV8Value: {
-              OpIndex stack_slot =
-                  __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-              __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
-                              MemoryRepresentation::PointerSized());
-              return stack_slot;
+              return AdaptLocalArgument(argument);
             }
             case CTypeInfo::Type::kFloat32: {
               return __ ChangeFloat64ToFloat32(argument);
@@ -322,12 +324,7 @@ class FastApiCallReducer : public Next {
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), handle_error);
 
-        OpIndex stack_slot =
-            __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-        __ StoreOffHeap(stack_slot, __ BitcastHeapObjectToWordPtr(argument),
-                        MemoryRepresentation::PointerSized());
-
-        return stack_slot;
+        return AdaptLocalArgument(argument);
       }
       case CTypeInfo::SequenceType::kIsTypedArray: {
         // Check that the value is a HeapObject.
