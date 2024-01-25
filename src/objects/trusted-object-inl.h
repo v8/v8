@@ -18,6 +18,42 @@ namespace internal {
 CAST_ACCESSOR(TrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(TrustedObject, HeapObject)
 
+Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
+    int offset) const {
+  return TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::load(
+      *this, offset);
+}
+
+Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
+    int offset, AcquireLoadTag tag) const {
+  return TaggedField<TrustedObject, 0,
+                     TrustedSpaceCompressionScheme>::Acquire_Load(*this,
+                                                                  offset);
+}
+
+void TrustedObject::WriteProtectedPointerField(int offset,
+                                               Tagged<TrustedObject> value) {
+  TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::store(
+      *this, offset, value);
+}
+
+void TrustedObject::WriteProtectedPointerField(int offset,
+                                               Tagged<TrustedObject> value,
+                                               ReleaseStoreTag tag) {
+  TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::Release_Store(
+      *this, offset, value);
+}
+
+bool TrustedObject::IsProtectedPointerFieldCleared(int offset) const {
+  return TaggedField<Object, 0, TrustedSpaceCompressionScheme>::load(
+             *this, offset) == Smi::zero();
+}
+
+void TrustedObject::ClearProtectedPointerField(int offset) {
+  TaggedField<Object, 0, TrustedSpaceCompressionScheme>::store(*this, offset,
+                                                               Smi::zero());
+}
+
 ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
     int byte_offset) const {
   return ProtectedPointerSlot(field_address(byte_offset));

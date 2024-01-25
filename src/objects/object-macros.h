@@ -591,22 +591,27 @@
 // Accessors for "protected" pointers, i.e. references from one trusted object
 // to another trusted object. For these pointers it can be assumed that neither
 // the pointer nor the pointed-to object can be manipulated by an attacker.
-#define DECL_PROTECTED_POINTER_ACCESSORS(name, type) \
-  inline Tagged<type> name() const;                  \
-  inline void set_##name(Tagged<type> value,         \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#define DECL_PROTECTED_POINTER_ACCESSORS(name, type)                    \
+  inline Tagged<type> name() const;                                     \
+  inline void set_##name(Tagged<type> value,                            \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
+  inline bool has_##name() const;                                       \
+  inline void clear_##name();
 
 #define PROTECTED_POINTER_ACCESSORS(holder, name, type, offset)              \
   static_assert(std::is_base_of<TrustedObject, holder>::value);              \
   Tagged<type> holder::name() const {                                        \
-    return TaggedField<type, offset, TrustedSpaceCompressionScheme>::load(   \
-        *this);                                                              \
+    DCHECK(has_##name());                                                    \
+    return type::cast(ReadProtectedPointerField(offset));                    \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {       \
-    TaggedField<type, offset, TrustedSpaceCompressionScheme>::store(*this,   \
-                                                                    value);  \
+    WriteProtectedPointerField(offset, value);                               \
     CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
-  }
+  }                                                                          \
+  bool holder::has_##name() const {                                          \
+    return !IsProtectedPointerFieldCleared(offset);                          \
+  }                                                                          \
+  void holder::clear_##name() { return ClearProtectedPointerField(offset); }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \

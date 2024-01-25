@@ -133,9 +133,7 @@ DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
 }
 
 DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
-  Tagged<Object> value =
-      TaggedField<Object, kHandlerTableOffset,
-                  TrustedSpaceCompressionScheme>::load(*this);
+  Tagged<Object> value = RawProtectedPointerField(kHandlerTableOffset).load();
   // This field might be 0 during deserialization.
   DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
   return value;
