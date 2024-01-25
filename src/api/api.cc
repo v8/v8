@@ -5380,6 +5380,30 @@ bool v8::Object::IsUndetectable() const {
   return i::IsUndetectable(*self);
 }
 
+namespace {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+// A newly allocated vector is required to convert from an array of direct
+// locals to an array of indirect handles.
+std::vector<i::Handle<i::Object>> PrepareArguments(int argc,
+                                                   Local<Value> argv[]) {
+  std::vector<i::Handle<i::Object>> args(argc);
+  for (int i = 0; i < argc; ++i) {
+    args[i] = Utils::OpenHandle(*argv[i]);
+  }
+  return args;
+}
+#else   // !V8_ENABLE_DIRECT_LOCAL
+// A simple cast is used to convert from an array of indirect locals to an
+// array of indirect handles. A MemorySpan object is returned, as no
+// deallocation is necessary.
+v8::MemorySpan<i::Handle<i::Object>> PrepareArguments(int argc,
+                                                      Local<Value> argv[]) {
+  return {reinterpret_cast<i::Handle<i::Object>*>(argv),
+          static_cast<size_t>(argc)};
+}
+#endif  // V8_ENABLE_DIRECT_LOCAL
+}  // namespace
+
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {
@@ -5392,10 +5416,11 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
+      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5411,10 +5436,10 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
                                              i_isolate);
   auto self = Utils::OpenHandle(this);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::New(i_isolate, self, self, argc, args), &result);
+      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5467,10 +5492,10 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
       }
     }
   }
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Object> result;
   has_exception = !ToLocal<Object>(
-      i::Execution::New(i_isolate, self, self, argc, args), &result);
+      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -5489,19 +5514,11 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                   "Function to be called is a null pointer");
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-
-#ifdef V8_ENABLE_DIRECT_LOCAL
-  i::Handle<i::Object>* args = new i::Handle<i::Object>[argc];
-  for (int i = 0; i < argc; ++i) {
-    args[i] = Utils::OpenHandle(*argv[i]);
-  }
-#else   // !V8_ENABLE_DIRECT_LOCAL
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-#endif  // V8_ENABLE_DIRECT_LOCAL
-
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
+      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
