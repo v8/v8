@@ -1180,10 +1180,12 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
       return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      return alternative.set_tagged(AddNewNode<Float64ToTagged>({value}));
+      return alternative.set_tagged(AddNewNode<Float64ToTagged>(
+          {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      return alternative.set_tagged(AddNewNode<HoleyFloat64ToTagged>({value}));
+      return alternative.set_tagged(AddNewNode<HoleyFloat64ToTagged>(
+          {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
 
     case ValueRepresentation::kTagged:
@@ -6343,7 +6345,7 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
   // TODO(victorgomes): Add data view to known types.
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                JS_DATA_VIEW_TYPE);
+                                JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE);
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset =
       args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
@@ -6363,7 +6365,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   // TODO(victorgomes): Add data view to known types.
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                JS_DATA_VIEW_TYPE);
+                                JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE);
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset =
       args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);

@@ -416,7 +416,7 @@ struct KnownNodeAspects {
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 
   struct AvailableExpression {
-    ValueNode* node;
+    NodeBase* node;
     uint32_t effect_epoch;
   };
   ZoneMap<uint32_t, AvailableExpression> available_expressions;

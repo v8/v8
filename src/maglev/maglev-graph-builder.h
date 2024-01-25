@@ -870,25 +870,38 @@ class MaglevGraphBuilder {
                                    Args&&... args) {
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
-    static_assert(IsValueNode(op));
     DCHECK(v8_flags.maglev_cse);
-    size_t tmp_value_number =
-        fast_hash_combine(NodeT::ValueNumberSeed(std::forward<Args>(args)...),
-                          base::hash_value(op));
 
-    static auto GetValueNumberOfInput = [](ValueNode* inp) -> size_t {
-      if (inp->value_number == 0) {
-        return base::hash_value(inp);
+    using options_result =
+        typename std::invoke_result<decltype(&NodeT::options),
+                                    const NodeT>::type;
+    static_assert(
+        std::is_assignable<options_result, std::tuple<Args...>>::value,
+        "Instruction participating in CSE needs options() returning "
+        "a tuple matching the constructor arguments");
+
+    uint32_t value_number;
+    {
+      static auto GetValueNumberOfInput = [](ValueNode* inp) -> size_t {
+        if (inp->value_number == 0) {
+          return base::hash_value(inp);
+        }
+        return inp->value_number;
+      };
+      size_t tmp_value_number = base::hash_value(op);
+      (
+          [&] {
+            tmp_value_number =
+                fast_hash_combine(tmp_value_number, gvn_hash_value(args));
+          }(),
+          ...);
+      for (const auto& inp : inputs) {
+        tmp_value_number =
+            fast_hash_combine(tmp_value_number, GetValueNumberOfInput(inp));
       }
-      return inp->value_number;
-    };
-
-    for (const auto& inp : inputs) {
-      tmp_value_number =
-          fast_hash_combine(tmp_value_number, GetValueNumberOfInput(inp));
+      value_number = static_cast<uint32_t>(tmp_value_number);
     }
 
-    uint32_t value_number = static_cast<uint32_t>(tmp_value_number);
     auto exists = known_node_aspects().available_expressions.find(value_number);
     if (exists != known_node_aspects().available_expressions.end()) {
       auto candidate = exists->second.node;
@@ -902,17 +915,18 @@ class MaglevGraphBuilder {
           StaticPropertiesForOpcode(op).is_pure() ||
           known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
       if (sanity_check && epoch_check) {
-        int i = 0;
-        for (const auto& inp : inputs) {
-          if (inp != candidate->input(i).node()) {
-            break;
+        if (static_cast<NodeT*>(candidate)->options() ==
+            std::tuple{std::forward<Args>(args)...}) {
+          int i = 0;
+          for (const auto& inp : inputs) {
+            if (inp != candidate->input(i).node()) {
+              break;
+            }
+            i++;
           }
-          i++;
-        }
-        if (static_cast<size_t>(i) == inputs.size()) {
-          // Currently, we maintain the invariant that ValueNumberSeed never
-          // has any collisions, thus we don't need to check anything else.
-          return static_cast<NodeT*>(candidate);
+          if (static_cast<size_t>(i) == inputs.size()) {
+            return static_cast<NodeT*>(candidate);
+          }
         }
       }
       if (!epoch_check) {
@@ -921,6 +935,7 @@ class MaglevGraphBuilder {
     }
     NodeT* node =
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
+    DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
     node->value_number = value_number;
     known_node_aspects().available_expressions[value_number] = {
         node, !node->properties().is_pure()
@@ -2359,9 +2374,54 @@ class MaglevGraphBuilder {
 #endif
 
  private:
-  size_t fast_hash_combine(size_t seed, size_t h) {
+  // Some helpers for CSE
+
+  static size_t fast_hash_combine(size_t seed, size_t h) {
     // Implementation from boost. Good enough for GVN.
     return h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const T& in) {
+    return base::hash_value(in);
+  }
+
+  static size_t gvn_hash_value(const compiler::MapRef& map) {
+    return map.hash_value();
+  }
+
+  static size_t gvn_hash_value(const interpreter::Register& reg) {
+    return base::hash_value(reg.index());
+  }
+
+  static size_t gvn_hash_value(const Representation& rep) {
+    return base::hash_value(rep.kind());
+  }
+
+  static size_t gvn_hash_value(const ExternalReference& ref) {
+    return base::hash_value(ref.address());
+  }
+
+  static size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
+    return access_info.hash_value();
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const v8::internal::ZoneCompactSet<T>& vector) {
+    size_t hash = base::hash_value(vector.size());
+    for (auto e : vector) {
+      hash = fast_hash_combine(hash, gvn_hash_value(e));
+    }
+    return hash;
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
+    size_t hash = base::hash_value(vector.size());
+    for (auto e : vector) {
+      hash = fast_hash_combine(hash, gvn_hash_value(e));
+    }
+    return hash;
   }
 };
 
