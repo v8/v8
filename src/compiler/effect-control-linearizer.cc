@@ -6787,8 +6787,6 @@ Node* EffectControlLinearizer::ClampFastCallArgument(
 
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
-  int kAlign = alignof(uintptr_t);
-  int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
       uint8_t flags = uint8_t(arg_type.GetFlags());
@@ -6821,12 +6819,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       } else {
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kV8Value: {
-            Node* stack_slot = __ StackSlot(kSize, kAlign);
-            __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                         kNoWriteBarrier),
-                     stack_slot, 0, __ BitcastTaggedToWord(node));
-
-            return stack_slot;
+            return fast_api_call::AdaptLocalArgument(gasm(), node);
           }
           case CTypeInfo::Type::kFloat32: {
             return __ TruncateFloat64ToFloat32(node);
@@ -6922,10 +6915,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       Node* value_is_smi = ObjectIsSmi(node);
       __ GotoIf(value_is_smi, if_error);
 
-      Node* stack_slot = __ StackSlot(kSize, kAlign);
-      __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                   kNoWriteBarrier),
-               stack_slot, 0, __ BitcastTaggedToWord(node));
+      Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
 
       // Check that the value is a JSArray.
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
@@ -6935,7 +6925,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
           __ Word32Equal(value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
       __ GotoIfNot(value_is_js_array, if_error);
 
-      return stack_slot;
+      return node_to_pass;
     }
     case CTypeInfo::SequenceType::kIsTypedArray: {
       // Check that the value is a HeapObject.
@@ -6985,17 +6975,11 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
             value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
         __ GotoIfNot(value_is_js_array, &next);
 
-        int kAlign = alignof(uintptr_t);
-        int kSize = sizeof(uintptr_t);
-        Node* stack_slot = __ StackSlot(kSize, kAlign);
-
-        __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 stack_slot, 0, __ BitcastTaggedToWord(node));
+        Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
 
         Node* target_address = __ ExternalConstant(ExternalReference::Create(
             c_functions[func_index].address, ref_type));
-        __ Goto(&merge, target_address, stack_slot);
+        __ Goto(&merge, target_address, node_to_pass);
         break;
       }
 
