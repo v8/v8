@@ -2039,6 +2039,11 @@ class MachineOptimizationReducer : public Next {
         }
       } else if (const WordBinopOp* binary_op =
                      index_op.TryCast<WordBinopOp>()) {
+        // TODO(jkummerow): This doesn't trigger for wasm32 memory operations
+        // on 64-bit platforms, because `index_op` is a `Change` (from uint32
+        // to uint64) in that case, and that Change's input is the addition
+        // we're looking for. When we fix that, we must also teach the x64
+        // instruction selector to support xchg with index *and* offset.
         if (binary_op->kind == WordBinopOp::Kind::kAdd &&
             TryAdjustOffset(offset, matcher.Get(binary_op->right()),
                             *element_scale)) {

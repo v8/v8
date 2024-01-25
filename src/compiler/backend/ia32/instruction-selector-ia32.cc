@@ -1250,19 +1250,9 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
         inputs[input_count++] = g.UseUniqueRegister(value);
         outputs[output_count++] = g.DefineSameAsFirst(store);
       }
-      inputs[input_count++] = g.UseUniqueRegister(base);
-      DCHECK_EQ(element_size_log2, 0);
-      if (selector->valid(index)) {
-        DCHECK_EQ(displacement, 0);
-        inputs[input_count++] = g.GetEffectiveIndexOperand(
-            selector->value(index), &addressing_mode);
-      } else if (displacement != 0) {
-        DCHECK(g.ValueFitsIntoImmediate(displacement));
-        inputs[input_count++] = g.UseImmediate(displacement);
-        addressing_mode = kMode_MRI;
-      } else {
-        addressing_mode = kMode_MR;
-      }
+      addressing_mode = g.GetEffectiveAddressMemoryOperand(
+          store, inputs, &input_count,
+          IA32OperandGeneratorT<Adapter>::RegisterMode::kUniqueRegister);
       opcode = GetSeqCstStoreOpcode(rep);
     } else {
       // Release and non-atomic stores emit MOV.
