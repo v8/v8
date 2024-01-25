@@ -487,7 +487,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return false;
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int32_t, GetImmediateIntegerValue)
   int32_t GetImmediateIntegerValue(node_t node) {
     DCHECK(CanBeImmediate(node));
     auto constant = this->constant_view(node);
@@ -499,7 +498,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return static_cast<int32_t>(constant.number_value());
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeMemoryOperand)
   bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,
                           int effect_level) {
     if (!this->IsLoadOrLoadImmutable(input)) return false;
@@ -714,9 +712,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
-                                          GetEffectiveAddressMemoryOperand)
-
   AddressingMode GetEffectiveAddressMemoryOperand(
       node_t operand, InstructionOperand inputs[], size_t* input_count,
       RegisterUseKind reg_kind = RegisterUseKind::kUseRegister);
@@ -732,7 +727,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
   bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }

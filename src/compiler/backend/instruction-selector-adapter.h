@@ -18,22 +18,6 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/use-map.h"
 
-// TODO(nicohartmann@):
-// During the transition period to a generic instruction selector, some
-// instantiations with TurboshaftAdapter will still call functions with
-// Node* arguments. Use `DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK` to define
-// a temporary fallback for these functions such that compilation is possible
-// while transitioning the instruction selector incrementally. Once all uses
-// of Node*, BasicBlock*, ... have been replaced, remove those fallbacks.
-#define DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(ret, name)                     \
-  template <typename... Args>                                                  \
-  std::enable_if_t<Adapter::IsTurboshaft &&                                    \
-                       v8::internal::compiler::detail::AnyTurbofanNodeOrBlock< \
-                           Args...>::value,                                    \
-                   ret>                                                        \
-  name(Args...) {                                                              \
-    UNREACHABLE();                                                             \
-  }
 
 namespace v8::internal::compiler {
 namespace detail {

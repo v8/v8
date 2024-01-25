@@ -2171,8 +2171,8 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ReplaceLane)
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFinishRegion(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFinishRegion(Node* node) {
   EmitIdentity(node);
 }
 
@@ -2779,8 +2779,8 @@ void InstructionSelectorT<Adapter>::VisitStaticAssert(Node* node) {
       StaticAssertSourceOf(node->op()));
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitDeadValue(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitDeadValue(Node* node) {
   OperandGenerator g(this);
   MarkAsRepresentation(DeadValueRepresentationOf(node->op()), node);
   Emit(kArchDebugBreak, g.DefineAsConstant(node));

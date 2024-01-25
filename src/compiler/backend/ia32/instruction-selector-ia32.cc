@@ -500,8 +500,6 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
                                        register_mode);
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
-                                          GetEffectiveAddressMemoryOperand)
   AddressingMode GetEffectiveAddressMemoryOperand(
       node_t node, InstructionOperand inputs[], size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
@@ -609,7 +607,6 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
   bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }
