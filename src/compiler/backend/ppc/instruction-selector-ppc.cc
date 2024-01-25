@@ -112,11 +112,11 @@ void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 
 template <typename Adapter>
 void VisitRRO(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-              Node* node, ImmediateMode operand_mode) {
+              typename Adapter::node_t node, ImmediateMode operand_mode) {
   PPCOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseOperand(node->InputAt(1), operand_mode));
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseOperand(selector->input_at(node, 1), operand_mode));
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -662,7 +662,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(node_t node) {
         CanCover(node, left)) {
       // Try to absorb left/right shift into rlwinm
       int32_t shift_by;
-      const WordBinopOp& shift_op = lhs.Cast<WordBinopOp>();
+      const ShiftOp& shift_op = lhs.Cast<ShiftOp>();
       if (MatchIntegralWord32Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 31)) {
         left = shift_op.left();
@@ -746,7 +746,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64And(node_t node) {
         CanCover(node, left)) {
       // Try to absorb left/right shift into rldic
       int64_t shift_by;
-      const WordBinopOp& shift_op = lhs.Cast<WordBinopOp>();
+      const ShiftOp& shift_op = lhs.Cast<ShiftOp>();
       if (MatchIntegralWord64Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 63)) {
         left = shift_op.left();
@@ -881,10 +881,20 @@ void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& bitwise_xor =
+        this->Get(node).template Cast<WordBinopOp>();
+    int32_t mask;
+    if (this->MatchIntegralWord32Constant(bitwise_xor.right(), &mask) &&
+        mask == -1) {
+      Emit(kPPC_Not, g.DefineAsRegister(node),
+           g.UseRegister(bitwise_xor.left()));
+    } else {
+      VisitBinop<Adapter>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
+    }
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (m.right().Is(-1)) {
       Emit(kPPC_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
@@ -938,10 +948,20 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const WordBinopOp& bitwise_xor =
+        this->Get(node).template Cast<WordBinopOp>();
+    int64_t mask;
+    if (this->MatchIntegralWord64Constant(bitwise_xor.right(), &mask) &&
+        mask == -1) {
+      Emit(kPPC_Not, g.DefineAsRegister(node),
+           g.UseRegister(bitwise_xor.left()));
+    } else {
+      VisitBinop<Adapter>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
+    }
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     if (m.right().Is(-1)) {
       Emit(kPPC_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
@@ -991,10 +1011,33 @@ InstructionSelectorT<TurboshaftAdapter>::FindProjection(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(shl.left());
+    if (lhs.Is<Opmask::kWord32BitwiseAnd>() &&
+        this->is_integer_constant(shl.right()) &&
+        base::IsInRange(this->integer_constant(shl.right()), 0, 31)) {
+      int sh = this->integer_constant(shl.right());
+      int mb;
+      int me;
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      if (this->is_integer_constant(bitwise_and.right()) &&
+          IsContiguousMask32(this->integer_constant(bitwise_and.right()) << sh,
+                             &mb, &me)) {
+        // Adjust the mask such that it doesn't include any rotated bits.
+        if (me < sh) me = sh;
+        if (mb >= me) {
+          Emit(kPPC_RotLeftAndMask32, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+               g.TempImmediate(mb), g.TempImmediate(me));
+          return;
+        }
+      }
+    }
+    VisitRRO(this, kPPC_ShiftLeft32, node, kShift32Imm);
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
       // Try to absorb logical-and into rlwinm
@@ -1021,59 +1064,126 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-    Int64BinopMatcher m(node);
-    // TODO(mbrandy): eliminate left sign extension if right >= 32
-    if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
-      // Try to absorb logical-and into rldic
-      Int64BinopMatcher mleft(m.left().node());
-      int sh = m.right().ResolvedValue();
-      int mb;
-      int me;
-      if (mleft.right().HasResolvedValue() &&
-          IsContiguousMask64(mleft.right().ResolvedValue() << sh, &mb, &me)) {
-        // Adjust the mask such that it doesn't include any rotated bits.
-        if (me < sh) me = sh;
-        if (mb >= me) {
-          bool match = false;
-          ArchOpcode opcode;
-          int mask;
-          if (me == 0) {
-            match = true;
-            opcode = kPPC_RotLeftAndClearLeft64;
-            mask = mb;
-          } else if (mb == 63) {
-            match = true;
-            opcode = kPPC_RotLeftAndClearRight64;
-            mask = me;
-          } else if (sh && me <= sh) {
-            match = true;
-            opcode = kPPC_RotLeftAndClear64;
-            mask = mb;
-          }
-          if (match) {
-            Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
-                 g.TempImmediate(mask));
-            return;
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
+      const Operation& lhs = this->Get(shl.left());
+      if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
+          this->is_integer_constant(shl.right()) &&
+          base::IsInRange(this->integer_constant(shl.right()), 0, 63)) {
+        int sh = this->integer_constant(shl.right());
+        int mb;
+        int me;
+        const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+        if (this->is_integer_constant(bitwise_and.right()) &&
+            IsContiguousMask64(
+                this->integer_constant(bitwise_and.right()) << sh, &mb, &me)) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (me < sh) me = sh;
+          if (mb >= me) {
+            bool match = false;
+            ArchOpcode opcode;
+            int mask;
+            if (me == 0) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearLeft64;
+              mask = mb;
+            } else if (mb == 63) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearRight64;
+              mask = me;
+            } else if (sh && me <= sh) {
+              match = true;
+              opcode = kPPC_RotLeftAndClear64;
+              mask = mb;
+            }
+            if (match) {
+              Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+                   g.TempImmediate(mask));
+              return;
+            }
           }
         }
       }
+      VisitRRO(this, kPPC_ShiftLeft64, node, kShift64Imm);
+    } else {
+      Int64BinopMatcher m(node);
+      // TODO(mbrandy): eliminate left sign extension if right >= 32
+      if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
+        // Try to absorb logical-and into rldic
+        Int64BinopMatcher mleft(m.left().node());
+        int sh = m.right().ResolvedValue();
+        int mb;
+        int me;
+        if (mleft.right().HasResolvedValue() &&
+            IsContiguousMask64(mleft.right().ResolvedValue() << sh, &mb, &me)) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (me < sh) me = sh;
+          if (mb >= me) {
+            bool match = false;
+            ArchOpcode opcode;
+            int mask;
+            if (me == 0) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearLeft64;
+              mask = mb;
+            } else if (mb == 63) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearRight64;
+              mask = me;
+            } else if (sh && me <= sh) {
+              match = true;
+              opcode = kPPC_RotLeftAndClear64;
+              mask = mb;
+            }
+            if (match) {
+              Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
+                   g.TempImmediate(mask));
+              return;
+            }
+          }
+        }
+      }
+      VisitRRO(this, kPPC_ShiftLeft64, node, kShift64Imm);
     }
-    VisitRRO(this, kPPC_ShiftLeft64, node, kShift64Imm);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(shr.left());
+    if (lhs.Is<Opmask::kWord32BitwiseAnd>() &&
+        this->is_integer_constant(shr.right()) &&
+        base::IsInRange(this->integer_constant(shr.right()), 0, 31)) {
+      int sh = this->integer_constant(shr.right());
+      int mb;
+      int me;
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      if (this->is_integer_constant(bitwise_and.right()) &&
+          IsContiguousMask32(
+              static_cast<uint32_t>(
+                  this->integer_constant(bitwise_and.right()) >> sh),
+              &mb, &me)) {
+        // Adjust the mask such that it doesn't include any rotated bits.
+        if (mb > 31 - sh) mb = 31 - sh;
+        sh = (32 - sh) & 0x1F;
+        if (mb >= me) {
+          Emit(kPPC_RotLeftAndMask32, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+               g.TempImmediate(mb), g.TempImmediate(me));
+          return;
+        }
+      }
+    }
+    VisitRRO(this, kPPC_ShiftRight32, node, kShift32Imm);
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
       // Try to absorb logical-and into rlwinm
@@ -1102,56 +1212,116 @@ void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-    Int64BinopMatcher m(node);
-    if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
-      // Try to absorb logical-and into rldic
-      Int64BinopMatcher mleft(m.left().node());
-      int sh = m.right().ResolvedValue();
-      int mb;
-      int me;
-      if (mleft.right().HasResolvedValue() &&
-          IsContiguousMask64((uint64_t)(mleft.right().ResolvedValue()) >> sh,
-                             &mb, &me)) {
-        // Adjust the mask such that it doesn't include any rotated bits.
-        if (mb > 63 - sh) mb = 63 - sh;
-        sh = (64 - sh) & 0x3F;
-        if (mb >= me) {
-          bool match = false;
-          ArchOpcode opcode;
-          int mask;
-          if (me == 0) {
-            match = true;
-            opcode = kPPC_RotLeftAndClearLeft64;
-            mask = mb;
-          } else if (mb == 63) {
-            match = true;
-            opcode = kPPC_RotLeftAndClearRight64;
-            mask = me;
-          }
-          if (match) {
-            Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
-                 g.TempImmediate(mask));
-            return;
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
+      const Operation& lhs = this->Get(shr.left());
+      if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
+          this->is_integer_constant(shr.right()) &&
+          base::IsInRange(this->integer_constant(shr.right()), 0, 63)) {
+        int sh = this->integer_constant(shr.right());
+        int mb;
+        int me;
+        const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+        if (this->is_integer_constant(bitwise_and.right()) &&
+            IsContiguousMask64(
+                static_cast<uint64_t>(
+                    this->integer_constant(bitwise_and.right()) >> sh),
+                &mb, &me)) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (mb > 63 - sh) mb = 63 - sh;
+          sh = (64 - sh) & 0x3F;
+          if (mb >= me) {
+            bool match = false;
+            ArchOpcode opcode;
+            int mask;
+            if (me == 0) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearLeft64;
+              mask = mb;
+            } else if (mb == 63) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearRight64;
+              mask = me;
+            }
+            if (match) {
+              Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+                   g.TempImmediate(mask));
+              return;
+            }
           }
         }
       }
+      VisitRRO(this, kPPC_ShiftRight64, node, kShift64Imm);
+    } else {
+      Int64BinopMatcher m(node);
+      if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
+        // Try to absorb logical-and into rldic
+        Int64BinopMatcher mleft(m.left().node());
+        int sh = m.right().ResolvedValue();
+        int mb;
+        int me;
+        if (mleft.right().HasResolvedValue() &&
+            IsContiguousMask64((uint64_t)(mleft.right().ResolvedValue()) >> sh,
+                               &mb, &me)) {
+          // Adjust the mask such that it doesn't include any rotated bits.
+          if (mb > 63 - sh) mb = 63 - sh;
+          sh = (64 - sh) & 0x3F;
+          if (mb >= me) {
+            bool match = false;
+            ArchOpcode opcode;
+            int mask;
+            if (me == 0) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearLeft64;
+              mask = mb;
+            } else if (mb == 63) {
+              match = true;
+              opcode = kPPC_RotLeftAndClearRight64;
+              mask = me;
+            }
+            if (match) {
+              Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
+                   g.TempImmediate(mask));
+              return;
+            }
+          }
+        }
+      }
+      VisitRRO(this, kPPC_ShiftRight64, node, kShift64Imm);
     }
-    VisitRRO(this, kPPC_ShiftRight64, node, kShift64Imm);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const ShiftOp& sar = this->Get(node).template Cast<ShiftOp>();
+    const Operation& lhs = this->Get(sar.left());
+    if (CanCover(node, sar.left()) && lhs.Is<Opmask::kWord32ShiftLeft>()) {
+      const ShiftOp& shl = lhs.Cast<ShiftOp>();
+      if (this->is_integer_constant(sar.right()) &&
+          this->is_integer_constant(shl.right())) {
+        uint32_t sar_by = this->integer_constant(sar.right());
+        uint32_t shl_by = this->integer_constant(shl.right());
+        if ((sar_by == shl_by) && (sar_by == 16)) {
+          Emit(kPPC_ExtendSignWord16, g.DefineAsRegister(node),
+               g.UseRegister(shl.left()));
+          return;
+        } else if ((sar_by == shl_by) && (sar_by == 24)) {
+          Emit(kPPC_ExtendSignWord8, g.DefineAsRegister(node),
+               g.UseRegister(shl.left()));
+          return;
+        }
+      }
+    }
+    VisitRRO(this, kPPC_ShiftRightAlg32, node, kShift32Imm);
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
     Int32BinopMatcher m(node);
     // Replace with sign extension for (x << K) >> K where K is 16 or 24.
     if (CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
@@ -1173,36 +1343,35 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-    Int64BinopMatcher m(node);
-    if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
-        m.right().Is(32)) {
-      // Just load and sign-extend the interesting 4 bytes instead. This
-      // happens, for example, when we're loading and untagging SMIs.
-      BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(),
-                                                  AddressOption::kAllowAll);
-      if (mleft.matches() && mleft.index() == nullptr) {
-        int64_t offset = 0;
-        Node* displacement = mleft.displacement();
-        if (displacement != nullptr) {
-          Int64Matcher mdisplacement(displacement);
-          DCHECK(mdisplacement.HasResolvedValue());
-          offset = mdisplacement.ResolvedValue();
-        }
-        offset = SmiWordOffset(offset);
-        if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
-          Emit(kPPC_LoadWordS32 | AddressingModeField::encode(kMode_MRI),
-               g.DefineAsRegister(node), g.UseRegister(mleft.base()),
-               g.TempImmediate(offset), g.UseImmediate(0));
-          return;
+    // TODO(miladfarca): Implement for Turboshaft.
+    if constexpr (!Adapter::IsTurboshaft) {
+      Int64BinopMatcher m(node);
+      if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+          m.right().Is(32)) {
+        // Just load and sign-extend the interesting 4 bytes instead. This
+        // happens, for example, when we're loading and untagging SMIs.
+        BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(),
+                                                    AddressOption::kAllowAll);
+        if (mleft.matches() && mleft.index() == nullptr) {
+          int64_t offset = 0;
+          Node* displacement = mleft.displacement();
+          if (displacement != nullptr) {
+            Int64Matcher mdisplacement(displacement);
+            DCHECK(mdisplacement.HasResolvedValue());
+            offset = mdisplacement.ResolvedValue();
+          }
+          offset = SmiWordOffset(offset);
+          if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
+            Emit(kPPC_LoadWordS32 | AddressingModeField::encode(kMode_MRI),
+                 g.DefineAsRegister(node), g.UseRegister(mleft.base()),
+                 g.TempImmediate(offset), g.UseImmediate(0));
+            return;
+          }
         }
       }
     }
     VisitRRO(this, kPPC_ShiftRightAlg64, node, kShift64Imm);
-  }
 }
 #endif
 
@@ -1849,13 +2018,13 @@ void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat32ToInt32(node_t node) {
-    VisitRR(this, kPPC_BitcastFloat32ToInt32, node);
+  VisitRR(this, kPPC_BitcastFloat32ToInt32, node);
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(node_t node) {
-    VisitRR(this, kPPC_BitcastDoubleToInt64, node);
+  VisitRR(this, kPPC_BitcastDoubleToInt64, node);
 }
 #endif
 
@@ -1969,26 +2138,20 @@ void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
     node_t node, InstructionCode opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    PPCOperandGeneratorT<Adapter> g(this);
-    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
-        ->MarkAsCall();
-  }
+  PPCOperandGeneratorT<Adapter> g(this);
+  Emit(opcode, g.DefineAsFixed(node, d1),
+       g.UseFixed(this->input_at(node, 0), d1))
+      ->MarkAsCall();
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
     node_t node, InstructionCode opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
-         g.UseFixed(node->InputAt(1), d2))
+    Emit(opcode, g.DefineAsFixed(node, d1),
+         g.UseFixed(this->input_at(node, 0), d1),
+         g.UseFixed(this->input_at(node, 1), d2))
         ->MarkAsCall();
-  }
 }
 
 template <typename Adapter>
@@ -2484,11 +2647,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   PPCOperandGeneratorT<Adapter> g(this);
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2520,7 +2680,6 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
 
   // Generate a tree of conditional jumps.
   return EmitBinarySearchSwitch(sw, value_operand);
-  }
 }
 
 template <>
@@ -2829,48 +2988,40 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicLoadParameters atomic_load_params =
-        AtomicLoadParametersOf(node->op());
-    LoadRepresentation load_rep = atomic_load_params.representation();
-    VisitLoadCommon(this, node, load_rep);
-  }
+  OperandGeneratorT<Adapter> g(this);
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  VisitLoadCommon(this, node, load_rep);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicLoadParameters atomic_load_params =
-        AtomicLoadParametersOf(node->op());
-    LoadRepresentation load_rep = atomic_load_params.representation();
-    VisitLoadCommon(this, node, load_rep);
-  }
+  OperandGeneratorT<Adapter> g(this);
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  VisitLoadCommon(this, node, load_rep);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-    VisitStoreCommon(this, node, store_params.store_representation(),
-                     store_params.order());
-  }
+  auto store = this->store_view(node);
+  AtomicStoreParameters store_params(store.stored_rep().representation(),
+                                     store.stored_rep().write_barrier_kind(),
+                                     store.memory_order().value(),
+                                     store.access_kind());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-    VisitStoreCommon(this, node, store_params.store_representation(),
-                     store_params.order());
-  }
+  auto store = this->store_view(node);
+  AtomicStoreParameters store_params(store.stored_rep().representation(),
+                                     store.stored_rep().write_barrier_kind(),
+                                     store.memory_order().value(),
+                                     store.access_kind());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 template <typename Adapter>
