@@ -1711,8 +1711,8 @@ class MachineOptimizationReducer : public Next {
     if (stored_rep.SizeInBytes() <= 4) {
       value = TryRemoveWord32ToWord64Conversion(value);
     }
-    index =
-        ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
+    index = ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale,
+                              kind.tagged_base);
     switch (stored_rep) {
       case MemoryRepresentation::Uint8():
       case MemoryRepresentation::Int8():
@@ -1775,13 +1775,14 @@ class MachineOptimizationReducer : public Next {
 #endif
 
     while (true) {
-      index =
-          ReduceMemoryIndex(index.value_or_invalid(), &offset, &element_scale);
+      index = ReduceMemoryIndex(index.value_or_invalid(), &offset,
+                                &element_scale, kind.tagged_base);
       if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
             matcher.MatchWordAdd(base_idx, &left, &right,
                                  WordRepresentation::PointerSized()) &&
-            TryAdjustOffset(&offset, matcher.Get(right), element_scale)) {
+            TryAdjustOffset(&offset, matcher.Get(right), element_scale,
+                            kind.tagged_base)) {
           base_idx = left;
           continue;
         }
@@ -1954,7 +1955,7 @@ class MachineOptimizationReducer : public Next {
   // Try to match a constant and add it to `offset`. Return `true` if
   // successful.
   bool TryAdjustOffset(int32_t* offset, const Operation& maybe_constant,
-                       uint8_t element_scale) {
+                       uint8_t element_scale, bool tagged_base) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
     if (constant.rep != WordRepresentation::PointerSized() ||
@@ -1971,7 +1972,8 @@ class MachineOptimizationReducer : public Next {
         !base::bits::SignedAddOverflow32(
             *offset,
             static_cast<int32_t>(base::bits::Unsigned(diff) << element_scale),
-            &new_offset)) {
+            &new_offset) &&
+        LoadOp::OffsetIsValid(new_offset, tagged_base)) {
       *offset = new_offset;
       return true;
     }
@@ -2019,10 +2021,10 @@ class MachineOptimizationReducer : public Next {
   // `element_scale` and returning the updated `index`.
   // Return `OpIndex::Invalid()` if the resulting index is zero.
   OpIndex ReduceMemoryIndex(OpIndex index, int32_t* offset,
-                            uint8_t* element_scale) {
+                            uint8_t* element_scale, bool tagged_base) {
     while (index.valid()) {
       const Operation& index_op = matcher.Get(index);
-      if (TryAdjustOffset(offset, index_op, *element_scale)) {
+      if (TryAdjustOffset(offset, index_op, *element_scale, tagged_base)) {
         index = OpIndex::Invalid();
         *element_scale = 0;
       } else if (TryAdjustIndex(*offset, &index, index_op, *element_scale)) {
@@ -2046,7 +2048,7 @@ class MachineOptimizationReducer : public Next {
         // instruction selector to support xchg with index *and* offset.
         if (binary_op->kind == WordBinopOp::Kind::kAdd &&
             TryAdjustOffset(offset, matcher.Get(binary_op->right()),
-                            *element_scale)) {
+                            *element_scale, tagged_base)) {
           index = binary_op->left();
           continue;
         }

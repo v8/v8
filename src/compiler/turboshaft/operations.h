@@ -2501,6 +2501,16 @@ struct LoadOp : OperationT<LoadOp> {
     return input_count == 2 ? input(1) : OpIndex::Invalid();
   }
 
+  static constexpr bool OffsetIsValid(int32_t offset, bool tagged_base) {
+    if (tagged_base) {
+      // When a Load has the tagged_base Kind, it means that {offset} will
+      // eventually need a "-kHeapObjectTag" eventually. If the {offset} is
+      // min_int, then subtracting kHeapObjectTag will underflow.
+      return offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag;
+    }
+    return true;
+  }
+
   LoadOp(OpIndex base, OptionalOpIndex index, Kind kind,
          MemoryRepresentation loaded_rep, RegisterRepresentation result_rep,
          int32_t offset, uint8_t element_size_log2)
@@ -2524,6 +2534,7 @@ struct LoadOp : OperationT<LoadOp> {
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(loaded_rep));
+    DCHECK(OffsetIsValid(offset, kind.tagged_base));
   }
   static LoadOp& New(Graph* graph, OpIndex base, OptionalOpIndex index,
                      Kind kind, MemoryRepresentation loaded_rep,
@@ -2909,8 +2920,10 @@ struct StoreOp : OperationT<StoreOp> {
   }
 
   void Validate(const Graph& graph) const {
+    DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(stored_rep));
+    DCHECK(LoadOp::OffsetIsValid(offset, kind.tagged_base));
   }
   static StoreOp& New(
       Graph* graph, OpIndex base, OptionalOpIndex index, OpIndex value,
