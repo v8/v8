@@ -1946,7 +1946,7 @@ struct BitcastWord32PairToFloat64Op
 };
 
 struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
-  enum class Kind {
+  enum class Kind : uint8_t {
     kSmi,  // This is a bitcast from a Word to a Smi or from a Smi to a Word
     kHeapObject,  // This is a bitcast from or to a Heap Object
     kAny
@@ -3107,7 +3107,11 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
 // Therefore, they behaves like a constant, even though they are different for
 // every invocation.
 struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
-  enum class Kind { kStackCheckOffset, kFramePointer, kParentFramePointer };
+  enum class Kind : uint8_t {
+    kStackCheckOffset,
+    kFramePointer,
+    kParentFramePointer
+  };
   Kind kind;
 
   static constexpr OpEffects effects = OpEffects();
@@ -3685,9 +3689,9 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
 };
 
 struct BranchOp : FixedArityOperationT<1, BranchOp> {
+  BranchHint hint;
   Block* if_true;
   Block* if_false;
-  BranchHint hint;
 
   static constexpr OpEffects effects = OpEffects().CanChangeControlFlow();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -3700,7 +3704,7 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
   OpIndex condition() const { return input(0); }
 
   BranchOp(OpIndex condition, Block* if_true, Block* if_false, BranchHint hint)
-      : Base(condition), if_true(if_true), if_false(if_false), hint(hint) {}
+      : Base(condition), hint(hint), if_true(if_true), if_false(if_false) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -3709,21 +3713,21 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
 
 struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
   struct Case {
+    BranchHint hint;
     int32_t value;
     Block* destination;
-    BranchHint hint;
 
     Case(int32_t value, Block* destination, BranchHint hint)
-        : value(value), destination(destination), hint(hint) {}
+        : hint(hint), value(value), destination(destination) {}
 
     bool operator==(const Case& other) const {
       return value == other.value && destination == other.destination &&
              hint == other.hint;
     }
   };
+  BranchHint default_hint;
   base::Vector<Case> cases;
   Block* default_case;
-  BranchHint default_hint;
 
   static constexpr OpEffects effects = OpEffects().CanChangeControlFlow();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -3738,9 +3742,9 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
   SwitchOp(OpIndex input, base::Vector<Case> cases, Block* default_case,
            BranchHint default_hint)
       : Base(input),
+        default_hint(default_hint),
         cases(cases),
-        default_case(default_case),
-        default_hint(default_hint) {}
+        default_case(default_case) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -3980,7 +3984,7 @@ struct ObjectIsNumericValueOp
 };
 
 struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
-  enum class Kind {
+  enum class Kind : uint8_t {
     kObject,
     kBoolean,
     kNumber,
@@ -5365,8 +5369,8 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
 };
 
 struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
-  ZoneRefSet<Map> maps;
   CheckMapsFlags flags;
+  ZoneRefSet<Map> maps;
   FeedbackSource feedback;
 
   // TODO(tebbi): Map checks without map transitions have less effects.
@@ -5388,8 +5392,8 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   CheckMapsOp(OpIndex heap_object, OpIndex frame_state, ZoneRefSet<Map> maps,
               CheckMapsFlags flags, const FeedbackSource& feedback)
       : Base(heap_object, frame_state),
-        maps(std::move(maps)),
         flags(flags),
+        maps(std::move(maps)),
         feedback(feedback) {}
 
   void Validate(const Graph& graph) const {
@@ -6233,11 +6237,11 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
 };
 
 struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
+  bool is_signed;  // `false` only for unsigned packed type accesses.
+  CheckForNull null_check;
   const wasm::StructType* type;
   uint32_t type_index;
   int field_index;
-  bool is_signed;  // `false` only for unsigned packed type accesses.
-  CheckForNull null_check;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -6255,11 +6259,11 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   StructGetOp(OpIndex object, const wasm::StructType* type, uint32_t type_index,
               int field_index, bool is_signed, CheckForNull null_check)
       : Base(object),
+        is_signed(is_signed),
+        null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index),
-        is_signed(is_signed),
-        null_check(null_check) {}
+        field_index(field_index) {}
 
   OpIndex object() const { return input(0); }
 
@@ -6283,10 +6287,10 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 };
 
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
+  CheckForNull null_check;
   const wasm::StructType* type;
   uint32_t type_index;
   int field_index;
-  CheckForNull null_check;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -6304,10 +6308,10 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   StructSetOp(OpIndex object, OpIndex value, const wasm::StructType* type,
               uint32_t type_index, int field_index, CheckForNull null_check)
       : Base(object, value),
+        null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index),
-        null_check(null_check) {}
+        field_index(field_index) {}
 
   OpIndex object() const { return input(0); }
   OpIndex value() const { return input(1); }
@@ -6332,8 +6336,8 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
 };
 
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
-  const wasm::ArrayType* array_type;
   bool is_signed;
+  const wasm::ArrayType* array_type;
 
   // ArrayGetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -6344,7 +6348,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 
   ArrayGetOp(OpIndex array, OpIndex index, const wasm::ArrayType* array_type,
              bool is_signed)
-      : Base(array, index), array_type(array_type), is_signed(is_signed) {}
+      : Base(array, index), is_signed(is_signed), array_type(array_type) {}
 
   OpIndex array() const { return input(0); }
   OpIndex index() const { return input(1); }
