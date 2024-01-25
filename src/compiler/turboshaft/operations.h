@@ -1951,9 +1951,9 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
     kHeapObject,  // This is a bitcast from or to a Heap Object
     kAny
   };
+  Kind kind;
   RegisterRepresentation from;
   RegisterRepresentation to;
-  Kind kind;
 
   OpEffects Effects() const {
     switch (kind) {
@@ -1980,7 +1980,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 
   TaggedBitcastOp(OpIndex input, RegisterRepresentation from,
                   RegisterRepresentation to, Kind kind)
-      : Base(input), from(from), to(to), kind(kind) {}
+      : Base(input), kind(kind), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
     if (kind == Kind::kSmi) {
