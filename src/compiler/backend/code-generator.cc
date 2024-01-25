@@ -915,7 +915,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     return DeoptimizationData::Empty(isolate());
   }
   Handle<DeoptimizationData> data =
-      DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
+      DeoptimizationData::New(isolate(), deopt_count);
 
   Handle<DeoptimizationFrameTranslation> translation_array =
       translations_.ToFrameTranslation(

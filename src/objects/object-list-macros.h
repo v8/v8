@@ -39,6 +39,7 @@ namespace internal {
   APPLY(V, ByteArray, BYTE_ARRAY)                                        \
   APPLY(V, ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY)        \
   APPLY(V, FixedArray, FIXED_ARRAY)                                      \
+  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)                       \
   APPLY(V, FixedDoubleArray, FIXED_DOUBLE_ARRAY)                         \
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
@@ -345,7 +346,6 @@ namespace internal {
 // - Define a custom body descriptor
 #define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
   APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)         \
-  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)       \
   APPLY(V, BytecodeArray, BYTECODE_ARRAY)                \
   APPLY(V, Code, CODE)                                   \
   APPLY(V, InstructionStream, INSTRUCTION_STREAM)        \

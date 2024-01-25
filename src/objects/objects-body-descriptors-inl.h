@@ -1528,11 +1528,19 @@ class FixedArray::BodyDescriptor final
   }
 };
 
-class TrustedFixedArray::BodyDescriptor final
-    : public SuffixRangeBodyDescriptor<ExposedTrustedObject::kHeaderSize> {
+class TrustedFixedArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return TrustedFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    // TODO(saelo): switch this back to SuffixRangeBodyDescriptor once
+    // TrustedFixedArrays are no longer exposed.
+    IterateSelfIndirectPointer(obj, kTrustedFixedArrayIndirectPointerTag, v);
+    IteratePointers(obj, ExposedTrustedObject::kHeaderSize, object_size, v);
   }
 };
 

@@ -322,8 +322,10 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
+  // TODO(saelo): switch to kTrusted once DeoptimizationData is migrated into
+  // trusted space.
   Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
-      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+      Allocate(isolate, capacity, &no_gc, AllocationType::kOld));
   result->init_self_indirect_pointer(isolate);
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;

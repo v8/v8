@@ -23,11 +23,12 @@ namespace internal {
 constexpr int kIndirectPointerTagShift = 48;
 constexpr uint64_t kIndirectPointerTagMask = 0xffff000000000000;
 
-#define INDIRECT_POINTER_TAG_LIST(V)                           \
-  V(kCodeIndirectPointerTag, CODE_TYPE)                        \
-  V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE)     \
-  V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE) \
-  IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,       \
+#define INDIRECT_POINTER_TAG_LIST(V)                                \
+  V(kCodeIndirectPointerTag, CODE_TYPE)                             \
+  V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE)          \
+  V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE)      \
+  V(kTrustedFixedArrayIndirectPointerTag, TRUSTED_FIXED_ARRAY_TYPE) \
+  IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,            \
           WASM_TRUSTED_INSTANCE_DATA_TYPE)
 
 #define MAKE_TAG(instance_type) \
@@ -97,7 +98,8 @@ V8_INLINE constexpr bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
 // objects that are in the process of being migrated into trusted space.
 V8_INLINE constexpr bool IsTrustedSpaceMigrationInProgressForObjectsWithTag(
     IndirectPointerTag tag) {
-  return tag == kInterpreterDataIndirectPointerTag;
+  return tag == kInterpreterDataIndirectPointerTag ||
+         tag == kTrustedFixedArrayIndirectPointerTag;
 }
 
 // The null tag is also considered an invalid tag since no indirect pointer

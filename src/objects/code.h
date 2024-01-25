@@ -123,7 +123,7 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
+  DECL_ACCESSORS(deoptimization_data, Tagged<TrustedFixedArray>)
 
   // Whether this type of Code uses deoptimization data, in which case the
   // deoptimization_data field will be populated.
@@ -166,7 +166,7 @@ class Code : public ExposedTrustedObject {
   DECL_ACCESSORS(wrapper, Tagged<CodeWrapper>)
 
   // Unchecked accessors to be used during GC.
-  inline Tagged<FixedArray> unchecked_deoptimization_data() const;
+  inline Tagged<TrustedFixedArray> unchecked_deoptimization_data() const;
 
   DECL_RELAXED_UINT32_ACCESSORS(flags)
 

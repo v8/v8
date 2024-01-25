@@ -193,7 +193,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
   CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
-                !IsTrustedSpaceObject(*this));
+                !IsTrustedSpaceObject(*this) || IsTrustedFixedArray(*this));
 
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -1330,7 +1330,7 @@ void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
   CHECK(IsTrustedSpaceObject(*this) || IsCode(*this) ||
-        IsInterpreterData(*this));
+        IsInterpreterData(*this) || IsTrustedFixedArray(*this));
 #endif
 }
 

@@ -66,6 +66,7 @@ Address GcSafeCode::InstructionEnd(Isolate* isolate, Address pc) const {
 }
 
 bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
+  if (!UnsafeCastToCode()->uses_deoptimization_data()) return false;
   Tagged<DeoptimizationData> deopt_data = DeoptimizationData::unchecked_cast(
       UnsafeCastToCode()->unchecked_deoptimization_data());
   Address code_start_address = instruction_start();
@@ -90,7 +91,7 @@ INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
-ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<FixedArray>,
+ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<TrustedFixedArray>,
                    kDeoptimizationDataOrInterpreterDataOffset,
                    uses_deoptimization_data(),
                    uses_deoptimization_data() &&
@@ -236,8 +237,8 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-Tagged<FixedArray> Code::unchecked_deoptimization_data() const {
-  return FixedArray::unchecked_cast(
+Tagged<TrustedFixedArray> Code::unchecked_deoptimization_data() const {
+  return TrustedFixedArray::unchecked_cast(
       TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
           *this));
 }

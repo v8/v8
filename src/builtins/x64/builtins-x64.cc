@@ -2943,7 +2943,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
       rbx,
-      FieldOperand(deopt_data, FixedArray::OffsetOfElementAt(
+      FieldOperand(deopt_data, TrustedFixedArray::OffsetOfElementAt(
                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
   __ LoadCodeInstructionStart(rax, rax);
