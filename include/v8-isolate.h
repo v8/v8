@@ -1753,12 +1753,12 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 template <class T>
 MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
-  auto slot = GetDataFromSnapshotOnce(index);
-  if (slot) {
+  if (auto slot = GetDataFromSnapshotOnce(index); slot) {
     internal::PerformCastCheck(
         internal::ValueHelper::SlotAsValue<T, false>(slot));
+    return Local<T>::FromSlot(slot);
   }
-  return Local<T>::FromSlot(slot);
+  return {};
 }
 
 }  // namespace v8

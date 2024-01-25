@@ -28667,7 +28667,7 @@ TEST(FastApiCalls) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 namespace {
 static Trivial* UnwrapTrivialObject(Local<Object> object) {
-  i::Address addr = *reinterpret_cast<i::Address*>(*object);
+  i::Address addr = i::ValueHelper::ValueAsAddress(*object);
   auto instance_type = i::Internals::GetInstanceType(addr);
   bool is_valid =
       (v8::base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
