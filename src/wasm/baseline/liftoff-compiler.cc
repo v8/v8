@@ -3933,10 +3933,12 @@ class LiftoffCompiler {
   }
 
   template <ValueKind src_kind, ValueKind result_kind,
-            ValueKind result_lane_kind = kVoid, typename EmitFn>
+            ValueKind result_lane_kind = kVoid, typename EmitFn,
+            typename... ExtraArgs>
   void EmitTerOp(EmitFn fn, LiftoffRegister dst, LiftoffRegister src1,
-                 LiftoffRegister src2, LiftoffRegister src3) {
-    CallEmitFn(fn, dst, src1, src2, src3);
+                 LiftoffRegister src2, LiftoffRegister src3,
+                 ExtraArgs... extra_args) {
+    CallEmitFn(fn, dst, src1, src2, src3, extra_args...);
     if (V8_UNLIKELY(nondeterminism_)) {
       LiftoffRegList pinned{dst};
       if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
@@ -3968,7 +3970,8 @@ class LiftoffCompiler {
                                                                src2, src3);
   }
 
-  void EmitRelaxedLaneSelect() {
+  void EmitRelaxedLaneSelect(int lane_width) {
+    DCHECK(lane_width == 8 || lane_width == 32 || lane_width == 64);
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
     if (!CpuFeatures::IsSupported(AVX)) {
       LiftoffRegister mask(xmm0);
@@ -3976,7 +3979,7 @@ class LiftoffCompiler {
       LiftoffRegister src2 = __ PopToModifiableRegister(LiftoffRegList{mask});
       LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src2, mask});
       EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
-                              src2, src1, src2, mask);
+                              src2, src1, src2, mask, lane_width);
       return;
     }
 #endif
@@ -3987,7 +3990,7 @@ class LiftoffCompiler {
     LiftoffRegister dst =
         __ GetUnusedRegister(reg_class_for(kS128), {}, pinned);
     EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
-                            dst, src1, src2, mask);
+                            dst, src1, src2, mask, lane_width);
   }
 
   template <typename EmitFn, typename EmitFnImm>
@@ -4565,9 +4568,13 @@ class LiftoffCompiler {
         return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfms);
       case wasm::kExprI16x8RelaxedLaneSelect:
       case wasm::kExprI8x16RelaxedLaneSelect:
+        // There is no special hardware instruction for 16-bit wide lanes on
+        // any of our platforms, so fall back to bytewise selection for i16x8.
+        return EmitRelaxedLaneSelect(8);
       case wasm::kExprI32x4RelaxedLaneSelect:
+        return EmitRelaxedLaneSelect(32);
       case wasm::kExprI64x2RelaxedLaneSelect:
-        return EmitRelaxedLaneSelect();
+        return EmitRelaxedLaneSelect(64);
       case wasm::kExprF32x4RelaxedMin:
         return EmitBinOp<kS128, kS128, false, kF32>(
             &LiftoffAssembler::emit_f32x4_relaxed_min);

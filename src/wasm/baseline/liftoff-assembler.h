@@ -1071,7 +1071,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                            LiftoffRegister src1,
                                            LiftoffRegister src2,
-                                           LiftoffRegister mask);
+                                           LiftoffRegister mask,
+                                           int lane_width);
   inline void emit_i8x16_popcnt(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);

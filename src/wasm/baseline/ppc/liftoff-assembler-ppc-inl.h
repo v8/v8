@@ -2493,7 +2493,9 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
+  // PPC uses bytewise selection for all lane widths.
   emit_s128_select(dst, src1, src2, mask);
 }
 
