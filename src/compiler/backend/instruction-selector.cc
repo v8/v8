@@ -2040,6 +2040,14 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWordToTagged(
        g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastSmiToWord(
+    node_t node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node),
+       g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
+}
+
 // 32 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_32_BIT
 
@@ -5030,7 +5038,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           if constexpr (Is64()) {
             DCHECK_EQ(cast.kind, TaggedBitcastOp::Kind::kSmi);
             DCHECK(SmiValuesAre31Bits());
-            return EmitIdentity(node);
+            return VisitBitcastSmiToWord(node);
           } else {
             return VisitBitcastTaggedToWord(node);
           }
@@ -5048,7 +5056,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           }
         case multi(Rep::Compressed(), Rep::Word32()):
           MarkAsWord32(node);
-          return VisitBitcastTaggedToWord(node);
+          if (cast.kind == TaggedBitcastOp::Kind::kSmi) {
+            return VisitBitcastSmiToWord(node);
+          } else {
+            return VisitBitcastTaggedToWord(node);
+          }
         default:
           UNIMPLEMENTED();
       }

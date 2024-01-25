@@ -768,6 +768,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(ProtectedStore)
   DECLARE_GENERATOR_T(BitcastTaggedToWord)
   DECLARE_GENERATOR_T(BitcastWordToTagged)
+  DECLARE_GENERATOR_T(BitcastSmiToWord)
   DECLARE_GENERATOR_T(ChangeInt32ToInt64)
   DECLARE_GENERATOR_T(ChangeInt32ToFloat64)
   DECLARE_GENERATOR_T(ChangeFloat32ToFloat64)
