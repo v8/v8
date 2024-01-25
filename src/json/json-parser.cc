@@ -1170,10 +1170,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
     int current_field_number = 0;
     int current_property_offset = raw_object->GetInObjectPropertyOffset(0);
-    DCHECK_IMPLIES(i > 0, !object->map()->is_dictionary_map());
     for (int j = 0; j < i; j++) {
       const JsonProperty& property = property_stack[start + j];
       if (property.string.is_index()) continue;
+
+      // If we have any fast properties to initialize, we can't have a
+      // dictionary map.
+      DCHECK(!object->map()->is_dictionary_map());
 
       InternalIndex descriptor_index(current_field_number);
       Tagged<Object> value = *property.value;
