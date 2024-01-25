@@ -583,7 +583,7 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
   explicit DummySourceStream(Local<String> source) : done_(false) {
-    source_buffer_ = Utils::OpenHandle(*source)->ToCString(
+    source_buffer_ = Utils::OpenDirectHandle(*source)->ToCString(
         i::ALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &source_length_);
   }
 
@@ -971,11 +971,11 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     if (options.compile_only) return true;
     if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       i::Handle<i::Script> i_script(
-          i::Script::cast(Utils::OpenHandle(*script)->shared()->script()),
+          i::Script::cast(Utils::OpenDirectHandle(*script)->shared()->script()),
           i_isolate);
       // TODO(cbruni, chromium:1244145): remove once context-allocated.
       i_script->set_host_defined_options(i::FixedArray::cast(
-          *Utils::OpenHandle(*(origin.GetHostDefinedOptions()))));
+          *Utils::OpenDirectHandle(*(origin.GetHostDefinedOptions()))));
     }
     maybe_result = script->Run(realm);
     if (options.code_cache_options ==
@@ -2091,7 +2091,8 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // advance.
   if (!global_object.IsEmpty()) {
     HandleScope scope(isolate);
-    if (!IsJSGlobalProxy(*Utils::OpenHandle(*global_object.ToLocalChecked()))) {
+    if (!IsJSGlobalProxy(
+            *Utils::OpenDirectHandle(*global_object.ToLocalChecked()))) {
       global_object = v8::MaybeLocal<Value>();
     }
   }

@@ -1052,7 +1052,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   desc->SetCallAsFunctionHandler(ReturnNull);
   Local<v8::Object> obj =
       desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocalChecked();
-  return *Utils::OpenHandle(*obj);
+  return *Utils::OpenDirectHandle(*obj);
 }
 
 static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -1081,7 +1081,7 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
           .ToLocalChecked()
           ->NewInstance(v8_isolate->GetCurrentContext())
           .ToLocalChecked();
-  return *Utils::OpenHandle(*instance);
+  return *Utils::OpenDirectHandle(*instance);
 }
 
 RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {

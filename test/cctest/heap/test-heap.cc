@@ -146,23 +146,23 @@ TEST(InitialObjects) {
   HandleScope scope(CcTest::i_isolate());
   Handle<Context> context = v8::Utils::OpenHandle(*env);
   // Initial ArrayIterator prototype.
-  CHECK_EQ(
-      context->initial_array_iterator_prototype(),
-      *v8::Utils::OpenHandle(*CompileRun("[][Symbol.iterator]().__proto__")));
+  CHECK_EQ(context->initial_array_iterator_prototype(),
+           *v8::Utils::OpenDirectHandle(
+               *CompileRun("[][Symbol.iterator]().__proto__")));
   // Initial Array prototype.
   CHECK_EQ(context->initial_array_prototype(),
-           *v8::Utils::OpenHandle(*CompileRun("Array.prototype")));
+           *v8::Utils::OpenDirectHandle(*CompileRun("Array.prototype")));
   // Initial Generator prototype.
   CHECK_EQ(context->initial_generator_prototype(),
-           *v8::Utils::OpenHandle(
+           *v8::Utils::OpenDirectHandle(
                *CompileRun("(function*(){}).__proto__.prototype")));
   // Initial Iterator prototype.
   CHECK_EQ(context->initial_iterator_prototype(),
-           *v8::Utils::OpenHandle(
+           *v8::Utils::OpenDirectHandle(
                *CompileRun("[][Symbol.iterator]().__proto__.__proto__")));
   // Initial Object prototype.
   CHECK_EQ(context->initial_object_prototype(),
-           *v8::Utils::OpenHandle(*CompileRun("Object.prototype")));
+           *v8::Utils::OpenDirectHandle(*CompileRun("Object.prototype")));
 }
 
 static void CheckOddball(Isolate* isolate, Tagged<Object> obj,
@@ -2645,7 +2645,7 @@ HEAP_TEST(Regress845060) {
 
   // Preparation: create a string in new space.
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
+  CHECK(Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 
   // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
   heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
@@ -2655,7 +2655,7 @@ HEAP_TEST(Regress845060) {
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
   CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
-  CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
+  CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 }
 
 TEST(IdleNotificationFinishMarking) {

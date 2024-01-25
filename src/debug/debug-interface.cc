@@ -469,15 +469,16 @@ Maybe<MemorySpan<const uint8_t>> ScriptSource::WasmBytecode() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Isolate* Script::GetIsolate() const {
-  return reinterpret_cast<Isolate*>(Utils::OpenHandle(this)->GetIsolate());
+  return reinterpret_cast<Isolate*>(
+      Utils::OpenDirectHandle(this)->GetIsolate());
 }
 
 ScriptOriginOptions Script::OriginOptions() const {
-  return Utils::OpenHandle(this)->origin_options();
+  return Utils::OpenDirectHandle(this)->origin_options();
 }
 
 bool Script::WasCompiled() const {
-  return Utils::OpenHandle(this)->compilation_state() ==
+  return Utils::OpenDirectHandle(this)->compilation_state() ==
          i::Script::CompilationState::kCompiled;
 }
 
@@ -487,12 +488,14 @@ bool Script::IsEmbedded() const {
          script->GetReadOnlyRoots().uninitialized_symbol();
 }
 
-int Script::Id() const { return Utils::OpenHandle(this)->id(); }
+int Script::Id() const { return Utils::OpenDirectHandle(this)->id(); }
 
-int Script::StartLine() const { return Utils::OpenHandle(this)->line_offset(); }
+int Script::StartLine() const {
+  return Utils::OpenDirectHandle(this)->line_offset();
+}
 
 int Script::StartColumn() const {
-  return Utils::OpenHandle(this)->column_offset();
+  return Utils::OpenDirectHandle(this)->column_offset();
 }
 
 int Script::EndLine() const {
@@ -584,12 +587,12 @@ Local<ScriptSource> Script::Source() const {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::IsWasm() const {
-  return Utils::OpenHandle(this)->type() == i::Script::Type::kWasm;
+  return Utils::OpenDirectHandle(this)->type() == i::Script::Type::kWasm;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Script::IsModule() const {
-  return Utils::OpenHandle(this)->origin_options().IsModule();
+  return Utils::OpenDirectHandle(this)->origin_options().IsModule();
 }
 
 namespace {
@@ -1022,7 +1025,7 @@ void ResetBlackboxedStateCache(Isolate* v8_isolate, Local<Script> script) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::DisallowGarbageCollection no_gc;
   i::SharedFunctionInfo::ScriptIterator iter(isolate,
-                                             *Utils::OpenHandle(*script));
+                                             *Utils::OpenDirectHandle(*script));
   for (i::Tagged<i::SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (auto debug_info = isolate->debug()->TryGetDebugInfo(info)) {
@@ -1152,7 +1155,7 @@ Location GeneratorObject::SuspendedLocation() {
 }
 
 bool GeneratorObject::IsSuspended() {
-  return Utils::OpenHandle(this)->is_suspended();
+  return Utils::OpenDirectHandle(this)->is_suspended();
 }
 
 v8::Local<GeneratorObject> GeneratorObject::Cast(v8::Local<v8::Value> value) {
@@ -1221,7 +1224,7 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
 
 void SetReturnValue(v8::Isolate* v8_isolate, v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->debug()->set_return_value(*Utils::OpenHandle(*value));
+  isolate->debug()->set_return_value(*Utils::OpenDirectHandle(*value));
 }
 
 int64_t GetNextRandomInt64(v8::Isolate* v8_isolate) {

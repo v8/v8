@@ -490,13 +490,13 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
     }
     cpp_heap_obj->heap_handle.Reset(v8_isolate, to_object);
   }
@@ -538,13 +538,13 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle.Reset(v8_isolate, to_object);
   }
@@ -583,13 +583,13 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
         v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle2.Reset(v8_isolate, to_object);
   }
@@ -686,7 +686,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
         v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
     EXPECT_FALSE(value.IsEmpty());
     Handle<JSObject> js_key =
-        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate());
+        handle(JSObject::cast(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
     Handle<JSReceiver> js_value = v8::Utils::OpenHandle(*value);
     int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);

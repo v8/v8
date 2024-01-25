@@ -2962,7 +2962,7 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenDirectHandle(*script)->shared()->script()),
       isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
@@ -4829,7 +4829,8 @@ TEST(SourceInfo) {
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared()->script()),
+      i::Script::cast(
+          v8::Utils::OpenDirectHandle(*v8_script)->shared()->script()),
       CcTest::i_isolate());
   v8::Local<v8::debug::Script> script =
       v8::ToApiHandle<v8::debug::Script>(i_script);
@@ -5752,8 +5753,6 @@ void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   resolver->Reject(data->second->local(), value1).ToChecked();
   CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
-  // CHECK_EQ(*v8::Utils::OpenHandle(*promise->Result()),
-  //         i::ReadOnlyRoots(CcTest::i_isolate()).exception());
 }
 }  // namespace
 

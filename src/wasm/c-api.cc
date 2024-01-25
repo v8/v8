@@ -1764,7 +1764,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
 
-  isolate->set_context(*v8::Utils::OpenHandle(*store->context()));
+  isolate->set_context(*v8::Utils::OpenDirectHandle(*store->context()));
 
   const ownvec<ValType>& param_types = self->type->params();
   const ownvec<ValType>& result_types = self->type->results();

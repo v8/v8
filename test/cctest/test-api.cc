@@ -7843,7 +7843,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     }
     v8::Local<Value> big_array = v8::Array::New(CcTest::isolate(), 5000);
     // Verify that we created an array where the space was reserved up front.
-    big_array_size = i::JSArray::cast(*v8::Utils::OpenHandle(*big_array))
+    big_array_size = i::JSArray::cast(*v8::Utils::OpenDirectHandle(*big_array))
                          ->elements()
                          ->Size();
     CHECK_LE(20000, big_array_size);
@@ -12656,7 +12656,7 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
 
   // Side-effect-free version is not supported.
   i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
-      v8::Utils::OpenHandle(*templ)->constructor());
+      v8::Utils::OpenDirectHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::Tagged<i::CallHandlerInfo> handler_info =
       i::CallHandlerInfo::cast(cons->GetInstanceCallHandler());
@@ -16969,9 +16969,10 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet ❤️'")
           ->ToString(env.local())
           .ToLocalChecked();
-  CHECK(IsConsString(*v8::Utils::OpenHandle(*cons)));
+  CHECK(IsConsString(*v8::Utils::OpenDirectHandle(*cons)));
   i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
-  CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
+  CHECK(CcTest::heap()->old_space()->Contains(
+      *v8::Utils::OpenDirectHandle(*cons)));
 
   TestResource* resource = new TestResource(
       AsciiToTwoByteString(u"Romeo Montague Juliet Capulet ❤️"));
@@ -16994,9 +16995,10 @@ TEST(ExternalizeOldSpaceOneByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet'")
           ->ToString(env.local())
           .ToLocalChecked();
-  CHECK(IsConsString(*v8::Utils::OpenHandle(*cons)));
+  CHECK(IsConsString(*v8::Utils::OpenDirectHandle(*cons)));
   i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
-  CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
+  CHECK(CcTest::heap()->old_space()->Contains(
+      *v8::Utils::OpenDirectHandle(*cons)));
 
   TestOneByteResource* resource =
       new TestOneByteResource(i::StrDup("Romeo Montague Juliet Capulet"));
@@ -17046,7 +17048,7 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring =
         CompileRun("ring")->ToString(env.local()).ToLocalChecked();
-    CHECK(IsInternalizedString(*v8::Utils::OpenHandle(*ring)));
+    CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*ring)));
     ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -17070,7 +17072,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
     TestOneByteResource* inscription =
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring").As<v8::String>();
-    CHECK(IsInternalizedString(*v8::Utils::OpenHandle(*ring)));
+    CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*ring)));
     ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -17635,8 +17637,8 @@ static void GetterWhichReturns42(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   info.GetReturnValue().Set(v8_num(42));
 }
 
@@ -17646,8 +17648,8 @@ static void SetterWhichSetsYOnThisTo23(
     Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   info.This()
       .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
@@ -17658,8 +17660,8 @@ static void SetterWhichSetsYOnThisTo23(
 void FooGetInterceptor(Local<Name> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return;
@@ -17671,8 +17673,8 @@ void FooGetInterceptor(Local<Name> name,
 void FooSetInterceptor(Local<Name> name, Local<Value> value,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
-  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return;
@@ -20390,13 +20392,14 @@ TEST(StaticGetters) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   i::Handle<i::Object> undefined_value = factory->undefined_value();
-  CHECK(*v8::Utils::OpenHandle(*v8::Undefined(isolate)) == *undefined_value);
+  CHECK(*v8::Utils::OpenDirectHandle(*v8::Undefined(isolate)) ==
+        *undefined_value);
   i::Handle<i::Object> null_value = factory->null_value();
-  CHECK(*v8::Utils::OpenHandle(*v8::Null(isolate)) == *null_value);
+  CHECK(*v8::Utils::OpenDirectHandle(*v8::Null(isolate)) == *null_value);
   i::Handle<i::Object> true_value = factory->true_value();
-  CHECK(*v8::Utils::OpenHandle(*v8::True(isolate)) == *true_value);
+  CHECK(*v8::Utils::OpenDirectHandle(*v8::True(isolate)) == *true_value);
   i::Handle<i::Object> false_value = factory->false_value();
-  CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
+  CHECK(*v8::Utils::OpenDirectHandle(*v8::False(isolate)) == *false_value);
 }
 
 UNINITIALIZED_TEST(IsolateEmbedderData) {
@@ -20437,7 +20440,8 @@ TEST(StringEmpty) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   i::Handle<i::Object> empty_string = factory->empty_string();
-  CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
+  CHECK(*v8::Utils::OpenDirectHandle(*v8::String::Empty(isolate)) ==
+        *empty_string);
 }
 
 THREADED_TEST(CheckIsLeafTemplateForApiObject) {
@@ -21906,16 +21910,16 @@ TEST(EmptyApiCallback) {
   global->Set(context.local(), v8_str("x"), function).FromJust();
 
   auto result = CompileRun("x()");
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*result)));
 
   result = CompileRun("x(1,2,3)");
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*result)));
 
   result = CompileRun("x.call(undefined)");
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*result)));
 
   result = CompileRun("x.call(null)");
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*result)));
 
   result = CompileRun("7 + x.call(3) + 11");
   CHECK(result->IsInt32());
@@ -24007,7 +24011,7 @@ TEST(SyntheticModuleSetExports) {
   // Test that the export value was actually set.
   CHECK(i::Handle<i::String>::cast(
             i::Handle<i::Object>(foo_cell->value(), i_isolate))
-            ->Equals(*v8::Utils::OpenHandle(*bar_string)));
+            ->Equals(*v8::Utils::OpenDirectHandle(*bar_string)));
 }
 
 TEST(SyntheticModuleSetMissingExport) {
@@ -25725,7 +25729,7 @@ TEST(SetPrototypeTemplate) {
 void ensure_receiver_is_global_proxy(
     v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*info.This())));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*info.This())));
 }
 
 THREADED_TEST(GlobalAccessorInfo) {

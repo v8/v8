@@ -3887,7 +3887,7 @@ bool Value::IsInt32() const {
 }
 
 bool Value::IsUint32() const {
-  auto obj = *Utils::OpenHandle(this);
+  auto obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return i::Smi::ToInt(obj) >= 0;
   if (i::IsNumber(obj)) {
     double value = i::Object::Number(obj);
@@ -4327,7 +4327,7 @@ void v8::TypedArray::CheckCast(Value* that) {
 
 #define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype)                  \
   void v8::Type##Array::CheckCast(Value* that) {                             \
-    auto obj = *Utils::OpenHandle(that);                                     \
+    auto obj = *Utils::OpenDirectHandle(that);                               \
     Utils::ApiCheck(                                                         \
         i::IsJSTypedArray(obj) &&                                            \
             i::JSTypedArray::cast(obj)->type() == i::kExternal##Type##Array, \
@@ -8115,7 +8115,7 @@ uint32_t GetLength(Tagged<JSArray> array) {
 }  // namespace internal
 
 uint32_t v8::Array::Length() const {
-  return i::GetLength(*Utils::OpenHandle(this));
+  return i::GetLength(*Utils::OpenDirectHandle(this));
 }
 
 namespace internal {
