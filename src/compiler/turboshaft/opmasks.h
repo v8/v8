@@ -285,6 +285,10 @@ using kTruncateInt64ToInt32 = ChangeOpMask::For<
     ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
 
+using TaggedBicastMask =
+    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, kind)>;
+using kTaggedBitcastSmi = TaggedBicastMask::For<TaggedBitcastOp::Kind::kSmi>;
+
 using OverflowCheckedBinopMask =
     MaskBuilder<OverflowCheckedBinopOp, FIELD(OverflowCheckedBinopOp, kind),
                 FIELD(OverflowCheckedBinopOp, rep)>;

@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/iterator.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
@@ -23,6 +24,7 @@
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions-inl.h"
+#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -633,15 +635,27 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       default:
         UNIMPLEMENTED();
     }
-  } else {
-    switch (kind) {
-      case FrameStateInputKind::kStackSlot:
-        return g->UseUniqueSlot(input);
-      case FrameStateInputKind::kAny:
-        // Currently deopts "wrap" other operations, so the deopt's inputs
-        // are potentially needed until the end of the deoptimising code.
-        return g->UseAnyAtEnd(input);
+  } else if (const turboshaft::TaggedBitcastOp* bitcast =
+                 op.TryCast<turboshaft::Opmask::kTaggedBitcastSmi>()) {
+    const turboshaft::Operation& input =
+        g->turboshaft_graph()->Get(bitcast->input());
+    if (const turboshaft::ConstantOp* cst =
+            input.TryCast<turboshaft::Opmask::kWord32Constant>()) {
+      if constexpr (Is64()) {
+        return g->UseImmediate64(cst->word32());
+      } else {
+        return g->UseImmediate(cst->word32());
+      }
     }
+  }
+
+  switch (kind) {
+    case FrameStateInputKind::kStackSlot:
+      return g->UseUniqueSlot(input);
+    case FrameStateInputKind::kAny:
+      // Currently deopts "wrap" other operations, so the deopt's inputs
+      // are potentially needed until the end of the deoptimising code.
+      return g->UseAnyAtEnd(input);
   }
 }
 
@@ -695,6 +709,17 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
+    case IrOpcode::kBitcastWordToTaggedSigned: {
+      if (input->InputAt(0)->opcode() == IrOpcode::kInt32Constant) {
+        int32_t value = OpParameter<int32_t>(input->InputAt(0)->op());
+        if constexpr (Is64()) {
+          return g->UseImmediate64(value);
+        } else {
+          return g->UseImmediate(value);
+        }
+      }
+    }
+      V8_FALLTHROUGH;
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:
