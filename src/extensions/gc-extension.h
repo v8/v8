@@ -30,6 +30,9 @@ namespace internal {
 //     - 'major-snapshot': Full GC with taking a heap snapshot at the same time.
 // - execution: 'sync' or 'async' for synchronous and asynchronous
 //   execution, respectively.
+// - flavor:
+//     - 'regular': A regular GC.
+//     - 'last-resort': A last resort GC.
 // - filename: Filename for the snapshot in case the type was
 //   'major-snapshot'.
 //
@@ -42,6 +45,8 @@ namespace internal {
 //   `await gc({type:'major', execution:'async'})`
 // 3. Same as 2. but with checking why things did go wrong in a snapshot:
 //   `await gc({type:'major-snapshot', execution:'async'})`
+// 4. Synchronous last resort GC:
+//   `gc({type:'major',execution:'sync',flavor:'last-resort'})`
 class GCExtension : public v8::Extension {
  public:
   explicit GCExtension(const char* fun_name)
