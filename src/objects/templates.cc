@@ -244,6 +244,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
                 !self->fully_populated_map().IsCleared())) {
     Handle<Map> cached_map = Handle<Map>::cast(
         handle(self->fully_populated_map().GetHeapObjectAssumeWeak(), isolate));
+    DCHECK(!cached_map->is_dictionary_map());
     bool can_use_cached_map = !cached_map->is_deprecated();
     if (V8_LIKELY(can_use_cached_map)) {
       // Verify that the cached map can be reused.
@@ -305,14 +306,16 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
         Handle<String>::cast(handle(property_names->get(i), isolate));
     Handle<Object> value = Utils::OpenHandle(*property_value);
     constexpr PropertyAttributes attributes = PropertyAttributes::NONE;
-    constexpr PropertyConstness constness = PropertyConstness::kMutable;
+    constexpr PropertyConstness constness = PropertyConstness::kConst;
     current_map = Map::TransitionToDataProperty(isolate, current_map, name,
                                                 value, attributes, constness,
                                                 StoreOrigin::kNamed);
+    if (current_map->is_dictionary_map()) {
+      return CreateSlowJSObjectWithProperties(
+          isolate, property_names, property_values, num_properties_set);
+    }
     JSObject::MigrateToMap(isolate, object, current_map);
-    const PropertyDetails details(
-        PropertyKind::kData, attributes, PropertyLocation::kField, constness,
-        Representation::Tagged(), current_property_index);
+    PropertyDetails details = current_map->GetLastDescriptorDetails(isolate);
     object->WriteToField(InternalIndex(current_property_index), details,
                          *value);
     current_property_index++;
