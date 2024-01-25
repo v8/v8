@@ -4465,6 +4465,10 @@ void TestGlobalValueMap() {
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
   if (map.IsWeak()) {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
     i::heap::InvokeAtomicMajorGC(CcTest::heap());
   } else {
     map.Clear();
