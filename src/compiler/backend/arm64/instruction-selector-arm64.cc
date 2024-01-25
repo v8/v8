@@ -1876,7 +1876,7 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 

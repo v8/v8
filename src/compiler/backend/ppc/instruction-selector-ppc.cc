@@ -1368,10 +1368,10 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   PPCOperandGeneratorT<Adapter> g(this);
   Emit(kPPC_LoadReverseSimd128RR, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
