@@ -124,10 +124,10 @@ class BytecodeArray : public ExposedTrustedObject {
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \
-  V(kHandlerTableOffset, kTaggedSize)                                   \
   V(kConstantPoolOffset, kTaggedSize)                                   \
   V(kWrapperOffset, kTaggedSize)                                        \
   V(kSourcePositionTableOffset, kTaggedSize)                            \
+  V(kHandlerTableOffset, kTaggedSize)                                   \
   V(kFrameSizeOffset, kInt32Size)                                       \
   V(kParameterSizeOffset, kInt32Size)                                   \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kInt32Size)            \
