@@ -55,7 +55,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.126.0.4aaef37-gomaip',
+  'reclient_version': 're_client_version:0.128.1.7c74998-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd7ee2f7345cc7b989b88c5323f9b3e6e380fb0d5',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '94fcea471d84f6d3d6bb6df185b48fd29020c8ef',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
