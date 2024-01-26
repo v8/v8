@@ -210,6 +210,7 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    gclient_vars = [GCLIENT_VARS.CENTIPEDE],
     properties = {"default_targets": ["v8_fuzztests"]},
 )
 
@@ -219,6 +220,7 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    gclient_vars = [GCLIENT_VARS.CENTIPEDE],
     properties = {"default_targets": ["v8_fuzztests"]},
 )
 

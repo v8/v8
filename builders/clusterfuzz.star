@@ -135,6 +135,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
         close_tree = False,
         work_in_progress = True,
@@ -142,6 +143,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
         close_tree = False,
         work_in_progress = True,

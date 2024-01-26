@@ -284,6 +284,7 @@ def _reclient_properties(use_remoteexec, reclient_jobs, name, scandeps_server):
 
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
+    CENTIPEDE = {"checkout_centipede_deps": "True"},
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
     ITTAPI = {"checkout_ittapi": "True"},
     V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
