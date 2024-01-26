@@ -4148,6 +4148,10 @@ TEST(EmbedderStatePropagateNativeContextMove) {
       i::v8_flags.enable_third_party_heap) {
     return;
   }
+  // If no compaction is performed when a GC with stack is invoked (which
+  // happens, e.g., with conservative stack scanning), this test will fail.
+  if (!i::v8_flags.compact_with_stack) return;
+
   i::v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -4176,10 +4180,6 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              // We need to invoke GC without stack, otherwise no compaction is
-              // performed.
-              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-                  isolate->heap());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());

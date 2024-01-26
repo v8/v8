@@ -511,8 +511,6 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
   LocalContext context;
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   WeakPointerCleared = false;
 
@@ -531,7 +529,7 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*u);
-    h2 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
+    h2 = global_handles->Create(internal::ValueHelper::ValueAsAddress(*i));
   }
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
@@ -539,8 +537,14 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
       h2.location(), reinterpret_cast<void*>(&handle_and_id),
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
-  v8_flags.single_generation ? heap::InvokeMajorGC(CcTest::heap())
-                             : heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    v8_flags.single_generation ? heap::InvokeMajorGC(CcTest::heap())
+                               : heap::InvokeMinorGC(CcTest::heap());
+  }
 
   CHECK(IsHeapNumber(*h1));
   CHECK(WeakPointerCleared);
@@ -3655,8 +3659,6 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   // resource's callback is fired when the external string is GC'ed.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate->heap());
 
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
@@ -3674,7 +3676,14 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   CHECK(!resource->IsDisposed());
 
   CompileRun(accessor);
-  heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
+    heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
+  }
 
   // External source has been released.
   CHECK(resource->IsDisposed());

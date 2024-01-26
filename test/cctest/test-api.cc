@@ -545,9 +545,6 @@ class TestOneByteResource : public String::ExternalOneByteStringResource {
 
 
 THREADED_TEST(ScriptUsingStringResource) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   uint16_t* two_byte_source = AsciiToTwoByteString(c_source);
@@ -574,15 +571,18 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
 
 THREADED_TEST(ScriptUsingOneByteStringResource) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -610,15 +610,18 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
 
 THREADED_TEST(ScriptMakingExternalString) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   int dispose_count = 0;
   uint16_t* two_byte_source = AsciiToTwoByteString(u"1 + 2 * 3 /* π */");
   {
@@ -646,15 +649,18 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
 
 THREADED_TEST(ScriptMakingExternalOneByteString) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -674,7 +680,13 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
@@ -875,8 +887,6 @@ TEST(ScavengeExternalString) {
   i::ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   int dispose_count = 0;
   bool in_young_generation = false;
@@ -895,8 +905,14 @@ TEST(ScavengeExternalString) {
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
-                      : i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
+                        : i::heap::InvokeMajorGC(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
@@ -904,8 +920,6 @@ TEST(ScavengeExternalOneByteString) {
   i::ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   int dispose_count = 0;
   bool in_young_generation = false;
@@ -924,8 +938,14 @@ TEST(ScavengeExternalOneByteString) {
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
-                      : i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    in_young_generation ? i::heap::InvokeMinorGC(CcTest::heap())
+                        : i::heap::InvokeMajorGC(CcTest::heap());
+  }
   CHECK_EQ(1, dispose_count);
 }
 
@@ -953,9 +973,6 @@ int TestOneByteResourceWithDisposeControl::dispose_calls = 0;
 
 
 TEST(ExternalStringWithDisposeHandling) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   const char* c_source = "1 + 2 * 3";
 
   // Use a stack allocated external string resource allocated object.
@@ -976,7 +993,13 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  }
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
 
@@ -999,7 +1022,13 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  }
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_count);
 }
@@ -4304,8 +4333,6 @@ void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
 
 TEST(TwoPassPhantomCallbacks) {
   auto isolate = CcTest::isolate();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   GCCallbackMetadata metadata;
   const size_t kLength = 20;
   for (size_t i = 0; i < kLength; ++i) {
@@ -4313,15 +4340,19 @@ TEST(TwoPassPhantomCallbacks) {
     data->SetWeak();
   }
   CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
-  i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
+  }
   EmptyMessageQueues(isolate);
 }
 
 
 TEST(TwoPassPhantomCallbacksNestedGc) {
   auto isolate = CcTest::isolate();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   GCCallbackMetadata metadata;
   const size_t kLength = 20;
   TwoPassCallbackData* array[kLength];
@@ -4333,7 +4364,13 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
   array[10]->MarkTriggerGc();
   array[15]->MarkTriggerGc();
   CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
-  i::heap::InvokeMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
+  }
   EmptyMessageQueues(isolate);
 }
 
@@ -4342,14 +4379,18 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
 // the second pass callback can still execute JS as per its API contract.
 TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   auto isolate = CcTest::isolate();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   GCCallbackMetadata metadata;
   auto data = new TwoPassCallbackData(isolate, &metadata);
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
   v8::base::ScopedVector<uint8_t> source(200000);
+
+  // In the rest of this test, we need to invoke GC without stack, otherwise the
+  // weak references may not be cleared because of conservative stack scanning.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   // Creating a few large strings suffices to trigger GC.
   while (metadata.instance_counter == 1) {
     v8::HandleScope handle_scope(isolate);
@@ -7354,7 +7395,7 @@ TEST(ExtensionMissingSourceLength) {
   const char* extension_names[] = {"srclentest_fail"};
   v8::ExtensionConfiguration extensions(1, extension_names);
   v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
-  CHECK_NULL(*context);
+  CHECK(context.IsEmpty());
 }
 
 
@@ -7378,7 +7419,7 @@ TEST(ExtensionWithSourceLength) {
                 .FromJust());
     } else {
       // Anything but exactly the right length should fail to compile.
-      CHECK_NULL(*context);
+      CHECK(context.IsEmpty());
     }
   }
 }
@@ -13387,13 +13428,15 @@ static int GetGlobalObjectsCount() {
 
 
 static void CheckSurvivingGlobalObjectsCount(int expected) {
+  // We need to invoke GC without stack, otherwise some objects may not be
+  // cleared because of conservative stack scanning.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   // We need to collect all garbage twice to be sure that everything
   // has been collected.  This is because inline caches are cleared in
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   i::heap::InvokeMajorGC(CcTest::heap());
   i::heap::InvokeMajorGC(CcTest::heap());
   int count = GetGlobalObjectsCount();
@@ -13445,8 +13488,6 @@ static void WeakApiCallback(
 
 
 TEST(WeakCallbackApi) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   i::GlobalHandles* globals =
@@ -13463,11 +13504,16 @@ TEST(WeakCallbackApi) {
     handle->SetWeak<v8::Persistent<v8::Object>>(
         handle, WeakApiCallback, v8::WeakCallbackType::kParameter);
   }
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak reference may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  }
   // Verify disposed.
   CHECK_EQ(initial_handles, globals->handles_count());
 }
-
 
 v8::Persistent<v8::Object> some_object;
 v8::Persistent<v8::Object> bad_handle;
@@ -16912,13 +16958,17 @@ TEST(GetHeapSpaceStatistics) {
 }
 
 TEST(NumberOfNativeContexts) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   v8::Global<v8::Context> context[kNumTestContexts];
   v8::HeapStatistics heap_statistics;
+
+  // In this test, we need to invoke GC without stack, otherwise some objects
+  // may not be reclaimed because of conservative stack scanning.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   CHECK_EQ(0u, heap_statistics.number_of_native_contexts());
   CcTest::isolate()->GetHeapStatistics(&heap_statistics);
   CHECK_EQ(0u, heap_statistics.number_of_native_contexts());
@@ -16938,13 +16988,17 @@ TEST(NumberOfNativeContexts) {
 }
 
 TEST(NumberOfDetachedContexts) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   v8::Global<v8::Context> context[kNumTestContexts];
   v8::HeapStatistics heap_statistics;
+
+  // In this test, we need to invoke GC without stack, otherwise some objects
+  // may not be reclaimed because of conservative stack scanning.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   CHECK_EQ(0u, heap_statistics.number_of_detached_contexts());
   CcTest::isolate()->GetHeapStatistics(&heap_statistics);
   CHECK_EQ(0u, heap_statistics.number_of_detached_contexts());
@@ -17066,8 +17120,6 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
 
 
 TEST(ExternalInternalizedStringCollectedAtGC) {
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   int destroyed = 0;
   { LocalContext env;
     v8::HandleScope handle_scope(env->GetIsolate());
@@ -17085,12 +17137,17 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
 
   // Garbage collector deals swift blows to evil.
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the resource may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
+  }
 
   // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
   CHECK_EQ(1, destroyed);
 }
-
 
 static double DoubleFromBits(uint64_t value) {
   double target;
@@ -19557,8 +19614,6 @@ static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
 THREADED_TEST(Regress1516) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   // Object with 20 properties is not a common case, so it should be removed
   // from the cache after GC.
@@ -19575,8 +19630,14 @@ THREADED_TEST(Regress1516) {
   int elements = CountLiveMapsInMapCache(CcTest::i_isolate()->context());
   CHECK_LE(1, elements);
 
-  // We have to abort incremental marking here to abandon black pages.
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    // We have to abort incremental marking here to abandon black pages.
+    i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  }
 
   CHECK_GT(elements, CountLiveMapsInMapCache(CcTest::i_isolate()->context()));
 }
