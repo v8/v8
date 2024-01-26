@@ -879,7 +879,7 @@ std::ostream& operator<<(std::ostream&, const ParallelMove&);
 class ReferenceMap final : public ZoneObject {
  public:
   explicit ReferenceMap(Zone* zone)
-      : reference_operands_(8, zone), instruction_position_(-1) {}
+      : reference_operands_(zone), instruction_position_(-1) {}
 
   const ZoneVector<InstructionOperand>& reference_operands() const {
     return reference_operands_;
