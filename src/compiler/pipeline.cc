@@ -3105,8 +3105,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     Run<turboshaft::DecompressionOptimizationPhase>();
 
-#if defined(V8_TARGET_ARCH_X64) or defined(V8_TARGET_ARCH_ARM64) or \
-    defined(V8_TARGET_ARCH_ARM) or defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32)
     if (v8_flags.turboshaft_instruction_selection) {
       // Run Turboshaft instruction selection.
       if (!SelectInstructionsTurboshaft(linkage)) {
@@ -3865,8 +3865,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.InstructionSelection");
 
-#if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64 or V8_TARGET_ARCH_ARM or \
-    V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32)
     bool use_turboshaft_instruction_selection =
         v8_flags.turboshaft_wasm_instruction_selection_staged;
 #else
