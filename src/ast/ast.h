@@ -2729,7 +2729,7 @@ class SuperCallReference final : public Expression {
 class ImportCallExpression final : public Expression {
  public:
   Expression* specifier() const { return specifier_; }
-  Expression* import_assertions() const { return import_assertions_; }
+  Expression* import_options() const { return import_options_; }
 
  private:
   friend class AstNodeFactory;
@@ -2738,16 +2738,16 @@ class ImportCallExpression final : public Expression {
   ImportCallExpression(Expression* specifier, int pos)
       : Expression(pos, kImportCallExpression),
         specifier_(specifier),
-        import_assertions_(nullptr) {}
+        import_options_(nullptr) {}
 
-  ImportCallExpression(Expression* specifier, Expression* import_assertions,
+  ImportCallExpression(Expression* specifier, Expression* import_options,
                        int pos)
       : Expression(pos, kImportCallExpression),
         specifier_(specifier),
-        import_assertions_(import_assertions) {}
+        import_options_(import_options) {}
 
   Expression* specifier_;
-  Expression* import_assertions_;
+  Expression* import_options_;
 };
 
 // This class is produced when parsing the () in arrow functions without any
@@ -3438,9 +3438,9 @@ class AstNodeFactory final {
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* specifier,
-                                                Expression* import_assertions,
+                                                Expression* import_options,
                                                 int pos) {
-    return zone_->New<ImportCallExpression>(specifier, import_assertions, pos);
+    return zone_->New<ImportCallExpression>(specifier, import_options, pos);
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(

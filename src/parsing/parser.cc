@@ -1404,7 +1404,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   return result;
 }
 
-ImportAssertions* Parser::ParseImportAssertClause() {
+ImportAttributes* Parser::ParseImportWithOrAssertClause() {
   // WithClause :
   //    with '{' '}'
   //    with '{' WithEntries ','? '}'
@@ -1418,7 +1418,7 @@ ImportAssertions* Parser::ParseImportAssertClause() {
   //    assert '{' '}'
   //    assert '{' WithEntries ','? '}'
 
-  auto import_assertions = zone()->New<ImportAssertions>(zone());
+  auto import_attributes = zone()->New<ImportAttributes>(zone());
 
   if (v8_flags.harmony_import_attributes && Check(Token::WITH)) {
     // 'with' keyword consumed
@@ -1431,7 +1431,7 @@ ImportAssertions* Parser::ParseImportAssertClause() {
     // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
     ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
   } else {
-    return import_assertions;
+    return import_attributes;
   }
 
   Expect(Token::LBRACE);
@@ -1451,10 +1451,10 @@ ImportAssertions* Parser::ParseImportAssertClause() {
     // sense both for errors due to the key and errors due to the value.
     location.end_pos = scanner()->location().end_pos;
 
-    auto result = import_assertions->insert(std::make_pair(
+    auto result = import_attributes->insert(std::make_pair(
         attribute_key, std::make_pair(attribute_value, location)));
     if (!result.second) {
-      // It is a syntax error if two AssertEntries have the same key.
+      // It is a syntax error if two WithEntries have the same key.
       ReportMessageAt(location, MessageTemplate::kImportAssertionDuplicateKey,
                       attribute_key);
       break;
@@ -1469,7 +1469,7 @@ ImportAssertions* Parser::ParseImportAssertClause() {
 
   Expect(Token::RBRACE);
 
-  return import_assertions;
+  return import_attributes;
 }
 
 void Parser::ParseImportDeclaration() {
@@ -1499,9 +1499,9 @@ void Parser::ParseImportDeclaration() {
   if (tok == Token::STRING) {
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
-    const ImportAssertions* import_assertions = ParseImportAssertClause();
+    const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
     ExpectSemicolon();
-    module()->AddEmptyImport(module_specifier, import_assertions, specifier_loc,
+    module()->AddEmptyImport(module_specifier, import_attributes, specifier_loc,
                              zone());
     return;
   }
@@ -1545,7 +1545,7 @@ void Parser::ParseImportDeclaration() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
-  const ImportAssertions* import_assertions = ParseImportAssertClause();
+  const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
   ExpectSemicolon();
 
   // Now that we have all the information, we can make the appropriate
@@ -1558,25 +1558,25 @@ void Parser::ParseImportDeclaration() {
 
   if (module_namespace_binding != nullptr) {
     module()->AddStarImport(module_namespace_binding, module_specifier,
-                            import_assertions, module_namespace_binding_loc,
+                            import_attributes, module_namespace_binding_loc,
                             specifier_loc, zone());
   }
 
   if (import_default_binding != nullptr) {
     module()->AddImport(ast_value_factory()->default_string(),
                         import_default_binding, module_specifier,
-                        import_assertions, import_default_binding_loc,
+                        import_attributes, import_default_binding_loc,
                         specifier_loc, zone());
   }
 
   if (named_imports != nullptr) {
     if (named_imports->length() == 0) {
-      module()->AddEmptyImport(module_specifier, import_assertions,
+      module()->AddEmptyImport(module_specifier, import_attributes,
                                specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
         module()->AddImport(import->import_name, import->local_name,
-                            module_specifier, import_assertions,
+                            module_specifier, import_attributes,
                             import->location, specifier_loc, zone());
       }
     }
@@ -1666,9 +1666,9 @@ void Parser::ParseExportStar() {
     ExpectContextualKeyword(ast_value_factory()->from_string());
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
-    const ImportAssertions* import_assertions = ParseImportAssertClause();
+    const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
     ExpectSemicolon();
-    module()->AddStarExport(module_specifier, import_assertions, loc,
+    module()->AddStarExport(module_specifier, import_attributes, loc,
                             specifier_loc, zone());
     return;
   }
@@ -1696,10 +1696,10 @@ void Parser::ParseExportStar() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
-  const ImportAssertions* import_assertions = ParseImportAssertClause();
+  const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
   ExpectSemicolon();
 
-  module()->AddStarImport(local_name, module_specifier, import_assertions,
+  module()->AddStarImport(local_name, module_specifier, import_attributes,
                           local_name_loc, specifier_loc, zone());
   module()->AddExport(local_name, export_name, export_name_loc, zone());
 }
@@ -1757,16 +1757,17 @@ Statement* Parser::ParseExportDeclaration() {
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
         Scanner::Location specifier_loc = scanner()->peek_location();
         const AstRawString* module_specifier = ParseModuleSpecifier();
-        const ImportAssertions* import_assertions = ParseImportAssertClause();
+        const ImportAttributes* import_attributes =
+            ParseImportWithOrAssertClause();
         ExpectSemicolon();
 
         if (export_data->empty()) {
-          module()->AddEmptyImport(module_specifier, import_assertions,
+          module()->AddEmptyImport(module_specifier, import_attributes,
                                    specifier_loc, zone());
         } else {
           for (const ExportClauseData& data : *export_data) {
             module()->AddExport(data.local_name, data.export_name,
-                                module_specifier, import_assertions,
+                                module_specifier, import_attributes,
                                 data.location, specifier_loc, zone());
           }
         }

@@ -741,20 +741,20 @@ class ModuleEmbedderData {
         json_module_to_parsed_json_map(
             10, module_to_specifier_map.hash_function()) {}
 
-  static ModuleType ModuleTypeFromImportAssertions(
-      Local<Context> context, Local<FixedArray> import_assertions,
+  static ModuleType ModuleTypeFromImportAttributes(
+      Local<Context> context, Local<FixedArray> import_attributes,
       bool hasPositions) {
     Isolate* isolate = context->GetIsolate();
     const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
-    for (int i = 0; i < import_assertions->Length();
+    for (int i = 0; i < import_attributes->Length();
          i += kV8AssertionEntrySize) {
       Local<String> v8_assertion_key =
-          import_assertions->Get(context, i).As<v8::String>();
+          import_attributes->Get(context, i).As<v8::String>();
       std::string assertion_key = ToSTLString(isolate, v8_assertion_key);
 
       if (assertion_key == "type") {
         Local<String> v8_assertion_value =
-            import_assertions->Get(context, i + 1).As<String>();
+            import_attributes->Get(context, i + 1).As<String>();
         std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
         if (assertion_value == "json") {
           return ModuleType::kJSON;
@@ -1089,7 +1089,7 @@ std::string NormalizePath(const std::string& path,
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
-                                         Local<FixedArray> import_assertions,
+                                         Local<FixedArray> import_attributes,
                                          Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
   std::shared_ptr<ModuleEmbedderData> module_data =
@@ -1099,8 +1099,8 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
   CHECK(specifier_it != module_data->module_to_specifier_map.end());
   std::string absolute_path = NormalizePath(ToSTLString(isolate, specifier),
                                             DirName(specifier_it->second));
-  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
-      context, import_assertions, true);
+  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAttributes(
+      context, import_attributes, true);
   auto module_it =
       module_data->module_map.find(std::make_pair(absolute_path, module_type));
   CHECK(module_it != module_data->module_map.end());
@@ -1193,10 +1193,10 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     Local<String> name = module_request->GetSpecifier();
     std::string absolute_path =
         NormalizePath(ToSTLString(isolate, name), dir_name);
-    Local<FixedArray> import_assertions = module_request->GetImportAssertions();
+    Local<FixedArray> import_attributes = module_request->GetImportAssertions();
     ModuleType request_module_type =
-        ModuleEmbedderData::ModuleTypeFromImportAssertions(
-            context, import_assertions, true);
+        ModuleEmbedderData::ModuleTypeFromImportAttributes(
+            context, import_attributes, true);
 
     if (request_module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
@@ -1248,13 +1248,13 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
 struct DynamicImportData {
   DynamicImportData(Isolate* isolate_, Local<Context> context_,
                     Local<Value> referrer_, Local<String> specifier_,
-                    Local<FixedArray> import_assertions_,
+                    Local<FixedArray> import_attributes_,
                     Local<Promise::Resolver> resolver_)
       : isolate(isolate_) {
     context.Reset(isolate, context_);
     referrer.Reset(isolate, referrer_);
     specifier.Reset(isolate, specifier_);
-    import_assertions.Reset(isolate, import_assertions_);
+    import_attributes.Reset(isolate, import_attributes_);
     resolver.Reset(isolate, resolver_);
   }
 
@@ -1264,7 +1264,7 @@ struct DynamicImportData {
   Global<Context> context;
   Global<Value> referrer;
   Global<String> specifier;
-  Global<FixedArray> import_assertions;
+  Global<FixedArray> import_attributes;
   Global<Promise::Resolver> resolver;
 };
 
@@ -1328,7 +1328,7 @@ void Shell::ModuleResolutionFailureCallback(
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
-    Local<FixedArray> import_assertions) {
+    Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
@@ -1346,7 +1346,7 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   } else {
     DynamicImportData* data =
         new DynamicImportData(isolate, context, resource_name, specifier,
-                              import_assertions, resolver);
+                              import_attributes, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
   }
@@ -1398,8 +1398,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Context> realm = import_data_->context.Get(isolate);
   Local<Value> referrer(import_data_->referrer.Get(isolate));
   Local<String> specifier(import_data_->specifier.Get(isolate));
-  Local<FixedArray> import_assertions(
-      import_data_->import_assertions.Get(isolate));
+  Local<FixedArray> import_attributes(
+      import_data_->import_attributes.Get(isolate));
   Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -1407,8 +1407,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   Context::Scope context_scope(realm);
 
-  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
-      realm, import_assertions, false);
+  ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAttributes(
+      realm, import_attributes, false);
 
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);

@@ -797,7 +797,7 @@ class PreParserFactory {
 
   PreParserExpression NewImportCallExpression(
       const PreParserExpression& specifier,
-      const PreParserExpression& import_assertions, int pos) {
+      const PreParserExpression& import_options, int pos) {
     return PreParserExpression::Default();
   }
 

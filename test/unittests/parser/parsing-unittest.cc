@@ -4649,7 +4649,7 @@ TEST_F(ParsingTest, ImportExpressionSuccess) {
   RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
-TEST_F(ParsingTest, ImportExpressionWithImportAssertionSuccess) {
+TEST_F(ParsingTest, ImportExpressionWithOptionsSuccess) {
   i::v8_flags.harmony_import_assertions = true;
 
   // clang-format off
@@ -4778,7 +4778,7 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
   }
 }
 
-TEST_F(ParsingTest, ImportExpressionWithImportAssertionErrors) {
+TEST_F(ParsingTest, ImportExpressionWithOptionsErrors) {
   {
     i::v8_flags.harmony_import_assertions = true;
 
@@ -8209,52 +8209,52 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
   for (const auto& elem : descriptor->module_requests()) {
     if (elem->index() == 0) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(0, elem->import_assertions()->size());
+      CHECK_EQ(0, elem->import_attributes()->size());
       CHECK_EQ(23, elem->position());
     } else if (elem->index() == 1) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(54, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(70, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(70, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 2) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(106, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(122, elem->import_assertions()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(122, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 3) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(159, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar2"));
-      CHECK_EQ(175, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(175, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 4) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(2, elem->import_assertions()->size());
+      CHECK_EQ(2, elem->import_attributes()->size());
       CHECK_EQ(212, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(228, elem->import_assertions()->at(foo_string).second.beg_pos);
-      CHECK(elem->import_assertions()
+      CHECK_EQ(228, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(240, elem->import_assertions()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(240, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 5) {
       CHECK(elem->specifier()->IsOneByteEqualTo("n.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(277, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(293, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(293, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else {
       UNREACHABLE();
     }
@@ -8347,184 +8347,184 @@ TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(0, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("foo"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
-  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(0, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("d"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("d"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(e_string)
             .first->IsOneByteEqualTo("f"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo("g"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(e_string)
             .first->IsOneByteEqualTo("f"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo("g"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo(""));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo(""));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(z_string)
             .first->IsOneByteEqualTo("c"));
 }
@@ -8567,59 +8567,59 @@ TEST_F(ParsingTest, ModuleParsingImportAssertionKeySorting) {
   auto request_iterator = descriptor->module_requests().cbegin();
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  auto assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("a"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  auto attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("a"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaaaaa"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aaaaaa"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo(""));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo(""));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("d"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaabbb"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aabbbb"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aaabbb"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aabbbb"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("e"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("first"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("second"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("first"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("second"));
 }
 
 TEST_F(ParsingTest, DuplicateProtoError) {

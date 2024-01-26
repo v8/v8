@@ -23068,7 +23068,7 @@ TEST(Regress411793) {
 
 v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
 }
 
@@ -23783,7 +23783,7 @@ Local<Module> CompileAndInstantiateModuleFromCache(
 
 v8::MaybeLocal<Module> SyntheticModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
   auto export_names = v8::to_array<Local<v8::String>>({v8_str("test_export")});
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       context->GetIsolate(),
@@ -23794,7 +23794,7 @@ v8::MaybeLocal<Module> SyntheticModuleResolveCallback(
 
 v8::MaybeLocal<Module> SyntheticModuleThatThrowsDuringEvaluateResolveCallback(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
   auto export_names = v8::to_array<Local<v8::String>>({v8_str("test_export")});
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       context->GetIsolate(),
@@ -24189,7 +24189,7 @@ namespace {
 
 v8::MaybeLocal<Module> ModuleEvaluateTerminateExecutionResolveCallback(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
   v8::Isolate* isolate = context->GetIsolate();
 
   Local<String> url = v8_str("www.test.com");
@@ -25861,7 +25861,7 @@ const int kCustomHostDefinedOptionsLengthForTesting = 7;
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<v8::Context> context, Local<v8::Data> host_defined_options,
     Local<v8::Value> resource_name, Local<v8::String> specifier,
-    Local<v8::FixedArray> import_assertions) {
+    Local<v8::FixedArray> import_attributes) {
   String::Utf8Value referrer_utf8(context->GetIsolate(),
                                   resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
@@ -25871,7 +25871,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
 
-  CHECK_EQ(0, import_assertions->Length());
+  CHECK_EQ(0, import_attributes->Length());
 
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -25909,7 +25909,7 @@ v8::MaybeLocal<v8::Promise>
 HostImportModuleDynamicallyWithAssertionsCallbackResolve(
     Local<v8::Context> context, Local<v8::Data> host_defined_options,
     Local<v8::Value> resource_name, Local<v8::String> specifier,
-    Local<v8::FixedArray> import_assertions) {
+    Local<v8::FixedArray> import_attributes) {
   String::Utf8Value referrer_utf8(context->GetIsolate(),
                                   resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
@@ -25920,29 +25920,29 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
   CHECK_EQ(0, strcmp("index.js", *specifier_utf8));
 
-  CHECK_EQ(8, import_assertions->Length());
-  constexpr int kAssertionEntrySizeForDynamicImport = 2;
+  CHECK_EQ(8, import_attributes->Length());
+  constexpr int kAttributeEntrySizeForDynamicImport = 2;
   for (int i = 0;
-       i < import_assertions->Length() / kAssertionEntrySizeForDynamicImport;
+       i < import_attributes->Length() / kAttributeEntrySizeForDynamicImport;
        ++i) {
-    Local<String> assertion_key =
-        import_assertions
-            ->Get(context, (i * kAssertionEntrySizeForDynamicImport))
+    Local<String> attribute_key =
+        import_attributes
+            ->Get(context, (i * kAttributeEntrySizeForDynamicImport))
             .As<Value>()
             .As<String>();
-    Local<String> assertion_value =
-        import_assertions
-            ->Get(context, (i * kAssertionEntrySizeForDynamicImport) + 1)
+    Local<String> attribute_value =
+        import_attributes
+            ->Get(context, (i * kAttributeEntrySizeForDynamicImport) + 1)
             .As<Value>()
             .As<String>();
-    if (v8_str("a")->StrictEquals(assertion_key)) {
-      CHECK(v8_str("z")->StrictEquals(assertion_value));
-    } else if (v8_str("aa")->StrictEquals(assertion_key)) {
-      CHECK(v8_str("x")->StrictEquals(assertion_value));
-    } else if (v8_str("b")->StrictEquals(assertion_key)) {
-      CHECK(v8_str("w")->StrictEquals(assertion_value));
-    } else if (v8_str("c")->StrictEquals(assertion_key)) {
-      CHECK(v8_str("y")->StrictEquals(assertion_value));
+    if (v8_str("a")->StrictEquals(attribute_key)) {
+      CHECK(v8_str("z")->StrictEquals(attribute_value));
+    } else if (v8_str("aa")->StrictEquals(attribute_key)) {
+      CHECK(v8_str("x")->StrictEquals(attribute_value));
+    } else if (v8_str("b")->StrictEquals(attribute_key)) {
+      CHECK(v8_str("w")->StrictEquals(attribute_value));
+    } else if (v8_str("c")->StrictEquals(attribute_key)) {
+      CHECK(v8_str("y")->StrictEquals(attribute_value));
     } else {
       UNREACHABLE();
     }
@@ -25968,15 +25968,15 @@ TEST(DynamicImportWithAssertions) {
   i::Handle<i::Object> specifier(v8::Utils::OpenHandle(*v8_str("index.js")));
   i::Handle<i::String> result(v8::Utils::OpenHandle(*v8_str("hello world")));
   i::Handle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
-  v8::Local<v8::Object> import_assertions =
+  v8::Local<v8::Object> import_options =
       CompileRun(
           "var arg = { assert: { 'b': 'w', aa: 'x',  c: 'y', a: 'z'} };"
           "arg;")
           ->ToObject(context.local())
           .ToLocalChecked();
 
-  i::Handle<i::Object> i_import_assertions =
-      v8::Utils::OpenHandle(*import_assertions);
+  i::Handle<i::Object> i_import_options =
+      v8::Utils::OpenHandle(*import_options);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
@@ -25986,7 +25986,7 @@ TEST(DynamicImportWithAssertions) {
   referrer->set_host_defined_options(*options);
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
-                                                        i_import_assertions);
+                                                        i_import_options);
   i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
   CHECK(result->Equals(i::String::cast(promise->result())));

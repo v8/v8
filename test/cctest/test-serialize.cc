@@ -4109,7 +4109,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
 
 MaybeLocal<v8::Module> ResolveCallback(Local<v8::Context> context,
                                        Local<v8::String> specifier,
-                                       Local<v8::FixedArray> import_assertions,
+                                       Local<v8::FixedArray> import_attributes,
                                        Local<v8::Module> referrer) {
   return {};
 }

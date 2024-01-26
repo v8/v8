@@ -1155,24 +1155,24 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
                                          Handle<String> specifier,
-                                         Handle<FixedArray> import_assertions,
+                                         Handle<FixedArray> import_attributes,
                                          int position) {
   Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<ModuleRequest> raw = *result;
   raw->set_specifier(*specifier);
-  raw->set_import_assertions(*import_assertions);
+  raw->set_import_attributes(*import_attributes);
   raw->set_position(position);
   return result;
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
     Isolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(

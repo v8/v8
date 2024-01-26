@@ -2319,7 +2319,7 @@ Local<FixedArray> ModuleRequest::GetImportAssertions() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   return ToApiHandle<FixedArray>(
-      i::direct_handle(self->import_assertions(), i_isolate), i_isolate);
+      i::direct_handle(self->import_attributes(), i_isolate), i_isolate);
 }
 
 Module::Status Module::GetStatus() const {

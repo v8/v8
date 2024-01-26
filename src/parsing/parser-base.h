@@ -3927,12 +3927,11 @@ ParserBase<Impl>::ParseImportExpressions() {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, pos);
     } else {
-      ExpressionT import_assertions = ParseAssignmentExpressionCoverGrammar();
+      ExpressionT import_options = ParseAssignmentExpressionCoverGrammar();
       Check(Token::COMMA);  // A trailing comma is allowed after the import
                             // assertions.
       Expect(Token::RPAREN);
-      return factory()->NewImportCallExpression(specifier, import_assertions,
-                                                pos);
+      return factory()->NewImportCallExpression(specifier, import_options, pos);
     }
   }
 

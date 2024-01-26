@@ -300,7 +300,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   const AstRawString* ParseExportSpecifierName();
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
 
-  ImportAssertions* ParseImportAssertClause();
+  ImportAttributes* ParseImportWithOrAssertClause();
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);

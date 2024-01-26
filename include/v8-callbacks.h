@@ -355,11 +355,11 @@ using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
  *
  * The specifier is the name of the module that should be imported.
  *
- * The import_assertions are import assertions for this request in the form:
+ * The import_attributes are import attributes for this request in the form:
  * [key1, value1, key2, value2, ...] where the keys and values are of type
  * v8::String. Note, unlike the FixedArray passed to ResolveModuleCallback and
  * returned from ModuleRequest::GetImportAssertions(), this array does not
- * contain the source Locations of the assertions.
+ * contain the source Locations of the attributes.
  *
  * The embedder must compile, instantiate, evaluate the Module, and
  * obtain its namespace object.
@@ -375,11 +375,11 @@ using HostImportModuleDynamicallyWithImportAssertionsCallback =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier,
-                            Local<FixedArray> import_assertions);
+                            Local<FixedArray> import_attributes);
 using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
-    Local<FixedArray> import_assertions);
+    Local<FixedArray> import_attributes);
 
 /**
  * Callback for requesting a compile hint for a function from the embedder. The

@@ -5564,7 +5564,7 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
-    MaybeHandle<Object> maybe_import_assertions_argument) {
+    MaybeHandle<Object> maybe_import_options_argument) {
   DCHECK(!is_execution_terminating());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   if (host_import_module_dynamically_with_import_assertions_callback_ ==
@@ -5588,9 +5588,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(!has_exception());
 
   v8::Local<v8::Promise> promise;
-  Handle<FixedArray> import_assertions_array;
-  if (!GetImportAssertionsFromArgument(maybe_import_assertions_argument)
-           .ToHandle(&import_assertions_array)) {
+  Handle<FixedArray> import_attributes_array;
+  if (!GetImportAttributesFromArgument(maybe_import_options_argument)
+           .ToHandle(&import_attributes_array)) {
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
@@ -5616,7 +5616,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
             api_context, v8::Utils::ToLocal(host_defined_options),
             v8::Utils::ToLocal(resource_name),
             v8::Utils::ToLocal(specifier_str),
-            ToApiHandle<v8::FixedArray>(import_assertions_array)),
+            ToApiHandle<v8::FixedArray>(import_attributes_array)),
         MaybeHandle<JSPromise>());
   } else {
     // TODO(cbruni, v8:12302): Avoid creating temporary ScriptOrModule objects.
@@ -5629,19 +5629,19 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         host_import_module_dynamically_with_import_assertions_callback_(
             api_context, v8::Utils::ToLocal(script_or_module),
             v8::Utils::ToLocal(specifier_str),
-            ToApiHandle<v8::FixedArray>(import_assertions_array)),
+            ToApiHandle<v8::FixedArray>(import_attributes_array)),
         MaybeHandle<JSPromise>());
   }
   return v8::Utils::OpenHandle(*promise);
 }
 
-MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
-    MaybeHandle<Object> maybe_import_assertions_argument) {
-  Handle<FixedArray> import_assertions_array = factory()->empty_fixed_array();
-  Handle<Object> import_assertions_argument;
-  if (!maybe_import_assertions_argument.ToHandle(&import_assertions_argument) ||
-      IsUndefined(*import_assertions_argument)) {
-    return import_assertions_array;
+MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
+    MaybeHandle<Object> maybe_import_options_argument) {
+  Handle<FixedArray> import_attributes_array = factory()->empty_fixed_array();
+  Handle<Object> import_options_argument;
+  if (!maybe_import_options_argument.ToHandle(&import_options_argument) ||
+      IsUndefined(*import_options_argument)) {
+    return import_attributes_array;
   }
 
   // The parser shouldn't have allowed the second argument to import() if
@@ -5649,22 +5649,22 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
   DCHECK(v8_flags.harmony_import_assertions ||
          v8_flags.harmony_import_attributes);
 
-  if (!IsJSReceiver(*import_assertions_argument)) {
+  if (!IsJSReceiver(*import_options_argument)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectImportArgument));
     return MaybeHandle<FixedArray>();
   }
 
-  Handle<JSReceiver> import_assertions_argument_receiver =
-      Handle<JSReceiver>::cast(import_assertions_argument);
+  Handle<JSReceiver> import_options_argument_receiver =
+      Handle<JSReceiver>::cast(import_options_argument);
 
-  Handle<Object> import_assertions_object;
+  Handle<Object> import_attributes_object;
 
   if (v8_flags.harmony_import_attributes) {
     Handle<Name> with_key = factory()->with_string();
-    if (!JSReceiver::GetProperty(this, import_assertions_argument_receiver,
+    if (!JSReceiver::GetProperty(this, import_options_argument_receiver,
                                  with_key)
-             .ToHandle(&import_assertions_object)) {
+             .ToHandle(&import_attributes_object)) {
       // This can happen if the property has a getter function that throws
       // an error.
       return MaybeHandle<FixedArray>();
@@ -5673,11 +5673,11 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 
   if (v8_flags.harmony_import_assertions &&
       (!v8_flags.harmony_import_attributes ||
-       IsUndefined(*import_assertions_object))) {
+       IsUndefined(*import_attributes_object))) {
     Handle<Name> assert_key = factory()->assert_string();
-    if (!JSReceiver::GetProperty(this, import_assertions_argument_receiver,
+    if (!JSReceiver::GetProperty(this, import_options_argument_receiver,
                                  assert_key)
-             .ToHandle(&import_assertions_object)) {
+             .ToHandle(&import_attributes_object)) {
       // This can happen if the property has a getter function that throws
       // an error.
       return MaybeHandle<FixedArray>();
@@ -5686,19 +5686,19 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 
   // If there is no 'with' or 'assert' option in the options bag, it's not an
   // error. Just do the import() as if no assertions were provided.
-  if (IsUndefined(*import_assertions_object)) return import_assertions_array;
+  if (IsUndefined(*import_attributes_object)) return import_attributes_array;
 
-  if (!IsJSReceiver(*import_assertions_object)) {
+  if (!IsJSReceiver(*import_attributes_object)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectAssertOption));
     return MaybeHandle<FixedArray>();
   }
 
-  Handle<JSReceiver> import_assertions_object_receiver =
-      Handle<JSReceiver>::cast(import_assertions_object);
+  Handle<JSReceiver> import_attributes_object_receiver =
+      Handle<JSReceiver>::cast(import_attributes_object);
 
   Handle<FixedArray> assertion_keys;
-  if (!KeyAccumulator::GetKeys(this, import_assertions_object_receiver,
+  if (!KeyAccumulator::GetKeys(this, import_attributes_object_receiver,
                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
                                GetKeysConversion::kConvertToString)
            .ToHandle(&assertion_keys)) {
@@ -5711,13 +5711,13 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 
   // The assertions will be passed to the host in the form: [key1,
   // value1, key2, value2, ...].
-  constexpr size_t kAssertionEntrySizeForDynamicImport = 2;
-  import_assertions_array = factory()->NewFixedArray(static_cast<int>(
-      assertion_keys->length() * kAssertionEntrySizeForDynamicImport));
+  constexpr size_t kAttributeEntrySizeForDynamicImport = 2;
+  import_attributes_array = factory()->NewFixedArray(static_cast<int>(
+      assertion_keys->length() * kAttributeEntrySizeForDynamicImport));
   for (int i = 0; i < assertion_keys->length(); i++) {
     Handle<String> assertion_key(String::cast(assertion_keys->get(i)), this);
     Handle<Object> assertion_value;
-    if (!Object::GetPropertyOrElement(this, import_assertions_object_receiver,
+    if (!Object::GetPropertyOrElement(this, import_attributes_object_receiver,
                                       assertion_key)
              .ToHandle(&assertion_value)) {
       // This can happen if the property has a getter function that throws
@@ -5729,9 +5729,9 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
       has_non_string_attribute = true;
     }
 
-    import_assertions_array->set((i * kAssertionEntrySizeForDynamicImport),
+    import_attributes_array->set((i * kAttributeEntrySizeForDynamicImport),
                                  *assertion_key);
-    import_assertions_array->set((i * kAssertionEntrySizeForDynamicImport) + 1,
+    import_attributes_array->set((i * kAttributeEntrySizeForDynamicImport) + 1,
                                  *assertion_value);
   }
 
@@ -5741,7 +5741,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
     return MaybeHandle<FixedArray>();
   }
 
-  return import_assertions_array;
+  return import_attributes_array;
 }
 
 void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }

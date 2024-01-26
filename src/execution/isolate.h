@@ -1889,7 +1889,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       HostImportModuleDynamicallyCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
       MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
-      MaybeHandle<Object> maybe_import_assertions_argument);
+      MaybeHandle<Object> maybe_import_options_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
@@ -2430,14 +2430,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::atomic<bool> battery_saver_mode_enabled_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
-  // Unpacks import assertions, if present, from the second argument to dynamic
+  // Unpacks import attributes, if present, from the second argument to dynamic
   // import() and returns them in a FixedArray, sorted by code point order of
   // the keys, in the form [key1, value1, key2, value2, ...]. Returns an empty
   // MaybeHandle if an error was thrown.  In this case, the host callback should
   // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
-  MaybeHandle<FixedArray> GetImportAssertionsFromArgument(
-      MaybeHandle<Object> maybe_import_assertions_argument);
+  MaybeHandle<FixedArray> GetImportAttributesFromArgument(
+      MaybeHandle<Object> maybe_import_options_argument);
 
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_ = nullptr;
