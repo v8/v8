@@ -712,9 +712,9 @@ class JSDataObjectBuilder {
   }
 
   template <typename GetKeyFunction, typename GetValueFunction>
-  bool TryAddPropertyForValue(GetKeyFunction&& get_key,
-                              GetValueFunction&& get_value,
-                              bool* is_mutable_double_field) {
+  V8_INLINE bool TryAddPropertyForValue(GetKeyFunction&& get_key,
+                                        GetValueFunction&& get_value,
+                                        bool* is_mutable_double_field) {
     Handle<String> key;
     TransitionResult transition_result =
         TryFastTransitionToPropertyKey(get_key, &key);
@@ -773,7 +773,7 @@ class JSDataObjectBuilder {
     }
   }
 
-  Handle<JSObject> CreateObject(Handle<FixedArrayBase> elements) {
+  V8_INLINE Handle<JSObject> CreateObject(Handle<FixedArrayBase> elements) {
     if (current_property_index_ < property_count_in_expected_final_map_) {
       // If we were on the expected map fast path all the way, but never reached
       // the expected final map itself, then finalize the map by rewinding to
@@ -806,8 +806,8 @@ class JSDataObjectBuilder {
     kFoundMapWithDescriptorLocation,
   };
   template <typename GetKeyFunction>
-  TransitionResult TryFastTransitionToPropertyKey(GetKeyFunction&& get_key,
-                                                  Handle<String>* key_out) {
+  V8_INLINE TransitionResult TryFastTransitionToPropertyKey(
+      GetKeyFunction&& get_key, Handle<String>* key_out) {
     Handle<String> expected_key;
 
     InternalIndex descriptor_index(current_property_index_);
@@ -868,8 +868,8 @@ class JSDataObjectBuilder {
     return TransitionResult::kFoundMapWithFieldLocation;
   }
 
-  bool TryGeneralizeFieldToValue(Handle<Object> value,
-                                 bool* is_mutable_double_field) {
+  V8_INLINE bool TryGeneralizeFieldToValue(Handle<Object> value,
+                                           bool* is_mutable_double_field) {
     DCHECK_LT(current_property_index_, next_map_->NumberOfOwnDescriptors());
 
     InternalIndex descriptor_index(current_property_index_);
@@ -943,18 +943,18 @@ class JSDataObjectBuilder {
     return true;
   }
 
-  void AdvanceToNextProperty() {
+  V8_INLINE void AdvanceToNextProperty() {
     current_property_index_++;
     current_map_ = next_map_;
   }
 
-  bool IsOnExpectedFinalMapFastPath() const {
+  V8_INLINE bool IsOnExpectedFinalMapFastPath() const {
     DCHECK_IMPLIES(property_count_in_expected_final_map_ > 0,
                    !expected_final_map_.is_null());
     return current_property_index_ < property_count_in_expected_final_map_;
   }
 
-  void RewindExpectedFinalMapFastPathToCurrent() {
+  V8_INLINE void RewindExpectedFinalMapFastPathToCurrent() {
     DCHECK_GT(property_count_in_expected_final_map_, 0);
     if (current_property_index_ == 0) {
       DCHECK_EQ(0, current_map_->NumberOfOwnDescriptors());
@@ -967,7 +967,7 @@ class JSDataObjectBuilder {
                isolate_);
   }
 
-  void RewindExpectedFinalMapFastPathToNext() {
+  V8_INLINE void RewindExpectedFinalMapFastPathToNext() {
     DCHECK_EQ(*next_map_, *expected_final_map_);
     next_map_ = handle(expected_final_map_->FindFieldOwner(
                            isolate_, InternalIndex(current_property_index_)),
