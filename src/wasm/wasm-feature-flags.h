@@ -48,12 +48,7 @@
   /* JavaScript Promise Integration proposal. */                               \
   /* https://github.com/WebAssembly/js-promise-integration */                  \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(jspi, "javascript promise integration", false)                             \
-                                                                               \
-  /* Imported Strings Proposal. */                                             \
-  /* https://github.com/WebAssembly/js-string-builtins */                      \
-  /* V8 side owner: jkummerow */                                               \
-  V(imported_strings, "imported strings", false)
+  V(jspi, "javascript promise integration", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -81,6 +76,11 @@
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
   V(stringref, "reference-typed strings", false)                               \
+                                                                               \
+  /* Imported Strings Proposal. */                                             \
+  /* https://github.com/WebAssembly/js-string-builtins */                      \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings, "imported strings", false)                               \
                                                                                \
   /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \
