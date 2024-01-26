@@ -3468,20 +3468,12 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
         this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
-    TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
+    TNode<HeapObject> baseline_data = LoadTrustedPointerFromObject(
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset,
+        kUnknownIndirectPointerTag);
     var_result = baseline_data;
-    // As long as InterpreterData objects still live inside the sandbox, Code
-    // references BytecodeArrays through their in-sandbox wrapper object.
-    static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-    GotoIfNot(HasInstanceType(var_result.value(), BYTECODE_WRAPPER_TYPE),
-              &check_for_interpreter_data);
-    TNode<HeapObject> bytecode = LoadTrustedPointerFromObject(
-        var_result.value(), BytecodeWrapper::kBytecodeOffset,
-        kBytecodeArrayIndirectPointerTag);
-    var_result = bytecode;
-    Goto(&done);
   }
+  Goto(&check_for_interpreter_data);
 
   BIND(&check_for_interpreter_data);
 

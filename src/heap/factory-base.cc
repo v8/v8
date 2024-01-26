@@ -97,8 +97,10 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
 
   if (options.kind == CodeKind::BASELINE) {
     DCHECK(options.deoptimization_data.is_null());
-    code->set_bytecode_or_interpreter_data(
-        *options.bytecode_or_interpreter_data.ToHandleChecked());
+    Tagged<HeapObject> data =
+        *options.bytecode_or_interpreter_data.ToHandleChecked();
+    DCHECK(IsBytecodeArray(data) || IsInterpreterData(data));
+    code->set_bytecode_or_interpreter_data(ExposedTrustedObject::cast(data));
     code->set_bytecode_offset_table(
         *options.bytecode_offsets_or_source_position_table);
   } else if (options.kind == CodeKind::MAGLEV ||

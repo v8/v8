@@ -26,12 +26,16 @@ Tagged<ByteArray> Code::raw_position_table() const {
 
 Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data(
     IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  Tagged<Object> value =
+      RawIndirectPointerField(kDeoptimizationDataOrInterpreterDataOffset,
+                              kUnknownIndirectPointerTag)
+          .load(isolate);
+#else
   Tagged<Object> value =
       TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
           *this);
-  if (IsBytecodeWrapper(value)) {
-    return BytecodeWrapper::cast(value)->bytecode(isolate);
-  }
+#endif
   return value;
 }
 

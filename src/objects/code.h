@@ -144,7 +144,8 @@ class Code : public ExposedTrustedObject {
   inline Tagged<HeapObject> bytecode_or_interpreter_data(
       IsolateForSandbox isolate) const;
   inline void set_bytecode_or_interpreter_data(
-      Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<ExposedTrustedObject> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
@@ -338,13 +339,13 @@ class Code : public ExposedTrustedObject {
 
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                                   \
-  /* Strong pointer fields. */                                                \
-  V(kStartOfStrongFieldsOffset, 0)                                            \
   /* The deoptimization_data_or_interpreter_data field contains: */           \
   /*  - A DeoptimizationData for optimized code (maglev or turbofan) */       \
   /*  - A BytecodeArray or InterpreterData for baseline code */               \
   /*  - Smi::zero() for all other types of code (e.g. builtin) */             \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
+  /* Strong pointer fields. */                                                \
+  V(kStartOfStrongFieldsOffset, 0)                                            \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kWrapperOffset, kTaggedSize)                                              \
   V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
