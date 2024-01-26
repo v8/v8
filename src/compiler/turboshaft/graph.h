@@ -546,6 +546,7 @@ class Graph {
       : operations_(graph_zone, initial_capacity),
         bound_blocks_(graph_zone),
         all_blocks_(),
+        op_to_block_(graph_zone, this),
         block_permutation_(graph_zone),
         graph_zone_(graph_zone),
         source_positions_(graph_zone, this),
@@ -565,6 +566,7 @@ class Graph {
     // No need to explicitly reset `all_blocks_`, since we will placement-new
     // new blocks into it, reusing the already allocated backing storage.
     next_block_ = 0;
+    op_to_block_.Reset();
     block_permutation_.clear();
     source_positions_.Reset();
     operation_origins_.Reset();
@@ -635,6 +637,14 @@ class Graph {
     it = std::prev(it);
     DCHECK((*it)->Contains(index));
     return (*it)->index();
+  }
+
+  void SetBlockOf(BlockIndex block, OpIndex op) { op_to_block_[op] = block; }
+
+  BlockIndex BlockIndexOf(OpIndex op) const { return op_to_block_[op]; }
+
+  BlockIndex BlockIndexOf(const Operation& op) const {
+    return op_to_block_[Index(op)];
   }
 
   OpIndex NextIndex(const OpIndex idx) const {
@@ -760,6 +770,10 @@ class Graph {
   void Finalize(Block* block) {
     DCHECK(!block->end_.valid());
     block->end_ = next_operation_index();
+    // Upading mapping from Operations to Blocks for the Operations in {block}.
+    for (const Operation& op : operations(*block)) {
+      SetBlockOf(block->index(), Index(op));
+    }
   }
 
   void TurnLoopIntoMerge(Block* loop) {
@@ -1007,6 +1021,7 @@ class Graph {
     std::swap(next_block_, companion.next_block_);
     std::swap(block_permutation_, companion.block_permutation_);
     std::swap(graph_zone_, companion.graph_zone_);
+    op_to_block_.SwapData(companion.op_to_block_);
     source_positions_.SwapData(companion.source_positions_);
     operation_origins_.SwapData(companion.operation_origins_);
     operation_types_.SwapData(companion.operation_types_);
@@ -1088,6 +1103,7 @@ class Graph {
   // are only properly value-initialized up to index `next_block_`.
   base::Vector<Block*> all_blocks_;
   size_t next_block_ = 0;
+  GrowingOpIndexSidetable<BlockIndex> op_to_block_;
   // When `ReorderBlocks` is called, `block_permutation_` contains the original
   // order of blocks in order to provide a proper OpIndex->Block mapping for
   // `BlockOf`. In non-reordered graphs, this vector is empty.
