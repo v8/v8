@@ -5177,9 +5177,10 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   builder()->SetExpressionPosition(expr);
   VisitForAccumulatorValue(expr->expression());
 
+  bool is_async = IsAsyncGeneratorFunction(function_kind());
   // If this is not the first yield
   if (suspend_count_ > 0) {
-    if (IsAsyncGeneratorFunction(function_kind())) {
+    if (is_async) {
       // AsyncGenerator yields (with the exception of the initial yield)
       // delegate work to the AsyncGeneratorYieldWithAwait stub, which Awaits
       // the operand and on success, wraps the value in an IteratorResult.
@@ -5214,7 +5215,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   // TODO(caitp): remove once yield* desugaring for async generators is handled
   // in BytecodeGenerator.
   if (expr->on_abrupt_resume() == Yield::kNoControl) {
-    DCHECK(IsAsyncGeneratorFunction(function_kind()));
+    DCHECK(is_async);
     return;
   }
 
@@ -5224,13 +5225,25 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   // Now dispatch on resume mode.
   static_assert(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
+  static_assert(JSGeneratorObject::kReturn + 1 == JSGeneratorObject::kThrow);
   BytecodeJumpTable* jump_table =
-      builder()->AllocateJumpTable(2, JSGeneratorObject::kNext);
+      builder()->AllocateJumpTable(is_async ? 3 : 2, JSGeneratorObject::kNext);
 
   builder()->SwitchOnSmiNoFeedback(jump_table);
 
+  if (is_async) {
+    // Resume with rethrow (switch fallthrough).
+    // This case is only necessary in async generators.
+    builder()->SetExpressionPosition(expr);
+    builder()->LoadAccumulatorWithRegister(input);
+    builder()->ReThrow();
+
+    // Add label for kThrow (next case).
+    builder()->Bind(jump_table, JSGeneratorObject::kThrow);
+  }
+
   {
-    // Resume with throw (switch fallthrough).
+    // Resume with throw (switch fallthrough in sync case).
     // TODO(leszeks): Add a debug-only check that the accumulator is
     // JSGeneratorObject::kThrow.
     builder()->SetExpressionPosition(expr);
@@ -5242,7 +5255,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     // Resume with return.
     builder()->Bind(jump_table, JSGeneratorObject::kReturn);
     builder()->LoadAccumulatorWithRegister(input);
-    if (IsAsyncGeneratorFunction(function_kind())) {
+    if (is_async) {
       execution_control()->AsyncReturnAccumulator(kNoSourcePosition);
     } else {
       execution_control()->ReturnAccumulator(kNoSourcePosition);
