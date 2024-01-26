@@ -100,14 +100,12 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler.h"
-#include "src/objects/feedback-vector.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
-#include "src/objects/shared-function-info.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/visitors.h"
@@ -117,7 +115,6 @@
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/string-stream.h"
-#include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
@@ -1926,16 +1923,19 @@ void Heap::CollectGarbage(AllocationSpace space,
         gc_callback_flags);
   });
 
-  if (collector == GarbageCollector::MARK_COMPACTOR &&
-      (gc_callback_flags & (kGCCallbackFlagForced |
-                            kGCCallbackFlagCollectAllAvailableGarbage)) != 0) {
-    isolate()->CountUsage(v8::Isolate::kForcedGC);
-  }
-
-  // Start incremental marking for the next cycle. We do this only for scavenger
-  // to avoid a loop where mark-compact causes another mark-compact.
-  if (collector == GarbageCollector::SCAVENGER) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    if ((gc_callback_flags &
+         (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage))) {
+      isolate()->CountUsage(v8::Isolate::kForcedGC);
+    }
+    if (v8_flags.heap_snapshot_on_gc > 0 &&
+        static_cast<size_t>(v8_flags.heap_snapshot_on_gc) == ms_count_) {
+      isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+    }
+  } else if (collector == GarbageCollector::SCAVENGER) {
     DCHECK(!v8_flags.minor_ms);
+    // Start incremental marking for the next cycle. We do this only for
+    // scavenger to avoid a loop where mark-compact causes another mark-compact.
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
