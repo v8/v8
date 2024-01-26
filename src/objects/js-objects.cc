@@ -5208,8 +5208,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   isolate->UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
       real_receiver);
 
-  Handle<Map> new_map =
-      Map::TransitionToPrototype(isolate, map, Handle<HeapObject>::cast(value));
+  Handle<Map> new_map = Map::TransitionToUpdatePrototype(
+      isolate, map, Handle<HeapObject>::cast(value));
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);
 

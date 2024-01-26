@@ -2397,7 +2397,8 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
     }
 
     Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
-      return Map::TransitionToPrototype(CcTest::i_isolate(), map, prototype_);
+      return Map::TransitionToUpdatePrototype(CcTest::i_isolate(), map,
+                                              prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const {
@@ -2451,7 +2452,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      return Map::TransitionToPrototype(isolate, map, prototype_);
+      return Map::TransitionToUpdatePrototype(isolate, map, prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const {

@@ -877,7 +877,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                : ObjectFields::kMaybePointers;
   }
 
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToPrototype(
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
