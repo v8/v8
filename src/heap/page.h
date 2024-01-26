@@ -65,7 +65,8 @@ class Page : public MemoryChunk {
 
   // Checks if address1 and address2 are on the same new space page.
   static bool OnSamePage(Address address1, Address address2) {
-    return Page::FromAddress(address1) == Page::FromAddress(address2);
+    return MemoryChunkHeader::FromAddress(address1) ==
+           MemoryChunkHeader::FromAddress(address2);
   }
 
   // Checks whether an address is page aligned.

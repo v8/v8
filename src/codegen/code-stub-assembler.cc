@@ -5005,9 +5005,9 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 #ifndef V8_ENABLE_SINGLE_GENERATION
 #ifdef DEBUG
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
-    TNode<IntPtrT> object_page = PageFromAddress(object_word);
+    TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
-        object_page, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
+        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     CSA_DCHECK(
         this,
         WordNotEqual(
@@ -5406,9 +5406,9 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
     TNode<Object> object, Label* interesting) {
   Label finished(this);
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> object_page = PageFromAddress(object_word);
+  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
   TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
-      Load(MachineType::IntPtr(), object_page,
+      Load(MachineType::IntPtr(), object_page_header,
            IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
   Branch(
       WordEqual(WordAnd(page_flags,
@@ -7816,9 +7816,9 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
 TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
     TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> page = PageFromAddress(object_word);
+  TNode<IntPtrT> page_header = PageHeaderFromAddress(object_word);
   return UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), page,
+      Load(MachineType::Pointer(), page_header,
            IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
 }
 
@@ -12764,10 +12764,10 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   // TODO(v8:11641): Skip TrapAllocationMemento when allocation-site
   // tracking is disabled.
-  TNode<IntPtrT> object_page = PageFromAddress(object_word);
+  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
-        object_page, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
+        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     GotoIf(WordEqual(
                WordAnd(page_flags,
                        IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
@@ -12783,20 +12783,23 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 
   TNode<IntPtrT> memento_last_word = IntPtrAdd(
       object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
-  TNode<IntPtrT> memento_last_word_page = PageFromAddress(memento_last_word);
+  TNode<IntPtrT> memento_last_word_page_header =
+      PageHeaderFromAddress(memento_last_word);
 
   TNode<IntPtrT> new_space_top = Load<IntPtrT>(new_space_top_address);
-  TNode<IntPtrT> new_space_top_page = PageFromAddress(new_space_top);
+  TNode<IntPtrT> new_space_top_page_header =
+      PageHeaderFromAddress(new_space_top);
 
   // If the object is in new space, we need to check whether respective
   // potential memento object is on the same page as the current top.
-  GotoIf(WordEqual(memento_last_word_page, new_space_top_page), &top_check);
+  GotoIf(WordEqual(memento_last_word_page_header, new_space_top_page_header),
+         &top_check);
 
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  Branch(WordEqual(object_page, memento_last_word_page), &map_check,
-         &no_memento_found);
+  Branch(WordEqual(object_page_header, memento_last_word_page_header),
+         &map_check, &no_memento_found);
 
   // If top is on the same page as the current object, we need to check whether
   // we are below top.

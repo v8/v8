@@ -513,10 +513,10 @@ LargePage* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
 
 base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
 MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
-  void* chunk = pool()->TryGetPooled();
+  BasicMemoryChunk* chunk = pool()->TryGetPooled();
   if (chunk == nullptr) return {};
   const int size = MemoryChunk::kPageSize;
-  const Address start = reinterpret_cast<Address>(chunk);
+  const Address start = chunk->address();
   const Address area_start =
       start +
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());

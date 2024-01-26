@@ -43,7 +43,7 @@ BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
       area_start_(area_start),
       area_end_(area_end),
       allocated_bytes_(area_end - area_start),
-      high_water_mark_(area_start - reinterpret_cast<Address>(this)),
+      high_water_mark_(area_start - address()),
       owner_(space),
       reservation_(std::move(reservation)) {}
 
