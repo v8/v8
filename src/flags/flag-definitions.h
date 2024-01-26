@@ -1280,8 +1280,6 @@ DEFINE_BOOL(turboshaft_instruction_selection, false,
 
 DEFINE_BOOL(turboshaft_load_elimination, false,
             "enable Turboshaft's low-level load elimination for JS")
-DEFINE_BOOL(turboshaft_machine_lowering_opt, false,
-            "enable MachineOptimization during MachineLowering")
 DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
 DEFINE_BOOL(turboshaft_loop_unrolling, false,
             "enable Turboshaft's loop unrolling")
@@ -1309,7 +1307,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turboshaft_future, turboshaft)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
-DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)

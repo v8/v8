@@ -16,16 +16,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 void MachineLoweringPhase::Run(Zone* temp_zone) {
-  if (v8_flags.turboshaft_machine_lowering_opt) {
-    CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
-                 FastApiCallReducer, RequiredOptimizationReducer,
-                 SelectLoweringReducer,
-                 MachineOptimizationReducer>::Run(temp_zone);
-  } else {
-    CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
-                 FastApiCallReducer, RequiredOptimizationReducer,
-                 SelectLoweringReducer>::Run(temp_zone);
-  }
+  CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
+               FastApiCallReducer, RequiredOptimizationReducer,
+               SelectLoweringReducer,
+               MachineOptimizationReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft
