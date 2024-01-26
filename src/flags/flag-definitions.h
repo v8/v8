@@ -245,7 +245,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 //
 // TODO(v8:14214): Remove --harmony flags once transition is complete.
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_import_attributes, "harmony import attributes")                    \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_temporal, "Temporal")                                              \
@@ -300,7 +299,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_array_grouping, "harmony array grouping")                 \
   V(harmony_array_from_async, "harmony Array.fromAsync")              \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")          \
-  V(harmony_set_methods, "harmony Set Methods")
+  V(harmony_set_methods, "harmony Set Methods")                       \
+  V(harmony_import_attributes, "harmony import attributes")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
   V(js_promise_withresolvers, "Promise.withResolvers")

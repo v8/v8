@@ -4954,6 +4954,7 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
   // clang-format on
 
   i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = false;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
