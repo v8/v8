@@ -77,6 +77,9 @@ class WasmJs {
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
       Isolate* isolate, Handle<NativeContext> context);
 
+  V8_EXPORT_PRIVATE static void InstallTypeReflection(
+      Isolate* isolate, Handle<NativeContext> context);
+
   V8_EXPORT_PRIVATE static void InstallSuspenderConstructor(
       Isolate* isolate, Handle<NativeContext> context);
 };
