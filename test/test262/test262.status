@@ -2499,4 +2499,26 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-iterator-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/next-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-iterator-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/iterator-result-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-get-return-undefined': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-poisoned-return': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-not-object': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-object': [SKIP],
+  'built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
