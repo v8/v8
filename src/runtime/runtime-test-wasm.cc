@@ -649,15 +649,20 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// This runtime function enables WebAssembly GC through an embedder
-// callback and thereby bypasses the value in v8_flags.
-RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
+// This runtime function enables WebAssembly imported strings through an
+// embedder callback and thereby bypasses the value in v8_flags.
+RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
   DCHECK_EQ(1, args.length());
   bool enable = Object::BooleanValue(*args.at(0), isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
-  WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };
-  v8_isolate->SetWasmGCEnabledCallback(enable ? enabled : disabled);
+  WasmImportedStringsEnabledCallback enabled = [](v8::Local<v8::Context>) {
+    return true;
+  };
+  WasmImportedStringsEnabledCallback disabled = [](v8::Local<v8::Context>) {
+    return false;
+  };
+  v8_isolate->SetWasmImportedStringsEnabledCallback(enable ? enabled
+                                                           : disabled);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

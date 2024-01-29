@@ -1935,7 +1935,6 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
 TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  EXPERIMENTAL_FLAG_SCOPE(gc);
 
   uint8_t empty_struct = builder.AddStruct({});
   uint8_t super_struct = builder.AddStruct({F(kWasmI32, true)}, empty_struct);

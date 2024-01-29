@@ -1579,13 +1579,6 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
-  /**
-   * Register callback to control whether Wasm GC is enabled.
-   * The callback overwrites the value of the flag.
-   * If the callback returns true, it will also enable Wasm stringrefs.
-   */
-  void SetWasmGCEnabledCallback(WasmGCEnabledCallback callback);
-
   void SetWasmImportedStringsEnabledCallback(
       WasmImportedStringsEnabledCallback callback);
 

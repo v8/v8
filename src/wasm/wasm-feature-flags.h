@@ -88,10 +88,6 @@
   /* Launch bug: https://crbug.com/1424350 */                                  \
   V(inlining, "wasm-into-wasm inlining", false)                                \
                                                                                \
-  /* Inlining of small wasm GC functions into JavaScript */                    \
-  /* V8 side owner: mliedtke */                                                \
-  V(js_inlining, "inline small wasm functions into JS", false)                 \
-                                                                               \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal */                  \
   /* V8 side owner: thibaudm */                                                \
@@ -101,20 +97,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Typed function references proposal. */                                    \
-  /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: manoskouk */                                               \
-  /* Staged in v11.7. */                                                       \
-  /* Shipped in v11.9. */                                                      \
-  V(typed_funcref, "typed function references", true)                          \
-                                                                               \
-  /* GC proposal. https://github.com/WebAssembly/gc */                         \
-  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
-  /* V8 side owner: jkummerow */                                               \
-  /* Staged in v11.7. */                                                       \
-  /* Shipped in v11.9. */                                                      \
-  V(gc, "garbage collection", true)                                            \
-                                                                               \
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
   /* V8 side owner: clemensb */                                                \

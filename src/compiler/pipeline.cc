@@ -209,9 +209,7 @@ class PipelineData {
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        assembler_options_(AssemblerOptions::Default(isolate)),
-        inline_wasm_into_js_(
-            isolate_->IsWasmInliningIntoJSEnabled(isolate_->native_context())) {
+        assembler_options_(AssemblerOptions::Default(isolate)) {
     PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
     graph_ = graph_zone_->New<Graph>(graph_zone_);
     source_positions_ = graph_zone_->New<SourcePositionTable>(graph_);
@@ -651,8 +649,6 @@ class PipelineData {
   }
 #endif
 
-  bool inline_wasm_into_js() const { return inline_wasm_into_js_; }
-
  private:
   Isolate* const isolate_;
 #if V8_ENABLE_WEBASSEMBLY
@@ -734,7 +730,6 @@ class PipelineData {
   const ProfileDataFromFile* profile_data_ = nullptr;
 
   bool has_js_wasm_calls_ = false;
-  bool inline_wasm_into_js_ = false;
 };
 
 class PipelineImpl final {
@@ -1475,8 +1470,7 @@ struct InliningPhase {
       // Note: By not setting data->info()->set_source_positions(), even with
       // wasm inlining, source positions shouldn't be kept alive after
       // compilation is finished (if not for tracing, ...)
-      if (data->inline_wasm_into_js() &&
-          !data->source_positions()->IsEnabled()) {
+      if (!data->source_positions()->IsEnabled()) {
         data->source_positions()->Enable();
         data->source_positions()->AddDecorator();
       }
@@ -1500,9 +1494,7 @@ struct JSWasmInliningPhase {
     CommonOperatorReducer common_reducer(
         &graph_reducer, data->graph(), data->broker(), data->common(),
         data->machine(), temp_zone, BranchSemantics::kMachine);
-    JSInliningHeuristic::Mode mode =
-        data->inline_wasm_into_js() ? JSInliningHeuristic::kWasmFullInlining
-                                    : JSInliningHeuristic::kWasmWrappersOnly;
+    JSInliningHeuristic::Mode mode = JSInliningHeuristic::kWasmFullInlining;
     JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
                                  data->jsgraph(), data->broker(),
                                  data->source_positions(), data->node_origins(),
@@ -2943,17 +2935,15 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
         DCHECK(data->info()->inline_js_wasm_calls());
         Run<JSWasmInliningPhase>();
         RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
-        if (data->inline_wasm_into_js()) {
-          Run<WasmTypingPhase>(-1);
-          RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
-          if (v8_flags.wasm_opt) {
-            Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
-                                         data->jsgraph());
-            RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
-          }
-          Run<JSWasmLoweringPhase>();
-          RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
+        Run<WasmTypingPhase>(-1);
+        RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
+        if (v8_flags.wasm_opt) {
+          Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
+                                       data->jsgraph());
+          RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
         }
+        Run<JSWasmLoweringPhase>();
+        RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3016,7 +3006,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
 
 #if V8_ENABLE_WEBASSEMBLY
-      if (data->has_js_wasm_calls() && data->inline_wasm_into_js()) {
+      if (data->has_js_wasm_calls()) {
         Run<WasmJSLoweringPhase>();
         RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
       }

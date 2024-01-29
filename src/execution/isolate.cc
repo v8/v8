@@ -3035,19 +3035,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmGCEnabled(Handle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
-  return v8_flags.experimental_wasm_gc;
-#else
-  return false;
-#endif
-}
-
 bool Isolate::IsCompileHintsMagicEnabled(Handle<NativeContext> context) {
   v8::JavaScriptCompileHintsMagicEnabledCallback callback =
       compile_hints_magic_enabled_callback();
@@ -3062,12 +3049,6 @@ bool Isolate::IsCompileHintsMagicEnabled(Handle<NativeContext> context) {
 
 bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
-  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
-  v8::WasmGCEnabledCallback callback_gc = wasm_gc_enabled_callback();
-  if (callback_gc) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback_gc(api_context)) return true;
-  }
   // If Wasm imported strings are explicitly enabled via a callback, also enable
   // stringref.
   v8::WasmImportedStringsEnabledCallback callback_imported_strings =
@@ -3101,26 +3082,7 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
 bool Isolate::IsWasmInliningEnabled(Handle<NativeContext> context) {
   // If Wasm GC is explicitly enabled via a callback, also enable inlining.
 #ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
   return v8_flags.experimental_wasm_inlining;
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmInliningIntoJSEnabled(Handle<NativeContext> context) {
-  // If Wasm GC is explicitly enabled via a callback, also enable inlining.
-#ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
-  return v8_flags.experimental_wasm_js_inlining;
 #else
   return false;
 #endif

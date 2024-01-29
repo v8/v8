@@ -1509,8 +1509,6 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
-DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
-
 DEFINE_IMPLICATION(experimental_wasm_stack_switching, experimental_wasm_jspi)
 
 DEFINE_IMPLICATION(experimental_wasm_jspi, experimental_wasm_type_reflection)
@@ -1548,8 +1546,6 @@ DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
               "wasm_inlinining_factor does not apply")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
-
-DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")

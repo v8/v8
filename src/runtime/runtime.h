@@ -707,7 +707,7 @@ namespace internal {
   F(SerializeWasmModule, 1, 1)              \
   F(SetWasmCompileControls, 2, 1)           \
   F(SetWasmInstantiateControls, 0, 1)       \
-  F(SetWasmGCEnabled, 1, 1)                 \
+  F(SetWasmImportedStringsEnabled, 1, 1)    \
   F(WasmCompiledExportWrappersCount, 0, 1)  \
   F(WasmGetNumberOfInstances, 1, 1)         \
   F(WasmNumCodeSpaces, 1, 1)                \
