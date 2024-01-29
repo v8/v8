@@ -168,7 +168,7 @@ class TestInstance {
       stream_ = std::make_unique<std::ofstream>(file_name.str(),
                                                 std::ios_base::trunc);
       *stream_ << "{\"function\" : ";
-      int len = strlen("test_generated_function") + 1;
+      size_t len = strlen("test_generated_function") + 1;
       auto name = std::make_unique<char[]>(len);
       snprintf(name.get(), len, "test_generated_function");
       JsonPrintFunctionSource(*stream_, -1, std::move(name), Handle<Script>{},
