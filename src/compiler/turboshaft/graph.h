@@ -272,7 +272,7 @@ class RandomAccessStackDominatorNode
 // iteration order is reversed.
 class PredecessorIterator {
  public:
-  explicit PredecessorIterator(Block* block) : current_(block) {}
+  explicit PredecessorIterator(const Block* block) : current_(block) {}
 
   PredecessorIterator& operator++();
   constexpr bool operator==(const PredecessorIterator& other) const {
@@ -282,22 +282,22 @@ class PredecessorIterator {
     return !(*this == other);
   }
 
-  Block* operator*() const { return current_; }
+  const Block* operator*() const { return current_; }
 
  private:
-  Block* current_;
+  const Block* current_;
 };
 
 // An iterable wrapper for the predecessors of a block.
 class NeighboringPredecessorIterable {
  public:
-  explicit NeighboringPredecessorIterable(Block* begin) : begin_(begin) {}
+  explicit NeighboringPredecessorIterable(const Block* begin) : begin_(begin) {}
 
   PredecessorIterator begin() const { return PredecessorIterator(begin_); }
   PredecessorIterator end() const { return PredecessorIterator(nullptr); }
 
  private:
-  Block* begin_;
+  const Block* begin_;
 };
 
 // A basic block

@@ -240,9 +240,10 @@ class GraphVisitor : public VariableReducer<AfterNext> {
     // The BlockIndex of the blocks of `sub_graph` should be sorted so that
     // visiting them in order is correct (all of the predecessors of a block
     // should always be visited before the block itself).
-    DCHECK(std::is_sorted(
-        sub_graph.begin(), sub_graph.end(),
-        [](Block* a, Block* b) { return a->index().id() <= b->index().id(); }));
+    DCHECK(std::is_sorted(sub_graph.begin(), sub_graph.end(),
+                          [](const Block* a, const Block* b) {
+                            return a->index().id() <= b->index().id();
+                          }));
 
     // 1. Create new blocks, and update old->new mapping. This is required to
     // emit multiple times the blocks of {sub_graph}: if a block `B1` in
@@ -271,7 +272,7 @@ class GraphVisitor : public VariableReducer<AfterNext> {
 #endif
     Asm().Goto(start);
     // Visiting `sub_graph`.
-    for (Block* block : sub_graph) {
+    for (const Block* block : sub_graph) {
       blocks_needing_variables_.Add(block->index().id());
       VisitBlock<false>(block);
       ProcessWaitingCloningAndInlining<false>();

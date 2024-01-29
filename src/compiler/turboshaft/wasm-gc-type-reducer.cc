@@ -335,7 +335,7 @@ void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
   // them from the predecessors as that would mess up the phi inputs. Therefore
   // the reachability of the predecessors is passed as a separate list.
   base::SmallVector<bool, 8> reachable;
-  for (auto predecessor : block.PredecessorsIterable()) {
+  for (const Block* predecessor : block.PredecessorsIterable()) {
     snapshots.push_back(block_to_snapshot_[predecessor->index()].value());
     reachable.push_back(IsReachable(*predecessor));
   }

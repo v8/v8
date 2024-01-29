@@ -1305,7 +1305,7 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 #endif
 
     int current_index = 0;
-    for (Block* pred : current_input_block->PredecessorsIterable()) {
+    for (const Block* pred : current_input_block->PredecessorsIterable()) {
       size_t pred_index = predecessor_count - current_index - 1;
       auto lower =
           std::lower_bound(new_predecessors.begin(), new_predecessors.end(),

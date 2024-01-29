@@ -75,7 +75,7 @@ namespace v8::internal::compiler::turboshaft {
 
 class V8_EXPORT_PRIVATE AnalyzerIterator {
  public:
-  AnalyzerIterator(Zone* phase_zone, Graph& graph,
+  AnalyzerIterator(Zone* phase_zone, const Graph& graph,
                    const LoopFinder& loop_finder)
       : graph_(graph),
         loop_finder_(loop_finder),
@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE AnalyzerIterator {
     DCHECK_IMPLIES(!stack_.empty(), !IsOutdated(stack_.back()));
     return !stack_.empty();
   }
-  Block* Next();
+  const Block* Next();
   // Schedule the loop pointed to by the current block (as a backedge)
   // to be revisited on the next iteration.
   void MarkLoopForRevisit();
@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE AnalyzerIterator {
 
  private:
   struct StackNode {
-    Block* block;
+    const Block* block;
     uint64_t generation;
   };
   static constexpr uint64_t kNotVisitedGeneration = 0;
@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE AnalyzerIterator {
     return visited_[node.block->index()] >= node.generation;
   }
 
-  Graph& graph_;
+  const Graph& graph_;
   const LoopFinder& loop_finder_;
 
   uint64_t current_generation_ = kGenerationForFirstVisit;

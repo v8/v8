@@ -138,7 +138,7 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
     }
   }
 
-  void RestoreTemporaryVariableSnapshotAfter(Block* block) {
+  void RestoreTemporaryVariableSnapshotAfter(const Block* block) {
     DCHECK(table_.IsSealed());
     DCHECK(block_to_snapshot_mapping_[block->index()].has_value());
     table_.StartNewSnapshot(*block_to_snapshot_mapping_[block->index()]);
