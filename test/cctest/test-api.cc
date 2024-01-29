@@ -7856,15 +7856,11 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   i::ManualGCScope manual_gc_scope;
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
   // Parallel scavenge introduces too much fragmentation.
   i::v8_flags.parallel_scavenge = false;
 
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
-  v8::Local<Context> context = Context::New(iso);
-  Context::Scope context_scope(context);
 
   FlagAndPersistent object_a, object_b;
 
@@ -7872,6 +7868,8 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   size_t big_array_size = 0;
 
   {
+    v8::Local<Context> context = Context::New(iso);
+    Context::Scope context_scope(context);
     v8::HandleScope handle_scope(iso);
     Local<Object> a(v8::Object::New(iso));
     Local<Object> b(v8::Object::New(iso));
@@ -7902,10 +7900,17 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &SetFlag,
                           v8::WeakCallbackType::kParameter);
-  if (i::v8_flags.single_generation || global_gc) {
-    i::heap::InvokeMajorGC(CcTest::heap());
-  } else {
-    i::heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak references may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+
+    if (i::v8_flags.single_generation || global_gc) {
+      i::heap::InvokeMajorGC(CcTest::heap());
+    } else {
+      i::heap::InvokeMinorGC(CcTest::heap());
+    }
   }
   // A single GC should be enough to reclaim the memory, since we are using
   // phantom handles.
@@ -7966,20 +7971,19 @@ void InternalFieldCallback(bool global_gc) {
   // which prevents it from being reclaimed and the callbacks from being
   // executed.
   i::ManualGCScope manual_gc_scope;
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
   Trivial* t1;
   Trivial2* t2;
-  instance_templ->SetInternalFieldCount(2);
   v8::Persistent<v8::Object> handle;
   {
+    Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+    instance_templ->SetInternalFieldCount(2);
+
     v8::HandleScope inner_scope(isolate);
     Local<v8::Object> obj = templ->GetFunction(env.local())
                                 .ToLocalChecked()
@@ -8004,10 +8008,17 @@ void InternalFieldCallback(bool global_gc) {
         &handle, CheckInternalFields, v8::WeakCallbackType::kInternalFields);
   }
 
-  if (i::v8_flags.single_generation || global_gc) {
-    i::heap::InvokeMajorGC(CcTest::heap());
-  } else {
-    i::heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak references may not
+    // be cleared because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+
+    if (i::v8_flags.single_generation || global_gc) {
+      i::heap::InvokeMajorGC(CcTest::heap());
+    } else {
+      i::heap::InvokeMinorGC(CcTest::heap());
+    }
   }
 
   CHECK_EQ(1729, t1->x());
@@ -8038,14 +8049,12 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
 
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
-  v8::Local<Context> context = Context::New(iso);
-  Context::Scope context_scope(context);
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   FlagAndPersistent object_a, object_b;
 
   {
+    v8::Local<Context> context = Context::New(iso);
+    Context::Scope context_scope(context);
     v8::HandleScope handle_scope(iso);
     Local<Object> a(v8::Object::New(iso));
     Local<Object> b(v8::Object::New(iso));
@@ -8065,10 +8074,17 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
   object_b.handle.SetWeak(&object_b, &ResetUseValueAndSetFlag,
                           v8::WeakCallbackType::kParameter);
 
-  if (global_gc || v8_flags.single_generation) {
-    i::heap::InvokeAtomicMajorGC(CcTest::heap());
-  } else {
-    i::heap::InvokeMinorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise the weak references may not
+    // be cleared because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+
+    if (global_gc || v8_flags.single_generation) {
+      i::heap::InvokeAtomicMajorGC(CcTest::heap());
+    } else {
+      i::heap::InvokeMinorGC(CcTest::heap());
+    }
   }
   CHECK(object_a.flag);
   CHECK(object_b.flag);
@@ -8102,9 +8118,10 @@ static void ForceFullGC1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 THREADED_TEST(GCFromWeakCallbacks) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Locker locker(CcTest::isolate());
-  v8::HandleScope scope(isolate);
-  v8::Local<Context> context = Context::New(isolate);
-  Context::Scope context_scope(context);
+  LocalContext env;
+
+  // In this test, we need to invoke GC without stack, otherwise the weak
+  // references may not be cleared because of conservative stack scanning.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
 
@@ -17316,15 +17333,16 @@ TEST(Regress528) {
   v8::Isolate* isolate = CcTest::isolate();
   i::v8_flags.retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);
-  v8::Local<Context> other_context;
   int gc_count;
 
+  // In this test, we need to invoke GC without stack, otherwise some objects
+  // may not be reclaimed because of conservative stack scanning.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
 
   // Create a context used to keep the code from aging in the compilation
   // cache.
-  other_context = Context::New(isolate);
+  LocalContext other_context(isolate);
 
   // Context-dependent context data creates reference from the compilation
   // cache to the global object.
@@ -28922,8 +28940,7 @@ THREADED_TEST(Recorder_GetContext) {
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
+
   v8::metrics::Recorder::ContextId original_id;
   std::vector<v8::metrics::Recorder::ContextId> ids;
   {
@@ -28959,8 +28976,14 @@ THREADED_TEST(Recorder_GetContext) {
     CHECK_EQ(original_id, new_id);
   }
 
-  // Invalidate the context and therefore the context id.
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    // Invalidate the context and therefore the context id.
+    i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  }
 
   // Ensure that a stale context id returns an empty handle.
   {
@@ -29007,9 +29030,6 @@ TEST(TriggerMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
 
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
-
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
@@ -29035,7 +29055,13 @@ TEST(TriggerMainThreadMetricsEvent) {
     CHECK_GT(recorder->time_in_us_, 100);
   }
 
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  }
 
   // Check that event submission doesn't break even if the context id is
   // invalid.
@@ -29048,9 +29074,6 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
   i::v8_flags.stress_concurrent_allocation = false;
-
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
@@ -29082,7 +29105,13 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     CHECK_GT(recorder->time_in_us_, 100);
   }
 
-  i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeAtomicMajorGC(CcTest::heap());
+  }
 
   // Check that event submission doesn't break even if the context id is
   // invalid.
