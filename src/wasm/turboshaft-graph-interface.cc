@@ -34,8 +34,7 @@ namespace v8::internal::wasm {
 using Assembler = compiler::turboshaft::TSAssembler<
     compiler::turboshaft::SelectLoweringReducer,
     compiler::turboshaft::DataViewReducer,
-    compiler::turboshaft::VariableReducer,
-    compiler::turboshaft::RequiredOptimizationReducer>;
+    compiler::turboshaft::VariableReducer>;
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;

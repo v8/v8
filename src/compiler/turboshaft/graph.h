@@ -502,9 +502,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     predecessor_count_++;
   }
 
-  friend class Graph;
-  template <class Reducers>
-  friend class Assembler;
 
   Kind kind_;
   OpIndex begin_ = OpIndex::Invalid();
@@ -526,6 +523,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   bool has_peeled_iteration_ = false;
 #endif
 
+  friend class Graph;
+  template <class Reducers>
+  friend class Assembler;
   template <class Assembler>
   friend class GraphVisitor;
 };
@@ -661,6 +661,9 @@ class Graph {
 #endif
     return prev;
   }
+  OpIndex LastOperation() const {
+    return PreviousIndex(next_operation_index());
+  }
 
   OperationStorageSlot* Allocate(size_t slot_count) {
     return operations_.Allocate(slot_count);
@@ -793,6 +796,8 @@ class Graph {
   BlockIndex next_block_index() const {
     return BlockIndex(static_cast<uint32_t>(bound_blocks_.size()));
   }
+
+  Block* last_block() { return bound_blocks_.back(); }
 
   Zone* graph_zone() const { return graph_zone_; }
   uint32_t block_count() const {

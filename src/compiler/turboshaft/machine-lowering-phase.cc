@@ -16,8 +16,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 void MachineLoweringPhase::Run(Zone* temp_zone) {
-  CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
-               FastApiCallReducer, RequiredOptimizationReducer,
+  CopyingPhase<DataViewReducer, MachineLoweringReducer, FastApiCallReducer,
                SelectLoweringReducer,
                MachineOptimizationReducer>::Run(temp_zone);
 }

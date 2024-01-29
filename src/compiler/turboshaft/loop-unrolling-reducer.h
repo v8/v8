@@ -194,8 +194,8 @@ class LoopUnrollingReducer : public Next {
   // the comment in pipeline.cc where LoopUnrolling is triggered.
   static_assert(!reducer_list_contains<ReducerList, LoopPeelingReducer>::value);
 
-  // LoopUnrolling duplicates loop blocks, which requires a VariableReducer.
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
 #endif
 
   OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_idx, const GotoOp& gto) {

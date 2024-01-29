@@ -77,7 +77,7 @@ class TestInstance {
   Assembler& operator()() { return Asm(); }
 
   template <template <typename> typename... Reducers>
-  void Run(bool trace_reductions = false) {
+  void Run(bool trace_reductions = v8_flags.turboshaft_trace_reduction) {
     TSAssembler<GraphVisitor, Reducers...> phase(
         graph(), graph().GetOrCreateCompanion(), zone_);
 #ifdef DEBUG
@@ -147,6 +147,13 @@ class TestInstance {
   const underlying_operation_t<Op>* GetCapturedAs(
       const std::string& key) const {
     return GetCapture(key).GetAs<Op>();
+  }
+
+  size_t CountOp(Opcode opcode) {
+    auto operations = graph().AllOperations();
+    return std::count_if(
+        operations.begin(), operations.end(),
+        [opcode](const Operation& op) { return op.opcode == opcode; });
   }
 
   struct CaptureHelper {

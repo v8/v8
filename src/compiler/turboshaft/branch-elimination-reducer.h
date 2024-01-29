@@ -195,9 +195,8 @@ class BranchEliminationReducer : public Next {
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-#if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
-#endif
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -304,13 +303,6 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    if (destination_origin->PredecessorCount() == 1) {
-      // This block has a single successor and `destination_origin` has a single
-      // predecessor. We can merge these blocks (optimization 5).
-      __ CloneAndInlineBlock(destination_origin);
-      return OpIndex::Invalid();
-    }
-
     const Operation& last_op =
         destination_origin->LastOperation(__ input_graph());
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
@@ -327,7 +319,7 @@ class BranchEliminationReducer : public Next {
         // condition is already known. As per the 2nd optimization, we'll
         // process {new_dst} right away, and we'll end it with a Goto instead of
         // its current Branch.
-        __ CloneAndInlineBlock(destination_origin);
+        __ CloneBlockAndGoto(destination_origin);
         return OpIndex::Invalid();
       } else {
         // Optimization 2bis:
@@ -339,14 +331,14 @@ class BranchEliminationReducer : public Next {
           if (const PhiOp* cond = __ input_graph()
                                       .Get(branch->condition())
                                       .template TryCast<PhiOp>()) {
-            __ CloneAndInlineBlock(destination_origin);
+            __ CloneBlockAndGoto(destination_origin);
             return OpIndex::Invalid();
           } else if (CanBeConstantFolded(branch->condition(),
                                          destination_origin)) {
             // If the {cond} only uses constant Phis that come from the current
             // block, it's probably worth it to clone the block in order to
             // constant-fold away the Branch.
-            __ CloneAndInlineBlock(destination_origin);
+            __ CloneBlockAndGoto(destination_origin);
             return OpIndex::Invalid();
           } else {
             goto no_change;

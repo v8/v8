@@ -1487,7 +1487,7 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  static bool IsSupported(Kind kind, WordRepresentation rep);
+  V8_EXPORT_PRIVATE static bool IsSupported(Kind kind, WordRepresentation rep);
 
   explicit WordUnaryOp(OpIndex input, Kind kind, WordRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
@@ -1545,7 +1545,7 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  static bool IsSupported(Kind kind, FloatRepresentation rep);
+  V8_EXPORT_PRIVATE static bool IsSupported(Kind kind, FloatRepresentation rep);
 
   explicit FloatUnaryOp(OpIndex input, Kind kind, FloatRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
@@ -7585,7 +7585,7 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
 // some Operations as removeable. In order to make that work for operations that
 // have no uses such as Goto and Branch, all operations that have the property
 // `IsRequiredWhenUnused()` have a non-zero `saturated_use_count`.
-V8_INLINE bool ShouldSkipOperation(const Operation& op) {
+V8_EXPORT_PRIVATE V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   return op.saturated_use_count.IsZero();
 }
 

@@ -145,9 +145,8 @@ template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-#if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
-#endif
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
 
   void Analyze() {
     auto* info = PipelineData::Get().info();

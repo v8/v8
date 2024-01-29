@@ -30,6 +30,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
@@ -40,6 +41,8 @@ namespace v8::internal::compiler::turboshaft {
 
 template <typename>
 class VariableReducer;
+template <typename>
+class GraphVisitor;
 
 // The MachineOptimizationAssembler performs basic optimizations on low-level
 // operations that can be performed on-the-fly, without requiring type analysis
@@ -56,7 +59,14 @@ class MachineOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 #if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+  // TODO(dmercadier): this static_assert ensures that the stack contains a
+  // VariableReducer. It is currently not very clean, because when GraphVisitor
+  // is on the stack, it implicitly adds a VariableReducer that isn't detected
+  // by reducer_list_contains. It would be cleaner to have a single "reducer
+  // list contains VariableReducer" check that sees the VariableReducer
+  // introduced by GraphVisitor.
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value ||
+                reducer_list_contains<ReducerList, GraphVisitor>::value);
 #endif
 
   // TODO(mslekova): Implement ReduceSelect and ReducePhi,
