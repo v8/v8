@@ -746,6 +746,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // lack of over/underflow is always respected.
 class SaturatedUint8 {
  public:
+  SaturatedUint8() = default;
+
   void Incr() {
     if (V8_LIKELY(val != kMax)) {
       val++;
@@ -765,7 +767,20 @@ class SaturatedUint8 {
   bool IsSaturated() const { return val == kMax; }
   uint8_t Get() const { return val; }
 
+  SaturatedUint8& operator+=(const SaturatedUint8& other) {
+    uint32_t sum = val;
+    sum += other.val;
+    val = static_cast<uint8_t>(std::min<uint32_t>(sum, kMax));
+    return *this;
+  }
+
+  static SaturatedUint8 FromSize(size_t value) {
+    uint8_t val = static_cast<uint8_t>(std::min<size_t>(value, kMax));
+    return SaturatedUint8{val};
+  }
+
  private:
+  explicit SaturatedUint8(uint8_t val) : val(val) {}
   uint8_t val = 0;
   static constexpr uint8_t kMax = std::numeric_limits<uint8_t>::max();
 };
@@ -1948,7 +1963,9 @@ struct BitcastWord32PairToFloat64Op
 struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
   enum class Kind : uint8_t {
     kSmi,  // This is a bitcast from a Word to a Smi or from a Smi to a Word
-    kHeapObject,  // This is a bitcast from or to a Heap Object
+    kHeapObject,     // This is a bitcast from or to a Heap Object
+    kTagAndSmiBits,  // This is a bitcast where only access to the tag and the
+                     // smi bits (if it's a smi) are valid
     kAny
   };
   Kind kind;
@@ -1960,6 +1977,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
       case Kind::kSmi:
         return OpEffects();
       case Kind::kHeapObject:
+      case Kind::kTagAndSmiBits:
       case Kind::kAny:
         // Due to moving GC, converting from or to pointers doesn't commute with
         // GC.

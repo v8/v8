@@ -73,7 +73,7 @@ namespace v8::internal::compiler::turboshaft {
 // recorded in {visited_}, it means that we've revisited a loop since the last
 // time we visited this block, so we should revisit it as well.
 
-class AnalyzerIterator {
+class V8_EXPORT_PRIVATE AnalyzerIterator {
  public:
   AnalyzerIterator(Zone* phase_zone, Graph& graph,
                    const LoopFinder& loop_finder)

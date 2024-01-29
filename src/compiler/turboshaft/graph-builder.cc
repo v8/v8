@@ -2241,11 +2241,10 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
-      // TODO(nicohartmann@): We might want a dedicated operation/kind for that
-      // as well.
+      // Currently this is only used by the CSA pipeline.
       DCHECK_EQ(PipelineData::Get().pipeline_kind(),
                 TurboshaftPipelineKind::kCSA);
-      return __ BitcastTaggedToWordPtr(Map(node->InputAt(0)));
+      return __ BitcastTaggedToWordPtrForTagAndSmiBits(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTaggedSigned:
       return __ BitcastWordPtrToSmi(Map(node->InputAt(0)));
 

@@ -863,7 +863,8 @@ V8_INLINE size_t hash_value(MemoryRepresentation rep) {
   return static_cast<size_t>(rep.value());
 }
 
-std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           MemoryRepresentation rep);
 
 }  // namespace v8::internal::compiler::turboshaft
 

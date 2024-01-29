@@ -1493,10 +1493,10 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableTaggedBitcast(input, from, to, kind);
   }
 
-#define DECL_TAGGED_BITCAST(FromT, ToT, kind)              \
-  V<ToT> Bitcast##FromT##To##ToT(V<FromT> from) {          \
-    return TaggedBitcast(from, V<FromT>::rep, V<ToT>::rep, \
-                         TaggedBitcastOp::Kind::kind);     \
+#define DECL_TAGGED_BITCAST(FromT, ToT, kind)               \
+  V<ToT> Bitcast##FromT##To##ToT(V<FromT> input) {          \
+    return TaggedBitcast(input, V<FromT>::rep, V<ToT>::rep, \
+                         TaggedBitcastOp::Kind::kind);      \
   }
   DECL_TAGGED_BITCAST(Smi, Word32, kSmi)
   DECL_TAGGED_BITCAST(Word32, Smi, kSmi)
@@ -1507,6 +1507,11 @@ class TurboshaftAssemblerOpInterface
   DECL_TAGGED_BITCAST(WordPtr, Tagged, kAny)
   DECL_TAGGED_BITCAST(Tagged, WordPtr, kAny)
 #undef DECL_TAGGED_BITCAST
+  V<WordPtr> BitcastTaggedToWordPtrForTagAndSmiBits(V<Tagged> input) {
+    return TaggedBitcast(input, RegisterRepresentation::Tagged(),
+                         RegisterRepresentation::PointerSized(),
+                         TaggedBitcastOp::Kind::kTagAndSmiBits);
+  }
 
   V<Word32> ObjectIs(V<Object> input, ObjectIsOp::Kind kind,
                      ObjectIsOp::InputAssumptions input_assumptions) {

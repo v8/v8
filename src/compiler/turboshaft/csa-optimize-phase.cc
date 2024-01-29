@@ -22,11 +22,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void CsaLoadEliminationPhase::Run(Zone* temp_zone) {
+void CsaEarlyMachineOptimizationPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, MachineOptimizationReducer,
                RequiredOptimizationReducer,
                ValueNumberingReducer>::Run(temp_zone);
+}
 
+void CsaLoadEliminationPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, LateLoadEliminationReducer,
                MachineOptimizationReducer, RequiredOptimizationReducer,
                ValueNumberingReducer>::Run(temp_zone);

@@ -2278,13 +2278,13 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
     if (const turboshaft::ChangeOp* change =
             this->Get(left)
                 .template TryCast<
-                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
       left = change->input();
     }
     if (const turboshaft::ChangeOp* change =
             this->Get(right)
                 .template TryCast<
-                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
       right = change->input();
     }
 

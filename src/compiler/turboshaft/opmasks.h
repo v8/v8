@@ -281,7 +281,7 @@ using kTruncateFloat32ToUint32OverflowToMin =
                       RegisterRepresentation::Float32(),
                       RegisterRepresentation::Word32()>;
 
-using kTruncateInt64ToInt32 = ChangeOpMask::For<
+using kTruncateWord64ToWord32 = ChangeOpMask::For<
     ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
 
@@ -295,6 +295,14 @@ using OverflowCheckedBinopMask =
 using kOverflowCheckedWord32Add =
     OverflowCheckedBinopMask::For<OverflowCheckedBinopOp::Kind::kSignedAdd,
                                   WordRepresentation::Word32()>;
+
+using TaggedBitcastMask =
+    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, from),
+                FIELD(TaggedBitcastOp, to), FIELD(TaggedBitcastOp, kind)>;
+using kBitcastTaggedToWordPtrForTagAndSmiBits =
+    TaggedBitcastMask::For<RegisterRepresentation::Tagged(),
+                           RegisterRepresentation::PointerSized(),
+                           TaggedBitcastOp::Kind::kTagAndSmiBits>;
 
 #if V8_ENABLE_WEBASSEMBLY
 

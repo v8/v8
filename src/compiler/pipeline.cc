@@ -3335,6 +3335,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
         pipeline.Run<turboshaft::BuildGraphPhase>(&linkage);
     CHECK(!bailout.has_value());
 
+    pipeline.Run<turboshaft::CsaEarlyMachineOptimizationPhase>();
     pipeline.Run<turboshaft::CsaLoadEliminationPhase>();
     pipeline.Run<turboshaft::CsaLateEscapeAnalysisPhase>();
     pipeline.Run<turboshaft::CsaBranchEliminationPhase>();

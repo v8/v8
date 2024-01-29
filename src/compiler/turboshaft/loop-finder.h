@@ -12,7 +12,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-class LoopFinder {
+class V8_EXPORT_PRIVATE LoopFinder {
   // This analyzer finds which loop each Block of a graph belongs to, and
   // computes a list of all of the loops headers.
   //

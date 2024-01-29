@@ -380,6 +380,8 @@ std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
       return os << "Smi";
     case TaggedBitcastOp::Kind::kHeapObject:
       return os << "HeapObject";
+    case TaggedBitcastOp::Kind::kTagAndSmiBits:
+      return os << "TagAndSmiBits";
     case TaggedBitcastOp::Kind::kAny:
       return os << "Any";
   }
