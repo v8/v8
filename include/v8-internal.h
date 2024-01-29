@@ -616,8 +616,6 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
     kRuntimeGeneratedCodeObjectsLiveInTrustedSpace &&
     kBuiltinCodeObjectsLiveInTrustedSpace;
 
-constexpr bool kInterpreterDataObjectsLiveInTrustedSpace = false;
-
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);

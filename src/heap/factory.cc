@@ -3565,9 +3565,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 Handle<InterpreterData> Factory::NewInterpreterData(
     Handle<BytecodeArray> bytecode_array, Handle<Code> code) {
   Tagged<Map> map = *interpreter_data_map();
-  Tagged<InterpreterData> interpreter_data =
-      Tagged<InterpreterData>::cast(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, *interpreter_data_map()));
+  Tagged<InterpreterData> interpreter_data = Tagged<InterpreterData>::cast(
+      AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
+                                 *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
   interpreter_data->init_self_indirect_pointer(isolate());
   interpreter_data->set_bytecode_array(*bytecode_array);

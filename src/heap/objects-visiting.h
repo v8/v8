@@ -40,7 +40,6 @@ namespace internal {
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
   V(Hole)                               \
-  V(InterpreterData)                    \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \

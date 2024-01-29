@@ -54,7 +54,6 @@ enum InstanceType : uint16_t;
   V(FeedbackCell)                       \
   V(FreeSpace)                          \
   V(Hole)                               \
-  V(InterpreterData)                    \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \

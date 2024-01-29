@@ -1336,8 +1336,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SwissNameDictionary);
     case PREPARSE_DATA_TYPE:
       return CALL_APPLY(PreparseData);
-    case INTERPRETER_DATA_TYPE:
-      return CALL_APPLY(InterpreterData);
     case SHARED_FUNCTION_INFO_TYPE:
       return CALL_APPLY(SharedFunctionInfo);
     case HEAP_NUMBER_TYPE:

@@ -1330,7 +1330,7 @@ void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
   CHECK(IsTrustedSpaceObject(*this) || IsCode(*this) ||
-        IsInterpreterData(*this) || IsTrustedFixedArray(*this));
+        IsTrustedFixedArray(*this));
 #endif
 }
 

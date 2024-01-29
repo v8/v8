@@ -242,7 +242,6 @@ namespace internal {
   V(SeqOneByteString)                           \
   V(SeqString)                                  \
   V(SeqTwoByteString)                           \
-  V(InterpreterData)                            \
   V(SharedFunctionInfo)                         \
   V(SimpleNumberDictionary)                     \
   V(SlicedString)                               \
@@ -349,6 +348,7 @@ namespace internal {
   APPLY(V, BytecodeArray, BYTECODE_ARRAY)                \
   APPLY(V, Code, CODE)                                   \
   APPLY(V, InstructionStream, INSTRUCTION_STREAM)        \
+  APPLY(V, InterpreterData, INTERPRETER_DATA)            \
   IF_WASM(APPLY, V, WasmTrustedInstanceData, WASM_TRUSTED_INSTANCE_DATA)
 
 #define TRUSTED_OBJECT_LIST1_ADAPTER(V, Name, NAME) V(Name)

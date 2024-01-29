@@ -98,8 +98,7 @@ V8_INLINE constexpr bool IsValidIndirectPointerTag(IndirectPointerTag tag) {
 // objects that are in the process of being migrated into trusted space.
 V8_INLINE constexpr bool IsTrustedSpaceMigrationInProgressForObjectsWithTag(
     IndirectPointerTag tag) {
-  return tag == kInterpreterDataIndirectPointerTag ||
-         tag == kTrustedFixedArrayIndirectPointerTag;
+  return tag == kTrustedFixedArrayIndirectPointerTag;
 }
 
 // The null tag is also considered an invalid tag since no indirect pointer
