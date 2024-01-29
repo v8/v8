@@ -7394,20 +7394,25 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     AddNewNode<CheckValueEqualsInt32>({GetInt32(node)}, ref_value);
   } else {
     DCHECK(ref.IsHeapNumber());
-    double ref_value = ref.AsHeapNumber().value();
+    Float64 ref_value = Float64::FromBits(ref.AsHeapNumber().value_as_bits());
+    DCHECK(!ref_value.is_hole_nan());
     if (node->Is<Float64Constant>()) {
-      if (node->Cast<Float64Constant>()->value().get_scalar() == ref_value) {
+      Float64 f64 = node->Cast<Float64Constant>()->value();
+      DCHECK(!f64.is_hole_nan());
+      if (f64 == ref_value) {
         return ReduceResult::Done();
       }
-      // TODO(verwaest): Handle NaN.
       return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     } else if (compiler::OptionalHeapObjectRef constant =
                    TryGetConstant(node)) {
-      if (constant.value().IsHeapNumber() &&
-          constant.value().AsHeapNumber().value() == ref_value) {
-        return ReduceResult::Done();
+      if (constant.value().IsHeapNumber()) {
+        Float64 f64 =
+            Float64::FromBits(constant.value().AsHeapNumber().value_as_bits());
+        DCHECK(!f64.is_hole_nan());
+        if (f64 == ref_value) {
+          return ReduceResult::Done();
+        }
       }
-      // TODO(verwaest): Handle NaN.
       return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     }
     AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);

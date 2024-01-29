@@ -2386,6 +2386,10 @@ class MaglevGraphBuilder {
     return base::hash_value(in);
   }
 
+  static size_t gvn_hash_value(const Float64& f64) {
+    return base::hash_value(f64.get_bits());
+  }
+
   static size_t gvn_hash_value(const compiler::MapRef& map) {
     return map.hash_value();
   }

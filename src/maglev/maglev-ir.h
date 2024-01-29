@@ -5035,14 +5035,16 @@ class CheckValueEqualsFloat64
   using Base = FixedInputNodeT<1, CheckValueEqualsFloat64>;
 
  public:
-  explicit CheckValueEqualsFloat64(uint64_t bitfield, double value)
-      : Base(bitfield), value_(value) {}
+  explicit CheckValueEqualsFloat64(uint64_t bitfield, Float64 value)
+      : Base(bitfield), value_(value) {
+    DCHECK(!value.is_hole_nan());
+  }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
 
-  double value() const { return value_; }
+  double value() const { return value_.get_scalar(); }
 
   static constexpr int kTargetIndex = 0;
   Input& target_input() { return input(kTargetIndex); }
@@ -5054,7 +5056,7 @@ class CheckValueEqualsFloat64
   auto options() const { return std::tuple{value_}; }
 
  private:
-  const double value_;
+  const Float64 value_;
 };
 
 class CheckValueEqualsString

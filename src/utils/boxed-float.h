@@ -87,6 +87,16 @@ class Float64 {
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
+  // Unlike doubles, equality is defined as equally behaving as far as the
+  // optimizers are concerned. I.e., two NaN's are equal as long as they are
+  // both the hole nor not.
+  bool operator==(const Float64& other) const {
+    if (is_nan() && other.is_nan()) {
+      return is_hole_nan() == other.is_hole_nan();
+    }
+    return get_scalar() == other.get_scalar();
+  }
+
  private:
   uint64_t bit_pattern_ = 0;
 

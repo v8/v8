@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-ir.h"
 
+#include <cmath>
 #include <limits>
 
 #include "src/base/bounds.h"
@@ -2860,7 +2861,15 @@ void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
   DoubleRegister target = ToDoubleRegister(target_input());
   __ Move(scratch, value());
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
-  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, fail);
+  Label* nan = fail;
+  Label done;
+  if (std::isnan(value())) {
+    nan = &done;
+  }
+  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, nan);
+  if (std::isnan(value())) {
+    __ bind(&done);
+  }
 }
 
 void CheckValueEqualsString::SetValueLocationConstraints() {
