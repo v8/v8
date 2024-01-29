@@ -64,6 +64,14 @@ void WasmGCTypeAnalyzer::ProcessBlock(const Block& block) {
 
 void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
   is_first_loop_header_evaluation_ = false;
+  // Reset reachability information. This can be outdated in case of loop
+  // revisits. Below the reachability is calculated again and potentially
+  // re-added.
+  // TODO(mliedtke): Right now a block only becomes unreachable if its
+  // predecessor branches based on a ref.is_null or a ref.test that can be
+  // statically inferred. Also propagate reachability (i.e. a block becomes
+  // unreachable if all its predecessors are unreachable).
+  block_is_unreachable_.Remove(block.index().id());
   // Start new snapshot based on predecessor information.
   if (block.HasPredecessors() == 0) {
     // The first block just starts with an empty snapshot.
