@@ -101,4 +101,36 @@ TEST_F(DictionaryTemplateTest,
   EXPECT_EQ(Int32::Cast(*value3)->Value(), kBoxedInt);
 }
 
+TEST_F(DictionaryTemplateTest, PrototypeContext) {
+  HandleScope scope(isolate());
+
+  constexpr std::string_view property_names[] = {"a", "b"};
+  Local<DictionaryTemplate> tpl =
+      DictionaryTemplate::New(isolate(), property_names);
+
+  MaybeLocal<Value> fast_values[2] = {v8_str(isolate(), "a_value"),
+                                      v8_str(isolate(), "b_value")};
+
+  MaybeLocal<Value> slow_values[2] = {{}, v8_str(isolate(), "b_value")};
+
+  Local<Object> instance1 = tpl->NewInstance(context(), fast_values);
+  Local<Object> object1 = v8::Object::New(isolate());
+
+  Local<Object> instance2, instance3;
+  Local<Object> object2;
+  {
+    Local<Context> context2 = Context::New(isolate());
+    v8::Context::Scope scope(context2);
+    instance2 = tpl->NewInstance(context2, fast_values);
+    instance3 = tpl->NewInstance(context2, slow_values);
+    object2 = v8::Object::New(isolate());
+  }
+
+  EXPECT_TRUE(instance1->GetPrototype() == object1->GetPrototype());
+  EXPECT_TRUE(instance2->GetPrototype() == object2->GetPrototype());
+
+  EXPECT_FALSE(instance1->GetPrototype() == instance2->GetPrototype());
+  EXPECT_TRUE(instance2->GetPrototype() == instance3->GetPrototype());
+}
+
 }  // namespace v8

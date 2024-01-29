@@ -271,6 +271,14 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
       if (V8_LIKELY(can_use_cached_map)) {
         // Create the object from the cached map.
         CHECK(!cached_map->is_deprecated());
+        Handle<JSObject> prototype = isolate->object_function_prototype();
+        if (cached_map->prototype() != *prototype) {
+          cached_map =
+              Map::Copy(isolate, cached_map, "dictionary in new context");
+          Map::SetPrototype(isolate, cached_map, prototype);
+          self->set_fully_populated_map(
+              MaybeObject::MakeWeak(MaybeObject::FromObject(*cached_map)));
+        }
         auto object = isolate->factory()->NewJSObjectFromMap(
             cached_map, AllocationType::kYoung);
         DisallowGarbageCollection no_gc;
