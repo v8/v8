@@ -1329,8 +1329,7 @@ void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
-  CHECK(IsTrustedSpaceObject(*this) || IsCode(*this) ||
-        IsTrustedFixedArray(*this));
+  CHECK(IsTrustedSpaceObject(*this) || IsCode(*this));
 #endif
 }
 
