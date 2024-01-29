@@ -2353,10 +2353,6 @@ inline KeyedAccessLoadMode GeneralizeKeyedAccessLoadMode(
                                           static_cast<T>(mode2));
 }
 
-inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
-  return load_mode == KeyedAccessLoadMode::kInBounds;
-}
-
 inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
   using T = std::underlying_type<KeyedAccessLoadMode>::type;
   return (static_cast<T>(load_mode) &

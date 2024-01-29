@@ -4265,7 +4265,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     return ReduceResult::Fail();
   }
 
-  DCHECK(LoadModeIsInBounds(keyed_mode.load_mode()));
+  DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
 
   // Ensure that {object} is actually a String.
   BuildCheckString(object);
@@ -4412,7 +4412,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   AddNewNode<CheckTypedArrayBounds>({index, length});
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
-      DCHECK(LoadModeIsInBounds(keyed_mode.load_mode()));
+      DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
       return BuildLoadTypedArrayElement(object, index, elements_kind);
     case compiler::AccessMode::kStore:
       DCHECK(StoreModeIsInBounds(keyed_mode.store_mode()));
