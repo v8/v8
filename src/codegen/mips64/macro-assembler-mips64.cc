@@ -6172,7 +6172,8 @@ void MacroAssembler::CallCFunctionHelper(
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   ASM_CODE_COMMENT(this);
-  And(scratch, object, Operand(~kPageAlignmentMask));
+  And(scratch, object,
+      Operand(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
   Ld(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
