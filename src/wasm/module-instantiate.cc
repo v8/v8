@@ -746,7 +746,7 @@ class InstanceBuilder {
   Handle<JSArrayBuffer> untagged_globals_;
   Handle<FixedArray> tagged_globals_;
   std::vector<Handle<WasmTagObject>> tags_wrappers_;
-  Handle<WasmExportedFunction> start_function_;
+  Handle<JSFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
   std::vector<WellKnownImport> well_known_imports_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
@@ -1319,14 +1319,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
-    // TODO(clemensb): Don't generate an exported function for the start
-    // function. Use CWasmEntry instead.
-    Handle<WasmInternalFunction> internal =
-        WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-            isolate_, trusted_data, start_index);
-    start_function_ = Handle<WasmExportedFunction>::cast(
-        WasmInternalFunction::GetOrCreateExternal(internal));
 
+    DCHECK(start_function_.is_null());
     if (function.imported) {
       ImportedFunctionEntry entry(instance_object,
                                   module_->start_function_index);
@@ -1334,14 +1328,19 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       if (IsJSFunction(callable)) {
         // If the start function was imported and calls into Blink, we have
         // to pretend that the V8 API was used to enter its correct context.
-        // To get that context to {ExecuteStartFunction} below, we install it
-        // as the context of the wrapper we just compiled. That's a bit of a
-        // hack because it's not really the wrapper's context, only its wrapped
-        // target's context, but the end result is the same, and since the
-        // start function wrapper doesn't leak, neither does this
-        // implementation detail.
-        start_function_->set_context(JSFunction::cast(callable)->context());
+        // In order to simplify entering the context in {ExecuteStartFunction}
+        // below, we just record the callable as the start function.
+        start_function_ = handle(JSFunction::cast(callable), isolate_);
       }
+    }
+    if (start_function_.is_null()) {
+      // TODO(clemensb): Don't generate an exported function for the start
+      // function. Use CWasmEntry instead.
+      Handle<WasmInternalFunction> internal =
+          WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+              isolate_, trusted_data, start_index);
+      start_function_ = Handle<WasmExportedFunction>::cast(
+          WasmInternalFunction::GetOrCreateExternal(internal));
     }
   }
 
@@ -1380,6 +1379,8 @@ bool InstanceBuilder::ExecuteStartFunction() {
   MaybeHandle<Object> retval =
       Execution::Call(isolate_, start_function_, undefined, 0, nullptr);
   hsi->LeaveContext();
+  // {start_function_} has to be called only once.
+  start_function_ = {};
 
   if (retval.is_null()) {
     DCHECK(isolate_->has_exception());
