@@ -358,6 +358,14 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_SLOW_DCHECK(csa, ...) ((void)0)
 #endif
 
+// Similar to SBXCHECK in C++, these become a CSA_CHECK in sandbox-enabled
+// builds, otherwise a CSA_DCHECK.
+#ifdef V8_ENABLE_SANDBOX
+#define CSA_SBXCHECK(csa, ...) CSA_CHECK(csa, __VA_ARGS__)
+#else
+#define CSA_SBXCHECK(csa, ...) CSA_DCHECK(csa, __VA_ARGS__)
+#endif
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"

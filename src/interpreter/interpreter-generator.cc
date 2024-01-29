@@ -3152,8 +3152,6 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   SetContext(context);
 
   TNode<UintPtrT> table_start = BytecodeOperandIdx(1);
-  // TODO(leszeks): table_length is only used for a CSA_DCHECK, we don't
-  // actually need it otherwise.
   TNode<UintPtrT> table_length = BytecodeOperandUImmWord(2);
 
   // The state must be a Smi.
@@ -3161,9 +3159,10 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 
   TNode<IntPtrT> case_value = SmiUntag(state);
 
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(case_value, IntPtrConstant(0)));
-  CSA_DCHECK(this, IntPtrLessThan(case_value, table_length));
-  USE(table_length);
+  // When the sandbox is enabled, the generator state must be assumed to be
+  // untrusted as it is located inside the sandbox, so validate it here.
+  CSA_SBXCHECK(this, UintPtrLessThan(case_value, table_length));
+  USE(table_length);  // SBXCHECK is a DCHECK when the sandbox is disabled.
 
   TNode<WordT> entry = IntPtrAdd(table_start, case_value);
   TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntry(entry);
