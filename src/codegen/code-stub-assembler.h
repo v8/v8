@@ -1201,9 +1201,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  TNode<HeapObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
-                                                 int offset,
-                                                 IndirectPointerTag tag);
+  TNode<TrustedObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
+                                                    int offset,
+                                                    IndirectPointerTag tag);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1212,9 +1212,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                  int offset,
-                                                  IndirectPointerTag tag);
+  TNode<TrustedObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
+                                                     int offset,
+                                                     IndirectPointerTag tag);
 
   // Determines whether the given indirect pointer handle is a trusted pointer
   // handle or a code pointer handle.
@@ -1222,14 +1222,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Retrieve the heap object referenced by the given indirect pointer handle,
   // which can either be a trusted pointer handle or a code pointer handle.
-  TNode<HeapObject> ResolveIndirectPointerHandle(
+  TNode<TrustedObject> ResolveIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Retrieve the Code object referenced by the given trusted pointer handle.
   TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
 
   // Retrieve the heap object referenced by the given trusted pointer handle.
-  TNode<HeapObject> ResolveTrustedPointerHandle(
+  TNode<TrustedObject> ResolveTrustedPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Helper function to compute the offset into the code pointer table from a
@@ -1248,6 +1248,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset);
 #endif
+
+  TNode<TrustedObject> LoadProtectedPointerFromObject(
+      TNode<TrustedObject> object, int offset);
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,

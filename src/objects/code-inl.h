@@ -94,21 +94,18 @@ INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 
 inline Tagged<TrustedFixedArray> Code::deoptimization_data() const {
   DCHECK(uses_deoptimization_data());
-  Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
   return TrustedFixedArray::cast(
-      ReadTrustedPointerField<kUnknownIndirectPointerTag>(
-          kDeoptimizationDataOrInterpreterDataOffset, isolate_for_sandbox));
+      ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
 inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
                                           WriteBarrierMode mode) {
   DCHECK(uses_deoptimization_data());
   DCHECK(!ObjectInYoungGeneration(value));
-  WriteTrustedPointerField<kUnknownIndirectPointerTag>(
-      kDeoptimizationDataOrInterpreterDataOffset, value);
-  CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(
-      *this, kDeoptimizationDataOrInterpreterDataOffset,
-      kUnknownIndirectPointerTag, value, mode);
+
+  WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
+      *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
 inline bool Code::uses_deoptimization_data() const {
@@ -116,31 +113,28 @@ inline bool Code::uses_deoptimization_data() const {
 }
 
 inline void Code::clear_deoptimization_data_and_interpreter_data() {
-  ClearTrustedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
+  ClearProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
 
 inline bool Code::has_deoptimization_data_or_interpreter_data() const {
-  return !IsTrustedPointerFieldCleared(
+  return !IsProtectedPointerFieldCleared(
       kDeoptimizationDataOrInterpreterDataOffset);
 }
 
-Tagged<HeapObject> Code::bytecode_or_interpreter_data(
+Tagged<TrustedObject> Code::bytecode_or_interpreter_data(
     IsolateForSandbox isolate) const {
   DCHECK_EQ(kind(), CodeKind::BASELINE);
-  return ReadTrustedPointerField<kUnknownIndirectPointerTag>(
-      kDeoptimizationDataOrInterpreterDataOffset, isolate);
+  return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
-void Code::set_bytecode_or_interpreter_data(Tagged<ExposedTrustedObject> value,
+void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
   DCHECK(kind() == CodeKind::BASELINE);
   DCHECK(!ObjectInYoungGeneration(value));
   DCHECK(IsBytecodeArray(value) || IsInterpreterData(value));
 
-  WriteTrustedPointerField<kUnknownIndirectPointerTag>(
-      kDeoptimizationDataOrInterpreterDataOffset, value);
-  CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(
-      *this, kDeoptimizationDataOrInterpreterDataOffset,
-      kUnknownIndirectPointerTag, value, mode);
+  WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
+      *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
 ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
@@ -246,10 +240,8 @@ int Code::constant_pool_size() const {
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
 Tagged<TrustedFixedArray> Code::unchecked_deoptimization_data() const {
-  Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
   return TrustedFixedArray::unchecked_cast(
-      ReadTrustedPointerField<kUnknownIndirectPointerTag>(
-          kDeoptimizationDataOrInterpreterDataOffset, isolate_for_sandbox));
+      ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
 uint8_t* Code::relocation_start() const {

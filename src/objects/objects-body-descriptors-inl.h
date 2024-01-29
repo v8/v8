@@ -1027,9 +1027,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kCodeIndirectPointerTag, v);
-    IterateTrustedPointer(obj, Code::kDeoptimizationDataOrInterpreterDataOffset,
-                          v, IndirectPointerMode::kStrong,
-                          kUnknownIndirectPointerTag);
+    IterateProtectedPointer(
+        obj, Code::kDeoptimizationDataOrInterpreterDataOffset, v);
     IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
                     Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 

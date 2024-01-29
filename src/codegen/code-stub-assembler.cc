@@ -1842,12 +1842,12 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TNode<HeapObject> CodeStubAssembler::LoadTrustedPointerFromObject(
+TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   return LoadIndirectPointerFromObject(object, field_offset, tag);
 #else
-  return LoadObjectField<HeapObject>(object, field_offset);
+  return LoadObjectField<TrustedObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -1858,7 +1858,7 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
+TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
@@ -1871,13 +1871,13 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
                      Int32Constant(0));
 }
 
-TNode<HeapObject> CodeStubAssembler::ResolveIndirectPointerHandle(
+TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
   // The tag implies which pointer table to use.
   if (tag == kUnknownIndirectPointerTag) {
     // In this case we have to rely on the handle marking to determine which
     // pointer table to use.
-    return Select<HeapObject>(
+    return Select<TrustedObject>(
         IsTrustedPointerHandle(handle),
         [=] { return ResolveTrustedPointerHandle(handle, tag); },
         [=] { return ResolveCodePointerHandle(handle); });
@@ -1903,7 +1903,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
   return UncheckedCast<Code>(BitcastWordToTagged(value));
 }
 
-TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
+TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
@@ -1919,7 +1919,7 @@ TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   // to set it using a bitwise OR as it may or may not be set.
   value =
       UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
+  return UncheckedCast<TrustedObject>(BitcastWordToTagged(value));
 }
 
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
@@ -1944,6 +1944,21 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
   return Load<RawPtrT>(table, offset);
 }
 #endif  // V8_ENABLE_SANDBOX
+
+TNode<TrustedObject> CodeStubAssembler::LoadProtectedPointerFromObject(
+    TNode<TrustedObject> object, int offset) {
+#ifdef V8_ENABLE_SANDBOX
+  TNode<RawPtrT> trusted_cage_base = LoadPointerFromRootRegister(
+      IntPtrConstant(IsolateData::trusted_cage_base_offset()));
+  TNode<UintPtrT> offset_from_cage_base =
+      ChangeUint32ToWord(LoadObjectField<Uint32T>(object, offset));
+  TNode<UintPtrT> pointer =
+      UncheckedCast<UintPtrT>(WordOr(trusted_cage_base, offset_from_cage_base));
+  return UncheckedCast<TrustedObject>(BitcastWordToTagged(pointer));
+#else
+  return LoadObjectField<TrustedObject>(object, offset);
+#endif
+}
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
@@ -3468,9 +3483,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
         this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
-    TNode<HeapObject> baseline_data = LoadTrustedPointerFromObject(
-        code, Code::kDeoptimizationDataOrInterpreterDataOffset,
-        kUnknownIndirectPointerTag);
+    TNode<HeapObject> baseline_data = LoadProtectedPointerFromObject(
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
   }
   Goto(&check_for_interpreter_data);

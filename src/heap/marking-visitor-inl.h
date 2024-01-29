@@ -304,17 +304,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     Tagged<Code> baseline_code = shared_info->baseline_code(kAcquireLoad);
     // Visit the bytecode hanging off baseline code.
-#ifdef V8_ENABLE_SANDBOX
-    VisitIndirectPointer(baseline_code,
-                         baseline_code->RawIndirectPointerField(
-                             Code::kDeoptimizationDataOrInterpreterDataOffset,
-                             kUnknownIndirectPointerTag),
-                         IndirectPointerMode::kStrong);
-#else
-    VisitPointer(baseline_code,
-                 baseline_code->RawField(
-                     Code::kDeoptimizationDataOrInterpreterDataOffset));
-#endif
+    VisitProtectedPointer(
+        baseline_code, baseline_code->RawProtectedPointerField(
+                           Code::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old

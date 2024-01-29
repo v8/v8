@@ -136,10 +136,10 @@ class Code : public ExposedTrustedObject {
 
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  inline Tagged<HeapObject> bytecode_or_interpreter_data(
+  inline Tagged<TrustedObject> bytecode_or_interpreter_data(
       IsolateForSandbox isolate) const;
   inline void set_bytecode_or_interpreter_data(
-      Tagged<ExposedTrustedObject> value,
+      Tagged<TrustedObject> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.

@@ -2936,10 +2936,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Load deoptimization data from the code object.
   const Register deopt_data(rbx);
-  __ LoadTrustedPointerField(
+  __ LoadProtectedPointerField(
       deopt_data,
-      FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset),
-      kUnknownIndirectPointerTag, kScratchRegister);
+      FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
