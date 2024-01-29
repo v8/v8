@@ -2006,10 +2006,8 @@ void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
     Assert(eq, AbortReason::kExpectedFeedbackCell);
   }
 }
-void MacroAssembler::AssertFeedbackVector(Register object) {
+void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
     CompareObjectType(object, scratch, scratch, FEEDBACK_VECTOR_TYPE);
     Assert(eq, AbortReason::kExpectedFeedbackVector);
   }

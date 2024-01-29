@@ -1426,7 +1426,8 @@ void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
   using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
   Register flags = D::GetRegisterParameter(D::kFlags);
   Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
-  masm->AssertFeedbackVector(feedback_vector);
+  Register temporary = D::GetRegisterParameter(D::kTemporary);
+  masm->AssertFeedbackVector(feedback_vector, temporary);
   masm->OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   masm->Trap();
 }

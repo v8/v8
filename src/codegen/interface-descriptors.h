@@ -953,13 +953,16 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
     : public StaticCallInterfaceDescriptor<
           MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector)
+  DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector, kTemporary)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),          // kFlags
-                         MachineType::TaggedPointer())  // kFeedbackVector
+                         MachineType::TaggedPointer(),  // kFeedbackVector
+                         MachineType::AnyTagged())      // kTemporary
   DECLARE_DESCRIPTOR(MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor)
 
   static constexpr inline Register FlagsRegister();
   static constexpr inline Register FeedbackVectorRegister();
+
+  static constexpr inline Register TemporaryRegister();
 
   static constexpr inline auto registers();
 };

@@ -502,7 +502,8 @@ constexpr auto OnStackReplacementDescriptor::registers() {
 constexpr auto
 MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::registers() {
 #ifdef V8_ENABLE_MAGLEV
-  return RegisterArray(FlagsRegister(), FeedbackVectorRegister());
+  return RegisterArray(FlagsRegister(), FeedbackVectorRegister(),
+                       TemporaryRegister());
 #else
   return DefaultRegisterArray();
 #endif

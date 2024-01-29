@@ -1841,7 +1841,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
                      FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
-  __ AssertFeedbackVector(feedback_vector);
+  __ AssertFeedbackVector(feedback_vector, kScratchRegister);
 
   // Check the tiering state.
   Label flags_need_processing;

@@ -958,7 +958,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Tiering support.
   void AssertFeedbackCell(Register object,
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);

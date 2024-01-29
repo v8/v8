@@ -1070,9 +1070,9 @@ void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
     Assert(equal, AbortReason::kExpectedFeedbackCell);
   }
 }
-void MacroAssembler::AssertFeedbackVector(Register object) {
+void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
-    IsObjectType(object, FEEDBACK_VECTOR_TYPE, kScratchRegister);
+    IsObjectType(object, FEEDBACK_VECTOR_TYPE, scratch);
     Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
 }
