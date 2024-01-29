@@ -3316,8 +3316,15 @@ JSNativeContextSpecialization::BuildElementAccess(
         } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
           // Return the signaling NaN hole directly if all uses are
           // truncating.
-          vtrue = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
-                                   vtrue);
+          if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
+            vtrue = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
+                                     vtrue);
+          } else {
+            vtrue = etrue = graph()->NewNode(
+                simplified()->CheckFloat64Hole(
+                    CheckFloat64HoleMode::kAllowReturnHole, FeedbackSource()),
+                vtrue, etrue, if_true);
+          }
         }
       }
 
@@ -3357,10 +3364,17 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Perform the hole check on the result.
         // Check if we are allowed to return the hole directly.
         if (CanTreatHoleAsUndefined(receiver_maps)) {
-          // Return the signaling NaN hole directly if all uses are
-          // truncating.
-          value = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
-                                   value);
+          if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
+            // Return the signaling NaN hole directly if all uses are
+            // truncating.
+            value = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
+                                     value);
+          } else {
+            value = effect = graph()->NewNode(
+                simplified()->CheckFloat64Hole(
+                    CheckFloat64HoleMode::kAllowReturnHole, FeedbackSource()),
+                value, effect, control);
+          }
         } else {
           value = effect = graph()->NewNode(
               simplified()->CheckFloat64Hole(

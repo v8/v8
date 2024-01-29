@@ -1303,11 +1303,7 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
 }
 
 bool AllowReadingHoleElement(ElementsKind elements_kind) {
-  // TODO(victorgomes): TF does not support reading holes in holey double
-  // arrays. Checking only for HOLEY_SMI_ELEMENTS and HOLEY_ELEMENTS avoid
-  // a deopt-loop.
-  return (elements_kind == HOLEY_SMI_ELEMENTS ||
-          elements_kind == HOLEY_ELEMENTS);
+  return IsHoleyElementsKind(elements_kind);
 }
 
 KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
