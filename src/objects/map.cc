@@ -2406,9 +2406,8 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
   DCHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
                  new_map->IsInobjectSlackTrackingInProgress());
-  DCHECK_IMPLIES(
-      map->IsInobjectSlackTrackingInProgress(),
-      map->construction_counter() >= new_map->construction_counter());
+  CHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
+                map->construction_counter() <= new_map->construction_counter());
   if (map->IsInobjectSlackTrackingInProgress()) {
     // Advance the construction count on the base map to keep it in sync with
     // the transitioned map.
