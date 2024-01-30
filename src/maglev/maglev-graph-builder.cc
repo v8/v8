@@ -70,7 +70,7 @@ enum class CpuOperation {
 bool IsSupported(CpuOperation op) {
   switch (op) {
     case CpuOperation::kFloat64Round:
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
 #elif defined(V8_TARGET_ARCH_ARM)
       return CpuFeatures::IsSupported(ARMv8);

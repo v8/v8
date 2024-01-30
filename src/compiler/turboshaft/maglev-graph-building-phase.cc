@@ -4,7 +4,10 @@
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/maglev/maglev-compilation-info.h"
@@ -16,7 +19,7 @@ namespace v8::internal::compiler::turboshaft {
 
 class GraphBuilder {
  public:
-  using Assembler = TSAssembler<>;
+  using AssemblerT = TSAssembler<VariableReducer, RequiredOptimizationReducer>;
 
   GraphBuilder(Graph& graph, Zone* temp_zone)
       : temp_zone_(temp_zone),
@@ -56,6 +59,12 @@ class GraphBuilder {
         node,
         __ HeapConstant(
             MakeRef(broker_, node->DoReify(isolate_)).AsHeapObject().object()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64Constant* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Float64Constant(
+                     base::bit_cast<double>(node->value().get_bits())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -107,9 +116,85 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+#define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)                      \
+  maglev::ProcessResult Process(maglev::Float64##MaglevName* node,             \
+                                const maglev::ProcessingState& state) {        \
+    SetMap(node, __ Float64##TurboshaftName(Map(node->left_input().node()),    \
+                                            Map(node->right_input().node()))); \
+    return maglev::ProcessResult::kContinue;                                   \
+  }
+  PROCESS_FLOAT64_BINOP(Add, Add)
+  PROCESS_FLOAT64_BINOP(Subtract, Sub)
+  PROCESS_FLOAT64_BINOP(Multiply, Mul)
+  PROCESS_FLOAT64_BINOP(Divide, Div)
+  PROCESS_FLOAT64_BINOP(Modulus, Mod)
+  PROCESS_FLOAT64_BINOP(Exponentiate, Power)
+
+  maglev::ProcessResult Process(maglev::Float64Negate* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Float64Negate(Map(node->input().node())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64Round* node,
+                                const maglev::ProcessingState& state) {
+    if (node->kind() == maglev::Float64Round::Kind::kFloor) {
+      SetMap(node, __ Float64RoundDown(Map(node->input().node())));
+    } else if (node->kind() == maglev::Float64Round::Kind::kCeil) {
+      SetMap(node, __ Float64RoundUp(Map(node->input().node())));
+    } else {
+      DCHECK_EQ(node->kind(), maglev::Float64Round::Kind::kNearest);
+      // Nearest rounds to +infinity on ties. We emulate this by rounding up and
+      // adjusting if the difference exceeds 0.5 (like SimplifiedLowering does
+      // for lower Float64Round).
+      OpIndex input = Map(node->input().node());
+      ScopedVariable<Float64, AssemblerT> result(Asm(),
+                                                 __ Float64RoundUp(input));
+      IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(*result, 0.5), input)) {
+        result = __ Float64Sub(*result, 1.0);
+      }
+      END_IF
+      SetMap(node, *result);
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ConvertInt32ToNumber(Map(node->input().node())));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Float64ToTagged* node,
+                                const maglev::ProcessingState& state) {
+    // Float64ToTagged's conversion mode is used to control whether integer
+    // floats should be converted to Smis or to HeapNumbers: kCanonicalizeSmi
+    // means that they can be converted to Smis, and otherwise they should
+    // remain HeapNumbers.
+    ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind =
+        node->conversion_mode() ==
+                maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi
+            ? ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber
+            : ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber;
+    SetMap(
+        node,
+        __ ConvertUntaggedToJSPrimitive(
+            Map(node->input().node()), kind, RegisterRepresentation::Float64(),
+            ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+            CheckForMinusZeroMode::kCheckForMinusZero));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ConvertJSPrimitiveToUntaggedOrDeopt(
+               Map(node->input().node()),
+               BuildFrameState(node->eager_deopt_info()),
+               ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+                   kNumberOrOddball,
+               ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
+               CheckForMinusZeroMode::kCheckForMinusZero,
+               node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -131,7 +216,7 @@ class GraphBuilder {
     UNIMPLEMENTED();
   }
 
-  Assembler& Asm() { return assembler_; }
+  AssemblerT& Asm() { return assembler_; }
   Zone* temp_zone() { return temp_zone_; }
   Zone* graph_zone() { return Asm().output_graph().graph_zone(); }
 
@@ -218,24 +303,28 @@ class GraphBuilder {
   Zone* temp_zone_;
   LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();
   JSHeapBroker* broker_ = PipelineData::Get().broker();
-  Assembler assembler_;
+  AssemblerT assembler_;
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
 };
 
 void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
   PipelineData& data = PipelineData::Get();
-  UnparkedScopeIfNeeded unparked_scope(data.broker());
+  JSHeapBroker* broker = data.broker();
+  UnparkedScopeIfNeeded unparked_scope(broker);
 
   auto compilation_info = maglev::MaglevCompilationInfo::New(
-      data.isolate(), data.broker(), data.info()->closure(),
+      data.isolate(), broker, data.info()->closure(),
       data.info()->osr_offset());
 
+  LocalIsolate* local_isolate = broker->local_isolate()
+                                    ? broker->local_isolate()
+                                    : broker->isolate()->AsLocalIsolate();
   maglev::Graph* maglev_graph =
       maglev::Graph::New(temp_zone, data.info()->is_osr());
   maglev::MaglevGraphBuilder maglev_graph_builder(
-      data.isolate()->AsLocalIsolate(),
-      compilation_info->toplevel_compilation_unit(), maglev_graph);
+      local_isolate, compilation_info->toplevel_compilation_unit(),
+      maglev_graph);
   maglev_graph_builder.Build();
 
   maglev::GraphProcessor<GraphBuilder, true> builder(data.graph(), temp_zone);

@@ -3371,14 +3371,16 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
 
   auto options() const { return std::tuple{conversion_mode()}; }
 
+  ConversionMode conversion_mode() const {
+    return ConversionModeBitField::decode(bitfield());
+  }
+
  private:
   bool canonicalize_smi() {
     return ConversionModeBitField::decode(bitfield()) ==
            ConversionMode::kCanonicalizeSmi;
   }
-  ConversionMode conversion_mode() const {
-    return ConversionModeBitField::decode(bitfield());
-  }
+
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
@@ -3560,6 +3562,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input& input() { return Node::input(0); }
+  Kind kind() const { return kind_; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
