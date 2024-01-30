@@ -886,6 +886,35 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kSignedAdd:
+      os << "signed add, ";
+      break;
+    case Kind::kSignedMul:
+      os << "signed mul, ";
+      break;
+    case Kind::kSignedSub:
+      os << "signed sub, ";
+      break;
+    case Kind::kSignedDiv:
+      os << "signed div, ";
+      break;
+    case Kind::kSignedMod:
+      os << "signed mod, ";
+      break;
+    case Kind::kUnsignedDiv:
+      os << "unsigned div, ";
+      break;
+    case Kind::kUnsignedMod:
+      os << "unsigned mod, ";
+      break;
+  }
+  os << rep;
+  os << "]";
+}
+
 void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {

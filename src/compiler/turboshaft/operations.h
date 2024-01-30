@@ -174,6 +174,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(BigIntComparison)                           \
   V(BigIntUnary)                                \
   V(CheckedClosure)                             \
+  V(WordBinopDeoptOnOverflow)                   \
   V(CheckEqualsInternalizedString)              \
   V(CheckMaps)                                  \
   V(CompareMaps)                                \
@@ -1408,6 +1409,54 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
 
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
+struct WordBinopDeoptOnOverflowOp
+    : FixedArityOperationT<3, WordBinopDeoptOnOverflowOp> {
+  enum class Kind : uint8_t {
+    kSignedAdd,
+    kSignedMul,
+    kSignedSub,
+    kSignedDiv,
+    kSignedMod,
+    kUnsignedDiv,
+    kUnsignedMod
+  };
+  Kind kind;
+  WordRepresentation rep;
+  FeedbackSource feedback;
+  CheckForMinusZeroMode mode;
+
+  static constexpr OpEffects effects = OpEffects().CanDeopt();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InputsRepFactory::PairOf(rep);
+  }
+
+  OpIndex left() const { return input(0); }
+  OpIndex right() const { return input(1); }
+  OpIndex frame_state() const { return input(2); }
+
+  WordBinopDeoptOnOverflowOp(OpIndex left, OpIndex right, OpIndex frame_state,
+                             Kind kind, WordRepresentation rep,
+                             FeedbackSource feedback,
+                             CheckForMinusZeroMode mode)
+      : Base(left, right, frame_state),
+        kind(kind),
+        rep(rep),
+        feedback(feedback),
+        mode(mode) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK_IMPLIES(kind == Kind::kUnsignedDiv || kind == Kind::kUnsignedMod,
+                   rep == WordRepresentation::Word32());
+  }
+  auto options() const { return std::tuple{kind, rep, feedback, mode}; }
   void PrintOptions(std::ostream& os) const;
 };
 

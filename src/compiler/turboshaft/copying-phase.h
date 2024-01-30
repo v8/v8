@@ -843,6 +843,12 @@ class GraphVisitor : public VariableReducer<AfterNext> {
     return Asm().ReduceReturn(MapToNewGraph(op.pop_count()),
                               base::VectorOf(return_values));
   }
+  OpIndex AssembleOutputGraphWordBinopDeoptOnOverflow(
+      const WordBinopDeoptOnOverflowOp& op) {
+    return Asm().ReduceWordBinopDeoptOnOverflow(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()),
+        MapToNewGraph(op.frame_state()), op.kind, op.rep, op.feedback, op.mode);
+  }
   OpIndex AssembleOutputGraphOverflowCheckedBinop(
       const OverflowCheckedBinopOp& op) {
     return Asm().ReduceOverflowCheckedBinop(

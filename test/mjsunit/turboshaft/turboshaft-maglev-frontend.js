@@ -5,16 +5,21 @@
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 // Flags: --no-always-turbofan
 
-function math_smi(x) {
-  return x + x;
+function math_smi(x, y) {
+  let a = x * y;
+  a = a + 152;
+  a = a / x;
+  a = a - y;
+  a = a % 5;
+  return a;
 }
 
 %PrepareFunctionForOptimization(math_smi);
-assertEquals(6, math_smi(3));
+assertEquals(math_smi(4, 3), 3);
 %OptimizeFunctionOnNextCall(math_smi);
-assertEquals(6, math_smi(3));
+assertEquals(math_smi(4, 3), 3);
 assertOptimized(math_smi);
-assertEquals("aa", math_smi("a"));
+assertEquals(NaN, math_smi("a", "b"));
 assertUnoptimized(math_smi);
 
 function math_float(x, y) {

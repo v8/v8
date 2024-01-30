@@ -1482,6 +1482,41 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
 
+  OpIndex WordBinopDeoptOnOverflow(OpIndex left, OpIndex right,
+                                   OpIndex frame_state,
+                                   WordBinopDeoptOnOverflowOp::Kind kind,
+                                   WordRepresentation rep,
+                                   FeedbackSource feedback,
+                                   CheckForMinusZeroMode mode) {
+    return ReduceIfReachableWordBinopDeoptOnOverflow(left, right, frame_state,
+                                                     kind, rep, feedback, mode);
+  }
+#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type) \
+  OpIndex rep_type##operation##DeoptOnOverflow(                   \
+      OpIndex left, OpIndex right, OpIndex frame_state,           \
+      FeedbackSource feedback,                                    \
+      CheckForMinusZeroMode mode =                                \
+          CheckForMinusZeroMode::kDontCheckForMinusZero) {        \
+    return WordBinopDeoptOnOverflow(                              \
+        left, right, frame_state,                                 \
+        WordBinopDeoptOnOverflowOp::Kind::k##operation,           \
+        WordRepresentation::rep_type(), feedback, mode);          \
+  }
+
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedAdd, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedAdd, Word64)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedSub, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedSub, Word64)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedMul, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedMul, Word64)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedDiv, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedDiv, Word64)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedMod, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedMod, Word64)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(UnsignedDiv, Word32)
+  DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(UnsignedMod, Word32)
+#undef DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW
+
   V<Float64> BitcastWord32PairToFloat64(ConstOrV<Word32> high_word32,
                                         ConstOrV<Word32> low_word32) {
     return ReduceIfReachableBitcastWord32PairToFloat64(resolve(high_word32),

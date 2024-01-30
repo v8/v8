@@ -61,6 +61,11 @@ class GraphBuilder {
             MakeRef(broker_, node->DoReify(isolate_)).AsHeapObject().object()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::Int32Constant* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Word32Constant(node->value()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::Float64Constant* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Float64Constant(
@@ -102,19 +107,23 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::Int32AddWithOverflow* node,
-                                const maglev::ProcessingState& state) {
-    OpIndex add_and_overflow = __ Int32AddCheckOverflow(
-        Map(node->left_input().node()), Map(node->right_input().node()));
-    __ DeoptimizeIf(
-        __ Projection(add_and_overflow, 1, RegisterRepresentation::Word32()),
-        BuildFrameState(node->eager_deopt_info()),
-        node->eager_deopt_info()->reason(),
-        node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, __ Projection(add_and_overflow, 0,
-                               RegisterRepresentation::Word32()));
-    return maglev::ProcessResult::kContinue;
+#define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
+                                    minus_zero_mode)                           \
+  maglev::ProcessResult Process(maglev::Int32##MaglevName##WithOverflow* node, \
+                                const maglev::ProcessingState& state) {        \
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());           \
+    SetMap(node, __ Word32##TurboshaftName##DeoptOnOverflow(                   \
+                     Map(node->left_input().node()),                           \
+                     Map(node->right_input().node()), frame_state,             \
+                     node->eager_deopt_info()->feedback_to_update(),           \
+                     CheckForMinusZeroMode::k##minus_zero_mode));              \
+    return maglev::ProcessResult::kContinue;                                   \
   }
+  PROCESS_BINOP_WITH_OVERFLOW(Add, SignedAdd, DontCheckForMinusZero)
+  PROCESS_BINOP_WITH_OVERFLOW(Subtract, SignedSub, DontCheckForMinusZero)
+  PROCESS_BINOP_WITH_OVERFLOW(Multiply, SignedMul, CheckForMinusZero)
+  PROCESS_BINOP_WITH_OVERFLOW(Divide, SignedDiv, CheckForMinusZero)
+  PROCESS_BINOP_WITH_OVERFLOW(Modulus, SignedMod, CheckForMinusZero)
 
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)                      \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,             \

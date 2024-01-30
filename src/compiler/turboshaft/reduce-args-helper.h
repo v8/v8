@@ -68,6 +68,11 @@ class CallWithReduceArgsHelper {
     return callback_(op.pop_count(), op.return_values());
   }
 
+  OpIndex operator()(const WordBinopDeoptOnOverflowOp& op) {
+    return callback_(op.left(), op.right(), op.frame_state(), op.kind, op.rep,
+                     op.feedback, op.mode);
+  }
+
   OpIndex operator()(const OverflowCheckedBinopOp& op) {
     return callback_(op.left(), op.right(), op.kind, op.rep);
   }
