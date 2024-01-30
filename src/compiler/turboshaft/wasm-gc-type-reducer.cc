@@ -291,9 +291,7 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
       const WasmTypeCheckOp& check = condition.Cast<WasmTypeCheckOp>();
       if (branch.if_true == &target) {
         // It is known from now on that the type is at least the checked one.
-        wasm::ValueType known_input_type =
-            RefineTypeKnowledge(check.object(), check.config.to);
-        input_type_map_[branch.condition()] = known_input_type;
+        RefineTypeKnowledge(check.object(), check.config.to);
       } else {
         DCHECK_EQ(branch.if_false, &target);
         if (wasm::IsSubtypeOf(GetResolvedType(check.object()), check.config.to,
