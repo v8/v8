@@ -13,7 +13,6 @@ function math_smi(x, y) {
   a = a % 5;
   return a;
 }
-
 %PrepareFunctionForOptimization(math_smi);
 assertEquals(math_smi(4, 3), 3);
 %OptimizeFunctionOnNextCall(math_smi);
@@ -32,7 +31,6 @@ function math_float(x, y) {
   let h = -g;
   return h;
 }
-
 %PrepareFunctionForOptimization(math_float);
 assertEquals(math_float(4.21, 3.56), -42.56563728706824);
 %OptimizeFunctionOnNextCall(math_float);
@@ -45,7 +43,6 @@ function cmp(which, a, b) {
   if (which == 2) { return a < b; }
   if (which == 3) { return a <= b; }
 }
-
 %PrepareFunctionForOptimization(cmp);
 // >
 assertEquals(cmp(0, 10, 20), false);
@@ -81,3 +78,19 @@ assertEquals(cmp(2, 15, 15), false);
 assertEquals(cmp(3, 10, 20), true);
 assertEquals(cmp(3, 20, 10), false);
 assertEquals(cmp(3, 15, 15), true);
+assertOptimized(cmp);
+
+function bitwise_smi(a, b) {
+  let x = a | b;
+  x = x & 52358961;
+  x = x ^ b;
+  x = x >> 2;
+  x = x << 5;
+  x = x >>> 1;
+  return ~x;
+}
+%PrepareFunctionForOptimization(bitwise_smi);
+assertEquals(bitwise_smi(1548, 45235), -23041);
+%OptimizeFunctionOnNextCall(bitwise_smi);
+assertEquals(bitwise_smi(1548, 45235), -23041);
+assertOptimized(bitwise_smi);

@@ -172,6 +172,7 @@ class GraphBuilder {
   PROCESS_BINOP_WITH_OVERFLOW(Multiply, SignedMul, CheckForMinusZero)
   PROCESS_BINOP_WITH_OVERFLOW(Divide, SignedDiv, CheckForMinusZero)
   PROCESS_BINOP_WITH_OVERFLOW(Modulus, SignedMod, CheckForMinusZero)
+#undef PROCESS_BINOP_WITH_OVERFLOW
 
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)               \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,      \
@@ -186,6 +187,39 @@ class GraphBuilder {
   PROCESS_FLOAT64_BINOP(Divide, Div)
   PROCESS_FLOAT64_BINOP(Modulus, Mod)
   PROCESS_FLOAT64_BINOP(Exponentiate, Power)
+#undef PROCESS_FLOAT64_BINOP
+
+#define PROCESS_INT32_BITWISE_BINOP(Name)                               \
+  maglev::ProcessResult Process(maglev::Int32Bitwise##Name* node,       \
+                                const maglev::ProcessingState& state) { \
+    SetMap(node, __ Word32Bitwise##Name(Map(node->left_input()),        \
+                                        Map(node->right_input())));     \
+    return maglev::ProcessResult::kContinue;                            \
+  }
+  PROCESS_INT32_BITWISE_BINOP(And)
+  PROCESS_INT32_BITWISE_BINOP(Or)
+  PROCESS_INT32_BITWISE_BINOP(Xor)
+#undef PROCESS_INT32_BITWISE_BINOP
+
+#define PROCESS_INT32_SHIFT(MaglevName, TurboshaftName)                 \
+  maglev::ProcessResult Process(maglev::Int32##MaglevName* node,        \
+                                const maglev::ProcessingState& state) { \
+    SetMap(node, __ Word32##TurboshaftName(Map(node->left_input()),     \
+                                           Map(node->right_input())));  \
+    return maglev::ProcessResult::kContinue;                            \
+  }
+  PROCESS_INT32_SHIFT(ShiftLeft, ShiftLeft)
+  PROCESS_INT32_SHIFT(ShiftRight, ShiftRightArithmetic)
+  PROCESS_INT32_SHIFT(ShiftRightLogical, ShiftRightLogical)
+#undef PROCESS_INT32_SHIFT
+
+  maglev::ProcessResult Process(maglev::Int32BitwiseNot* node,
+                                const maglev::ProcessingState& state) {
+    // Turboshaft doesn't have a bitwise Not operator; we instead use "^ -1".
+    SetMap(node, __ Word32BitwiseXor(Map(node->value_input()),
+                                     __ Word32Constant(-1)));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::Float64Negate* node,
                                 const maglev::ProcessingState& state) {
@@ -250,6 +284,12 @@ class GraphBuilder {
                ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
                CheckForMinusZeroMode::kCheckForMinusZero,
                node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::TruncateUint32ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    // This doesn't matter in Turboshaft: both Uint32 and Int32 are Word32.
+    SetMap(node, Map(node->input()));
     return maglev::ProcessResult::kContinue;
   }
 
