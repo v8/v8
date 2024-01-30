@@ -4418,7 +4418,7 @@ void VisitWord32Compare(InstructionSelectorT<TurboshaftAdapter>* selector,
                         FlagsContinuationT<TurboshaftAdapter>* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const Operation& compare = selector->Get(node);
-  DCHECK(compare.Is<ComparisonOp>());
+  DCHECK_GE(compare.input_count, 2);
   OpIndex lhs = compare.input(0);
   OpIndex rhs = compare.input(1);
   FlagsCondition cond = cont->condition();
