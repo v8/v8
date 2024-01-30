@@ -123,7 +123,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ddaf87b1f30343ded5c3d076b2d2fd3cc73a30b6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9ab1bbf06d2060c54f0f350ff1b0c61bd0bbf6f4',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd8688b9036d46d14ef1f6fc26bcbb1da2b17f897',
   'buildtools/linux64': {
@@ -225,7 +225,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f448d5bf8e578518f3e655a454669e059cb81d14',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '45b6f9844a30e44f31c037ebc1ccd52eb917b55d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -239,7 +239,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1b57e24a4e4fce7c2f7e0ed1ec8591c30b187a97',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b808b1bcdd79b344246e0147e98708b91b4573fa',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
