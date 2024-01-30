@@ -365,7 +365,10 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         // Initialize the type based on the first reachable predecessor.
         wasm::ValueType first = wasm::kWasmBottom;
         for (; i < reachable.size(); ++i) {
-          if (reachable[i]) {
+          // TODO(mliedtke): In theory bottom types should only happen in
+          // unreachable paths, however reachability tracking isn't fully
+          // implemented yet.
+          if (reachable[i] && predecessors[i] != wasm::kWasmBottom) {
             first = predecessors[i];
             ++i;
             break;
@@ -376,6 +379,9 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         for (; i < reachable.size(); ++i) {
           if (!reachable[i]) continue;  // Skip unreachable predecessors.
           wasm::ValueType type = predecessors[i];
+          // TODO(mliedtke): Similar to above, the reachability tracking should
+          // take care of this instead.
+          if (type == wasm::kWasmBottom) continue;
           types_are_equivalent &= first == type;
           if (res == wasm::ValueType() || type == wasm::ValueType()) {
             res = wasm::ValueType();
