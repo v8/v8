@@ -7440,7 +7440,11 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
       }
       return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     }
-    AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
+    if (ref_value.is_nan()) {
+      AddNewNode<CheckFloat64IsNan>({GetFloat64(node)});
+    } else {
+      AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
+    }
   }
   SetKnownValue(node, ref);
   return ReduceResult::Done();

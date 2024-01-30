@@ -276,6 +276,7 @@ class MergePointInterpreterFrameState;
   V(CheckHeapObject)                        \
   V(CheckInt32Condition)                    \
   V(CheckFixedArrayNonEmpty)                \
+  V(CheckFloat64IsNan)                      \
   V(CheckJSDataViewBounds)                  \
   V(CheckTypedArrayBounds)                  \
   V(CheckTypedArrayNotDetached)             \
@@ -5041,7 +5042,7 @@ class CheckValueEqualsFloat64
  public:
   explicit CheckValueEqualsFloat64(uint64_t bitfield, Float64 value)
       : Base(bitfield), value_(value) {
-    DCHECK(!value.is_hole_nan());
+    DCHECK(!value.is_nan());
   }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -5061,6 +5062,24 @@ class CheckValueEqualsFloat64
 
  private:
   const Float64 value_;
+};
+
+class CheckFloat64IsNan : public FixedInputNodeT<1, CheckFloat64IsNan> {
+  using Base = FixedInputNodeT<1, CheckFloat64IsNan>;
+
+ public:
+  explicit CheckFloat64IsNan(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  static constexpr int kTargetIndex = 0;
+  Input& target_input() { return input(kTargetIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CheckValueEqualsString

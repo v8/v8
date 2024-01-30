@@ -2856,20 +2856,22 @@ void CheckValueEqualsFloat64::SetValueLocationConstraints() {
 }
 void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
   MaglevAssembler::ScratchRegisterScope temps(masm);
   DoubleRegister scratch = temps.AcquireDouble();
   DoubleRegister target = ToDoubleRegister(target_input());
   __ Move(scratch, value());
+  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, fail);
+}
+
+void CheckFloat64IsNan::SetValueLocationConstraints() {
+  UseRegister(target_input());
+}
+void CheckFloat64IsNan::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
-  Label* nan = fail;
-  Label done;
-  if (std::isnan(value())) {
-    nan = &done;
-  }
-  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, nan);
-  if (std::isnan(value())) {
-    __ bind(&done);
-  }
+  DoubleRegister target = ToDoubleRegister(target_input());
+  __ JumpIfNotNan(target, fail);
 }
 
 void CheckValueEqualsString::SetValueLocationConstraints() {
