@@ -1278,14 +1278,6 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
   return false;
 }
 
-bool AllowConvertHoleElementToUndefined(Isolate* isolate,
-                                        Handle<Object> receiver) {
-  if (!IsHeapObject(*receiver)) return false;
-  DCHECK(IsHeapObject(*receiver));
-  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
-  return AllowConvertHoleElementToUndefined(isolate, receiver_map);
-}
-
 bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
@@ -1307,19 +1299,37 @@ bool AllowReadingHoleElement(ElementsKind elements_kind) {
 }
 
 KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
-                                        Handle<Object> receiver, size_t index,
-                                        bool is_found) {
-  if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
+                                        Handle<HeapObject> receiver,
+                                        size_t index, bool is_found) {
+  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
+  if (!AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
     return KeyedAccessLoadMode::kInBounds;
   }
+
+  // Always handle holes when the elements kind is HOLEY_ELEMENTS, since the
+  // optimizer compilers can not benefit from this information to narrow the
+  // type. That is, the load type will always just be a generic tagged value.
+  // This avoid an IC miss if we see a hole.
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  bool always_handle_holes = (elements_kind == HOLEY_ELEMENTS);
+
+  // In bound access and did not read a hole.
+  if (is_found) {
+    return always_handle_holes ? KeyedAccessLoadMode::kHandleHoles
+                               : KeyedAccessLoadMode::kInBounds;
+  }
+
+  // OOB access.
   bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
   if (is_oob_access) {
-    return KeyedAccessLoadMode::kHandleOOB;
+    return always_handle_holes ? KeyedAccessLoadMode::kHandleOOBAndHoles
+                               : KeyedAccessLoadMode::kHandleOOB;
   }
-  DCHECK(IsHeapObject(*receiver));
-  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
+
+  // Read a hole.
   DCHECK(!is_found && !is_oob_access);
-  bool handle_hole = AllowReadingHoleElement(receiver_map->elements_kind());
+  bool handle_hole = AllowReadingHoleElement(elements_kind);
+  DCHECK_IMPLIES(always_handle_holes, handle_hole);
   return handle_hole ? KeyedAccessLoadMode::kHandleHoles
                      : KeyedAccessLoadMode::kInBounds;
 }
@@ -1569,8 +1579,10 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   size_t index;
   if (key_type == kIntPtr && CanCache(object, state()) &&
       IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object), &index)) {
-    UpdateLoadElement(Handle<HeapObject>::cast(object),
-                      GetNewKeyedLoadMode(isolate(), object, index, is_found));
+    Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
+    KeyedAccessLoadMode load_mode =
+        GetNewKeyedLoadMode(isolate(), receiver, index, is_found);
+    UpdateLoadElement(receiver, load_mode);
     if (is_vector_set()) {
       TraceIC("LoadIC", key);
     }
