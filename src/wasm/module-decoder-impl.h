@@ -2079,6 +2079,10 @@ class ModuleDecoderImpl : public Decoder {
       return {};
     }
 
+    // We reset the zone here; its memory is not used anymore, and we do not
+    // want memory from all constant expressions to add up.
+    init_expr_zone_.Reset();
+
     return ConstantExpression::WireBytes(
         offset, static_cast<uint32_t>(decoder.end() - decoder.start()));
   }
@@ -2414,6 +2418,10 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   AccountingAllocator allocator_;
+  // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
+  // each call to {consume_init_expr}, and reset it after each such call. This
+  // has been found to improve performance a bit over allocating a new {Zone}
+  // each time.
   Zone init_expr_zone_{&allocator_, "constant expr. zone"};
 
   // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple

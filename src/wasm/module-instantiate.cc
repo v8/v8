@@ -750,8 +750,9 @@ class InstanceBuilder {
   std::vector<SanitizedImport> sanitized_imports_;
   std::vector<WellKnownImport> well_known_imports_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
-  // each call to {EvaluateConstantExpression}. This has been found to improve
-  // performance a bit over allocating a new {Zone} each time.
+  // each call to {EvaluateConstantExpression}, and reset it after each such
+  // call. This has been found to improve performance a bit over allocating a
+  // new {Zone} each time.
   Zone init_expr_zone_;
 
   std::string ImportName(uint32_t index, Handle<String> module_name,
@@ -2694,6 +2695,7 @@ enum FunctionComputationMode { kLazyFunctionsAndNull, kStrictFunctionsAndNull };
 // If {function_mode == kLazyFunctionsAndNull}, may return a function index
 // instead of computing a function object, and {WasmValue(-1)} instead of null.
 // Assumes the underlying module is verified.
+// Resets {zone}, so make sure it contains no useful data.
 ValueOrError ConsumeElementSegmentEntry(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
@@ -2758,6 +2760,8 @@ ValueOrError ConsumeElementSegmentEntry(
   full_decoder.DecodeFunctionBody();
 
   decoder.consume_bytes(static_cast<int>(full_decoder.pc() - decoder.pc()));
+
+  zone->Reset();
 
   return full_decoder.interface().has_error()
              ? ValueOrError(full_decoder.interface().error())

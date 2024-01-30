@@ -71,6 +71,8 @@ ValueOrError EvaluateConstantExpression(
 
       decoder.DecodeFunctionBody();
 
+      zone->Reset();
+
       return decoder.interface().has_error()
                  ? ValueOrError(decoder.interface().error())
                  : ValueOrError(decoder.interface().computed_value());
