@@ -3408,6 +3408,10 @@ class HoleyFloat64ToTagged
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
+  void SetMode(ConversionMode mode) {
+    set_bitfield(ConversionModeBitField::update(bitfield(), mode));
+  }
+
   auto options() const { return std::tuple{conversion_mode()}; }
 
  private:

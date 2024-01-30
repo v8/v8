@@ -1205,7 +1205,7 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     }
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_tagged(AddNewNode<HoleyFloat64ToTagged>(
-          {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
+          {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
     }
 
     case ValueRepresentation::kTagged:
@@ -1232,6 +1232,14 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.tagged()) {
+    // HoleyFloat64ToTagged does not canonicalize Smis by default, since it can
+    // be expensive. If we are reading a Smi value, we should try to
+    // canonicalize now.
+    if (HoleyFloat64ToTagged* conversion_node =
+            alt->TryCast<HoleyFloat64ToTagged>()) {
+      conversion_node->SetMode(
+          HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+    }
     return BuildCheckSmi(alt, !value->Is<Phi>());
   }
 
