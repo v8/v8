@@ -4280,23 +4280,24 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     return ReduceResult::Fail();
   }
 
-  // TODO(victorgomes): Deal with OOB access.
-  if (LoadModeHandlesOOB(keyed_mode.load_mode())) {
-    return ReduceResult::Fail();
-  }
-
-  DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
-
   // Ensure that {object} is actually a String.
   BuildCheckString(object);
 
   ValueNode* length = AddNewNode<StringLength>({object});
   ValueNode* index = GetInt32ElementIndex(index_object);
-  AddNewNode<CheckInt32Condition>({index, length},
-                                  AssertCondition::kUnsignedLessThan,
-                                  DeoptimizeReason::kOutOfBounds);
+  auto emit_load = [&] { return AddNewNode<StringAt>({object, index}); };
 
-  return AddNewNode<StringAt>({object, index});
+  if (LoadModeHandlesOOB(keyed_mode.load_mode()) &&
+      broker()->dependencies()->DependOnNoElementsProtector()) {
+    return Select<BranchIfInt32InBounds>(
+        emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); },
+        {index, length});
+  } else {
+    AddNewNode<CheckInt32Condition>({index, length},
+                                    AssertCondition::kUnsignedLessThan,
+                                    DeoptimizeReason::kOutOfBounds);
+    return emit_load();
+  }
 }
 
 namespace {
