@@ -2640,7 +2640,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Cache for the JavaScriptCompileHintsMagic origin trial.
   // TODO(v8:13917): Remove when the origin trial is removed.
-  bool allow_compile_hints_magic_ = false;
+  std::atomic<bool> allow_compile_hints_magic_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
