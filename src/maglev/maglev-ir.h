@@ -327,6 +327,7 @@ class MergePointInterpreterFrameState;
   V(BranchIfFloat64IsHole)          \
   V(BranchIfReferenceEqual)         \
   V(BranchIfInt32Compare)           \
+  V(BranchIfInt32InBounds)          \
   V(BranchIfFloat64Compare)         \
   V(BranchIfUndefinedOrNull)        \
   V(BranchIfUndetectable)           \
@@ -8808,6 +8809,29 @@ class BranchIfInt32Compare
 
  private:
   Operation operation_;
+};
+
+// Branch if {value} is in [0;upper_bound[ .
+class BranchIfInt32InBounds
+    : public BranchControlNodeT<2, BranchIfInt32InBounds> {
+  using Base = BranchControlNodeT<2, BranchIfInt32InBounds>;
+
+ public:
+  static constexpr int kValueIndex = 0;
+  static constexpr int kUpperBoundIndex = 1;
+  Input& value_input() { return NodeBase::input(kValueIndex); }
+  Input& upper_bound_input() { return NodeBase::input(kUpperBoundIndex); }
+
+  explicit BranchIfInt32InBounds(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                                 BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class BranchIfFloat64Compare

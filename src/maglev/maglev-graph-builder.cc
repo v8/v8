@@ -585,6 +585,26 @@ ValueNode* MaglevGraphBuilder::MaglevSubGraphBuilder::get(
   return pseudo_frame_.get(var.pseudo_register_);
 }
 
+template <typename ControlNodeT, typename FTrue, typename FFalse,
+          typename... Args>
+ValueNode* MaglevGraphBuilder::Select(
+    FTrue if_true, FFalse if_false,
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  MaglevSubGraphBuilder subgraph(this, 1);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
+  MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
+  subgraph.GotoIfFalse<ControlNodeT>(&else_branch, control_inputs,
+                                     std::forward<Args>(args)...);
+  subgraph.set(ret_val, if_true());
+  subgraph.Goto(&done);
+  subgraph.Bind(&else_branch);
+  subgraph.set(ret_val, if_false());
+  subgraph.Goto(&done);
+  subgraph.Bind(&done);
+  return subgraph.get(ret_val);
+}
+
 // Known node aspects for the pseudo frame are null aside from when merging --
 // before each merge, we should borrow the node aspects from the parent
 // builder, and after each merge point, we should copy the node aspects back
@@ -4388,6 +4408,11 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
       elements_kind == BIGINT64_ELEMENTS) {
     return ReduceResult::Fail();
   }
+  if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
+      LoadModeHandlesOOB(keyed_mode.load_mode())) {
+    // TODO(victorgomes): Handle OOB mode.
+    return ReduceResult::Fail();
+  }
   if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
       StoreModeIgnoresTypeArrayOOB(keyed_mode.store_mode())) {
     // TODO(victorgomes): Handle OOB mode.
@@ -4436,62 +4461,63 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
 
   base::Vector<const compiler::MapRef> maps =
       base::VectorOf(access_info.lookup_start_object_maps());
-  // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
-  // values).
-  if (LoadModeHandlesOOB(load_mode)) {
-    return ReduceResult::Fail();
-  }
 
   bool is_jsarray = HasOnlyJSArrayMaps(maps);
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
-  // 1. Get the elements array.
   ValueNode* elements_array =
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-
-  // 2. Check boundaries,
   ValueNode* index = GetInt32ElementIndex(index_object);
   ValueNode* length_as_smi =
       is_jsarray ? AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)
                  : AddNewNode<LoadTaggedField>({elements_array},
                                                FixedArray::kLengthOffset);
   ValueNode* length = AddNewNode<UnsafeSmiUntag>({length_as_smi});
-  AddNewNode<CheckInt32Condition>({index, length},
-                                  AssertCondition::kUnsignedLessThan,
-                                  DeoptimizeReason::kOutOfBounds);
 
-  // 3. Do the load.
-  ValueNode* result;
-  if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    // TODO(victorgomes): Use LoadModeHandlesHoles for holey double arrays.
-    if (CanTreatHoleAsUndefined(maps)) {
-      result =
-          AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements_array, index});
-    } else {
-      result = AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
-          {elements_array, index});
-    }
-  } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-    result = AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
-  } else {
-    DCHECK(!IsDoubleElementsKind(elements_kind));
-    result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
-    if (IsHoleyElementsKind(elements_kind)) {
-      if (CanTreatHoleAsUndefined(maps) &&
-          (elements_kind != HOLEY_SMI_ELEMENTS ||
-           LoadModeHandlesHoles(load_mode))) {
-        result = AddNewNode<ConvertHoleToUndefined>({result});
+  auto emit_load = [&] {
+    ValueNode* result;
+    if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+      // TODO(victorgomes): Use LoadModeHandlesHoles for holey double arrays.
+      if (CanTreatHoleAsUndefined(maps)) {
+        result = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
+            {elements_array, index});
       } else {
-        result = AddNewNode<CheckNotHole>({result});
-        if (IsSmiElementsKind(elements_kind)) {
-          EnsureType(result, NodeType::kSmi);
-        }
+        result = AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
+            {elements_array, index});
       }
-    } else if (IsSmiElementsKind(elements_kind)) {
-      EnsureType(result, NodeType::kSmi);
+    } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
+      result = AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
+    } else {
+      DCHECK(!IsDoubleElementsKind(elements_kind));
+      result = AddNewNode<LoadFixedArrayElement>({elements_array, index});
+      if (IsHoleyElementsKind(elements_kind)) {
+        if (CanTreatHoleAsUndefined(maps) &&
+            (elements_kind != HOLEY_SMI_ELEMENTS ||
+             LoadModeHandlesHoles(load_mode))) {
+          result = AddNewNode<ConvertHoleToUndefined>({result});
+        } else {
+          result = AddNewNode<CheckNotHole>({result});
+          if (IsSmiElementsKind(elements_kind)) {
+            EnsureType(result, NodeType::kSmi);
+          }
+        }
+      } else if (IsSmiElementsKind(elements_kind)) {
+        EnsureType(result, NodeType::kSmi);
+      }
     }
+    return result;
+  };
+
+  if (LoadModeHandlesOOB(load_mode)) {
+    return Select<BranchIfInt32InBounds>(
+        emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); },
+        {index, length});
+  } else {
+    AddNewNode<CheckInt32Condition>({index, length},
+                                    AssertCondition::kUnsignedLessThan,
+                                    DeoptimizeReason::kOutOfBounds);
+    return emit_load();
   }
-  return result;
 }
 
 ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
@@ -4661,13 +4687,6 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     return ReduceResult::Fail();
   }
 
-  // TODO(leszeks): Add non-deopting bounds check (has to support undefined
-  // values).
-  if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
-      LoadModeHandlesOOB(keyed_mode.load_mode())) {
-    return ReduceResult::Fail();
-  }
-
   // TODO(victorgomes): Add fast path for loading from HeapConstant.
 
   if (feedback.HasOnlyStringMaps(broker())) {
@@ -4758,6 +4777,12 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
     const compiler::KeyedAccessMode& keyed_mode,
     const ZoneVector<compiler::ElementAccessInfo>& access_infos,
     GenericAccessFunc&& build_generic_access) {
+  if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
+      LoadModeHandlesOOB(keyed_mode.load_mode())) {
+    // TODO(victorgomes): Handle OOB mode.
+    return ReduceResult::Fail();
+  }
+
   const bool is_any_store = compiler::IsAnyStore(keyed_mode.access_mode());
   const int access_info_count = static_cast<int>(access_infos.size());
   // Stores don't return a value, so we don't need a variable for the result.

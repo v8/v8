@@ -2167,6 +2167,12 @@ class MaglevGraphBuilder {
 
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
+  template <typename ControlNodeT, typename FTrue, typename FFalse,
+            typename... Args>
+  ValueNode* Select(FTrue if_true, FFalse if_false,
+                    std::initializer_list<ValueNode*> control_inputs,
+                    Args&&... args);
+
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
     // after the last bytecode.

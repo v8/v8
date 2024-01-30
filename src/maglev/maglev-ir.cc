@@ -6119,6 +6119,18 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
                            if_false(), state.next_block());
 }
 
+void BranchIfInt32InBounds::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  UseRegister(upper_bound_input());
+}
+void BranchIfInt32InBounds::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register upper_bound = ToRegister(upper_bound_input());
+  __ CompareInt32AndBranch(value, upper_bound, kUnsignedLessThan, if_true(),
+                           if_false(), state.next_block());
+}
+
 void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
