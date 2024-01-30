@@ -38,3 +38,46 @@ assertEquals(math_float(4.21, 3.56), -42.56563728706824);
 %OptimizeFunctionOnNextCall(math_float);
 assertEquals(math_float(4.21, 3.56), -42.56563728706824);
 assertOptimized(math_float);
+
+function cmp(which, a, b) {
+  if (which == 0) { return a > b; }
+  if (which == 1) { return a >= b; }
+  if (which == 2) { return a < b; }
+  if (which == 3) { return a <= b; }
+}
+
+%PrepareFunctionForOptimization(cmp);
+// >
+assertEquals(cmp(0, 10, 20), false);
+assertEquals(cmp(0, 20, 10), true);
+assertEquals(cmp(0, 15, 15), false);
+// >=
+assertEquals(cmp(1, 10, 20), false);
+assertEquals(cmp(1, 20, 10), true);
+assertEquals(cmp(1, 15, 15), true);
+// <
+assertEquals(cmp(2, 10, 20), true);
+assertEquals(cmp(2, 20, 10), false);
+assertEquals(cmp(2, 15, 15), false);
+// <=
+assertEquals(cmp(3, 10, 20), true);
+assertEquals(cmp(3, 20, 10), false);
+assertEquals(cmp(3, 15, 15), true);
+
+%OptimizeFunctionOnNextCall(cmp);
+// >
+assertEquals(cmp(0, 10, 20), false);
+assertEquals(cmp(0, 20, 10), true);
+assertEquals(cmp(0, 15, 15), false);
+// >=
+assertEquals(cmp(1, 10, 20), false);
+assertEquals(cmp(1, 20, 10), true);
+assertEquals(cmp(1, 15, 15), true);
+// <
+assertEquals(cmp(2, 10, 20), true);
+assertEquals(cmp(2, 20, 10), false);
+assertEquals(cmp(2, 15, 15), false);
+// <=
+assertEquals(cmp(3, 10, 20), true);
+assertEquals(cmp(3, 20, 10), false);
+assertEquals(cmp(3, 15, 15), true);
