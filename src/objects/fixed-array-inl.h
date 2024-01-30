@@ -324,7 +324,6 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
-  result->init_self_indirect_pointer(isolate);
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }

@@ -250,19 +250,23 @@ class TrustedArrayShape final : public AllStatic {
   V(kCapacityOffset, kTaggedSize)                                       \
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
 };
 
 // A FixedArray in trusted space and with a unique instance type.
-// TODO(saelo): we should probably not expose trusted fixed arrays directly to
-// objects inside the sandbox, so consider using TrustedObject as parent class
-// once we support direct trusted -> trusted references without an indirection.
+//
+// Note: while the array itself is trusted, it contains tagged pointers into
+// the main pointer compression heap and therefore to _untrusted_ objects.
+// There is currently no fixed array variant that is trusted and contains
+// references to other trusted object (i.e. protected pointers). If this is
+// needed in the future, it may be called ProtectedFixedArray to stay
+// consistent with the trusted pointer and protected pointer naming scheme.
 class TrustedFixedArray
     : public TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                             ExposedTrustedObject> {
-  using Super = TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                                ExposedTrustedObject>;
+                             TrustedObject> {
+  using Super =
+      TaggedArrayBase<TrustedFixedArray, TrustedArrayShape, TrustedObject>;
   OBJECT_CONSTRUCTORS(TrustedFixedArray, Super);
 
  public:

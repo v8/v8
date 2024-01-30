@@ -193,7 +193,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
   CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
-                !IsTrustedSpaceObject(*this) || IsTrustedFixedArray(*this));
+                !IsTrustedSpaceObject(*this));
 
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -752,8 +752,7 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
 }
 
 void TrustedFixedArray::TrustedFixedArrayVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
-
+  TrustedObjectVerify(isolate);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 
   for (int i = 0; i < length(); ++i) {
