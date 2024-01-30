@@ -311,6 +311,8 @@ struct KnownNodeAspects {
     any_map_for_any_node_is_unstable = false;
   }
 
+  void ClearAvailableExpressions() { available_expressions.clear(); }
+
   NodeInfos::iterator FindInfo(ValueNode* node) {
     return node_infos.find(node);
   }

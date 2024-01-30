@@ -540,6 +540,10 @@ class MaglevGraphBuilder {
 
     // Copy state.
     current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
+    // Expressions would have to be explicitly preserved across exceptions.
+    // However, at this point we do not know which ones might be used.
+    current_interpreter_frame_.known_node_aspects()
+        ->ClearAvailableExpressions();
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
