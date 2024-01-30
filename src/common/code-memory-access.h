@@ -102,11 +102,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // Returns true if current configuration supports fast write-protection of
   // executable pages.
   V8_INLINE static bool IsSupported();
-  // An untrusted version of this check, i.e. the result might be
-  // attacker-controlled if we assume memory corruption. This is needed in
-  // signal handlers in which we might not have read access to the trusted
-  // memory.
-  V8_INLINE static bool IsSupportedUntrusted();
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int memory_protection_key();
@@ -209,13 +204,10 @@ class V8_EXPORT ThreadIsolation {
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
-  // A copy of the pkey, but taken from untrusted memory. This function should
-  // only be used to grant read access to the pkey, never for write access.
-  static int untrusted_pkey() { return untrusted_data_.pkey; }
 #endif
 
 #if DEBUG
-  static bool initialized() { return untrusted_data_.initialized; }
+  static bool initialized() { return trusted_data_.initialized; }
   static void CheckTrackedMemoryEmpty();
 #endif
 
@@ -340,19 +332,13 @@ class V8_EXPORT ThreadIsolation {
 
     base::Mutex* jit_pages_mutex_;
     JitPageMap* jit_pages_;
-  };
 
-  struct UntrustedData {
 #if DEBUG
     bool initialized = false;
-#endif
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    int pkey = -1;
 #endif
   };
 
   static struct TrustedData trusted_data_;
-  static struct UntrustedData untrusted_data_;
 
   static_assert(THREAD_ISOLATION_ALIGN_SZ == 0 ||
                 sizeof(trusted_data_) == THREAD_ISOLATION_ALIGN_SZ);

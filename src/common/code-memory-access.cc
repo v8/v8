@@ -9,7 +9,6 @@ namespace v8 {
 namespace internal {
 
 ThreadIsolation::TrustedData ThreadIsolation::trusted_data_;
-ThreadIsolation::UntrustedData ThreadIsolation::untrusted_data_;
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
@@ -30,10 +29,9 @@ bool RwxMemoryWriteScope::IsPKUWritable() {
 
 void RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler() {
   DCHECK(ThreadIsolation::initialized());
-  if (!RwxMemoryWriteScope::IsSupportedUntrusted()) return;
+  if (!RwxMemoryWriteScope::IsSupported()) return;
   base::MemoryProtectionKey::SetPermissionsForKey(
-      ThreadIsolation::untrusted_pkey(),
-      base::MemoryProtectionKey::kDisableWrite);
+      ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
 }
 
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -79,7 +77,7 @@ void ThreadIsolation::Delete(T* ptr) {
 void ThreadIsolation::Initialize(
     ThreadIsolatedAllocator* thread_isolated_allocator) {
 #if DEBUG
-  untrusted_data_.initialized = true;
+  trusted_data_.initialized = true;
 #endif
 
   bool enable = thread_isolated_allocator != nullptr && !v8_flags.jitless;
@@ -95,7 +93,6 @@ void ThreadIsolation::Initialize(
     trusted_data_.allocator = thread_isolated_allocator;
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
     trusted_data_.pkey = trusted_data_.allocator->Pkey();
-    untrusted_data_.pkey = trusted_data_.pkey;
 #endif
   }
 
@@ -117,9 +114,11 @@ void ThreadIsolation::Initialize(
   CHECK_GE(THREAD_ISOLATION_ALIGN_SZ,
            GetPlatformPageAllocator()->CommitPageSize());
 
+  // TODO(sroettger): make this immutable once there's OS support.
   base::MemoryProtectionKey::SetPermissionsAndKey(
       {reinterpret_cast<Address>(&trusted_data_), sizeof(trusted_data_)},
-      v8::PageAllocator::Permission::kRead, trusted_data_.pkey);
+      v8::PageAllocator::Permission::kRead,
+      base::MemoryProtectionKey::kDefaultProtectionKey);
 #endif
 }
 

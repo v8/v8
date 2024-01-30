@@ -218,9 +218,6 @@ void WritableFreeSpace::ClearTagged(size_t count) const {
 bool RwxMemoryWriteScope::IsSupported() { return true; }
 
 // static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return true; }
-
-// static
 void RwxMemoryWriteScope::SetWritable() {
   if (code_space_write_nesting_level_ == 0) {
     base::SetJitWriteProtected(0);
@@ -245,13 +242,6 @@ bool RwxMemoryWriteScope::IsSupported() {
   // tests won't be able to run with/without pkey support anymore in the same
   // process.
   return v8_flags.memory_protection_keys && ThreadIsolation::pkey() >= 0;
-}
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() {
-  DCHECK(ThreadIsolation::initialized());
-  return v8_flags.memory_protection_keys &&
-         ThreadIsolation::untrusted_pkey() >= 0;
 }
 
 // static
@@ -286,9 +276,6 @@ void RwxMemoryWriteScope::SetExecutable() {
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return false; }
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}
