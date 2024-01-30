@@ -144,6 +144,11 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
     '--validate-asm',
 ];
 
+// Pairs of flags that shouldn't be used together.
+const CONTRADICTORY_FLAGS = [
+    ['--assert-types', '--stress-concurrent-inlining'],
+]
+
 const MAX_FILE_SIZE_BYTES = 128 * 1024;  // 128KB
 const MEDIUM_FILE_SIZE_BYTES = 32 * 1024;  // 32KB
 
@@ -237,6 +242,20 @@ function filterFlags(flags) {
   });
 }
 
+/**
+ * Randomly drops flags to resolve contradicions defined by
+ * `CONTRADICTORY_FLAGS`.
+ */
+function resolveContradictoryFlags(flags) {
+  const flagSet = new Set(flags);
+  for (const [flag1, flag2] of this.CONTRADICTORY_FLAGS) {
+    if (flagSet.has(flag1) && flagSet.has(flag2)) {
+      flagSet.delete(random.single([flag1, flag2]));
+    }
+  }
+  return Array.from(flagSet.values());
+}
+
 function filterDifferentialFuzzFlags(flags) {
   return flags.filter(
       flag => _doesntMatch(DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS, flag));
@@ -244,6 +263,7 @@ function filterDifferentialFuzzFlags(flags) {
 
 
 module.exports = {
+  CONTRADICTORY_FLAGS: CONTRADICTORY_FLAGS,
   filterDifferentialFuzzFlags: filterDifferentialFuzzFlags,
   filterFlags: filterFlags,
   getGeneratedSoftSkipped: getGeneratedSoftSkipped,
@@ -254,4 +274,5 @@ module.exports = {
   isTestSoftSkippedAbs: isTestSoftSkippedAbs,
   isTestSoftSkippedRel: isTestSoftSkippedRel,
   isTestSloppyRel: isTestSloppyRel,
+  resolveContradictoryFlags: resolveContradictoryFlags,
 }
