@@ -970,6 +970,8 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
+  # Disabling Turboshaft's from-Maglev graph building until support maglev
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
