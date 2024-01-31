@@ -434,7 +434,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   bool HasBackedge(const Graph& graph) const {
     if (const GotoOp* gto = LastOperation(graph).TryCast<GotoOp>()) {
-      return gto->destination->index().id() < index().id();
+      return gto->destination->index().id() <= index().id();
     }
     return false;
   }
