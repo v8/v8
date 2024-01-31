@@ -346,7 +346,7 @@ class GraphVisitor : public VariableReducer<AfterNext> {
     const Operation& last_op = input_block->LastOperation(Asm().input_graph());
     if (auto* final_goto = last_op.TryCast<GotoOp>()) {
       if (final_goto->destination->IsLoop()) {
-        if (input_block->index() > final_goto->destination->index()) {
+        if (input_block->index() >= final_goto->destination->index()) {
           Asm().FinalizeLoop(MapToNewGraph(final_goto->destination));
         } else {
           // We have a forward jump to a loop, rather than a backedge. We
