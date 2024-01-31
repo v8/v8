@@ -443,17 +443,21 @@ class GraphVisitor : public VariableReducer<AfterNext> {
         break;
       }
     }
-    if (!stopped_early) {
-      // The final operation (which should be a block terminator) of the block
-      // is processed separately, because if it's a Goto to a block with a
-      // single predecessor, we'll inline it. (we could have had a check `if (op
-      // is a Goto)` in the loop above, but since this can only be true for the
-      // last operation, we instead extracted it here to make things faster).
-      const Operation& terminator =
-          input_block->LastOperation(Asm().input_graph());
-      DCHECK(terminator.IsBlockTerminator());
-      VisitBlockTerminator<trace_reduction>(terminator, input_block);
-    }
+    // If the last operation of the loop above (= the one-before-last operation
+    // of the block) was lowered to an unconditional deopt/trap/something like
+    // that, then current_block will now be null, and there is no need visit the
+    // last operation of the block.
+    if (stopped_early || Asm().current_block() == nullptr) return;
+
+    // The final operation (which should be a block terminator) of the block
+    // is processed separately, because if it's a Goto to a block with a
+    // single predecessor, we'll inline it. (we could have had a check `if (op
+    // is a Goto)` in the loop above, but since this can only be true for the
+    // last operation, we instead extracted it here to make things faster).
+    const Operation& terminator =
+        input_block->LastOperation(Asm().input_graph());
+    DCHECK(terminator.IsBlockTerminator());
+    VisitBlockTerminator<trace_reduction>(terminator, input_block);
   }
 
   template <bool trace_reduction>
