@@ -544,7 +544,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   TypeDefinition consume_base_type_definition() {
-    DCHECK(enabled_features_.has_gc());
     uint8_t kind = consume_u8(" kind: ", tracer_);
     if (tracer_) tracer_->Description(TypeKindName(kind));
     const bool is_final = true;
@@ -571,7 +570,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   TypeDefinition consume_subtype_definition() {
-    DCHECK(enabled_features_.has_gc());
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
       module_->is_wasm_gc = true;
@@ -608,50 +606,6 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeTypeSection() {
     TypeCanonicalizer* type_canon = GetTypeCanonicalizer();
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
-
-    // Non wasm-gc type section decoding.
-    if (!enabled_features_.has_gc()) {
-      module_->types.resize(types_count);
-      module_->isorecursive_canonical_type_ids.resize(types_count);
-      for (uint32_t i = 0; i < types_count; ++i) {
-        TRACE("DecodeSignature[%d] module+%d\n", i,
-              static_cast<int>(pc_ - start_));
-        uint8_t opcode =
-            read_u8<FullValidationTag>(pc(), "signature definition");
-        if (tracer_) {
-          tracer_->Bytes(pc_, 1);
-          tracer_->TypeOffset(pc_offset());
-          tracer_->Description(" kind: ");
-          tracer_->Description(TypeKindName(opcode));
-          tracer_->NextLine();
-        }
-        switch (opcode) {
-          case kWasmFunctionTypeCode: {
-            consume_bytes(1, "function");
-            const FunctionSig* sig = consume_sig(&module_->signature_zone);
-            if (!ok()) break;
-            const bool is_final = true;
-            module_->types[i] = {sig, kNoSuperType, is_final};
-            type_canon->AddRecursiveSingletonGroup(module_.get(), i);
-            break;
-          }
-          case kWasmArrayTypeCode:
-          case kWasmStructTypeCode:
-          case kWasmSubtypeCode:
-          case kWasmSubtypeFinalCode:
-          case kWasmRecursiveTypeGroupCode:
-            errorf(
-                "Unknown type code 0x%02x, enable with --experimental-wasm-gc",
-                opcode);
-            return;
-          default:
-            errorf("Expected signature definition 0x%02x, got 0x%02x",
-                   kWasmFunctionTypeCode, opcode);
-            return;
-        }
-      }
-      return;
-    }
 
     for (uint32_t i = 0; ok() && i < types_count; ++i) {
       TRACE("DecodeType[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
@@ -906,8 +860,7 @@ class ModuleDecoderImpl : public Decoder {
       const uint8_t* type_position = pc();
 
       bool has_initializer = false;
-      if (enabled_features_.has_typed_funcref() &&
-          read_u8<Decoder::FullValidationTag>(
+      if (read_u8<Decoder::FullValidationTag>(
               pc(), "table-with-initializer byte") == 0x40) {
         consume_bytes(1, "with-initializer ", tracer_);
         has_initializer = true;
@@ -1824,9 +1777,8 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t sig_index = consume_u32v("signature index");
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (!module->has_signature(sig_index)) {
-      errorf(pos, "no signature at index %u (%d %s)", sig_index,
-             static_cast<int>(module->types.size()),
-             enabled_features_.has_gc() ? "types" : "signatures");
+      errorf(pos, "no signature at index %u (%d types)", sig_index,
+             static_cast<int>(module->types.size()));
       *sig = nullptr;
       return 0;
     }
@@ -2057,10 +2009,7 @@ class ModuleDecoderImpl : public Decoder {
             errorf(pc() + 1, "function index %u out of bounds", index);
             return {};
           }
-          ValueType type =
-              enabled_features_.has_typed_funcref()
-                  ? ValueType::Ref(module->functions[index].sig_index)
-                  : kWasmFuncRef;
+          ValueType type = ValueType::Ref(module->functions[index].sig_index);
           TYPE_CHECK(type)
           module->functions[index].declared = true;
           if (tracer_) {
@@ -2362,11 +2311,8 @@ class ModuleDecoderImpl : public Decoder {
                 !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()))) {
           errorf(pos,
                  "An active element segment with function indices as elements "
-                 "must reference a table of %s. Instead, table %u of type %s "
-                 "is referenced.",
-                 enabled_features_.has_typed_funcref()
-                     ? "a subtype of type funcref"
-                     : "type funcref",
+                 "must reference a table of a subtype of type funcref. "
+                 "Instead, table %u of type %s is referenced.",
                  table_index, table_type.name().c_str());
           return {};
         }

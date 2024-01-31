@@ -1204,20 +1204,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Create maps for managed objects (GC proposal).
   // Must happen before {InitGlobals} because globals can refer to these maps.
   //--------------------------------------------------------------------------
-  if (enabled_.has_gc()) {
-    if (!module_->isorecursive_canonical_type_ids.empty()) {
-      // Make sure all canonical indices have been set.
-      DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
-      isolate_->heap()->EnsureWasmCanonicalRttsSize(
-          module_->MaxCanonicalTypeIndex() + 1);
-    }
-    Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
-        static_cast<int>(module_->types.size()));
-    for (uint32_t index = 0; index < module_->types.size(); index++) {
-      CreateMapForType(isolate_, module_, index, instance_object, maps);
-    }
-    trusted_data->set_managed_object_maps(*maps);
+  if (!module_->isorecursive_canonical_type_ids.empty()) {
+    // Make sure all canonical indices have been set.
+    DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
+    isolate_->heap()->EnsureWasmCanonicalRttsSize(
+        module_->MaxCanonicalTypeIndex() + 1);
   }
+  Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
+      static_cast<int>(module_->types.size()));
+  for (uint32_t index = 0; index < module_->types.size(); index++) {
+    CreateMapForType(isolate_, module_, index, instance_object, maps);
+  }
+  trusted_data->set_managed_object_maps(*maps);
 
   //--------------------------------------------------------------------------
   // Allocate the array that will hold type feedback vectors.
@@ -1261,9 +1259,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize non-defaultable tables.
   //--------------------------------------------------------------------------
-  if (enabled_.has_typed_funcref()) {
-    SetTableInitialValues(trusted_data);
-  }
+  SetTableInitialValues(trusted_data);
 
   //--------------------------------------------------------------------------
   // Initialize the tags table.

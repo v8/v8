@@ -214,15 +214,13 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 void TestingModuleBuilder::InitializeWrapperCache() {
   isolate_->heap()->EnsureWasmCanonicalRttsSize(
       test_module_->MaxCanonicalTypeIndex() + 1);
-  if (enabled_features_.has_gc()) {
-    Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
-        static_cast<int>(test_module_->types.size()));
-    for (uint32_t index = 0; index < test_module_->types.size(); index++) {
-      CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
-                       maps);
-    }
-    trusted_instance_data_->set_managed_object_maps(*maps);
+  Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
+      static_cast<int>(test_module_->types.size()));
+  for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+    CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
+                     maps);
   }
+  trusted_instance_data_->set_managed_object_maps(*maps);
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {

@@ -3017,8 +3017,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                                    MachineType::Int32());
     Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
-    if (enabled_features_.has_gc() &&
-        !env_->module->types[sig_index].is_final) {
+    if (!env_->module->types[sig_index].is_final) {
+      DCHECK(enabled_features_.has_gc());
       // Do a full subtyping check.
       auto end_label = gasm_->MakeLabel();
       gasm_->GotoIf(sig_match, &end_label);
@@ -9078,7 +9078,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
       GetDebugName(&zone, env->module, data.wire_bytes_storage,
                    data.func_index),
       &zone, CodeKind::WASM_FUNCTION);
-  if (env->enabled_features.has_gc()) info.set_allocation_folding();
+  info.set_allocation_folding();
 
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;

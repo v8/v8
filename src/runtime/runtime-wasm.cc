@@ -561,7 +561,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   if (IsWasmInternalFunction(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there is no instance.
-    DCHECK(wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref());
     size_t expected_arity = sig.parameter_count();
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
     if (IsJSFunction(ref->callable())) {

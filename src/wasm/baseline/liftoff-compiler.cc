@@ -7998,8 +7998,7 @@ class LiftoffCompiler {
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
                                frozen);
-      } else if (decoder->enabled_.has_gc() &&
-                 !decoder->module_->types[imm.sig_imm.index].is_final) {
+      } else if (!decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id,

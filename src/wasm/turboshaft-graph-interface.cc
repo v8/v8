@@ -5694,8 +5694,7 @@ class TurboshaftGraphBuildingInterface {
                   MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
                   2 /* kInt32SizeLog2 */);
       V<Word32> sigs_match = __ Word32Equal(expected_sig_id, loaded_sig);
-      if (decoder->enabled_.has_gc() &&
-          !decoder->module_->types[sig_index].is_final) {
+      if (!decoder->module_->types[sig_index].is_final) {
         // In this case, a full type check is needed.
         Label<> end(&asm_);
 

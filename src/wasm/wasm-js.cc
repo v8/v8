@@ -1329,20 +1329,15 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     } else if (enabled_features.has_stringref() &&
                string->StringEquals(v8_str(isolate, "stringref"))) {
       type = i::wasm::kWasmStringRef;
-    } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "anyref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "anyref"))) {
       type = i::wasm::kWasmAnyRef;
-    } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "eqref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "eqref"))) {
       type = i::wasm::kWasmEqRef;
-    } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "structref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "structref"))) {
       type = i::wasm::kWasmStructRef;
-    } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "arrayref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "arrayref"))) {
       type = i::wasm::kWasmArrayRef;
-    } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "i31ref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "i31ref"))) {
       type = i::wasm::kWasmI31Ref;
     } else {
       thrower.TypeError(
@@ -1566,23 +1561,18 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "eqref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "eqref"))) {
     *type = i::wasm::kWasmEqRef;
   } else if (enabled_features.has_stringref() &&
              string->StringEquals(v8_str(isolate, "stringref"))) {
     *type = i::wasm::kWasmStringRef;
-  } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "anyref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "anyref"))) {
     *type = i::wasm::kWasmAnyRef;
-  } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "structref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "structref"))) {
     *type = i::wasm::kWasmStructRef;
-  } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "arrayref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "arrayref"))) {
     *type = i::wasm::kWasmArrayRef;
-  } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "i31ref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "i31ref"))) {
     *type = i::wasm::kWasmI31Ref;
   } else if (enabled_features.has_exnref() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
@@ -2263,18 +2253,11 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::Handle<i::Code> wrapper =
         BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
 
-    i::Handle<i::Map> rtt;
-    bool has_gc =
-        instance->module_object()->native_module()->enabled_features().has_gc();
-    if (has_gc) {
-      int sig_index = instance->module()->functions[func_index].sig_index;
-      // TODO(14034): Create funcref RTTs lazily?
-      rtt = handle(
-          i::Map::cast(trusted_data->managed_object_maps()->get(sig_index)),
-          i_isolate);
-    } else {
-      rtt = i_isolate->factory()->wasm_internal_function_map();
-    }
+    int sig_index = instance->module()->functions[func_index].sig_index;
+    // TODO(14034): Create funcref RTTs lazily?
+    i::Handle<i::Map> rtt = handle(
+        i::Map::cast(trusted_data->managed_object_maps()->get(sig_index)),
+        i_isolate);
 
     int num_imported_functions = instance->module()->num_imported_functions;
     i::Handle<i::HeapObject> ref =

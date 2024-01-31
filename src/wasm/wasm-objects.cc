@@ -1478,17 +1478,11 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
         handle(wafr->instance(), isolate), handle(wafr->sig(), isolate));
   }
 
-  Handle<Map> rtt;
-  bool has_gc = native_module->enabled_features().has_gc();
-  if (has_gc) {
-    int sig_index = module->functions[function_index].sig_index;
-    // TODO(14034): Create funcref RTTs lazily?
-    rtt = handle(
-        Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
-        isolate);
-  } else {
-    rtt = isolate->factory()->wasm_internal_function_map();
-  }
+  int sig_index = module->functions[function_index].sig_index;
+  // TODO(14034): Create funcref RTTs lazily?
+  Handle<Map> rtt = handle(
+      Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
+      isolate);
 
   // Only set the call target if the function is not an imported function. The
   // reason is that after wrapper tier-up the call target cannot be set anymore
@@ -2334,64 +2328,56 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Map> rtt;
   Handle<NativeContext> context(isolate->native_context());
 
-  if (wasm::WasmFeatures::FromIsolate(isolate).has_gc()) {
-    uint32_t canonical_type_index =
-        wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+  uint32_t canonical_type_index =
+      wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
 
-    isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_type_index + 1);
+  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_type_index + 1);
 
-    Handle<WeakArrayList> canonical_rtts =
-        handle(isolate->heap()->wasm_canonical_rtts(), isolate);
+  Handle<WeakArrayList> canonical_rtts =
+      handle(isolate->heap()->wasm_canonical_rtts(), isolate);
 
-    MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+  MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
 
-    if (maybe_canonical_map.IsStrongOrWeak() &&
-        IsMap(maybe_canonical_map.GetHeapObject())) {
-      rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
-    } else {
-      rtt = CreateFuncRefMap(isolate, Handle<Map>());
-      canonical_rtts->Set(canonical_type_index,
-                          HeapObjectReference::Weak(*rtt));
-    }
+  if (maybe_canonical_map.IsStrongOrWeak() &&
+      IsMap(maybe_canonical_map.GetHeapObject())) {
+    rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
   } else {
-    rtt = factory->wasm_internal_function_map();
+    rtt = CreateFuncRefMap(isolate, Handle<Map>());
+    canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*rtt));
   }
 
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       call_target, callable, serialized_sig, wrapper_code, rtt, suspend,
       wasm::kNoPromise);
 
-  if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
-    Handle<Code> wasm_to_js_wrapper_code;
-    if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend)) {
-      wasm_to_js_wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
-    } else {
-      int expected_arity = parameter_count;
-      wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
-      if (IsJSFunction(*callable)) {
-        Tagged<SharedFunctionInfo> shared =
-            Handle<JSFunction>::cast(callable)->shared();
-        expected_arity =
-            shared->internal_formal_parameter_count_without_receiver();
-        if (expected_arity != parameter_count) {
-          kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
-        }
-      }
-      // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
-      // signature instead of compiling a new one for every instantiation.
-      if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
-        wasm_to_js_wrapper_code = handle(
-            isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm), isolate);
-      } else {
-        wasm_to_js_wrapper_code =
-            compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
-                                             suspend)
-                .ToHandleChecked();
+  Handle<Code> wasm_to_js_wrapper_code;
+  if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend)) {
+    wasm_to_js_wrapper_code =
+        isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
+  } else {
+    int expected_arity = parameter_count;
+    wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
+    if (IsJSFunction(*callable)) {
+      Tagged<SharedFunctionInfo> shared =
+          Handle<JSFunction>::cast(callable)->shared();
+      expected_arity =
+          shared->internal_formal_parameter_count_without_receiver();
+      if (expected_arity != parameter_count) {
+        kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }
-    function_data->internal()->set_code(*wasm_to_js_wrapper_code);
+    // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
+    // signature instead of compiling a new one for every instantiation.
+    if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
+      wasm_to_js_wrapper_code = handle(
+          isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm), isolate);
+    } else {
+      wasm_to_js_wrapper_code = compiler::CompileWasmToJSWrapper(
+                                    isolate, sig, kind, expected_arity, suspend)
+                                    .ToHandleChecked();
+    }
   }
+  function_data->internal()->set_code(*wasm_to_js_wrapper_code);
 
   Handle<String> name = factory->Function_string();
   if (IsJSFunction(*callable)) {
