@@ -74,7 +74,8 @@ bool IsSupported(CpuOperation op) {
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
 #elif defined(V8_TARGET_ARCH_ARM)
       return CpuFeatures::IsSupported(ARMv8);
-#elif defined(V8_TARGET_ARCH_ARM64)
+#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_S390X)
       return true;
 #else
       // This architecture is not supported by the Maglev backend, and
