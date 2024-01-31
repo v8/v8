@@ -23,6 +23,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -556,8 +557,13 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
   bool ValueFitsIntoImmediate(int64_t value) const {
     // int32_t min will overflow if displacement mode is kNegativeDisplacement.
-    return std::numeric_limits<int32_t>::min() < value &&
-           value <= std::numeric_limits<int32_t>::max();
+    constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
+    constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
+    static_assert(kImmediateMin ==
+                  turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
+    static_assert(kImmediateMax ==
+                  turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
+    return kImmediateMin <= value && value <= kImmediateMax;
   }
 
   bool IsZeroIntConstant(node_t node) const {
@@ -816,11 +822,11 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     // modes for the scale.
     UNIMPLEMENTED();
   } else {
-    const turboshaft::Operation& op = this->turboshaft_graph()->Get(operand);
-    DCHECK_GE(op.input_count, 2);
-
-    inputs[(*input_count)++] = UseRegister(op.input(0), reg_kind);
-    inputs[(*input_count)++] = UseRegister(op.input(1), reg_kind);
+    // TODO(nicohartmann@): Turn this into a `DCHECK` once we have some
+    // coverage.
+    CHECK_EQ(m->displacement, 0);
+    inputs[(*input_count)++] = UseRegister(m->base, reg_kind);
+    inputs[(*input_count)++] = UseRegister(m->index, reg_kind);
     return kMode_MR1;
   }
 }

@@ -2571,7 +2571,7 @@ struct LoadOp : OperationT<LoadOp> {
   static constexpr bool OffsetIsValid(int32_t offset, bool tagged_base) {
     if (tagged_base) {
       // When a Load has the tagged_base Kind, it means that {offset} will
-      // eventually need a "-kHeapObjectTag" eventually. If the {offset} is
+      // eventually need a "-kHeapObjectTag". If the {offset} is
       // min_int, then subtracting kHeapObjectTag will underflow.
       return offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag;
     }

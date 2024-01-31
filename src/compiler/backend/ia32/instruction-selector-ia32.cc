@@ -546,13 +546,11 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         // modes for the scale.
         UNIMPLEMENTED();
       } else {
-        const turboshaft::Operation& op = this->turboshaft_graph()->Get(node);
-        DCHECK_GE(op.input_count, 2);
-
-        inputs[(*input_count)++] =
-            UseRegisterWithMode(op.input(0), register_mode);
-        inputs[(*input_count)++] =
-            UseRegisterWithMode(op.input(1), register_mode);
+        // TODO(nicohartmann@): Turn this into a `DCHECK` once we have some
+        // coverage.
+        CHECK_EQ(m->displacement, 0);
+        inputs[(*input_count)++] = UseRegisterWithMode(m->base, register_mode);
+        inputs[(*input_count)++] = UseRegisterWithMode(m->index, register_mode);
         return kMode_MR1;
       }
     } else {
