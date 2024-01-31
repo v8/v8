@@ -508,6 +508,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                  (type == BootstrappingType::kShadowRealm);
   const bool is_script = type == BootstrappingType::kScript;
   const bool is_shadow_realm = type == BootstrappingType::kShadowRealm;
+  const bool has_const_tracking_let_side_data = is_script;
   const int context_local_count =
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
@@ -547,7 +548,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(is_native_context) |
+      HasContextExtensionSlotBit::encode(is_native_context ||
+                                         has_const_tracking_let_side_data) |
       IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);

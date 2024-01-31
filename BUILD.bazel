@@ -3014,6 +3014,8 @@ filegroup(
         "src/compiler/compiler-source-position-table.h",
         "src/compiler/constant-folding-reducer.cc",
         "src/compiler/constant-folding-reducer.h",
+        "src/compiler/const-tracking-let-helpers.cc",
+        "src/compiler/const-tracking-let-helpers.h",
         "src/compiler/control-equivalence.cc",
         "src/compiler/control-equivalence.h",
         "src/compiler/control-flow-optimizer.cc",

@@ -605,6 +605,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                   size_t lazy_deopt_count,
                                   Label* lazy_deopt_entry);
 
+  void GenerateCheckConstTrackingLetCellFooter(Register context, Register data,
+                                               int index, Label* done);
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }
