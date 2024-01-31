@@ -794,6 +794,11 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
 
   void Bind(Block* block) {}
 
+  // CanAutoInlineBlocksWithSinglePredecessor is used to control whether the
+  // CopyingPhase is allowed to automatically inline blocks with a single
+  // predecessor or not.
+  bool CanAutoInlineBlocksWithSinglePredecessor() const { return true; }
+
   void Analyze() {}
 
 #ifdef DEBUG

@@ -429,6 +429,13 @@ class DeadCodeEliminationReducer
 
   using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
 
+  // DeadCodeElimination can change the control flow in somewhat unexpected ways
+  // (ie, a block with a single predecessor in the input graph can end up with
+  // multiple predecessors in the output graph), so we prevent the CopyingPhase
+  // from automatically inlining blocks with a single predecessor when we run
+  // the DeadCodeEliminationReducer.
+  bool CanAutoInlineBlocksWithSinglePredecessor() const { return false; }
+
   void Analyze() {
     // TODO(nicohartmann@): We might want to make this a flag.
     constexpr bool trace_analysis = false;

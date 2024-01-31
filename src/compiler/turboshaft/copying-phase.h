@@ -528,7 +528,8 @@ class GraphVisitor : public VariableReducer<AfterNext> {
   template <bool trace_reduction>
   void VisitBlockTerminator(const Operation& terminator,
                             const Block* input_block) {
-    if (terminator.Is<GotoOp>()) {
+    if (Asm().CanAutoInlineBlocksWithSinglePredecessor() &&
+        terminator.Is<GotoOp>()) {
       Block* destination = terminator.Cast<GotoOp>().destination;
       if (destination->PredecessorCount() == 1) {
         block_to_inline_now_ = destination;
