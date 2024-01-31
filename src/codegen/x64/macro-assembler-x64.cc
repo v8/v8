@@ -634,9 +634,8 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(destination, kScratchRegister));
   movl(destination, field_operand);
-  movq(kScratchRegister,
-       Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  orq(destination, kScratchRegister);
+  orq(destination,
+      Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
 #else
   LoadTaggedField(destination, field_operand);
 #endif
