@@ -907,7 +907,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     return map;
   }
 
-  return Map::TransitionToPrototype(isolate, map, prototype);
+  return Map::TransitionRootMapToPrototypeForNewObject(isolate, map, prototype);
 }
 
 // static
@@ -940,13 +940,10 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
     return map;
   }
 
-  CHECK(IsJSProxy(*prototype));
-
   // The TransitionToPrototype map will not have new_target_is_base reset. But
   // we don't need it to for proxies.
-  // TODO(olivf): If we never create objects with `this` map (instead of the
-  // derived map) then slack tracking will never finish.
-  return Map::TransitionToPrototype(isolate, from, prototype);
+  return Map::TransitionRootMapToPrototypeForNewObject(isolate, from,
+                                                       prototype);
 }
 
 static bool ContainsMap(MapHandles const& maps, Tagged<Map> map) {
@@ -2413,8 +2410,24 @@ void Map::StartInobjectSlackTracking() {
   set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 
-Handle<Map> Map::TransitionToPrototype(Isolate* isolate, Handle<Map> map,
-                                       Handle<HeapObject> prototype) {
+Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
+    Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype) {
+  DCHECK(IsUndefined(map->GetBackPointer()));
+  Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
+  DCHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
+                 new_map->IsInobjectSlackTrackingInProgress());
+  CHECK_IMPLIES(map->IsInobjectSlackTrackingInProgress(),
+                map->construction_counter() <= new_map->construction_counter());
+  if (map->IsInobjectSlackTrackingInProgress()) {
+    // Advance the construction count on the base map to keep it in sync with
+    // the transitioned map.
+    map->InobjectSlackTrackingStep(isolate);
+  }
+  return new_map;
+}
+
+Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
+                                             Handle<HeapObject> prototype) {
   Handle<Map> new_map =
       TransitionsAccessor::GetPrototypeTransition(isolate, map, prototype);
   if (new_map.is_null()) {

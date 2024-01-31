@@ -2717,7 +2717,8 @@ Handle<JSObject> Factory::NewSlowJSObjectWithNullProto() {
 Handle<JSObject> Factory::NewJSObjectWithNullProto() {
   Handle<Map> map(isolate()->object_function()->initial_map(), isolate());
   Handle<Map> map_with_null_proto =
-      Map::TransitionToPrototype(isolate(), map, null_value());
+      Map::TransitionRootMapToPrototypeForNewObject(isolate(), map,
+                                                    null_value());
   return NewJSObjectFromMap(map_with_null_proto);
 }
 
@@ -2885,7 +2886,8 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
-    object_map = Map::TransitionToPrototype(isolate(), object_map, prototype);
+    object_map = Map::TransitionRootMapToPrototypeForNewObject(
+        isolate(), object_map, prototype);
   }
   DCHECK(object_map->is_dictionary_map());
   Handle<JSObject> object =
@@ -3418,7 +3420,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                         ? isolate()->bound_function_with_constructor_map()
                         : isolate()->bound_function_without_constructor_map();
   if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(isolate(), map, prototype);
+    map = Map::TransitionRootMapToPrototypeForNewObject(isolate(), map,
+                                                        prototype);
   }
   DCHECK_EQ(IsConstructor(*target_function), map->is_constructor());
 
