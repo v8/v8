@@ -99,7 +99,7 @@ declare_args() {
   # Enable FuzzTest
   v8_enable_fuzztest =
       !build_with_chromium && !(defined(build_with_node) && build_with_node) &&
-      !(is_win && is_component_build)
+      !(is_win && is_component_build) && is_clang
 
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
