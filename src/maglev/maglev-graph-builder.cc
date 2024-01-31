@@ -4479,7 +4479,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
   ValueNode* index = GetInt32ElementIndex(index_object);
   ValueNode* length_as_smi =
-      is_jsarray ? AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)
+      is_jsarray ? BuildLoadJSArrayLength(object).value()
                  : AddNewNode<LoadTaggedField>({elements_array},
                                                FixedArray::kLengthOffset);
   ValueNode* length = AddNewNode<UnsafeSmiUntag>({length_as_smi});
