@@ -583,11 +583,8 @@ class InterpreterData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kInterpreterDataIndirectPointerTag, v);
-    IterateTrustedPointer(obj, kBytecodeArrayOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kBytecodeArrayIndirectPointerTag);
-    IterateCodePointer(obj, kInterpreterTrampolineOffset, v,
-                       IndirectPointerMode::kStrong);
+    IterateProtectedPointer(obj, kBytecodeArrayOffset, v);
+    IterateProtectedPointer(obj, kInterpreterTrampolineOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {

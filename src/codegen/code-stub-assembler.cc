@@ -3492,9 +3492,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = CAST(LoadTrustedPointerFromObject(
-      var_result.value(), InterpreterData::kBytecodeArrayOffset,
-      kBytecodeArrayIndirectPointerTag));
+  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerFromObject(
+      CAST(var_result.value()), InterpreterData::kBytecodeArrayOffset));
   var_result = bytecode_array;
   Goto(&done);
 
@@ -16347,8 +16346,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   CSA_DCHECK(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   {
-    TNode<Code> trampoline = LoadCodePointerFromObject(
-        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset);
+    TNode<Code> trampoline = CAST(LoadProtectedPointerFromObject(
+        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
     sfi_code = trampoline;
   }
   Goto(&done);

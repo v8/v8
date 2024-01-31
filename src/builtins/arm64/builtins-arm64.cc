@@ -491,9 +491,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadTrustedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag);
+  __ LoadProtectedPointerField(
+      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ Bind(&done);
   __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
