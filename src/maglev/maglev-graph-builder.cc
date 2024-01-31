@@ -4506,7 +4506,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     return result;
   };
 
-  if (LoadModeHandlesOOB(load_mode)) {
+  if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesOOB(load_mode)) {
     return Select<BranchIfInt32InBounds>(
         emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); },
         {index, length});
