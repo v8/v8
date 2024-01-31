@@ -1807,7 +1807,7 @@ Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
 }
 
 Handle<WasmArray> Factory::NewWasmArrayFromElements(
-    const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+    const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
     DirectHandle<Map> map) {
   uint32_t length = static_cast<uint32_t>(elements.size());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);

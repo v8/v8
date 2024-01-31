@@ -723,7 +723,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  wasm::WasmValue initial_value,
                                  DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
-      const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+      const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
       DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length,
                                            DirectHandle<Map> map,
