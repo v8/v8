@@ -432,15 +432,12 @@ class GraphVisitor : public VariableReducer<AfterNext> {
           CreateOldToNewMapping(index, new_phi_values[phi_num++]);
           continue;
         }
-      } else {
-        // Blocks with a single predecessor can still have phis if they used to
-        // be loop header that were turned into regular blocks.
-        if (op.Is<PhiOp>()) {
-          DCHECK_EQ(op.input_count, 1);
-          CreateOldToNewMapping(index, MapToNewGraph(op.input(0)));
-          continue;
-        }
       }
+      // Blocks with a single predecessor (for which CanHavePhis might be kNo)
+      // can still have phis if they used to be loop header that were turned
+      // into regular blocks.
+      DCHECK_IMPLIES(op.Is<PhiOp>(), op.input_count == 1);
+
       if (!VisitOpAndUpdateMapping<trace_reduction>(index, input_block)) {
         stopped_early = true;
         break;
@@ -665,8 +662,16 @@ class GraphVisitor : public VariableReducer<AfterNext> {
         MapToNewGraph(op.default_case), op.default_hint);
   }
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
+    if (op.input_count == 1) {
+      // If, in the previous CopyingPhase, a loop header was turned into a
+      // regular blocks, its PendingLoopPhis became Phis with a single input. We
+      // can now just get rid of these Phis.
+      return MapToNewGraph(op.input(0));
+    }
+
     OpIndex ig_index = Asm().input_graph().Index(op);
     if (Asm().current_block()->IsLoop()) {
+      DCHECK_EQ(op.input_count, 2);
       if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
         // Avoid emitting a Loop Phi which points to itself, instead
         // emit it's 0'th input.
