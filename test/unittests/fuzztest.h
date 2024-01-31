@@ -53,7 +53,7 @@ struct _NoFuzz {
   _NoFuzz WithDomains() { return *this; }
 };
 
-#define WithDomains(args...) WithDomains()
+#define WithDomains(...) WithDomains()
 
 #define _NO_FUZZ(cls, name) \
   [[maybe_unused]] static _NoFuzz cls##_##name = _NoFuzz()
