@@ -27,6 +27,7 @@ vars = {
   'checkout_fuchsia_boot_images': "terminal.x64",
   'checkout_fuchsia_product_bundles': '"{checkout_fuchsia_boot_images}" != ""',
 
+  'checkout_centipede_deps': False,
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
 
@@ -41,8 +42,9 @@ vars = {
   # Fetch and build V8 builtins with PGO profiles
   'checkout_v8_builtins_pgo_profiles': False,
 
-  'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
+  'boringssl_url': 'https://boringssl.googlesource.com',
+  'chromium_url': 'https://chromium.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'download_prebuilt_bazel': False,
@@ -224,6 +226,14 @@ deps = {
     'condition': 'checkout_android',
     'dep_type': 'cipd',
   },
+  'third_party/boringssl': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '9ead20bdbf0ecc33219d25fd3a426876c54d126e',
+    'condition': "checkout_centipede_deps",
+  },
+  'third_party/boringssl/src': {
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '414f69504d30d0848b69f6453ea7fb5e88004cb4',
+    'condition': "checkout_centipede_deps",
+  },
   'third_party/catapult': {
     'url': Var('chromium_url') + '/catapult.git' + '@' + '719cd9d9170b4898010708dce8dc44514efa4279',
     'condition': 'checkout_android',
@@ -264,6 +274,10 @@ deps = {
   'third_party/google_benchmark_chrome/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'b177433f3ee2513b1075140c723d73ab8901790f',
   },
+  'third_party/fuzztest':
+    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'ced7b57a3fd674daeea8f2ff8257ea3a0c5444c7',
+  'third_party/fuzztest/src':
+    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'a6db991e3e487c4bf131fe8de737267e2b1ecfa4',
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
   'third_party/icu':
@@ -340,6 +354,7 @@ include_rules = [
   '+unicode',
   '+third_party/fdlibm',
   '+third_party/ittapi/include',
+  '+third_party/fuzztest',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to
   # the Chromium guidelines (though note that some requirements in V8 may be

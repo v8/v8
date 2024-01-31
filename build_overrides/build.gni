@@ -6,6 +6,9 @@
 # Chromium specific targets in a client project's GN file etc.
 build_with_chromium = false
 
+# Not all of V8's dependencies are available in V8's Node.js build.
+build_with_node = false
+
 # Used by perfetto to distinguish from its own standalone build and the
 # chromium build.
 perfetto_build_with_embedder = true

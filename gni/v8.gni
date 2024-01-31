@@ -96,6 +96,11 @@ declare_args() {
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
+  # Enable FuzzTest
+  v8_enable_fuzztest =
+      !build_with_chromium && !(defined(build_with_node) && build_with_node) &&
+      !(is_win && is_component_build)
+
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
@@ -228,6 +233,7 @@ v8_remove_configs = []
 v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
+  v8_path_prefix + ":strict_warnings",
 ]
 
 if (is_debug && !v8_optimized_debug) {

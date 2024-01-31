@@ -1149,6 +1149,9 @@ config("features") {
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
   }
+  if (v8_enable_fuzztest) {
+    defines += [ "V8_ENABLE_FUZZTEST" ]
+  }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
@@ -1482,7 +1485,6 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
-      "-Wmissing-field-initializers",
       "-Wunreachable-code",
 
       # TODO(v8:12245): Fix shadowing instances and remove.
@@ -1495,11 +1497,6 @@ config("toolchain") {
       # earlier. See https://reviews.llvm.org/D56731 for details about this
       # warning.
       cflags += [ "-Wctad-maybe-unsupported" ]
-    }
-
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
-      cflags += [ "-Wshorten-64-to-32" ]
     }
   }
 
@@ -1702,6 +1699,17 @@ config("toolchain") {
   # Chromium uses a hand-picked subset of UBSan coverage. We want everything.
   if (is_ubsan) {
     cflags += [ "-fsanitize=undefined" ]
+  }
+}
+
+config("strict_warnings") {
+  cflags = []
+  if (is_clang) {
+    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+        v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
+      cflags += [ "-Wshorten-64-to-32" ]
+    }
+    cflags += [ "-Wmissing-field-initializers" ]
   }
 }
 
