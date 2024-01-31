@@ -36,12 +36,14 @@ class TestFileName(unittest.TestCase):
       self.assertEqual(file_name,
                        gen_fuzztest_configs.fuzz_test_to_file_name(test_name))
 
-    check_conversion('Foo.Bar', 'foo_bar_fuzztest')
-    check_conversion('foo.bar', 'foo_bar_fuzztest')
+    check_conversion('Foo.Bar', 'v8_foo_bar_fuzztest')
+    check_conversion('foo.bar', 'v8_foo_bar_fuzztest')
     check_conversion('SimpleSuite.SimpleTest',
-                     'simple_suite_simple_test_fuzztest')
-    check_conversion('RemoveFuzzTest.SimpleTest', 'remove_simple_test_fuzztest')
-    check_conversion('IPConversionABC.I24P', 'ip_conversion_abc_i24_p_fuzztest')
+                     'v8_simple_suite_simple_test_fuzztest')
+    check_conversion('RemoveFuzzTest.SimpleTest',
+                     'v8_remove_simple_test_fuzztest')
+    check_conversion('IPConversionABC.I24P',
+                     'v8_ip_conversion_abc_i24_p_fuzztest')
 
 
 class TestFullRun(fake_filesystem_unittest.TestCase):
@@ -86,11 +88,11 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
 
     fuzz_test_output = sorted(os.listdir('/out/build/fuzztests'))
     expexted_fuzz_test_output = [
-        'alpha_sort_this_foo_bar_xyz_fuzztest',
-        'centipede',  # Symlink to ../centipede
-        'foo_test_test1_fuzztest',
-        'foo_test_test2_fuzztest',
+        'centipede',  # Bash wrapper to ../centipede
         'fuzztests.stamp',
+        'v8_alpha_sort_this_foo_bar_xyz_fuzztest',
+        'v8_foo_test_test1_fuzztest',
+        'v8_foo_test_test2_fuzztest',
     ]
     self.assertEqual(expexted_fuzz_test_output, fuzz_test_output)
 
@@ -103,7 +105,7 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
       BINARY_DIR="$(cd "${0%/*}"/..; pwd)"
       cd $BINARY_DIR
       exec $BINARY_DIR/v8_unittests $@ --fuzz=FooTest.Test1""")
-    with open('/out/build/fuzztests/foo_test_test1_fuzztest') as f:
+    with open('/out/build/fuzztests/v8_foo_test_test1_fuzztest') as f:
       self.assertEqual(expected_wrapper, f.read())
 
 

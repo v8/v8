@@ -41,7 +41,7 @@ WRAPPER_TEMPLATE = """
 #!/bin/sh
 BINARY_DIR="$(cd "${0%%/*}"/..; pwd)"
 cd $BINARY_DIR
-exec $BINARY_DIR/v8_unittests $@ --fuzz=%s
+exec $BINARY_DIR/%s $@%s
 """.strip()
 
 FUZZER_NAME_RE = re.compile(r'^\w+\.\w+$')
@@ -68,7 +68,18 @@ def fuzz_test_to_file_name(test):
   splitted = fuzztest_name.split()
   splitted = map(str.lower, splitted)
   splitted = filter(bool, splitted)
-  return '_'.join(splitted) + '_fuzztest'
+  return 'v8_' + '_'.join(splitted) + '_fuzztest'
+
+
+def create_wrapper(file_name, executable_name, extra_arg=''):
+  with action_helpers.atomic_output(file_name) as f:
+    wrapper = WRAPPER_TEMPLATE % (executable_name, extra_arg)
+    f.write(wrapper.encode('utf-8'))
+
+  # Make the wrapper world-executable.
+  st = os.stat(file_name)
+  m = st.st_mode
+  os.chmod(file_name, m | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
 def setup_fuzztests_dir(cwd):
@@ -79,22 +90,16 @@ def setup_fuzztests_dir(cwd):
   fuzz_test_dir.mkdir(exist_ok=True)
 
   # Centipede is later expected to be side-by-side with the fuzz-test
-  # targets. Create a symlink to avoid copying.
-  # For portability, the symlink target needs to be relative.
-  (fuzz_test_dir / CENTIPEDE).symlink_to(PurePath('..') / CENTIPEDE)
+  # targets. Create a bash redirect so that shared libraries in cwd
+  # keep loading.
+  create_wrapper(fuzz_test_dir / CENTIPEDE, CENTIPEDE)
 
   return fuzz_test_dir
 
 
 def create_fuzztest_wrapper(fuzz_test_dir, test_name):
   fuzztest_path = fuzz_test_dir / fuzz_test_to_file_name(test_name)
-  with action_helpers.atomic_output(fuzztest_path) as f:
-    f.write((WRAPPER_TEMPLATE % test_name).encode('utf-8'))
-
-  # Make the wrapper world-executable.
-  st = os.stat(fuzztest_path)
-  m = st.st_mode
-  os.chmod(fuzztest_path, m | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+  create_wrapper(fuzztest_path, EXECUTABLE, f' --fuzz={test_name}')
 
 
 def main():
