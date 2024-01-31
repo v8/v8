@@ -5107,6 +5107,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
           feedback_source, compiler::AccessMode::kLoad, base::nullopt);
 
   if (current_for_in_state.index != nullptr &&
+      current_for_in_state.enum_cache_indices != nullptr &&
       current_for_in_state.receiver == object &&
       current_for_in_state.key == current_interpreter_frame_.accumulator()) {
     if (current_for_in_state.receiver_needs_map_check) {
@@ -5116,13 +5117,9 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
           {receiver_map, current_for_in_state.cache_type});
       current_for_in_state.receiver_needs_map_check = false;
     }
-    // TODO(leszeks): Cache the indices across the loop.
-    auto* cache_array = AddNewNode<LoadTaggedField>(
-        {current_for_in_state.enum_cache}, EnumCache::kIndicesOffset);
-    AddNewNode<CheckFixedArrayNonEmpty>({cache_array});
     // TODO(leszeks): Cache the field index per iteration.
     auto* field_index = AddNewNode<LoadFixedArrayElement>(
-        {cache_array, current_for_in_state.index});
+        {current_for_in_state.enum_cache_indices, current_for_in_state.index});
     SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
     return;
@@ -10006,7 +10003,15 @@ void MaglevGraphBuilder::VisitForInPrepare() {
           {descriptor_array}, DescriptorArray::kEnumCacheOffset);
       auto* cache_array =
           AddNewNode<LoadTaggedField>({enum_cache}, EnumCache::kKeysOffset);
-      current_for_in_state.enum_cache = enum_cache;
+
+      if (hint == ForInHint::kEnumCacheKeysAndIndices) {
+        auto* cache_indices = AddNewNode<LoadTaggedField>(
+            {enum_cache}, EnumCache::kIndicesOffset);
+        current_for_in_state.enum_cache_indices = cache_indices;
+        AddNewNode<CheckFixedArrayNonEmpty>({cache_indices});
+      } else {
+        current_for_in_state.enum_cache_indices = nullptr;
+      }
 
       auto* cache_length = AddNewNode<LoadEnumCacheLength>({enumerator});
 

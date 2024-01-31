@@ -1048,6 +1048,23 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
         isolate_, new_map, new_map->NumberOfEnumerableProperties());
   }
 
+  // The old map has to still point to the old descriptor array. This is because
+  // we might have cached the enum indices of the old descriptor array, for
+  // iterating over objects with the old map -- we don't want this descriptor
+  // array to switch ownership to the new branch, because then it might get
+  // trimmed past the old map's field count.
+  if (!has_integrity_level_transition_) {
+    DCHECK_EQ(old_map_->instance_descriptors(), *old_descriptors_);
+  } else {
+    // When there is an integrity transition, the `old_descriptors_` are
+    // actually the integrity_source_map_ descriptors. These should have the
+    // same enum cache and trimming behaviour as the real old descriptors, so
+    // check them indirectly.
+    DCHECK_EQ(old_map_->instance_descriptors()->enum_cache(),
+              integrity_source_map_->instance_descriptors()->enum_cache());
+    DCHECK_EQ(integrity_source_map_->instance_descriptors(), *old_descriptors_);
+  }
+
   if (has_integrity_level_transition_) {
     target_map_ = new_map;
     state_ = kAtIntegrityLevelSource;

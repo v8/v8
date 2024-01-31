@@ -2333,7 +2333,7 @@ class MaglevGraphBuilder {
   struct ForInState {
     ValueNode* receiver = nullptr;
     ValueNode* cache_type = nullptr;
-    ValueNode* enum_cache = nullptr;
+    ValueNode* enum_cache_indices = nullptr;
     ValueNode* key = nullptr;
     ValueNode* index = nullptr;
     bool receiver_needs_map_check = false;
