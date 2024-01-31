@@ -2590,11 +2590,9 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
       for (auto it = maps.begin(); it != maps.end(); ++it) {
         if (IsHeapNumberMap(*it->object())) {
           if (it == maps.end() - 1) {
-            __ CompareRootAndJumpIf(object_map, RootIndex::kHeapNumberMap,
-                                    kNotEqual, &next);
+            __ JumpIfNotRoot(object_map, RootIndex::kHeapNumberMap, &next);
           } else {
-            __ CompareRootAndJumpIf(object_map, RootIndex::kHeapNumberMap,
-                                    kEqual, &map_found);
+            __ JumpIfRoot(object_map, RootIndex::kHeapNumberMap, &map_found);
           }
           has_number_map = true;
         } else {

@@ -452,10 +452,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                      Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);
 
-  inline void CompareRootAndJumpIf(Register with, RootIndex index,
-                                   Condition cond, Label* target,
-                                   Label::Distance distance = Label::kFar);
-
   inline void CompareFloat64AndJumpIf(DoubleRegister src1, DoubleRegister src2,
                                       Condition cond, Label* target,
                                       Label* nan_failed,

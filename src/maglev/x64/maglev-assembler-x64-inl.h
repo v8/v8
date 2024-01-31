@@ -1056,14 +1056,6 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register src1,
   JumpIf(cond, target, distance);
 }
 
-inline void MaglevAssembler::CompareRootAndJumpIf(Register with,
-                                                  RootIndex index,
-                                                  Condition cond, Label* target,
-                                                  Label::Distance distance) {
-  CompareRoot(with, index);
-  JumpIf(cond, target, distance);
-}
-
 inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
     DoubleRegister reg, Label* target, Label::Distance distance) {
   // Sets scratch register to 0.0.

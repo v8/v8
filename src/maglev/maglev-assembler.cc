@@ -186,16 +186,13 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   JumpIf(kEqual, *is_true);
 #else
   // Check if {{value}} is false.
-  CompareRoot(value, RootIndex::kFalseValue);
-  JumpIf(kEqual, *is_false);
+  JumpIfRoot(value, RootIndex::kFalseValue, *is_false);
 
   // Check if {{value}} is true.
-  CompareRoot(value, RootIndex::kTrueValue);
-  JumpIf(kEqual, *is_true);
+  JumpIfRoot(value, RootIndex::kTrueValue, *is_true);
 
   // Check if {{value}} is empty string.
-  CompareRoot(value, RootIndex::kempty_string);
-  JumpIf(kEqual, *is_false);
+  JumpIfRoot(value, RootIndex::kempty_string, *is_false);
 
   // Only check null and undefined if we're not going to check the
   // undetectable bit.
@@ -204,12 +201,10 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
           ->dependencies()
           ->DependOnNoUndetectableObjectsProtector()) {
     // Check if {{value}} is undefined.
-    CompareRoot(value, RootIndex::kUndefinedValue);
-    JumpIf(kEqual, *is_false);
+    JumpIfRoot(value, RootIndex::kUndefinedValue, *is_false);
 
     // Check if {{value}} is null.
-    CompareRoot(value, RootIndex::kNullValue);
-    JumpIf(kEqual, *is_false);
+    JumpIfRoot(value, RootIndex::kNullValue, *is_false);
   }
 #endif
 
@@ -225,32 +220,31 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   }
 
   // Check if {{value}} is a HeapNumber.
-  CompareRoot(map, RootIndex::kHeapNumberMap);
-  JumpToDeferredIf(
-      kEqual,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        __ CompareDoubleAndJumpIfZeroOrNaN(
-            FieldMemOperand(value, offsetof(HeapNumber, value_)), *is_false);
-        __ Jump(*is_true);
-      },
-      value, is_true, is_false);
+  JumpIfRoot(map, RootIndex::kHeapNumberMap,
+             MakeDeferredCode(
+                 [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+                    ZoneLabelRef is_false) {
+                   __ CompareDoubleAndJumpIfZeroOrNaN(
+                       FieldMemOperand(value, offsetof(HeapNumber, value_)),
+                       *is_false);
+                   __ Jump(*is_true);
+                 },
+                 value, is_true, is_false));
 
   // Check if {{value}} is a BigInt.
-  CompareRoot(map, RootIndex::kBigIntMap);
-  // {{map}} is not needed from this point on.
-  temps.Include(map);
-  JumpToDeferredIf(
-      kEqual,
-      [](MaglevAssembler* masm, Register value, Register map,
-         ZoneLabelRef is_true, ZoneLabelRef is_false) {
-        __ TestInt32AndJumpIfAllClear(
-            FieldMemOperand(value, offsetof(BigInt, bitfield_)),
-            BigInt::LengthBits::kMask, *is_false);
-        __ Jump(*is_true);
-      },
-      value, map, is_true, is_false);
-
+  // The code that MakeDeferredCode emit run after JumpIfRoot, so map can be
+  // used as scratch in MakeDeferredCode.
+  JumpIfRoot(map, RootIndex::kBigIntMap,
+             MakeDeferredCode(
+                 [](MaglevAssembler* masm, Register value, Register scratch,
+                    ZoneLabelRef is_true, ZoneLabelRef is_false) {
+                   __ Move(scratch,
+                           FieldMemOperand(value, offsetof(BigInt, bitfield_)));
+                   __ TestInt32AndJumpIfAllClear(
+                       scratch, BigInt::LengthBits::kMask, *is_false);
+                   __ Jump(*is_true);
+                 },
+                 value, map, is_true, is_false));
   // Otherwise true.
   if (!fallthrough_when_true) {
     Jump(*is_true);
