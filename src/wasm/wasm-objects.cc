@@ -873,7 +873,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
 
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
-  if (!backing_store) return -1;
+  // Only Wasm memory can grow, and Wasm memory always has a backing store.
+  DCHECK_NOT_NULL(backing_store);
 
   // Check for maximum memory size.
   // Note: The {wasm::max_mem_pages()} limit is already checked in
@@ -892,20 +893,27 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   DCHECK_GE(max_pages, old_pages);
   if (pages > max_pages - old_pages) return -1;
 
+  const bool must_grow_in_place =
+      old_buffer->is_shared() || backing_store->has_guard_regions();
+  const bool try_grow_in_place =
+      must_grow_in_place || !v8_flags.stress_wasm_memory_moving;
+
   base::Optional<size_t> result_inplace =
-      backing_store->GrowWasmMemoryInPlace(isolate, pages, max_pages);
+      try_grow_in_place
+          ? backing_store->GrowWasmMemoryInPlace(isolate, pages, max_pages)
+          : base::nullopt;
+  if (must_grow_in_place && !result_inplace.has_value()) {
+    // There are different limits per platform, thus crash if the correctness
+    // fuzzer is running.
+    if (v8_flags.correctness_fuzzer_suppressions) {
+      FATAL("could not grow wasm memory");
+    }
+    return -1;
+  }
+
   // Handle shared memory first.
   if (old_buffer->is_shared()) {
-    // Shared memories can only be grown in place; no copying.
-    if (!result_inplace.has_value()) {
-      // There are different limits per platform, thus crash if the correctness
-      // fuzzer is running.
-      if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("could not grow wasm memory");
-      }
-      return -1;
-    }
-
+    DCHECK(result_inplace.has_value());
     backing_store->BroadcastSharedWasmMemoryGrow(isolate);
     // Broadcasting the update should update this memory object too.
     CHECK_NE(*old_buffer, memory_object->array_buffer());

@@ -1577,6 +1577,8 @@ DEFINE_BOOL(stress_wasm_code_gc, false,
             "stress test garbage collection of wasm code")
 DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
            "maximum size of the initial wasm code space reservation (in MB)")
+DEFINE_BOOL(stress_wasm_memory_moving, false,
+            "always move non-shared bounds-checked Wasm memory on grow")
 
 DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
               "maximum allowed size of wasm modules")
