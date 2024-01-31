@@ -1248,16 +1248,19 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   }
 
   // Cancel outstanding code logging and clear the {code_to_log} vector.
-  if (auto* task = isolate_info->log_codes_task) task->Cancel();
-  for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
-    for (WasmCode* code : code_to_log.code) {
-      // Keep a reference in the {code_ref_scope_for_dead_code} such that the
-      // code cannot become dead immediately.
-      WasmCodeRefScope::AddRef(code);
-      code->DecRefOnLiveCode();
+  if (auto* task = isolate_info->log_codes_task) {
+    task->Cancel();
+    for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
+      for (WasmCode* code : code_to_log.code) {
+        // Keep a reference in the {code_ref_scope_for_dead_code} such that the
+        // code cannot become dead immediately.
+        WasmCodeRefScope::AddRef(code);
+        code->DecRefOnLiveCode();
+      }
     }
+    isolate_info->code_to_log.clear();
   }
-  isolate_info->code_to_log.clear();
+  DCHECK(isolate_info->code_to_log.empty());
 
   // Finally remove the {IsolateInfo} for this isolate.
   isolates_.erase(isolates_it);
