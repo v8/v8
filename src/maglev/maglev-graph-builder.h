@@ -169,6 +169,8 @@ struct FastField {
 
   enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
 
+  bool IsInitialized();
+
   union {
     char uninitialized_marker;
     FastObject object;

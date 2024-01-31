@@ -9049,6 +9049,13 @@ void MaglevGraphBuilder::ClearCurrentRawAllocation() {
   current_raw_allocation_ = nullptr;
 }
 
+bool FastField::IsInitialized() {
+  if (type == kConstant) {
+    return !IsUninitialized(*constant_value.object());
+  }
+  return type != kUninitialized;
+}
+
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastObject object, AllocationType allocation_type) {
   SmallZoneVector<ValueNode*, 8> properties(object.inobject_properties, zone());
@@ -9072,9 +9079,20 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   }
 
   BuildStoreTaggedField(allocation, elements, JSObject::kElementsOffset);
+  int number_of_own_descriptors = object.map.NumberOfOwnDescriptors();
   for (int i = 0; i < object.inobject_properties; ++i) {
     BuildStoreTaggedField(allocation, properties[i],
                           object.map.GetInObjectPropertyOffset(i));
+    if (i < number_of_own_descriptors && object.fields[i].IsInitialized()) {
+      compiler::NameRef name =
+          object.map.GetPropertyKey(broker(), InternalIndex(i));
+      // We record as a load, since we don't want to wipe the recorded
+      // properties with this name so far. Since we have just allocated the
+      // object, it is impossible to alias.
+      RecordKnownProperty(allocation,
+                          KnownNodeAspects::LoadedPropertyMapKey(name),
+                          properties[i], false, compiler::AccessMode::kLoad);
+    }
   }
   return allocation;
 }
