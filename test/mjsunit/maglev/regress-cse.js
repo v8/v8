@@ -72,3 +72,14 @@ function foo() {
 foo();
 %OptimizeMaglevOnNextCall(foo);
 foo();
+
+// GetSecondReturnedValue
+function __f_3() {
+    with (arguments) {
+        assertEquals("[object Arguments]", toString());
+    }
+}
+%PrepareFunctionForOptimization(__f_3);
+__f_3();
+%OptimizeMaglevOnNextCall(__f_3);
+__f_3();

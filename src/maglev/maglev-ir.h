@@ -4279,6 +4279,10 @@ class GetSecondReturnedValue
   using Base = FixedInputValueNodeT<0, GetSecondReturnedValue>;
 
  public:
+  // TODO(olivf): This is needed because this instruction accesses the raw
+  // register content. We should have tuple values instead such that we can
+  // refer to both returned values properly.
+  static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
   explicit GetSecondReturnedValue(uint64_t bitfield) : Base(bitfield) {}
 
   void SetValueLocationConstraints();
