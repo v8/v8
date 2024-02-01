@@ -155,6 +155,7 @@ class RootVisitor;
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
+  V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \

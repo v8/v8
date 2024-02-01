@@ -23,6 +23,12 @@ extern class TrustedFixedArray extends TrustedObject {
 }
 
 @cppObjectDefinition
+extern class ProtectedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: TrustedObject|Smi;
+}
+
+@cppObjectDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }

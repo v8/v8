@@ -876,6 +876,10 @@ void TrustedFixedArray::TrustedFixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, Tagged{*this}, "TrustedFixedArray");
 }
 
+void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, Tagged{*this}, "ProtectedFixedArray");
+}
+
 void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintHeader(os, "ArrayList");
   os << "\n - capacity: " << capacity();

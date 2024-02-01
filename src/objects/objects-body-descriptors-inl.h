@@ -1533,6 +1533,22 @@ class TrustedFixedArray::BodyDescriptor final
   }
 };
 
+class ProtectedFixedArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    for (int offset = kHeaderSize; offset < object_size;
+         offset += kTaggedSize) {
+      IterateProtectedPointer(obj, offset, v);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return ProtectedFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
 class SloppyArgumentsElements::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:

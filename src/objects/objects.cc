@@ -1940,6 +1940,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == TRUSTED_FIXED_ARRAY_TYPE) {
     return TrustedFixedArray::unchecked_cast(*this)->AllocatedSize();
   }
+  if (instance_type == PROTECTED_FIXED_ARRAY_TYPE) {
+    return ProtectedFixedArray::unchecked_cast(*this)->AllocatedSize();
+  }
   if (instance_type == TRUSTED_BYTE_ARRAY_TYPE) {
     return TrustedByteArray::unchecked_cast(*this)->AllocatedSize();
   }

@@ -760,6 +760,18 @@ void TrustedFixedArray::TrustedFixedArrayVerify(Isolate* isolate) {
   }
 }
 
+void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+
+  for (int i = 0; i < length(); ++i) {
+    Tagged<Object> element = get(i);
+    CHECK(IsSmi(element) || IsTrustedObject(element));
+    Object::VerifyPointer(isolate, element);
+  }
+}
+
 void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
   CHECK_GE(capacity(), kMinCapacity);

@@ -79,6 +79,7 @@ namespace internal {
   V(ObjectBoilerplateDescription)             \
   V(PreparseData)                             \
   V(PropertyArray)                            \
+  V(ProtectedFixedArray)                      \
   V(RegExpMatchInfo)                          \
   V(ScopeInfo)                                \
   V(ScriptContextTable)                       \
@@ -343,12 +344,13 @@ namespace internal {
 // - Have a unique instance type
 // - Define a custom body descriptor
 #define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
-  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)         \
-  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)       \
   APPLY(V, BytecodeArray, BYTECODE_ARRAY)                \
   APPLY(V, Code, CODE)                                   \
   APPLY(V, InstructionStream, INSTRUCTION_STREAM)        \
   APPLY(V, InterpreterData, INTERPRETER_DATA)            \
+  APPLY(V, ProtectedFixedArray, PROTECTED_FIXED_ARRAY)   \
+  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)         \
+  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)       \
   IF_WASM(APPLY, V, WasmTrustedInstanceData, WASM_TRUSTED_INSTANCE_DATA)
 
 #define TRUSTED_OBJECT_LIST1_ADAPTER(V, Name, NAME) V(Name)

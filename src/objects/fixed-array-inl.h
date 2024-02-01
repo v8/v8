@@ -316,13 +316,30 @@ template <class IsolateT>
 Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
                                                  int capacity) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  FixedArrayBase::kMaxLength)) {
+                  TrustedFixedArray::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
           capacity);
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
+  return result;
+}
+
+// static
+template <class IsolateT>
+Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
+                                                     int capacity) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  ProtectedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<ProtectedFixedArray> result = Handle<ProtectedFixedArray>::cast(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
@@ -406,6 +423,9 @@ OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
 CAST_ACCESSOR(TrustedFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(TrustedFixedArray, TrustedFixedArray::Super)
+
+CAST_ACCESSOR(ProtectedFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(ProtectedFixedArray, ProtectedFixedArray::Super)
 
 CAST_ACCESSOR(FixedDoubleArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
