@@ -147,6 +147,12 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
 // Pairs of flags that shouldn't be used together.
 const CONTRADICTORY_FLAGS = [
     ['--assert-types', '--stress-concurrent-inlining'],
+    ['--assert-types', '--stress-concurrent-inlining-attach-code'],
+    ['--jitless', '--maglev'],
+    ['--jitless', '--maglev-future'],
+    ['--jitless', '--stress-maglev'],
+    ['--jitless', '--stress-concurrent-inlining'],
+    ['--jitless', '--stress-concurrent-inlining-attach-code'],
 ]
 
 const MAX_FILE_SIZE_BYTES = 128 * 1024;  // 128KB
