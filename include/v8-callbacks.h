@@ -367,11 +367,6 @@ using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyWithImportAssertionsCallback =
-    MaybeLocal<Promise> (*)(Local<Context> context,
-                            Local<ScriptOrModule> referrer,
-                            Local<String> specifier,
-                            Local<FixedArray> import_attributes);
 using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,

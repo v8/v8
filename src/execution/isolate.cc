@@ -5529,9 +5529,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Object> maybe_import_options_argument) {
   DCHECK(!is_execution_terminating());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
-  if (host_import_module_dynamically_with_import_assertions_callback_ ==
-          nullptr &&
-      host_import_module_dynamically_callback_ == nullptr) {
+  if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     return NewRejectedPromise(this, api_context, exception);
@@ -5571,29 +5569,13 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     resource_name = handle(referrer->name(), this);
   }
 
-  if (host_import_module_dynamically_callback_) {
-    API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        this, promise,
-        host_import_module_dynamically_callback_(
-            api_context, v8::Utils::ToLocal(host_defined_options),
-            v8::Utils::ToLocal(resource_name),
-            v8::Utils::ToLocal(specifier_str),
-            ToApiHandle<v8::FixedArray>(import_attributes_array)),
-        MaybeHandle<JSPromise>());
-  } else {
-    // TODO(cbruni, v8:12302): Avoid creating temporary ScriptOrModule objects.
-    auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
-        this->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
-    script_or_module->set_resource_name(*resource_name);
-    script_or_module->set_host_defined_options(*host_defined_options);
-    API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        this, promise,
-        host_import_module_dynamically_with_import_assertions_callback_(
-            api_context, v8::Utils::ToLocal(script_or_module),
-            v8::Utils::ToLocal(specifier_str),
-            ToApiHandle<v8::FixedArray>(import_attributes_array)),
-        MaybeHandle<JSPromise>());
-  }
+  API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      this, promise,
+      host_import_module_dynamically_callback_(
+          api_context, v8::Utils::ToLocal(host_defined_options),
+          v8::Utils::ToLocal(resource_name), v8::Utils::ToLocal(specifier_str),
+          ToApiHandle<v8::FixedArray>(import_attributes_array)),
+      MaybeHandle<JSPromise>());
   return v8::Utils::OpenHandle(*promise);
 }
 
@@ -5724,14 +5706,7 @@ void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyCallback callback) {
-  DCHECK_NULL(host_import_module_dynamically_with_import_assertions_callback_);
   host_import_module_dynamically_callback_ = callback;
-}
-
-void Isolate::SetHostImportModuleDynamicallyCallback(
-    HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
-  DCHECK_NULL(host_import_module_dynamically_callback_);
-  host_import_module_dynamically_with_import_assertions_callback_ = callback;
 }
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
