@@ -949,7 +949,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   size_t new_pages = old_pages + pages;
-  DCHECK_LT(old_pages, new_pages);
+  // Check for overflow (should be excluded via {max_pages} above).
+  DCHECK_LE(old_pages, new_pages);
+  // Trying to grow in-place without actually growing must always succeed.
+  DCHECK_IMPLIES(try_grow_in_place, old_pages < new_pages);
+
   // Try allocating a new backing store and copying.
   // To avoid overall quadratic complexity of many small grow operations, we
   // grow by at least 0.5 MB + 12.5% of the existing memory size.
@@ -960,7 +964,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // {min_growth} can be bigger than {max_pages}, and in that case we want to
   // cap to {max_pages}.
   size_t new_capacity = std::min(max_pages, std::max(new_pages, min_growth));
-  DCHECK_LT(old_pages, new_capacity);
+  DCHECK_LE(new_pages, new_capacity);
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages, new_capacity,
                                     memory_object->is_memory64()
