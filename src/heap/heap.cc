@@ -5164,6 +5164,12 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
+size_t Heap::YoungGenerationSizeOfObjects() const {
+  if (!new_space()) return 0;
+  DCHECK_NOT_NULL(new_lo_space());
+  return new_space()->SizeOfObjects() + new_lo_space()->SizeOfObjects();
+}
+
 size_t Heap::EmbedderSizeOfObjects() const {
   return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
 }
@@ -5183,6 +5189,9 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 
   uint64_t size_now =
       OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+  if (v8_flags.minor_ms && incremental_marking()->IsMajorMarking()) {
+    size_now += YoungGenerationSizeOfObjects();
+  }
 
   const size_t v8_overshoot = old_generation_allocation_limit() < size_now
                                   ? size_now - old_generation_allocation_limit()
@@ -5283,7 +5292,8 @@ bool Heap::ShouldExpandYoungGenerationOnSlowAllocation() {
     return false;
   }
 
-  if (incremental_marking()->IsMajorMarking()) {
+  if (incremental_marking()->IsMajorMarking() &&
+      !AllocationLimitOvershotByLargeMargin()) {
     // Allocate a new page during full GC incremental marking to avoid
     // prematurely finalizing the incremental GC. Once the full GC is over, new
     // space will be empty and capacity will be reset.
