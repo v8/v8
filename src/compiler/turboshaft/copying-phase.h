@@ -321,7 +321,6 @@ class GraphVisitor : public VariableReducer<AfterNext> {
 
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
-    current_input_block_ = input_block;
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
     if constexpr (trace_reduction) {
@@ -364,6 +363,7 @@ class GraphVisitor : public VariableReducer<AfterNext> {
   void VisitBlockBody(const Block* input_block,
                       int added_block_phi_input = -1) {
     DCHECK_NOT_NULL(Asm().current_block());
+    current_input_block_ = input_block;
 
     // Phis could be mutually recursive, for instance (in a loop header):
     //
@@ -580,7 +580,6 @@ class GraphVisitor : public VariableReducer<AfterNext> {
                 << "\n";
     }
 
-    current_input_block_ = input_block;
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
 
     Asm().BindReachable(output_block);

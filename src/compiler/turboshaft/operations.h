@@ -3511,8 +3511,8 @@ struct CallOp : OperationT<CallOp> {
     return inputs().SubVector(1 + HasFrameState(), input_count);
   }
   // Returns true if this call is a JS (but not wasm) stack check.
-  bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
-                    StackCheckKind kind) const;
+  V8_EXPORT_PRIVATE bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
+                                      StackCheckKind kind) const;
 
   CallOp(OpIndex callee, OpIndex frame_state,
          base::Vector<const OpIndex> arguments,

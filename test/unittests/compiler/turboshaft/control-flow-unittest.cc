@@ -6,8 +6,10 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/loop-peeling-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/simplified-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -108,6 +110,29 @@ TEST_F(ControlFlowTest, BranchElimination) {
   static constexpr int kMaxOtherBlocksCount = 10;
   ASSERT_LE(test.graph().block_count(),
             static_cast<size_t>(kSize * 2 + kMaxOtherBlocksCount));
+}
+
+// When the block following a loop header has a single predecessor and contains
+// Phis with a single input, loop peeling should be careful not to think that
+// these phis are loop phis.
+TEST_F(ControlFlowTest, LoopPeelingSingleInputPhi) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    Block* loop = __ NewLoopHeader();
+    Block *loop_body = __ NewBlock(), *outside = __ NewBlock();
+    OpIndex cond = Asm.GetParameter(0);
+    __ Goto(loop);
+    __ Bind(loop);
+    OpIndex cst = __ Word32Constant(42);
+    __ Goto(loop_body);
+    __ Bind(loop_body);
+    OpIndex phi = __ Phi({cst}, RegisterRepresentation::Word32());
+    __ GotoIf(phi, outside);
+    __ Goto(loop);
+    __ Bind(outside);
+    __ Return(__ Word32Constant(17));
+  });
+
+  test.Run<LoopPeelingReducer>();
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
