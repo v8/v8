@@ -1720,9 +1720,6 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kDataViewByteLength:
         V<Tagged> dataview = args[0].op;
 
-        Label<WordPtr> done_label(&asm_);
-        Label<> type_error_label(&asm_);
-
         V<WordPtr> view_byte_length =
             GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
         if constexpr (Is64()) {
