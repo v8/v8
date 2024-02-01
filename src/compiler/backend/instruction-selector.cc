@@ -2043,9 +2043,22 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWordToTagged(
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastSmiToWord(
     node_t node) {
+  // TODO(dmercadier): using EmitIdentity here is not ideal, because users of
+  // {node} will then use its input, which may not have the Word32
+  // representation. This might in turn lead to the register allocator wrongly
+  // tracking Tagged values that are in fact just Smis. However, using
+  // Emit(kArchNop) hurts performance because it inserts a gap move which cannot
+  // always be eliminated because the operands may have different sizes (and the
+  // move is then truncating or extending). As a temporary work-around until the
+  // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
+  // the register allocator verifier.
+#ifdef DEBUG
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
+#else
+  EmitIdentity(node);
+#endif
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -5038,21 +5051,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           if constexpr (Is64()) {
             DCHECK_EQ(cast.kind, TaggedBitcastOp::Kind::kSmi);
             DCHECK(SmiValuesAre31Bits());
-            // TODO(dmercadier): using EmitIdentity here is not ideal, because
-            // users of {node} will then use its input, which may not have the
-            // Word32 representation. This might in turn lead to the register
-            // allocator wrongly tracking Tagged values that are in fact just
-            // Smis. However, using VisitBitcastSmiToWord hurts performance
-            // because it inserts a gap move which cannot always be eliminated
-            // because the operands may have different sizes (and the move is
-            // then truncating or extending). As a temporary work-around until
-            // the register allocator is fixed, we use VisitBitcastSmiToWord in
-            // DEBUG mode to quiet the register allocator verifier.
-#ifdef DEBUG
             return VisitBitcastSmiToWord(node);
-#else
-            return EmitIdentity(node);
-#endif
           } else {
             return VisitBitcastTaggedToWord(node);
           }
