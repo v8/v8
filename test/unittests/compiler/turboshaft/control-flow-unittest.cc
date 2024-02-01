@@ -6,6 +6,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/branch-elimination-reducer.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/loop-peeling-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -133,6 +134,43 @@ TEST_F(ControlFlowTest, LoopPeelingSingleInputPhi) {
   });
 
   test.Run<LoopPeelingReducer>();
+}
+
+// This test checks that DeadCodeElimination (DCE) eliminates dead blocks
+// regardless or whether they are reached through a Goto or a Branch.
+TEST_F(ControlFlowTest, DCEGoto) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    // This whole graph only contains unused operations (except for the final
+    // Return).
+    Block *b1 = __ NewBlock(), *b2 = __ NewBlock(), *b3 = __ NewBlock(),
+          *b4 = __ NewBlock();
+    __ Bind(b1);
+    __ Word32Constant(71);
+    __ Goto(b4);
+    __ Bind(b4);
+    OpIndex cond = Asm.GetParameter(0);
+    IF (cond) {
+      __ Word32Constant(47);
+      __ Goto(b2);
+      __ Bind(b2);
+      __ Word32Constant(53);
+    }
+    ELSE {
+      __ Word32Constant(19);
+    }
+    END_IF
+    __ Word32Constant(42);
+    __ Goto(b3);
+    __ Bind(b3);
+    __ Return(__ Word32Constant(17));
+  });
+
+  test.Run<DeadCodeEliminationReducer>();
+
+  // The final graph should contain at most 2 blocks (we currently don't
+  // eliminate the initial empty block, so we end up with 2 blocks rather than
+  // 1; a subsequent optimization phase would remove the empty 1st block).
+  ASSERT_LE(test.graph().block_count(), static_cast<size_t>(2));
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
