@@ -1187,21 +1187,6 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
           name, descriptors->GetFieldIndex(descriptor), details.attributes(),
           new_constness, new_representation, new_wrapped_type);
       descriptors->Replace(descriptor, &d);
-
-      // Update the enum cache indices to have an up-to-date is_double bit.
-      if (details.representation().IsDouble() !=
-              new_representation.IsDouble() &&
-          descriptors->enum_cache()->indices()->length() > 0) {
-        Tagged<Smi> enum_cache_index = Smi::cast(
-            descriptors->enum_cache()->indices()->get(descriptor.as_int()));
-        DCHECK_EQ((enum_cache_index.value() & 1),
-                  details.representation().IsDouble());
-        enum_cache_index = Smi::FromInt(enum_cache_index.value() ^ 1);
-        DCHECK_EQ((enum_cache_index.value() & 1),
-                  new_representation.IsDouble());
-        descriptors->enum_cache()->indices()->set(descriptor.as_int(),
-                                                  enum_cache_index);
-      }
     }
   }
 }
