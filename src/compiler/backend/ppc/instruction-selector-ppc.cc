@@ -122,15 +122,17 @@ void VisitRRO(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void VisitTryTruncateDouble(InstructionSelectorT<Adapter>* selector,
-                            InstructionCode opcode, Node* node) {
+                            InstructionCode opcode,
+                            typename Adapter::node_t node) {
+  using node_t = typename Adapter::node_t;
   PPCOperandGeneratorT<Adapter> g(selector);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand inputs[] = {g.UseRegister(selector->input_at(node, 0))};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
+  node_t success_output = selector->FindProjection(node, 1);
+  if (selector->valid(success_output)) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
   }
 
@@ -195,6 +197,7 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
+    // This is currently not used by Turboshaft.
     UNIMPLEMENTED();
   } else {
     PPCOperandGeneratorT<Adapter> g(this);
@@ -210,7 +213,7 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector,
   PPCOperandGeneratorT<Adapter> g(selector);
   auto load_view = selector->load_view(node);
   node_t base = load_view.base();
-  node_t offset = selector->value(load_view.index());
+  node_t offset = load_view.index();
 
   InstructionCode opcode = kArchNop;
   ImmediateMode mode;
@@ -1377,11 +1380,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Rol(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     UNREACHABLE();
-  }
 }
 
 template <typename Adapter>
@@ -1392,70 +1391,46 @@ void InstructionSelectorT<Adapter>::VisitWord64Rol(node_t node) {
 // TODO(mbrandy): Absorb logical-and into rlwinm?
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRO(this, kPPC_RotRight32, node, kShift32Imm);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 // TODO(mbrandy): Absorb logical-and into rldic?
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRO(this, kPPC_RotRight64, node, kShift64Imm);
-  }
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Clz(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_Cntlz32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_Cntlz64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 #endif
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_Popcnt32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Popcnt(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_Popcnt64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
+         g.UseRegister(this->input_at(node, 0)));
 }
 #endif
 
@@ -1486,7 +1461,26 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    PPCOperandGeneratorT<Adapter> g(this);
+    InstructionOperand temp[] = {g.TempRegister()};
+    node_t input = this->Get(node).input(0);
+    const Operation& input_op = this->Get(input);
+    if (CanCover(node, input) && input_op.Is<LoadOp>()) {
+      auto load = this->load_view(input);
+      LoadRepresentation load_rep = load.loaded_rep();
+      if (load_rep.representation() == MachineRepresentation::kWord64) {
+        node_t base = load.base();
+        node_t offset = load.index();
+        bool is_atomic = load.is_atomic();
+        Emit(kPPC_LoadByteRev64 | AddressingModeField::encode(kMode_MRR),
+             g.DefineAsRegister(node), g.UseRegister(base),
+             g.UseRegister(offset), g.UseImmediate(is_atomic));
+        return;
+      }
+    }
+    Emit(kPPC_ByteRev64, g.DefineAsRegister(node),
+         g.UseUniqueRegister(this->input_at(node, 0)), 1, temp);
   } else {
     PPCOperandGeneratorT<Adapter> g(this);
     InstructionOperand temp[] = {g.TempRegister()};
@@ -1513,7 +1507,25 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    PPCOperandGeneratorT<Adapter> g(this);
+    node_t input = this->Get(node).input(0);
+    const Operation& input_op = this->Get(input);
+    if (CanCover(node, input) && input_op.Is<LoadOp>()) {
+      auto load = this->load_view(input);
+      LoadRepresentation load_rep = load.loaded_rep();
+      if (load_rep.representation() == MachineRepresentation::kWord32) {
+        node_t base = load.base();
+        node_t offset = load.index();
+        bool is_atomic = load.is_atomic();
+        Emit(kPPC_LoadByteRev32 | AddressingModeField::encode(kMode_MRR),
+             g.DefineAsRegister(node), g.UseRegister(base),
+             g.UseRegister(offset), g.UseImmediate(is_atomic));
+        return;
+      }
+    }
+    Emit(kPPC_ByteRev32, g.DefineAsRegister(node),
+         g.UseUniqueRegister(this->input_at(node, 0)));
   } else {
     PPCOperandGeneratorT<Adapter> g(this);
     NodeMatcher input(node->InputAt(0));
@@ -1668,46 +1680,34 @@ void InstructionSelectorT<Adapter>::VisitInt64Mul(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_MulHigh32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-  }
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_MulHighU32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-  }
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_MulHighS64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-  }
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_MulHighU64, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-  }
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
@@ -1814,21 +1814,13 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
-  }
 }
 
 template <typename Adapter>
@@ -1839,52 +1831,32 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToInt32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
     node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitTryTruncateDouble(this, kPPC_DoubleToUint32, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     DCHECK(SmiValuesAre31Bits());
     DCHECK(COMPRESS_POINTERS_BOOL);
     EmitIdentity(node);
-  }
 }
 
 template <typename Adapter>
@@ -1951,11 +1923,17 @@ void InstructionSelectorT<Adapter>::VisitRoundFloat64ToInt32(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& op = this->Get(node);
+    InstructionCode opcode = kPPC_Float32ToInt32;
+    if (op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>()) {
+      opcode |= MiscField::encode(true);
+    }
+    Emit(opcode, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
-
     InstructionCode opcode = kPPC_Float32ToInt32;
     TruncateKind kind = OpParameter<TruncateKind>(node->op());
     if (kind == TruncateKind::kSetOverflowToMin) {
@@ -1968,10 +1946,18 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& op = this->Get(node);
+    InstructionCode opcode = kPPC_Float32ToUint32;
+    if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
+      opcode |= MiscField::encode(true);
+    }
+
+    Emit(opcode, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
   } else {
-    PPCOperandGeneratorT<Adapter> g(this);
 
     InstructionCode opcode = kPPC_Float32ToUint32;
     TruncateKind kind = OpParameter<TruncateKind>(node->op());
@@ -2085,14 +2071,11 @@ void InstructionSelectorT<Adapter>::VisitFloat64Div(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_ModDouble, g.DefineAsFixed(node, d1),
-         g.UseFixed(node->InputAt(0), d1), g.UseFixed(node->InputAt(1), d2))
+         g.UseFixed(this->input_at(node, 0), d1),
+         g.UseFixed(this->input_at(node, 1), d2))
         ->MarkAsCall();
-  }
 }
 
 template <typename Adapter>
@@ -2206,76 +2189,61 @@ void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32, kInt16Imm,
-                                 &cont);
-    }
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32, kInt16Imm,
+                               &cont);
+  }
     FlagsContinuation cont;
     VisitBinop<Adapter>(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32,
-                                 kInt16Imm_Negate, &cont);
-    }
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32,
+                               kInt16Imm_Negate, &cont);
+  }
     FlagsContinuation cont;
     VisitBinop<Adapter>(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate,
                         &cont);
-  }
 }
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm, &cont);
-    }
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm, &cont);
+  }
     FlagsContinuation cont;
     VisitBinop<Adapter>(this, node, kPPC_Add64, kInt16Imm, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
-    }
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+  }
     FlagsContinuation cont;
     VisitBinop<Adapter>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-      return EmitInt64MulWithOverflow(this, node, &cont);
-    }
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
+  }
     FlagsContinuation cont;
     EmitInt64MulWithOverflow(this, node, &cont);
-  }
 }
 #endif
 
@@ -2817,16 +2785,13 @@ void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+  node_t ovf = FindProjection(node, 1);
+  if (this->valid(ovf)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
     return EmitInt32MulWithOverflow(this, node, &cont);
   }
   FlagsContinuation cont;
   EmitInt32MulWithOverflow(this, node, &cont);
-  }
 }
 
 template <typename Adapter>
@@ -2916,24 +2881,16 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64ExtractLowWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   PPCOperandGeneratorT<Adapter> g(this);
   Emit(kPPC_DoubleExtractLowWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-  }
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   PPCOperandGeneratorT<Adapter> g(this);
   Emit(kPPC_DoubleExtractHighWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-  }
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -2978,12 +2935,8 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   PPCOperandGeneratorT<Adapter> g(this);
   Emit(kPPC_Sync, g.NoOutput());
-  }
 }
 
 template <typename Adapter>
@@ -3025,12 +2978,14 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
 }
 
 template <typename Adapter>
-void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
-                         ArchOpcode opcode) {
+void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node, ArchOpcode opcode) {
+  using node_t = typename Adapter::node_t;
   PPCOperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRR;
   InstructionOperand inputs[3];
@@ -3044,66 +2999,90 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
   selector->Emit(code, 1, outputs, input_count, inputs);
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
-    node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
-    Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(node_t node) {
   ArchOpcode opcode;
-  MachineType type = AtomicOpType(node->op());
-  if (type == MachineType::Int8()) {
-    opcode = kAtomicExchangeInt8;
-  } else if (type == MachineType::Uint8()) {
-    opcode = kPPC_AtomicExchangeUint8;
-  } else if (type == MachineType::Int16()) {
-    opcode = kAtomicExchangeInt16;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_AtomicExchangeUint16;
-  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kPPC_AtomicExchangeWord32;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+      opcode = kAtomicExchangeInt8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+      opcode = kPPC_AtomicExchangeUint8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+      opcode = kAtomicExchangeInt16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+      opcode = kPPC_AtomicExchangeUint16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
+               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+      opcode = kPPC_AtomicExchangeWord32;
+    } else {
+      UNREACHABLE();
+    }
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    if (type == MachineType::Int8()) {
+      opcode = kAtomicExchangeInt8;
+    } else if (type == MachineType::Uint8()) {
+      opcode = kPPC_AtomicExchangeUint8;
+    } else if (type == MachineType::Int16()) {
+      opcode = kAtomicExchangeInt16;
+    } else if (type == MachineType::Uint16()) {
+      opcode = kPPC_AtomicExchangeUint16;
+    } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+      opcode = kPPC_AtomicExchangeWord32;
+    } else {
+      UNREACHABLE();
+    }
   }
   VisitAtomicExchange(this, node, opcode);
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
-    node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicExchange(
-    Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(node_t node) {
   ArchOpcode opcode;
-  MachineType type = AtomicOpType(node->op());
-  if (type == MachineType::Uint8()) {
-    opcode = kPPC_AtomicExchangeUint8;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_AtomicExchangeUint16;
-  } else if (type == MachineType::Uint32()) {
-    opcode = kPPC_AtomicExchangeWord32;
-  } else if (type == MachineType::Uint64()) {
-    opcode = kPPC_AtomicExchangeWord64;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+    if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+      opcode = kPPC_AtomicExchangeUint8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+      opcode = kPPC_AtomicExchangeUint16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+      opcode = kPPC_AtomicExchangeWord32;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+      opcode = kPPC_AtomicExchangeWord64;
+    } else {
+      UNREACHABLE();
+    }
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    if (type == MachineType::Uint8()) {
+      opcode = kPPC_AtomicExchangeUint8;
+    } else if (type == MachineType::Uint16()) {
+      opcode = kPPC_AtomicExchangeUint16;
+    } else if (type == MachineType::Uint32()) {
+      opcode = kPPC_AtomicExchangeWord32;
+    } else if (type == MachineType::Uint64()) {
+      opcode = kPPC_AtomicExchangeWord64;
+    } else {
+      UNREACHABLE();
+    }
   }
   VisitAtomicExchange(this, node, opcode);
 }
 
 template <typename Adapter>
 void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
-                                Node* node, ArchOpcode opcode) {
+                                typename Adapter::node_t node,
+                                ArchOpcode opcode) {
+  using node_t = typename Adapter::node_t;
   PPCOperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* old_value = node->InputAt(2);
-  Node* new_value = node->InputAt(3);
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t old_value = atomic_op.expected();
+  node_t new_value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRR;
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
@@ -3122,91 +3101,140 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
     node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
-    Node* node) {
-  MachineType type = AtomicOpType(node->op());
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   ArchOpcode opcode;
-  if (type == MachineType::Int8()) {
-    opcode = kAtomicCompareExchangeInt8;
-  } else if (type == MachineType::Uint8()) {
-    opcode = kPPC_AtomicCompareExchangeUint8;
-  } else if (type == MachineType::Int16()) {
-    opcode = kAtomicCompareExchangeInt16;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_AtomicCompareExchangeUint16;
-  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kPPC_AtomicCompareExchangeWord32;
+  if constexpr (Adapter::IsTurboshaft) {
+    const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+      opcode = kAtomicCompareExchangeInt8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+      opcode = kPPC_AtomicCompareExchangeUint8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+      opcode = kAtomicCompareExchangeInt16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+      opcode = kPPC_AtomicCompareExchangeUint16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
+               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+      opcode = kPPC_AtomicCompareExchangeWord32;
+    } else {
+      UNREACHABLE();
+    }
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    if (type == MachineType::Int8()) {
+      opcode = kAtomicCompareExchangeInt8;
+    } else if (type == MachineType::Uint8()) {
+      opcode = kPPC_AtomicCompareExchangeUint8;
+    } else if (type == MachineType::Int16()) {
+      opcode = kAtomicCompareExchangeInt16;
+    } else if (type == MachineType::Uint16()) {
+      opcode = kPPC_AtomicCompareExchangeUint16;
+    } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+      opcode = kPPC_AtomicCompareExchangeWord32;
+    } else {
+      UNREACHABLE();
+    }
   }
   VisitAtomicCompareExchange(this, node, opcode);
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
     node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
-    Node* node) {
-  MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
-  if (type == MachineType::Uint8()) {
-    opcode = kPPC_AtomicCompareExchangeUint8;
-  } else if (type == MachineType::Uint16()) {
-    opcode = kPPC_AtomicCompareExchangeUint16;
-  } else if (type == MachineType::Uint32()) {
-    opcode = kPPC_AtomicCompareExchangeWord32;
-  } else if (type == MachineType::Uint64()) {
-    opcode = kPPC_AtomicCompareExchangeWord64;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+    if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+      opcode = kPPC_AtomicCompareExchangeUint8;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+      opcode = kPPC_AtomicCompareExchangeUint16;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+      opcode = kPPC_AtomicCompareExchangeWord32;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+      opcode = kPPC_AtomicCompareExchangeWord64;
+    } else {
+      UNREACHABLE();
+    }
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    if (type == MachineType::Uint8()) {
+      opcode = kPPC_AtomicCompareExchangeUint8;
+    } else if (type == MachineType::Uint16()) {
+      opcode = kPPC_AtomicCompareExchangeUint16;
+    } else if (type == MachineType::Uint32()) {
+      opcode = kPPC_AtomicCompareExchangeWord32;
+    } else if (type == MachineType::Uint64()) {
+      opcode = kPPC_AtomicCompareExchangeWord64;
+    } else {
+      UNREACHABLE();
+    }
   }
   VisitAtomicCompareExchange(this, node, opcode);
 }
 
 template <typename Adapter>
 void VisitAtomicBinaryOperation(InstructionSelectorT<Adapter>* selector,
-                                Node* node, ArchOpcode int8_op,
-                                ArchOpcode uint8_op, ArchOpcode int16_op,
-                                ArchOpcode uint16_op, ArchOpcode int32_op,
-                                ArchOpcode uint32_op, ArchOpcode int64_op,
-                                ArchOpcode uint64_op) {
+                                typename Adapter::node_t node,
+                                ArchOpcode int8_op, ArchOpcode uint8_op,
+                                ArchOpcode int16_op, ArchOpcode uint16_op,
+                                ArchOpcode int32_op, ArchOpcode uint32_op,
+                                ArchOpcode int64_op, ArchOpcode uint64_op) {
+  using node_t = typename Adapter::node_t;
   PPCOperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  MachineType type = AtomicOpType(node->op());
+  auto atomic_op = selector->atomic_rmw_view(node);
+  node_t base = atomic_op.base();
+  node_t index = atomic_op.index();
+  node_t value = atomic_op.value();
 
   ArchOpcode opcode;
-
-  if (type == MachineType::Int8()) {
-    opcode = int8_op;
-  } else if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (type == MachineType::Int16()) {
-    opcode = int16_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Int32()) {
-    opcode = int32_op;
-  } else if (type == MachineType::Uint32()) {
-    opcode = uint32_op;
-  } else if (type == MachineType::Int64()) {
-    opcode = int64_op;
-  } else if (type == MachineType::Uint64()) {
-    opcode = uint64_op;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const AtomicRMWOp& atomic_op =
+        selector->Get(node).template Cast<AtomicRMWOp>();
+    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+      opcode = int8_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+      opcode = uint8_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+      opcode = int16_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+      opcode = uint16_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int32()) {
+      opcode = int32_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+      opcode = uint32_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Int64()) {
+      opcode = int64_op;
+    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+      opcode = uint64_op;
+    } else {
+      UNREACHABLE();
+    }
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    if (type == MachineType::Int8()) {
+      opcode = int8_op;
+    } else if (type == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (type == MachineType::Int16()) {
+      opcode = int16_op;
+    } else if (type == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (type == MachineType::Int32()) {
+      opcode = int32_op;
+    } else if (type == MachineType::Uint32()) {
+      opcode = uint32_op;
+    } else if (type == MachineType::Int64()) {
+      opcode = int64_op;
+    } else if (type == MachineType::Uint64()) {
+      opcode = uint64_op;
+    } else {
+      UNREACHABLE();
+    }
   }
 
   AddressingMode addressing_mode = kMode_MRR;
@@ -3244,27 +3272,19 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
 #define VISIT_ATOMIC_BINOP(op)                                             \
   template <typename Adapter>                                              \
   void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                                 \
-      UNIMPLEMENTED();                                                     \
-    } else {                                                               \
       VisitAtomicBinaryOperation(                                          \
           this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,       \
           kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                 \
           kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                 \
           kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                \
-    }                                                                      \
   }                                                                        \
   template <typename Adapter>                                              \
   void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                                 \
-      UNIMPLEMENTED();                                                     \
-    } else {                                                               \
       VisitAtomicBinaryOperation(                                          \
           this, node, kPPC_Atomic##op##Int8, kPPC_Atomic##op##Uint8,       \
           kPPC_Atomic##op##Int16, kPPC_Atomic##op##Uint16,                 \
           kPPC_Atomic##op##Int32, kPPC_Atomic##op##Uint32,                 \
           kPPC_Atomic##op##Int64, kPPC_Atomic##op##Uint64);                \
-    }                                                                      \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -3472,19 +3492,22 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(S128Not)                   \
   V(V128AnyTrue)
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                  \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign(     \
-      node_t node) {                                                      \
-    if constexpr (Adapter::IsTurboshaft) {                                \
-      UNIMPLEMENTED();                                                    \
-    } else {                                                              \
-      PPCOperandGeneratorT<Adapter> g(this);                              \
-      int32_t lane = OpParameter<int32_t>(node->op());                    \
-      Emit(kPPC_##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize), \
-           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),     \
-           g.UseImmediate(lane));                                         \
-    }                                                                     \
+#define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                   \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign(      \
+      node_t node) {                                                       \
+    PPCOperandGeneratorT<Adapter> g(this);                                 \
+    int32_t lane;                                                          \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      using namespace turboshaft; /* NOLINT(build/namespaces) */           \
+      const Operation& op = this->Get(node);                               \
+      lane = op.template Cast<Simd128ExtractLaneOp>().lane;                \
+    } else {                                                               \
+      lane = OpParameter<int32_t>(node->op());                             \
+    }                                                                      \
+    Emit(kPPC_##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize),    \
+         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)), \
+         g.UseImmediate(lane));                                            \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
 SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
@@ -3499,15 +3522,18 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
 #define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                            \
   template <typename Adapter>                                                 \
   void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
+    PPCOperandGeneratorT<Adapter> g(this);                                    \
+    int32_t lane;                                                             \
     if constexpr (Adapter::IsTurboshaft) {                                    \
-      UNIMPLEMENTED();                                                        \
+      using namespace turboshaft; /* NOLINT(build/namespaces) */              \
+      const Operation& op = this->Get(node);                                  \
+      lane = op.template Cast<Simd128ReplaceLaneOp>().lane;                   \
     } else {                                                                  \
-      PPCOperandGeneratorT<Adapter> g(this);                                  \
-      int32_t lane = OpParameter<int32_t>(node->op());                        \
-      Emit(kPPC_##T##ReplaceLane | LaneSizeField::encode(LaneSize),           \
-           g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),        \
-           g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));            \
+      lane = OpParameter<int32_t>(node->op());                                \
     }                                                                         \
+    Emit(kPPC_##T##ReplaceLane | LaneSizeField::encode(LaneSize),             \
+         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),   \
+         g.UseImmediate(lane), g.UseRegister(this->input_at(node, 1)));       \
   }
 SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
 SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
@@ -3517,18 +3543,14 @@ SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
 SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_BINOP(Opcode)                                             \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {           \
-    if constexpr (Adapter::IsTurboshaft) {                                   \
-      UNIMPLEMENTED();                                                       \
-    } else {                                                                 \
-      PPCOperandGeneratorT<Adapter> g(this);                                 \
-      InstructionOperand temps[] = {g.TempRegister()};                       \
-      Emit(kPPC_##Opcode, g.DefineAsRegister(node),                          \
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
-           arraysize(temps), temps);                                         \
-    }                                                                        \
+#define SIMD_VISIT_BINOP(Opcode)                                           \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {         \
+    PPCOperandGeneratorT<Adapter> g(this);                                 \
+    InstructionOperand temps[] = {g.TempRegister()};                       \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                          \
+         g.UseRegister(this->input_at(node, 0)),                           \
+         g.UseRegister(this->input_at(node, 1)), arraysize(temps), temps); \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
@@ -3537,29 +3559,22 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #define SIMD_VISIT_UNOP(Opcode)                                    \
   template <typename Adapter>                                      \
   void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                         \
-      UNIMPLEMENTED();                                             \
-    } else {                                                       \
-      PPCOperandGeneratorT<Adapter> g(this);                       \
-      Emit(kPPC_##Opcode, g.DefineAsRegister(node),                \
-           g.UseRegister(node->InputAt(0)));                       \
-    }                                                              \
+    PPCOperandGeneratorT<Adapter> g(this);                         \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                  \
+         g.UseRegister(this->input_at(node, 0)));                  \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_QFMOP(Opcode)                                             \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {           \
-    if constexpr (Adapter::IsTurboshaft) {                                   \
-      UNIMPLEMENTED();                                                       \
-    } else {                                                                 \
-      PPCOperandGeneratorT<Adapter> g(this);                                 \
-      Emit(kPPC_##Opcode, g.DefineSameAsFirst(node),                         \
-           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
-           g.UseRegister(node->InputAt(2)));                                 \
-    }                                                                        \
+#define SIMD_VISIT_QFMOP(Opcode)                                   \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    PPCOperandGeneratorT<Adapter> g(this);                         \
+    Emit(kPPC_##Opcode, g.DefineSameAsFirst(node),                 \
+         g.UseRegister(this->input_at(node, 0)),                   \
+         g.UseRegister(this->input_at(node, 1)),                   \
+         g.UseRegister(this->input_at(node, 2)));                  \
   }
 SIMD_VISIT_QFMOP(F64x2Qfma)
 SIMD_VISIT_QFMOP(F64x2Qfms)
@@ -3595,9 +3610,6 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
     // TODO(nicohartmann@): Properly use view here once Turboshaft support is
@@ -3605,8 +3617,8 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
     auto view = this->simd_shuffle_view(node);
     CanonicalizeShuffle(view, shuffle, &is_swizzle);
     PPCOperandGeneratorT<Adapter> g(this);
-    Node* input0 = node->InputAt(0);
-    Node* input1 = node->InputAt(1);
+    node_t input0 = view.input(0);
+    node_t input1 = view.input(1);
     // Remap the shuffle indices to match IBM lane numbering.
     int max_index = 15;
     int total_lane_count = 2 * kSimd128Size;
@@ -3624,22 +3636,14 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
-  }
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   OperandGenerator g(this);
   // TODO(miladfarca): Optimize by using UseAny.
-  auto input = g.UseRegister(node->InputAt(0));
+  auto input = g.UseRegister(this->input_at(node, 0));
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
-
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
-    node_t node) {
-  // TODO(miladfarca): Implement.
-  UNREACHABLE();
 }
 
 #else
@@ -3651,24 +3655,17 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_S128Zero, g.DefineAsRegister(node));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_S128Select, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseRegister(node->InputAt(2)));
-  }
+         g.UseRegister(this->input_at(node, 0)),
+         g.UseRegister(this->input_at(node, 1)),
+         g.UseRegister(this->input_at(node, 2)));
 }
 
 // This is a replica of SimdShuffle::Pack4Lanes. However, above function will
@@ -3685,12 +3682,15 @@ static int32_t Pack4Lanes(const uint8_t* shuffle) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     uint32_t val[kSimd128Size / sizeof(uint32_t)];
-    memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+    if constexpr (Adapter::IsTurboshaft) {
+      const turboshaft::Simd128ConstantOp& constant =
+          this->Get(node).template Cast<turboshaft::Simd128ConstantOp>();
+      memcpy(val, constant.value, kSimd128Size);
+    } else {
+      memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+    }
     // If all bytes are zeros, avoid emitting code for generic constants.
     bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
     bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -3710,32 +3710,23 @@ void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
           g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 8)),
           g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 12)));
     }
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_I16x8DotI8x16S, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
-  }
+         g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseUniqueRegister(this->input_at(node, 1)));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
     Emit(kPPC_I32x4DotI8x16AddS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)),
-         g.UseUniqueRegister(node->InputAt(2)));
-  }
+         g.UseUniqueRegister(this->input_at(node, 0)),
+         g.UseUniqueRegister(this->input_at(node, 1)),
+         g.UseUniqueRegister(this->input_at(node, 2)));
 }
 
 template <typename Adapter>
@@ -3766,11 +3757,35 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
+  InstructionCode opcode = kArchNop;
+  int32_t lane;
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Simd128LaneMemoryOp& load =
+        this->Get(node).template Cast<Simd128LaneMemoryOp>();
+    lane = load.lane;
+    switch (load.lane_kind) {
+      case Simd128LaneMemoryOp::LaneKind::k8:
+        opcode = kPPC_S128Load8Lane;
+        break;
+      case Simd128LaneMemoryOp::LaneKind::k16:
+        opcode = kPPC_S128Load16Lane;
+        break;
+      case Simd128LaneMemoryOp::LaneKind::k32:
+        opcode = kPPC_S128Load32Lane;
+        break;
+      case Simd128LaneMemoryOp::LaneKind::k64:
+        opcode = kPPC_S128Load64Lane;
+        break;
+    }
+    Emit(opcode | AddressingModeField::encode(kMode_MRR),
+         g.DefineSameAsFirst(node), g.UseRegister(load.value()),
+         g.UseRegister(load.base()), g.UseRegister(load.index()),
+         g.UseImmediate(lane));
   } else {
     LoadLaneParameters params = LoadLaneParametersOf(node->op());
-    InstructionCode opcode = kArchNop;
+    lane = params.laneidx;
     if (params.rep == MachineType::Int8()) {
       opcode = kPPC_S128Load8Lane;
     } else if (params.rep == MachineType::Int16()) {
@@ -3782,8 +3797,6 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
     } else {
       UNREACHABLE();
     }
-
-    PPCOperandGeneratorT<Adapter> g(this);
     Emit(opcode | AddressingModeField::encode(kMode_MRR),
          g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
@@ -3793,15 +3806,63 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoadTransform(node_t node) {
+  PPCOperandGeneratorT<Adapter> g(this);
+  ArchOpcode opcode;
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Simd128LoadTransformOp& op =
+        this->Get(node).template Cast<Simd128LoadTransformOp>();
+    node_t base = op.base();
+    node_t index = op.index();
+
+    switch (op.transform_kind) {
+      case Simd128LoadTransformOp::TransformKind::k8Splat:
+        opcode = kPPC_S128Load8Splat;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k16Splat:
+        opcode = kPPC_S128Load16Splat;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k32Splat:
+        opcode = kPPC_S128Load32Splat;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k64Splat:
+        opcode = kPPC_S128Load64Splat;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k8x8S:
+        opcode = kPPC_S128Load8x8S;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k8x8U:
+        opcode = kPPC_S128Load8x8U;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k16x4S:
+        opcode = kPPC_S128Load16x4S;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k16x4U:
+        opcode = kPPC_S128Load16x4U;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k32x2S:
+        opcode = kPPC_S128Load32x2S;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k32x2U:
+        opcode = kPPC_S128Load32x2U;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k32Zero:
+        opcode = kPPC_S128Load32Zero;
+        break;
+      case Simd128LoadTransformOp::TransformKind::k64Zero:
+        opcode = kPPC_S128Load64Zero;
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
+    Emit(opcode | AddressingModeField::encode(kMode_MRR),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
   } else {
     LoadTransformParameters params = LoadTransformParametersOf(node->op());
     PPCOperandGeneratorT<Adapter> g(this);
     Node* base = node->InputAt(0);
     Node* index = node->InputAt(1);
 
-    ArchOpcode opcode;
     switch (params.transformation) {
       case LoadTransformation::kS128Load8Splat:
         opcode = kPPC_S128Load8Splat;
@@ -3849,34 +3910,53 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStoreLane(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     PPCOperandGeneratorT<Adapter> g(this);
-
-    StoreLaneParameters params = StoreLaneParametersOf(node->op());
     InstructionCode opcode = kArchNop;
-    if (params.rep == MachineRepresentation::kWord8) {
-      opcode = kPPC_S128Store8Lane;
-    } else if (params.rep == MachineRepresentation::kWord16) {
-      opcode = kPPC_S128Store16Lane;
-    } else if (params.rep == MachineRepresentation::kWord32) {
-      opcode = kPPC_S128Store32Lane;
-    } else if (params.rep == MachineRepresentation::kWord64) {
-      opcode = kPPC_S128Store64Lane;
-    } else {
-      UNREACHABLE();
-    }
-
     InstructionOperand inputs[4];
-    InstructionOperand value_operand = g.UseRegister(node->InputAt(2));
-    inputs[0] = value_operand;
-    inputs[1] = g.UseRegister(node->InputAt(0));
-    inputs[2] = g.UseRegister(node->InputAt(1));
-    inputs[3] = g.UseImmediate(params.laneidx);
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      const Simd128LaneMemoryOp& store =
+          this->Get(node).template Cast<Simd128LaneMemoryOp>();
+      switch (store.lane_kind) {
+        case Simd128LaneMemoryOp::LaneKind::k8:
+          opcode = kPPC_S128Store8Lane;
+          break;
+        case Simd128LaneMemoryOp::LaneKind::k16:
+          opcode = kPPC_S128Store16Lane;
+          break;
+        case Simd128LaneMemoryOp::LaneKind::k32:
+          opcode = kPPC_S128Store32Lane;
+          break;
+        case Simd128LaneMemoryOp::LaneKind::k64:
+          opcode = kPPC_S128Store64Lane;
+          break;
+      }
+
+      inputs[0] = g.UseRegister(store.value());
+      inputs[1] = g.UseRegister(store.base());
+      inputs[2] = g.UseRegister(store.index());
+      inputs[3] = g.UseImmediate(store.lane);
+    } else {
+      StoreLaneParameters params = StoreLaneParametersOf(node->op());
+      if (params.rep == MachineRepresentation::kWord8) {
+        opcode = kPPC_S128Store8Lane;
+      } else if (params.rep == MachineRepresentation::kWord16) {
+        opcode = kPPC_S128Store16Lane;
+      } else if (params.rep == MachineRepresentation::kWord32) {
+        opcode = kPPC_S128Store32Lane;
+      } else if (params.rep == MachineRepresentation::kWord64) {
+        opcode = kPPC_S128Store64Lane;
+      } else {
+        UNREACHABLE();
+      }
+
+      inputs[0] = g.UseRegister(node->InputAt(2));
+      inputs[1] = g.UseRegister(node->InputAt(0));
+      inputs[2] = g.UseRegister(node->InputAt(1));
+      inputs[3] = g.UseImmediate(params.laneidx);
+    }
     Emit(opcode | AddressingModeField::encode(kMode_MRR), 0, nullptr, 4,
          inputs);
-  }
 }
 
 template <typename Adapter>
