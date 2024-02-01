@@ -1312,6 +1312,18 @@ class WasmGraphBuildingInterface {
       // Merge the current env into the target handler's env.
       SetEnv(block->try_info->catch_env);
       if (depth == decoder->control_depth() - 1) {
+        if (inlined_status_ == kInlinedHandledCall) {
+          if (emit_loop_exits()) {
+            ValueVector stack_values;
+            BuildNestedLoopExits(decoder, depth, false, stack_values,
+                                 &block->try_info->exception);
+          }
+          // We are inlining this function and the inlined Call has a handler.
+          // Add the delegated exception to {dangling_exceptions_}.
+          dangling_exceptions_.Add(block->try_info->exception, effect(),
+                                   control());
+          return;
+        }
         // We just throw to the caller here, so no need to generate IfSuccess
         // and IfFailure nodes.
         builder_->Rethrow(block->try_info->exception);

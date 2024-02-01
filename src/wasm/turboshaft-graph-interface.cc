@@ -2310,11 +2310,18 @@ class TurboshaftGraphBuildingInterface {
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     if (depth == decoder->control_depth() - 1) {
-      // We just throw to the caller, no need to handle the exception in this
-      // frame.
-      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmRethrow>(
-          decoder, {block->exception});
-      __ Unreachable();
+      if (mode_ == kInlinedWithCatch) {
+        if (block->exception.valid()) {
+          return_phis_.AddIncomingException(block->exception);
+        }
+        __ Goto(return_catch_block_);
+      } else {
+        // We just throw to the caller, no need to handle the exception in this
+        // frame.
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmRethrow>(
+            decoder, {block->exception});
+        __ Unreachable();
+      }
     } else {
       DCHECK(decoder->control_at(depth)->is_try());
       TSBlock* target_catch =
@@ -6720,7 +6727,6 @@ class TurboshaftGraphBuildingInterface {
     base::Vector<const OpIndex> inlinee_return_exception_phis =
         inlinee_decoder.interface().return_phis().incoming_exceptions();
     DCHECK_IMPLIES(inlinee_mode == kInlinedUnhandled,
-
                    inlinee_return_exception_phis.empty());
 
     if (inlinee_mode == kInlinedWithCatch &&
