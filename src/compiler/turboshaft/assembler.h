@@ -1714,8 +1714,12 @@ class TurboshaftAssemblerOpInterface
     return WordConstant(static_cast<uint64_t>(value),
                         WordRepresentation::PointerSized());
   }
+  V<Smi> SmiConstant(intptr_t value) {
+    return SmiConstant(i::Tagged<Smi>(value));
+  }
   V<Smi> SmiConstant(i::Tagged<Smi> value) {
-    return V<Smi>::Cast(UintPtrConstant(value.ptr()));
+    return V<Smi>::Cast(
+        ReduceIfReachableConstant(ConstantOp::Kind::kSmi, value));
   }
   V<Float32> Float32Constant(float value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kFloat32, value);

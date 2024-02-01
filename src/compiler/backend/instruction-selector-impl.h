@@ -379,6 +379,12 @@ class OperandGeneratorT : public Adapter {
             return Constant(static_cast<int32_t>(constant->word32()));
           case Kind::kWord64:
             return Constant(static_cast<int64_t>(constant->word64()));
+          case Kind::kSmi:
+            if constexpr (Is64()) {
+              return Constant(static_cast<int64_t>(constant->smi().ptr()));
+            } else {
+              return Constant(static_cast<int32_t>(constant->smi().ptr()));
+            }
           case Kind::kHeapObject:
           case Kind::kCompressedHeapObject:
             return Constant(constant->handle(),

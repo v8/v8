@@ -242,6 +242,12 @@ class MachineOptimizationReducer : public Next {
         }
       }
     }
+    if (const ConstantOp* cst = matcher.TryCast<ConstantOp>(input);
+        cst && cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
+      if (Smi::IsValid(cst->integral())) {
+        return __ SmiConstant(static_cast<intptr_t>(cst->integral()));
+      }
+    }
     return Next::ReduceTaggedBitcast(input, from, to, kind);
   }
 

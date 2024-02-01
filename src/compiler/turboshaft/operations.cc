@@ -492,6 +492,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
     case Kind::kWord64:
       os << "word64: " << static_cast<int64_t>(storage.integral);
       break;
+    case Kind::kSmi:
+      os << "smi: " << smi();
+      break;
     case Kind::kNumber:
       os << "number: " << number();
       break;

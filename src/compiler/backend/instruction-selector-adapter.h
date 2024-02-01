@@ -655,24 +655,40 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       op_ = &graph->Get(node_).Cast<turboshaft::ConstantOp>();
     }
 
-    bool is_int32() const { return op_->kind == Kind::kWord32; }
+    bool is_int32() const {
+      return op_->kind == Kind::kWord32 || (op_->kind == Kind::kSmi && !Is64());
+    }
     bool is_relocatable_int32() const {
       // We don't have this in turboshaft currently.
       return false;
     }
     int32_t int32_value() const {
       DCHECK(is_int32() || is_relocatable_int32());
-      return op_->word32();
+      if (op_->kind == Kind::kWord32) {
+        return op_->word32();
+      } else {
+        DCHECK_EQ(op_->kind, Kind::kSmi);
+        DCHECK(!Is64());
+        return static_cast<int32_t>(op_->smi().ptr());
+      }
     }
-    bool is_int64() const { return op_->kind == Kind::kWord64; }
+    bool is_int64() const {
+      return op_->kind == Kind::kWord64 || (op_->kind == Kind::kSmi && Is64());
+    }
     bool is_relocatable_int64() const {
       return op_->kind == Kind::kRelocatableWasmCall ||
              op_->kind == Kind::kRelocatableWasmStubCall;
     }
     int64_t int64_value() const {
-      if (is_int64()) return op_->word64();
-      DCHECK(is_relocatable_int64());
-      return static_cast<int64_t>(op_->integral());
+      if (op_->kind == Kind::kWord64) {
+        return op_->word64();
+      } else if (op_->kind == Kind::kSmi) {
+        DCHECK(Is64());
+        return static_cast<int64_t>(op_->smi().ptr());
+      } else {
+        DCHECK(is_relocatable_int64());
+        return static_cast<int64_t>(op_->integral());
+      }
     }
     bool is_heap_object() const { return op_->kind == Kind::kHeapObject; }
     bool is_compressed_heap_object() const {

@@ -597,6 +597,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
     switch (constant->kind) {
       case Kind::kWord32:
       case Kind::kWord64:
+      case Kind::kSmi:
       case Kind::kFloat32:
       case Kind::kFloat64:
         return g->UseImmediate(input);
@@ -4587,6 +4588,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       switch (constant.kind) {
         case ConstantOp::Kind::kWord32:
         case ConstantOp::Kind::kWord64:
+        case ConstantOp::Kind::kSmi:
         case ConstantOp::Kind::kTaggedIndex:
         case ConstantOp::Kind::kExternal:
           break;

@@ -2172,6 +2172,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kWord64,
     kFloat32,
     kFloat64,
+    kSmi,
     kNumber,  // TODO(tebbi): See if we can avoid number constants.
     kTaggedIndex,
     kExternal,
@@ -2191,6 +2192,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     Handle<HeapObject> handle;
 
     Storage(uint64_t integral = 0) : integral(integral) {}
+    Storage(i::Tagged<Smi> smi) : integral(smi.ptr()) {}
     Storage(double constant) : float64(constant) {}
     Storage(float constant) : float32(constant) {}
     Storage(ExternalReference constant) : external(constant) {}
@@ -2228,6 +2230,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
         return RegisterRepresentation::PointerSized();
+      case Kind::kSmi:
       case Kind::kHeapObject:
       case Kind::kNumber:
         return RegisterRepresentation::Tagged();
@@ -2272,6 +2275,11 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return static_cast<uint64_t>(storage.integral);
   }
 
+  i::Tagged<Smi> smi() const {
+    DCHECK_EQ(kind, Kind::kSmi);
+    return i::Tagged<Smi>(storage.integral);
+  }
+
   double number() const {
     DCHECK_EQ(kind, Kind::kNumber);
     return storage.float64;
@@ -2302,46 +2310,6 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return storage.handle;
   }
 
-  bool IsZero() const {
-    switch (kind) {
-      case Kind::kWord32:
-      case Kind::kWord64:
-      case Kind::kTaggedIndex:
-        return storage.integral == 0;
-      case Kind::kFloat32:
-        return storage.float32 == 0;
-      case Kind::kFloat64:
-      case Kind::kNumber:
-        return storage.float64 == 0;
-      case Kind::kExternal:
-      case Kind::kHeapObject:
-      case Kind::kCompressedHeapObject:
-      case Kind::kRelocatableWasmCall:
-      case Kind::kRelocatableWasmStubCall:
-        UNREACHABLE();
-    }
-  }
-
-  bool IsOne() const {
-    switch (kind) {
-      case Kind::kWord32:
-      case Kind::kWord64:
-      case Kind::kTaggedIndex:
-        return storage.integral == 1;
-      case Kind::kFloat32:
-        return storage.float32 == 1;
-      case Kind::kFloat64:
-      case Kind::kNumber:
-        return storage.float64 == 1;
-      case Kind::kExternal:
-      case Kind::kHeapObject:
-      case Kind::kCompressedHeapObject:
-      case Kind::kRelocatableWasmCall:
-      case Kind::kRelocatableWasmStubCall:
-        UNREACHABLE();
-    }
-  }
-
   bool IsWord(uint64_t value) const {
     switch (kind) {
       case Kind::kWord32:
@@ -2366,6 +2334,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     switch (kind) {
       case Kind::kWord32:
       case Kind::kWord64:
+      case Kind::kSmi:
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
@@ -2387,6 +2356,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     switch (kind) {
       case Kind::kWord32:
       case Kind::kWord64:
+      case Kind::kSmi:
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
