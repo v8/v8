@@ -90,28 +90,28 @@ typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
-  return TaggedField<ElementT>::Relaxed_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::Relaxed_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::Acquire_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Acquire_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::SeqCst_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::SeqCst_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
@@ -132,7 +132,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Relaxed_Store(*this, offset, value);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -148,7 +148,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Relaxed_Store(*this, offset, value);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -165,7 +165,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Release_Store(*this, offset, value);
+  ElementFieldT::Release_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -182,7 +182,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::SeqCst_Store(*this, offset, value);
+  ElementFieldT::SeqCst_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 

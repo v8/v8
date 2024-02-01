@@ -781,6 +781,7 @@ class ScriptContextTableShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Context;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
   static constexpr bool kLengthEqualsCapacity = false;
 

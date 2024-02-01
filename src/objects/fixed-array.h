@@ -34,6 +34,9 @@ class TaggedArrayBase : public Super {
   static_assert(is_subtype_v<ElementT, Object> ||
                 is_subtype_v<ElementT, MaybeObject>);
 
+  using ElementFieldT =
+      TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
+
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
   static constexpr WriteBarrierMode kDefaultMode =
@@ -166,6 +169,7 @@ class TaggedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -243,6 +247,7 @@ class TrustedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -453,6 +458,7 @@ class WeakFixedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -599,6 +605,7 @@ class ArrayListShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
 

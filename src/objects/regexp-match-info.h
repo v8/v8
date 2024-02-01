@@ -26,6 +26,7 @@ class RegExpMatchInfoShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Smi;
+  using CompressionScheme = SmiCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
