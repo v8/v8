@@ -400,7 +400,6 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
-    // TODO(14108): Branch hints.
     BranchHint hint = GetBranchHint(decoder);
     if (depth == decoder->control_depth() - 1) {
       IF ({cond.op, hint}) {
@@ -742,8 +741,6 @@ class TurboshaftGraphBuildingInterface {
         use_select ? Implementation::kCMove : Implementation::kBranch);
   }
 
-  // TODO(14108): Cache memories' starts and sizes. Consider VariableReducer,
-  // LoadElimination, or manual handling like ssa_env_.
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
@@ -2305,7 +2302,6 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  // TODO(14108): Optimize in case of unreachable catch block?
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
@@ -5013,7 +5009,6 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64SExtendI16:
         return __ Word64SignExtend16(arg);
       case kExprI64SExtendI32:
-        // TODO(14108): Is this correct?
         return __ ChangeInt32ToInt64(__ TruncateWord64ToWord32(arg));
       case kExprRefIsNull:
         return __ IsNull(arg, input_type);
@@ -5050,7 +5045,6 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  // TODO(14108): Implement 64-bit divisions on 32-bit platforms.
   OpIndex BinOpImpl(WasmOpcode opcode, OpIndex lhs, OpIndex rhs) {
     switch (opcode) {
       case kExprI32Add:
@@ -5802,15 +5796,15 @@ class TurboshaftGraphBuildingInterface {
           __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference));
     }
 
-    V<HeapObject> ref =
+    LoadOp::Kind load_kind =
         type.is_nullable() && null_check_strategy_ ==
                                   compiler::NullCheckStrategy::kTrapHandler
-            ? __ Load(func_ref, LoadOp::Kind::TrapOnNull(),
-                      MemoryRepresentation::TaggedPointer(),
-                      WasmInternalFunction::kRefOffset)
-            : __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                      MemoryRepresentation::TaggedPointer(),
-                      WasmInternalFunction::kRefOffset);
+            ? LoadOp::Kind::TrapOnNull()
+            : LoadOp::Kind::TaggedBase();
+
+    V<HeapObject> ref =
+        __ Load(func_ref, load_kind, MemoryRepresentation::TaggedPointer(),
+                WasmInternalFunction::kRefOffset);
 
     // If ref is a WasmInstanceObject, load the trusted data from it.
     ref = LoadTrustedDataFromMaybeInstanceObject(ref);
