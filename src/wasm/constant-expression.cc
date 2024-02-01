@@ -64,18 +64,26 @@ ValueOrError EvaluateConstantExpression(
       // instance of WasmFullDecoder, which would cost us >50Kb binary code
       // size.
       auto* module = trusted_instance_data->module();
-      WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
-                      kConstantExpression>
-          decoder(zone, module, WasmFeatures::All(), &detected, body, module,
-                  isolate, trusted_instance_data);
+      ValueOrError result;
+      {
+        // We need a scope for the decoder because its destructor resets some
+        // Zone elements, which has to be done before we reset the Zone
+        // afterwards.
+        WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                        kConstantExpression>
+            decoder(zone, module, WasmFeatures::All(), &detected, body, module,
+                    isolate, trusted_instance_data);
 
-      decoder.DecodeFunctionBody();
+        decoder.DecodeFunctionBody();
+
+        result = decoder.interface().has_error()
+                     ? ValueOrError(decoder.interface().error())
+                     : ValueOrError(decoder.interface().computed_value());
+      }
 
       zone->Reset();
 
-      return decoder.interface().has_error()
-                 ? ValueOrError(decoder.interface().error())
-                 : ValueOrError(decoder.interface().computed_value());
+      return result;
     }
   }
 }

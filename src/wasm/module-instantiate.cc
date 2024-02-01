@@ -2748,24 +2748,31 @@ ValueOrError ConsumeElementSegmentEntry(
   auto sig = FixedSizeSignature<ValueType>::Returns(segment.type);
   FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end());
   WasmFeatures detected;
-  // We use FullValidationTag so we do not have to create another template
-  // instance of WasmFullDecoder, which would cost us >50Kb binary code
-  // size.
-  WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
-                  kConstantExpression>
-      full_decoder(zone, trusted_instance_data->module(), WasmFeatures::All(),
-                   &detected, body, trusted_instance_data->module(), isolate,
-                   trusted_instance_data);
+  ValueOrError result;
+  {
+    // We need a scope for the decoder because its destructor resets some Zone
+    // elements, which has to be done before we reset the Zone afterwards.
+    // We use FullValidationTag so we do not have to create another template
+    // instance of WasmFullDecoder, which would cost us >50Kb binary code
+    // size.
+    WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                    kConstantExpression>
+        full_decoder(zone, trusted_instance_data->module(), WasmFeatures::All(),
+                     &detected, body, trusted_instance_data->module(), isolate,
+                     trusted_instance_data);
 
-  full_decoder.DecodeFunctionBody();
+    full_decoder.DecodeFunctionBody();
 
-  decoder.consume_bytes(static_cast<int>(full_decoder.pc() - decoder.pc()));
+    decoder.consume_bytes(static_cast<int>(full_decoder.pc() - decoder.pc()));
+
+    result = full_decoder.interface().has_error()
+                 ? ValueOrError(full_decoder.interface().error())
+                 : ValueOrError(full_decoder.interface().computed_value());
+  }
 
   zone->Reset();
 
-  return full_decoder.interface().has_error()
-             ? ValueOrError(full_decoder.interface().error())
-             : ValueOrError(full_decoder.interface().computed_value());
+  return result;
 }
 
 }  // namespace

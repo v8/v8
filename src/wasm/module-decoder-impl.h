@@ -2046,45 +2046,52 @@ class ModuleDecoderImpl : public Decoder {
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, this->pc_offset(), pc_, end_);
     WasmFeatures detected;
-    WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
-                    kConstantExpression>
-        decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
-                module);
+    ConstantExpression result;
+    {
+      // We need a scope for the decoder because its destructor resets some Zone
+      // elements, which has to be done before we reset the Zone afterwards.
+      WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                      kConstantExpression>
+          decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
+                  module);
 
-    uint32_t offset = this->pc_offset();
+      uint32_t offset = this->pc_offset();
 
-    decoder.DecodeFunctionBody();
+      decoder.DecodeFunctionBody();
 
-    if (tracer_) {
-      // In case of error, decoder.end() is set to the position right before
-      // the byte(s) that caused the error. For debugging purposes, we should
-      // print these bytes, but we don't know how many of them there are, so
-      // for now we have to guess. For more accurate behavior, we'd have to
-      // pass {num_invalid_bytes} to every {decoder->DecodeError()} call.
-      static constexpr size_t kInvalidBytesGuess = 4;
-      const uint8_t* end =
-          decoder.ok() ? decoder.end()
-                       : std::min(decoder.end() + kInvalidBytesGuess, end_);
-      tracer_->InitializerExpression(pc_, end, expected);
-    }
-    this->pc_ = decoder.end();
+      if (tracer_) {
+        // In case of error, decoder.end() is set to the position right before
+        // the byte(s) that caused the error. For debugging purposes, we should
+        // print these bytes, but we don't know how many of them there are, so
+        // for now we have to guess. For more accurate behavior, we'd have to
+        // pass {num_invalid_bytes} to every {decoder->DecodeError()} call.
+        static constexpr size_t kInvalidBytesGuess = 4;
+        const uint8_t* end =
+            decoder.ok() ? decoder.end()
+                         : std::min(decoder.end() + kInvalidBytesGuess, end_);
+        tracer_->InitializerExpression(pc_, end, expected);
+      }
+      this->pc_ = decoder.end();
 
-    if (decoder.failed()) {
-      error(decoder.error().offset(), decoder.error().message().c_str());
-      return {};
-    }
+      if (decoder.failed()) {
+        error(decoder.error().offset(), decoder.error().message().c_str());
+        return {};
+      }
 
-    if (!decoder.interface().end_found()) {
-      error("constant expression is missing 'end'");
-      return {};
+      if (!decoder.interface().end_found()) {
+        error("constant expression is missing 'end'");
+        return {};
+      }
+
+      result = ConstantExpression::WireBytes(
+          offset, static_cast<uint32_t>(decoder.end() - decoder.start()));
     }
 
     // We reset the zone here; its memory is not used anymore, and we do not
     // want memory from all constant expressions to add up.
     init_expr_zone_.Reset();
 
-    return ConstantExpression::WireBytes(
-        offset, static_cast<uint32_t>(decoder.end() - decoder.start()));
+    return result;
   }
 
   // Read a mutability flag
