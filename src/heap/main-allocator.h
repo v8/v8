@@ -321,7 +321,7 @@ class MainAllocator {
 
   bool supports_extending_lab() const { return supports_extending_lab_; }
 
-  bool is_main_thread() const;
+  V8_EXPORT_PRIVATE bool is_main_thread() const;
 
   LocalHeap* local_heap() const { return local_heap_; }
 

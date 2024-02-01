@@ -172,7 +172,7 @@ void Heap::FinalizeGarbageCollection(StackState stack_state) {
 void Heap::FinalizeGarbageCollectionImpl(StackState stack_state) {
   DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   config_.stack_state = stack_state;
   in_atomic_pause_ = true;
 

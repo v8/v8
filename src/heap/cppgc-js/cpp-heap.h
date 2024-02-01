@@ -211,6 +211,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool TracingInitialized() const { return collection_type_.has_value(); }
 
+  bool IsGCForbidden() const override;
   bool IsGCAllowed() const override;
   bool IsDetachedGCAllowed() const;
 

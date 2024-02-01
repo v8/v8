@@ -1536,20 +1536,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
       Label return_location;
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
         // Put the return address in a stack slot.
         __ leaq(kScratchRegister, Operand(&return_location, 0));
         __ movq(MemOperand(rbp, WasmExitFrameConstants::kCallingPCOffset),
                 kScratchRegister);
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (HasImmediateInput(instr, 0)) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters + num_fp_parameters);
+        __ CallCFunction(ref, num_gp_parameters + num_fp_parameters,
+                         set_isolate_data_slots);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters + num_fp_parameters);
+        __ CallCFunction(func, num_gp_parameters + num_fp_parameters,
+                         set_isolate_data_slots);
       }
       __ bind(&return_location);
 #if V8_ENABLE_WEBASSEMBLY

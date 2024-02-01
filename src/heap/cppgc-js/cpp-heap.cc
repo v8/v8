@@ -802,7 +802,7 @@ bool CppHeap::ShouldFinalizeIncrementalMarking() const {
 }
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   // Enter atomic pause even if tracing is not initialized. This is needed to
   // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
@@ -1223,6 +1223,10 @@ bool CppHeap::IsDetachedGCAllowed() const {
 
 bool CppHeap::IsGCAllowed() const {
   return isolate_ && HeapBase::IsGCAllowed();
+}
+
+bool CppHeap::IsGCForbidden() const {
+  return (isolate_ && isolate_->InFastCCall()) || HeapBase::IsGCForbidden();
 }
 
 }  // namespace internal

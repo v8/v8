@@ -1789,6 +1789,8 @@ void Heap::CollectGarbage(AllocationSpace space,
   DisallowJavascriptExecution no_js(isolate());
 
   DCHECK(AllowGarbageCollection::IsAllowed());
+  // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
+  CHECK(!isolate()->InFastCCall());
 
   const char* collector_reason = nullptr;
   const GarbageCollector collector =
@@ -1974,6 +1976,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GCCallbackFlags gc_callback_flags,
                                    GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
+  CHECK(!isolate()->InFastCCall());
 
   // Delay incremental marking start while concurrent sweeping still has work.
   // This helps avoid large CompleteSweep blocks on the main thread when major

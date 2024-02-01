@@ -305,7 +305,7 @@ void ObjectAllocator::MarkAllPagesAsYoung() {
 }
 
 bool ObjectAllocator::in_disallow_gc_scope() const {
-  return raw_heap_.heap()->in_disallow_gc_scope();
+  return raw_heap_.heap()->IsGCForbidden();
 }
 
 }  // namespace internal

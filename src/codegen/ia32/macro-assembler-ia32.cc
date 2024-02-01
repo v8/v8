@@ -1955,7 +1955,7 @@ void MacroAssembler::CallCFunction(ExternalReference function,
   // CallCFunction method called below.
   // Trashing eax is ok as it will be the return value.
   Move(eax, Immediate(function));
-  CallCFunction(eax, num_arguments);
+  CallCFunction(eax, num_arguments, set_isolate_data_slots);
 }
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments,
