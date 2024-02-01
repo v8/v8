@@ -637,8 +637,7 @@ TEST(BytecodeArray) {
   HandleScope scope(isolate);
 
   heap::SimulateFullSpace(heap->old_space());
-  Handle<FixedArray> constant_pool =
-      factory->NewFixedArray(5, AllocationType::kOld);
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(5);
   for (int i = 0; i < 5; i++) {
     Handle<Object> number = factory->NewHeapNumber(i);
     constant_pool->set(i, *number);
@@ -666,7 +665,7 @@ TEST(BytecodeArray) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
-  Tagged<FixedArray> old_constant_pool_address = *constant_pool;
+  Tagged<TrustedFixedArray> old_constant_pool_address = *constant_pool;
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.

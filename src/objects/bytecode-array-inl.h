@@ -24,7 +24,8 @@ SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 PROTECTED_POINTER_ACCESSORS(BytecodeArray, handler_table, TrustedByteArray,
                             kHandlerTableOffset)
-ACCESSORS(BytecodeArray, constant_pool, Tagged<FixedArray>, kConstantPoolOffset)
+PROTECTED_POINTER_ACCESSORS(BytecodeArray, constant_pool, TrustedFixedArray,
+                            kConstantPoolOffset)
 ACCESSORS(BytecodeArray, wrapper, Tagged<BytecodeWrapper>, kWrapperOffset)
 RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
                           Tagged<HeapObject>, kSourcePositionTableOffset)
@@ -126,9 +127,10 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
 
 DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
   Tagged<Object> value =
-      TaggedField<Object>::load(cage_base, *this, kConstantPoolOffset);
+      TaggedField<Object, kConstantPoolOffset,
+                  TrustedSpaceCompressionScheme>::load(cage_base, *this);
   // This field might be 0 during deserialization.
-  DCHECK(value == Smi::zero() || IsFixedArray(value));
+  DCHECK(value == Smi::zero() || IsTrustedFixedArray(value));
   return value;
 }
 
@@ -153,8 +155,8 @@ int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
-  if (IsFixedArray(maybe_constant_pool)) {
-    size += FixedArray::cast(maybe_constant_pool)->Size(cage_base);
+  if (IsTrustedFixedArray(maybe_constant_pool)) {
+    size += TrustedFixedArray::cast(maybe_constant_pool)->Size(cage_base);
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }

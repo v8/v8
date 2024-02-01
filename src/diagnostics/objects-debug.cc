@@ -383,7 +383,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   {
     auto o = constant_pool();
     Object::VerifyPointer(isolate, o);
-    CHECK(IsFixedArray(o));
+    CHECK(IsTrustedFixedArray(o));
   }
   {
     auto o = handler_table();

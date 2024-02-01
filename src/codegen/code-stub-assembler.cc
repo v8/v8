@@ -2655,6 +2655,12 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
   return LoadAndUntagWeakFixedArrayLength(array);
 }
 
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<TrustedFixedArray> array) {
+  return SmiUntag(LoadArrayCapacity(array));
+}
+
 template <typename Array, typename TIndex, typename TValue>
 TNode<TValue> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
                                                   int array_header_size,
@@ -2688,6 +2694,9 @@ template V8_EXPORT_PRIVATE TNode<Smi> CodeStubAssembler::LoadArrayElement<
 template V8_EXPORT_PRIVATE TNode<Context>
 CodeStubAssembler::LoadArrayElement<ScriptContextTable, IntPtrT>(
     TNode<ScriptContextTable>, int, TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<TrustedFixedArray, IntPtrT>(
+    TNode<TrustedFixedArray>, int, TNode<IntPtrT>, int);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(

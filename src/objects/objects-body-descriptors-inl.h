@@ -485,10 +485,10 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kBytecodeArrayIndirectPointerTag, v);
-    IteratePointer(obj, kConstantPoolOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
     IteratePointer(obj, kSourcePositionTableOffset, v);
     IterateProtectedPointer(obj, kHandlerTableOffset, v);
+    IterateProtectedPointer(obj, kConstantPoolOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {

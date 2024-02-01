@@ -299,16 +299,12 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    int parameter_count, DirectHandle<FixedArray> constant_pool,
+    int parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
     DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
-  // Bytecode array is AllocationType::kOld, so constant pool array should be
-  // too.
-  DCHECK(!Heap::InYoungGeneration(*constant_pool));
-
   Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(

@@ -189,7 +189,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
-      int parameter_count, DirectHandle<FixedArray> constant_pool,
+      int parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
       DirectHandle<TrustedByteArray> handler_table);
 
   Handle<BytecodeWrapper> NewBytecodeWrapper();
