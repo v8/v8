@@ -600,9 +600,6 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSStoreScriptContext(Node* node) {
-  UNREACHABLE();  // Eliminated in context specialization.
-}
 
 void JSGenericLowering::LowerJSCreate(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kFastNewObject);

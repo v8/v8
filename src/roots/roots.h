@@ -110,7 +110,6 @@ class RootVisitor;
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
   V(Map, dictionary_template_info_map, DictionaryTemplateInfoMap)              \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, global_const_tracking_let_cell_map, GlobalConstTrackingLetCellMap)    \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \
   V(Map, module_info_map, ModuleInfoMap)                                       \

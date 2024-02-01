@@ -200,7 +200,6 @@
   V(JSHasContextExtension)    \
   V(JSLoadContext)            \
   V(JSStoreContext)           \
-  V(JSStoreScriptContext)     \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \

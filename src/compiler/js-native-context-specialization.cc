@@ -15,7 +15,6 @@
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/const-tracking-let-helpers.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
@@ -1345,22 +1344,10 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   GlobalAccessFeedback const& feedback = processed.AsGlobalAccess();
   if (feedback.IsScriptContextSlot()) {
     if (feedback.immutable()) return NoChange();
-    Node* effect = n.effect();
-    Node* control = n.control();
+    Effect effect = n.effect();
+    Control control = n.control();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
-
-    // StoreGlobal can store to `let` variables declared by another script.
-    // Thus, we must check the const tracking let side data and potentially
-    // invalidate the constness.
-    if (v8_flags.const_tracking_let) {
-      int side_data_index =
-          ConstTrackingLetSideDataIndexForAccess(feedback.slot_index());
-      GenerateCheckConstTrackingLetSideData(script_context, &effect, &control,
-                                            side_data_index, jsgraph_);
-      // If we're still here (not deopted) the side data implied that the
-      // variable was already not-a-constant, so we can just store into it.
-    }
     effect =
         graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                          value, script_context, effect, control);
