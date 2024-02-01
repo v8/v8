@@ -24,7 +24,7 @@ namespace v8::internal::wasm::fuzzer {
 
 namespace {
 
-constexpr int kMaxArrays = 4;
+constexpr int kMaxArrays = 3;
 constexpr int kMaxStructs = 4;
 constexpr int kMaxStructFields = 4;
 constexpr int kMaxFunctions = 4;
@@ -823,8 +823,9 @@ class WasmGenerator {
   }
 
   void drop(DataRange* data) {
-    Generate(GetValueType(data, static_cast<uint32_t>(functions_.size()) +
-                                    num_structs_ + num_arrays_),
+    Generate(GetValueType(
+                 data, static_cast<uint32_t>(functions_.size() +
+                                             structs_.size() + arrays_.size())),
              data);
     builder_->Emit(kExprDrop);
   }
@@ -1221,7 +1222,8 @@ class WasmGenerator {
       // TODO(11954. 7748): Once we have type canonicalization, choose a random
       // function from among those matching the signature (consider function
       // subtyping?).
-      uint32_t func_index = index - (num_arrays_ + num_structs_);
+      uint32_t func_index =
+          index - static_cast<uint32_t>(arrays_.size() + structs_.size());
       DCHECK_EQ(builder_->builder()->GetSignature(index),
                 builder_->builder()->GetFunction(func_index)->signature());
       builder_->EmitWithU32V(kExprRefFunc, func_index);
@@ -1309,7 +1311,7 @@ class WasmGenerator {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> array_indices(builder->zone());
 
-    for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
+    for (uint32_t i : arrays_) {
       DCHECK(builder->IsArrayType(i));
       if (builder->GetArrayType(i)->element_type().Unpacked() == value_type) {
         array_indices.push_back(i);
@@ -1359,22 +1361,17 @@ class WasmGenerator {
   }
 
   void array_len(DataRange* data) {
-    if (num_arrays_ == 0) {
-      Generate(kWasmI32, data);
-      return;
-    }
+    DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
     GenerateRef(HeapType(HeapType::kArray), data);
     builder_->EmitWithPrefix(kExprArrayLen);
   }
 
   void array_copy(DataRange* data) {
-    if (num_arrays_ == 0) {
-      return;
-    }
+    DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
     // TODO(14034): The source element type only has to be a subtype of the
     // destination element type. Currently this only generates copy from same
     // typed arrays.
-    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    uint32_t array_index = arrays_[data->get<uint8_t>() % arrays_.size()];
     DCHECK(builder_->builder()->IsArrayType(array_index));
     GenerateRef(HeapType(array_index), data);  // destination
     Generate(kWasmI32, data);                  // destination index
@@ -1387,10 +1384,8 @@ class WasmGenerator {
   }
 
   void array_fill(DataRange* data) {
-    if (num_arrays_ == 0) {
-      return;
-    }
-    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
+    int array_index = arrays_[data->get<uint8_t>() % arrays_.size()];
     DCHECK(builder_->builder()->IsArrayType(array_index));
     ValueType element_type = builder_->builder()
                                  ->GetArrayType(array_index)
@@ -1405,10 +1400,8 @@ class WasmGenerator {
   }
 
   void array_init_data(DataRange* data) {
-    if (num_arrays_ == 0) {
-      return;
-    }
-    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
+    int array_index = arrays_[data->get<uint8_t>() % arrays_.size()];
     DCHECK(builder_->builder()->IsArrayType(array_index));
     const ArrayType* array_type =
         builder_->builder()->GetArrayType(array_index);
@@ -1433,10 +1426,8 @@ class WasmGenerator {
   }
 
   void array_init_elem(DataRange* data) {
-    if (num_arrays_ == 0) {
-      return;
-    }
-    int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+    DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
+    int array_index = arrays_[data->get<uint8_t>() % arrays_.size()];
     DCHECK(builder_->builder()->IsArrayType(array_index));
     const ArrayType* array_type =
         builder_->builder()->GetArrayType(array_index);
@@ -1467,7 +1458,7 @@ class WasmGenerator {
   void array_set(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> array_indices(builder->zone());
-    for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
+    for (uint32_t i : arrays_) {
       DCHECK(builder->IsArrayType(i));
       if (builder->GetArrayType(i)->mutability()) {
         array_indices.push_back(i);
@@ -1492,7 +1483,7 @@ class WasmGenerator {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> field_index(builder->zone());
     ZoneVector<uint32_t> struct_index(builder->zone());
-    for (uint32_t i = 0; i < num_structs_; i++) {
+    for (uint32_t i : structs_) {
       DCHECK(builder->IsStructType(i));
       int field_count = builder->GetStructType(i)->field_count();
       for (int index = 0; index < field_count; index++) {
@@ -1579,54 +1570,60 @@ class WasmGenerator {
             HeapType::kAny,    HeapType::kEq,  HeapType::kArray,
             HeapType::kStruct, HeapType::kI31, HeapType::kNone,
         };
-        const int type_count = num_arrays_ + num_structs_;
-        const int choice =
-            data->get<uint8_t>() % (type_count + arraysize(generic_types));
-        return choice >= type_count
-                   ? HeapType(generic_types[choice - type_count])
-                   : HeapType(choice);
+        size_t choice =
+            data->get<uint8_t>() %
+            (arrays_.size() + structs_.size() + arraysize(generic_types));
+
+        if (choice < arrays_.size()) return HeapType(arrays_[choice]);
+        choice -= arrays_.size();
+        if (choice < structs_.size()) return HeapType(structs_[choice]);
+        choice -= structs_.size();
+        return HeapType(generic_types[choice]);
       }
       case HeapType::kEq: {
         constexpr HeapType::Representation generic_types[] = {
             HeapType::kEq,  HeapType::kArray, HeapType::kStruct,
             HeapType::kI31, HeapType::kNone,
         };
-        const int type_count = num_arrays_ + num_structs_;
-        const int choice =
-            data->get<uint8_t>() % (type_count + arraysize(generic_types));
-        return choice >= type_count
-                   ? HeapType(generic_types[choice - type_count])
-                   : HeapType(choice);
+        size_t choice =
+            data->get<uint8_t>() %
+            (arrays_.size() + structs_.size() + arraysize(generic_types));
+
+        if (choice < arrays_.size()) return HeapType(arrays_[choice]);
+        choice -= arrays_.size();
+        if (choice < structs_.size()) return HeapType(structs_[choice]);
+        choice -= structs_.size();
+        return HeapType(generic_types[choice]);
       }
       case HeapType::kStruct: {
         constexpr HeapType::Representation generic_types[] = {
             HeapType::kStruct,
             HeapType::kNone,
         };
-        const int type_count = num_structs_;
-        const int choice =
+        const size_t type_count = structs_.size();
+        const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
                    ? HeapType(generic_types[choice - type_count])
-                   : HeapType(choice);
+                   : HeapType(structs_[choice]);
       }
       case HeapType::kArray: {
         constexpr HeapType::Representation generic_types[] = {
             HeapType::kArray,
             HeapType::kNone,
         };
-        const int type_count = num_arrays_;
-        const int choice =
+        const size_t type_count = arrays_.size();
+        const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
                    ? HeapType(generic_types[choice - type_count])
-                   : HeapType(choice + num_structs_);
+                   : HeapType(arrays_[choice]);
       }
       case HeapType::kFunc: {
         constexpr HeapType::Representation generic_types[] = {
             HeapType::kFunc, HeapType::kNoFunc};
-        const int type_count = static_cast<int>(functions_.size());
-        const int choice =
+        const size_t type_count = functions_.size();
+        const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
                    ? HeapType(generic_types[choice - type_count])
@@ -1730,27 +1727,26 @@ class WasmGenerator {
 
   void struct_set(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
-    if (num_structs_ > 0) {
-      int struct_index = data->get<uint8_t>() % num_structs_;
-      DCHECK(builder->IsStructType(struct_index));
-      const StructType* struct_type = builder->GetStructType(struct_index);
-      ZoneVector<uint32_t> field_indices(builder->zone());
-      for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-        if (struct_type->mutability(i)) {
-          field_indices.push_back(i);
-        }
+    DCHECK_NE(0, structs_.size());  // We always emit at least one struct type.
+    int struct_index = structs_[data->get<uint8_t>() % structs_.size()];
+    DCHECK(builder->IsStructType(struct_index));
+    const StructType* struct_type = builder->GetStructType(struct_index);
+    ZoneVector<uint32_t> field_indices(builder->zone());
+    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+      if (struct_type->mutability(i)) {
+        field_indices.push_back(i);
       }
-      if (field_indices.empty()) {
-        return;
-      }
-      int field_index =
-          field_indices[data->get<uint8_t>() % field_indices.size()];
-      GenerateRef(HeapType(struct_index), data);
-      Generate(struct_type->field(field_index).Unpacked(), data);
-      builder_->EmitWithPrefix(kExprStructSet);
-      builder_->EmitU32V(struct_index);
-      builder_->EmitU32V(field_index);
     }
+    if (field_indices.empty()) {
+      return;
+    }
+    int field_index =
+        field_indices[data->get<uint8_t>() % field_indices.size()];
+    GenerateRef(HeapType(struct_index), data);
+    Generate(struct_type->field(field_index).Unpacked(), data);
+    builder_->EmitWithPrefix(kExprStructSet);
+    builder_->EmitU32V(struct_index);
+    builder_->EmitU32V(field_index);
   }
 
   void ref_is_null(DataRange* data) {
@@ -1763,15 +1759,21 @@ class WasmGenerator {
     GenerateRef(HeapType(HeapType::kAny), data);
     constexpr int generic_types[] = {kAnyRefCode,    kEqRefCode, kArrayRefCode,
                                      kStructRefCode, kNoneCode,  kI31RefCode};
-    int num_types = num_structs_ + num_arrays_;
-    int num_all_types = num_types + arraysize(generic_types);
-    int type_choice = data->get<uint8_t>() % num_all_types;
+    size_t num_types = structs_.size() + arrays_.size();
+    size_t num_all_types = num_types + arraysize(generic_types);
+    size_t type_choice = data->get<uint8_t>() % num_all_types;
     builder_->EmitWithPrefix(opcode);
-    if (type_choice < num_types) {
-      builder_->EmitU32V(type_choice);
-    } else {
-      builder_->EmitU32V(generic_types[type_choice - num_types]);
+    if (type_choice < structs_.size()) {
+      builder_->EmitU32V(structs_[type_choice]);
+      return;
     }
+    type_choice -= structs_.size();
+    if (type_choice < arrays_.size()) {
+      builder_->EmitU32V(arrays_[type_choice]);
+      return;
+    }
+    type_choice -= arrays_.size();
+    builder_->EmitU32V(generic_types[type_choice]);
   }
 
   void ref_eq(DataRange* data) {
@@ -1845,13 +1847,14 @@ class WasmGenerator {
   WasmGenerator(WasmFunctionBuilder* fn, const std::vector<uint32_t>& functions,
                 const std::vector<ValueType>& globals,
                 const std::vector<uint8_t>& mutable_globals,
-                uint32_t num_structs, uint32_t num_arrays, DataRange* data)
+                const std::vector<uint32_t>& structs,
+                const std::vector<uint32_t>& arrays, DataRange* data)
       : builder_(fn),
         functions_(functions),
         globals_(globals),
         mutable_globals_(mutable_globals),
-        num_structs_(num_structs),
-        num_arrays_(num_arrays),
+        structs_(structs),
+        arrays_(arrays),
         locals_initialized_(false) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
@@ -1860,8 +1863,8 @@ class WasmGenerator {
     }
     constexpr uint32_t kMaxLocals = 32;
     locals_.resize(data->get<uint8_t>() % kMaxLocals);
-    uint32_t num_types =
-        static_cast<uint32_t>(functions_.size()) + num_structs_ + num_arrays_;
+    uint32_t num_types = static_cast<uint32_t>(
+        functions_.size() + structs_.size() + arrays_.size());
     for (ValueType& local : locals_) {
       local = GetValueType(data, num_types);
       fn->AddLocal(local);
@@ -1919,8 +1922,8 @@ class WasmGenerator {
   uint32_t recursion_depth = 0;
   std::vector<int> catch_blocks_;
   bool has_simd_;
-  uint32_t num_structs_;
-  uint32_t num_arrays_;
+  const std::vector<uint32_t>& structs_;
+  const std::vector<uint32_t>& arrays_;
   bool locals_initialized_;
 
   bool recursion_limit_reached() {
@@ -2767,11 +2770,12 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   switch (type.representation()) {
     // For abstract types, sometimes generate one of their subtypes.
     case HeapType::kAny: {
-      // Weighed according to the types in the module:
+      // Weighted according to the types in the module:
       // If there are D data types and F function types, the relative
       // frequencies for dataref is D, for funcref F, and for i31ref and falling
       // back to anyref 2.
-      const uint8_t num_data_types = num_structs_ + num_arrays_;
+      const uint8_t num_data_types =
+          static_cast<uint8_t>(structs_.size() + arrays_.size());
       const uint8_t emit_i31ref = 2;
       const uint8_t fallback_to_anyref = 2;
       uint8_t random = data->get<uint8_t>() %
@@ -2787,7 +2791,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         }
         random = data->get<uint8_t>() % (num_data_types + emit_i31ref);
       }
-      if (random < num_structs_) {
+      if (random < structs_.size()) {
         GenerateRef(HeapType(HeapType::kStruct), data, nullability);
       } else if (random < num_data_types) {
         GenerateRef(HeapType(HeapType::kArray), data, nullability);
@@ -2799,35 +2803,37 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
     case HeapType::kArray: {
       constexpr uint8_t fallback_to_dataref = 1;
       uint8_t random =
-          data->get<uint8_t>() % (num_arrays_ + fallback_to_dataref);
+          data->get<uint8_t>() % (arrays_.size() + fallback_to_dataref);
       // Try generating one of the alternatives and continue to the rest of the
       // methods in case it fails.
-      if (random >= num_arrays_) {
+      if (random >= arrays_.size()) {
         if (GenerateOneOf(alternatives_other, type, data, nullability)) return;
-        random = data->get<uint8_t>() % num_arrays_;
+        random = data->get<uint8_t>() % arrays_.size();
       }
-      DCHECK(builder_->builder()->IsArrayType(random + num_structs_));
-      GenerateRef(HeapType(random + num_structs_), data, nullability);
+      uint32_t index = arrays_[random];
+      DCHECK(builder_->builder()->IsArrayType(index));
+      GenerateRef(HeapType(index), data, nullability);
       return;
     }
     case HeapType::kStruct: {
       constexpr uint8_t fallback_to_dataref = 2;
       uint8_t random =
-          data->get<uint8_t>() % (num_structs_ + fallback_to_dataref);
+          data->get<uint8_t>() % (structs_.size() + fallback_to_dataref);
       // Try generating one of the alternatives
       // and continue to the rest of the methods in case it fails.
-      if (random >= num_structs_) {
+      if (random >= structs_.size()) {
         if (GenerateOneOf(alternatives_other, type, data, nullability)) {
           return;
         }
-        random = data->get<uint8_t>() % num_structs_;
+        random = data->get<uint8_t>() % structs_.size();
       }
-      DCHECK(builder_->builder()->IsStructType(random));
-      GenerateRef(HeapType(random), data, nullability);
+      uint32_t index = structs_[random];
+      DCHECK(builder_->builder()->IsStructType(index));
+      GenerateRef(HeapType(index), data, nullability);
       return;
     }
     case HeapType::kEq: {
-      const uint8_t num_types = num_arrays_ + num_structs_;
+      const uint8_t num_types = arrays_.size() + structs_.size();
       const uint8_t emit_i31ref = 2;
       constexpr uint8_t fallback_to_eqref = 1;
       uint8_t random =
@@ -2841,6 +2847,10 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         random = data->get<uint8_t>() % (num_types + emit_i31ref);
       }
       if (random < num_types) {
+        // Using `HeapType(random)` here relies on the assumption that struct
+        // and array types come before signatures.
+        DCHECK(builder_->builder()->IsArrayType(random) ||
+               builder_->builder()->IsStructType(random));
         GenerateRef(HeapType(random), data, nullability);
       } else {
         GenerateRef(HeapType(HeapType::kI31), data, nullability);
@@ -2914,8 +2924,8 @@ std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
   for (int i = 0; i < num_params; ++i) {
     types.push_back(GetValueType(
-        data,
-        num_structs_ + num_arrays_ + static_cast<uint32_t>(functions_.size())));
+        data, static_cast<uint32_t>(functions_.size() + structs_.size() +
+                                    arrays_.size())));
   }
   return types;
 }
@@ -3034,13 +3044,15 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
 
 WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                               WasmModuleBuilder* builder, ValueType type,
-                              int num_structs, int num_arrays,
+                              const std::vector<uint32_t>& structs,
+                              const std::vector<uint32_t>& arrays,
                               uint32_t recursion_depth);
 
 WasmInitExpr GenerateStructNewInitExpr(Zone* zone, DataRange& range,
                                        WasmModuleBuilder* builder,
-                                       uint32_t index, int num_structs,
-                                       int num_arrays,
+                                       uint32_t index,
+                                       const std::vector<uint32_t>& structs,
+                                       const std::vector<uint32_t>& arrays,
                                        uint32_t recursion_depth) {
   const StructType* struct_type = builder->GetStructType(index);
   bool use_new_default =
@@ -3056,8 +3068,8 @@ WasmInitExpr GenerateStructNewInitExpr(Zone* zone, DataRange& range,
     int field_count = struct_type->field_count();
     for (int field_index = 0; field_index < field_count; field_index++) {
       elements->push_back(GenerateInitExpr(
-          zone, range, builder, struct_type->field(field_index), num_structs,
-          num_arrays, recursion_depth + 1));
+          zone, range, builder, struct_type->field(field_index), structs,
+          arrays, recursion_depth + 1));
     }
     return WasmInitExpr::StructNew(index, elements);
   }
@@ -3065,7 +3077,8 @@ WasmInitExpr GenerateStructNewInitExpr(Zone* zone, DataRange& range,
 
 WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
                                    WasmModuleBuilder* builder, uint32_t index,
-                                   int num_structs, int num_arrays,
+                                   const std::vector<uint32_t>& structs,
+                                   const std::vector<uint32_t>& arrays,
                                    uint32_t recursion_depth) {
   constexpr int kMaxArrayLength = 20;
   uint8_t choice = range.get<uint8_t>() % 3;
@@ -3076,16 +3089,15 @@ WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
         zone->New<ZoneVector<WasmInitExpr>>(zone);
     for (int i = 0; i < element_count; i++) {
       elements->push_back(GenerateInitExpr(zone, range, builder, element_type,
-                                           num_structs, num_arrays,
+                                           structs, arrays,
                                            recursion_depth + 1));
     }
     return WasmInitExpr::ArrayNewFixed(index, elements);
   } else if (choice == 1 || !element_type.is_defaultable()) {
     // TODO(14034): Add other int expressions to length (same below).
     WasmInitExpr length = WasmInitExpr(range.get<uint8_t>() % kMaxArrayLength);
-    WasmInitExpr init =
-        GenerateInitExpr(zone, range, builder, element_type, num_structs,
-                         num_arrays, recursion_depth + 1);
+    WasmInitExpr init = GenerateInitExpr(zone, range, builder, element_type,
+                                         structs, arrays, recursion_depth + 1);
     return WasmInitExpr::ArrayNew(zone, index, init, length);
   } else {
     WasmInitExpr length = WasmInitExpr(range.get<uint8_t>() % kMaxArrayLength);
@@ -3096,7 +3108,8 @@ WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
 // TODO(manoskouk): Add global.get.
 WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                               WasmModuleBuilder* builder, ValueType type,
-                              int num_structs, int num_arrays,
+                              const std::vector<uint32_t>& structs,
+                              const std::vector<uint32_t>& arrays,
                               uint32_t recursion_depth) {
   switch (type.kind()) {
     case kI8:
@@ -3118,10 +3131,10 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                                     : WasmInitExpr::kI32Mul;
           return WasmInitExpr::Binop(
               zone, op,
-              GenerateInitExpr(zone, range, builder, kWasmI32, num_structs,
-                               num_arrays, recursion_depth + 1),
-              GenerateInitExpr(zone, range, builder, kWasmI32, num_structs,
-                               num_arrays, recursion_depth + 1));
+              GenerateInitExpr(zone, range, builder, kWasmI32, structs, arrays,
+                               recursion_depth + 1),
+              GenerateInitExpr(zone, range, builder, kWasmI32, structs, arrays,
+                               recursion_depth + 1));
       }
     }
     case kI64: {
@@ -3141,10 +3154,10 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                                     : WasmInitExpr::kI64Mul;
           return WasmInitExpr::Binop(
               zone, op,
-              GenerateInitExpr(zone, range, builder, kWasmI64, num_structs,
-                               num_arrays, recursion_depth + 1),
-              GenerateInitExpr(zone, range, builder, kWasmI64, num_structs,
-                               num_arrays, recursion_depth + 1));
+              GenerateInitExpr(zone, range, builder, kWasmI64, structs, arrays,
+                               recursion_depth + 1),
+              GenerateInitExpr(zone, range, builder, kWasmI64, structs, arrays,
+                               recursion_depth + 1));
       }
     }
     case kF32:
@@ -3175,10 +3188,9 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
     case kRef: {
       switch (type.heap_representation()) {
         case HeapType::kStruct: {
-          uint8_t index = range.get<uint8_t>() % num_structs;
-          return GenerateStructNewInitExpr(zone, range, builder, index,
-                                           num_structs, num_arrays,
-                                           recursion_depth);
+          uint32_t index = structs[range.get<uint8_t>() % structs.size()];
+          return GenerateStructNewInitExpr(zone, range, builder, index, structs,
+                                           arrays, recursion_depth);
         }
         case HeapType::kAny: {
           // Do not use 0 as the determining value here, otherwise an exhausted
@@ -3191,7 +3203,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                 GenerateInitExpr(zone, range, builder,
                                  ValueType::RefMaybeNull(HeapType::kExtern,
                                                          type.nullability()),
-                                 num_structs, num_arrays, recursion_depth + 1));
+                                 structs, arrays, recursion_depth + 1));
           }
           V8_FALLTHROUGH;
         }
@@ -3203,8 +3215,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
 
           return GenerateInitExpr(
               zone, range, builder,
-              ValueType::RefMaybeNull(subtype, type.nullability()), num_structs,
-              num_arrays, recursion_depth);
+              ValueType::RefMaybeNull(subtype, type.nullability()), structs,
+              arrays, recursion_depth);
         }
         case HeapType::kFunc: {
           uint32_t index = range.get<uint32_t>() % builder->NumFunctions();
@@ -3212,20 +3224,18 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         }
         case HeapType::kExtern:
           return WasmInitExpr::ExternConvertAny(
-              zone,
-              GenerateInitExpr(
-                  zone, range, builder,
-                  ValueType::RefMaybeNull(HeapType::kAny, type.nullability()),
-                  num_structs, num_arrays, recursion_depth + 1));
+              zone, GenerateInitExpr(zone, range, builder,
+                                     ValueType::RefMaybeNull(
+                                         HeapType::kAny, type.nullability()),
+                                     structs, arrays, recursion_depth + 1));
         case HeapType::kI31:
           return WasmInitExpr::RefI31(
-              zone,
-              GenerateInitExpr(zone, range, builder, kWasmI32, num_structs,
-                               num_arrays, recursion_depth + 1));
+              zone, GenerateInitExpr(zone, range, builder, kWasmI32, structs,
+                                     arrays, recursion_depth + 1));
         case HeapType::kArray: {
-          uint32_t index = range.get<uint32_t>() % num_arrays + num_structs;
-          return GenerateArrayInitExpr(zone, range, builder, index, num_structs,
-                                       num_arrays, recursion_depth);
+          uint32_t index = arrays[range.get<uint8_t>() % arrays.size()];
+          return GenerateArrayInitExpr(zone, range, builder, index, structs,
+                                       arrays, recursion_depth);
         }
         case HeapType::kNone:
         case HeapType::kNoFunc:
@@ -3235,17 +3245,15 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           uint32_t index = type.ref_index();
           if (builder->IsStructType(index)) {
             return GenerateStructNewInitExpr(zone, range, builder, index,
-                                             num_structs, num_arrays,
-                                             recursion_depth);
+                                             structs, arrays, recursion_depth);
           } else if (builder->IsArrayType(index)) {
-            return GenerateArrayInitExpr(zone, range, builder, index,
-                                         num_structs, num_arrays,
-                                         recursion_depth);
+            return GenerateArrayInitExpr(zone, range, builder, index, structs,
+                                         arrays, recursion_depth);
           } else {
             DCHECK(builder->IsSignature(index));
             // Transform from signature index to function index.
-            return WasmInitExpr::RefFuncConst(index -
-                                              (num_structs + num_arrays));
+            return WasmInitExpr::RefFuncConst(
+                index - static_cast<uint32_t>(structs.size() + arrays.size()));
           }
           UNREACHABLE();
         }
@@ -3275,6 +3283,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     DataRange module_range(data);
     DataRange functions_range = module_range.split();
     std::vector<uint32_t> function_signatures;
+    std::vector<uint32_t> array_types;
+    std::vector<uint32_t> struct_types;
 
     // Add struct and array types first so that we get a chance to generate
     // these types in function signatures.
@@ -3286,14 +3296,24 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     // We need at least one struct and one array in order to support
     // WasmInitExpr for abstract types.
+    // We always add two default array types with mutable i8 and i16 elements,
+    // respectively.
+    constexpr uint8_t kNumDefaultArrayTypes = 2;
     uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
-    uint8_t num_arrays = 1 + module_range.get<uint8_t>() % kMaxArrays;
+    uint8_t num_arrays =
+        kNumDefaultArrayTypes + module_range.get<uint8_t>() % kMaxArrays;
     uint16_t num_types = num_functions + num_structs + num_arrays;
 
     // (Type_index -> end of explicit rec group).
     std::map<uint8_t, uint8_t> explicit_rec_groups;
     {
       uint8_t current_type_index = 0;
+      // The default array types are each in their own recgroup.
+      explicit_rec_groups.emplace(current_type_index, current_type_index);
+      builder.AddRecursiveTypeGroup(current_type_index++, 1);
+      explicit_rec_groups.emplace(current_type_index, current_type_index);
+      builder.AddRecursiveTypeGroup(current_type_index++, 1);
+
       while (current_type_index < num_types) {
         // First, pick a random start for the next group. We allow it to be
         // beyond the end of types (i.e., we add no further recursive groups).
@@ -3317,7 +3337,22 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     uint8_t current_type_index = 0;
-    for (; current_type_index < num_structs; current_type_index++) {
+    // Add default array types.
+    {
+      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
+      uint32_t index = builder.AddArrayType(a8, true, kNoSuperType);
+      DCHECK_EQ(index, current_type_index);
+      array_types.push_back(index);
+      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
+      index = builder.AddArrayType(a16, true, kNoSuperType);
+      array_types.push_back(index);
+      current_type_index = index + 1;
+    }
+    DCHECK_EQ(current_type_index, kNumDefaultArrayTypes);
+
+    // Add random-generated types.
+    uint8_t last_struct_type = current_type_index + num_structs;
+    for (; current_type_index < last_struct_type; current_type_index++) {
       auto rec_group = explicit_rec_groups.find(current_type_index);
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                           ? rec_group->second
@@ -3326,8 +3361,11 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       uint32_t supertype = kNoSuperType;
       uint8_t num_fields = module_range.get<uint8_t>() % (kMaxStructFields + 1);
 
-      if (current_type_index > 0 && module_range.get<bool>()) {
-        supertype = module_range.get<uint8_t>() % current_type_index;
+      uint8_t existing_struct_types =
+          current_type_index - kNumDefaultArrayTypes;
+      if (existing_struct_types > 0 && module_range.get<bool>()) {
+        supertype = module_range.get<uint8_t>() % existing_struct_types +
+                    kNumDefaultArrayTypes;
         num_fields += builder.GetStructType(supertype)->field_count();
       }
       StructType::Builder struct_builder(zone, num_fields);
@@ -3364,7 +3402,9 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
-      builder.AddStructType(struct_fuz, false, supertype);
+      // TODO(14034): Generate some final types too.
+      uint32_t index = builder.AddStructType(struct_fuz, false, supertype);
+      struct_types.push_back(index);
     }
 
     for (; current_type_index < num_structs + num_arrays;
@@ -3378,16 +3418,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
           kIncludeNumericTypes, kIncludePackedTypes,
           kExcludeSomeGenericsWhenTypeIsNonNullable);
       uint32_t supertype = kNoSuperType;
-      if (current_type_index > num_structs && module_range.get<bool>()) {
-        supertype =
-            module_range.get<uint8_t>() % (current_type_index - num_structs) +
-            num_structs;
+      if (current_type_index > last_struct_type && module_range.get<bool>()) {
+        // Do not include the default array types, because they are final.
+        uint8_t existing_array_types = current_type_index - last_struct_type;
+        supertype = last_struct_type +
+                    (module_range.get<uint8_t>() % existing_array_types);
         // TODO(14034): This could also be any sub type of the supertype's
         // element type.
         type = builder.GetArrayType(supertype)->element_type();
       }
       ArrayType* array_fuz = zone->New<ArrayType>(type, true);
-      builder.AddArrayType(array_fuz, false, supertype);
+      // TODO(14034): Generate some final types too.
+      uint32_t index = builder.AddArrayType(array_fuz, false, supertype);
+      array_types.push_back(index);
     }
 
     // We keep the signature for the first (main) function constant.
@@ -3440,7 +3483,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       builder.AddGlobal(type, mutability,
                         GenerateInitExpr(zone, module_range, &builder, type,
-                                         num_structs, num_arrays, 0));
+                                         struct_types, array_types, 0));
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
     }
@@ -3471,7 +3514,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
               ? builder.AddTable(
                     type, min_size, max_size,
                     GenerateInitExpr(zone, module_range, &builder, type,
-                                     num_structs, num_arrays, 0))
+                                     struct_types, array_types, 0))
               : builder.AddTable(type, min_size, max_size);
       if (type.is_reference_to(HeapType::kFunc)) {
         // For function tables, initialize them with functions from the program.
@@ -3504,7 +3547,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                      ? functions_range.split()
                                      : std::move(functions_range);
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
-                        num_structs, num_arrays, &function_range);
+                        struct_types, array_types, &function_range);
       const FunctionSig* sig = f->signature();
       base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                  sig->return_count());
