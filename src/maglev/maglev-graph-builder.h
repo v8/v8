@@ -1971,7 +1971,7 @@ class MaglevGraphBuilder {
   compiler::OptionalObjectRef TryFoldLoadConstantDataField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
-  base::Optional<double> TryFoldLoadConstantDoubleField(
+  base::Optional<Float64> TryFoldLoadConstantDoubleField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
 
@@ -2396,10 +2396,6 @@ class MaglevGraphBuilder {
   template <typename T>
   static size_t gvn_hash_value(const T& in) {
     return base::hash_value(in);
-  }
-
-  static size_t gvn_hash_value(const Float64& f64) {
-    return base::hash_value(f64.get_bits());
   }
 
   static size_t gvn_hash_value(const compiler::MapRef& map) {

@@ -5723,7 +5723,7 @@ class PolymorphicAccessInfo {
                                  constant);
   }
   static PolymorphicAccessInfo ConstantDouble(
-      const ZoneVector<compiler::MapRef>& maps, double constant) {
+      const ZoneVector<compiler::MapRef>& maps, Float64 constant) {
     return PolymorphicAccessInfo(kConstantDouble, maps, constant);
   }
   static PolymorphicAccessInfo DataLoad(
@@ -5753,7 +5753,7 @@ class PolymorphicAccessInfo {
 
   double constant_double() const {
     DCHECK_EQ(kind_, kConstantDouble);
-    return constant_double_;
+    return constant_double_.get_scalar();
   }
 
   Handle<Cell> cell() const {
@@ -5846,7 +5846,7 @@ class PolymorphicAccessInfo {
   }
 
   PolymorphicAccessInfo(Kind kind, const ZoneVector<compiler::MapRef>& maps,
-                        double constant)
+                        Float64 constant)
       : kind_(kind),
         maps_(maps),
         representation_(Representation::Double()),
@@ -5871,7 +5871,7 @@ class PolymorphicAccessInfo {
   const Representation representation_;
   union {
     const compiler::ObjectRef constant_;
-    const double constant_double_;
+    const Float64 constant_double_;
     struct {
       const compiler::OptionalJSObjectRef holder_;
       const FieldIndex field_index_;

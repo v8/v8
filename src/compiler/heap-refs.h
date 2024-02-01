@@ -564,7 +564,7 @@ class JSObjectRef : public JSReceiverRef {
   // is constant.
   // If a property was successfully read, then the function will take a
   // dependency to check the value of the property at code finalization time.
-  base::Optional<double> GetOwnFastConstantDoubleProperty(
+  base::Optional<Float64> GetOwnFastConstantDoubleProperty(
       JSHeapBroker* broker, FieldIndex index,
       CompilationDependencies* dependencies) const;
 

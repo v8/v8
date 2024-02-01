@@ -56,3 +56,19 @@ function main() {
 main();
 %OptimizeMaglevOnNextCall(main);
 main();
+
+// LoadPolymorphicDoubleField with NaN's.
+function foo() {
+  var v8 = undefined;
+  for (let i = 0; i < 2; i++) {
+    class C6 {
+    }
+    const v9 = new C6();
+    ({"__proto__": v8, "a":v2} = v9);
+    v8.a = NaN;
+  }
+}
+%PrepareFunctionForOptimization(foo);
+foo();
+%OptimizeMaglevOnNextCall(foo);
+foo();

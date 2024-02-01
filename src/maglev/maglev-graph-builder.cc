@@ -3638,7 +3638,7 @@ compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
       broker()->dependencies());
 }
 
-base::Optional<double> MaglevGraphBuilder::TryFoldLoadConstantDoubleField(
+base::Optional<Float64> MaglevGraphBuilder::TryFoldLoadConstantDoubleField(
     compiler::JSObjectRef holder,
     compiler::PropertyAccessInfo const& access_info) {
   DCHECK(access_info.field_representation().IsDouble());
@@ -3701,7 +3701,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       TryGetConstantDataFieldHolder(access_info, lookup_start_object);
   if (constant_holder) {
     if (access_info.field_representation().IsDouble()) {
-      base::Optional<double> constant =
+      base::Optional<Float64> constant =
           TryFoldLoadConstantDoubleField(constant_holder.value(), access_info);
       if (constant.has_value()) {
         return GetFloat64Constant(constant.value());
@@ -4146,7 +4146,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
               TryGetConstantDataFieldHolder(access_info, lookup_start_object);
           if (constant_holder) {
             if (access_info.field_representation().IsDouble()) {
-              base::Optional<double> constant = TryFoldLoadConstantDoubleField(
+              base::Optional<Float64> constant = TryFoldLoadConstantDoubleField(
                   constant_holder.value(), access_info);
               if (constant.has_value()) {
                 poly_access_infos.push_back(

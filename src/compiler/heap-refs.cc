@@ -1999,7 +1999,7 @@ OptionalObjectRef JSObjectRef::GetOwnFastConstantDataProperty(
   return result;
 }
 
-base::Optional<double> JSObjectRef::GetOwnFastConstantDoubleProperty(
+base::Optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
     JSHeapBroker* broker, FieldIndex index,
     CompilationDependencies* dependencies) const {
   base::Optional<Tagged<Object>> constant =
@@ -2014,7 +2014,7 @@ base::Optional<double> JSObjectRef::GetOwnFastConstantDoubleProperty(
 
   dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
                                                   unboxed_value);
-  return unboxed_value.get_scalar();
+  return unboxed_value;
 }
 
 OptionalObjectRef JSObjectRef::GetOwnDictionaryProperty(
