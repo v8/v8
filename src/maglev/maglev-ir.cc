@@ -13,6 +13,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/isolate-inl.h"
@@ -2996,28 +2997,30 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void CheckFixedArrayNonEmpty::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-  set_temporaries_needed(1);
+void CheckCacheIndicesNotCleared::SetValueLocationConstraints() {
+  UseRegister(indices_input());
+  UseRegister(length_input());
 }
-void CheckFixedArrayNonEmpty::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  __ AssertNotSmi(object);
+void CheckCacheIndicesNotCleared::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register indices = ToRegister(indices_input());
+  Register length = ToRegister(length_input());
+  __ AssertNotSmi(indices);
 
   if (v8_flags.debug_code) {
     Label ok;
-    __ CompareObjectTypeAndJumpIf(object, FIXED_ARRAY_TYPE, kEqual, &ok);
-    __ CompareObjectTypeAndAssert(object, FIXED_DOUBLE_ARRAY_TYPE, kEqual,
+    __ CompareObjectTypeAndAssert(indices, FIXED_ARRAY_TYPE, kEqual,
                                   AbortReason::kOperandIsNotAFixedArray);
     __ bind(&ok);
   }
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register length = temps.Acquire();
-  __ LoadTaggedSignedField(length, object, FixedArrayBase::kLengthOffset);
-  __ CompareSmiAndJumpIf(
-      length, Smi::zero(), kEqual,
-      __ GetDeoptLabel(this, DeoptimizeReason::kWrongEnumIndices));
+  Label done;
+  // If the cache length is zero, we don't have any indices, so we know this is
+  // ok even though the indices are the empty array.
+  __ CompareInt32AndJumpIf(length, 0, kEqual, &done);
+  // Otherwise, an empty array with non-zero required length is not valid.
+  __ JumpIfRoot(indices, RootIndex::kEmptyFixedArray,
+                __ GetDeoptLabel(this, DeoptimizeReason::kWrongEnumIndices));
+  __ bind(&done);
 }
 
 void CheckTypedArrayBounds::SetValueLocationConstraints() {

@@ -275,7 +275,7 @@ class MergePointInterpreterFrameState;
   V(CheckHoleyFloat64IsSmi)                 \
   V(CheckHeapObject)                        \
   V(CheckInt32Condition)                    \
-  V(CheckFixedArrayNonEmpty)                \
+  V(CheckCacheIndicesNotCleared)            \
   V(CheckFloat64IsNan)                      \
   V(CheckJSDataViewBounds)                  \
   V(CheckTypedArrayBounds)                  \
@@ -5342,19 +5342,21 @@ class CheckMapsWithMigration
   const compiler::ZoneRefSet<Map> maps_;
 };
 
-class CheckFixedArrayNonEmpty
-    : public FixedInputNodeT<1, CheckFixedArrayNonEmpty> {
-  using Base = FixedInputNodeT<1, CheckFixedArrayNonEmpty>;
+class CheckCacheIndicesNotCleared
+    : public FixedInputNodeT<2, CheckCacheIndicesNotCleared> {
+  using Base = FixedInputNodeT<2, CheckCacheIndicesNotCleared>;
 
  public:
-  explicit CheckFixedArrayNonEmpty(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckCacheIndicesNotCleared(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::CanRead();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
-  static constexpr int kReceiverIndex = 0;
-  Input& receiver_input() { return input(kReceiverIndex); }
+  static constexpr int kEnumIndices = 0;
+  Input& indices_input() { return input(kEnumIndices); }
+  static constexpr int kCacheLength = 1;
+  Input& length_input() { return input(kCacheLength); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

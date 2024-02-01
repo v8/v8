@@ -10022,16 +10022,16 @@ void MaglevGraphBuilder::VisitForInPrepare() {
       auto* cache_array =
           AddNewNode<LoadTaggedField>({enum_cache}, EnumCache::kKeysOffset);
 
+      auto* cache_length = AddNewNode<LoadEnumCacheLength>({enumerator});
+
       if (hint == ForInHint::kEnumCacheKeysAndIndices) {
         auto* cache_indices = AddNewNode<LoadTaggedField>(
             {enum_cache}, EnumCache::kIndicesOffset);
         current_for_in_state.enum_cache_indices = cache_indices;
-        AddNewNode<CheckFixedArrayNonEmpty>({cache_indices});
+        AddNewNode<CheckCacheIndicesNotCleared>({cache_indices, cache_length});
       } else {
         current_for_in_state.enum_cache_indices = nullptr;
       }
-
-      auto* cache_length = AddNewNode<LoadEnumCacheLength>({enumerator});
 
       MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                                cache_type_reg);
