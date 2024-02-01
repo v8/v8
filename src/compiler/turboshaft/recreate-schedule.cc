@@ -1481,6 +1481,7 @@ Node* ScheduleBuilder::ProcessOperation(const CheckExceptionOp& op) {
   // Re-building the IfSuccess/IfException mechanism.
   BasicBlock* success_block = GetBlock(*op.didnt_throw_block);
   BasicBlock* exception_block = GetBlock(*op.catch_block);
+  exception_block->set_deferred(true);
   schedule->AddCall(current_block, call_node, success_block, exception_block);
   // Pass `call` as the control input of `IfSuccess` and as both the effect and
   // control input of `IfException`.
