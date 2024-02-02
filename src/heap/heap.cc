@@ -7174,6 +7174,10 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page,
                 (kModeMask & kDoMarking));
 
   MarkingBarrier* marking_barrier = nullptr;
+  static constexpr Tagged_t kPageMask =
+      ~static_cast<Tagged_t>(Page::kPageSize - 1);
+  Tagged_t cached_uninteresting_page =
+      static_cast<Tagged_t>(read_only_space_->FirstPageAddress()) & kPageMask;
 
   if (kModeMask & kDoMarking) {
     marking_barrier = WriteBarrier::CurrentMarkingBarrier(object);
@@ -7182,6 +7186,27 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page,
   MarkCompactCollector* collector = this->mark_compact_collector();
 
   for (TSlot slot = start_slot; slot < end_slot; ++slot) {
+    // If we *only* need the generational or shared WB, we can skip objects
+    // residing on uninteresting pages.
+    Tagged_t compressed_page;
+    if (kModeMask == kDoGenerationalOrShared) {
+      Tagged_t tagged_value = *slot.location();
+      if (HAS_SMI_TAG(tagged_value)) continue;
+      compressed_page = tagged_value & kPageMask;
+      if (compressed_page == cached_uninteresting_page) {
+#if DEBUG
+        typename TSlot::TObject value = *slot;
+        Tagged<HeapObject> value_heap_object;
+        if (value.GetHeapObject(&value_heap_object)) {
+          CHECK(!Heap::InYoungGeneration(value_heap_object));
+          CHECK(!InWritableSharedSpace(value_heap_object));
+        }
+#endif  // DEBUG
+        continue;
+      }
+      // Fall through to decompressing the pointer and fetching its actual
+      // page header flags.
+    }
     typename TSlot::TObject value = *slot;
     Tagged<HeapObject> value_heap_object;
     if (!value.GetHeapObject(&value_heap_object)) continue;
@@ -7193,6 +7218,8 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page,
       } else if (InWritableSharedSpace(value_heap_object)) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
             source_page, slot.address());
+      } else if (kModeMask == kDoGenerationalOrShared) {
+        cached_uninteresting_page = compressed_page;
       }
     }
 
