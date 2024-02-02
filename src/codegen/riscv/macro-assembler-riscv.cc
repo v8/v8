@@ -6479,8 +6479,13 @@ void MacroAssembler::CallCFunctionHelper(
 
     Call(function);
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-      if (isolate() != nullptr) {
-        // We don't unset the PC; the FP is the source of truth.
+      // We don't unset the PC; the FP is the source of truth.
+      if (root_array_available()) {
+        StoreWord(zero_reg,
+                  MemOperand(kRootRegister,
+                             IsolateData::fast_c_call_caller_fp_offset()));
+      } else {
+        DCHECK_NOT_NULL(isolate());
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         li(scratch,
