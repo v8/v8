@@ -126,9 +126,7 @@ DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
 }
 
 DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
-  Tagged<Object> value =
-      TaggedField<Object, kConstantPoolOffset,
-                  TrustedSpaceCompressionScheme>::load(cage_base, *this);
+  Tagged<Object> value = RawProtectedPointerField(kConstantPoolOffset).load();
   // This field might be 0 during deserialization.
   DCHECK(value == Smi::zero() || IsTrustedFixedArray(value));
   return value;

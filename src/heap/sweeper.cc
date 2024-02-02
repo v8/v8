@@ -852,8 +852,11 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     // with old-to-old slots in free memory with e.g. right-trimming of objects.
     RememberedSet<OLD_TO_OLD>::RemoveRange(page, free_start, free_end,
                                            SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSet<TRUSTED_TO_TRUSTED>::RemoveRange(page, free_start, free_end,
+                                                   SlotSet::KEEP_EMPTY_BUCKETS);
   } else {
     DCHECK_NULL(page->slot_set<OLD_TO_OLD>());
+    DCHECK_NULL(page->slot_set<TRUSTED_TO_TRUSTED>());
   }
 
   // Old-to-shared isn't reset after a full GC, so needs to be cleaned both
