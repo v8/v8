@@ -39,6 +39,10 @@ int PrintHelp(char** argv) {
       << " --instruction-stats\n"
       << "     Show information about instructions in the given module\n"
 
+      << " --function-stats [bucket_size] [bucket_count]\n"
+      << "    Show distribution of function sizes in the given module.\n"
+      << "    An optional bucket size and bucket count can be passed."
+
       << " --single-wat FUNC_INDEX\n"
       << "     Print function FUNC_INDEX in .wat format\n"
 
@@ -720,6 +724,49 @@ class HexDumpModuleDis : public ITracer {
   uint32_t next_string_index_{0};
 };
 
+class FunctionStatistics {
+ public:
+  explicit FunctionStatistics(size_t bucket_size, size_t bucket_count)
+      : bucket_size_(bucket_size), buckets_(bucket_count) {}
+
+  void addFunction(size_t size) {
+    size_t index = size / bucket_size_;
+    index = std::min(buckets_.size() - 1, index);
+    buckets_[index] += 1;
+    total_bytes_ += size;
+  }
+
+  void WriteTo(std::ostream& out) {
+    size_t fct_count = std::accumulate(buckets_.begin(), buckets_.end(), 0ull);
+    if (fct_count == 0) {
+      out << "No functions found in module.\n";
+      return;
+    }
+    int max_w = log10(bucket_size_ * buckets_.size() - 1) + 1;
+    out << "Function distribution:\n";
+    for (size_t i = 0; i < buckets_.size(); ++i) {
+      size_t lower = i * bucket_size_;
+      size_t upper = (i + 1) * bucket_size_ - 1;
+      bool last = i + 1 == buckets_.size();
+      out << std::setw(max_w) << lower << " - ";
+      out << std::setw(max_w) << upper << (last ? '+' : ' ') << " bytes: ";
+      size_t count = buckets_[i];
+      out << std::setw(6) << count;
+      double percent = 100.0 * count / fct_count;
+      out << "  (" << std::fixed << std::setw(4) << std::setprecision(1)
+          << percent << "%)\n";
+    }
+    out << "Total function count: " << fct_count << '\n';
+    out << "Average size per function: " << total_bytes_ / fct_count
+        << " bytes\n";
+  }
+
+ private:
+  size_t bucket_size_;
+  std::vector<size_t> buckets_;
+  size_t total_bytes_ = 0;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class FormatConverter {
@@ -868,6 +915,17 @@ class FormatConverter {
                             wire_bytes_, names());
       d.CollectInstructionStats(stats);
       stats.RecordCodeSize(code.size());
+    }
+    stats.WriteTo(out_);
+  }
+
+  void FunctionStats(size_t bucket_size, size_t bucket_count) {
+    DCHECK_EQ(status_, kModuleReady);
+    FunctionStatistics stats(bucket_size, bucket_count);
+    for (uint32_t i = module()->num_imported_functions;
+         i < module()->functions.size(); ++i) {
+      const WasmFunction* func = &module()->functions[i];
+      stats.addFunction(wire_bytes_.GetFunctionBytes(func).size());
     }
     stats.WriteTo(out_);
   }
@@ -1130,6 +1188,7 @@ enum class Action {
   kListSignatures,
   kSectionStats,
   kInstructionStats,
+  kFunctionStats,
   kFullWat,
   kFullHexdump,
   kSingleWat,
@@ -1143,6 +1202,8 @@ struct Options {
   Action action = Action::kUnset;
   int func_index = -1;
   bool offsets = false;
+  int fct_bucket_size = 100;
+  int fct_bucket_count = 20;
 };
 
 bool ParseInt(char* s, int* out) {
@@ -1171,6 +1232,24 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kSectionStats;
     } else if (strcmp(argv[i], "--instruction-stats") == 0) {
       options->action = Action::kInstructionStats;
+    } else if (strcmp(argv[i], "--function-stats") == 0) {
+      options->action = Action::kFunctionStats;
+      if (i < argc - 1 && ParseInt(argv[i + 1], &options->fct_bucket_size)) {
+        ++i;
+        if (options->fct_bucket_size <= 0) {
+          std::cerr << "invalid argument for --function-stats: bucket size may "
+                       "not be negative\n";
+          return PrintHelp(argv);
+        }
+      }
+      if (i < argc - 1 && ParseInt(argv[i + 1], &options->fct_bucket_count)) {
+        ++i;
+        if (options->fct_bucket_count <= 0) {
+          std::cerr << "invalid argument for --function-stats: bucket count "
+                       "may not be negative\n";
+          return PrintHelp(argv);
+        }
+      }
     } else if (strcmp(argv[i], "--full-wat") == 0) {
       options->action = Action::kFullWat;
     } else if (strcmp(argv[i], "--full-hexdump") == 0) {
@@ -1272,6 +1351,9 @@ int main(int argc, char** argv) {
       break;
     case Action::kInstructionStats:
       fc.InstructionStats();
+      break;
+    case Action::kFunctionStats:
+      fc.FunctionStats(options.fct_bucket_size, options.fct_bucket_count);
       break;
     case Action::kSingleWat:
       fc.DisassembleFunction(options.func_index, OutputMode::kWat);
