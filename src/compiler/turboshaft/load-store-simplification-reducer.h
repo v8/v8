@@ -143,14 +143,19 @@ class LoadStoreSimplificationReducer : public Next,
       // converted into raw loads (above).
       if (!index.has_value() || matcher_.MatchIntegralZero(index.value())) {
         index = __ IntPtrConstant(offset);
-      } else if (element_size_log2 != 0) {
-        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
-        index = __ WordPtrAdd(index.value(), offset);
         element_size_log2 = 0;
-      } else {
-        index = __ WordPtrAdd(index.value(), offset);
+        offset = 0;
       }
-      offset = 0;
+      if (element_size_log2 != 0) {
+        index = __ WordPtrShiftLeft(index.value(), element_size_log2);
+        element_size_log2 = 0;
+      }
+      if (offset != 0) {
+        index = __ WordPtrAdd(index.value(), offset);
+        offset = 0;
+      }
+      DCHECK_EQ(offset, 0);
+      DCHECK_EQ(element_size_log2, 0);
     }
   }
 
