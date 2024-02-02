@@ -1057,6 +1057,49 @@ class ImplicationProcessor {
 
 }  // namespace
 
+#define CONTRADICTION(flag1, flag2)                         \
+  (v8_flags.flag1 && v8_flags.flag2)                        \
+      ? std::make_tuple(FindFlagByPointer(&v8_flags.flag1), \
+                        FindFlagByPointer(&v8_flags.flag2)) \
+      : std::make_tuple(nullptr, nullptr)
+
+// static
+void FlagList::ResolveContradictionsWhenFuzzing() {
+  if (!i::v8_flags.fuzzing) return;
+
+  // List flags that lead to known contradictory cycles when both are passed
+  // on the command line. One of them will be reset with precedence left to
+  // right.
+  std::tuple<Flag*, Flag*> contradictions[] = {
+      CONTRADICTION(jitless, maglev_future),
+      CONTRADICTION(jitless, stress_maglev),
+      CONTRADICTION(jitless, stress_concurrent_inlining),
+      CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(stress_concurrent_inlining, assert_types),
+      CONTRADICTION(stress_concurrent_inlining_attach_code, assert_types),
+  };
+  for (auto [flag1, flag2] : contradictions) {
+    if (!flag1 || !flag2) continue;
+    // Check values again, since a flag might have already been reset by
+    // another contradiction.
+    if (!flag1->bool_variable() || !flag2->bool_variable()) continue;
+
+    Flag* flag = flag1;
+    if (flag->IsDefault()) {
+      flag = flag2;
+    }
+    if (flag->IsDefault()) {
+      FATAL("Multiple flags with contradictory default values");
+    }
+
+    std::cerr << "Warning: resetting flag --" << flag->name()
+              << " due to conflicting flags" << std::endl;
+    flag->Reset();
+  }
+}
+
+#undef CONTRADICTION
+
 // static
 void FlagList::EnforceFlagImplications() {
   for (ImplicationProcessor proc; proc.EnforceImplications();) {

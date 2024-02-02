@@ -5050,6 +5050,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   i::v8_flags.abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
+  i::FlagList::ResolveContradictionsWhenFuzzing();
+
   options.mock_arraybuffer_allocator = i::v8_flags.mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
       i::v8_flags.mock_arraybuffer_allocator_limit;
