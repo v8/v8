@@ -178,6 +178,7 @@ namespace internal {
   T(IDENTIFIER, nullptr, 0)                                                   \
   K(GET, "get", 0)                                                            \
   K(SET, "set", 0)                                                            \
+  K(USING, "using", 0)                                                        \
   K(OF, "of", 0)                                                              \
   K(ASYNC, "async", 0)                                                        \
   /* `await` is a reserved word in module code only */                        \

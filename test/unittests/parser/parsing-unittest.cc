@@ -517,6 +517,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::USING:
     case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
@@ -544,6 +545,7 @@ bool TokenIsCallable(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::USING:
     case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
@@ -571,6 +573,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::USING:
     case Token::OF:
     case Token::ASYNC:
       return true;

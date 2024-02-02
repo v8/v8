@@ -60,6 +60,7 @@ throw, Token::THROW
 true, Token::TRUE_LITERAL
 try, Token::TRY
 typeof, Token::TYPEOF
+using, Token::USING
 var, Token::VAR
 void, Token::VOID
 while, Token::WHILE

@@ -1084,6 +1084,32 @@ class ParserBase {
     return flags().is_module() ||
            IsAwaitAsIdentifierDisallowed(function_state_->kind());
   }
+  bool is_using_allowed() const {
+    // UsingDeclaration is a Syntax Error if the goal symbol is Script and
+    // UsingDeclaration is not contained, either directly or indirectly, within
+    // a Block, CaseBlock, ForStatement, ForInOfStatement, FunctionBody,
+    // GeneratorBody, AsyncGeneratorBody, AsyncFunctionBody,
+    // ClassStaticBlockBody, or ClassBody.
+    // Unless the current scope's ScopeType is ScriptScope, the current position
+    // is directly or indirectly within one of the productions listed above
+    // since they open a new scope.
+    return scope()->scope_type() != SCRIPT_SCOPE;
+  }
+  bool IfNextUsingKeyword() {
+    // If the token after `using` is `of` or `in`, `using` is an identifier
+    // and not a declaration token.
+    // `of`: for ( [lookahead ≠ using of] ForDeclaration[?Yield, ?Await, +Using]
+    //       of AssignmentExpression[+In, ?Yield, ?Await] )
+    // `in`: for ( ForDeclaration[?Yield, ?Await, ~Using] in
+    //       Expression[+In, ?Yield, ?Await] )
+    // If the token after `using` is `{` or `[`, it
+    // shows a pattern after `using` which is not applicable.
+    // `{` or `[`: using [no LineTerminator here] [lookahead ≠ await]
+    // ForBinding[?Yield, ?Await, ~Pattern]
+    return (v8_flags.js_explicit_resource_management &&
+            PeekAhead() != Token::LBRACK && PeekAhead() != Token::LBRACE &&
+            PeekAhead() != Token::OF && PeekAhead() != Token::IN);
+  }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
   }
@@ -4148,7 +4174,8 @@ void ParserBase<Impl>::ParseVariableDeclarations(
     DeclarationParsingResult* parsing_result,
     ZonePtrList<const AstRawString>* names) {
   // VariableDeclarations ::
-  //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
+  //   ('var' | 'const' | 'let' | 'using') (Identifier ('='
+  //   AssignmentExpression)?)+[',']
   //
   // ES6:
   // FIXME(marja, nikolaos): Add an up-to-date comment about ES6 variable
@@ -4173,6 +4200,18 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       Consume(Token::LET);
       DCHECK_NE(var_context, kStatement);
       parsing_result->descriptor.mode = VariableMode::kLet;
+      break;
+    case Token::USING:
+      // using [no LineTerminator here] [lookahead ≠ await] BindingList[?In,
+      // ?Yield, ?Await, ~Pattern] ;
+      Consume(Token::USING);
+      DCHECK_NE(var_context, kStatement);
+      DCHECK(v8_flags.js_explicit_resource_management);
+      DCHECK(is_using_allowed());
+      DCHECK(peek() != Token::AWAIT);
+      DCHECK(!scanner()->HasLineTerminatorBeforeNext());
+      DCHECK(PeekAhead() != Token::LBRACK && PeekAhead() != Token::LBRACE);
+      parsing_result->descriptor.mode = VariableMode::kUsing;
       break;
     default:
       UNREACHABLE();  // by current callers
@@ -4217,7 +4256,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
         impl()->DeclareIdentifier(name, decl_pos);
         pattern = impl()->NullExpression();
       }
-    } else {
+    } else if (parsing_result->descriptor.mode != VariableMode::kUsing) {
       name = impl()->NullIdentifier();
       pattern = ParseBindingPattern();
       DCHECK(!impl()->IsIdentifier(pattern));
@@ -4680,6 +4719,7 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     case Token::GET:
     case Token::SET:
     case Token::OF:
+    case Token::USING:
     case Token::ASYNC:
       return true;
     case Token::FUTURE_STRICT_RESERVED_WORD:
@@ -5400,8 +5440,9 @@ ParserBase<Impl>::ParseStatementListItem() {
   //   FunctionDeclaration[?Yield, ?Default]
   //   GeneratorDeclaration[?Yield, ?Default]
   //
-  // LexicalDeclaration[In, Yield] :
-  //   LetOrConst BindingList[?In, ?Yield] ;
+  // LexicalDeclaration[In, Yield, Await] :
+  //   LetOrConst BindingList[?In, ?Yield, ?Await, +Pattern] ;
+  //   UsingDeclaration[?In, ?Yield, ?Await, ~Pattern];
 
   switch (peek()) {
     case Token::FUNCTION:
@@ -5414,6 +5455,15 @@ ParserBase<Impl>::ParseStatementListItem() {
       return ParseVariableStatement(kStatementListItem, nullptr);
     case Token::LET:
       if (IsNextLetKeyword()) {
+        return ParseVariableStatement(kStatementListItem, nullptr);
+      }
+      break;
+    case Token::USING:
+      if (!v8_flags.js_explicit_resource_management) break;
+      if (!is_using_allowed()) break;
+      if (!(scanner()->HasLineTerminatorAfterNext()) &&
+          PeekAhead() != Token::AWAIT && PeekAhead() != Token::LBRACK &&
+          PeekAhead() != Token::LBRACE) {
         return ParseVariableStatement(kStatementListItem, nullptr);
       }
       break;
@@ -6218,7 +6268,21 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   Expect(Token::LPAREN);
 
   bool starts_with_let = peek() == Token::LET;
-  if (peek() == Token::CONST || (starts_with_let && IsNextLetKeyword())) {
+
+  // If the token after `using` is `of` or `in`, `using` is an identifier
+  // and not a declaration token.
+  // `of`: for ( [lookahead ≠ using of] ForDeclaration[?Yield, ?Await, +Using]
+  //       of AssignmentExpression[+In, ?Yield, ?Await] )
+  // `in`: for ( ForDeclaration[?Yield, ?Await, ~Using] in
+  //       Expression[+In, ?Yield, ?Await] )
+  // If the token after `using` is `{` or `[`, it
+  // shows a pattern after `using` which is not applicable.
+  // `{` or `[`: using [no LineTerminator here] [lookahead ≠ await]
+  // ForBinding[?Yield, ?Await, ~Pattern]
+  bool starts_with_using_keyword =
+      (peek() == Token::USING) && IfNextUsingKeyword();
+  if (peek() == Token::CONST || (starts_with_let && IsNextLetKeyword()) ||
+      starts_with_using_keyword) {
     // The initializer contains lexical declarations,
     // so create an in-between scope.
     BlockState for_state(zone(), &scope_);
@@ -6243,6 +6307,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
     if (CheckInOrOf(&for_info.mode)) {
       scope()->set_is_hidden();
+      if (starts_with_using_keyword &&
+          for_info.mode == ForEachStatement::ENUMERATE) {
+        impl()->ReportMessageAt(scanner()->location(),
+                                MessageTemplate::kInvalidUsingInForInLoop);
+      }
       return ParseForEachStatementWithDeclarations(
           stmt_pos, &for_info, labels, own_labels, inner_block_scope);
     }
