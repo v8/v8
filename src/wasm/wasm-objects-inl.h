@@ -255,10 +255,10 @@ ACCESSORS(WasmTrustedInstanceData, well_known_imports, Tagged<FixedArray>,
           kWellKnownImportsOffset)
 
 void WasmTrustedInstanceData::clear_padding() {
-  if constexpr (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
-    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-           FIELD_SIZE(kOptionalPaddingOffset));
+  constexpr int kPaddingBytes = FIELD_SIZE(kOptionalPaddingOffset);
+  static_assert(kPaddingBytes == 0 || kPaddingBytes == kIntSize);
+  if constexpr (kPaddingBytes != 0) {
+    WriteField<int>(kOptionalPaddingOffset, 0);
   }
 }
 
@@ -314,6 +314,42 @@ ImportedFunctionEntry::ImportedFunctionEntry(
     Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data, int index)
     : ImportedFunctionEntry(handle(instance_data->instance_object(), isolate),
                             index) {}
+
+// WasmDispatchTable
+CAST_ACCESSOR(WasmDispatchTable)
+OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, TrustedObject)
+
+void WasmDispatchTable::clear_entry_padding(int index) {
+  static_assert(kEntryPaddingBytes == 0 || kEntryPaddingBytes == kIntSize);
+  if constexpr (kEntryPaddingBytes != 0) {
+    WriteField<int>(OffsetOf(index) + kEntryPaddingOffset, 0);
+  }
+}
+
+int WasmDispatchTable::length() const { return ReadField<int>(kLengthOffset); }
+
+int WasmDispatchTable::capacity() const {
+  return ReadField<int>(kCapacityOffset);
+}
+
+inline Tagged<Object> WasmDispatchTable::ref(int index) const {
+  DCHECK_LT(index, length());
+  int offset = OffsetOf(index) + kRefBias;
+  Tagged<Object> ref = TaggedField<Object>::load(*this, offset);
+  DCHECK(IsWasmInstanceObject(ref) || IsWasmApiFunctionRef(ref) ||
+         ref == Smi::zero());
+  return HeapObject::cast(ref);
+}
+
+inline Address WasmDispatchTable::target(int index) const {
+  DCHECK_LT(index, length());
+  return ReadField<Address>(OffsetOf(index) + kTargetBias);
+}
+
+inline int WasmDispatchTable::sig(int index) const {
+  DCHECK_LT(index, length());
+  return ReadField<int>(OffsetOf(index) + kSigBias);
+}
 
 // WasmExceptionPackage
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)

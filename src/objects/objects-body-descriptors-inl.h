@@ -832,6 +832,23 @@ class WasmTrustedInstanceData::BodyDescriptor final
   }
 };
 
+class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    int length = WasmDispatchTable::cast(obj)->length();
+    for (int i = 0; i < length; ++i) {
+      IteratePointer(obj, OffsetOf(i) + kRefBias, v);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    int capacity = WasmDispatchTable::cast(object)->capacity();
+    return SizeFor(capacity);
+  }
+};
+
 class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

@@ -272,6 +272,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataVerify(
           isolate);
       break;
+    case WASM_DISPATCH_TABLE_TYPE:
+      WasmDispatchTable::cast(*this)->WasmDispatchTableVerify(isolate);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this)->WasmValueObjectVerify(isolate);
       break;
@@ -2174,6 +2177,20 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
   // Check all tagged fields.
   for (uint16_t offset : kTaggedFieldOffsets) {
     VerifyObjectField(isolate, offset);
+  }
+}
+
+void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  int len = length();
+  CHECK_LE(len, capacity());
+  for (int i = 0; i < len; ++i) {
+    Tagged<Object> call_ref = ref(i);
+    Object::VerifyPointer(isolate, call_ref);
+    CHECK(IsWasmInstanceObject(call_ref) || IsWasmApiFunctionRef(call_ref) ||
+          call_ref == Smi::zero());
+    CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
   }
 }
 

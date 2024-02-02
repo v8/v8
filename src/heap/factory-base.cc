@@ -366,6 +366,22 @@ FactoryBase<Impl>::NewWasmTrustedInstanceData() {
   }
   return handle(result, isolate());
 }
+
+template <typename Impl>
+Handle<WasmDispatchTable> FactoryBase<Impl>::NewWasmDispatchTable(int length) {
+  CHECK_LE(length, WasmDispatchTable::kMaxLength);
+  int bytes = WasmDispatchTable::SizeFor(length);
+  Tagged<WasmDispatchTable> result = WasmDispatchTable::unchecked_cast(
+      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
+                                 read_only_roots().wasm_dispatch_table_map()));
+  result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
+  result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
+  for (int i = 0; i < length; ++i) {
+    result->Clear(i);
+    result->clear_entry_padding(i);
+  }
+  return handle(result, isolate());
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Impl>

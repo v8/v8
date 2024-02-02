@@ -146,6 +146,8 @@ extern class WasmModuleObject extends JSObject {
   script: Script;
 }
 
+extern class WasmDispatchTable extends TrustedObject;
+
 extern class WasmTableObject extends JSObject {
   // The instance in which this WasmTableObject is defined.
   // This field is undefined if the table is defined outside any Wasm module,

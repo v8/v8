@@ -387,7 +387,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
-  V8_INLINE void clear_padding();
+  inline void clear_padding();
 
   inline Tagged<WasmMemoryObject> memory_object(int memory_index) const;
   inline uint8_t* memory_base(int memory_index) const;
@@ -613,6 +613,91 @@ class WasmTagObject
                                    Handle<HeapObject> tag);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
+};
+
+// The dispatch table is referenced from a WasmTableObject and from every
+// WasmTrustedInstanceData which uses the table. It is used from generated code
+// for executing indirect calls.
+// The WasmDispatchTable lives in trusted space and holds tuples of
+// <ref, target, sig>.
+class WasmDispatchTable : public TrustedObject {
+ public:
+  class BodyDescriptor;
+
+  static constexpr size_t kLengthOffset = kHeaderSize;
+  static constexpr size_t kCapacityOffset = kLengthOffset + kUInt32Size;
+  static constexpr size_t kEntriesOffset = kCapacityOffset + kUInt32Size;
+
+  // Entries consist of
+  // - target (pointer)
+  // - ref (tagged)
+  // - sig (int32_t)
+  // TODO(14564): Make "ref" a protected pointer by moving WasmApiFunctionRef to
+  // the trusted space and linking either that or WasmTrustedInstanceData.
+  static constexpr size_t kTargetBias = 0;
+  static constexpr size_t kRefBias = kTargetBias + kSystemPointerSize;
+  static constexpr size_t kSigBias = kRefBias + kTaggedSize;
+  static constexpr size_t kEntryPaddingOffset = kSigBias + kInt32Size;
+  static constexpr size_t kEntryPaddingBytes =
+      kEntryPaddingOffset % kTaggedSize;
+  static_assert(kEntryPaddingBytes == 4 || kEntryPaddingBytes == 0);
+  static constexpr size_t kEntrySize = kEntryPaddingOffset + kEntryPaddingBytes;
+
+  // Tagged and system-pointer-sized fields must be tagged-size-aligned.
+  static_assert(IsAligned(kEntriesOffset, kTaggedSize));
+  static_assert(IsAligned(kEntrySize, kTaggedSize));
+  static_assert(IsAligned(kTargetBias, kTaggedSize));
+  static_assert(IsAligned(kRefBias, kTaggedSize));
+
+  // TODO(clemensb): If we ever enable allocation alignment we will needs to add
+  // more padding to make the "target" fields system-pointer-size aligned.
+  static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
+
+  // The total byte size must still fit in an integer.
+  static constexpr int kMaxLength = (kMaxInt - kEntriesOffset) / kEntrySize;
+
+  static constexpr int SizeFor(int length) {
+    DCHECK_LE(length, kMaxLength);
+    return kEntriesOffset + length * kEntrySize;
+  }
+
+  static constexpr int OffsetOf(int index) {
+    DCHECK_LT(index, kMaxLength);
+    return SizeFor(index);
+  }
+
+  // Clear uninitialized padding space for deterministic object content.
+  // Depending on the V8 build mode there could be no padding.
+  inline void clear_entry_padding(int index);
+
+  // The current length of this dispatch table. This is always <= the capacity.
+  inline int length() const;
+  // The current capacity. Can be bigger than the current length to allow for
+  // more efficient growing.
+  inline int capacity() const;
+
+  // Accessors.
+  // {ref} will be a WasmApiFunctionRef, a WasmInstanceObject, or Smi::zero()
+  // (if the entry was cleared).
+  inline Tagged<Object> ref(int index) const;
+  inline Address target(int index) const;
+  inline int sig(int index) const;
+
+  // {ref} has to be a WasmApiFunctionRef, a WasmInstanceObject, or Smi::zero().
+  void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> ref, Address call_target,
+                             int sig_id);
+  void Clear(int index);
+  void SetTarget(int index, Address call_target);
+
+  static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> New(
+      Isolate* isolate, int length);
+  static V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> Grow(
+      Isolate*, Handle<WasmDispatchTable>, int new_length);
+
+  DECL_CAST(WasmDispatchTable)
+  DECL_PRINTER(WasmDispatchTable)
+  DECL_VERIFIER(WasmDispatchTable)
+  OBJECT_CONSTRUCTORS(WasmDispatchTable, TrustedObject);
 };
 
 // A Wasm exception that has been thrown out of Wasm code.

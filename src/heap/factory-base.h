@@ -200,6 +200,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
+  Handle<WasmDispatchTable> NewWasmDispatchTable(int length);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and

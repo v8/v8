@@ -1887,6 +1887,73 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
       zone, function_data->serialized_signature());
 }
 
+void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
+                            int sig_id) {
+  DCHECK_LT(index, length());
+  DCHECK(IsWasmApiFunctionRef(ref) || IsWasmInstanceObject(ref) ||
+         ref == Smi::zero());
+  DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
+  const int offset = OffsetOf(index);
+  TaggedField<Object>::store(*this, offset + kRefBias, ref);
+  CONDITIONAL_WRITE_BARRIER(*this, offset + kRefBias, ref,
+                            UPDATE_WRITE_BARRIER);
+  WriteField<Address>(offset + kTargetBias, call_target);
+  WriteField<int>(offset + kSigBias, sig_id);
+}
+
+void WasmDispatchTable::Clear(int index) {
+  DCHECK_LT(index, length());
+  const int offset = OffsetOf(index);
+  TaggedField<Object>::store(*this, offset + kRefBias, Smi::zero());
+  WriteField<Address>(offset + kTargetBias, kNullAddress);
+  WriteField<int>(offset + kSigBias, -1);
+}
+
+void WasmDispatchTable::SetTarget(int index, Address call_target) {
+  DCHECK_LT(index, length());
+  const int offset = OffsetOf(index) + kTargetBias;
+  WriteField<Address>(offset, call_target);
+}
+
+// static
+Handle<WasmDispatchTable> WasmDispatchTable::New(Isolate* isolate, int length) {
+  return isolate->factory()->NewWasmDispatchTable(length);
+}
+
+// static
+Handle<WasmDispatchTable> WasmDispatchTable::Grow(
+    Isolate* isolate, Handle<WasmDispatchTable> old_table, int new_length) {
+  int old_length = old_table->length();
+  // This method should only be called if we actually grow.
+  DCHECK_LT(old_length, new_length);
+
+  int old_capacity = old_table->capacity();
+  if (new_length < old_table->capacity()) {
+    old_table->WriteField<int>(kLengthOffset, new_length);
+    // All fields within the old capacity are already cleared (see below).
+    return old_table;
+  }
+
+  // Grow table exponentially to guarantee amortized constant allocation and gc
+  // time.
+  int max_grow = WasmDispatchTable::kMaxLength - old_length;
+  int min_grow = new_length - old_capacity;
+  CHECK_LE(min_grow, max_grow);
+  // Grow by old capacity, and at least by 8. Clamp to min_grow and max_grow.
+  int exponential_grow = std::max(old_capacity, 8);
+  int grow = std::clamp(exponential_grow, min_grow, max_grow);
+  int new_capacity = old_capacity + grow;
+  Handle<WasmDispatchTable> new_table =
+      WasmDispatchTable::New(isolate, new_capacity);
+
+  new_table->WriteField<int>(kLengthOffset, new_length);
+  for (int i = 0; i < old_length; ++i) {
+    new_table->Set(i, old_table->ref(i), old_table->target(i),
+                   old_table->sig(i));
+  }
+  return new_table;
+}
+
 bool WasmCapiFunction::MatchesSignature(
     uint32_t other_canonical_sig_index) const {
   AccountingAllocator allocator;

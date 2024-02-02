@@ -2022,6 +2022,10 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == WASM_NULL_TYPE) {
     return WasmNull::kSize;
   }
+  if (instance_type == WASM_DISPATCH_TABLE_TYPE) {
+    return WasmDispatchTable::SizeFor(
+        WasmDispatchTable::unchecked_cast(*this)->capacity());
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
