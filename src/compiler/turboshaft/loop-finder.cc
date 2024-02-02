@@ -28,7 +28,7 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(Block* header) {
   LoopInfo info;
   // The header is skipped by the while-loop below, so we initialize {info} with
   // the `op_count` from {header}, and a `block_count` of 1 (= the header).
-  info.op_count = OpCountUpperBound(header);
+  info.op_count = header->OpCountUpperBound();
   info.start = header;
   info.end = backedge;
   info.block_count = 1;
@@ -55,7 +55,7 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(Block* header) {
       }
     }
     info.block_count++;
-    info.op_count += OpCountUpperBound(curr);
+    info.op_count += curr->OpCountUpperBound();
     loop_headers_[curr->index()] = header;
     Block* pred_start = curr->LastPredecessor();
     if (curr->IsLoop()) {

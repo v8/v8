@@ -415,6 +415,12 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return end_;
   }
 
+  // Returns an approximation of the number of operations contained in this
+  // block, by counting how many slots it contains. Depending on the size of the
+  // operations it contains, this could be exactly how many operations it
+  // contains, or it could be less.
+  int OpCountUpperBound() const { return end().id() - begin().id(); }
+
   const Operation& FirstOperation(const Graph& graph) const;
   const Operation& LastOperation(const Graph& graph) const;
 
