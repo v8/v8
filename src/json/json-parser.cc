@@ -13,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-updater.h"
@@ -678,36 +679,15 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
 //      bailing out if this fails.
 class JSDataObjectBuilder {
  public:
-  JSDataObjectBuilder(Isolate* isolate, int expected_named_properties)
-      : isolate_(isolate), expected_property_count_(expected_named_properties) {
-    current_map_ = isolate->factory()->ObjectLiteralMapFromCache(
-        isolate->native_context(), expected_named_properties);
-  }
-
-  ElementsKind elements_kind() const { return current_map_->elements_kind(); }
-  void UpdateElementsKind(ElementsKind kind) {
-    // Must be called before any properties are registered.
-    DCHECK_EQ(current_property_index_, 0);
-    DCHECK_EQ(current_map_->NumberOfOwnDescriptors(), 0);
-    // Must be called before the expected map is set.
-    DCHECK(expected_final_map_.is_null());
-
-    current_map_ = Map::AsElementsKind(isolate_, current_map_, kind);
-  }
-
-  void SetExpectedFinalMap(Handle<Map> expected_final_map) {
-    DisallowGarbageCollection no_gc;
-
-    expected_final_map_ = expected_final_map;
-
-    Tagged<Map> raw_expected_map = *expected_final_map_;
-    Tagged<Map> raw_map = *current_map_;
-
-    if (raw_expected_map->elements_kind() == raw_map->elements_kind() &&
-        raw_expected_map->instance_size() == raw_map->instance_size()) {
-      property_count_in_expected_final_map_ =
-          raw_expected_map->NumberOfOwnDescriptors();
-      // TODO(leszeks): DCHECK that these are all data properties.
+  JSDataObjectBuilder(Isolate* isolate, ElementsKind elements_kind,
+                      int expected_named_properties,
+                      Handle<Map> expected_final_map)
+      : isolate_(isolate),
+        elements_kind_(elements_kind),
+        expected_property_count_(expected_named_properties),
+        expected_final_map_(expected_final_map) {
+    if (!TryInitializeMapFromExpectedFinalMap()) {
+      InitializeMapFromZero();
     }
   }
 
@@ -716,61 +696,49 @@ class JSDataObjectBuilder {
                                         GetValueFunction&& get_value,
                                         bool* is_mutable_double_field) {
     Handle<String> key;
-    TransitionResult transition_result =
-        TryFastTransitionToPropertyKey(get_key, &key);
+    bool existing_map_found = TryFastTransitionToPropertyKey(get_key, &key);
     // Unconditionally get the value after getting the transition result.
     Handle<Object> value = get_value();
-    switch (transition_result) {
-      case TransitionResult::kFoundMapWithFieldLocation:
-        // We found a map with a field for our value -- now make sure that field
-        // is compatible with our value.
-        if (!TryGeneralizeFieldToValue(value, is_mutable_double_field)) {
-          // TODO(leszeks): Try to stay on the fast path if we just deprecate
-          // here.
-          return false;
-        }
-        AdvanceToNextProperty();
-        return true;
-
-      case TransitionResult::kFoundMapWithDescriptorLocation:
-        // We will need to go to the slow path, without trying to create a map
-        // for this case.
+    if (existing_map_found) {
+      // We found a map with a field for our value -- now make sure that field
+      // is compatible with our value.
+      if (!TryGeneralizeFieldToValue(value, is_mutable_double_field)) {
+        // TODO(leszeks): Try to stay on the fast path if we just deprecate
+        // here.
         return false;
-
-      case TransitionResult::kNoMapFound: {
-        // Try to stay on a semi-fast path (being able to stamp out the object
-        // fields after creating the correct map) by manually creating the next
-        // map here.
-
-        Tagged<DescriptorArray> descriptors =
-            current_map_->instance_descriptors(isolate_);
-        InternalIndex descriptor_number =
-            descriptors->SearchWithCache(isolate_, *key, *current_map_);
-        if (descriptor_number.is_found()) {
-          // Duplicate property, we need to bail out of even the semi-fast path
-          // because we can no longer stamp out values linearly.
-          return false;
-        }
-
-        Representation representation =
-            Object::OptimalRepresentation(*value, isolate_);
-        Handle<FieldType> type =
-            Object::OptimalType(*value, isolate_, representation);
-        MaybeHandle<Map> maybe_map = Map::CopyWithField(
-            isolate_, current_map_, key, type, NONE, PropertyConstness::kConst,
-            representation, INSERT_TRANSITION);
-        if (!maybe_map.ToHandle(&next_map_)) {
-          // TODO(leszeks): Consider switching to a dictionary map eagerly.
-          return false;
-        }
-        if (next_map_->is_dictionary_map()) {
-          return false;
-        }
-        *is_mutable_double_field = representation.IsDouble();
-        AdvanceToNextProperty();
-        return true;
       }
+      AdvanceToNextProperty();
+      return true;
     }
+
+    // Try to stay on a semi-fast path (being able to stamp out the object
+    // fields after creating the correct map) by manually creating the next
+    // map here.
+
+    Tagged<DescriptorArray> descriptors = map_->instance_descriptors(isolate_);
+    InternalIndex descriptor_number =
+        descriptors->SearchWithCache(isolate_, *key, *map_);
+    if (descriptor_number.is_found()) {
+      // Duplicate property, we need to bail out of even the semi-fast path
+      // because we can no longer stamp out values linearly.
+      return false;
+    }
+
+    Representation representation =
+        Object::OptimalRepresentation(*value, isolate_);
+    Handle<FieldType> type =
+        Object::OptimalType(*value, isolate_, representation);
+    MaybeHandle<Map> maybe_map = Map::CopyWithField(
+        isolate_, map_, key, type, NONE, PropertyConstness::kConst,
+        representation, INSERT_TRANSITION);
+    Handle<Map> next_map;
+    if (!maybe_map.ToHandle(&next_map)) return false;
+    if (next_map->is_dictionary_map()) return false;
+
+    map_ = next_map;
+    *is_mutable_double_field = representation.IsDouble();
+    AdvanceToNextProperty();
+    return true;
   }
 
   V8_INLINE Handle<JSObject> CreateObject(Handle<FixedArrayBase> elements) {
@@ -782,33 +750,28 @@ class JSDataObjectBuilder {
       // TODO(leszeks): Do we actually want to use the final map fast path when
       // we know that the current map _can't_ reach the final map? Will we even
       // hit this case given that we check for matching instance size?
-      RewindExpectedFinalMapFastPathToCurrent();
+      RewindExpectedFinalMapFastPathToBeforeCurrent();
     }
     // It's only safe to emit a dictionary map when we've not set up any
     // properties, as the caller assumes it can set up the first N properties
     // as fast data properties.
-    DCHECK_IMPLIES(current_map_->is_dictionary_map(),
-                   current_property_index_ == 0);
+    DCHECK_IMPLIES(map_->is_dictionary_map(), current_property_index_ == 0);
 
     Handle<JSObject> object =
-        current_map_->is_dictionary_map()
+        map_->is_dictionary_map()
             ? isolate_->factory()->NewSlowJSObjectFromMap(
-                  current_map_, expected_property_count_)
-            : isolate_->factory()->NewJSObjectFromMap(current_map_);
+                  map_, expected_property_count_)
+            : isolate_->factory()->NewJSObjectFromMap(map_);
     object->set_elements(*elements);
     return object;
   }
 
  private:
-  enum class TransitionResult {
-    kNoMapFound,
-    kFoundMapWithFieldLocation,
-    kFoundMapWithDescriptorLocation,
-  };
   template <typename GetKeyFunction>
-  V8_INLINE TransitionResult TryFastTransitionToPropertyKey(
-      GetKeyFunction&& get_key, Handle<String>* key_out) {
+  V8_INLINE bool TryFastTransitionToPropertyKey(GetKeyFunction&& get_key,
+                                                Handle<String>* key_out) {
     Handle<String> expected_key;
+    Handle<Map> target_map;
 
     InternalIndex descriptor_index(current_property_index_);
     if (IsOnExpectedFinalMapFastPath()) {
@@ -817,64 +780,52 @@ class JSDataObjectBuilder {
               expected_final_map_->instance_descriptors(isolate_)->GetKey(
                   descriptor_index)),
           isolate_);
+      target_map = expected_final_map_;
     } else {
-      TransitionsAccessor transitions(isolate_, *current_map_);
+      TransitionsAccessor transitions(isolate_, *map_);
       expected_key = transitions.ExpectedTransitionKey();
       if (!expected_key.is_null()) {
         // Directly read out the target while reading out the key, otherwise it
         // might die if `get_key` can allocate.
-        next_map_ = TransitionsAccessor(isolate_, *current_map_)
-                        .ExpectedTransitionTarget();
+        target_map =
+            TransitionsAccessor(isolate_, *map_).ExpectedTransitionTarget();
       }
     }
 
     Handle<String> key = *key_out = get_key(expected_key);
     if (key.is_identical_to(expected_key)) {
-      if (IsOnExpectedFinalMapFastPath()) {
-        // We hit the expected key on the expected map fast path. Optimistically
-        // set the next map to the expected map -- this can be rewound later
-        // if we don't match expectations.
-        next_map_ = expected_final_map_;
-      }
-      // Whether on the expected map fast path, or the transition walk fast
-      // path, we were successful and are done.
-      DCHECK_EQ(next_map_->instance_descriptors()
+      // We were successful and we are done.
+      DCHECK_EQ(target_map->instance_descriptors()
                     ->GetDetails(descriptor_index)
                     .location(),
                 PropertyLocation::kField);
-      return TransitionResult::kFoundMapWithFieldLocation;
+      map_ = target_map;
+      return true;
     }
 
     if (IsOnExpectedFinalMapFastPath()) {
       // We were on the expected map fast path, but this missed that fast
       // path, so rewind the optimistic setting of the current map and disable
       // this fast path.
-      RewindExpectedFinalMapFastPathToCurrent();
+      RewindExpectedFinalMapFastPathToBeforeCurrent();
       property_count_in_expected_final_map_ = 0;
     }
 
-    Tagged<Map> target = TransitionsAccessor(isolate_, *current_map_)
-                             .SearchTransition(*key, PropertyKind::kData, NONE);
-    if (target.is_null()) {
-      return TransitionResult::kNoMapFound;
-    }
-    PropertyDetails details =
-        target->instance_descriptors()->GetDetails(descriptor_index);
-    if (details.location() != PropertyLocation::kField) {
-      DCHECK_EQ(details.location(), PropertyLocation::kDescriptor);
-      return TransitionResult::kFoundMapWithDescriptorLocation;
-    }
-    next_map_ = handle(target, isolate_);
-    return TransitionResult::kFoundMapWithFieldLocation;
+    MaybeHandle<Map> maybe_target =
+        TransitionsAccessor(isolate_, *map_).FindTransitionToField(key);
+    if (!maybe_target.ToHandle(&target_map)) return false;
+
+    map_ = target_map;
+    return true;
   }
 
   V8_INLINE bool TryGeneralizeFieldToValue(Handle<Object> value,
                                            bool* is_mutable_double_field) {
-    DCHECK_LT(current_property_index_, next_map_->NumberOfOwnDescriptors());
+    DCHECK_LT(current_property_index_, map_->NumberOfOwnDescriptors());
 
     InternalIndex descriptor_index(current_property_index_);
     PropertyDetails current_details =
-        next_map_->instance_descriptors(isolate_)->GetDetails(descriptor_index);
+        map_->instance_descriptors(isolate_)->GetDetails(descriptor_index);
     Representation expected_representation = current_details.representation();
 
     DCHECK_EQ(current_details.kind(), PropertyKind::kData);
@@ -889,47 +840,47 @@ class JSDataObjectBuilder {
         // Reconfigure the map for the value, deprecating if necessary. This
         // will only happen for double representation fields.
         if (IsOnExpectedFinalMapFastPath()) {
-          // If we're on the fast path, we might have advanced the current map
-          // to the expected map already, despite not yet committing the
-          // next_map to current_map. Make sure to rewind to the "real" next
-          // map if this happened.
+          // If we're on the fast path, we will have advanced the current map
+          // all the way to the final expected map. Make sure to rewind to the
+          // "real" current map if this happened.
           //
-          // An alternative would be to deprecate the expected final map, and
-          // migrate it to the new representation, but this would mean
-          // allocating all-new maps (with the new representation) all the way
-          // between the current map and the new expected final map; if we later
-          // fall off the fast path anyway, then all those newly allocated maps
-          // will end up unused.
-          RewindExpectedFinalMapFastPathToNext();
+          // An alternative would be to deprecate the expected final map,
+          // migrate it to the new representation, and stay on the fast path.
+          // However, this would mean allocating all-new maps (with the new
+          // representation) all the way between the current map and the new
+          // expected final map; if we later fall off the fast path anyway, then
+          // all those newly allocated maps will end up unused.
+          RewindExpectedFinalMapFastPathToIncludeCurrent();
           property_count_in_expected_final_map_ = 0;
         }
         DCHECK(representation.IsDouble());
-        MapUpdater mu(isolate_, next_map_);
-        next_map_ = mu.ReconfigureToDataField(
+        MapUpdater mu(isolate_, map_);
+        Handle<Map> new_map = mu.ReconfigureToDataField(
             descriptor_index, current_details.attributes(),
             current_details.constness(), representation,
             FieldType::Any(isolate_));
 
         // We only want to stay on the fast path if we got a fast map.
-        if (next_map_->is_dictionary_map()) return false;
+        if (new_map->is_dictionary_map()) return false;
+        map_ = new_map;
         *is_mutable_double_field = true;
       } else {
         // Do the in-place reconfiguration.
         DCHECK(!representation.IsDouble());
         Handle<FieldType> value_type =
             Object::OptimalType(*value, isolate_, representation);
-        MapUpdater::GeneralizeField(isolate_, next_map_, descriptor_index,
+        MapUpdater::GeneralizeField(isolate_, map_, descriptor_index,
                                     current_details.constness(), representation,
                                     value_type);
       }
     } else if (expected_representation.IsHeapObject() &&
                !FieldType::NowContains(
-                   next_map_->instance_descriptors(isolate_)->GetFieldType(
+                   map_->instance_descriptors(isolate_)->GetFieldType(
                        descriptor_index),
                    value)) {
       Handle<FieldType> value_type =
           Object::OptimalType(*value, isolate_, expected_representation);
-      MapUpdater::GeneralizeField(isolate_, next_map_, descriptor_index,
+      MapUpdater::GeneralizeField(isolate_, map_, descriptor_index,
                                   current_details.constness(),
                                   expected_representation, value_type);
     } else if (expected_representation.IsDouble()) {
@@ -937,15 +888,37 @@ class JSDataObjectBuilder {
     }
 
     DCHECK(FieldType::NowContains(
-        next_map_->instance_descriptors(isolate_)->GetFieldType(
-            descriptor_index),
+        map_->instance_descriptors(isolate_)->GetFieldType(descriptor_index),
         value));
     return true;
   }
 
-  V8_INLINE void AdvanceToNextProperty() {
-    current_property_index_++;
-    current_map_ = next_map_;
+  bool TryInitializeMapFromExpectedFinalMap() {
+    if (expected_final_map_.is_null()) return false;
+    if (expected_final_map_->elements_kind() != elements_kind_) return false;
+
+    int property_count_in_expected_final_map =
+        expected_final_map_->NumberOfOwnDescriptors();
+    if (property_count_in_expected_final_map < expected_property_count_)
+      return false;
+
+    map_ = expected_final_map_;
+    property_count_in_expected_final_map_ =
+        property_count_in_expected_final_map;
+    return true;
+  }
+
+  void InitializeMapFromZero() {
+    // Must be called before any properties are registered.
+    DCHECK_EQ(current_property_index_, 0);
+
+    map_ = isolate_->factory()->ObjectLiteralMapFromCache(
+        isolate_->native_context(), expected_property_count_);
+    if (elements_kind_ == DICTIONARY_ELEMENTS) {
+      map_ = Map::AsElementsKind(isolate_, map_, elements_kind_);
+    } else {
+      DCHECK_EQ(map_->elements_kind(), elements_kind_);
+    }
   }
 
   V8_INLINE bool IsOnExpectedFinalMapFastPath() const {
@@ -954,34 +927,35 @@ class JSDataObjectBuilder {
     return current_property_index_ < property_count_in_expected_final_map_;
   }
 
-  V8_INLINE void RewindExpectedFinalMapFastPathToCurrent() {
+  void RewindExpectedFinalMapFastPathToBeforeCurrent() {
     DCHECK_GT(property_count_in_expected_final_map_, 0);
     if (current_property_index_ == 0) {
-      DCHECK_EQ(0, current_map_->NumberOfOwnDescriptors());
+      InitializeMapFromZero();
+      DCHECK_EQ(0, map_->NumberOfOwnDescriptors());
+    }
+    if (current_property_index_ == 0) {
       return;
     }
-    DCHECK_EQ(*next_map_, *expected_final_map_);
-    current_map_ =
-        handle(expected_final_map_->FindFieldOwner(
-                   isolate_, InternalIndex(current_property_index_ - 1)),
-               isolate_);
+    DCHECK_EQ(*map_, *expected_final_map_);
+    map_ = handle(map_->FindFieldOwner(
+                      isolate_, InternalIndex(current_property_index_ - 1)),
+                  isolate_);
   }
 
-  V8_INLINE void RewindExpectedFinalMapFastPathToNext() {
-    DCHECK_EQ(*next_map_, *expected_final_map_);
-    next_map_ = handle(expected_final_map_->FindFieldOwner(
-                           isolate_, InternalIndex(current_property_index_)),
-                       isolate_);
-    // TODO(leszeks): Not strictly necessary here, we only need to rewind the
-    // current_map if the next_map fails to be applied.
-    current_map_ = handle(Map::cast(next_map_->GetBackPointer()), isolate_);
+  void RewindExpectedFinalMapFastPathToIncludeCurrent() {
+    DCHECK_EQ(*map_, *expected_final_map_);
+    map_ = handle(expected_final_map_->FindFieldOwner(
+                      isolate_, InternalIndex(current_property_index_)),
+                  isolate_);
   }
+
+  V8_INLINE void AdvanceToNextProperty() { current_property_index_++; }
 
   Isolate* isolate_;
+  ElementsKind elements_kind_;
   int expected_property_count_;
 
-  Handle<Map> current_map_;
-  Handle<Map> next_map_;
+  Handle<Map> map_;
   int current_property_index_ = 0;
 
   Handle<Map> expected_final_map_ = {};
@@ -1052,7 +1026,7 @@ class FoldedMutableHeapNumberAllocator {
  private:
   Isolate* isolate_;
   ReadOnlyRoots roots_;
-  Handle<ByteArray> raw_bytes_;
+  Handle<ByteArray> raw_bytes_ = {};
   Address mutable_double_address_ = 0;
 };
 
@@ -1066,9 +1040,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   int named_length = length - cont.elements;
   DCHECK_LE(0, named_length);
 
-  JSDataObjectBuilder js_data_object_builder(isolate_, named_length);
-
   Handle<FixedArrayBase> elements;
+  ElementsKind elements_kind = HOLEY_ELEMENTS;
 
   // First store the elements.
   if (cont.elements > 0) {
@@ -1085,7 +1058,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       }
       elms->SetInitialNumberOfElements(length);
       elms->UpdateMaxNumberKey(cont.max_index, Handle<JSObject>::null());
-      js_data_object_builder.UpdateElementsKind(DICTIONARY_ELEMENTS);
+      elements_kind = DICTIONARY_ELEMENTS;
       elements = elms;
     } else {
       Handle<FixedArray> elms =
@@ -1093,7 +1066,6 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       DisallowGarbageCollection no_gc;
       Tagged<FixedArray> raw_elements = *elms;
       WriteBarrierMode mode = raw_elements->GetWriteBarrierMode(no_gc);
-      DCHECK_EQ(HOLEY_ELEMENTS, js_data_object_builder.elements_kind());
 
       for (int i = 0; i < length; i++) {
         const JsonProperty& property = property_stack[start + i];
@@ -1108,9 +1080,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     elements = factory()->empty_fixed_array();
   }
 
-  if (!feedback.is_null()) {
-    js_data_object_builder.SetExpectedFinalMap(feedback);
-  }
+  JSDataObjectBuilder js_data_object_builder(isolate_, elements_kind,
+                                             named_length, feedback);
 
   int extra_heap_numbers_needed = 0;
 
