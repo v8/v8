@@ -71,11 +71,12 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
   FunctionTargetAndRef(Handle<WasmInstanceObject> target_instance_object,
                        int target_func_index);
-  Handle<Object> ref() { return ref_; }
+  // The "ref" will be a WasmInstanceObject or a WasmApiFunctionRef.
+  Handle<HeapObject> ref() { return ref_; }
   Address call_target() { return call_target_; }
 
  private:
-  Handle<Object> ref_;
+  Handle<HeapObject> ref_;
   Address call_target_;
 };
 
@@ -354,6 +355,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, Tagged<JSArrayBuffer>)
   DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, Tagged<FixedArray>)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
+  // tables: FixedArray of WasmTableObject.
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
   DECL_OPTIONAL_ACCESSORS(indirect_function_tables, Tagged<FixedArray>)
   DECL_ACCESSORS(imported_function_refs, Tagged<FixedArray>)
@@ -362,6 +364,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(indirect_function_table_sig_ids, Tagged<FixedUInt32Array>)
   DECL_ACCESSORS(indirect_function_table_targets, Tagged<ExternalPointerArray>)
+  DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
+  DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
   DECL_ACCESSORS(wasm_internal_functions, Tagged<FixedArray>)
   DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
@@ -408,6 +412,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
   V(kIndirectFunctionTableSigIdsOffset, kTaggedSize)                      \
   V(kIndirectFunctionTableTargetsOffset, kTaggedSize)                     \
+  V(kDispatchTable0Offset, kTaggedSize)                                   \
   V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
   V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
@@ -439,6 +444,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kTablesOffset, kTaggedSize)                                           \
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
+  V(kDispatchTablesOffset, kTaggedSize)                                   \
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
@@ -509,7 +515,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   const wasm::WasmModule* module();
 
-  static bool EnsureIndirectFunctionTableWithMinimumSize(
+  static void EnsureIndirectFunctionTableWithMinimumSize(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
       int table_index, uint32_t minimum_size);
 
@@ -524,6 +530,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       uint32_t table_index);
 
   void SetIndirectFunctionTableShortcuts(Isolate* isolate);
+
+  inline Tagged<WasmDispatchTable> dispatch_table(uint32_t table_index);
 
   // Copies table entries. Returns {false} if the ranges are out-of-bounds.
   static bool CopyTableEntries(

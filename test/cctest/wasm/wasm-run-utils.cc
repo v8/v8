@@ -243,18 +243,36 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.type = table_type;
 
   {
-    // Allocate the indirect function table.
-    Handle<FixedArray> old_tables =
+    // Allocate the indirect function table / dispatch table.
+    // TODO(14564): Remove the indirect function table.
+    Handle<FixedArray> old_ift_tables =
         table_index == 0
             ? isolate_->factory()->empty_fixed_array()
             : handle(trusted_instance_data_->indirect_function_tables(),
                      isolate_);
-    Handle<FixedArray> new_tables =
-        isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
+    DCHECK_EQ(table_index, old_ift_tables->length());
+    Handle<FixedArray> new_ift_tables =
+        isolate_->factory()->CopyFixedArrayAndGrow(old_ift_tables, 1);
     Handle<WasmIndirectFunctionTable> table_obj =
         WasmIndirectFunctionTable::New(isolate_, table.initial_size);
-    new_tables->set(table_index, *table_obj);
-    trusted_instance_data_->set_indirect_function_tables(*new_tables);
+    new_ift_tables->set(table_index, *table_obj);
+    trusted_instance_data_->set_indirect_function_tables(*new_ift_tables);
+
+    Handle<ProtectedFixedArray> old_dispatch_tables{
+        trusted_instance_data_->dispatch_tables(), isolate_};
+    DCHECK_EQ(table_index, old_dispatch_tables->length());
+    Handle<ProtectedFixedArray> new_dispatch_tables =
+        isolate_->factory()->NewProtectedFixedArray(table_index + 1);
+    Handle<WasmDispatchTable> new_dispatch_table =
+        WasmDispatchTable::New(isolate_, table.initial_size);
+    for (int i = 0; i < old_dispatch_tables->length(); ++i) {
+      new_dispatch_tables->set(i, old_dispatch_tables->get(i));
+    }
+    new_dispatch_tables->set(table_index, *new_dispatch_table);
+    if (table_index == 0) {
+      trusted_instance_data_->set_dispatch_table0(*new_dispatch_table);
+    }
+    trusted_instance_data_->set_dispatch_tables(*new_dispatch_tables);
   }
 
   WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
@@ -277,6 +295,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       FunctionTargetAndRef entry(instance_object_, function.func_index);
       trusted_instance_data_->indirect_function_table(table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());
+      trusted_instance_data_->dispatch_table(table_index)
+          ->Set(i, *entry.ref(), entry.call_target(), sig_id);
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }

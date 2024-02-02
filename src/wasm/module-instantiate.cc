@@ -1177,17 +1177,25 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     trusted_data->set_tables(*tables);
   }
 
-  {
+  if (table_count > 0) {
+    // TODO(14564): Remove indirect function tables; use dispatch tables
+    // everywhere.
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
+    Handle<ProtectedFixedArray> dispatch_tables =
+        isolate_->factory()->NewProtectedFixedArray(table_count);
     for (int i = 0; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
-      if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
-        Handle<WasmIndirectFunctionTable> table_obj =
-            WasmIndirectFunctionTable::New(isolate_, table.initial_size);
-        tables->set(i, *table_obj);
-      }
+      if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
+      Handle<WasmIndirectFunctionTable> table_obj =
+          WasmIndirectFunctionTable::New(isolate_, table.initial_size);
+      tables->set(i, *table_obj);
+      Handle<WasmDispatchTable> dispatch_table =
+          WasmDispatchTable::New(isolate_, table.initial_size);
+      dispatch_tables->set(i, *dispatch_table);
+      if (i == 0) trusted_data->set_dispatch_table0(*dispatch_table);
     }
     trusted_data->set_indirect_function_tables(*tables);
+    trusted_data->set_dispatch_tables(*dispatch_tables);
   }
 
   trusted_data->SetIndirectFunctionTableShortcuts(isolate_);
@@ -1245,16 +1253,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        table_index < static_cast<int>(module_->tables.size()); ++table_index) {
     const WasmTable& table = module_->tables[table_index];
 
-    if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
-      WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
-          isolate_, trusted_data, table_index, table.initial_size);
-      if (thrower_->error()) return {};
-      auto table_object = handle(
-          WasmTableObject::cast(trusted_data->tables()->get(table_index)),
-          isolate_);
-      WasmTableObject::AddUse(isolate_, table_object, trusted_data,
-                              table_index);
-    }
+    if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
+    WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+        isolate_, trusted_data, table_index, table.initial_size);
+    auto table_object =
+        handle(WasmTableObject::cast(trusted_data->tables()->get(table_index)),
+               isolate_);
+    WasmTableObject::AddUse(isolate_, table_object, trusted_data, table_index);
   }
 
   //--------------------------------------------------------------------------
@@ -1858,11 +1863,13 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
       ref = new_ref;
     }
 
-    uint32_t canonicalized_sig_index =
+    uint32_t canonical_sig_index =
         target_module->isorecursive_canonical_type_ids[function.sig_index];
 
     trusted_instance_data->indirect_function_table(table_index)
-        ->Set(i, canonicalized_sig_index, entry.call_target(), *ref);
+        ->Set(i, canonical_sig_index, entry.call_target(), *ref);
+    trusted_instance_data->dispatch_table(table_index)
+        ->Set(i, *ref, entry.call_target(), canonical_sig_index);
   }
   return true;
 }

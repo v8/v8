@@ -243,6 +243,10 @@ ACCESSORS(WasmTrustedInstanceData, imported_function_refs, Tagged<FixedArray>,
           kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, indirect_function_table_refs,
                    Tagged<FixedArray>, kIndirectFunctionTableRefsOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
+                            WasmDispatchTable, kDispatchTable0Offset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
+                            ProtectedFixedArray, kDispatchTablesOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
 ACCESSORS(WasmTrustedInstanceData, wasm_internal_functions, Tagged<FixedArray>,
@@ -284,6 +288,13 @@ Tagged<WasmIndirectFunctionTable>
 WasmTrustedInstanceData::indirect_function_table(uint32_t table_index) {
   return WasmIndirectFunctionTable::cast(
       indirect_function_tables()->get(table_index));
+}
+
+Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
+    uint32_t table_index) {
+  Tagged<Object> table = dispatch_tables()->get(table_index);
+  DCHECK(IsWasmDispatchTable(table));
+  return WasmDispatchTable::cast(table);
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {

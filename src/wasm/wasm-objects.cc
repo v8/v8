@@ -444,12 +444,13 @@ void WasmTableObject::UpdateDispatchTables(
   Handle<FixedArray> uses = handle(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  Handle<Object> call_ref =
+  Handle<HeapObject> call_ref =
       func->imported
           // The function in the target instance was imported. Use its imports
           // table, which contains a tuple needed by the import wrapper.
-          ? handle(target_instance_data->imported_function_refs()->get(
-                       func->func_index),
+          ? handle(HeapObject::cast(
+                       target_instance_data->imported_function_refs()->get(
+                           func->func_index)),
                    isolate)
           // For wasm functions, just pass the target instance.
           : handle(target_instance_data->instance_object(), isolate);
@@ -484,6 +485,10 @@ void WasmTableObject::UpdateDispatchTables(
       call_ref = new_ref;
     }
     ift->Set(entry_index, sig_id, call_target, *call_ref);
+    Tagged<WasmTrustedInstanceData> instance_data =
+        instance_object->trusted_data(isolate);
+    instance_data->dispatch_table(table_index)
+        ->Set(entry_index, *call_ref, call_target, sig_id);
   }
 }
 
@@ -550,12 +555,15 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
+    Tagged<HeapObject> ref = capi_function->shared()
+                                 ->wasm_capi_function_data()
+                                 ->internal(isolate)
+                                 ->ref();
+    Address call_target = wasm_code->instruction_start();
     trusted_instance_data->indirect_function_table(table_index)
-        ->Set(entry_index, canonical_type_index, wasm_code->instruction_start(),
-              capi_function->shared()
-                  ->wasm_capi_function_data()
-                  ->internal()
-                  ->ref());
+        ->Set(entry_index, canonical_type_index, call_target, ref);
+    trusted_instance_data->dispatch_table(table_index)
+        ->Set(entry_index, ref, call_target, canonical_type_index);
   }
 }
 
@@ -570,10 +578,8 @@ void WasmTableObject::ClearDispatchTables(int index) {
         WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset));
     Tagged<WasmTrustedInstanceData> target_instance_data =
         target_instance_object->trusted_data(isolate);
-    Tagged<WasmIndirectFunctionTable> function_table =
-        target_instance_data->indirect_function_table(table_index);
-    DCHECK_LT(index, function_table->size());
-    function_table->Clear(index);
+    target_instance_data->indirect_function_table(table_index)->Clear(index);
+    target_instance_data->dispatch_table(table_index)->Clear(index);
   }
 }
 
@@ -665,10 +671,9 @@ void WasmIndirectFunctionTable::Set(uint32_t index, int sig_id,
 }
 
 void WasmIndirectFunctionTable::Clear(uint32_t index) {
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
   sig_ids()->set(index, -1);
   targets()->clear(index);
-  refs()->set(index, ReadOnlyRoots(isolate).undefined_value());
+  refs()->set(index, Smi::zero());
 }
 
 void WasmIndirectFunctionTable::Resize(Isolate* isolate,
@@ -1052,9 +1057,11 @@ FunctionTargetAndRef::FunctionTargetAndRef(
           trusted_target_instance_data->module()->num_imported_functions)) {
     // The function in the target instance was imported. Use its imports table,
     // which contains a tuple needed by the import wrapper.
-    ref_ = handle(trusted_target_instance_data->imported_function_refs()->get(
-                      target_func_index),
-                  isolate);
+    ref_ =
+        handle(HeapObject::cast(
+                   trusted_target_instance_data->imported_function_refs()->get(
+                       target_func_index)),
+               isolate);
   } else {
     // The function in the target instance was not imported.
   }
@@ -1158,18 +1165,44 @@ constexpr std::array<const char*, 23>
     WasmTrustedInstanceData::kTaggedFieldNames;
 
 // static
-bool WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+void WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
     int table_index, uint32_t minimum_size) {
+  // WasmTrustedInstanceDataVerify checks that the WasmIndirectFunctionTable has
+  // the same size as the WasmDispatchTable. In order to pass this also for GCs
+  // which happen during this resize, we first remove the IFT and the dispatch
+  // table from the instance data, grow both, then set it back.
+  // Note that this code is only temporary anyway untils the IFT is completely
+  // removed and replaced by the WasmDispatchTable.
+
+  // Get the old IFT and dispatch table.
   DCHECK_LT(table_index,
             trusted_instance_data->indirect_function_tables()->length());
   Handle<WasmIndirectFunctionTable> table{
       trusted_instance_data->indirect_function_table(table_index), isolate};
+  Handle<WasmDispatchTable> old_dispatch_table{
+      trusted_instance_data->dispatch_table(table_index), isolate};
+
+  // Reset the fields on the instance.
+  trusted_instance_data->indirect_function_tables()->set(
+      table_index, ReadOnlyRoots{isolate}.undefined_value());
+  trusted_instance_data->dispatch_tables()->set(table_index, Smi::zero());
+
+  // Grow IFT and dispatch table.
   WasmIndirectFunctionTable::Resize(isolate, table, minimum_size);
+  Handle<WasmDispatchTable> new_dispatch_table =
+      static_cast<uint32_t>(old_dispatch_table->length()) >= minimum_size
+          ? old_dispatch_table
+          : WasmDispatchTable::Grow(isolate, old_dispatch_table, minimum_size);
+
+  // Install them back on the instance.
+  trusted_instance_data->indirect_function_tables()->set(table_index, *table);
+  trusted_instance_data->dispatch_tables()->set(table_index,
+                                                *new_dispatch_table);
   if (table_index == 0) {
     trusted_instance_data->SetIndirectFunctionTableShortcuts(isolate);
+    trusted_instance_data->set_dispatch_table0(*new_dispatch_table);
   }
-  return true;
 }
 
 void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
@@ -1234,6 +1267,13 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   Handle<FixedAddressArray> memory_bases_and_sizes =
       FixedAddressArray::New(isolate, 2 * num_memories);
 
+  // TODO(clemensb): Should we have singleton empty dispatch table and
+  // TrustedFixedArray in the trusted space?
+  Handle<WasmDispatchTable> empty_dispatch_table =
+      isolate->factory()->NewWasmDispatchTable(0);
+  Handle<ProtectedFixedArray> empty_protected_fixed_array =
+      isolate->factory()->NewProtectedFixedArray(0);
+
   // Now allocate the WasmTrustedInstanceData.
   // During this step, no more allocations should happen because the instance is
   // incomplete yet, so we should not trigger heap verification at this point.
@@ -1253,6 +1293,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
     trusted_data->set_imported_function_targets(*imported_function_targets);
     trusted_data->set_imported_mutable_globals(*imported_mutable_globals);
+    trusted_data->set_dispatch_table0(*empty_dispatch_table);
+    trusted_data->set_dispatch_tables(*empty_protected_fixed_array);
     trusted_data->set_data_segment_starts(*data_segment_starts);
     trusted_data->set_data_segment_sizes(*data_segment_sizes);
     trusted_data->set_element_segments(empty_fixed_array);
@@ -1365,14 +1407,13 @@ Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
 void WasmTrustedInstanceData::SetIndirectFunctionTableShortcuts(
     Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  if (indirect_function_tables()->length() > 0 &&
-      IsWasmIndirectFunctionTable(indirect_function_tables()->get(0))) {
-    Tagged<WasmIndirectFunctionTable> table0 = indirect_function_table(0);
-    set_indirect_function_table_size(table0->size());
-    set_indirect_function_table_refs(table0->refs());
-    set_indirect_function_table_sig_ids(table0->sig_ids());
-    set_indirect_function_table_targets(table0->targets());
-  }
+  if (!has_indirect_function_tables()) return;
+  if (!IsWasmIndirectFunctionTable(indirect_function_tables()->get(0))) return;
+  Tagged<WasmIndirectFunctionTable> table0 = indirect_function_table(0);
+  set_indirect_function_table_size(table0->size());
+  set_indirect_function_table_refs(table0->refs());
+  set_indirect_function_table_sig_ids(table0->sig_ids());
+  set_indirect_function_table_targets(table0->targets());
 }
 
 // static
@@ -1665,77 +1706,75 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       std::find(module_canonical_ids.begin(), module_canonical_ids.end(),
                 canonical_sig_index);
 
-  if (sig_in_module != module_canonical_ids.end()) {
-    wasm::NativeModule* native_module =
-        trusted_instance_data->module_object()->native_module();
-    wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index,
-                                  wasm::WellKnownImport::kUninstantiated);
-    wasm::ImportCallKind kind = resolved.kind();
-    callable = resolved.callable();  // Update to ultimate target.
-    DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-    // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
-    int expected_arity = -1;
-    if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
-      expected_arity = Handle<JSFunction>::cast(callable)
-                           ->shared()
-                           ->internal_formal_parameter_count_without_receiver();
-    }
-
-    wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
-    wasm::WasmCode* wasm_code =
-        cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
-    Address call_target;
-    if (wasm_code) {
-      call_target = wasm_code->instruction_start();
-    } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
-      call_target = isolate->builtins()
-                        ->code(Builtin::kWasmToJsWrapperAsm)
-                        ->instruction_start();
-    } else {
-      wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
-      wasm::WasmCompilationResult result =
-          compiler::CompileWasmImportCallWrapper(&env, kind, sig, false,
-                                                 expected_arity, suspend);
-      std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
-          result.func_index, result.code_desc, result.frame_slot_count,
-          result.tagged_parameter_slots,
-          result.protected_instructions_data.as_vector(),
-          result.source_positions.as_vector(), GetCodeKind(result),
-          wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
-      wasm_code = native_module->PublishCode(std::move(compiled_code));
-      isolate->counters()->wasm_generated_code_size()->Increment(
-          wasm_code->instructions().length());
-      isolate->counters()->wasm_reloc_size()->Increment(
-          wasm_code->reloc_info().length());
-
-      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                                 expected_arity, suspend);
-      cache_scope[key] = wasm_code;
-      call_target = wasm_code->instruction_start();
-    }
-
-    // Update the dispatch table.
-    int sig_id = static_cast<int>(
-        std::distance(module_canonical_ids.begin(), sig_in_module));
-    Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
-        callable, suspend,
-        handle(trusted_instance_data->instance_object(), isolate),
-        wasm::SerializedSignatureHelper::SerializeSignature(
-            isolate, module->signature(sig_id)));
-
-    WasmApiFunctionRef::SetIndexInTableAsCallOrigin(ref, entry_index);
-    WasmIndirectFunctionTable::cast(
-        trusted_instance_data->indirect_function_tables()->get(table_index))
-        ->Set(entry_index, canonical_sig_index, call_target, *ref);
+  if (sig_in_module == module_canonical_ids.end()) {
+    trusted_instance_data->indirect_function_table(table_index)
+        ->Clear(entry_index);
+    trusted_instance_data->dispatch_table(table_index)->Clear(entry_index);
     return;
   }
-  // We pass the instance as ref-parameter as a dummy value. It will never be
-  // used because `call_target` == nullptr.
-  WasmIndirectFunctionTable::cast(
-      trusted_instance_data->indirect_function_tables()->get(table_index))
-      ->Set(entry_index, canonical_sig_index, kNullAddress,
-            trusted_instance_data->instance_object());
+
+  wasm::NativeModule* native_module =
+      trusted_instance_data->module_object()->native_module();
+  wasm::WasmImportData resolved({}, -1, callable, sig, canonical_sig_index,
+                                wasm::WellKnownImport::kUninstantiated);
+  wasm::ImportCallKind kind = resolved.kind();
+  callable = resolved.callable();  // Update to ultimate target.
+  DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
+  // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
+  int expected_arity = -1;
+  if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
+    expected_arity = Handle<JSFunction>::cast(callable)
+                         ->shared()
+                         ->internal_formal_parameter_count_without_receiver();
+  }
+
+  wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+  wasm::WasmCode* wasm_code =
+      cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
+  Address call_target;
+  if (wasm_code) {
+    call_target = wasm_code->instruction_start();
+  } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
+    call_target = isolate->builtins()
+                      ->code(Builtin::kWasmToJsWrapperAsm)
+                      ->instruction_start();
+  } else {
+    wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
+    wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+        &env, kind, sig, false, expected_arity, suspend);
+    std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
+        result.func_index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
+        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
+    wasm_code = native_module->PublishCode(std::move(compiled_code));
+    isolate->counters()->wasm_generated_code_size()->Increment(
+        wasm_code->instructions().length());
+    isolate->counters()->wasm_reloc_size()->Increment(
+        wasm_code->reloc_info().length());
+
+    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+                                               expected_arity, suspend);
+    cache_scope[key] = wasm_code;
+    call_target = wasm_code->instruction_start();
+  }
+
+  // Update the dispatch table.
+  int sig_id = static_cast<int>(
+      std::distance(module_canonical_ids.begin(), sig_in_module));
+  Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
+      callable, suspend,
+      handle(trusted_instance_data->instance_object(), isolate),
+      wasm::SerializedSignatureHelper::SerializeSignature(
+          isolate, module->signature(sig_id)));
+
+  WasmApiFunctionRef::SetIndexInTableAsCallOrigin(ref, entry_index);
+  trusted_instance_data->indirect_function_table(table_index)
+      ->Set(entry_index, canonical_sig_index, call_target, *ref);
+  trusted_instance_data->dispatch_table(table_index)
+      ->Set(entry_index, *ref, call_target, canonical_sig_index);
 }
 
 uint8_t* WasmTrustedInstanceData::GetGlobalStorage(

@@ -2178,6 +2178,43 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
   for (uint16_t offset : kTaggedFieldOffsets) {
     VerifyObjectField(isolate, offset);
   }
+
+  int num_dispatch_tables = dispatch_tables()->length();
+  for (int i = 0; i < num_dispatch_tables; ++i) {
+    Tagged<Object> table = dispatch_tables()->get(i);
+    if (table == Smi::zero()) continue;
+    CHECK(IsWasmDispatchTable(table));
+    if (i == 0) CHECK_EQ(table, dispatch_table0());
+  }
+  if (num_dispatch_tables == 0) CHECK_EQ(0, dispatch_table0()->length());
+
+  // Check that the WasmIndirectFunctionTable and WasmDispatchTable agree.
+  // TODO(14564): Remove this temporary code when the WasmIndirectFunctionTable
+  // is removed.
+  if (num_dispatch_tables == 0) {
+    CHECK(!has_indirect_function_tables());
+  } else {
+    CHECK_EQ(num_dispatch_tables, indirect_function_tables()->length());
+    for (int i = 0; i < num_dispatch_tables; ++i) {
+      if (dispatch_tables()->get(i) == Smi::zero()) {
+        CHECK(IsUndefined(indirect_function_tables()->get(i)));
+        continue;
+      }
+      Tagged<WasmDispatchTable> dispatch_table = this->dispatch_table(i);
+      Tagged<WasmIndirectFunctionTable> indir_func_table =
+          indirect_function_table(i);
+      CHECK_EQ(dispatch_table->length(), indir_func_table->size());
+      for (int k = 0; k < dispatch_table->length(); ++k) {
+        CHECK_EQ(dispatch_table->sig(k),
+                 static_cast<int>(indir_func_table->sig_ids()->get(k)));
+        CHECK_EQ(dispatch_table->ref(k), indir_func_table->refs()->get(k));
+        CHECK_EQ(
+            dispatch_table->target(k),
+            indir_func_table->targets()->get<kWasmIndirectFunctionTargetTag>(
+                k, isolate));
+      }
+    }
+  }
 }
 
 void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
