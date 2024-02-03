@@ -2057,9 +2057,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=14303
   'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.1': [FAIL],
 
-  # https://github.com/tc39/proposal-iterator-helpers/pull/287
-  'built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
@@ -2491,9 +2488,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Iterator/prototype/Symbol.toStringTag/weird-setter': [SKIP],
-  'built-ins/Iterator/prototype/constructor/prop-desc': [SKIP],
-  'built-ins/Iterator/prototype/constructor/weird-setter': [SKIP],
   'language/module-code/import-attributes/allow-nlt-before-with': [SKIP],
 }],
 # End roll-watcher patch
@@ -2502,6 +2496,7 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
+  # https://crbug.com/v8/12594
   'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-iterator-next-rejected-promise-close': [SKIP],
   'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-next-rejected-promise-close': [SKIP],
   'built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-wrapper': [SKIP],
@@ -2516,7 +2511,6 @@
   'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-poisoned-return': [SKIP],
   'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-not-object': [SKIP],
   'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-object': [SKIP],
-  'built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc': [SKIP],
 }],
 # End roll-watcher patch
 ####
