@@ -125,9 +125,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fc45ae9270f779ed31150a0390b4e1e58cf0f162',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '449de3e4e368800a5756899cd7dcb84b47296d06',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c4d4aa67bd992e3ced5823f10bdce90a2ea698f2',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fc9e646cb3bfd0de93bce731d0f10096c022a63a',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ab0f0c13a6d33ab9120d64b5474ded2b1e728967',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '266936ebe9b53a37cdc38b38902c06da6a59e1e2',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -295,7 +295,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8ca19451ce241678d00e7cac07442a133ca102bb',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '3c2f3884e62e17b137ede3e2f3e7214ef294e2c9',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0c4e8fac5c5b369eb27093c0bdeae5dfad1aaf5c',
   'third_party/libunwind/src':
