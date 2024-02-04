@@ -125,7 +125,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '449de3e4e368800a5756899cd7dcb84b47296d06',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '90c5422aa95cd52a26c55888161da927c2b983a0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fc9e646cb3bfd0de93bce731d0f10096c022a63a',
   'buildtools/linux64': {
@@ -319,7 +319,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '7cd06cd73e44373269b1ed2eb6a2175229f6015f',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'ab7c5918b418428ed17dbe564e0d8402bd7d743d',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
