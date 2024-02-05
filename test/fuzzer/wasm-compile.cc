@@ -178,8 +178,10 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   std::vector<ValueType> types;
   // Non wasm-gc types.
   if (include_numeric_types == kIncludeNumericTypes) {
-    types.insert(types.end(),
-                 {kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128});
+    // Many "general-purpose" instructions return i32, so give that a higher
+    // probability (such as 3x).
+    types.insert(types.end(), {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32,
+                               kWasmF64, kWasmS128});
     if (include_packed_types == kIncludePackedTypes) {
       types.insert(types.end(), {kWasmI8, kWasmI16});
     }
@@ -2148,7 +2150,13 @@ template <>
 void WasmGenerator::Generate<kI32>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() <= 1) {
-    builder_->EmitI32Const(data->getPseudoRandom<uint32_t>());
+    // Rather than evenly distributing values across the full 32-bit range,
+    // distribute them evenly over the possible bit lengths. In particular,
+    // for values used as indices into something else, smaller values are
+    // more likely to be useful.
+    uint8_t size = 1 + (data->getPseudoRandom<uint8_t>() & 31);
+    uint32_t mask = kMaxUInt32 >> (32 - size);
+    builder_->EmitI32Const(data->getPseudoRandom<uint32_t>() & mask);
     return;
   }
 
