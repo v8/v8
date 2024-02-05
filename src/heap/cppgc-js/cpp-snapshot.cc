@@ -31,8 +31,6 @@ class CppGraphBuilderImpl;
 class StateStorage;
 class State;
 
-using cppgc::internal::GCInfo;
-using cppgc::internal::GlobalGCInfoTable;
 using cppgc::internal::HeapObjectHeader;
 
 // Node representing a C++ object on the heap.
@@ -363,7 +361,7 @@ class StateStorage final {
         root_node, std::make_unique<RootState>(root_node, ++state_count_)));
     DCHECK(it.second);
     USE(it);
-    return static_cast<RootState&>(*it.first->second.get());
+    return static_cast<RootState&>(*it.first->second);
   }
 
   template <typename Callback>

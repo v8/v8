@@ -760,10 +760,8 @@ void CppHeap::StartMarking() {
     // Reuse the same local worklist for the mutator marking state which results
     // in directly processing the objects by the JS logic. Also avoids
     // publishing local objects.
-    marker_.get()
-        ->To<UnifiedHeapMarker>()
-        .GetMutatorUnifiedHeapMarkingState()
-        .Update(GetV8MarkingWorklists(isolate_, *collection_type_));
+    marker_->To<UnifiedHeapMarker>().GetMutatorUnifiedHeapMarkingState().Update(
+        GetV8MarkingWorklists(isolate_, *collection_type_));
   }
   marker_->StartMarking();
   marking_done_ = false;
@@ -807,7 +805,7 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
   if (!TracingInitialized()) return;
-  auto& marker = marker_.get()->To<UnifiedHeapMarker>();
+  auto& marker = marker_->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   // TODO(1029379): Support global handle marking visitors with minor GC.
   if (isolate_) {
