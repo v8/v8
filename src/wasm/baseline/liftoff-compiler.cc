@@ -86,10 +86,13 @@ struct assert_field_size {
   __ LoadTaggedPointerFromInstance(dst, LoadInstanceIntoRegister(pinned, dst), \
                                    WASM_INSTANCE_OBJECT_FIELD_OFFSET(name));
 
+// Liftoff's code comments are intentionally without source location to keep
+// readability up.
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str) __ RecordComment(str)
-#define SCOPED_CODE_COMMENT(str) \
-  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str)
+#define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
+#define SCOPED_CODE_COMMENT(str)                                   \
+  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str, \
+                                                       SourceLocation{})
 #else
 #define CODE_COMMENT(str) ((void)0)
 #define SCOPED_CODE_COMMENT(str) ((void)0)
