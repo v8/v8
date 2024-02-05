@@ -5534,7 +5534,8 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
   LoadCodeEntrypointViaCodePointer(

@@ -5021,7 +5021,8 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
           FieldMemOperand(code_object, Code::kInstructionStartOffset));
