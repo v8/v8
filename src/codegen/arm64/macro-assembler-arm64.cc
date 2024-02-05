@@ -2505,7 +2505,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 #else
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(code);
+  CallCodeObject(code, kJSEntrypointTag);
 #endif
 }
 
