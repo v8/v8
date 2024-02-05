@@ -1797,8 +1797,6 @@ class NodeBase : public ZoneObject {
 
   auto options() const { return std::tuple{}; }
 
-  uint32_t value_number = 0;
-
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
 

@@ -888,12 +888,6 @@ class MaglevGraphBuilder {
 
     uint32_t value_number;
     {
-      static auto GetValueNumberOfInput = [](ValueNode* inp) -> size_t {
-        if (inp->value_number == 0) {
-          return base::hash_value(inp);
-        }
-        return inp->value_number;
-      };
       size_t tmp_value_number = base::hash_value(op);
       (
           [&] {
@@ -903,7 +897,7 @@ class MaglevGraphBuilder {
           ...);
       for (const auto& inp : inputs) {
         tmp_value_number =
-            fast_hash_combine(tmp_value_number, GetValueNumberOfInput(inp));
+            fast_hash_combine(tmp_value_number, base::hash_value(inp));
       }
       value_number = static_cast<uint32_t>(tmp_value_number);
     }
@@ -942,7 +936,6 @@ class MaglevGraphBuilder {
     NodeT* node =
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
     DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
-    node->value_number = value_number;
     known_node_aspects().available_expressions[value_number] = {
         node, !node->properties().is_pure()
                   ? known_node_aspects().effect_epoch()
