@@ -776,11 +776,6 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   DCHECK_LT(static_cast<size_t>(allocator_->limit() - allocator_->top()),
             size_in_bytes);
 
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  FreeLinearAllocationAreaUnsynchronized();
-
   size_t new_node_size = 0;
   Tagged<FreeSpace> new_node =
       space_->free_list_->Allocate(size_in_bytes, &new_node_size, origin);
@@ -791,6 +786,11 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   // Verify that it did not turn the page of the new node into an evacuation
   // candidate.
   DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
+
+  // Mark the old linear allocation area with a free space map so it can be
+  // skipped when scanning the heap.  This also puts it back in the free list
+  // if it is big enough.
+  FreeLinearAllocationAreaUnsynchronized();
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
