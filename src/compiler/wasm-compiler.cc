@@ -2925,55 +2925,6 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
                            kCallContinues);
 }
 
-void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
-                                                 Node** ift_size,
-                                                 Node** ift_sig_ids,
-                                                 Node** ift_targets,
-                                                 Node** ift_refs) {
-  bool needs_dynamic_size = true;
-  const wasm::WasmTable& table = env_->module->tables[table_index];
-  if (table.has_maximum_size && table.maximum_size == table.initial_size) {
-    *ift_size = Int32Constant(table.initial_size);
-    needs_dynamic_size = false;
-  }
-
-  if (table_index == 0) {
-    if (needs_dynamic_size) {
-      *ift_size = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableSize,
-                                              MachineType::Uint32());
-    }
-    *ift_sig_ids = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableSigIds,
-                                               MachineType::TaggedPointer());
-    *ift_targets = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableTargets,
-                                               MachineType::TaggedPointer());
-    *ift_refs = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTableRefs,
-                                            MachineType::TaggedPointer());
-    return;
-  }
-
-  Node* ift_tables = LOAD_MUTABLE_INSTANCE_FIELD(IndirectFunctionTables,
-                                                 MachineType::TaggedPointer());
-  Node* ift_table = gasm_->LoadFixedArrayElementAny(ift_tables, table_index);
-
-  if (needs_dynamic_size) {
-    *ift_size = gasm_->LoadFromObject(
-        MachineType::Int32(), ift_table,
-        wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset));
-  }
-
-  *ift_sig_ids = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSigIdsOffset));
-
-  *ift_targets = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kTargetsOffset));
-
-  *ift_refs = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
-}
-
 Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                           uint32_t sig_index,
                                           base::Vector<Node*> args,
@@ -2983,27 +2934,48 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   DCHECK_NOT_NULL(args[0]);
   DCHECK_NOT_NULL(env_);
 
-  // First we have to load the table.
-  Node* ift_size;
-  Node* ift_sig_ids;
-  Node* ift_targets;
-  Node* ift_refs;
-  LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
-                            &ift_refs);
+  // Load the dispatch table.
+  Node* dispatch_table;
+  if (table_index == 0) {
+    dispatch_table = gasm_->LoadProtectedPointerFromObject(
+        GetInstanceData(), wasm::ObjectAccess::ToTagged(
+                               WasmTrustedInstanceData::kDispatchTable0Offset));
+  } else {
+    Node* dispatch_tables = gasm_->LoadProtectedPointerFromObject(
+        GetInstanceData(), wasm::ObjectAccess::ToTagged(
+                               WasmTrustedInstanceData::kDispatchTablesOffset));
+    dispatch_table = gasm_->LoadProtectedPointerFromObject(
+        dispatch_tables,
+        wasm::ObjectAccess::ToTagged(
+            ProtectedFixedArray::OffsetOfElementAt(table_index)));
+  }
 
-  Node* key = args[0];
-  Node* key_intptr = gasm_->BuildChangeUint32ToUintPtr(key);
-
-  // Bounds check against the table size.
-  Node* in_bounds = gasm_->Uint32LessThan(key, ift_size);
+  // Bounds check the index.
+  Node* index = args[0];
+  const wasm::WasmTable& table = env_->module->tables[table_index];
+  const bool needs_dynamic_size =
+      !table.has_maximum_size || table.maximum_size != table.initial_size;
+  Node* table_size =
+      needs_dynamic_size
+          ? gasm_->LoadFromObject(
+                MachineType::Int32(), dispatch_table,
+                wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset))
+          : Int32Constant(table.initial_size);
+  Node* in_bounds = gasm_->Uint32LessThan(index, table_size);
   TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
 
   wasm::ValueType table_type = env_->module->tables[table_index].type;
-
   bool needs_type_check = !wasm::EquivalentTypes(
       table_type.AsNonNull(), wasm::ValueType::Ref(sig_index), env_->module,
       env_->module);
   bool needs_null_check = table_type.is_nullable();
+
+  Node* index_intptr = gasm_->BuildChangeUint32ToUintPtr(index);
+  Node* dispatch_table_entry_offset = gasm_->IntAdd(
+      gasm_->IntPtrConstant(
+          wasm::ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset)),
+      gasm_->IntMul(index_intptr,
+                    gasm_->IntPtrConstant(WasmDispatchTable::kEntrySize)));
 
   // Skip check if table type matches declared signature.
   if (needs_type_check) {
@@ -3013,8 +2985,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
         MachineType::Uint32(), isorecursive_canonical_types,
         gasm_->IntPtrConstant(sig_index * kInt32Size));
 
-    Node* loaded_sig = gasm_->LoadByteArrayElement(ift_sig_ids, key_intptr,
-                                                   MachineType::Int32());
+    Node* loaded_sig = gasm_->LoadFromObject(
+        MachineType::Int32(), dispatch_table,
+        gasm_->IntAdd(dispatch_table_entry_offset,
+                      gasm_->IntPtrConstant(WasmDispatchTable::kSigBias)));
     Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
     if (!env_->module->types[sig_index].is_final) {
@@ -3075,19 +3049,24 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
       TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
     }
   } else if (needs_null_check) {
-    Node* loaded_sig = gasm_->LoadByteArrayElement(ift_sig_ids, key_intptr,
-                                                   MachineType::Int32());
+    Node* loaded_sig = gasm_->LoadFromObject(
+        MachineType::Int32(), dispatch_table,
+        gasm_->IntAdd(dispatch_table_entry_offset,
+                      gasm_->IntPtrConstant(WasmDispatchTable::kSigBias)));
     TrapIfTrue(wasm::kTrapFuncSigMismatch,
                gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
   }
 
-  Node* target_ref = gasm_->LoadFixedArrayElement(ift_refs, key_intptr,
-                                                  MachineType::TaggedPointer());
+  Node* target_ref = gasm_->LoadFromObject(
+      MachineType::TaggedPointer(), dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(WasmDispatchTable::kRefBias)));
   Node* first_param = LoadTrustedDataFromMaybeInstanceObject(target_ref);
 
-  Node* target = gasm_->LoadExternalPointerArrayElement(
-      ift_targets, key_intptr, kWasmIndirectFunctionTargetTag,
-      BuildLoadIsolateRoot());
+  Node* target = gasm_->LoadFromObject(
+      MachineType::Pointer(), dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(WasmDispatchTable::kTargetBias)));
   args[0] = target;
 
   const wasm::FunctionSig* sig = env_->module->signature(sig_index);
