@@ -3755,11 +3755,15 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   return value;
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
+ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
   // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
   // searching the constant values.
-  RETURN_IF_DONE(
-      TryReuseKnownPropertyLoad(js_array, broker()->length_string()));
+  ReduceResult known_length =
+      TryReuseKnownPropertyLoad(js_array, broker()->length_string());
+  if (known_length.IsDone()) {
+    DCHECK(known_length.IsDoneWithValue());
+    return known_length.value();
+  }
 
   ValueNode* length =
       AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
@@ -4478,11 +4482,13 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   ValueNode* elements_array =
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
   ValueNode* index = GetInt32ElementIndex(index_object);
-  ValueNode* length_as_smi =
-      is_jsarray ? BuildLoadJSArrayLength(object).value()
-                 : AddNewNode<LoadTaggedField>({elements_array},
-                                               FixedArray::kLengthOffset);
-  ValueNode* length = AddNewNode<UnsafeSmiUntag>({length_as_smi});
+  ValueNode* length;
+  if (is_jsarray) {
+    length = GetInt32(BuildLoadJSArrayLength(object));
+  } else {
+    length = AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
+        {elements_array}, FixedArray::kLengthOffset)});
+  }
 
   auto emit_load = [&] {
     ValueNode* result;
@@ -4567,7 +4573,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* elements_array_length = nullptr;
     ValueNode* length;
     if (is_jsarray) {
-      length = GetInt32(BuildLoadJSArrayLength(object).value());
+      length = GetInt32(BuildLoadJSArrayLength(object));
     } else {
       length = elements_array_length =
           AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
@@ -6018,7 +6024,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* this_arg =
       args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
 
-  ValueNode* original_length = BuildLoadJSArrayLength(receiver).value();
+  ValueNode* original_length = BuildLoadJSArrayLength(receiver);
 
   // Elide the callable check if the node is known callable.
   EnsureType(callback, NodeType::kCallable, [&](NodeType old_type) {
@@ -6213,7 +6219,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
     // Check if the index is still in bounds, in case the callback changed the
     // length.
-    ValueNode* current_length = BuildLoadJSArrayLength(receiver).value();
+    ValueNode* current_length = BuildLoadJSArrayLength(receiver);
     sub_builder.set(var_length, current_length);
 
     // Reference compare the loaded length against the original length. If this
@@ -6663,7 +6669,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
   ValueNode* old_array_length_smi;
   GET_VALUE_OR_ABORT(old_array_length_smi,
-                     GetSmiValue(BuildLoadJSArrayLength(receiver).value()));
+                     GetSmiValue(BuildLoadJSArrayLength(receiver)));
   ValueNode* old_array_length =
       AddNewNode<UnsafeSmiUntag>({old_array_length_smi});
   ValueNode* new_array_length_smi =
@@ -6816,7 +6822,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
 
   ValueNode* old_array_length_smi;
   GET_VALUE_OR_ABORT(old_array_length_smi,
-                     GetSmiValue(BuildLoadJSArrayLength(receiver).value()));
+                     GetSmiValue(BuildLoadJSArrayLength(receiver)));
 
   // If the array is empty, skip the pop and return undefined.
   sub_graph.GotoIfTrue<BranchIfReferenceEqual>(

@@ -1988,7 +1988,7 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
 
-  ReduceResult BuildLoadJSArrayLength(ValueNode* js_array);
+  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array);
 
   ReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
