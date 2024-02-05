@@ -455,7 +455,8 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
                                                         int offset_imm) {
   Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
                                      static_cast<uint32_t>(offset_imm));
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op);
+  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
+                                                   kWasmEntrypointTag);
 }
 #endif
 

@@ -9199,6 +9199,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
 
   return zone->New<CallDescriptor>(               // --
       call_descriptor->kind(),                    // kind
+      call_descriptor->tag(),                     // tag
       call_descriptor->GetInputType(0),           // target MachineType
       call_descriptor->GetInputLocation(0),       // target location
       location_sig,                               // location_sig

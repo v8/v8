@@ -1440,7 +1440,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
   __ Move(x2, optimized_code_entry);
-  __ JumpCodeObject(x2);
+  __ JumpCodeObject(x2, kJSEntrypointTag);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -1507,7 +1507,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-  JumpCodeObject(x2);
+  JumpCodeObject(x2, kJSEntrypointTag);
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -2459,27 +2459,30 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
   LoadCodeEntrypointViaCodePointer(
       destination,
-      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset));
+      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset), tag);
 #else
   Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 #endif
 }
 
-void MacroAssembler::CallCodeObject(Register code_object) {
+void MacroAssembler::CallCodeObject(Register code_object,
+                                    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-  LoadCodeInstructionStart(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object, tag);
   Call(code_object);
 }
 
-void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
+                                    JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeInstructionStart(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object, tag);
   // We jump through x17 here because for Branch Identification (BTI) we use
   // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
   // code. See TailCallBuiltin for more information.
@@ -2496,7 +2499,8 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   Call(code);
 #else
   LoadTaggedField(code,
@@ -2513,7 +2517,8 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   // We jump through x17 here because for Branch Identification (BTI) we use
   // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
@@ -2524,7 +2529,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #else
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(code, jump_mode);
+  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
 #endif
 }
 
@@ -3705,17 +3710,22 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   Orr(destination, destination, Immediate(kHeapObjectTag));
 }
 
-void MacroAssembler::LoadCodeEntrypointViaCodePointer(
-    Register destination, MemOperand field_operand) {
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
+                                                      MemOperand field_operand,
+                                                      CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
-  Register table = temps.AcquireX();
-  Mov(table, ExternalReference::code_pointer_table_address());
+  Register scratch = temps.AcquireX();
+  Mov(scratch, ExternalReference::code_pointer_table_address());
   Ldr(destination.W(), field_operand);
   // TODO(saelo): can the offset computation be done more efficiently?
   Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
-  Ldr(destination, MemOperand(table, destination));
+  Ldr(destination, MemOperand(scratch, destination));
+  if (tag != 0) {
+    Mov(scratch, Immediate(tag));
+    Eor(destination, destination, scratch);
+  }
 }
 #endif  // V8_ENABLE_SANDBOX
 

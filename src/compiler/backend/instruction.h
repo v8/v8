@@ -1050,6 +1050,22 @@ class V8_EXPORT_PRIVATE Instruction final {
     return MiscField::decode(opcode()) & flag;
   }
 
+  // For call instructions, computes the index of the CodeEntrypointTag input.
+  size_t CodeEnrypointTagInputIndex() const {
+    // Keep in sync with instruction-selector.cc where the inputs are assembled.
+    switch (arch_opcode()) {
+      case kArchCallCodeObject:
+        return InputCount() -
+               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
+                    ? 2
+                    : 1);
+      case kArchTailCallCodeObject:
+        return InputCount() - 3;
+      default:
+        UNREACHABLE();
+    }
+  }
+
   enum GapPosition {
     START,
     END,

@@ -163,7 +163,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object,
+                                CodeEntrypointTag = kDefaultCodeEntrypointTag);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);

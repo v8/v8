@@ -646,9 +646,10 @@ CodeEntrypointTag Code::entrypoint_tag() const {
   // and JavaScript Code.
   if (kind() == CodeKind::BYTECODE_HANDLER) {
     return kBytecodeHandlerEntrypointTag;
-  } else {
-    return kDefaultCodeEntrypointTag;
+  } else if (kind() == CodeKind::BUILTIN) {
+    return Builtins::TagFor(builtin_id());
   }
+  return kDefaultCodeEntrypointTag;
 }
 
 void Code::SetInstructionStreamAndInstructionStart(

@@ -618,6 +618,7 @@ class TestEnvironment : public HandleAndZoneScope {
     const int kTotalStackParameterCount = stack_slot_count_ + 1;
     return main_zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject,  // kind
+        kDefaultCodeEntrypointTag,        // tag
         MachineType::AnyTagged(),         // target MachineType
         LinkageLocation::ForAnyRegister(
             MachineType::AnyTagged()),  // target location
@@ -1300,6 +1301,9 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
+        ImmediateOperand(
+            ImmediateOperand::INLINE_INT32,
+            (kDefaultCodeEntrypointTag >> kCodeEntrypointTagShift)),
         ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE_INT32,
                          first_unused_stack_slot)};

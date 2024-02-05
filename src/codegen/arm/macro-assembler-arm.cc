@@ -363,7 +363,8 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }

@@ -1297,7 +1297,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ ReplaceClosureCodeWithOptimizedCode(
         rcx, closure, kInterpreterBytecodeArrayRegister,
         WriteBarrierDescriptor::SlotAddressRegister());
-    __ JumpCodeObject(rcx);
+    __ JumpCodeObject(rcx, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1706,10 +1706,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   GetSharedFunctionInfoData(masm, rbx, shared_function_info, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
-
   __ LoadProtectedPointerField(
       rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeInstructionStart(rbx, rbx);
+  __ LoadCodeInstructionStart(rbx, rbx, kJSEntrypointTag);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -2944,7 +2943,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
       FieldOperand(deopt_data, TrustedFixedArray::OffsetOfElementAt(
                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
-  __ LoadCodeInstructionStart(rax, rax);
+  __ LoadCodeInstructionStart(rax, rax, kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
   __ addq(rax, rbx);
@@ -4988,7 +4987,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ movq(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ LoadCodeInstructionStart(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ addq(code_obj, kReturnRegister0);
   __ popq(kInterpreterAccumulatorRegister);
 

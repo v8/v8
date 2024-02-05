@@ -616,7 +616,8 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
 }
 
 void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
-                                                      Operand field_operand) {
+                                                      Operand field_operand,
+                                                      CodeEntrypointTag tag) {
   DCHECK(!AreAliased(destination, kScratchRegister));
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
   LoadAddress(kScratchRegister,
@@ -625,6 +626,11 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   shrl(destination, Immediate(kCodePointerHandleShift));
   shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
   movq(destination, Operand(kScratchRegister, destination, times_1, 0));
+  if (tag != 0) {
+    // Can this be improved?
+    movq(kScratchRegister, Immediate64(tag));
+    xorq(destination, kScratchRegister);
+  }
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -1051,7 +1057,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ Move(rcx, optimized_code_entry);
-  __ JumpCodeObject(rcx, jump_mode);
+  __ JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -1106,7 +1112,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Pop(kJavaScriptCallTargetRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  JumpCodeObject(rcx, jump_mode);
+  JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 }
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
@@ -2780,23 +2786,27 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
   LoadCodeEntrypointViaCodePointer(
-      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset));
+      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset),
+      tag);
 #else
   movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 #endif
 }
 
-void MacroAssembler::CallCodeObject(Register code_object) {
-  LoadCodeInstructionStart(code_object, code_object);
+void MacroAssembler::CallCodeObject(Register code_object,
+                                    CodeEntrypointTag tag) {
+  LoadCodeInstructionStart(code_object, code_object, tag);
   call(code_object);
 }
 
-void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  LoadCodeInstructionStart(code_object, code_object);
+void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
+                                    JumpMode jump_mode) {
+  LoadCodeInstructionStart(code_object, code_object, tag);
   switch (jump_mode) {
     case JumpMode::kJump:
       jmp(code_object);
@@ -2815,11 +2825,12 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
+      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   call(rcx);
 #else
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(rcx);
+  CallCodeObject(rcx, kJSEntrypointTag);
 #endif
 }
 
@@ -2831,12 +2842,13 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
+      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);
 #else
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(rcx, jump_mode);
+  JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 #endif
 }
 

@@ -2030,14 +2030,6 @@ namespace internal {
   BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_A(V)                                                      \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
-
-#define BUILTIN_LIST_TFS(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-
 #define BUILTIN_LIST_TFJ(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -2045,6 +2037,22 @@ namespace internal {
 #define BUILTIN_LIST_TFC(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFS(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFH(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_BCH(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, V, IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_A(V)                                                      \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
 }  // namespace internal
 }  // namespace v8
