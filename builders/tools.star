@@ -63,19 +63,9 @@ v8_builder(
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_IMPORT_ACCOUNT,
-    executable = "recipe:v8/roll_watch",
+    executable = "recipe:v8/test262_watch",
     schedule = "* * * * * 1970",
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
-    properties = {
-        "watched_rollers": [{
-            "name": "Test262 import watcher",
-            "subject": "[test262] Roll test262",
-            "review-host": "chromium-review.googlesource.com",
-            "project": "v8/v8",
-            "account": V8_TEST262_IMPORT_ACCOUNT,
-            "failure_recovery": ["test262_update_status_file"],
-        }],
-    },
 )

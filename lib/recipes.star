@@ -43,12 +43,12 @@ def define_all_recipes():
         "v8/orchestrator",
         "v8/pgo_builder",
         "v8/presubmit",
-        "v8/roll_watch",
         "v8/verify_flakes",
         "v8/spike",
         "v8/test_tools",
         "v8/test262_export",
         "v8/test262_import",
+        "v8/test262_watch",
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)
