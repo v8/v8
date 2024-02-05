@@ -3713,6 +3713,7 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
 void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
                                                       MemOperand field_operand,
                                                       CodeEntrypointTag tag) {
+  DCHECK_NE(tag, kInvalidEntrypointTag);
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();

@@ -195,7 +195,7 @@ class Builtins {
   static const char* KindNameOf(Builtin builtin);
 
   // The tag for the builtins entrypoint.
-  V8_EXPORT_PRIVATE static CodeEntrypointTag TagFor(Builtin builtin);
+  V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
 
   static bool IsCpp(Builtin builtin);
 

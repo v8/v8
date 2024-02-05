@@ -53,6 +53,8 @@ namespace internal {
   V(CallWithSpread)                                  \
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
+  V(CCall)                                           \
+  V(CEntryDummy)                                     \
   V(CEntry1ArgvOnStack)                              \
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
@@ -141,6 +143,7 @@ namespace internal {
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
+  V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
   V(WasmJSToWasmWrapper)                             \
@@ -478,6 +481,8 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr bool kNoContext = false;
   static constexpr bool kAllowVarArgs = false;
   static constexpr bool kNoStackScan = false;
+  // TODO(saelo): we should not have a default value here to force all interface
+  // descriptors to define a (unique) tag.
   static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kDefault;
 
@@ -757,6 +762,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
 class V8_EXPORT_PRIVATE VoidDescriptor
     : public StaticCallInterfaceDescriptor<VoidDescriptor> {
  public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kInvalidEntrypointTag;
   // The void descriptor could (and indeed probably should) also be NO_CONTEXT,
   // but this breaks some code assembler unittests.
   DEFINE_PARAMETERS()
@@ -765,10 +771,6 @@ class V8_EXPORT_PRIVATE VoidDescriptor
 
   static constexpr auto registers();
 };
-
-// Dummy descriptor that marks builtins with C calling convention.
-// TODO(jgruber): Define real descriptors for C calling conventions.
-using CCallDescriptor = VoidDescriptor;
 
 // Marks deoptimization entry builtins. Precise calling conventions currently
 // differ based on the platform.
@@ -782,15 +784,39 @@ using JSEntryDescriptor = VoidDescriptor;
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
-using CEntryDummyDescriptor = VoidDescriptor;
+using ContinueToBuiltinDescriptor = VoidDescriptor;
+
+// Dummy descriptor that marks builtins with C calling convention.
+// TODO(jgruber): Define real descriptors for C calling conventions.
+class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(CCallDescriptor)
+};
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
-using ContinueToBuiltinDescriptor = VoidDescriptor;
+class CEntryDummyDescriptor
+    : public StaticCallInterfaceDescriptor<CEntryDummyDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(CEntryDummyDescriptor)
+};
 
 // TODO(wasm): Consider filling in details / defining real descriptors for all
 // builtins still using this placeholder descriptor.
-using WasmDummyDescriptor = VoidDescriptor;
+class WasmDummyDescriptor
+    : public StaticCallInterfaceDescriptor<WasmDummyDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kWasmEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(WasmDummyDescriptor)
+};
 
 class AllocateDescriptor
     : public StaticCallInterfaceDescriptor<AllocateDescriptor> {

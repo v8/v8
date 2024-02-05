@@ -138,7 +138,7 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetReturnCount() {
   static_assert(
       DerivedDescriptor::kReturnCount >= 0,
       "DerivedDescriptor subclass should override return count with a value "
-      "that is greater than 0");
+      "that is greater than or equal to 0");
 
   return DerivedDescriptor::kReturnCount;
 }
@@ -150,7 +150,7 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetParameterCount() {
   static_assert(
       DerivedDescriptor::kParameterCount >= 0,
       "DerivedDescriptor subclass should override parameter count with a "
-      "value that is greater than 0");
+      "value that is greater than or equal to 0");
 
   return DerivedDescriptor::kParameterCount;
 }

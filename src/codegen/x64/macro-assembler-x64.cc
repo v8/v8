@@ -620,6 +620,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
                                                       CodeEntrypointTag tag) {
   DCHECK(!AreAliased(destination, kScratchRegister));
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
+  DCHECK_NE(tag, kInvalidEntrypointTag);
   LoadAddress(kScratchRegister,
               ExternalReference::code_pointer_table_address());
   movl(destination, field_operand);
