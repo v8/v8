@@ -285,10 +285,6 @@ using kTruncateWord64ToWord32 = ChangeOpMask::For<
     ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
 
-using TaggedBicastMask =
-    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, kind)>;
-using kTaggedBitcastSmi = TaggedBicastMask::For<TaggedBitcastOp::Kind::kSmi>;
-
 using OverflowCheckedBinopMask =
     MaskBuilder<OverflowCheckedBinopOp, FIELD(OverflowCheckedBinopOp, kind),
                 FIELD(OverflowCheckedBinopOp, rep)>;
@@ -303,6 +299,15 @@ using kBitcastTaggedToWordPtrForTagAndSmiBits =
     TaggedBitcastMask::For<RegisterRepresentation::Tagged(),
                            RegisterRepresentation::PointerSized(),
                            TaggedBitcastOp::Kind::kTagAndSmiBits>;
+using kBitcastWordPtrToSmi =
+    TaggedBitcastMask::For<RegisterRepresentation::PointerSized(),
+                           RegisterRepresentation::Tagged(),
+                           TaggedBitcastOp::Kind::kSmi>;
+
+using TaggedBitcastKindMask =
+    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, kind)>;
+using kTaggedBitcastSmi =
+    TaggedBitcastKindMask::For<TaggedBitcastOp::Kind::kSmi>;
 
 #if V8_ENABLE_WEBASSEMBLY
 

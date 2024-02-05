@@ -2824,14 +2824,25 @@ void InstructionSelectorT<Adapter>::VisitUnreachable(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStaticAssert(Node* node) {
-  Node* asserted = node->InputAt(0);
+void InstructionSelectorT<Adapter>::VisitStaticAssert(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  node_t asserted = this->input_at(node, 0);
   UnparkedScopeIfNeeded scope(broker_);
   AllowHandleDereference allow_handle_dereference;
-  asserted->Print(4);
-  FATAL(
-      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
-      StaticAssertSourceOf(node->op()));
+  if constexpr (Adapter::IsTurboshaft) {
+    StdoutStream os;
+    os << this->Get(asserted);
+    FATAL(
+        "Expected Turbofan static assert to hold, but got non-true input:\n  "
+        "%s",
+        this->Get(node).template Cast<turboshaft::StaticAssertOp>().source);
+  } else {
+    asserted->Print(4);
+    FATAL(
+        "Expected Turbofan static assert to hold, but got non-true input:\n  "
+        "%s",
+        StaticAssertSourceOf(node->op()));
+  }
 }
 
 template <>
@@ -2941,6 +2952,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
     }
     case Opcode::kUnreachable:
       return VisitUnreachable(node);
+    case Opcode::kStaticAssert:
+      return VisitStaticAssert(node);
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());

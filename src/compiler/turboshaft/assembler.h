@@ -2859,7 +2859,6 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void StaticAssert(OpIndex condition, const char* source) {
-    CHECK(v8_flags.turboshaft_enable_debug_features);
     ReduceIfReachableStaticAssert(condition, source);
   }
 

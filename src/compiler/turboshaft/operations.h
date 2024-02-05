@@ -2024,9 +2024,9 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
   OpEffects Effects() const {
     switch (kind) {
       case Kind::kSmi:
+      case Kind::kTagAndSmiBits:
         return OpEffects();
       case Kind::kHeapObject:
-      case Kind::kTagAndSmiBits:
       case Kind::kAny:
         // Due to moving GC, converting from or to pointers doesn't commute with
         // GC.

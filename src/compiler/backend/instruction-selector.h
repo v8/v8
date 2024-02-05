@@ -952,7 +952,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitThrow(Node* node);
   void VisitRetain(node_t node);
   void VisitUnreachable(node_t node);
-  void VisitStaticAssert(Node* node);
+  void VisitStaticAssert(node_t node);
   void VisitDeadValue(Node* node);
   void VisitBitcastWord32PairToFloat64(node_t node);
 
