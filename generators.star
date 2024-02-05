@@ -227,6 +227,49 @@ def scheduled_builder_cleanup(ctx):
             if builder.name in scheduled_builders:
                 builder.repository = None
 
+def collect_sherriffed_non_tree_closer_builders(ctx):
+    """
+    This callback checks that no sheriff emails are sent on non-tree closers.
+    """
+    notify = ctx.output["luci-notify.cfg"]
+
+    tree_closers = [
+        builder
+        for notifier in notify.notifiers
+        for builder in notifier.builders
+        if notifier.tree_closers
+    ]
+
+    def sheriff_in_recipients(notifier):
+        return any([
+            "sheriff" in recipient
+            for notification in notifier.notifications
+            for recipient in notification.email.recipients
+        ])
+
+    notifies_sheriff = [
+        builder
+        for notifier in notify.notifiers
+        for builder in notifier.builders
+        if (not notifier.tree_closers) and sheriff_in_recipients(notifier)
+    ]
+
+    sherriffed_builders = sorted(
+        [
+            struct(name = builder.name, bucket = builder.bucket)
+            for builder in notifies_sheriff
+            if builder not in tree_closers
+        ],
+        key = lambda b: (b.name, b.bucket),
+    )
+
+    ctx.output["sheriffed-builders.cfg"] = json.indent(
+        json.encode(struct(builders = sherriffed_builders)),
+        indent = "  ",
+    )
+
+lucicfg.generator(collect_sherriffed_non_tree_closer_builders)
+
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)

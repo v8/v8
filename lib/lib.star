@@ -435,7 +435,6 @@ def multibranch_builder(**kwargs):
                 args["notifies"] = notifies
         else:
             args["disable_resultdb_exports"] = True
-            args["notifies"] = ["sheriffs"]
             if _builder_is_not_supported(branch.bucket, first_branch_version):
                 continue
         v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)

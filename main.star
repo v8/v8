@@ -35,9 +35,16 @@ lucicfg.config(
         "luci-notify/email-templates/*.template",
         "project.cfg",
         "realms.cfg",
+        "sheriffed-builders.cfg",
     ],
     fail_on_warnings = True,
     lint_checks = ["none", "+formatting"],
+)
+
+# Keeps track of the non-tree-closer builders that still need to be sheriffed.
+lucicfg.emit(
+    dest = "sheriffed-builders.cfg",
+    data = "",
 )
 
 def analysis_bindings():
