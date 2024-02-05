@@ -7,6 +7,10 @@ from requests.exceptions import HTTPError
 from blinkpy.w3c.test_exporter import TestExporter
 from blinkpy.w3c.wpt_github import GitHubError
 
+import logging
+
+_log = logging.getLogger(__name__)
+
 class V8TestExporter(TestExporter):
 
     def merge_pull_request(self, pull_request):
@@ -35,8 +39,8 @@ class V8TestExporter(TestExporter):
             'comments': [],
         }
 
-        response = self.github.request(path, method='POST', body=body)
-
-        if response.status_code != 200:
-            raise GitHubError(200, response.status_code,
-                              'approve PR %d' % pr_number)
+        try:
+            response = self.github.request(path, method='POST', body=body)
+        except HTTPError as e:
+            response = e.response
+            _log.error('Failed to approve PR %d: %s', pr_number, response.text)
