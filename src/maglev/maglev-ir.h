@@ -441,6 +441,16 @@ constexpr bool IsCommutativeNode(Opcode opcode) {
       return false;
   }
 }
+constexpr bool IsZeroCostNode(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kTruncateUint32ToInt32:
+    case Opcode::kUnsafeTruncateUint32ToInt32:
+    case Opcode::kIdentity:
+      return true;
+    default:
+      return false;
+  }
+}
 constexpr bool IsGapMoveNode(Opcode opcode) {
   return kFirstGapMoveNodeOpcode <= opcode && opcode <= kLastGapMoveNodeOpcode;
 }
@@ -2007,7 +2017,7 @@ class Node : public NodeBase {
 
   static constexpr bool participate_in_cse(Opcode op) {
     return StaticPropertiesForOpcode(op).can_participate_in_cse() &&
-           !IsConstantNode(op) && !IsControlNode(op) &&
+           !IsConstantNode(op) && !IsControlNode(op) && !IsZeroCostNode(op) &&
            // The following are already precisely tracked by known_node_aspects
            // and tracking them with CSE would just waste time.
            op != Opcode::kCheckMaps;
