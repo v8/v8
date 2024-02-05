@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '266936ebe9b53a37cdc38b38902c06da6a59e1e2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '432aa4ae6c6931b15f595218bffb6c63512ac179',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
