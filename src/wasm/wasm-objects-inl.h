@@ -337,6 +337,10 @@ void WasmDispatchTable::clear_entry_padding(int index) {
   }
 }
 
+int WasmDispatchTable::length(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
+}
+
 int WasmDispatchTable::length() const { return ReadField<int>(kLengthOffset); }
 
 int WasmDispatchTable::capacity() const {

@@ -1968,7 +1968,7 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
 
   int old_capacity = old_table->capacity();
   if (new_length < old_table->capacity()) {
-    old_table->WriteField<int>(kLengthOffset, new_length);
+    RELEASE_WRITE_INT32_FIELD(*old_table, kLengthOffset, new_length);
     // All fields within the old capacity are already cleared (see below).
     return old_table;
   }
@@ -1985,6 +1985,8 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   Handle<WasmDispatchTable> new_table =
       WasmDispatchTable::New(isolate, new_capacity);
 
+  // Writing non-atomically is fine here because this is a freshly allocated
+  // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
   for (int i = 0; i < old_length; ++i) {
     new_table->Set(i, old_table->ref(i), old_table->target(i),

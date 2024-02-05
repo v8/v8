@@ -840,7 +840,7 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    int length = WasmDispatchTable::cast(obj)->length();
+    int length = WasmDispatchTable::cast(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
       IteratePointer(obj, OffsetOf(i) + kRefBias, v);
     }

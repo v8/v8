@@ -680,6 +680,7 @@ class WasmDispatchTable : public TrustedObject {
 
   // The current length of this dispatch table. This is always <= the capacity.
   inline int length() const;
+  inline int length(AcquireLoadTag) const;
   // The current capacity. Can be bigger than the current length to allow for
   // more efficient growing.
   inline int capacity() const;
