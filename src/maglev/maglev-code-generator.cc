@@ -643,7 +643,7 @@ class ExceptionHandlerTrampolineBuilder {
 
   void EmitMaterialisationsAndPushResults(const MoveVector& moves,
                                           bool save_accumulator) const {
-    if (moves.size() == 0) return;
+    if (moves.empty()) return;
 
     // It's possible to optimize this further, at the cost of additional
     // complexity:
@@ -681,7 +681,7 @@ class ExceptionHandlerTrampolineBuilder {
   void EmitPopMaterialisedResults(const MoveVector& moves,
                                   bool save_accumulator,
                                   Register scratch) const {
-    if (moves.size() == 0) return;
+    if (moves.empty()) return;
     __ RecordComment("EmitPopMaterialisedResults");
     for (const Move& move : base::Reversed(moves)) {
       const ValueLocation& target = move.target;
@@ -1614,7 +1614,7 @@ bool MaglevCodeGenerator::EmitDeopts() {
 }
 
 void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
-  if (code_gen_state_.handlers().size() == 0) return;
+  if (code_gen_state_.handlers().empty()) return;
   __ RecordComment("-- Exception handler trampolines");
   for (NodeBase* node : code_gen_state_.handlers()) {
     ExceptionHandlerTrampolineBuilder::Build(masm(), node);

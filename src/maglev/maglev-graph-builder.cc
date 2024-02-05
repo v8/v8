@@ -239,8 +239,8 @@ class CallArguments {
 
     // If there is no non-receiver argument to become the new receiver,
     // consider the new receiver to be known undefined.
-    receiver_mode_ = args_.size() == 0 ? ConvertReceiverMode::kNullOrUndefined
-                                       : new_receiver_mode;
+    receiver_mode_ = args_.empty() ? ConvertReceiverMode::kNullOrUndefined
+                                   : new_receiver_mode;
   }
 
  private:
