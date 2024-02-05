@@ -39,6 +39,29 @@ constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
 constexpr int kMaxCatchCases = 6;
 
+struct StringImports {
+  uint32_t cast;
+  uint32_t test;
+  uint32_t fromCharCode;
+  uint32_t fromCodePoint;
+  uint32_t charCodeAt;
+  uint32_t codePointAt;
+  uint32_t length;
+  uint32_t concat;
+  uint32_t substring;
+  uint32_t equals;
+  uint32_t compare;
+  uint32_t fromCharCodeArray;
+  uint32_t intoCharCodeArray;
+  uint32_t measureStringAsUTF8;
+  uint32_t encodeStringIntoUTF8Array;
+  uint32_t decodeStringFromUTF8Array;
+
+  // These aren't imports, but closely related, so store them here as well:
+  uint32_t array_i16;
+  uint32_t array_i8;
+};
+
 class DataRange {
   // data_ is used for general random values for fuzzing.
   base::Vector<const uint8_t> data_;
@@ -282,6 +305,10 @@ class WasmGenerator {
     WasmGenerator* const gen_;
     bool emit_end_;
   };
+
+  int NumImportedFunctions() {
+    return builder_->builder()->NumImportedFunctions();
+  }
 
   void block(base::Vector<const ValueType> param_types,
              base::Vector<const ValueType> return_types, DataRange* data) {
@@ -906,7 +933,8 @@ class WasmGenerator {
                    builder_->signature()->returns().begin(),
                    builder_->signature()->returns().end())) {
       if (call_kind == kCallDirect) {
-        builder_->EmitWithU32V(kExprReturnCall, func_index);
+        builder_->EmitWithU32V(kExprReturnCall,
+                               NumImportedFunctions() + func_index);
       } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
@@ -920,7 +948,8 @@ class WasmGenerator {
       return;
     } else {
       if (call_kind == kCallDirect) {
-        builder_->EmitWithU32V(kExprCallFunction, func_index);
+        builder_->EmitWithU32V(kExprCallFunction,
+                               NumImportedFunctions() + func_index);
       } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
@@ -1222,11 +1251,14 @@ class WasmGenerator {
       // TODO(11954. 7748): Once we have type canonicalization, choose a random
       // function from among those matching the signature (consider function
       // subtyping?).
-      uint32_t func_index =
+      uint32_t declared_func_index =
           index - static_cast<uint32_t>(arrays_.size() + structs_.size());
-      DCHECK_EQ(builder_->builder()->GetSignature(index),
-                builder_->builder()->GetFunction(func_index)->signature());
-      builder_->EmitWithU32V(kExprRefFunc, func_index);
+      DCHECK_EQ(
+          builder_->builder()->GetSignature(index),
+          builder_->builder()->GetFunction(declared_func_index)->signature());
+      uint32_t absolute_func_index =
+          NumImportedFunctions() + declared_func_index;
+      builder_->EmitWithU32V(kExprRefFunc, absolute_func_index);
     }
 
     return true;
@@ -1630,8 +1662,9 @@ class WasmGenerator {
                    : HeapType(functions_[choice]);
       }
       case HeapType::kExtern:
-        return HeapType(data->get<bool>() ? HeapType::kExtern
-                                          : HeapType::kNoExtern);
+        // About 10% of chosen subtypes will be kNoExtern.
+        return HeapType(data->get<uint8_t>() > 25 ? HeapType::kExtern
+                                                  : HeapType::kNoExtern);
       default:
         if (!type.is_index()) {
           // No logic implemented to find a sub-type.
@@ -1782,6 +1815,105 @@ class WasmGenerator {
     builder_->Emit(kExprRefEq);
   }
 
+  void call_string_import(uint32_t index) {
+    builder_->EmitWithU32V(kExprCallFunction, index);
+  }
+
+  void string_cast(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.cast);
+  }
+
+  void string_test(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.test);
+  }
+
+  void string_fromcharcode(DataRange* data) {
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.fromCharCode);
+  }
+
+  void string_fromcodepoint(DataRange* data) {
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.fromCodePoint);
+  }
+
+  void string_charcodeat(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.charCodeAt);
+  }
+
+  void string_codepointat(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.codePointAt);
+  }
+
+  void string_length(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.length);
+  }
+
+  void string_concat(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.concat);
+  }
+
+  void string_substring(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    Generate(kWasmI32, data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.substring);
+  }
+
+  void string_equals(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.equals);
+  }
+
+  void string_compare(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.compare);
+  }
+
+  void string_fromcharcodearray(DataRange* data) {
+    GenerateRef(HeapType(string_imports_.array_i16), data);
+    Generate(kWasmI32, data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.fromCharCodeArray);
+  }
+
+  void string_intocharcodearray(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(HeapType(string_imports_.array_i16), data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.intoCharCodeArray);
+  }
+
+  void string_measureutf8(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.measureStringAsUTF8);
+  }
+
+  void string_intoutf8array(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(HeapType(string_imports_.array_i8), data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.encodeStringIntoUTF8Array);
+  }
+
+  void string_fromutf8array(DataRange* data) {
+    GenerateRef(HeapType(string_imports_.array_i8), data);
+    Generate(kWasmI32, data);
+    Generate(kWasmI32, data);
+    call_string_import(string_imports_.decodeStringFromUTF8Array);
+  }
+
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
   using GenerateFnWithHeap = bool (WasmGenerator::*const)(HeapType, DataRange*,
                                                           Nullability);
@@ -1848,13 +1980,15 @@ class WasmGenerator {
                 const std::vector<ValueType>& globals,
                 const std::vector<uint8_t>& mutable_globals,
                 const std::vector<uint32_t>& structs,
-                const std::vector<uint32_t>& arrays, DataRange* data)
+                const std::vector<uint32_t>& arrays,
+                const StringImports& strings, DataRange* data)
       : builder_(fn),
         functions_(functions),
         globals_(globals),
         mutable_globals_(mutable_globals),
         structs_(structs),
         arrays_(arrays),
+        string_imports_(strings),
         locals_initialized_(false) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
@@ -1924,6 +2058,7 @@ class WasmGenerator {
   bool has_simd_;
   const std::vector<uint32_t>& structs_;
   const std::vector<uint32_t>& arrays_;
+  const StringImports& string_imports_;
   bool locals_initialized_;
 
   bool recursion_limit_reached() {
@@ -2168,6 +2303,16 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::ref_eq,
       &WasmGenerator::ref_test<kExprRefTest>,
       &WasmGenerator::ref_test<kExprRefTestNull>,
+
+      &WasmGenerator::string_test,
+      &WasmGenerator::string_charcodeat,
+      &WasmGenerator::string_codepointat,
+      &WasmGenerator::string_length,
+      &WasmGenerator::string_equals,
+      &WasmGenerator::string_compare,
+      &WasmGenerator::string_intocharcodearray,
+      &WasmGenerator::string_intoutf8array,
+      &WasmGenerator::string_measureutf8,
 
       &WasmGenerator::table_size,
       &WasmGenerator::table_grow};
@@ -2891,8 +3036,10 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       }
       return;
     }
-    case HeapType::kExtern:
-      if (data->get<bool>()) {
+    case HeapType::kExtern: {
+      uint8_t choice = data->get<uint8_t>();
+      if (choice < 25) {
+        // ~10% chance of extern.convert_any.
         GenerateRef(HeapType(HeapType::kAny), data);
         builder_->EmitWithPrefix(kExprExternConvertAny);
         if (nullability == kNonNullable) {
@@ -2900,7 +3047,29 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         }
         return;
       }
+      // ~80% chance of string.
+      if (choice < 230) {
+        uint8_t subchoice = choice % 7;
+        switch (subchoice) {
+          case 0:
+            return string_cast(data);
+          case 1:
+            return string_fromcharcode(data);
+          case 2:
+            return string_fromcodepoint(data);
+          case 3:
+            return string_concat(data);
+          case 4:
+            return string_substring(data);
+          case 5:
+            return string_fromcharcodearray(data);
+          case 6:
+            return string_fromutf8array(data);
+        }
+      }
+      // ~10% chance of fallthrough.
       V8_FALLTHROUGH;
+    }
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
     case HeapType::kNone:
@@ -3219,7 +3388,9 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
               arrays, recursion_depth);
         }
         case HeapType::kFunc: {
-          uint32_t index = range.get<uint32_t>() % builder->NumFunctions();
+          uint32_t index =
+              range.get<uint32_t>() % (builder->NumDeclaredFunctions() +
+                                       builder->NumImportedFunctions());
           return WasmInitExpr::RefFuncConst(index);
         }
         case HeapType::kExtern:
@@ -3253,7 +3424,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
             DCHECK(builder->IsSignature(index));
             // Transform from signature index to function index.
             return WasmInitExpr::RefFuncConst(
-                index - static_cast<uint32_t>(structs.size() + arrays.size()));
+                builder->NumImportedFunctions() + index -
+                static_cast<uint32_t>(structs.size() + arrays.size()));
           }
           UNREACHABLE();
         }
@@ -3338,15 +3510,17 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     uint8_t current_type_index = 0;
     // Add default array types.
+    uint32_t array_i8;
+    uint32_t array_i16;
     {
       ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
-      uint32_t index = builder.AddArrayType(a8, true, kNoSuperType);
-      DCHECK_EQ(index, current_type_index);
-      array_types.push_back(index);
+      array_i8 = builder.AddArrayType(a8, true, kNoSuperType);
+      DCHECK_EQ(array_i8, current_type_index);
+      array_types.push_back(array_i8);
       ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
-      index = builder.AddArrayType(a16, true, kNoSuperType);
-      array_types.push_back(index);
-      current_type_index = index + 1;
+      array_i16 = builder.AddArrayType(a16, true, kNoSuperType);
+      array_types.push_back(array_i16);
+      current_type_index = array_i16 + 1;
     }
     DCHECK_EQ(current_type_index, kNumDefaultArrayTypes);
 
@@ -3457,6 +3631,73 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       builder.AddTag(sig);
     }
 
+    // Add the "wasm:js-string" imports to the module. They may or may not be
+    // used later, but they'll always be available.
+    StringImports strings;
+    strings.array_i16 = array_i16;
+    strings.array_i8 = array_i8;
+    static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
+    static constexpr ValueType kExternRef = kWasmExternRef;
+    static constexpr ValueType kI32 = kWasmI32;
+    const ValueType kRefNullA8 = ValueType::RefNull(array_i8);
+    const ValueType kRefNullA16 = ValueType::RefNull(array_i16);
+
+    // Shorthands: "r" = nullable "externref",
+    // "e" = non-nullable "ref extern".
+    static constexpr ValueType kReps_e_i[] = {kRefExtern, kI32};
+    static constexpr ValueType kReps_e_rr[] = {kRefExtern, kExternRef,
+                                               kExternRef};
+    static constexpr ValueType kReps_e_rii[] = {kRefExtern, kExternRef, kI32,
+                                                kI32};
+    static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
+    static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
+    const ValueType kReps_from_a16[] = {kRefExtern, kRefNullA16, kI32, kI32};
+    const ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32, kI32};
+    const ValueType kReps_into_a16[] = {kI32, kExternRef, kRefNullA16, kI32};
+    const ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8, kI32};
+
+    static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
+    static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
+    static constexpr FunctionSig kSig_e_rr(1, 2, kReps_e_rr);
+    static constexpr FunctionSig kSig_e_rii(1, 3, kReps_e_rii);
+
+    static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
+    static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
+    static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
+    const FunctionSig kSig_from_a16(1, 3, kReps_from_a16);
+    const FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
+    const FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
+    const FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
+
+    static constexpr base::Vector<const char> kJsString =
+        base::StaticCharVector("wasm:js-string");
+    static constexpr base::Vector<const char> kTextDecoder =
+        base::StaticCharVector("wasm:text-decoder");
+    static constexpr base::Vector<const char> kTextEncoder =
+        base::StaticCharVector("wasm:text-encoder");
+
+#define STRINGFUNC(name, sig, group) \
+  strings.name = builder.AddImport(base::CStrVector(#name), &sig, group)
+
+    STRINGFUNC(cast, kSig_e_r, kJsString);
+    STRINGFUNC(test, kSig_i_r, kJsString);
+    STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
+    STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
+    STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
+    STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
+    STRINGFUNC(length, kSig_i_r, kJsString);
+    STRINGFUNC(concat, kSig_e_rr, kJsString);
+    STRINGFUNC(substring, kSig_e_rii, kJsString);
+    STRINGFUNC(equals, kSig_i_rr, kJsString);
+    STRINGFUNC(compare, kSig_i_rr, kJsString);
+    STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
+    STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
+    STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
+    STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
+    STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
+
+#undef STRINGFUNC
+
     // Generate function declarations before tables. This will be needed once we
     // have typed-function tables.
     std::vector<WasmFunctionBuilder*> functions;
@@ -3527,7 +3768,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
              entry_index++) {
           segment.entries.emplace_back(
               WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
-              entry_index % num_functions);
+              builder.NumImportedFunctions() + (entry_index % num_functions));
         }
         builder.AddElementSegment(std::move(segment));
       }
@@ -3547,7 +3788,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                      ? functions_range.split()
                                      : std::move(functions_range);
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
-                        struct_types, array_types, &function_range);
+                        struct_types, array_types, strings, &function_range);
       const FunctionSig* sig = f->signature();
       base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                  sig->return_count());

@@ -32,6 +32,12 @@
 
 namespace v8::internal::wasm::fuzzer {
 
+constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
+  return CompileTimeImports({CompileTimeImport::kJsString,
+                             CompileTimeImport::kTextEncoder,
+                             CompileTimeImport::kTextDecoder});
+}
+
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
 Handle<WasmModuleObject> CompileReferenceModule(
@@ -47,9 +53,8 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
-  // TODO(14179): Add fuzzer support for compile-time imports.
   native_module = GetWasmEngine()->NewNativeModule(
-      isolate, enabled_features, CompileTimeImports{}, module, 0);
+      isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
@@ -875,8 +880,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
-  // TODO(14179): Add fuzzer support for compile-time imports.
-  CompileTimeImports compile_imports;
+  CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
 
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
                                              compile_imports, wire_bytes);

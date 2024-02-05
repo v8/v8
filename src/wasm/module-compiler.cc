@@ -1676,7 +1676,12 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   // We're operating on a fresh WasmModule instance here, so we don't need to
   // check for incompatibilities with previously seen imports.
   DCHECK_EQ(module->num_imported_functions, statuses.size());
-  module->type_feedback.well_known_imports.Initialize(base::VectorOf(statuses));
+  // The "Initialize" call is currently only safe when the decoder has allocated
+  // storage, which it allocates when there is an imports section.
+  if (module->num_imported_functions != 0) {
+    module->type_feedback.well_known_imports.Initialize(
+        base::VectorOf(statuses));
+  }
   return {};
 }
 
