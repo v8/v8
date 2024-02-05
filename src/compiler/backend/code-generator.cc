@@ -1298,9 +1298,13 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           literal =
               DeoptimizationLiteral(static_cast<uint64_t>(constant.ToInt64()));
         } else if (type.representation() == MachineRepresentation::kWord64) {
-          CHECK_EQ(
-              constant.ToInt64(),
-              static_cast<int64_t>(static_cast<double>(constant.ToInt64())));
+          // TODO(nicohartmann@, chromium:41497374): Disabling this CHECK
+          // because we can see cases where this is violated in unreachable
+          // code. We should re-enable once we have an idea on how to prevent
+          // this from happening.
+          // CHECK_EQ(
+          //     constant.ToInt64(),
+          //     static_cast<int64_t>(static_cast<double>(constant.ToInt64())));
           literal =
               DeoptimizationLiteral(static_cast<double>(constant.ToInt64()));
         } else {
