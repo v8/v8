@@ -9,6 +9,8 @@
 #include "include/v8-primitive.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
+#include "src/inspector/v8-inspector-session-impl.h"
+#include "src/inspector/v8-runtime-agent-impl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -359,6 +361,48 @@ TEST_F(InspectorTest, Evaluate) {
         v8_inspector::V8InspectorSession::EvaluateResult::ResultType::kSuccess);
     CHECK(result.value->IsUndefined());
   }
+}
+
+// Regression test for crbug.com/323813642.
+TEST_F(InspectorTest, NoInterruptWhileBuildingConsoleMessages) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<v8_inspector::V8InspectorImpl> inspector(
+      new v8_inspector::V8InspectorImpl(isolate, &default_client));
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  TestChannel channel;
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  reinterpret_cast<v8_inspector::V8InspectorSessionImpl*>(session.get())
+      ->runtimeAgent()
+      ->enable();
+
+  struct InterruptRecorder {
+    static void handler(v8::Isolate* isolate, void* data) {
+      reinterpret_cast<InterruptRecorder*>(data)->WasInvoked = true;
+    }
+
+    bool WasInvoked = false;
+  } recorder;
+
+  isolate->RequestInterrupt(&InterruptRecorder::handler, &recorder);
+
+  v8::Local<v8::Value> error = v8::Exception::Error(NewString("custom error"));
+  inspector->exceptionThrown(v8_context(), toStringView("message"), error,
+                             toStringView("detailed message"),
+                             toStringView("https://example.com/script.js"), 42,
+                             21, std::unique_ptr<v8_inspector::V8StackTrace>(),
+                             0);
+
+  CHECK(!recorder.WasInvoked);
+
+  TryRunJS("0");
+  CHECK(recorder.WasInvoked);
 }
 
 }  // namespace internal
