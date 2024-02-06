@@ -1695,6 +1695,34 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
                     MessageTemplate::kWasmTrapArrayOutOfBounds);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  Handle<String> string(String::cast(args[0]), isolate);
+  uint32_t length = MeasureWtf8(isolate, string);
+  wasm::WasmValue initial_value(int8_t{0});
+  Tagged<WeakArrayList> rtts = isolate->heap()->wasm_canonical_rtts();
+  // This function can only get called from Wasm code, so we can safely assume
+  // that the canonical RTT is still around.
+  Handle<Map> map = handle(
+      Map::cast(rtts->Get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
+                    .GetHeapObject()),
+      isolate);
+  Handle<WasmArray> array = isolate->factory()->NewWasmArray(
+      wasm::kWasmI8, length, initial_value, map);
+  auto get_writable_bytes =
+      [&](const DisallowGarbageCollection&) -> base::Vector<char> {
+    return {reinterpret_cast<char*>(array->ElementAddress(0)), length};
+  };
+  Tagged<Object> write_result =
+      EncodeWtf8(isolate, unibrow::Utf8Variant::kLossyUtf8, string,
+                 get_writable_bytes, 0, MessageTemplate::kNone);
+  DCHECK(IsNumber(write_result) && Object::Number(write_result) == length);
+  USE(write_result);
+  return *array;
+}
+
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(6, args.length());

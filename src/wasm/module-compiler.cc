@@ -1532,8 +1532,10 @@ bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
          TypeCanonicalizer::kPredefinedArrayI16Index;
 }
 
-bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
+bool IsI8Array(wasm::ValueType type, const WasmModule* module,
+               bool allow_nullable) {
   if (!type.is_object_reference() || !type.has_index()) return false;
+  if (!allow_nullable && type.is_nullable()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
   return module->isorecursive_canonical_type_ids[reftype] ==
@@ -1649,21 +1651,28 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       } else if (name ==
                  base::StaticOneByteVector("encodeStringIntoUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||        // --
-            !IsI8Array(sig->GetParam(1), module) ||  // --
-            sig->GetParam(2) != kI32 ||              // --
+            sig->GetParam(0) != kExternRef ||              // --
+            !IsI8Array(sig->GetParam(1), module, true) ||  // --
+            sig->GetParam(2) != kI32 ||                    // --
             sig->GetReturn() != kI32) {
           RETURN_ERROR("text-encoder", "encodeStringIntoUTF8Array");
         }
         status = WellKnownImport::kStringIntoUtf8Array;
+      } else if (name == base::StaticOneByteVector("encodeStringToUTF8Array")) {
+        if (sig->parameter_count() != 1 || sig->return_count() != 1 ||
+            sig->GetParam(0) != kExternRef ||
+            !IsI8Array(sig->GetReturn(), module, false)) {
+          RETURN_ERROR("text-encoder", "encodeStringToUTF8Array");
+        }
+        status = WellKnownImport::kStringToUtf8Array;
       }
     } else if (collection == base::StaticOneByteVector("text-decoder") &&
                imports.contains(CompileTimeImport::kTextDecoder)) {
       if (name == base::StaticOneByteVector("decodeStringFromUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            !IsI8Array(sig->GetParam(0), module) ||  // --
-            sig->GetParam(1) != kI32 ||              // --
-            sig->GetParam(2) != kI32 ||              // --
+            !IsI8Array(sig->GetParam(0), module, true) ||  // --
+            sig->GetParam(1) != kI32 ||                    // --
+            sig->GetParam(2) != kI32 ||                    // --
             sig->GetReturn() != kRefExtern) {
           RETURN_ERROR("text-decoder", "decodeStringFromUTF8Array");
         }

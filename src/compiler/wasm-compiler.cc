@@ -6297,6 +6297,15 @@ Node* WasmGraphBuilder::StringEncodeWtf8Array(
                             gasm_->SmiConstant(static_cast<int32_t>(variant)));
 }
 
+Node* WasmGraphBuilder::StringToUtf8Array(Node* string, CheckForNull null_check,
+                                          wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, wasm::kWasmStringRef, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringToUtf8Array,
+                            Operator::kNoDeopt | Operator::kNoThrow, string);
+}
+
 Node* WasmGraphBuilder::StringEncodeWtf16(uint32_t memory, Node* string,
                                           CheckForNull null_check, Node* offset,
                                           wasm::WasmCodePosition position) {

@@ -1601,6 +1601,7 @@ std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
     CASE(MeasureUtf8, "measureStringAsUTF8", 1);
     CASE(Substring, "substring", 3);
     CASE(Test, "test", 1);
+    CASE(ToUtf8Array, "encodeStringToUTF8Array", 1);
     CASE(ToWtf16Array, "intoCharCodeArray", 3);
     default:
       UNREACHABLE();  // Only call this for compile-time imports.

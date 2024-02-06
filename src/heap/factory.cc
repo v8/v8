@@ -1781,18 +1781,18 @@ Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
   return result;
 }
 
-Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
+Handle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
                                         uint32_t length,
                                         wasm::WasmValue initial_value,
                                         DirectHandle<Map> map) {
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     if (initial_value.zero_byte_representation()) {
       memset(reinterpret_cast<void*>(result->ElementAddress(0)), 0,
-             length * type->element_type().value_kind_size());
+             length * element_type.value_kind_size());
     } else {
-      wasm::WasmValue packed = initial_value.Packed(type->element_type());
+      wasm::WasmValue packed = initial_value.Packed(element_type);
       for (uint32_t i = 0; i < length; i++) {
         Address address = result->ElementAddress(i);
         packed.CopyTo(reinterpret_cast<uint8_t*>(address));

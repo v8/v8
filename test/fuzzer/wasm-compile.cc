@@ -55,6 +55,7 @@ struct StringImports {
   uint32_t intoCharCodeArray;
   uint32_t measureStringAsUTF8;
   uint32_t encodeStringIntoUTF8Array;
+  uint32_t encodeStringToUTF8Array;
   uint32_t decodeStringFromUTF8Array;
 
   // These aren't imports, but closely related, so store them here as well:
@@ -1909,6 +1910,11 @@ class WasmGenerator {
     call_string_import(string_imports_.encodeStringIntoUTF8Array);
   }
 
+  void string_toutf8array(DataRange* data) {
+    GenerateRef(HeapType(HeapType::kExtern), data);
+    call_string_import(string_imports_.encodeStringToUTF8Array);
+  }
+
   void string_fromutf8array(DataRange* data) {
     GenerateRef(HeapType(string_imports_.array_i8), data);
     Generate(kWasmI32, data);
@@ -3090,6 +3096,11 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
     default:
       // Indexed type.
       DCHECK(type.is_index());
+      if (type.ref_index() == string_imports_.array_i8 &&
+          data->get<uint8_t>() < 32) {
+        // 1/8th chance, fits the number of remaining alternatives (7) well.
+        return string_toutf8array(data);
+      }
       GenerateOneOf(alternatives_indexed_type, type, data, nullability);
       return;
   }
@@ -3647,6 +3658,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
     static constexpr ValueType kExternRef = kWasmExternRef;
     static constexpr ValueType kI32 = kWasmI32;
+    const ValueType kRefA8 = ValueType::Ref(array_i8);
     const ValueType kRefNullA8 = ValueType::RefNull(array_i8);
     const ValueType kRefNullA16 = ValueType::RefNull(array_i16);
 
@@ -3663,6 +3675,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     const ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32, kI32};
     const ValueType kReps_into_a16[] = {kI32, kExternRef, kRefNullA16, kI32};
     const ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8, kI32};
+    const ValueType kReps_to_a8[] = {kRefA8, kExternRef};
 
     static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
     static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
@@ -3676,6 +3689,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     const FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
     const FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
     const FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
+    const FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
 
     static constexpr base::Vector<const char> kJsString =
         base::StaticCharVector("wasm:js-string");
@@ -3702,6 +3716,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
     STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
     STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
+    STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
     STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
 
 #undef STRINGFUNC

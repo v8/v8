@@ -1488,6 +1488,14 @@ class TurboshaftGraphBuildingInterface {
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
+      case WKI::kStringToUtf8Array: {
+        V<String> string = ExternRefToString(args[0]);
+        result = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringToUtf8Array>(decoder, {string});
+        result = __ AnnotateWasmType(result, returns[0].type);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringLength: {
         V<Tagged> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(

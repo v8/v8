@@ -858,6 +858,14 @@ class WasmGraphBuildingInterface {
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
+      case WKI::kStringToUtf8Array: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringToUtf8Array(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(result, returns[0].type);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
       case WKI::kStringLength: {
         TFNode* string = ExternRefToString(decoder, args[0]);
         result = builder_->StringMeasureWtf16(

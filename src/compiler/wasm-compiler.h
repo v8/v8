@@ -522,6 +522,8 @@ class WasmGraphBuilder {
                               CheckForNull string_null_check, Node* array,
                               CheckForNull array_null_check, Node* start,
                               wasm::WasmCodePosition position);
+  Node* StringToUtf8Array(Node* string, CheckForNull null_check,
+                          wasm::WasmCodePosition position);
   Node* StringEncodeWtf16(uint32_t memory, Node* string,
                           CheckForNull null_check, Node* offset,
                           wasm::WasmCodePosition position);

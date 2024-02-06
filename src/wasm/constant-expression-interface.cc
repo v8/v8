@@ -245,11 +245,11 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmArray(
-                    imm.array_type, length.runtime_value.to_u32(),
-                    initial_value.runtime_value, rtt),
-                ValueType::Ref(imm.index));
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmArray(imm.array_type->element_type(),
+                                        length.runtime_value.to_u32(),
+                                        initial_value.runtime_value, rtt),
+      ValueType::Ref(imm.index));
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
