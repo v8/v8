@@ -902,6 +902,7 @@ class MaglevGraphBuilder {
       value_number = static_cast<uint32_t>(tmp_value_number);
     }
 
+    bool needs_epoch_check = StaticPropertiesForOpcode(op).can_read();
     auto exists = known_node_aspects().available_expressions.find(value_number);
     if (exists != known_node_aspects().available_expressions.end()) {
       auto candidate = exists->second.node;
@@ -912,7 +913,7 @@ class MaglevGraphBuilder {
                      (StaticPropertiesForOpcode(op) &
                       candidate->properties()) == candidate->properties());
       const bool epoch_check =
-          StaticPropertiesForOpcode(op).is_pure() ||
+          !needs_epoch_check ||
           known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
       if (sanity_check && epoch_check) {
         if (static_cast<NodeT*>(candidate)->options() ==
@@ -937,9 +938,8 @@ class MaglevGraphBuilder {
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
     DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
     known_node_aspects().available_expressions[value_number] = {
-        node, !node->properties().is_pure()
-                  ? known_node_aspects().effect_epoch()
-                  : std::numeric_limits<uint32_t>::max()};
+        node, needs_epoch_check ? known_node_aspects().effect_epoch()
+                                : std::numeric_limits<uint32_t>::max()};
     return AttachExtraInfoAndAddToGraph(node);
   }
 

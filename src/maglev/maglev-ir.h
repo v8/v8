@@ -231,6 +231,7 @@ class MergePointInterpreterFrameState;
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
   V(Float64ToTagged)                                \
+  V(Float64ToHeapNumberForField)                    \
   V(HoleyFloat64ToTagged)                           \
   V(CheckedSmiTagFloat64)                           \
   V(CheckedNumberOrOddballToFloat64)                \
@@ -3392,6 +3393,29 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   }
 
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
+};
+
+// Essentially the same as Float64ToTagged but the result cannot be shared as it
+// will be used as a mutable heap number by a store.
+class Float64ToHeapNumberForField
+    : public FixedInputValueNodeT<1, Float64ToHeapNumberForField> {
+  using Base = FixedInputValueNodeT<1, Float64ToHeapNumberForField>;
+
+ public:
+  explicit Float64ToHeapNumberForField(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  static constexpr OpProperties kProperties =
+      OpProperties::NotIdempotent() | OpProperties::CanAllocate() |
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class HoleyFloat64ToTagged

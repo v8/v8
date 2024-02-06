@@ -3829,8 +3829,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     value = GetAccumulatorFloat64();
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
-      value = AddNewNode<Float64ToTagged>(
-          {value}, Float64ToTagged::ConversionMode::kForceHeapNumber);
+      value = AddNewNode<Float64ToHeapNumberForField>({value});
     }
   } else {
     if (field_representation.IsSmi()) {
