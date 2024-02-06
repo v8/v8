@@ -568,6 +568,11 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset_imm) {
+  LoadProtectedPointerField(dst, MemOperand{src_addr, offset_imm});
+}
+
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                        int32_t offset_imm) {
   UseScratchRegisterScope temps(this);
@@ -1387,6 +1392,17 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   Mul(dst.gp().X(), lhs.gp().X(), rhs.gp().X());
+}
+void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i64_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+    return;
+  }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, imm);
+  Mul(dst.gp().X(), lhs.gp().X(), scratch);
 }
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,

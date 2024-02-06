@@ -829,7 +829,6 @@ inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-
                                          int32_t offset_imm,
                                          uint32_t* protected_load_pc,
                                          bool needs_shift) {
@@ -837,6 +836,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   liftoff::LoadInternal(this, LiftoffRegister(dst), src_addr, offset_reg,
                         offset_imm, LoadType::kI32Load, protected_load_pc,
                         needs_shift);
+}
+
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  LoadTaggedPointer(dst, src_addr, no_reg, offset);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -1643,6 +1648,16 @@ void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   mul(dst, lhs, rhs);
+}
+void LiftoffAssembler::emit_i32_muli(Register dst, Register lhs, int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i32_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+    return;
+  }
+  UseScratchRegisterScope temps{this};
+  Register scratch = temps.Acquire();
+  mov(scratch, Operand{imm});
+  mul(dst, lhs, scratch);
 }
 
 void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
