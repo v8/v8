@@ -119,6 +119,7 @@ namespace internal {
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
   V(OnStackReplacement)                              \
+  V(RegExpTrampoline)                                \
   V(RestartFrameTrampoline)                          \
   V(ResumeGenerator)                                 \
   V(ResumeGeneratorBaseline)                         \
@@ -848,6 +849,17 @@ class JSTrampolineDescriptor
   DEFINE_JS_PARAMETER_TYPES()
 
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(JSTrampolineDescriptor)
+};
+
+// Descriptor used for code using the RegExp calling convention, in particular
+// the RegExp interpreter trampolines.
+class RegExpTrampolineDescriptor
+    : public StaticCallInterfaceDescriptor<RegExpTrampolineDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kRegExpEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(RegExpTrampolineDescriptor)
 };
 
 class ContextOnlyDescriptor

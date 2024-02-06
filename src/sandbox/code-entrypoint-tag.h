@@ -41,8 +41,8 @@ enum CodeEntrypointTag : uint64_t {
   kWasmEntrypointTag = kDefaultCodeEntrypointTag,
   kBytecodeHandlerEntrypointTag = uint64_t{1} << kCodeEntrypointTagShift,
   kICHandlerEntrypointTag = uint64_t{2} << kCodeEntrypointTagShift,
-  // TODO(saelo): create more of these tags. Likely we'll also want to
-  // distinguish between Wasm, RegExp, and JavaScript code.
+  kRegExpEntrypointTag = uint64_t{3} << kCodeEntrypointTagShift,
+  // TODO(saelo): create more of these tags.
 
   // Tag to use for code that will never be called indirectly via the CPT.
   kInvalidEntrypointTag = uint64_t{0xffff} << kCodeEntrypointTagShift,

@@ -930,7 +930,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code);
+  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code,
+                                          CodeEntrypointTag tag);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
   // The following Call wrappers call an object according to the semantics that
@@ -1241,12 +1242,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Only available when the sandbox is enabled as it requires the code pointer
   // table.
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
-                                                       int offset) {
-    return LoadCodeEntrypointViaCodePointerField(object,
-                                                 IntPtrConstant(offset));
+                                                       int offset,
+                                                       CodeEntrypointTag tag) {
+    return LoadCodeEntrypointViaCodePointerField(object, IntPtrConstant(offset),
+                                                 tag);
   }
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
-                                                       TNode<IntPtrT> offset);
+                                                       TNode<IntPtrT> offset,
+                                                       CodeEntrypointTag tag);
 #endif
 
   TNode<TrustedObject> LoadProtectedPointerFromObject(
@@ -1300,11 +1303,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<WasmInternalFunction> object) {
 #ifdef V8_ENABLE_SANDBOX
     return LoadCodeEntrypointViaCodePointerField(
-        object, WasmInternalFunction::kCodeOffset);
+        object, WasmInternalFunction::kCodeOffset, kWasmEntrypointTag);
 #else
     TNode<Code> code =
         LoadObjectField<Code>(object, WasmInternalFunction::kCodeOffset);
-    return LoadCodeInstructionStart(code);
+    return LoadCodeInstructionStart(code, kWasmEntrypointTag);
 #endif  // V8_ENABLE_SANDBOX
   }
 

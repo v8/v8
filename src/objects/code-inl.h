@@ -648,6 +648,8 @@ CodeEntrypointTag Code::entrypoint_tag() const {
     return kBytecodeHandlerEntrypointTag;
   } else if (kind() == CodeKind::BUILTIN) {
     return Builtins::EntrypointTagFor(builtin_id());
+  } else if (kind() == CodeKind::REGEXP) {
+    return kRegExpEntrypointTag;
   }
   // TODO(saelo): eventually we'll want this to be UNREACHABLE().
   return kDefaultCodeEntrypointTag;

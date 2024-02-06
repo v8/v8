@@ -1935,13 +1935,18 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset,
+    CodeEntrypointTag tag) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
-  return Load<RawPtrT>(table, offset);
+  TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
+  if (tag != 0) {
+    entry = UncheckedCast<UintPtrT>(WordXor(entry, UintPtrConstant(tag)));
+  }
+  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -16383,12 +16388,13 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
+TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(
+    TNode<Code> code, CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // In this case, the entrypoint is stored in the code pointer table entry
   // referenced via the Code object's 'self' indirect pointer.
   return LoadCodeEntrypointViaCodePointerField(
-      code, Code::kSelfIndirectPointerOffset);
+      code, Code::kSelfIndirectPointerOffset, tag);
 #else
   return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
 #endif

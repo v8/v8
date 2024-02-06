@@ -894,8 +894,8 @@ namespace internal {
       kMatchInfo)                                                              \
   TFS(RegExpExecInternal, NeedsContext::kYes, kRegExp, kString, kLastIndex,    \
       kMatchInfo)                                                              \
-  ASM(RegExpInterpreterTrampoline, CCall)                                      \
-  ASM(RegExpExperimentalTrampoline, CCall)                                     \
+  ASM(RegExpInterpreterTrampoline, RegExpTrampoline)                           \
+  ASM(RegExpExperimentalTrampoline, RegExpTrampoline)                          \
                                                                                \
   /* Set */                                                                    \
   TFS(FindOrderedHashSetEntry, NeedsContext::kYes, kTable, kKey)               \

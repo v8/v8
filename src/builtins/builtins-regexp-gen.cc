@@ -604,7 +604,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // instead of referencing the CodeWrapper object, we could directly load
     // the entrypoint from that via LoadCodeEntrypointViaCodePointerField. This
     // will save an indirection when the sandbox is enabled.
-    TNode<RawPtrT> code_entry = LoadCodeInstructionStart(code);
+    TNode<RawPtrT> code_entry =
+        LoadCodeInstructionStart(code, kRegExpEntrypointTag);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not
