@@ -3747,10 +3747,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kRegisterToRegister:
       if (source->IsRegister()) {
         __ Mov(g.ToRegister(destination), g.ToRegister(source));
-      } else if (source->IsFloatRegister() || source->IsDoubleRegister()) {
-        __ Mov(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
       } else {
-        DCHECK(source->IsSimd128Register());
+        DCHECK(source->IsSimd128Register() || source->IsFloatRegister() ||
+               source->IsDoubleRegister());
         __ Mov(g.ToDoubleRegister(destination).Q(),
                g.ToDoubleRegister(source).Q());
       }
