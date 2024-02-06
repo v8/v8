@@ -5630,55 +5630,36 @@ class TurboshaftGraphBuildingInterface {
   std::pair<V<WordPtr>, V<HeapObject>> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
     uint32_t table_index = imm.table_imm.index;
-    const WasmTable& table = decoder->module_->tables[table_index];
-    V<WordPtr> index_intptr = __ ChangeInt32ToIntPtr(index);
+    // Use zero-extension instead of sign-extension; for negative values this
+    // will still fail the bounds check because tables have limited size.
+    static_assert(kV8MaxWasmTableSize < size_t{kMaxInt});
+    V<WordPtr> index_intptr = __ ChangeUint32ToUintPtr(index);
     uint32_t sig_index = imm.sig_imm.index;
 
     /* Step 1: Load the indirect function tables for this table. */
-    bool needs_dynamic_size =
-        !(table.has_maximum_size && table.maximum_size == table.initial_size);
-    V<Word32> ift_size;
-    V<ByteArray> ift_sig_ids;
-    V<ExternalPointerArray> ift_targets;
-    V<FixedArray> ift_refs;
+    V<WasmDispatchTable> dispatch_table;
     if (table_index == 0) {
-      ift_size = needs_dynamic_size
-                     ? LOAD_INSTANCE_FIELD(trusted_instance_data(),
-                                           IndirectFunctionTableSize,
-                                           MemoryRepresentation::Uint32())
-                     : __ Word32Constant(table.initial_size);
-      ift_sig_ids = LOAD_INSTANCE_FIELD(trusted_instance_data(),
-                                        IndirectFunctionTableSigIds,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_targets = LOAD_INSTANCE_FIELD(trusted_instance_data(),
-                                        IndirectFunctionTableTargets,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_refs = LOAD_INSTANCE_FIELD(trusted_instance_data(),
-                                     IndirectFunctionTableRefs,
-                                     MemoryRepresentation::TaggedPointer());
+      dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
+                                                     DispatchTable0);
     } else {
-      V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), IndirectFunctionTables,
-          MemoryRepresentation::TaggedPointer());
-      OpIndex ift_table = __ LoadFixedArrayElement(ift_tables, table_index);
-      ift_size = needs_dynamic_size
-                     ? __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(),
-                               WasmIndirectFunctionTable::kSizeOffset)
-                     : __ Word32Constant(table.initial_size);
-      ift_sig_ids = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::TaggedPointer(),
-                            WasmIndirectFunctionTable::kSigIdsOffset);
-      ift_targets = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::TaggedPointer(),
-                            WasmIndirectFunctionTable::kTargetsOffset);
-      ift_refs = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::TaggedPointer(),
-                         WasmIndirectFunctionTable::kRefsOffset);
+      V<ProtectedFixedArray> dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data(), DispatchTables);
+      dispatch_table = V<WasmDispatchTable>::Cast(
+          __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
     }
 
     /* Step 2: Bounds check against the table size. */
-    __ TrapIfNot(__ Uint32LessThan(index, ift_size), OpIndex::Invalid(),
+    const WasmTable& table = decoder->module_->tables[table_index];
+    V<Word32> table_length;
+    bool needs_dynamic_size =
+        !table.has_maximum_size || table.maximum_size != table.initial_size;
+    if (needs_dynamic_size) {
+      table_length = __ LoadField<Word32>(
+          dispatch_table, AccessBuilder::ForWasmDispatchTableLength());
+    } else {
+      table_length = __ Word32Constant(table.initial_size);
+    }
+    __ TrapIfNot(__ Uint32LessThan(index, table_length), OpIndex::Invalid(),
                  TrapId::kTrapTableOutOfBounds);
 
     /* Step 3: Check the canonical real signature against the canonical declared
@@ -5688,6 +5669,10 @@ class TurboshaftGraphBuildingInterface {
                          decoder->module_, decoder->module_);
     bool needs_null_check = table.type.is_nullable();
 
+    V<WordPtr> dispatch_table_entry_offset = __ WordPtrAdd(
+        __ WordPtrMul(index_intptr, WasmDispatchTable::kEntrySize),
+        WasmDispatchTable::kEntriesOffset);
+
     if (needs_type_check) {
       V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(), IsorecursiveCanonicalTypes,
@@ -5696,9 +5681,9 @@ class TurboshaftGraphBuildingInterface {
           __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
                   MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
       V<Word32> loaded_sig =
-          __ Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
-                  2 /* kInt32SizeLog2 */);
+          __ Load(dispatch_table, dispatch_table_entry_offset,
+                  LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
+                  WasmDispatchTable::kSigBias);
       V<Word32> sigs_match = __ Word32Equal(expected_sig_id, loaded_sig);
       if (!decoder->module_->types[sig_index].is_final) {
         // In this case, a full type check is needed.
@@ -5763,28 +5748,20 @@ class TurboshaftGraphBuildingInterface {
       }
     } else if (needs_null_check) {
       V<Word32> loaded_sig =
-          __ Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
-                  2 /* kInt32SizeLog2 */);
+          __ Load(dispatch_table, dispatch_table_entry_offset,
+                  LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
+                  WasmDispatchTable::kSigBias);
       __ TrapIf(__ Word32Equal(-1, loaded_sig), OpIndex::Invalid(),
                 TrapId::kTrapFuncSigMismatch);
     }
 
     /* Step 4: Extract ref and target. */
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> external_pointer_handle = __ Load(
-        ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-        MemoryRepresentation::Uint32(), ExternalPointerArray::kHeaderSize, 2);
-    V<WordPtr> target = __ DecodeExternalPointer(
-        external_pointer_handle, kWasmIndirectFunctionTargetTag);
-#else
-    V<WordPtr> target =
-        __ Load(ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::PointerSized(),
-                ExternalPointerArray::kHeaderSize, kSystemPointerSizeLog2);
-#endif
-    auto ref =
-        V<HeapObject>::Cast(__ LoadFixedArrayElement(ift_refs, index_intptr));
+    V<WordPtr> target = __ Load(
+        dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
+        MemoryRepresentation::PointerSized(), WasmDispatchTable::kTargetBias);
+    V<HeapObject> ref = __ Load(
+        dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
+        MemoryRepresentation::TaggedPointer(), WasmDispatchTable::kRefBias);
 
     // If ref is a WasmInstanceObject, load the WasmTrustedInstanceData from it
     // (if it's a WasmApiFunctionRef we pass it unmodified).

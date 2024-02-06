@@ -1172,6 +1172,7 @@ class TurboshaftAssemblerOpInterface
   DECL_MULTI_REP_BINOP(WordBitwiseOr, WordBinop, WordRepresentation, BitwiseOr)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseOr, WordBinop, BitwiseOr, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64BitwiseOr, WordBinop, BitwiseOr, Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrBitwiseOr, WordBinop, BitwiseOr, WordPtr)
 
   DECL_MULTI_REP_BINOP(WordBitwiseXor, WordBinop, WordRepresentation,
                        BitwiseXor)
@@ -2098,6 +2099,22 @@ class TurboshaftAssemblerOpInterface
                       MemoryRepresentation rep) {
     return Load(address, index, LoadOp::Kind::RawAligned(), rep, offset,
                 rep.SizeInBytesLog2());
+  }
+
+  OpIndex LoadProtectedPointerField(OpIndex base, int32_t offset) {
+#if V8_ENABLE_SANDBOX
+    static_assert(COMPRESS_POINTERS_BOOL);
+    OpIndex tagged = Load(base, LoadOp::Kind::TaggedBase(),
+                          MemoryRepresentation::Uint32(), offset);
+    OpIndex trusted_cage_base =
+        Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+             MemoryRepresentation::PointerSized(),
+             IsolateData::trusted_cage_base_offset());
+    return WordPtrBitwiseOr(ChangeUint32ToUintPtr(tagged), trusted_cage_base);
+#else
+    return Load(base, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(), offset);
+#endif  // V8_ENABLE_SANDBOX
   }
 
   void Store(
@@ -3487,13 +3504,19 @@ class TurboshaftAssemblerOpInterface
   V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
     return Load(array, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(),
-                FixedArray::kHeaderSize + index * kTaggedSize);
+                FixedArray::OffsetOfElementAt(index));
   }
 
   V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
     return Load(array, index, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
-                kTaggedSizeLog2);
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+  }
+
+  V<Tagged> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
+                                           int index) {
+    return LoadProtectedPointerField(
+        array, ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
   void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,

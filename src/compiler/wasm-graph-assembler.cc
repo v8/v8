@@ -147,7 +147,7 @@ Node* WasmGraphAssembler::LoadFromObject(MachineType type, Node* base,
 Node* WasmGraphAssembler::LoadProtectedPointerFromObject(Node* object,
                                                          int offset) {
 #if V8_ENABLE_SANDBOX
-  CHECK(COMPRESS_POINTERS_BOOL);
+  static_assert(COMPRESS_POINTERS_BOOL);
   Node* tagged =
       LoadFromObject(MachineType::Int32(), object, IntPtrConstant(offset));
   Node* trusted_cage_base = Load(MachineType::Pointer(), LoadRootRegister(),

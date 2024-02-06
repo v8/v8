@@ -23,6 +23,10 @@ struct RootTypes {
   __ Load(instance, LoadOp::Kind::TaggedBase(), representation, \
           WasmTrustedInstanceData::k##name##Offset)
 
+#define LOAD_PROTECTED_INSTANCE_FIELD(instance, name) \
+  __ LoadProtectedPointerField(instance,              \
+                               WasmTrustedInstanceData::k##name##Offset)
+
 #define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)       \
   __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(), representation, \
           WasmTrustedInstanceData::k##name##Offset)
