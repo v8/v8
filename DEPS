@@ -127,7 +127,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f4542781a50accded1af4b2eca91e26bb532d35e',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd1fe4728f6bf18e51ded09740ee9aa308618444e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2bda660f9814845f0d9a109b6927da7bf0a3a11f',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c2c3cef34d1a1cee17fffcf34c98a6a9a352d064',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f092a8625f3f04979970ace175bd99c2f4196c08',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -249,7 +249,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0696c428b04513254d3b3e0b1fba5e5afdb11cf4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '120efcb475aa5f8c6f38c4598c602f4713015112',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -295,7 +295,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '3c2f3884e62e17b137ede3e2f3e7214ef294e2c9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6024b26887625fef52ea0f227d888c4b815488be',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'fb278689d948a9a02e9c5ff4bdc9d524be2d4e82',
   'third_party/libunwind/src':
@@ -343,7 +343,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'd391aa34a6244e3f773720cd6202b3a4ad8b650d',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '8c682418f309ab5282bea195a14fb1d6ec4cb1fe',
     'condition': 'not build_with_chromium',
   }
 }
