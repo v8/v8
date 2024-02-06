@@ -8641,11 +8641,8 @@ void MaglevGraphBuilder::VisitTestIn() {
 
 void MaglevGraphBuilder::VisitToName() {
   // ToObject <dst>
-  ValueNode* value = GetAccumulatorTagged();
-  if (CheckType(value, NodeType::kName)) {
-    SetAccumulator(value);
-  } else {
-    SetAccumulator(AddNewNode<ToName>({GetContext(), value}));
+  if (!CheckType(GetRawAccumulator(), NodeType::kName)) {
+    SetAccumulator(AddNewNode<ToName>({GetContext(), GetAccumulatorTagged()}));
   }
 }
 
