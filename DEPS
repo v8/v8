@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '432aa4ae6c6931b15f595218bffb6c63512ac179',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c2c3cef34d1a1cee17fffcf34c98a6a9a352d064',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -249,7 +249,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'af6eabff5313cfdce7e4ff358e3490d1571ea4cd',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0696c428b04513254d3b3e0b1fba5e5afdb11cf4',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -297,7 +297,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '3c2f3884e62e17b137ede3e2f3e7214ef294e2c9',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '0c4e8fac5c5b369eb27093c0bdeae5dfad1aaf5c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'fb278689d948a9a02e9c5ff4bdc9d524be2d4e82',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'fc505746f02c927d792bdeb328307e0e87500342',
   'third_party/logdog/logdog':
@@ -327,7 +327,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '646b7f569718921d7d4b5b8e22572ff6c76f2596',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e3b05db3a1ecec3fcdd3dc3040a7146c3bde8177',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd5858b5684719a096e5cf97141796d7395ceb6cc',
   'tools/luci-go': {
       'packages': [
         {
