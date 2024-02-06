@@ -1075,6 +1075,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jitless, stress_maglev),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(predictable, stress_concurrent_inlining_attach_code),
       CONTRADICTION(stress_concurrent_inlining, assert_types),
       CONTRADICTION(stress_concurrent_inlining_attach_code, assert_types),
   };
