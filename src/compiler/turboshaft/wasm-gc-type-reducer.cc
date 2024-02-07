@@ -271,8 +271,8 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
     // TODO(mliedtke): Ideally, we'd skip unreachable predecessors here
     // completely, as we might loosen the known type due to an unreachable
     // predecessor.
-    if (input_type == wasm::kWasmBottom) continue;
-    if (union_type == wasm::kWasmBottom) {
+    if (input_type.is_uninhabited()) continue;
+    if (union_type.is_uninhabited()) {
       union_type = input_type;
     } else {
       union_type = wasm::Union(union_type, input_type, module_, module_).type;
@@ -373,12 +373,12 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         // Initialize the type based on the first reachable predecessor.
         wasm::ValueType first = wasm::kWasmBottom;
         for (; i < reachable.size(); ++i) {
-          // The bottom type can only occur in unreachable code e.g. as a result
-          // of an always failing cast. Still reachability tracking might in
-          // some cases miss that a block becomes unreachable, so we still check
-          // for bottom in the if below.
-          DCHECK_IMPLIES(reachable[i], predecessors[i] != wasm::kWasmBottom);
-          if (reachable[i] && predecessors[i] != wasm::kWasmBottom) {
+          // Uninhabitated types can only occur in unreachable code e.g. as a
+          // result of an always failing cast. Still reachability tracking might
+          // in some cases miss that a block becomes unreachable, so we still
+          // check for uninhabited in the if below.
+          DCHECK_IMPLIES(reachable[i], !predecessors[i].is_uninhabited());
+          if (reachable[i] && !predecessors[i].is_uninhabited()) {
             first = predecessors[i];
             ++i;
             break;
@@ -389,12 +389,12 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         for (; i < reachable.size(); ++i) {
           if (!reachable[i]) continue;  // Skip unreachable predecessors.
           wasm::ValueType type = predecessors[i];
-          // The bottom type can only occur in unreachable code e.g. as a result
-          // of an always failing cast. Still reachability tracking might in
-          // some cases miss that a block becomes unreachable, so we still check
-          // for bottom in the if below.
-          DCHECK(predecessors[i] != wasm::kWasmBottom);
-          if (type == wasm::kWasmBottom) continue;
+          // Uninhabitated types can only occur in unreachable code e.g. as a
+          // result of an always failing cast. Still reachability tracking might
+          // in some cases miss that a block becomes unreachable, so we still
+          // check for uninhabited in the if below.
+          DCHECK(!type.is_uninhabited());
+          if (type.is_uninhabited()) continue;
           types_are_equivalent &= first == type;
           if (res == wasm::ValueType() || type == wasm::ValueType()) {
             res = wasm::ValueType();

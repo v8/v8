@@ -136,7 +136,7 @@ class WasmGCTypeReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && type != wasm::kWasmBottom) {
+    if (type != wasm::ValueType() && !type.is_uninhabited()) {
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_, module_)) {
@@ -174,7 +174,7 @@ class WasmGCTypeReducer : public Next {
       // that the lowering could potentially skip null or smi checks.
       wasm::ValueType from_type =
           wasm::Intersection(type, cast_op.config.from, module_, module_).type;
-      DCHECK_NE(wasm::kWasmBottom, from_type);
+      DCHECK(!from_type.is_uninhabited());
       WasmTypeCheckConfig config{from_type, cast_op.config.to};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
                              __ MapToNewGraph(cast_op.rtt()), config);
@@ -190,7 +190,7 @@ class WasmGCTypeReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && type != wasm::kWasmBottom) {
+    if (type != wasm::ValueType() && !type.is_uninhabited()) {
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
                                 type_check.config.to.heap_type(), module_,
@@ -222,7 +222,7 @@ class WasmGCTypeReducer : public Next {
       wasm::ValueType from_type =
           wasm::Intersection(type, type_check.config.from, module_, module_)
               .type;
-      DCHECK_NE(wasm::kWasmBottom, from_type);
+      DCHECK(!from_type.is_uninhabited());
       WasmTypeCheckConfig config{from_type, type_check.config.to};
       return __ WasmTypeCheck(__ MapToNewGraph(type_check.object()),
                               __ MapToNewGraph(type_check.rtt()), config);
