@@ -122,7 +122,6 @@ class WasmExceptionPackage;
 class WasmExceptionTag;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
-class WasmIndirectFunctionTable;
 class WasmJSFunctionData;
 class WasmMemoryObject;
 class WasmModuleObject;

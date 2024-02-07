@@ -2497,16 +2497,6 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
-    std::ostream& os) {
-  PrintHeader(os, "WasmIndirectFunctionTable");
-  os << "\n - size: " << size();
-  os << "\n - sig_ids: " << Brief(sig_ids());
-  os << "\n - targets: " << Brief(targets());
-  os << "\n - refs: " << Brief(refs());
-  os << "\n";
-}
-
 void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmValueObject");
   os << "\n - value: " << Brief(value());

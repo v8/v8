@@ -823,40 +823,6 @@ class WasmExternalFunction : public JSFunction {
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
 };
 
-class WasmIndirectFunctionTable
-    : public TorqueGeneratedWasmIndirectFunctionTable<WasmIndirectFunctionTable,
-                                                      Struct> {
- public:
-  DECL_ACCESSORS(sig_ids, Tagged<FixedUInt32Array>)
-  // When the sandbox is enabled, this array holds indices into the external
-  // pointer table that contain the function entrypoint. Otherwise, this array
-  // directly contains the entrypoint pointers.
-  // TODO(chromium:1395058): consider instead turning this entire structure into
-  // a pointer table entry. For example, we could create a WasmCodePointerTable
-  // where each entry contains the signature, the target, and the ref
-  // object. Then the WasmIndirectFunctionTable object would simply contain an
-  // array of indices into a WasmCodePointerTable. This way, we can also
-  // guarantee that an attacker cannot for example modify the signature
-  // associated with a target function.
-  DECL_ACCESSORS(targets, Tagged<ExternalPointerArray>)
-
-  V8_EXPORT_PRIVATE static Handle<WasmIndirectFunctionTable> New(
-      Isolate* isolate, uint32_t size);
-  static void Resize(Isolate* isolate, Handle<WasmIndirectFunctionTable> table,
-                     uint32_t new_size);
-  V8_EXPORT_PRIVATE void Set(uint32_t index, int sig_id, Address call_target,
-                             Tagged<Object> ref);
-  void Clear(uint32_t index);
-
-  DECL_PRINTER(WasmIndirectFunctionTable)
-
-  using BodyDescriptor =
-      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                          kHeaderSize>;
-
-  TQ_OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable)
-};
-
 class WasmFunctionData
     : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
  public:

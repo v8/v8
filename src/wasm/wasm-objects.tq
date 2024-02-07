@@ -102,15 +102,6 @@ extern class WasmResumeData extends HeapObject {
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmIndirectFunctionTable extends Struct {
-  sig_ids: ByteArray;
-  targets: ExternalPointerArray;
-  refs: FixedArray;
-  size: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-}
-
 extern class WasmContinuationObject extends HeapObject {
   stack: Foreign;
   parent: WasmContinuationObject|Undefined;

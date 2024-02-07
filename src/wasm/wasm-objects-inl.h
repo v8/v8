@@ -401,13 +401,6 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExternalFunction)
 
-// WasmIndirectFunctionTable
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
-ACCESSORS(WasmIndirectFunctionTable, sig_ids, Tagged<FixedUInt32Array>,
-          kSigIdsOffset)
-ACCESSORS(WasmIndirectFunctionTable, targets, Tagged<ExternalPointerArray>,
-          kTargetsOffset)
-
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
                            kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
