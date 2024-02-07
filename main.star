@@ -163,7 +163,6 @@ led_users(
         "ci.br.beta",
         "ci.br.stable",
         "ci.br.extended",
-        "ci.br.extwin",
     ],
     groups = LED_GROUPS,
 )
@@ -227,7 +226,6 @@ luci.bucket(name = "try.triggered", acls = tryserver_acls)
 luci.bucket(name = "ci.br.beta", acls = waterfall_acls)
 luci.bucket(name = "ci.br.stable", acls = waterfall_acls)
 luci.bucket(name = "ci.br.extended", acls = waterfall_acls)
-luci.bucket(name = "ci.br.extwin", acls = waterfall_acls)
 
 exec("//lib/recipes.star")
 
