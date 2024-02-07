@@ -2340,7 +2340,6 @@ void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Sub(node_t node) {
-  // TODO(mliedtke): Handle truncate consistently with Turbofan.
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
   auto binop = this->word_binop_view(node);
   auto left = binop.left();
