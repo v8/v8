@@ -67,10 +67,6 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
   // Reset reachability information. This can be outdated in case of loop
   // revisits. Below the reachability is calculated again and potentially
   // re-added.
-  // TODO(mliedtke): Right now a block only becomes unreachable if its
-  // predecessor branches based on a ref.is_null or a ref.test that can be
-  // statically inferred. Also propagate reachability (i.e. a block becomes
-  // unreachable if all its predecessors are unreachable).
   block_is_unreachable_.Remove(block.index().id());
   // Start new snapshot based on predecessor information.
   if (block.HasPredecessors() == 0) {
@@ -88,20 +84,28 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
       // The loop wasn't visited yet. There isn't any type information available
       // for the backedge.
       is_first_loop_header_evaluation_ = true;
+      const Block& forward_predecessor =
+          *block.LastPredecessor()->NeighboringPredecessor();
+      if (!IsReachable(forward_predecessor)) {
+        block_is_unreachable_.Add(block.index().id());
+      }
       Snapshot forward_edge_snap =
-          block_to_snapshot_
-              [block.LastPredecessor()->NeighboringPredecessor()->index()]
-                  .value();
+          block_to_snapshot_[forward_predecessor.index()].value();
       types_table_.StartNewSnapshot(forward_edge_snap);
     }
   } else if (block.IsBranchTarget()) {
     DCHECK_EQ(block.PredecessorCount(), 1);
+    const Block& predecessor = *block.LastPredecessor();
     types_table_.StartNewSnapshot(
-        block_to_snapshot_[block.LastPredecessor()->index()].value());
-    const BranchOp* branch =
-        block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
-    if (branch != nullptr) {
-      ProcessBranchOnTarget(*branch, block);
+        block_to_snapshot_[predecessor.index()].value());
+    if (IsReachable(predecessor)) {
+      const BranchOp* branch =
+          block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
+      if (branch != nullptr) {
+        ProcessBranchOnTarget(*branch, block);
+      }
+    } else {
+      block_is_unreachable_.Add(block.index().id());
     }
   } else {
     DCHECK_EQ(block.kind(), Block::Kind::kMerge);
@@ -335,9 +339,15 @@ void WasmGCTypeAnalyzer::CreateMergeSnapshot(const Block& block) {
   // them from the predecessors as that would mess up the phi inputs. Therefore
   // the reachability of the predecessors is passed as a separate list.
   base::SmallVector<bool, 8> reachable;
+  bool all_predecessors_unreachable = true;
   for (const Block* predecessor : block.PredecessorsIterable()) {
     snapshots.push_back(block_to_snapshot_[predecessor->index()].value());
-    reachable.push_back(IsReachable(*predecessor));
+    bool predecessor_reachable = IsReachable(*predecessor);
+    reachable.push_back(predecessor_reachable);
+    all_predecessors_unreachable &= !predecessor_reachable;
+  }
+  if (all_predecessors_unreachable) {
+    block_is_unreachable_.Add(block.index().id());
   }
   // The predecessor snapshots need to be reversed to restore the "original"
   // order of predecessors. (This is used to map phi inputs to their
@@ -363,9 +373,11 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         // Initialize the type based on the first reachable predecessor.
         wasm::ValueType first = wasm::kWasmBottom;
         for (; i < reachable.size(); ++i) {
-          // TODO(mliedtke): In theory bottom types should only happen in
-          // unreachable paths, however reachability tracking isn't fully
-          // implemented yet.
+          // The bottom type can only occur in unreachable code e.g. as a result
+          // of an always failing cast. Still reachability tracking might in
+          // some cases miss that a block becomes unreachable, so we still check
+          // for bottom in the if below.
+          DCHECK_IMPLIES(reachable[i], predecessors[i] != wasm::kWasmBottom);
           if (reachable[i] && predecessors[i] != wasm::kWasmBottom) {
             first = predecessors[i];
             ++i;
@@ -377,8 +389,11 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
         for (; i < reachable.size(); ++i) {
           if (!reachable[i]) continue;  // Skip unreachable predecessors.
           wasm::ValueType type = predecessors[i];
-          // TODO(mliedtke): Similar to above, the reachability tracking should
-          // take care of this instead.
+          // The bottom type can only occur in unreachable code e.g. as a result
+          // of an always failing cast. Still reachability tracking might in
+          // some cases miss that a block becomes unreachable, so we still check
+          // for bottom in the if below.
+          DCHECK(predecessors[i] != wasm::kWasmBottom);
           if (type == wasm::kWasmBottom) continue;
           types_are_equivalent &= first == type;
           if (res == wasm::ValueType() || type == wasm::ValueType()) {
@@ -411,10 +426,11 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
 wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledgeNotNull(OpIndex object) {
   object = ResolveAliases(object);
   wasm::ValueType previous_value = types_table_.Get(object);
-  if (previous_value.is_uninhabited()) {
+  wasm::ValueType not_null_type = previous_value.AsNonNull();
+  if (not_null_type.is_uninhabited()) {
     block_is_unreachable_.Add(current_block_->index().id());
   }
-  types_table_.Set(object, previous_value.AsNonNull());
+  types_table_.Set(object, not_null_type);
   return previous_value;
 }
 
