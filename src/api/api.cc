@@ -4285,6 +4285,10 @@ void* v8::ArrayBuffer::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
 }
 
+bool v8::ArrayBuffer::IsResizableByUserJavaScript() const {
+  return Utils::OpenDirectHandle(this)->is_resizable_by_js();
+}
+
 std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
