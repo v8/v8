@@ -144,11 +144,12 @@ int WasmStackSize(Isolate* isolate) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
-  HandleScope shs(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<WasmInstanceObject> instance_object = args.at<WasmInstanceObject>(0);
-  Handle<WasmTrustedInstanceData> trusted_data =
-      handle(instance_object->trusted_data(isolate), isolate);
+  Tagged<WasmInstanceObject> instance_object =
+      Tagged<WasmInstanceObject>::cast(args[0]);
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      instance_object->trusted_data(isolate);
   Address wrapper_start = isolate->builtins()
                               ->code(Builtin::kWasmToJsWrapperAsm)
                               ->instruction_start();
@@ -159,22 +160,15 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       ++result;
     }
   }
-  int table_count = trusted_data->tables()->length();
+  Tagged<ProtectedFixedArray> dispatch_tables = trusted_data->dispatch_tables();
+  int table_count = dispatch_tables->length();
   for (int table_index = 0; table_index < table_count; ++table_index) {
-    if (!IsWasmIndirectFunctionTable(
-            trusted_data->indirect_function_tables()->get(table_index))) {
-      continue;
-    }
-    Tagged<WasmIndirectFunctionTable> table = WasmIndirectFunctionTable::cast(
-        trusted_data->indirect_function_tables()->get(table_index));
-
-    for (int entry_index = 0; entry_index < static_cast<int>(table->size());
-         ++entry_index) {
-      Address entry =
-          table->targets()
-              ->get<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
-                  entry_index, isolate);
-      if (entry == wrapper_start) ++result;
+    if (dispatch_tables->get(table_index) == Smi::zero()) continue;
+    Tagged<WasmDispatchTable> table =
+        Tagged<WasmDispatchTable>::cast(dispatch_tables->get(table_index));
+    int table_size = table->length();
+    for (int entry_index = 0; entry_index < table_size; ++entry_index) {
+      if (table->target(entry_index) == wrapper_start) ++result;
     }
   }
   return Smi::FromInt(result);

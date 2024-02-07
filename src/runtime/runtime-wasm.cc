@@ -660,20 +660,19 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   } else {
     // Indirect function table index.
     int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
-    int table_count = trusted_data->indirect_function_tables()->length();
+    int table_count = trusted_data->dispatch_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
-      Tagged<WasmIndirectFunctionTable> table =
-          trusted_data->indirect_function_table(table_index);
-      if (table->refs()->get(entry_index) == *ref) {
-        table->targets()
-            ->set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
-                entry_index, isolate, wasm_code->instruction_start());
+      Tagged<WasmDispatchTable> table =
+          trusted_data->dispatch_table(table_index);
+      if (table->ref(entry_index) == *ref) {
+        table->SetTarget(entry_index, wasm_code->instruction_start());
         // {ref} is used in at most one table.
         break;
       }
     }
   }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
