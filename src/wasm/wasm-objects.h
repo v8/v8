@@ -357,13 +357,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
   // tables: FixedArray of WasmTableObject.
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_tables, Tagged<FixedArray>)
   DECL_ACCESSORS(imported_function_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
   DECL_ACCESSORS(imported_function_targets, Tagged<FixedAddressArray>)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, Tagged<FixedArray>)
-  DECL_ACCESSORS(indirect_function_table_sig_ids, Tagged<FixedUInt32Array>)
-  DECL_ACCESSORS(indirect_function_table_targets, Tagged<ExternalPointerArray>)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
@@ -379,7 +375,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(isorecursive_canonical_types, const uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, uint8_t*)
-  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
@@ -409,13 +404,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   /* Often-accessed fields go first to minimize generated code size. */   \
   /* Less than system pointer sized fields come first. */                 \
   V(kImportedFunctionRefsOffset, kTaggedSize)                             \
-  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
-  V(kIndirectFunctionTableSigIdsOffset, kTaggedSize)                      \
-  V(kIndirectFunctionTableTargetsOffset, kTaggedSize)                     \
   V(kDispatchTable0Offset, kTaggedSize)                                   \
   V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
   V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
-  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemory0StartOffset, kSystemPointerSize)                              \
@@ -443,7 +434,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kTablesOffset, kTaggedSize)                                           \
-  V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kDispatchTablesOffset, kTaggedSize)                                   \
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
@@ -474,9 +464,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // V(offset, name)
 #define WASM_TAGGED_INSTANCE_OBJECT_FIELDS(V)                                 \
   V(kImportedFunctionRefsOffset, "imported_function_refs")                    \
-  V(kIndirectFunctionTableRefsOffset, "indirect_function_table_refs")         \
-  V(kIndirectFunctionTableTargetsOffset, "indirect_function_table_targets")   \
-  V(kIndirectFunctionTableSigIdsOffset, "indirect_function_table_sig_ids")    \
   V(kInstanceObjectOffset, "instance_object")                                 \
   V(kNativeContextOffset, "native_context")                                   \
   V(kMemoryObjectsOffset, "memory_objects")                                   \
@@ -484,7 +471,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kTaggedGlobalsBufferOffset, "tagged_globals_buffer")                      \
   V(kImportedMutableGlobalsBuffersOffset, "imported_mutable_globals_buffers") \
   V(kTablesOffset, "tables")                                                  \
-  V(kIndirectFunctionTablesOffset, "indirect_function_tables")                \
   V(kTagsTableOffset, "tags_table")                                           \
   V(kWasmInternalFunctionsOffset, "wasm_internal_functions")                  \
   V(kManagedObjectMapsOffset, "managed_object_maps")                          \
@@ -497,13 +483,13 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
 
-  static constexpr std::array<uint16_t, 23> kTaggedFieldOffsets = {
+  static constexpr std::array<uint16_t, 19> kTaggedFieldOffsets = {
 #define WASM_INSTANCE_TAGGED_FIELD_OFFSET(offset, _) offset,
       WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_OFFSET)
 #undef WASM_INSTANCE_TAGGED_FIELD_OFFSET
   };
 
-  static constexpr std::array<const char*, 23> kTaggedFieldNames = {
+  static constexpr std::array<const char*, 19> kTaggedFieldNames = {
 #define WASM_INSTANCE_TAGGED_FIELD_NAME(_, name) name,
       WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_NAME)
 #undef WASM_INSTANCE_TAGGED_FIELD_NAME
@@ -515,9 +501,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   const wasm::WasmModule* module();
 
-  static void EnsureIndirectFunctionTableWithMinimumSize(
+  static void EnsureMinimumDispatchTableSize(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
-      int table_index, uint32_t minimum_size);
+      int table_index, int minimum_size);
 
   void SetRawMemory(int memory_index, uint8_t* mem_start, size_t mem_size);
 
@@ -525,11 +511,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
                                              Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
-
-  inline Tagged<WasmIndirectFunctionTable> indirect_function_table(
-      uint32_t table_index);
-
-  void SetIndirectFunctionTableShortcuts(Isolate* isolate);
 
   inline Tagged<WasmDispatchTable> dispatch_table(uint32_t table_index);
 

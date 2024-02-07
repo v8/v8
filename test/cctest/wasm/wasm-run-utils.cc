@@ -243,21 +243,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.type = table_type;
 
   {
-    // Allocate the indirect function table / dispatch table.
-    // TODO(14564): Remove the indirect function table.
-    Handle<FixedArray> old_ift_tables =
-        table_index == 0
-            ? isolate_->factory()->empty_fixed_array()
-            : handle(trusted_instance_data_->indirect_function_tables(),
-                     isolate_);
-    DCHECK_EQ(table_index, old_ift_tables->length());
-    Handle<FixedArray> new_ift_tables =
-        isolate_->factory()->CopyFixedArrayAndGrow(old_ift_tables, 1);
-    Handle<WasmIndirectFunctionTable> table_obj =
-        WasmIndirectFunctionTable::New(isolate_, table.initial_size);
-    new_ift_tables->set(table_index, *table_obj);
-    trusted_instance_data_->set_indirect_function_tables(*new_ift_tables);
-
+    // Allocate the dispatch table.
     Handle<ProtectedFixedArray> old_dispatch_tables{
         trusted_instance_data_->dispatch_tables(), isolate_};
     DCHECK_EQ(table_index, old_dispatch_tables->length());
@@ -275,7 +261,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     trusted_instance_data_->set_dispatch_tables(*new_dispatch_tables);
   }
 
-  WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+  WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
       isolate_, trusted_instance_data_, table_index, table_size);
   Handle<WasmTableObject> table_obj = WasmTableObject::New(
       isolate_, instance_object_, table.type, table.initial_size,
@@ -293,8 +279,6 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(instance_object_, function.func_index);
-      trusted_instance_data_->indirect_function_table(table_index)
-          ->Set(i, sig_id, entry.call_target(), *entry.ref());
       trusted_instance_data_->dispatch_table(table_index)
           ->Set(i, *entry.ref(), entry.call_target(), sig_id);
       WasmTableObject::SetFunctionTablePlaceholder(

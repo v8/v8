@@ -1178,27 +1178,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   if (table_count > 0) {
-    // TODO(14564): Remove indirect function tables; use dispatch tables
-    // everywhere.
-    Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
     Handle<ProtectedFixedArray> dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_count);
     for (int i = 0; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
       if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
-      Handle<WasmIndirectFunctionTable> table_obj =
-          WasmIndirectFunctionTable::New(isolate_, table.initial_size);
-      tables->set(i, *table_obj);
       Handle<WasmDispatchTable> dispatch_table =
           WasmDispatchTable::New(isolate_, table.initial_size);
       dispatch_tables->set(i, *dispatch_table);
       if (i == 0) trusted_data->set_dispatch_table0(*dispatch_table);
     }
-    trusted_data->set_indirect_function_tables(*tables);
     trusted_data->set_dispatch_tables(*dispatch_tables);
   }
-
-  trusted_data->SetIndirectFunctionTableShortcuts(isolate_);
 
   //--------------------------------------------------------------------------
   // Process the imports for the module.
@@ -1254,7 +1245,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     const WasmTable& table = module_->tables[table_index];
 
     if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
-    WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+    WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
         isolate_, trusted_data, table_index, table.initial_size);
     auto table_object =
         handle(WasmTableObject::cast(trusted_data->tables()->get(table_index)),
@@ -1820,7 +1811,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     int import_index, Handle<WasmTableObject> table_object) {
   int imported_table_size = table_object->current_length();
   // Allocate a new dispatch table.
-  WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+  WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
       isolate_, trusted_instance_data, table_index, imported_table_size);
   // Initialize the dispatch table with the (foreign) JS functions
   // that are already in the table.
@@ -1867,8 +1858,6 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     uint32_t canonical_sig_index =
         target_module->isorecursive_canonical_type_ids[function.sig_index];
 
-    trusted_instance_data->indirect_function_table(table_index)
-        ->Set(i, canonical_sig_index, entry.call_target(), *ref);
     trusted_instance_data->dispatch_table(table_index)
         ->Set(i, *ref, entry.call_target(), canonical_sig_index);
   }

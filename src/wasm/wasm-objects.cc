@@ -243,10 +243,9 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
             ->trusted_data(isolate),
         isolate};
 
-    DCHECK_EQ(
-        old_size,
-        trusted_instance_data->indirect_function_table(table_index)->size());
-    WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+    DCHECK_EQ(old_size,
+              trusted_instance_data->dispatch_table(table_index)->length());
+    WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
         isolate, trusted_instance_data, table_index, new_size);
   }
 
@@ -465,11 +464,6 @@ void WasmTableObject::UpdateDispatchTables(
         isolate);
     int sig_id = target_instance_data->module()
                      ->isorecursive_canonical_type_ids[original_sig_id];
-    Handle<WasmIndirectFunctionTable> ift = handle(
-        WasmIndirectFunctionTable::cast(instance_object->trusted_data(isolate)
-                                            ->indirect_function_tables()
-                                            ->get(table_index)),
-        isolate);
     if (v8_flags.wasm_to_js_generic_wrapper &&
         IsWasmApiFunctionRef(*call_ref)) {
       Handle<WasmApiFunctionRef> orig_ref =
@@ -484,7 +478,6 @@ void WasmTableObject::UpdateDispatchTables(
       }
       call_ref = new_ref;
     }
-    ift->Set(entry_index, sig_id, call_target, *call_ref);
     Tagged<WasmTrustedInstanceData> instance_data =
         instance_object->trusted_data(isolate);
     instance_data->dispatch_table(table_index)
@@ -560,8 +553,6 @@ void WasmTableObject::UpdateDispatchTables(
                                  ->internal(isolate)
                                  ->ref();
     Address call_target = wasm_code->instruction_start();
-    trusted_instance_data->indirect_function_table(table_index)
-        ->Set(entry_index, canonical_type_index, call_target, ref);
     trusted_instance_data->dispatch_table(table_index)
         ->Set(entry_index, ref, call_target, canonical_type_index);
   }
@@ -578,7 +569,6 @@ void WasmTableObject::ClearDispatchTables(int index) {
         WasmInstanceObject::cast(uses->get(i + TableUses::kInstanceOffset));
     Tagged<WasmTrustedInstanceData> target_instance_data =
         target_instance_object->trusted_data(isolate);
-    target_instance_data->indirect_function_table(table_index)->Clear(index);
     target_instance_data->dispatch_table(table_index)->Clear(index);
   }
 }
@@ -1159,48 +1149,25 @@ void ImportedFunctionEntry::set_target(Address new_target) {
 }
 
 // static
-constexpr std::array<uint16_t, 23> WasmTrustedInstanceData::kTaggedFieldOffsets;
+constexpr std::array<uint16_t, 19> WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, 23>
+constexpr std::array<const char*, 19>
     WasmTrustedInstanceData::kTaggedFieldNames;
 
 // static
-void WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+void WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
-    int table_index, uint32_t minimum_size) {
-  // WasmTrustedInstanceDataVerify checks that the WasmIndirectFunctionTable has
-  // the same size as the WasmDispatchTable. In order to pass this also for GCs
-  // which happen during this resize, we first remove the IFT and the dispatch
-  // table from the instance data, grow both, then set it back.
-  // Note that this code is only temporary anyway untils the IFT is completely
-  // removed and replaced by the WasmDispatchTable.
-
-  // Get the old IFT and dispatch table.
-  DCHECK_LT(table_index,
-            trusted_instance_data->indirect_function_tables()->length());
-  Handle<WasmIndirectFunctionTable> table{
-      trusted_instance_data->indirect_function_table(table_index), isolate};
+    int table_index, int minimum_size) {
   Handle<WasmDispatchTable> old_dispatch_table{
       trusted_instance_data->dispatch_table(table_index), isolate};
-
-  // Reset the fields on the instance.
-  trusted_instance_data->indirect_function_tables()->set(
-      table_index, ReadOnlyRoots{isolate}.undefined_value());
-  trusted_instance_data->dispatch_tables()->set(table_index, Smi::zero());
-
-  // Grow IFT and dispatch table.
-  WasmIndirectFunctionTable::Resize(isolate, table, minimum_size);
+  if (old_dispatch_table->length() >= minimum_size) return;
   Handle<WasmDispatchTable> new_dispatch_table =
-      static_cast<uint32_t>(old_dispatch_table->length()) >= minimum_size
-          ? old_dispatch_table
-          : WasmDispatchTable::Grow(isolate, old_dispatch_table, minimum_size);
+      WasmDispatchTable::Grow(isolate, old_dispatch_table, minimum_size);
 
-  // Install them back on the instance.
-  trusted_instance_data->indirect_function_tables()->set(table_index, *table);
+  if (*old_dispatch_table == *new_dispatch_table) return;
   trusted_instance_data->dispatch_tables()->set(table_index,
                                                 *new_dispatch_table);
   if (table_index == 0) {
-    trusted_instance_data->SetIndirectFunctionTableShortcuts(isolate);
     trusted_instance_data->set_dispatch_table0(*new_dispatch_table);
   }
 }
@@ -1287,9 +1254,6 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
         reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer());
     ReadOnlyRoots ro_roots{isolate};
     Tagged<FixedArray> empty_fixed_array = ro_roots.empty_fixed_array();
-    Tagged<ByteArray> empty_byte_array = ro_roots.empty_byte_array();
-    Tagged<ExternalPointerArray> empty_external_pointer_array =
-        ro_roots.empty_external_pointer_array();
 
     trusted_data->set_imported_function_targets(*imported_function_targets);
     trusted_data->set_imported_mutable_globals(*imported_mutable_globals);
@@ -1308,12 +1272,6 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_old_allocation_top_address(
         isolate->heap()->OldSpaceAllocationTopAddress());
     trusted_data->set_globals_start(empty_backing_store_buffer);
-    trusted_data->set_indirect_function_table_size(0);
-    trusted_data->set_indirect_function_table_refs(empty_fixed_array);
-    trusted_data->set_indirect_function_table_sig_ids(
-        FixedUInt32Array::cast(empty_byte_array));
-    trusted_data->set_indirect_function_table_targets(
-        ExternalPointerArray::cast(empty_external_pointer_array));
     trusted_data->set_native_context(*isolate->native_context());
     trusted_data->set_jump_table_start(
         module_object->native_module()->jump_table_start());
@@ -1402,18 +1360,6 @@ Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   }
   return jump_table_start() +
          JumpTableOffset(native_module->module(), func_index);
-}
-
-void WasmTrustedInstanceData::SetIndirectFunctionTableShortcuts(
-    Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-  if (!has_indirect_function_tables()) return;
-  if (!IsWasmIndirectFunctionTable(indirect_function_tables()->get(0))) return;
-  Tagged<WasmIndirectFunctionTable> table0 = indirect_function_table(0);
-  set_indirect_function_table_size(table0->size());
-  set_indirect_function_table_refs(table0->refs());
-  set_indirect_function_table_sig_ids(table0->sig_ids());
-  set_indirect_function_table_targets(table0->targets());
 }
 
 // static
@@ -1707,8 +1653,6 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
                 canonical_sig_index);
 
   if (sig_in_module == module_canonical_ids.end()) {
-    trusted_instance_data->indirect_function_table(table_index)
-        ->Clear(entry_index);
     trusted_instance_data->dispatch_table(table_index)->Clear(entry_index);
     return;
   }
@@ -1771,8 +1715,6 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
           isolate, module->signature(sig_id)));
 
   WasmApiFunctionRef::SetIndexInTableAsCallOrigin(ref, entry_index);
-  trusted_instance_data->indirect_function_table(table_index)
-      ->Set(entry_index, canonical_sig_index, call_target, *ref);
   trusted_instance_data->dispatch_table(table_index)
       ->Set(entry_index, *ref, call_target, canonical_sig_index);
 }

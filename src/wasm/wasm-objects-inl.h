@@ -200,12 +200,6 @@ ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
           Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_function_targets,
           Tagged<FixedAddressArray>, kImportedFunctionTargetsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, indirect_function_table_size,
-                    uint32_t, kIndirectFunctionTableSizeOffset)
-ACCESSORS(WasmTrustedInstanceData, indirect_function_table_sig_ids,
-          Tagged<FixedUInt32Array>, kIndirectFunctionTableSigIdsOffset)
-ACCESSORS(WasmTrustedInstanceData, indirect_function_table_targets,
-          Tagged<ExternalPointerArray>, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, hook_on_function_call_address,
@@ -237,12 +231,8 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
                    Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
-OPTIONAL_ACCESSORS(WasmTrustedInstanceData, indirect_function_tables,
-                   Tagged<FixedArray>, kIndirectFunctionTablesOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_function_refs, Tagged<FixedArray>,
           kImportedFunctionRefsOffset)
-OPTIONAL_ACCESSORS(WasmTrustedInstanceData, indirect_function_table_refs,
-                   Tagged<FixedArray>, kIndirectFunctionTableRefsOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
                             WasmDispatchTable, kDispatchTable0Offset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
@@ -282,12 +272,6 @@ uint8_t* WasmTrustedInstanceData::memory_base(int memory_index) const {
 size_t WasmTrustedInstanceData::memory_size(int memory_index) const {
   DCHECK_EQ(memory0_size(), memory_bases_and_sizes()->get(1));
   return memory_bases_and_sizes()->get(2 * memory_index + 1);
-}
-
-Tagged<WasmIndirectFunctionTable>
-WasmTrustedInstanceData::indirect_function_table(uint32_t table_index) {
-  return WasmIndirectFunctionTable::cast(
-      indirect_function_tables()->get(table_index));
 }
 
 Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
