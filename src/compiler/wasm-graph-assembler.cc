@@ -211,6 +211,9 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(Node* handle,
   // decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(~tag));
   // Always set the tagged bit, used as a marking bit in that table.
   decoded_ptr = WordOr(decoded_ptr, IntPtrConstant(kHeapObjectTag));
+  // We have to change the type of the result value to Tagged, so if the value
+  // gets spilled on the stack, it will get processed by the GC.
+  decoded_ptr = BitcastWordToTagged(decoded_ptr);
   return decoded_ptr;
 #else
   UNREACHABLE();
