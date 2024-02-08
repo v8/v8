@@ -306,24 +306,23 @@ class BranchEliminationReducer : public Next {
     // Maximum size up to which we allow cloning a block. Cloning too large
     // blocks will lead to increasing the size of the graph too much, which will
     // lead to slower compile time, and larger generated code.
-    // Note that we don't take this limit into account when cloning blocks
-    // containing Returns, because we assume that this should be fairly rare.
     // TODO(dmercadier): we might want to exclude Phis from this, since they are
     // typically removed when we clone a block. However, computing the number of
     // operations in a block excluding Phis is more costly (because we'd have to
     // iterate all of the operations one by one).
-    // TODO(dmercadier): this "15" was selected fairly arbitrarily (= it sounded
+    // TODO(dmercadier): this "13" was selected fairly arbitrarily (= it sounded
     // reasonable). It could be useful to run a few benchmarks to see if we can
     // find a more optimal number.
-    static constexpr int kMaxOpCountForCloning = 15;
+    static constexpr int kMaxOpCountForCloning = 13;
 
     const Operation& last_op =
         destination_origin->LastOperation(__ input_graph());
-    if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
-      if (destination_origin->OpCountUpperBound() > kMaxOpCountForCloning) {
-        goto no_change;
-      }
 
+    if (destination_origin->OpCountUpperBound() > kMaxOpCountForCloning) {
+      goto no_change;
+    }
+
+    if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
       OpIndex condition = __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
         base::Optional<bool> condition_value = known_conditions_.Get(condition);
