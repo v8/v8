@@ -3430,7 +3430,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
     "src/compiler/turboshaft/recreate-schedule-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
-    "src/compiler/turboshaft/reduce-args-helper.h",
     "src/compiler/turboshaft/reducer-traits.h",
     "src/compiler/turboshaft/representations.h",
     "src/compiler/turboshaft/required-optimization-reducer.h",

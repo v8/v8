@@ -747,7 +747,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
     node_t frame_state() const {
-      if (call_op_) return call_op_->frame_state();
+      if (call_op_) return call_op_->frame_state().value();
       UNREACHABLE();
     }
     base::Vector<const node_t> arguments() const {

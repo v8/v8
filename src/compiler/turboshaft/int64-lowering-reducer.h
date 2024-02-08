@@ -117,7 +117,7 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
-  OpIndex REDUCE(Call)(OpIndex callee, OpIndex frame_state,
+  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
                        base::Vector<const OpIndex> arguments,
                        const TSCallDescriptor* descriptor, OpEffects effects) {
     const bool is_tail_call = false;
@@ -624,7 +624,7 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(low_node, high_node);
   }
 
-  OpIndex LowerCall(OpIndex callee, OpIndex frame_state,
+  OpIndex LowerCall(OpIndex callee, OptionalOpIndex frame_state,
                     base::Vector<const OpIndex> arguments,
                     const TSCallDescriptor* descriptor, OpEffects effects,
                     bool is_tail_call) {

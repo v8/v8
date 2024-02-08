@@ -90,18 +90,18 @@ class WasmLoweringReducer : public Next {
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
 
-  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, V<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, OptionalV<Tagged> rtt,
                                 WasmTypeCheckConfig config) {
-    if (rtt != OpIndex::Invalid()) {
+    if (rtt.has_value()) {
       return ReduceWasmTypeCheckRtt(object, rtt, config);
     } else {
       return ReduceWasmTypeCheckAbstract(object, config);
     }
   }
 
-  OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, V<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, OptionalV<Tagged> rtt,
                                WasmTypeCheckConfig config) {
-    if (rtt != OpIndex::Invalid()) {
+    if (rtt.has_value()) {
       return ReduceWasmTypeCastRtt(object, rtt, config);
     } else {
       return ReduceWasmTypeCastAbstract(object, config);
@@ -689,8 +689,9 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, V<Tagged> rtt,
+  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, OptionalV<Tagged> rtt,
                                 WasmTypeCheckConfig config) {
+    DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -719,13 +720,13 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      __ TrapIfNot(__ TaggedEqual(map, rtt), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), OpIndex::Invalid(),
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label);
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label);
 
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
@@ -754,7 +755,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()), OpIndex::Invalid(),
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     }
@@ -763,8 +764,9 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, V<Tagged> rtt,
+  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, OptionalV<Tagged> rtt,
                                  WasmTypeCheckConfig config) {
+    DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -790,11 +792,11 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      GOTO(end_label, __ TaggedEqual(map, rtt));
+      GOTO(end_label, __ TaggedEqual(map, rtt.value()));
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label,
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label,
               __ Word32Constant(1));
 
       // Check if map instance type identifies a wasm object.
@@ -826,7 +828,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      GOTO(end_label, __ TaggedEqual(maybe_match, rtt));
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt.value()));
     }
 
     BIND(end_label, result);

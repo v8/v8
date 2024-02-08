@@ -1260,7 +1260,8 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   Node* condition = GetNode(op.condition());
   bool has_frame_state = op.frame_state().valid();
-  Node* frame_state = has_frame_state ? GetNode(op.frame_state()) : nullptr;
+  Node* frame_state =
+      has_frame_state ? GetNode(op.frame_state().value()) : nullptr;
   const Operator* o = op.negated
                           ? common.TrapUnless(op.trap_id, has_frame_state)
                           : common.TrapIf(op.trap_id, has_frame_state);
@@ -1477,7 +1478,7 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
   }
   if (op.HasFrameState()) {
     DCHECK(op.frame_state().valid());
-    inputs.push_back(GetNode(op.frame_state()));
+    inputs.push_back(GetNode(op.frame_state().value()));
   }
   return AddNode(common.Call(op.descriptor->descriptor),
                  base::VectorOf(inputs));

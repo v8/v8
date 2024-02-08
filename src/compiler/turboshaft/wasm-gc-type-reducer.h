@@ -177,7 +177,7 @@ class WasmGCTypeReducer : public Next {
       DCHECK_NE(wasm::kWasmBottom, from_type);
       WasmTypeCheckConfig config{from_type, cast_op.config.to};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
-                             __ MapToNewGraphIfValid(cast_op.rtt()), config);
+                             __ MapToNewGraph(cast_op.rtt()), config);
     }
     goto no_change;
   }
@@ -225,8 +225,7 @@ class WasmGCTypeReducer : public Next {
       DCHECK_NE(wasm::kWasmBottom, from_type);
       WasmTypeCheckConfig config{from_type, type_check.config.to};
       return __ WasmTypeCheck(__ MapToNewGraph(type_check.object()),
-                              __ MapToNewGraphIfValid(type_check.rtt()),
-                              config);
+                              __ MapToNewGraph(type_check.rtt()), config);
     }
     goto no_change;
   }

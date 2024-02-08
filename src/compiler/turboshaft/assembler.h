@@ -929,7 +929,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceCall(OpIndex callee, OpIndex frame_state,
+  OpIndex ReduceCall(OpIndex callee, OptionalOpIndex frame_state,
                      base::Vector<const OpIndex> arguments,
                      const TSCallDescriptor* descriptor, OpEffects effects) {
     OpIndex raw_call =
@@ -2875,10 +2875,12 @@ class TurboshaftAssemblerOpInterface
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  void TrapIf(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
+  void TrapIf(V<Word32> condition, OptionalOpIndex frame_state,
+              TrapId trap_id) {
     ReduceIfReachableTrapIf(condition, frame_state, false, trap_id);
   }
-  void TrapIfNot(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
+  void TrapIfNot(V<Word32> condition, OptionalOpIndex frame_state,
+                 TrapId trap_id) {
     ReduceIfReachableTrapIf(condition, frame_state, true, trap_id);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3365,12 +3367,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableRttCanon(rtts, type_index);
   }
 
-  V<Word32> WasmTypeCheck(V<Tagged> object, V<Map> rtt,
+  V<Word32> WasmTypeCheck(V<Tagged> object, OptionalV<Map> rtt,
                           WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
-  V<Tagged> WasmTypeCast(V<Tagged> object, V<Map> rtt,
+  V<Tagged> WasmTypeCast(V<Tagged> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }

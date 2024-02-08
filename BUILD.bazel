@@ -3252,7 +3252,6 @@ filegroup(
         "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/turboshaft/recreate-schedule-phase.cc",
         "src/compiler/turboshaft/recreate-schedule-phase.h",
-        "src/compiler/turboshaft/reduce-args-helper.h",
         "src/compiler/turboshaft/reducer-traits.h",
         "src/compiler/turboshaft/representations.cc",
         "src/compiler/turboshaft/representations.h",

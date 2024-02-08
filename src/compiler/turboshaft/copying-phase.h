@@ -22,6 +22,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/zone/zone-containers.h"
@@ -40,8 +41,47 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 template <typename Next>
 class ReducerBaseForwarder;
 
+template <typename Derived, typename Base>
+class OutputGraphAssembler : public Base {
+#define FRIEND(op) friend struct op##Op;
+  TURBOSHAFT_OPERATION_LIST(FRIEND)
+#undef FRIEND
+  template <size_t I, class D>
+  friend struct FixedArityOperationT;
+
+  OpIndex Map(OpIndex index) { return derived_this()->MapToNewGraph(index); }
+
+  OptionalOpIndex Map(OptionalOpIndex index) {
+    return derived_this()->MapToNewGraph(index);
+  }
+
+  template <size_t N>
+  base::SmallVector<OpIndex, N> Map(base::Vector<const OpIndex> indices) {
+    return derived_this()->template MapToNewGraph<N>(indices);
+  }
+
+ public:
+#define ASSEMBLE(operation)                                         \
+  OpIndex AssembleOutputGraph##operation(const operation##Op& op) { \
+    return op.Explode(                                              \
+        [a = assembler()](auto... args) {                           \
+          return a->Reduce##operation(args...);                     \
+        },                                                          \
+        *this);                                                     \
+  }
+  TURBOSHAFT_OPERATION_LIST(ASSEMBLE)
+#undef ASSEMBLE
+
+ private:
+  Derived* derived_this() { return static_cast<Derived*>(this); }
+  Assembler<typename Base::ReducerList>* assembler() {
+    return &derived_this()->Asm();
+  }
+};
+
 template <class AfterNext>
-class GraphVisitor : public VariableReducer<AfterNext> {
+class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
+                                                 VariableReducer<AfterNext>> {
   template <typename N>
   friend class ReducerBaseForwarder;
 
@@ -288,17 +328,20 @@ class GraphVisitor : public VariableReducer<AfterNext> {
   }
 
   template <bool can_be_invalid = false>
-  OpIndex MapToNewGraphIfValid(OpIndex old_index, int predecessor_index = -1) {
-    return old_index.valid()
-               ? MapToNewGraph<can_be_invalid>(old_index, predecessor_index)
-               : OpIndex::Invalid();
-  }
-
-  template <bool can_be_invalid = false>
   OptionalOpIndex MapToNewGraph(OptionalOpIndex old_index,
                                 int predecessor_index = -1) {
     if (!old_index.has_value()) return OptionalOpIndex::Invalid();
     return MapToNewGraph<can_be_invalid>(old_index.value(), predecessor_index);
+  }
+
+  template <size_t expected_size>
+  base::SmallVector<OpIndex, expected_size> MapToNewGraph(
+      base::Vector<const OpIndex> inputs) {
+    base::SmallVector<OpIndex, expected_size> result;
+    for (OpIndex input : inputs) {
+      result.push_back(MapToNewGraph(input));
+    }
+    return result;
   }
 
  private:
@@ -786,7 +829,7 @@ class GraphVisitor : public VariableReducer<AfterNext> {
   }
   OpIndex AssembleOutputGraphCall(const CallOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());
-    OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
+    OptionalOpIndex frame_state = MapToNewGraph(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return Asm().ReduceCall(callee, frame_state, base::VectorOf(arguments),
                             op.descriptor, op.Effects());
@@ -838,605 +881,6 @@ class GraphVisitor : public VariableReducer<AfterNext> {
     }
     return OpIndex::Invalid();
   }
-  OpIndex AssembleOutputGraphCatchBlockBegin(const CatchBlockBeginOp& op) {
-    return Asm().ReduceCatchBlockBegin();
-  }
-  OpIndex AssembleOutputGraphTailCall(const TailCallOp& op) {
-    OpIndex callee = MapToNewGraph(op.callee());
-    auto arguments = MapToNewGraph<16>(op.arguments());
-    return Asm().ReduceTailCall(callee, base::VectorOf(arguments),
-                                op.descriptor);
-  }
-  OpIndex AssembleOutputGraphReturn(const ReturnOp& op) {
-    // We very rarely have tuples longer than 4.
-    auto return_values = MapToNewGraph<4>(op.return_values());
-    return Asm().ReduceReturn(MapToNewGraph(op.pop_count()),
-                              base::VectorOf(return_values));
-  }
-  OpIndex AssembleOutputGraphWordBinopDeoptOnOverflow(
-      const WordBinopDeoptOnOverflowOp& op) {
-    return Asm().ReduceWordBinopDeoptOnOverflow(
-        MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-        MapToNewGraph(op.frame_state()), op.kind, op.rep, op.feedback, op.mode);
-  }
-  OpIndex AssembleOutputGraphOverflowCheckedBinop(
-      const OverflowCheckedBinopOp& op) {
-    return Asm().ReduceOverflowCheckedBinop(
-        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphWordUnary(const WordUnaryOp& op) {
-    return Asm().ReduceWordUnary(MapToNewGraph(op.input()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphFloatUnary(const FloatUnaryOp& op) {
-    return Asm().ReduceFloatUnary(MapToNewGraph(op.input()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphShift(const ShiftOp& op) {
-    return Asm().ReduceShift(MapToNewGraph(op.left()),
-                             MapToNewGraph(op.right()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphComparison(const ComparisonOp& op) {
-    return Asm().ReduceComparison(MapToNewGraph(op.left()),
-                                  MapToNewGraph(op.right()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphChange(const ChangeOp& op) {
-    return Asm().ReduceChange(MapToNewGraph(op.input()), op.kind, op.assumption,
-                              op.from, op.to);
-  }
-  OpIndex AssembleOutputGraphChangeOrDeopt(const ChangeOrDeoptOp& op) {
-    return Asm().ReduceChangeOrDeopt(MapToNewGraph(op.input()),
-                                     MapToNewGraph(op.frame_state()), op.kind,
-                                     op.minus_zero_mode, op.feedback);
-  }
-  OpIndex AssembleOutputGraphTryChange(const TryChangeOp& op) {
-    return Asm().ReduceTryChange(MapToNewGraph(op.input()), op.kind, op.from,
-                                 op.to);
-  }
-  OpIndex AssembleOutputGraphBitcastWord32PairToFloat64(
-      const BitcastWord32PairToFloat64Op& op) {
-    return Asm().ReduceBitcastWord32PairToFloat64(
-        MapToNewGraph(op.high_word32()), MapToNewGraph(op.low_word32()));
-  }
-  OpIndex AssembleOutputGraphTaggedBitcast(const TaggedBitcastOp& op) {
-    return Asm().ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from, op.to,
-                                     op.kind);
-  }
-  OpIndex AssembleOutputGraphObjectIs(const ObjectIsOp& op) {
-    return Asm().ReduceObjectIs(MapToNewGraph(op.input()), op.kind,
-                                op.input_assumptions);
-  }
-  OpIndex AssembleOutputGraphFloatIs(const FloatIsOp& op) {
-    return Asm().ReduceFloatIs(MapToNewGraph(op.input()), op.kind,
-                               op.input_rep);
-  }
-  OpIndex AssembleOutputGraphObjectIsNumericValue(
-      const ObjectIsNumericValueOp& op) {
-    return Asm().ReduceObjectIsNumericValue(MapToNewGraph(op.input()), op.kind,
-                                            op.input_rep);
-  }
-  OpIndex AssembleOutputGraphConvert(const ConvertOp& op) {
-    return Asm().ReduceConvert(MapToNewGraph(op.input()), op.from, op.to);
-  }
-  OpIndex AssembleOutputGraphConvertUntaggedToJSPrimitive(
-      const ConvertUntaggedToJSPrimitiveOp& op) {
-    return Asm().ReduceConvertUntaggedToJSPrimitive(
-        MapToNewGraph(op.input()), op.kind, op.input_rep,
-        op.input_interpretation, op.minus_zero_mode);
-  }
-  OpIndex AssembleOutputGraphConvertUntaggedToJSPrimitiveOrDeopt(
-      const ConvertUntaggedToJSPrimitiveOrDeoptOp& op) {
-    return Asm().ReduceConvertUntaggedToJSPrimitiveOrDeopt(
-        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
-        op.input_rep, op.input_interpretation, op.feedback);
-  }
-  OpIndex AssembleOutputGraphConvertJSPrimitiveToUntagged(
-      const ConvertJSPrimitiveToUntaggedOp& op) {
-    return Asm().ReduceConvertJSPrimitiveToUntagged(
-        MapToNewGraph(op.input()), op.kind, op.input_assumptions);
-  }
-  OpIndex AssembleOutputGraphConvertJSPrimitiveToUntaggedOrDeopt(
-      const ConvertJSPrimitiveToUntaggedOrDeoptOp& op) {
-    return Asm().ReduceConvertJSPrimitiveToUntaggedOrDeopt(
-        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()),
-        op.from_kind, op.to_kind, op.minus_zero_mode, op.feedback);
-  }
-  OpIndex AssembleOutputGraphTruncateJSPrimitiveToUntagged(
-      const TruncateJSPrimitiveToUntaggedOp& op) {
-    return Asm().ReduceTruncateJSPrimitiveToUntagged(
-        MapToNewGraph(op.input()), op.kind, op.input_assumptions);
-  }
-  OpIndex AssembleOutputGraphTruncateJSPrimitiveToUntaggedOrDeopt(
-      const TruncateJSPrimitiveToUntaggedOrDeoptOp& op) {
-    return Asm().ReduceTruncateJSPrimitiveToUntaggedOrDeopt(
-        MapToNewGraph(op.input()), MapToNewGraph(op.frame_state()), op.kind,
-        op.input_requirement, op.feedback);
-  }
-  OpIndex AssembleOutputGraphConvertJSPrimitiveToObject(
-      const ConvertJSPrimitiveToObjectOp& op) {
-    return Asm().ReduceConvertJSPrimitiveToObject(
-        MapToNewGraph(op.value()), MapToNewGraph(op.native_context()),
-        MapToNewGraph(op.global_proxy()), op.mode);
-  }
-  OpIndex AssembleOutputGraphSelect(const SelectOp& op) {
-    return Asm().ReduceSelect(
-        MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
-        MapToNewGraph(op.vfalse()), op.rep, op.hint, op.implem);
-  }
-  OpIndex AssembleOutputGraphConstant(const ConstantOp& op) {
-    return Asm().ReduceConstant(op.kind, op.storage);
-  }
-  OpIndex AssembleOutputGraphAtomicRMW(const AtomicRMWOp& op) {
-    return Asm().ReduceAtomicRMW(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), MapToNewGraph(op.expected()), op.bin_op,
-        op.result_rep, op.input_rep, op.memory_access_kind);
-  }
-
-  OpIndex AssembleOutputGraphAtomicWord32Pair(const AtomicWord32PairOp& op) {
-    return Asm().ReduceAtomicWord32Pair(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value_low()), MapToNewGraph(op.value_high()),
-        MapToNewGraph(op.expected_low()), MapToNewGraph(op.expected_high()),
-        op.kind, op.offset);
-  }
-
-  OpIndex AssembleOutputGraphMemoryBarrier(const MemoryBarrierOp& op) {
-    return Asm().MemoryBarrier(op.memory_order);
-  }
-
-  OpIndex AssembleOutputGraphLoad(const LoadOp& op) {
-    return Asm().ReduceLoad(MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-                            op.kind, op.loaded_rep, op.result_rep, op.offset,
-                            op.element_size_log2);
-  }
-  OpIndex AssembleOutputGraphStore(const StoreOp& op) {
-    return Asm().ReduceStore(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
-        op.offset, op.element_size_log2, op.maybe_initializing_or_transitioning,
-        op.indirect_pointer_tag());
-  }
-  OpIndex AssembleOutputGraphAllocate(const AllocateOp& op) {
-    return Asm().FinishInitialization(
-        Asm().Allocate(MapToNewGraph(op.size()), op.type));
-  }
-  OpIndex AssembleOutputGraphDecodeExternalPointer(
-      const DecodeExternalPointerOp& op) {
-    return Asm().DecodeExternalPointer(MapToNewGraph(op.handle()), op.tag);
-  }
-
-  OpIndex AssembleOutputGraphStackCheck(const StackCheckOp& op) {
-    return Asm().ReduceStackCheck(op.check_origin, op.check_kind);
-  }
-
-  OpIndex AssembleOutputGraphRetain(const RetainOp& op) {
-    return Asm().ReduceRetain(MapToNewGraph(op.retained()));
-  }
-  OpIndex AssembleOutputGraphParameter(const ParameterOp& op) {
-    return Asm().ReduceParameter(op.parameter_index, op.rep, op.debug_name);
-  }
-  OpIndex AssembleOutputGraphOsrValue(const OsrValueOp& op) {
-    return Asm().ReduceOsrValue(op.index);
-  }
-  OpIndex AssembleOutputGraphStackPointerGreaterThan(
-      const StackPointerGreaterThanOp& op) {
-    return Asm().ReduceStackPointerGreaterThan(MapToNewGraph(op.stack_limit()),
-                                               op.kind);
-  }
-  OpIndex AssembleOutputGraphStackSlot(const StackSlotOp& op) {
-    return Asm().ReduceStackSlot(op.size, op.alignment);
-  }
-  OpIndex AssembleOutputGraphFrameConstant(const FrameConstantOp& op) {
-    return Asm().ReduceFrameConstant(op.kind);
-  }
-  OpIndex AssembleOutputGraphDeoptimize(const DeoptimizeOp& op) {
-    return Asm().ReduceDeoptimize(MapToNewGraph(op.frame_state()),
-                                  op.parameters);
-  }
-  OpIndex AssembleOutputGraphDeoptimizeIf(const DeoptimizeIfOp& op) {
-    return Asm().ReduceDeoptimizeIf(MapToNewGraph(op.condition()),
-                                    MapToNewGraph(op.frame_state()), op.negated,
-                                    op.parameters);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  OpIndex AssembleOutputGraphTrapIf(const TrapIfOp& op) {
-    return Asm().ReduceTrapIf(MapToNewGraph(op.condition()),
-                              MapToNewGraphIfValid(op.frame_state()),
-                              op.negated, op.trap_id);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  OpIndex AssembleOutputGraphTuple(const TupleOp& op) {
-    return Asm().ReduceTuple(base::VectorOf(MapToNewGraph<4>(op.inputs())));
-  }
-  OpIndex AssembleOutputGraphProjection(const ProjectionOp& op) {
-    return Asm().ReduceProjection(MapToNewGraph(op.input()), op.index, op.rep);
-  }
-  OpIndex AssembleOutputGraphWordBinop(const WordBinopOp& op) {
-    return Asm().ReduceWordBinop(MapToNewGraph(op.left()),
-                                 MapToNewGraph(op.right()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphFloatBinop(const FloatBinopOp& op) {
-    return Asm().ReduceFloatBinop(MapToNewGraph(op.left()),
-                                  MapToNewGraph(op.right()), op.kind, op.rep);
-  }
-  OpIndex AssembleOutputGraphUnreachable(const UnreachableOp& op) {
-    return Asm().ReduceUnreachable();
-  }
-  OpIndex AssembleOutputGraphStaticAssert(const StaticAssertOp& op) {
-    return Asm().ReduceStaticAssert(MapToNewGraph(op.condition()), op.source);
-  }
-  OpIndex AssembleOutputGraphCheckTurboshaftTypeOf(
-      const CheckTurboshaftTypeOfOp& op) {
-    return Asm().ReduceCheckTurboshaftTypeOf(MapToNewGraph(op.input()), op.rep,
-                                             op.type, op.successful);
-  }
-  OpIndex AssembleOutputGraphNewConsString(const NewConsStringOp& op) {
-    return Asm().ReduceNewConsString(MapToNewGraph(op.length()),
-                                     MapToNewGraph(op.first()),
-                                     MapToNewGraph(op.second()));
-  }
-  OpIndex AssembleOutputGraphNewArray(const NewArrayOp& op) {
-    return Asm().ReduceNewArray(MapToNewGraph(op.length()), op.kind,
-                                op.allocation_type);
-  }
-  OpIndex AssembleOutputGraphDoubleArrayMinMax(const DoubleArrayMinMaxOp& op) {
-    return Asm().ReduceDoubleArrayMinMax(MapToNewGraph(op.array()), op.kind);
-  }
-  OpIndex AssembleOutputGraphLoadFieldByIndex(const LoadFieldByIndexOp& op) {
-    return Asm().ReduceLoadFieldByIndex(MapToNewGraph(op.object()),
-                                        MapToNewGraph(op.index()));
-  }
-  OpIndex AssembleOutputGraphDebugBreak(const DebugBreakOp& op) {
-    return Asm().ReduceDebugBreak();
-  }
-  OpIndex AssembleOutputGraphDebugPrint(const DebugPrintOp& op) {
-    return Asm().ReduceDebugPrint(MapToNewGraph(op.input()), op.rep);
-  }
-  OpIndex AssembleOutputGraphBigIntBinop(const BigIntBinopOp& op) {
-    return Asm().ReduceBigIntBinop(MapToNewGraph(op.left()),
-                                   MapToNewGraph(op.right()),
-                                   MapToNewGraph(op.frame_state()), op.kind);
-  }
-  OpIndex AssembleOutputGraphBigIntComparison(const BigIntComparisonOp& op) {
-    return Asm().ReduceBigIntComparison(MapToNewGraph(op.left()),
-                                        MapToNewGraph(op.right()), op.kind);
-  }
-  OpIndex AssembleOutputGraphBigIntUnary(const BigIntUnaryOp& op) {
-    return Asm().ReduceBigIntUnary(MapToNewGraph(op.input()), op.kind);
-  }
-  OpIndex AssembleOutputGraphLoadRootRegister(const LoadRootRegisterOp& op) {
-    return Asm().ReduceLoadRootRegister();
-  }
-  OpIndex AssembleOutputGraphStringAt(const StringAtOp& op) {
-    return Asm().ReduceStringAt(MapToNewGraph(op.string()),
-                                MapToNewGraph(op.position()), op.kind);
-  }
-#ifdef V8_INTL_SUPPORT
-  OpIndex AssembleOutputGraphStringToCaseIntl(const StringToCaseIntlOp& op) {
-    return Asm().ReduceStringToCaseIntl(MapToNewGraph(op.string()), op.kind);
-  }
-#endif  // V8_INTL_SUPPORT
-  OpIndex AssembleOutputGraphStringLength(const StringLengthOp& op) {
-    return Asm().ReduceStringLength(MapToNewGraph(op.string()));
-  }
-  OpIndex AssembleOutputGraphStringIndexOf(const StringIndexOfOp& op) {
-    return Asm().ReduceStringIndexOf(MapToNewGraph(op.string()),
-                                     MapToNewGraph(op.search()),
-                                     MapToNewGraph(op.position()));
-  }
-  OpIndex AssembleOutputGraphStringFromCodePointAt(
-      const StringFromCodePointAtOp& op) {
-    return Asm().ReduceStringFromCodePointAt(MapToNewGraph(op.string()),
-                                             MapToNewGraph(op.index()));
-  }
-  OpIndex AssembleOutputGraphStringSubstring(const StringSubstringOp& op) {
-    return Asm().ReduceStringSubstring(MapToNewGraph(op.string()),
-                                       MapToNewGraph(op.start()),
-                                       MapToNewGraph(op.end()));
-  }
-  OpIndex AssembleOutputGraphStringConcat(const StringConcatOp& op) {
-    return Asm().ReduceStringConcat(MapToNewGraph(op.left()),
-                                    MapToNewGraph(op.right()));
-  }
-  OpIndex AssembleOutputGraphStringComparison(const StringComparisonOp& op) {
-    return Asm().ReduceStringComparison(MapToNewGraph(op.left()),
-                                        MapToNewGraph(op.right()), op.kind);
-  }
-  OpIndex AssembleOutputGraphArgumentsLength(const ArgumentsLengthOp& op) {
-    return Asm().ReduceArgumentsLength(op.kind, op.formal_parameter_count);
-  }
-  OpIndex AssembleOutputGraphNewArgumentsElements(
-      const NewArgumentsElementsOp& op) {
-    return Asm().ReduceNewArgumentsElements(MapToNewGraph(op.arguments_count()),
-                                            op.type, op.formal_parameter_count);
-  }
-  OpIndex AssembleOutputGraphLoadTypedElement(const LoadTypedElementOp& op) {
-    return Asm().ReduceLoadTypedElement(
-        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
-        MapToNewGraph(op.external()), MapToNewGraph(op.index()), op.array_type);
-  }
-  OpIndex AssembleOutputGraphLoadDataViewElement(
-      const LoadDataViewElementOp& op) {
-    return Asm().ReduceLoadDataViewElement(
-        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
-        MapToNewGraph(op.index()), MapToNewGraph(op.is_little_endian()),
-        op.element_type);
-  }
-  OpIndex AssembleOutputGraphLoadStackArgument(const LoadStackArgumentOp& op) {
-    return Asm().ReduceLoadStackArgument(MapToNewGraph(op.base()),
-                                         MapToNewGraph(op.index()));
-  }
-  OpIndex AssembleOutputGraphStoreTypedElement(const StoreTypedElementOp& op) {
-    return Asm().ReduceStoreTypedElement(
-        MapToNewGraph(op.buffer()), MapToNewGraph(op.base()),
-        MapToNewGraph(op.external()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), op.array_type);
-  }
-  OpIndex AssembleOutputGraphStoreDataViewElement(
-      const StoreDataViewElementOp& op) {
-    return Asm().ReduceStoreDataViewElement(
-        MapToNewGraph(op.object()), MapToNewGraph(op.storage()),
-        MapToNewGraph(op.index()), MapToNewGraph(op.value()),
-        MapToNewGraph(op.is_little_endian()), op.element_type);
-  }
-  OpIndex AssembleOutputGraphTransitionAndStoreArrayElement(
-      const TransitionAndStoreArrayElementOp& op) {
-    return Asm().ReduceTransitionAndStoreArrayElement(
-        MapToNewGraph(op.array()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), op.kind, op.fast_map, op.double_map);
-  }
-  OpIndex AssembleOutputGraphCompareMaps(const CompareMapsOp& op) {
-    return Asm().ReduceCompareMaps(MapToNewGraph(op.heap_object()), op.maps);
-  }
-  OpIndex AssembleOutputGraphCheckMaps(const CheckMapsOp& op) {
-    return Asm().ReduceCheckMaps(MapToNewGraph(op.heap_object()),
-                                 MapToNewGraph(op.frame_state()), op.maps,
-                                 op.flags, op.feedback);
-  }
-  OpIndex AssembleOutputGraphAssumeMap(const AssumeMapOp& op) {
-    return Asm().ReduceAssumeMap(MapToNewGraph(op.heap_object()), op.maps);
-  }
-  OpIndex AssembleOutputGraphCheckedClosure(const CheckedClosureOp& op) {
-    return Asm().ReduceCheckedClosure(MapToNewGraph(op.input()),
-                                      MapToNewGraph(op.frame_state()),
-                                      op.feedback_cell);
-  }
-  OpIndex AssembleOutputGraphCheckEqualsInternalizedString(
-      const CheckEqualsInternalizedStringOp& op) {
-    return Asm().ReduceCheckEqualsInternalizedString(
-        MapToNewGraph(op.expected()), MapToNewGraph(op.value()),
-        MapToNewGraph(op.frame_state()));
-  }
-  OpIndex AssembleOutputGraphLoadMessage(const LoadMessageOp& op) {
-    return Asm().ReduceLoadMessage(MapToNewGraph(op.offset()));
-  }
-  OpIndex AssembleOutputGraphStoreMessage(const StoreMessageOp& op) {
-    return Asm().ReduceStoreMessage(MapToNewGraph(op.offset()),
-                                    MapToNewGraph(op.object()));
-  }
-  OpIndex AssembleOutputGraphSameValue(const SameValueOp& op) {
-    return Asm().ReduceSameValue(MapToNewGraph(op.left()),
-                                 MapToNewGraph(op.right()), op.mode);
-  }
-  OpIndex AssembleOutputGraphFloat64SameValue(const Float64SameValueOp& op) {
-    return Asm().ReduceFloat64SameValue(MapToNewGraph(op.left()),
-                                        MapToNewGraph(op.right()));
-  }
-  OpIndex AssembleOutputGraphFastApiCall(const FastApiCallOp& op) {
-    auto arguments = MapToNewGraph<8>(op.arguments());
-    return Asm().ReduceFastApiCall(MapToNewGraph(op.data_argument()),
-                                   base::VectorOf(arguments), op.parameters);
-  }
-  OpIndex AssembleOutputGraphRuntimeAbort(const RuntimeAbortOp& op) {
-    return Asm().ReduceRuntimeAbort(op.reason);
-  }
-  OpIndex AssembleOutputGraphEnsureWritableFastElements(
-      const EnsureWritableFastElementsOp& op) {
-    return Asm().ReduceEnsureWritableFastElements(MapToNewGraph(op.object()),
-                                                  MapToNewGraph(op.elements()));
-  }
-  OpIndex AssembleOutputGraphMaybeGrowFastElements(
-      const MaybeGrowFastElementsOp& op) {
-    return Asm().ReduceMaybeGrowFastElements(
-        MapToNewGraph(op.object()), MapToNewGraph(op.elements()),
-        MapToNewGraph(op.index()), MapToNewGraph(op.elements_length()),
-        MapToNewGraph(op.frame_state()), op.mode, op.feedback);
-  }
-  OpIndex AssembleOutputGraphTransitionElementsKind(
-      const TransitionElementsKindOp& op) {
-    return Asm().ReduceTransitionElementsKind(MapToNewGraph(op.object()),
-                                              op.transition);
-  }
-  OpIndex AssembleOutputGraphFindOrderedHashEntry(
-      const FindOrderedHashEntryOp& op) {
-    return Asm().ReduceFindOrderedHashEntry(MapToNewGraph(op.data_structure()),
-                                            MapToNewGraph(op.key()), op.kind);
-  }
-  OpIndex AssembleOutputGraphSpeculativeNumberBinop(
-      const SpeculativeNumberBinopOp& op) {
-    return Asm().ReduceSpeculativeNumberBinop(
-        MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-        MapToNewGraph(op.frame_state()), op.kind);
-  }
-  OpIndex AssembleOutputGraphWord32PairBinop(const Word32PairBinopOp& op) {
-    return Asm().ReduceWord32PairBinop(
-        MapToNewGraph(op.left_low()), MapToNewGraph(op.left_high()),
-        MapToNewGraph(op.right_low()), MapToNewGraph(op.right_high()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphComment(const CommentOp& op) {
-    return Asm().ReduceComment(op.message);
-  }
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-  OpIndex AssembleOutputGraphGlobalGet(const GlobalGetOp& op) {
-    return Asm().ReduceGlobalGet(MapToNewGraph(op.instance()), op.global);
-  }
-
-  OpIndex AssembleOutputGraphGlobalSet(const GlobalSetOp& op) {
-    return Asm().ReduceGlobalSet(MapToNewGraph(op.instance()),
-                                 MapToNewGraph(op.value()), op.global);
-  }
-
-  OpIndex AssembleOutputGraphNull(const NullOp& op) {
-    return Asm().ReduceNull(op.type);
-  }
-
-  OpIndex AssembleOutputGraphIsNull(const IsNullOp& op) {
-    return Asm().ReduceIsNull(MapToNewGraph(op.object()), op.type);
-  }
-
-  OpIndex AssembleOutputGraphAssertNotNull(const AssertNotNullOp& op) {
-    return Asm().ReduceAssertNotNull(MapToNewGraph(op.object()), op.type,
-                                     op.trap_id);
-  }
-
-  OpIndex AssembleOutputGraphRttCanon(const RttCanonOp& op) {
-    return Asm().ReduceRttCanon(MapToNewGraph(op.rtts()), op.type_index);
-  }
-
-  OpIndex AssembleOutputGraphWasmTypeCheck(const WasmTypeCheckOp& op) {
-    return Asm().ReduceWasmTypeCheck(MapToNewGraph(op.object()),
-                                     MapToNewGraphIfValid(op.rtt()), op.config);
-  }
-
-  OpIndex AssembleOutputGraphWasmTypeCast(const WasmTypeCastOp& op) {
-    return Asm().ReduceWasmTypeCast(MapToNewGraph(op.object()),
-                                    MapToNewGraphIfValid(op.rtt()), op.config);
-  }
-
-  OpIndex AssembleOutputGraphAnyConvertExtern(const AnyConvertExternOp& op) {
-    return Asm().ReduceAnyConvertExtern(MapToNewGraph(op.object()));
-  }
-
-  OpIndex AssembleOutputGraphExternConvertAny(const ExternConvertAnyOp& op) {
-    return Asm().ReduceExternConvertAny(MapToNewGraph(op.object()));
-  }
-
-  OpIndex AssembleOutputGraphWasmTypeAnnotation(
-      const WasmTypeAnnotationOp& op) {
-    return Asm().ReduceWasmTypeAnnotation(MapToNewGraph(op.value()), op.type);
-  }
-
-  OpIndex AssembleOutputGraphStructGet(const StructGetOp& op) {
-    return Asm().ReduceStructGet(MapToNewGraph(op.object()), op.type,
-                                 op.type_index, op.field_index, op.is_signed,
-                                 op.null_check);
-  }
-
-  OpIndex AssembleOutputGraphStructSet(const StructSetOp& op) {
-    return Asm().ReduceStructSet(MapToNewGraph(op.object()),
-                                 MapToNewGraph(op.value()), op.type,
-                                 op.type_index, op.field_index, op.null_check);
-  }
-
-  OpIndex AssembleOutputGraphArrayGet(const ArrayGetOp& op) {
-    return Asm().ReduceArrayGet(MapToNewGraph(op.array()),
-                                MapToNewGraph(op.index()), op.array_type,
-                                op.is_signed);
-  }
-
-  OpIndex AssembleOutputGraphArraySet(const ArraySetOp& op) {
-    return Asm().ReduceArraySet(MapToNewGraph(op.array()),
-                                MapToNewGraph(op.index()),
-                                MapToNewGraph(op.value()), op.element_type);
-  }
-
-  OpIndex AssembleOutputGraphArrayLength(const ArrayLengthOp& op) {
-    return Asm().ReduceArrayLength(MapToNewGraph(op.array()), op.null_check);
-  }
-
-  OpIndex AssembleOutputGraphWasmAllocateArray(const WasmAllocateArrayOp& op) {
-    return Asm().ReduceWasmAllocateArray(
-        MapToNewGraph(op.rtt()), MapToNewGraph(op.length()), op.array_type);
-  }
-
-  OpIndex AssembleOutputGraphWasmAllocateStruct(
-      const WasmAllocateStructOp& op) {
-    return Asm().ReduceWasmAllocateStruct(MapToNewGraph(op.rtt()),
-                                          op.struct_type);
-  }
-
-  OpIndex AssembleOutputGraphWasmRefFunc(const WasmRefFuncOp& op) {
-    return Asm().ReduceWasmRefFunc(MapToNewGraph(op.instance()),
-                                   op.function_index);
-  }
-
-  OpIndex AssembleOutputGraphStringAsWtf16(const StringAsWtf16Op& op) {
-    return Asm().ReduceStringAsWtf16(MapToNewGraph(op.string()));
-  }
-
-  OpIndex AssembleOutputGraphStringPrepareForGetCodeUnit(
-      const StringPrepareForGetCodeUnitOp& op) {
-    return Asm().ReduceStringPrepareForGetCodeUnit(MapToNewGraph(op.string()));
-  }
-
-  OpIndex AssembleOutputGraphSimd128Constant(const Simd128ConstantOp& op) {
-    return Asm().ReduceSimd128Constant(op.value);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Binop(const Simd128BinopOp& op) {
-    return Asm().ReduceSimd128Binop(MapToNewGraph(op.left()),
-                                    MapToNewGraph(op.right()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Unary(const Simd128UnaryOp& op) {
-    return Asm().ReduceSimd128Unary(MapToNewGraph(op.input()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Shift(const Simd128ShiftOp& op) {
-    return Asm().ReduceSimd128Shift(MapToNewGraph(op.input()),
-                                    MapToNewGraph(op.shift()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Test(const Simd128TestOp& op) {
-    return Asm().ReduceSimd128Test(MapToNewGraph(op.input()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Splat(const Simd128SplatOp& op) {
-    return Asm().ReduceSimd128Splat(MapToNewGraph(op.input()), op.kind);
-  }
-
-  OpIndex AssembleOutputGraphSimd128Ternary(const Simd128TernaryOp& op) {
-    return Asm().ReduceSimd128Ternary(MapToNewGraph(op.first()),
-                                      MapToNewGraph(op.second()),
-                                      MapToNewGraph(op.third()), op.kind);
-  }
-  OpIndex AssembleOutputGraphSimd128ExtractLane(
-      const Simd128ExtractLaneOp& op) {
-    return Asm().ReduceSimd128ExtractLane(MapToNewGraph(op.input()), op.kind,
-                                          op.lane);
-  }
-  OpIndex AssembleOutputGraphSimd128ReplaceLane(
-      const Simd128ReplaceLaneOp& op) {
-    return Asm().ReduceSimd128ReplaceLane(MapToNewGraph(op.into()),
-                                          MapToNewGraph(op.new_lane()), op.kind,
-                                          op.lane);
-  }
-  OpIndex AssembleOutputGraphSimd128LaneMemory(const Simd128LaneMemoryOp& op) {
-    return Asm().ReduceSimd128LaneMemory(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
-        MapToNewGraph(op.value()), op.mode, op.kind, op.lane_kind, op.lane,
-        op.offset);
-  }
-  OpIndex AssembleOutputGraphSimd128LoadTransform(
-      const Simd128LoadTransformOp& op) {
-    return Asm().ReduceSimd128LoadTransform(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.load_kind,
-        op.transform_kind, op.offset);
-  }
-  OpIndex AssembleOutputGraphSimd128Shuffle(const Simd128ShuffleOp& op) {
-    return Asm().ReduceSimd128Shuffle(MapToNewGraph(op.left()),
-                                      MapToNewGraph(op.right()), op.shuffle);
-  }
-  OpIndex AssembleOutputGraphLoadStackPointer(const LoadStackPointerOp& op) {
-    return Asm().ReduceLoadStackPointer();
-  }
-  OpIndex AssembleOutputGraphSetStackPointer(const SetStackPointerOp& op) {
-    return Asm().ReduceSetStackPointer(MapToNewGraph(op.value()), op.fp_scope);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     DCHECK(old_index.valid());
@@ -1470,16 +914,6 @@ class GraphVisitor : public VariableReducer<AfterNext> {
   void SetVariableFor(OpIndex old_index, MaybeVariable var) {
     DCHECK(!old_opindex_to_variables[old_index].has_value());
     old_opindex_to_variables[old_index] = var;
-  }
-
-  template <size_t expected_size>
-  base::SmallVector<OpIndex, expected_size> MapToNewGraph(
-      base::Vector<const OpIndex> inputs) {
-    base::SmallVector<OpIndex, expected_size> result;
-    for (OpIndex input : inputs) {
-      result.push_back(MapToNewGraph(input));
-    }
-    return result;
   }
 
   void FixLoopPhis(Block* input_graph_loop) {

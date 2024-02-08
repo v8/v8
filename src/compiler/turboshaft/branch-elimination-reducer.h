@@ -400,8 +400,8 @@ class BranchEliminationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
-                         const TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+                         bool negated, const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }

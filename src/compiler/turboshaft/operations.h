@@ -87,6 +87,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 //   a variable arity operation where the constructor doesn't take the inputs as
 //   a single base::Vector<OpIndex> argument, it's also necessary to overwrite
 //   the static `New` function, see `CallOp` for an example.
+// - An `Explode` method that unpacks an operation and invokes the passed
+//   callback. If the operation inherits from FixedArityOperationT, the base
+//   class already provides the required implementation.
 // - `OpEffects` as either a static constexpr member `effects` or a
 //   non-static method `Effects()` if the effects depend on the particular
 //   operation and not just the opcode.
@@ -94,12 +97,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 //   representation of the outputs and inputs of this operations.
 // After defining the struct here, you'll also need to integrate it in
 // Turboshaft:
-// - Add an AssembleOutputGraphFoo method in CopyingPhase (don't forget to
-//   MapToNewGraph the OpIndices and the Blocks).
-// - Add one or more Foo(...) helper in AssemblerOpInterface (at least one of
-//   these Foo helper should probably call ReduceIfReachableFoo().
-// - Add an overload for FooOp in CallWithReduceArgsHelper in
-//   reduce-args-helper.h.
 // - If Foo is not in not lowered before reaching the instruction selector, add
 //   a overload of ProcessOperation for FooOp in recreate-schedule.cc, and
 //   handle Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
@@ -803,6 +800,15 @@ using underlying_operation_t = typename underlying_operation<T>::type;
 // The `alignas(OpIndex)` is necessary because it is followed by an array of
 // `OpIndex` inputs.
 struct alignas(OpIndex) Operation {
+  struct IdentityMapper {
+    OpIndex Map(OpIndex index) { return index; }
+    OptionalOpIndex Map(OptionalOpIndex index) { return index; }
+    template <size_t N>
+    base::SmallVector<OpIndex, N> Map(base::Vector<const OpIndex> indices) {
+      return base::SmallVector<OpIndex, N>{indices};
+    }
+  };
+
   const Opcode opcode;
 
   // The number of uses of this operation in the current graph.
@@ -1134,6 +1140,24 @@ struct FixedArityOperationT : OperationT<Derived> {
     Derived& result =
         OperationT<Derived>::New(graph, InputCount, std::move(args)...);
     return result;
+  }
+
+  template <typename Fn, typename Mapper, size_t... InputI, size_t... OptionI>
+  V8_INLINE auto ExplodeImpl(Fn fn, Mapper& mapper,
+                             std::index_sequence<InputI...>,
+                             std::index_sequence<OptionI...>) const {
+    auto options = this->derived_this().options();
+    USE(options);
+    return fn(mapper.Map(this->input(InputI))...,
+              std::get<OptionI>(options)...);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return ExplodeImpl(
+        fn, mapper, std::make_index_sequence<input_count>(),
+        std::make_index_sequence<
+            std::tuple_size_v<decltype(this->derived_this().options())>>());
   }
 };
 
@@ -2137,6 +2161,12 @@ struct PhiOp : OperationT<PhiOp> {
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(inputs), rep(rep) {}
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    auto mapped_inputs = mapper.template Map<64>(inputs());
+    return fn(base::VectorOf(mapped_inputs), rep);
+  }
+
   void Validate(const Graph& graph) const { DCHECK_GT(input_count, 0); }
   auto options() const { return std::tuple{rep}; }
 };
@@ -2563,6 +2593,12 @@ struct LoadOp : OperationT<LoadOp> {
     }
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(base()), mapper.Map(index()), kind, loaded_rep,
+              result_rep, offset, element_size_log2);
+  }
+
   void Validate(const Graph& graph) const {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsTagged() &&
@@ -2660,6 +2696,13 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     if (expected.valid()) {
       input(3) = expected.value();
     }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
+              mapper.Map(expected()), bin_op, result_rep, input_rep,
+              memory_access_kind);
   }
 
   static AtomicRMWOp& New(Graph* graph, OpIndex base, OpIndex index,
@@ -2801,6 +2844,13 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
         input(4 + has_index) = expected_high.value();
       }
     }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value_low()),
+              mapper.Map(value_high()), mapper.Map(expected_low()),
+              mapper.Map(expected_high()), kind, offset);
   }
 
   static constexpr size_t InputCount(Kind kind, bool has_index) {
@@ -2954,6 +3004,13 @@ struct StoreOp : OperationT<StoreOp> {
     if (index.valid()) {
       input(2) = index.value();
     }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
+              kind, stored_rep, write_barrier, offset, element_size_log2,
+              maybe_initializing_or_transitioning, indirect_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
@@ -3223,6 +3280,12 @@ struct FrameStateOp : OperationT<FrameStateOp> {
                const FrameStateData* data)
       : Base(inputs), inlined(inlined), data(data) {}
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    auto mapped_inputs = mapper.template Map<32>(inputs());
+    return fn(base::VectorOf(mapped_inputs), inlined, data);
+  }
+
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   V8_EXPORT_PRIVATE void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{inlined, data}; }
@@ -3306,28 +3369,35 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   }
 
   OpIndex condition() const { return input(0); }
-  OpIndex frame_state() const {
+  OptionalOpIndex frame_state() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
-  TrapIfOp(OpIndex condition, OpIndex frame_state, bool negated,
+  TrapIfOp(OpIndex condition, OptionalOpIndex frame_state, bool negated,
            const TrapId trap_id)
       : Base(1 + frame_state.valid()), negated(negated), trap_id(trap_id) {
     input(0) = condition;
     if (frame_state.valid()) {
-      input(1) = frame_state;
+      input(1) = frame_state.value();
     }
   }
 
-  static TrapIfOp& New(Graph* graph, OpIndex condition, OpIndex frame_state,
-                       bool negated, const TrapId trap_id) {
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(condition()), mapper.Map(frame_state()), negated,
+              trap_id);
+  }
+
+  static TrapIfOp& New(Graph* graph, OpIndex condition,
+                       OptionalOpIndex frame_state, bool negated,
+                       const TrapId trap_id) {
     return Base::New(graph, 1 + frame_state.valid(), condition, frame_state,
                      negated, trap_id);
   }
 
   void Validate(const Graph& graph) const {
     if (frame_state().valid()) {
-      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+      DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
     }
   }
   auto options() const { return std::tuple{negated, trap_id}; }
@@ -3474,7 +3544,7 @@ struct CallOp : OperationT<CallOp> {
   }
 
   OpIndex callee() const { return input(0); }
-  OpIndex frame_state() const {
+  OptionalOpIndex frame_state() const {
     return HasFrameState() ? input(1) : OpIndex::Invalid();
   }
   base::Vector<const OpIndex> arguments() const {
@@ -3484,7 +3554,7 @@ struct CallOp : OperationT<CallOp> {
   V8_EXPORT_PRIVATE bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
                                       StackCheckKind kind) const;
 
-  CallOp(OpIndex callee, OpIndex frame_state,
+  CallOp(OpIndex callee, OptionalOpIndex frame_state,
          base::Vector<const OpIndex> arguments,
          const TSCallDescriptor* descriptor, OpEffects effects)
       : Base(1 + frame_state.valid() + arguments.size()),
@@ -3493,18 +3563,28 @@ struct CallOp : OperationT<CallOp> {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = callee;
     if (frame_state.valid()) {
-      inputs[1] = frame_state;
+      inputs[1] = frame_state.value();
     }
     inputs.SubVector(1 + frame_state.valid(), inputs.size())
         .OverwriteWith(arguments);
   }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    OpIndex mapped_callee = mapper.Map(callee());
+    OptionalOpIndex mapped_frame_state = mapper.Map(frame_state());
+    auto mapped_arguments = mapper.template Map<16>(arguments());
+    return fn(mapped_callee, mapped_frame_state,
+              base::VectorOf(mapped_arguments), descriptor, Effects());
+  }
+
   void Validate(const Graph& graph) const {
     if (frame_state().valid()) {
-      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+      DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
     }
   }
 
-  static CallOp& New(Graph* graph, OpIndex callee, OpIndex frame_state,
+  static CallOp& New(Graph* graph, OpIndex callee, OptionalOpIndex frame_state,
                      base::Vector<const OpIndex> arguments,
                      const TSCallDescriptor* descriptor, OpEffects effects) {
     return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,
@@ -3659,6 +3739,14 @@ struct TailCallOp : OperationT<TailCallOp> {
     inputs[0] = callee;
     inputs.SubVector(1, inputs.size()).OverwriteWith(arguments);
   }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    OpIndex mapped_callee = mapper.Map(callee());
+    auto mapped_arguments = mapper.template Map<16>(arguments());
+    return fn(mapped_callee, base::VectorOf(mapped_arguments), descriptor);
+  }
+
   void Validate(const Graph& graph) const {}
   static TailCallOp& New(Graph* graph, OpIndex callee,
                          base::Vector<const OpIndex> arguments,
@@ -3711,6 +3799,13 @@ struct ReturnOp : OperationT<ReturnOp> {
     inputs.SubVector(1, inputs.size()).OverwriteWith(return_values);
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    OpIndex mapped_pop_count = mapper.Map(pop_count());
+    auto mapped_return_values = mapper.template Map<4>(return_values());
+    return fn(mapped_pop_count, base::VectorOf(mapped_return_values));
+  }
+
   void Validate(const Graph& graph) const {
   }
   static ReturnOp& New(Graph* graph, OpIndex pop_count,
@@ -3735,7 +3830,7 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
   explicit GotoOp(Block* destination, bool is_backedge)
       : Base(), is_backedge(is_backedge), destination(destination) {}
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{destination}; }
+  auto options() const { return std::tuple{destination, is_backedge}; }
 };
 
 struct BranchOp : FixedArityOperationT<1, BranchOp> {
@@ -3859,6 +3954,13 @@ struct TupleOp : OperationT<TupleOp> {
   }
 
   explicit TupleOp(base::Vector<const OpIndex> inputs) : Base(inputs) {}
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    auto mapped_inputs = mapper.template Map<4>(inputs());
+    return fn(base::VectorOf(mapped_inputs));
+  }
+
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
@@ -3887,7 +3989,7 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), rep, index));
   }
-  auto options() const { return std::tuple{index}; }
+  auto options() const { return std::tuple{index, rep}; }
 };
 
 struct CheckTurboshaftTypeOfOp
@@ -5756,6 +5858,14 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     inputs.SubVector(1, 1 + arguments.size()).OverwriteWith(arguments);
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    OpIndex mapped_data_argument = mapper.Map(data_argument());
+    auto mapped_arguments = mapper.template Map<8>(arguments());
+    return fn(mapped_data_argument, base::VectorOf(mapped_arguments),
+              parameters);
+  }
+
   void Validate(const Graph& graph) const {
   }
 
@@ -5850,7 +5960,7 @@ struct MaybeGrowFastElementsOp
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
   }
 
-  auto options() const { return std::tuple{mode}; }
+  auto options() const { return std::tuple{mode, feedback}; }
 };
 
 struct TransitionElementsKindOp
@@ -6140,17 +6250,22 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
 
-  explicit WasmTypeCheckOp(V<Tagged> object, V<Tagged> rtt,
-                           WasmTypeCheckConfig config)
+  WasmTypeCheckOp(V<Tagged> object, OptionalV<Tagged> rtt,
+                  WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
     if (rtt.valid()) {
-      input(1) = rtt;
+      input(1) = rtt.value();
     }
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(object()), mapper.Map(rtt()), config);
+  }
+
   V<Tagged> object() const { return Base::input(0); }
-  V<Tagged> rtt() const {
+  OptionalV<Tagged> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6170,7 +6285,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCheckOp& New(Graph* graph, V<Tagged> object, V<Tagged> rtt,
+  static WasmTypeCheckOp& New(Graph* graph, V<Tagged> object,
+                              OptionalV<Tagged> rtt,
                               WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
@@ -6181,17 +6297,22 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
 
-  explicit WasmTypeCastOp(V<Tagged> object, V<Tagged> rtt,
-                          WasmTypeCheckConfig config)
+  WasmTypeCastOp(V<Tagged> object, OptionalV<Tagged> rtt,
+                 WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
     if (rtt.valid()) {
-      input(1) = rtt;
+      input(1) = rtt.value();
     }
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(object()), mapper.Map(rtt()), config);
+  }
+
   V<Tagged> object() const { return Base::input(0); }
-  V<Tagged> rtt() const {
+  OptionalV<Tagged> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6211,7 +6332,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCastOp& New(Graph* graph, V<Tagged> object, V<Tagged> rtt,
+  static WasmTypeCastOp& New(Graph* graph, V<Tagged> object,
+                             OptionalV<Tagged> rtt,
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
