@@ -320,6 +320,10 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
           capacity);
   }
+  // TODO(saelo): once we have trusted read-only roots, we can return the
+  // empty_trusted_fixed_array here. Currently this isn't possible because the
+  // (mutable) empty_trusted_fixed_array will be created via this function.
+  // The same is true for the other trusted-space arrays below.
 
   base::Optional<DisallowGarbageCollection> no_gc;
   Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(

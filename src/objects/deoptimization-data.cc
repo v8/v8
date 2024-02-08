@@ -32,13 +32,13 @@ Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  // TODO(saelo): once we have a trusted read-only space, we should return a
-  // global constant here and below (i.e. a empty_trusted_fixed_array()).
-  return New(isolate, 0);
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->empty_trusted_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return New(isolate, 0);
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->empty_trusted_fixed_array());
 }
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {

@@ -424,6 +424,14 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
+// TODO(saelo): ideally, these would be read-only roots (and then become part
+// of the READ_ONLY_ROOT_LIST instead of the MUTABLE_ROOT_LIST). However,
+// currently we do not have a trusted RO space.
+#define TRUSTED_ROOT_LIST(V)                                              \
+  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
+  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
+
 #define READ_ONLY_ROOT_LIST(V)     \
   STRONG_READ_ONLY_ROOT_LIST(V)    \
   INTERNALIZED_STRING_ROOT_LIST(V) \
@@ -439,6 +447,7 @@ class RootVisitor;
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
   STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)   \
+  TRUSTED_ROOT_LIST(V)                  \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \
@@ -482,7 +491,8 @@ enum class RootIndex : uint16_t {
   // roots).
   kMutableRootsCount = 0
       STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(COUNT_ROOT)
-      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT),
+      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT)
+      TRUSTED_ROOT_LIST(COUNT_ROOT),
   kFirstStrongRoot = kLastReadOnlyRoot + 1,
   kLastStrongRoot = kFirstStrongRoot + kMutableRootsCount - 1,
 
