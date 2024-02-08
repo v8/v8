@@ -2110,7 +2110,11 @@ class TurboshaftAssemblerOpInterface
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::PointerSized(),
              IsolateData::trusted_cage_base_offset());
-    return WordPtrBitwiseOr(ChangeUint32ToUintPtr(tagged), trusted_cage_base);
+    // The bit cast is needed to change the type of the node to Tagged. This is
+    // necessary so that if this value gets spilled on the stack, then the GC
+    // will process it.
+    return BitcastWordPtrToTagged(
+        WordPtrBitwiseOr(ChangeUint32ToUintPtr(tagged), trusted_cage_base));
 #else
     return Load(base, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(), offset);
