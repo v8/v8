@@ -2085,7 +2085,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
       // not be correct anymore.
       DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
              (from == RegisterRepresentation::Tagged() &&
-              to == RegisterRepresentation::PointerSized()) ||
+              to == RegisterRepresentation::WordPtr()) ||
              (from == RegisterRepresentation::Compressed() &&
               to == RegisterRepresentation::Word32()));
     }
@@ -2259,7 +2259,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
-        return RegisterRepresentation::PointerSized();
+        return RegisterRepresentation::WordPtr();
       case Kind::kSmi:
       case Kind::kHeapObject:
       case Kind::kNumber:
@@ -2557,9 +2557,9 @@ struct LoadOp : OperationT<LoadOp> {
     base::Vector<const MaybeRegisterRepresentation> result =
         kind.tagged_base
             ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                             MaybeRegisterRepresentation::PointerSized()>()
-            : MaybeRepVector<MaybeRegisterRepresentation::PointerSized(),
-                             MaybeRegisterRepresentation::PointerSized()>();
+                             MaybeRegisterRepresentation::WordPtr()>()
+            : MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                             MaybeRegisterRepresentation::WordPtr()>();
     return index().valid() ? result : base::VectorOf(result.data(), 1);
   }
 
@@ -2660,13 +2660,13 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     if (bin_op == BinOp::kCompareExchange) {
-      return InitVectorOf(storage, {RegisterRepresentation::PointerSized(),
-                                    RegisterRepresentation::PointerSized(),
+      return InitVectorOf(storage, {RegisterRepresentation::WordPtr(),
+                                    RegisterRepresentation::WordPtr(),
                                     input_rep.ToRegisterRepresentation(),
                                     input_rep.ToRegisterRepresentation()});
     }
-    return InitVectorOf(storage, {RegisterRepresentation::PointerSized(),
-                                  RegisterRepresentation::PointerSized(),
+    return InitVectorOf(storage, {RegisterRepresentation::WordPtr(),
+                                  RegisterRepresentation::WordPtr(),
                                   input_rep.ToRegisterRepresentation()});
   }
 
@@ -2783,9 +2783,9 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
     storage.resize(input_count);
 
     const bool has_index = HasIndex();
-    storage[0] = RegisterRepresentation::PointerSized();  // base
+    storage[0] = RegisterRepresentation::WordPtr();  // base
     if (has_index) {
-      storage[1] = RegisterRepresentation::PointerSized();  // index
+      storage[1] = RegisterRepresentation::WordPtr();  // index
     }
     if (kind != Kind::kLoad) {
       storage[1 + has_index] = RegisterRepresentation::Word32();  // value_low
@@ -2961,14 +2961,14 @@ struct StoreOp : OperationT<StoreOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     RegisterRepresentation base = kind.tagged_base
                                       ? RegisterRepresentation::Tagged()
-                                      : RegisterRepresentation::PointerSized();
+                                      : RegisterRepresentation::WordPtr();
     if (index() == OpIndex::Invalid()) {
       return InitVectorOf(
           storage, {base, stored_rep.ToRegisterRepresentationForStore()});
     }
     return InitVectorOf(storage,
                         {base, stored_rep.ToRegisterRepresentationForStore(),
-                         RegisterRepresentation::PointerSized()});
+                         RegisterRepresentation::WordPtr()});
   }
 
   OpIndex base() const { return input(0); }
@@ -3058,7 +3058,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex size() const { return input(0); }
@@ -3087,7 +3087,7 @@ struct DecodeExternalPointerOp
   // placed after the last access to the external data.
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::PointerSized()>();
+    return RepVector<RegisterRepresentation::WordPtr()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -3173,7 +3173,7 @@ struct StackPointerGreaterThanOp
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex stack_limit() const { return input(0); }
@@ -3197,7 +3197,7 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
   // them.
   static constexpr OpEffects effects = OpEffects().CanCreateIdentity();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::PointerSized()>();
+    return RepVector<RegisterRepresentation::WordPtr()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -3228,7 +3228,7 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
         return RepVector<RegisterRepresentation::Tagged()>();
       case Kind::kFramePointer:
       case Kind::kParentFramePointer:
-        return RepVector<RegisterRepresentation::PointerSized()>();
+        return RepVector<RegisterRepresentation::WordPtr()>();
     }
   }
 
@@ -4628,7 +4628,7 @@ struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex length() const { return Base::input(0); }
@@ -4880,7 +4880,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 struct LoadRootRegisterOp : FixedArityOperationT<0, LoadRootRegisterOp> {
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::PointerSized()>();
+    return RepVector<RegisterRepresentation::WordPtr()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -4912,7 +4912,7 @@ struct StringAtOp : FixedArityOperationT<2, StringAtOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::PointerSized()>();
+                          MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex string() const { return Base::input(0); }
@@ -5041,7 +5041,7 @@ struct StringFromCodePointAtOp
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::PointerSized()>();
+                          MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex string() const { return Base::input(0); }
@@ -5268,8 +5268,8 @@ struct LoadTypedElementOp : FixedArityOperationT<4, LoadTypedElementOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
                           MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::PointerSized(),
-                          MaybeRegisterRepresentation::PointerSized()>();
+                          MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex buffer() const { return Base::input(0); }
@@ -5303,7 +5303,7 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
                           MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::PointerSized(),
+                          MaybeRegisterRepresentation::WordPtr(),
                           MaybeRegisterRepresentation::Word32()>();
   }
 
@@ -5336,8 +5336,8 @@ struct LoadStackArgumentOp : FixedArityOperationT<2, LoadStackArgumentOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized(),
-                          MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex base() const { return Base::input(0); }
@@ -5368,8 +5368,7 @@ struct StoreTypedElementOp : FixedArityOperationT<5, StoreTypedElementOp> {
     return InitVectorOf(
         storage,
         {RegisterRepresentation::Tagged(), RegisterRepresentation::Tagged(),
-         RegisterRepresentation::PointerSized(),
-         RegisterRepresentation::PointerSized(),
+         RegisterRepresentation::WordPtr(), RegisterRepresentation::WordPtr(),
          RegisterRepresentationForArrayType(array_type)});
   }
 
@@ -5408,7 +5407,7 @@ struct StoreDataViewElementOp
     return InitVectorOf(
         storage,
         {RegisterRepresentation::Tagged(), RegisterRepresentation::Tagged(),
-         RegisterRepresentation::PointerSized(),
+         RegisterRepresentation::WordPtr(),
          RegisterRepresentationForArrayType(element_type),
          RegisterRepresentation::Word32()});
   }
@@ -5455,9 +5454,9 @@ struct TransitionAndStoreArrayElementOp
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
-                                  RegisterRepresentation::PointerSized(),
-                                  value_representation()});
+    return InitVectorOf(
+        storage, {RegisterRepresentation::Tagged(),
+                  RegisterRepresentation::WordPtr(), value_representation()});
   }
 
   OpIndex array() const { return Base::input(0); }
@@ -5662,7 +5661,7 @@ struct LoadMessageOp : FixedArityOperationT<1, LoadMessageOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
   OpIndex offset() const { return Base::input(0); }
@@ -5684,7 +5683,7 @@ struct StoreMessageOp : FixedArityOperationT<2, StoreMessageOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized(),
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
@@ -6003,7 +6002,7 @@ struct FindOrderedHashEntryOp
       case Kind::kFindOrderedHashSetEntry:
         return RepVector<RegisterRepresentation::Tagged()>();
       case Kind::kFindOrderedHashMapEntryForInt32Key:
-        return RepVector<RegisterRepresentation::PointerSized()>();
+        return RepVector<RegisterRepresentation::WordPtr()>();
     }
   }
 
@@ -6731,7 +6730,7 @@ struct StringPrepareForGetCodeUnitOp
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged(),
-                     RegisterRepresentation::PointerSized(),
+                     RegisterRepresentation::WordPtr(),
                      RegisterRepresentation::Word32()>();
   }
 
@@ -7402,8 +7401,8 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<RegisterRepresentation::PointerSized(),
-                          RegisterRepresentation::PointerSized(),
+    return MaybeRepVector<RegisterRepresentation::WordPtr(),
+                          RegisterRepresentation::WordPtr(),
                           RegisterRepresentation::Simd128()>();
   }
 
@@ -7500,8 +7499,8 @@ struct Simd128LoadTransformOp
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<RegisterRepresentation::PointerSized(),
-                          RegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<RegisterRepresentation::WordPtr(),
+                          RegisterRepresentation::WordPtr()>();
   }
 
   Simd128LoadTransformOp(OpIndex base, OpIndex index, LoadKind load_kind,
@@ -7565,7 +7564,7 @@ struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
   static constexpr OpEffects effects = OpEffects().CanReadMemory();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::PointerSized()>();
+    return RepVector<RegisterRepresentation::WordPtr()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -7592,7 +7591,7 @@ struct SetStackPointerOp : FixedArityOperationT<1, SetStackPointerOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::PointerSized()>();
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
   void Validate(const Graph& graph) const {}

@@ -25,7 +25,7 @@ class DebugFeatureLoweringReducer : public Next {
   OpIndex REDUCE(DebugPrint)(OpIndex input, RegisterRepresentation rep) {
     if (isolate_ != nullptr) {
       switch (rep.value()) {
-        case RegisterRepresentation::PointerSized():
+        case RegisterRepresentation::WordPtr():
           __ CallBuiltin_DebugPrintWordPtr(isolate_, __ NoContextConstant(),
                                            input);
           break;
@@ -46,7 +46,7 @@ class DebugFeatureLoweringReducer : public Next {
               BuiltinCallDescriptor::DebugPrintFloat64>(__ NoContextConstant(),
                                                         {input});
           break;
-        case RegisterRepresentation::PointerSized():
+        case RegisterRepresentation::WordPtr():
           __ template WasmCallBuiltinThroughJumptable<
               BuiltinCallDescriptor::DebugPrintWordPtr>(__ NoContextConstant(),
                                                         {input});

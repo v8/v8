@@ -52,6 +52,15 @@ class MaybeRegisterRepresentation {
     return MaybeRegisterRepresentation(Enum::kWord64);
   }
 
+  static constexpr MaybeRegisterRepresentation WordPtr() {
+    if constexpr (kSystemPointerSize == 4) {
+      return Word32();
+    } else {
+      DCHECK_EQ(kSystemPointerSize, 8);
+      return Word64();
+    }
+  }
+
   static constexpr MaybeRegisterRepresentation Float32() {
     return MaybeRegisterRepresentation(Enum::kFloat32);
   }
@@ -74,15 +83,6 @@ class MaybeRegisterRepresentation {
 
   static constexpr MaybeRegisterRepresentation None() {
     return MaybeRegisterRepresentation(Enum::kNone);
-  }
-
-  static constexpr MaybeRegisterRepresentation PointerSized() {
-    if constexpr (kSystemPointerSize == 4) {
-      return Word32();
-    } else {
-      DCHECK_EQ(kSystemPointerSize, 8);
-      return Word64();
-    }
   }
 
   constexpr bool IsWord() const {
@@ -227,12 +227,10 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   static constexpr RegisterRepresentation Word64() {
     return RegisterRepresentation(Enum::kWord64);
   }
+  // The equivalent of intptr_t/uintptr_t: An integral type with the same size
+  // as machine pointers.
   static constexpr RegisterRepresentation WordPtr() {
-    if constexpr (Is64()) {
-      return Word64();
-    } else {
-      return Word32();
-    }
+    return RegisterRepresentation(MaybeRegisterRepresentation::WordPtr());
   }
   static constexpr RegisterRepresentation Float32() {
     return RegisterRepresentation(Enum::kFloat32);
@@ -249,11 +247,6 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   // unspecified.
   static constexpr RegisterRepresentation Compressed() {
     return RegisterRepresentation(Enum::kCompressed);
-  }
-  // The equivalent of intptr_t/uintptr_t: An integral type with the same size
-  // as machine pointers.
-  static constexpr RegisterRepresentation PointerSized() {
-    return RegisterRepresentation(MaybeRegisterRepresentation::PointerSized());
   }
   static constexpr RegisterRepresentation Simd128() {
     return RegisterRepresentation(Enum::kSimd128);
@@ -297,7 +290,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   constexpr RegisterRepresentation MapTaggedToWord() const {
     if (this->value() == RegisterRepresentation::Tagged()) {
       return COMPRESS_POINTERS_BOOL ? RegisterRepresentation::Word32()
-                                    : RegisterRepresentation::PointerSized();
+                                    : RegisterRepresentation::WordPtr();
     }
     return *this;
   }
@@ -347,14 +340,14 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
     case RegisterRepresentation::Tagged():
       // We allow implicit untagged -> tagged conversions. This is only safe for
       // Smi values.
-      if (*this == RegisterRepresentation::PointerSized()) {
+      if (*this == RegisterRepresentation::WordPtr()) {
         return true;
       }
       break;
     case RegisterRepresentation::Compressed():
       // Compression is a no-op.
       if (*this == any_of(RegisterRepresentation::Tagged(),
-                          RegisterRepresentation::PointerSized(),
+                          RegisterRepresentation::WordPtr(),
                           RegisterRepresentation::Word32())) {
         return true;
       }
@@ -401,8 +394,8 @@ class WordRepresentation : public RegisterRepresentation {
     return WordRepresentation(Enum::kWord64);
   }
 
-  static constexpr WordRepresentation PointerSized() {
-    return WordRepresentation(RegisterRepresentation::PointerSized());
+  static constexpr WordRepresentation WordPtr() {
+    return WordRepresentation(RegisterRepresentation::WordPtr());
   }
 
   constexpr Enum value() const {
@@ -521,6 +514,13 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation Uint64() {
     return MemoryRepresentation(Enum::kUint64);
   }
+  static constexpr MemoryRepresentation UintPtr() {
+    if constexpr (Is64()) {
+      return Uint64();
+    } else {
+      return Uint32();
+    }
+  }
   static constexpr MemoryRepresentation Float32() {
     return MemoryRepresentation(Enum::kFloat32);
   }
@@ -541,14 +541,6 @@ class MemoryRepresentation {
   }
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);
-  }
-  static constexpr MemoryRepresentation PointerSized() {
-    if constexpr (kSystemPointerSize == 4) {
-      return Uint32();
-    } else {
-      DCHECK_EQ(kSystemPointerSize, 8);
-      return Uint64();
-    }
   }
   static constexpr MemoryRepresentation Simd128() {
     return MemoryRepresentation(Enum::kSimd128);

@@ -297,10 +297,10 @@ using TaggedBitcastMask =
                 FIELD(TaggedBitcastOp, to), FIELD(TaggedBitcastOp, kind)>;
 using kBitcastTaggedToWordPtrForTagAndSmiBits =
     TaggedBitcastMask::For<RegisterRepresentation::Tagged(),
-                           RegisterRepresentation::PointerSized(),
+                           RegisterRepresentation::WordPtr(),
                            TaggedBitcastOp::Kind::kTagAndSmiBits>;
 using kBitcastWordPtrToSmi =
-    TaggedBitcastMask::For<RegisterRepresentation::PointerSized(),
+    TaggedBitcastMask::For<RegisterRepresentation::WordPtr(),
                            RegisterRepresentation::Tagged(),
                            TaggedBitcastOp::Kind::kSmi>;
 

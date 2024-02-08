@@ -34,7 +34,7 @@ class StackCheckReducer : public Next {
     // modified by another thread.
     V<WordPtr> limit = __ Load(
         __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-        MemoryRepresentation::PointerSized(), IsolateData::jslimit_offset());
+        MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
     compiler::StackCheckKind check_kind =
         origin == StackCheckOp::CheckOrigin::kFromJS
             ? compiler::StackCheckKind::kJSFunctionEntry

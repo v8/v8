@@ -241,7 +241,7 @@ class MemoryOptimizationReducer : public Next {
               : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
       top_address =
           __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::PointerSized(), top_address_offset);
+                  MemoryRepresentation::UintPtr(), top_address_offset);
 #else
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -252,14 +252,13 @@ class MemoryOptimizationReducer : public Next {
       OpIndex obj_addr = __ GetVariable(top(type));
       __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
-                      MemoryRepresentation::PointerSized());
+                      MemoryRepresentation::UintPtr());
       return __ BitcastWordPtrToHeapObject(
           __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
     }
 
-    __ SetVariable(
-        top(type),
-        __ LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
+    __ SetVariable(top(type), __ LoadOffHeap(top_address,
+                                             MemoryRepresentation::UintPtr()));
 
     OpIndex allocate_builtin;
     if (!analyzer_->is_wasm) {
@@ -310,7 +309,7 @@ class MemoryOptimizationReducer : public Next {
     // normal-sized objects.
     uint64_t constant_size{};
     if (!__ matcher().MatchIntegralWordConstant(
-            size, WordRepresentation::PointerSized(), &constant_size) ||
+            size, WordRepresentation::WordPtr(), &constant_size) ||
         constant_size > kMaxRegularHeapObjectSize) {
       Variable result =
           __ NewLoopInvariantVariable(RegisterRepresentation::Tagged());
@@ -322,14 +321,13 @@ class MemoryOptimizationReducer : public Next {
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
         OpIndex new_top = __ PointerAdd(top_value, size);
         OpIndex limit =
-            __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+            __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
                          size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
                      call_runtime);
         __ SetVariable(top(type), new_top);
-        __ StoreOffHeap(top_address, new_top,
-                        MemoryRepresentation::PointerSized());
+        __ StoreOffHeap(top_address, new_top, MemoryRepresentation::UintPtr());
         __ Goto(done);
       }
       if (constant_size || __ Bind(call_runtime)) {
@@ -356,7 +354,7 @@ class MemoryOptimizationReducer : public Next {
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
       OpIndex limit =
-          __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+          __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
       __ Branch(__ UintPtrLessThan(
                     __ PointerAdd(__ GetVariable(top(type)), reservation_size),
                     limit),
@@ -378,7 +376,7 @@ class MemoryOptimizationReducer : public Next {
     OpIndex obj_addr = __ GetVariable(top(type));
     __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
-                    MemoryRepresentation::PointerSized());
+                    MemoryRepresentation::UintPtr());
     return __ BitcastWordPtrToHeapObject(
         __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
@@ -404,27 +402,27 @@ class MemoryOptimizationReducer : public Next {
                         ExternalReference::
                             shared_external_pointer_table_address_address(
                                 isolate_)),
-                    MemoryRepresentation::PointerSized())
+                    MemoryRepresentation::UintPtr())
               : __ ExternalConstant(
                     ExternalReference::external_pointer_table_address(
                         isolate_));
       table = __ LoadOffHeap(table_address,
                              Internals::kExternalPointerTableBasePointerOffset,
-                             MemoryRepresentation::PointerSized());
+                             MemoryRepresentation::UintPtr());
     } else {
 #if V8_ENABLE_WEBASSEMBLY
       V<WordPtr> isolate_root = __ LoadRootRegister();
       if (IsSharedExternalPointerType(tag)) {
         V<WordPtr> table_address =
             __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                    MemoryRepresentation::PointerSized(),
+                    MemoryRepresentation::UintPtr(),
                     IsolateData::shared_external_pointer_table_offset());
         table = __ Load(table_address, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::PointerSized(),
+                        MemoryRepresentation::UintPtr(),
                         Internals::kExternalPointerTableBasePointerOffset);
       } else {
         table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::PointerSized(),
+                        MemoryRepresentation::UintPtr(),
                         IsolateData::external_pointer_table_offset() +
                             Internals::kExternalPointerTableBasePointerOffset);
       }
@@ -436,7 +434,7 @@ class MemoryOptimizationReducer : public Next {
     OpIndex index = __ ShiftRightLogical(handle, kExternalPointerIndexShift,
                                          WordRepresentation::Word32());
     OpIndex pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
-                                     MemoryRepresentation::PointerSized());
+                                     MemoryRepresentation::UintPtr());
     pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
     return pointer;
 #else   // V8_ENABLE_SANDBOX
@@ -456,7 +454,7 @@ class MemoryOptimizationReducer : public Next {
     DCHECK(type == AllocationType::kYoung || type == AllocationType::kOld);
     if (V8_UNLIKELY(!top_[static_cast<int>(type)].has_value())) {
       top_[static_cast<int>(type)].emplace(
-          __ NewLoopInvariantVariable(RegisterRepresentation::PointerSized()));
+          __ NewLoopInvariantVariable(RegisterRepresentation::WordPtr()));
     }
     return top_[static_cast<int>(type)].value();
   }
@@ -488,7 +486,7 @@ class MemoryOptimizationReducer : public Next {
               : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
       limit_address =
           __ Load(instance_node, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::PointerSized(), limit_address_offset);
+                  MemoryRepresentation::UintPtr(), limit_address_offset);
 #else
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -209,7 +209,7 @@ class MachineOptimizationReducer : public Next {
     // because the GC might have modified the pointer.
     if (auto* input_bitcast = matcher.TryCast<TaggedBitcastOp>(input)) {
       if (all_of(input_bitcast->to, from) ==
-              RegisterRepresentation::PointerSized() &&
+              RegisterRepresentation::WordPtr() &&
           all_of(input_bitcast->from, to) == RegisterRepresentation::Tagged()) {
         return input_bitcast->input();
       }
@@ -1796,7 +1796,7 @@ class MachineOptimizationReducer : public Next {
       if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
             matcher.MatchWordAdd(base_idx, &left, &right,
-                                 WordRepresentation::PointerSized()) &&
+                                 WordRepresentation::WordPtr()) &&
             TryAdjustOffset(&offset, matcher.Get(right), element_scale,
                             kind.tagged_base)) {
           base_idx = left;
@@ -1974,7 +1974,7 @@ class MachineOptimizationReducer : public Next {
                        uint8_t element_scale, bool tagged_base) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized() ||
+    if (constant.rep != WordRepresentation::WordPtr() ||
         !constant.IsIntegral()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `__ Unreachable()`. However, this is difficult to
@@ -2000,7 +2000,7 @@ class MachineOptimizationReducer : public Next {
                       const Operation& maybe_constant, uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized() ||
+    if (constant.rep != WordRepresentation::WordPtr() ||
         !constant.IsIntegral()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `__ Unreachable()`. However, this is difficult to
@@ -2020,11 +2020,11 @@ class MachineOptimizationReducer : public Next {
   bool TryAdjustElementScale(uint8_t* element_scale, OpIndex maybe_constant) {
     uint64_t diff;
     if (!matcher.MatchIntegralWordConstant(
-            maybe_constant, WordRepresentation::PointerSized(), &diff)) {
+            maybe_constant, WordRepresentation::WordPtr(), &diff)) {
       return false;
     }
-    DCHECK_LT(*element_scale, WordRepresentation::PointerSized().bit_width());
-    if (diff < (WordRepresentation::PointerSized().bit_width() -
+    DCHECK_LT(*element_scale, WordRepresentation::WordPtr().bit_width());
+    if (diff < (WordRepresentation::WordPtr().bit_width() -
                 uint64_t{*element_scale})) {
       *element_scale += diff;
       return true;

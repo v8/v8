@@ -242,7 +242,7 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
       case Opcode::kTaggedBitcast: {
         auto& bitcast = op.Cast<TaggedBitcastOp>();
         if (bitcast.from == RegisterRepresentation::Tagged() &&
-            (bitcast.to == RegisterRepresentation::PointerSized() ||
+            (bitcast.to == RegisterRepresentation::WordPtr() ||
              bitcast.kind == TaggedBitcastOp::Kind::kSmi)) {
           bitcast.from = RegisterRepresentation::Compressed();
           bitcast.to = RegisterRepresentation::Word32();

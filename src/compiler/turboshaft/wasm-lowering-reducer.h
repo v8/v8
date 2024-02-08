@@ -495,7 +495,7 @@ class WasmLoweringReducer : public Next {
 
   static constexpr MemoryRepresentation kMaybeSandboxedPointer =
       V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
-                             : MemoryRepresentation::PointerSized();
+                             : MemoryRepresentation::UintPtr();
 
   MemoryRepresentation RepresentationFor(wasm::ValueType type, bool is_signed) {
     switch (type.kind()) {
@@ -536,7 +536,7 @@ class WasmLoweringReducer : public Next {
     return __ DecodeExternalPointer(handle, access.external_pointer_tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::PointerSized(), access.offset);
+                   MemoryRepresentation::UintPtr(), access.offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
@@ -898,7 +898,7 @@ class WasmLoweringReducer : public Next {
       }
     } else {
       OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance, GlobalsStart, MemoryRepresentation::PointerSized());
+          instance, GlobalsStart, MemoryRepresentation::UintPtr());
       if (mode == GlobalMode::kLoad) {
         LoadOp::Kind load_kind = is_mutable
                                      ? LoadOp::Kind::RawAligned()
@@ -922,7 +922,7 @@ class WasmLoweringReducer : public Next {
             ? RootIndex::kNullValue
             : RootIndex::kWasmNull;
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::PointerSized(),
+                   MemoryRepresentation::UintPtr(),
                    IsolateData::root_slot_offset(index));
   }
 

@@ -1405,7 +1405,7 @@ OpIndex GraphBuilder::Process(
 #ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
         value = __ ShiftLeft(value, kBoundedSizeShift,
-                             WordRepresentation::PointerSized());
+                             WordRepresentation::WordPtr());
       }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -1474,7 +1474,7 @@ OpIndex GraphBuilder::Process(
       if (access.is_bounded_size_access) {
         DCHECK(!is_sandboxed_external);
         value = __ ShiftRightLogical(value, kBoundedSizeShift,
-                                     WordRepresentation::PointerSized());
+                                     WordRepresentation::WordPtr());
       }
 #endif  // V8_ENABLE_SANDBOX
       return value;
@@ -2038,7 +2038,7 @@ OpIndex GraphBuilder::Process(
       OpIndex offset = Map(node->InputAt(1));
       const AtomicLoadParameters& p = AtomicLoadParametersOf(node->op());
       DCHECK_EQ(__ output_graph().Get(base).outputs_rep()[0],
-                RegisterRepresentation::PointerSized());
+                RegisterRepresentation::WordPtr());
       LoadOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
@@ -2065,7 +2065,7 @@ OpIndex GraphBuilder::Process(
       OpIndex value = Map(node->InputAt(2));
       const AtomicStoreParameters& p = AtomicStoreParametersOf(node->op());
       DCHECK_EQ(__ output_graph().Get(base).outputs_rep()[0],
-                RegisterRepresentation::PointerSized());
+                RegisterRepresentation::WordPtr());
       StoreOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:

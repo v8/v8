@@ -2322,7 +2322,7 @@ class MachineLoweringReducer : public Next {
                                  int formal_parameter_count) {
     V<WordPtr> count =
         __ LoadOffHeap(__ FramePointer(), StandardFrameConstants::kArgCOffset,
-                       MemoryRepresentation::PointerSized());
+                       MemoryRepresentation::UintPtr());
     V<WordPtr> arguments_length = __ WordPtrSub(count, kJSArgcReceiverSlots);
 
     if (kind == ArgumentsLengthOp::Kind::kArguments) {

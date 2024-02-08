@@ -1164,7 +1164,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Word64Add, WordBinop, Add, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrAdd, WordBinop, Add, WordPtr)
   DECL_SINGLE_REP_BINOP(PointerAdd, WordBinop, Add,
-                        WordRepresentation::PointerSized())
+                        WordRepresentation::WordPtr())
 
   DECL_MULTI_REP_BINOP(WordMul, WordBinop, WordRepresentation, Mul)
   DECL_SINGLE_REP_BINOP_V(Word32Mul, WordBinop, Mul, Word32)
@@ -1192,7 +1192,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Word64Sub, WordBinop, Sub, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrSub, WordBinop, Sub, WordPtr)
   DECL_SINGLE_REP_BINOP(PointerSub, WordBinop, Sub,
-                        WordRepresentation::PointerSized())
+                        WordRepresentation::WordPtr())
 
   DECL_MULTI_REP_BINOP(IntDiv, WordBinop, WordRepresentation, SignedDiv)
   DECL_SINGLE_REP_BINOP_V(Int32Div, WordBinop, SignedDiv, Word32)
@@ -1369,7 +1369,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_COMPARISON_V(Uint32LessThan, UnsignedLessThan, Word32)
   DECL_SINGLE_REP_COMPARISON_V(Uint64LessThan, UnsignedLessThan, Word64)
   DECL_SINGLE_REP_BINOP(UintPtrLessThan, Comparison, UnsignedLessThan,
-                        WordRepresentation::PointerSized())
+                        WordRepresentation::WordPtr())
   DECL_MULTI_REP_BINOP(FloatLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
   DECL_SINGLE_REP_COMPARISON_V(Float32LessThan, SignedLessThan, Float32)
@@ -1388,8 +1388,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_COMPARISON_V(Uint64LessThanOrEqual, UnsignedLessThanOrEqual,
                                Word64)
   DECL_SINGLE_REP_BINOP(UintPtrLessThanOrEqual, Comparison,
-                        UnsignedLessThanOrEqual,
-                        WordRepresentation::PointerSized())
+                        UnsignedLessThanOrEqual, WordRepresentation::WordPtr())
   DECL_MULTI_REP_BINOP(FloatLessThanOrEqual, Comparison, RegisterRepresentation,
                        SignedLessThanOrEqual)
   DECL_SINGLE_REP_COMPARISON_V(Float32LessThanOrEqual, SignedLessThanOrEqual,
@@ -1558,7 +1557,7 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_TAGGED_BITCAST
   V<WordPtr> BitcastTaggedToWordPtrForTagAndSmiBits(V<Tagged> input) {
     return TaggedBitcast(input, RegisterRepresentation::Tagged(),
-                         RegisterRepresentation::PointerSized(),
+                         RegisterRepresentation::WordPtr(),
                          TaggedBitcastOp::Kind::kTagAndSmiBits);
   }
 
@@ -1721,7 +1720,7 @@ class TurboshaftAssemblerOpInterface
   }
   V<WordPtr> UintPtrConstant(uintptr_t value) {
     return WordConstant(static_cast<uint64_t>(value),
-                        WordRepresentation::PointerSized());
+                        WordRepresentation::WordPtr());
   }
   V<Smi> SmiConstant(intptr_t value) {
     return SmiConstant(i::Tagged<Smi>(value));
@@ -2116,7 +2115,7 @@ class TurboshaftAssemblerOpInterface
                           MemoryRepresentation::Uint32(), offset);
     OpIndex trusted_cage_base =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
-             MemoryRepresentation::PointerSized(),
+             MemoryRepresentation::UintPtr(),
              IsolateData::trusted_cage_base_offset());
     // The bit cast is needed to change the type of the node to Tagged. This is
     // necessary so that if this value gets spilled on the stack, then the GC
@@ -2234,7 +2233,7 @@ class TurboshaftAssemblerOpInterface
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
       value = ShiftRightLogical(value, kBoundedSizeShift,
-                                WordRepresentation::PointerSized());
+                                WordRepresentation::WordPtr());
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -2283,8 +2282,8 @@ class TurboshaftAssemblerOpInterface
 
 #ifdef V8_ENABLE_SANDBOX
     if (access.is_bounded_size_access) {
-      value = ShiftLeft(value, kBoundedSizeShift,
-                        WordRepresentation::PointerSized());
+      value =
+          ShiftLeft(value, kBoundedSizeShift, WordRepresentation::WordPtr());
     }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -3094,7 +3093,7 @@ class TurboshaftAssemblerOpInterface
     ReduceIfReachableDebugPrint(input, rep);
   }
   void DebugPrint(V<WordPtr> input) {
-    return DebugPrint(input, RegisterRepresentation::PointerSized());
+    return DebugPrint(input, RegisterRepresentation::WordPtr());
   }
   void DebugPrint(V<Float64> input) {
     return DebugPrint(input, RegisterRepresentation::Float64());

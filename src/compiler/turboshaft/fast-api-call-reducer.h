@@ -89,11 +89,11 @@ class FastApiCallReducer : public Next {
       // data = data_argument
       OpIndex data_argument_to_pass = AdaptLocalArgument(data_argument);
       __ StoreOffHeap(stack_slot, data_argument_to_pass,
-                      MemoryRepresentation::PointerSized(),
+                      MemoryRepresentation::UintPtr(),
                       offsetof(v8::FastApiCallbackOptions, data));
       // wasm_memory = 0
       __ StoreOffHeap(stack_slot, __ IntPtrConstant(0),
-                      MemoryRepresentation::PointerSized(),
+                      MemoryRepresentation::UintPtr(),
                       offsetof(v8::FastApiCallbackOptions, wasm_memory));
 
       args.push_back(stack_slot);
@@ -138,7 +138,7 @@ class FastApiCallReducer : public Next {
     // slot address is passed.
     OpIndex stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
     __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
-                    MemoryRepresentation::PointerSized());
+                    MemoryRepresentation::UintPtr());
     return stack_slot;
 #endif
   }
@@ -299,7 +299,7 @@ class FastApiCallReducer : public Next {
                             "expected members.");
               OpIndex stack_slot = __ StackSlot(kSize, kAlign);
               __ StoreOffHeap(stack_slot, data_ptr,
-                              MemoryRepresentation::PointerSized());
+                              MemoryRepresentation::UintPtr());
               __ StoreOffHeap(stack_slot, length_in_bytes,
                               MemoryRepresentation::Uint32(), sizeof(size_t));
               static_assert(sizeof(uintptr_t) == sizeof(size_t),
@@ -468,8 +468,8 @@ class FastApiCallReducer : public Next {
         "FastApiTypedArray isn't equal to the sum of its expected members.");
     OpIndex stack_slot = __ StackSlot(kSize, kAlign);
     __ StoreOffHeap(stack_slot, length_in_bytes,
-                    MemoryRepresentation::PointerSized());
-    __ StoreOffHeap(stack_slot, data_ptr, MemoryRepresentation::PointerSized(),
+                    MemoryRepresentation::UintPtr());
+    __ StoreOffHeap(stack_slot, data_ptr, MemoryRepresentation::UintPtr(),
                     sizeof(size_t));
     static_assert(sizeof(uintptr_t) == sizeof(size_t),
                   "The buffer length can't "
@@ -603,7 +603,7 @@ class FastApiCallReducer : public Next {
     OpIndex target_address = __ ExternalConstant(
         ExternalReference::fast_api_call_target_address(isolate_));
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
-                    MemoryRepresentation::PointerSized());
+                    MemoryRepresentation::UintPtr());
 
     // Disable JS execution.
     OpIndex js_execution_assert = __ ExternalConstant(
@@ -630,7 +630,7 @@ class FastApiCallReducer : public Next {
 
     // Reset the CPU profiler target address.
     __ StoreOffHeap(target_address, __ IntPtrConstant(0),
-                    MemoryRepresentation::PointerSized());
+                    MemoryRepresentation::UintPtr());
 
     return result;
   }

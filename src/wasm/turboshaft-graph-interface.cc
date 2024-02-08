@@ -118,7 +118,7 @@ class TurboshaftGraphBuildingInterface {
   static constexpr bool kUsesPoppedArgs = true;
   static constexpr MemoryRepresentation kMaybeSandboxedPointer =
       V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
-                             : MemoryRepresentation::PointerSized();
+                             : MemoryRepresentation::UintPtr();
 
   struct Value : public ValueBase<ValidationTag> {
     OpIndex op = OpIndex::Invalid();
@@ -1134,7 +1134,7 @@ class TurboshaftGraphBuildingInterface {
     OpIndex isolate_root = __ LoadRootRegister();
     OpIndex thread_in_wasm_flag_address =
         __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
-                MemoryRepresentation::PointerSized(),
+                MemoryRepresentation::UintPtr(),
                 Isolate::thread_in_wasm_flag_address_offset());
     BuildModifyThreadInWasmFlagHelper(decoder, thread_in_wasm_flag_address,
                                       new_value);
@@ -3569,7 +3569,7 @@ class TurboshaftGraphBuildingInterface {
     V<Tagged> base =
         __ Projection(prepare, 0, RegisterRepresentation::Tagged());
     V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
+        __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
     V<Word32> charwidth_shift =
         __ Projection(prepare, 2, RegisterRepresentation::Word32());
 
@@ -3635,7 +3635,7 @@ class TurboshaftGraphBuildingInterface {
     V<Tagged> base =
         __ Projection(prepare, 0, RegisterRepresentation::Tagged());
     V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
+        __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
     V<Word32> charwidth_shift =
         __ Projection(prepare, 2, RegisterRepresentation::Word32());
 
@@ -3951,7 +3951,7 @@ class TurboshaftGraphBuildingInterface {
       // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
       if (!memory_can_move()) kind = kind.Immutable();
-      return __ Load(trusted_data_, kind, MemoryRepresentation::PointerSized(),
+      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0StartOffset);
     }
 
@@ -3964,7 +3964,7 @@ class TurboshaftGraphBuildingInterface {
         kind = kind.NotLoadEliminable();
       }
       if (!memory_can_grow_) kind = kind.Immutable();
-      return __ Load(trusted_data_, kind, MemoryRepresentation::PointerSized(),
+      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0SizeOffset);
     }
 
@@ -5579,7 +5579,7 @@ class TurboshaftGraphBuildingInterface {
                 V<Word64>::Cast(converted_index),
                 memory->GetMemory64GuardsShift()),  // cond
             __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                    MemoryRepresentation::PointerSized(),
+                    MemoryRepresentation::UintPtr(),
                     IsolateData::wasm64_oob_offset_offset()),  // vtrue
             V<Word64>::Cast(converted_index),                  // vfalse
             RegisterRepresentation::Word64(), BranchHint::kNone,
@@ -5638,7 +5638,7 @@ class TurboshaftGraphBuildingInterface {
           MemoryRepresentation::TaggedPointer());
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
-          MemoryRepresentation::PointerSized(),
+          MemoryRepresentation::UintPtr(),
           ByteArray::kHeaderSize + (2 * index + 1) * kSystemPointerSize);
     }
   }
@@ -5669,7 +5669,7 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
     __ Store(info, effective_offset, StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::PointerSized(), compiler::kNoWriteBarrier,
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, offset));
     __ Store(info, __ Word32Constant(is_store ? 1 : 0),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
@@ -5702,8 +5702,8 @@ class TurboshaftGraphBuildingInterface {
         MemoryRepresentation::TaggedPointer());
     V<WordPtr> target =
         __ Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::PointerSized(),
-                FixedAddressArray::kHeaderSize, kSystemPointerSizeLog2);
+                MemoryRepresentation::UintPtr(), FixedAddressArray::kHeaderSize,
+                kSystemPointerSizeLog2);
     return {target, ref};
   }
 
@@ -5756,7 +5756,7 @@ class TurboshaftGraphBuildingInterface {
     if (needs_type_check) {
       V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(), IsorecursiveCanonicalTypes,
-          MemoryRepresentation::PointerSized());
+          MemoryRepresentation::UintPtr());
       V<Word32> expected_sig_id =
           __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
                   MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
@@ -5838,7 +5838,7 @@ class TurboshaftGraphBuildingInterface {
     /* Step 4: Extract ref and target. */
     V<WordPtr> target = __ Load(
         dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
-        MemoryRepresentation::PointerSized(), WasmDispatchTable::kTargetBias);
+        MemoryRepresentation::UintPtr(), WasmDispatchTable::kTargetBias);
     V<HeapObject> ref = __ Load(
         dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
         MemoryRepresentation::TaggedPointer(), WasmDispatchTable::kRefBias);
@@ -5879,7 +5879,7 @@ class TurboshaftGraphBuildingInterface {
         target_handle, kWasmInternalFunctionCallTargetTag);
 #else
     V<WordPtr> target = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                MemoryRepresentation::PointerSized(),
+                                MemoryRepresentation::UintPtr(),
                                 WasmInternalFunction::kCallTargetOffset);
 #endif
     Label<WordPtr> done(&asm_);
@@ -5905,7 +5905,7 @@ class TurboshaftGraphBuildingInterface {
                                      MemoryRepresentation::TaggedPointer(),
                                      WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target = __ Load(wrapper_code, LoadOp::Kind::TaggedBase(),
-                                       MemoryRepresentation::PointerSized(),
+                                       MemoryRepresentation::UintPtr(),
                                        Code::kInstructionStartOffset);
 #endif
       GOTO(done, call_target);
@@ -5966,11 +5966,11 @@ class TurboshaftGraphBuildingInterface {
         __ Word32ShiftLeft(index, kTrustedPointerTableEntrySizeLog2));
     V<WordPtr> table =
         __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
-                MemoryRepresentation::PointerSized(),
+                MemoryRepresentation::UintPtr(),
                 IsolateData::trusted_pointer_table_offset() +
                     Internals::kTrustedPointerTableBasePointerOffset);
     V<WordPtr> decoded_ptr = __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                                     MemoryRepresentation::PointerSized());
+                                     MemoryRepresentation::UintPtr());
     // TODO(saelo): Mask out the tag once we encode it in the table.
     USE(tag);
 
@@ -6199,7 +6199,7 @@ class TurboshaftGraphBuildingInterface {
         Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
     OpIndex centry_stub =
         __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::PointerSized(), builtin_slot_offset);
+                MemoryRepresentation::UintPtr(), builtin_slot_offset);
     // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
     // always suffices.
     SmallZoneVector<OpIndex, 4> centry_args(decoder->zone_);
@@ -6332,7 +6332,7 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> table =
         __ ExternalConstant(ExternalReference::code_pointer_table_address());
     return __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                   MemoryRepresentation::PointerSized());
+                   MemoryRepresentation::UintPtr());
 #else
     UNREACHABLE();
 #endif
