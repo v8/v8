@@ -94,3 +94,16 @@ assertEquals(bitwise_smi(1548, 45235), -23041);
 %OptimizeFunctionOnNextCall(bitwise_smi);
 assertEquals(bitwise_smi(1548, 45235), -23041);
 assertOptimized(bitwise_smi);
+
+function simple_loop(x) {
+  let s = 0;
+  for (let i = 0; i < 4; i++) {
+    s += i + x;
+  }
+  return s;
+}
+%PrepareFunctionForOptimization(simple_loop);
+assertEquals(simple_loop(17), 74);
+%OptimizeFunctionOnNextCall(simple_loop);
+assertEquals(simple_loop(17), 74);
+assertOptimized(simple_loop);

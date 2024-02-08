@@ -1497,16 +1497,16 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWordBinopDeoptOnOverflow(left, right, frame_state,
                                                      kind, rep, feedback, mode);
   }
-#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type) \
-  OpIndex rep_type##operation##DeoptOnOverflow(                   \
-      OpIndex left, OpIndex right, OpIndex frame_state,           \
-      FeedbackSource feedback,                                    \
-      CheckForMinusZeroMode mode =                                \
-          CheckForMinusZeroMode::kDontCheckForMinusZero) {        \
-    return WordBinopDeoptOnOverflow(                              \
-        left, right, frame_state,                                 \
-        WordBinopDeoptOnOverflowOp::Kind::k##operation,           \
-        WordRepresentation::rep_type(), feedback, mode);          \
+#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type)             \
+  OpIndex rep_type##operation##DeoptOnOverflow(                               \
+      ConstOrV<rep_type> left, ConstOrV<rep_type> right, OpIndex frame_state, \
+      FeedbackSource feedback,                                                \
+      CheckForMinusZeroMode mode =                                            \
+          CheckForMinusZeroMode::kDontCheckForMinusZero) {                    \
+    return WordBinopDeoptOnOverflow(                                          \
+        resolve(left), resolve(right), frame_state,                           \
+        WordBinopDeoptOnOverflowOp::Kind::k##operation,                       \
+        WordRepresentation::rep_type(), feedback, mode);                      \
   }
 
   DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedAdd, Word32)

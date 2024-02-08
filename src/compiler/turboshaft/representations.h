@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/utils.h"
+#include "v8-internal.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -225,6 +226,13 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   }
   static constexpr RegisterRepresentation Word64() {
     return RegisterRepresentation(Enum::kWord64);
+  }
+  static constexpr RegisterRepresentation WordPtr() {
+    if constexpr (Is64()) {
+      return Word64();
+    } else {
+      return Word32();
+    }
   }
   static constexpr RegisterRepresentation Float32() {
     return RegisterRepresentation(Enum::kFloat32);

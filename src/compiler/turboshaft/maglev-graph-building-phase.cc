@@ -105,9 +105,34 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Phi* node,
+                                const maglev::ProcessingState& state) {
+    int input_count = node->input_count();
+    RegisterRepresentation rep =
+        RegisterRepresentationFor(node->value_representation());
+    if (__ current_block()->IsLoop()) {
+      DCHECK_EQ(input_count, 2);
+      SetMap(node, __ PendingLoopPhi(Map(node->input(0)), rep));
+    } else {
+      base::SmallVector<OpIndex, 16> inputs;
+      for (int i = 0; i < input_count; ++i) {
+        inputs.push_back(Map(node->input(i)));
+      }
+      SetMap(node, __ Phi(base::VectorOf(inputs), rep));
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Jump* node,
                                 const maglev::ProcessingState& state) {
     __ Goto(Map(node->target()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::JumpLoop* node,
+                                const maglev::ProcessingState& state) {
+    __ Goto(Map(node->target()));
+    FixLoopPhis(node->target());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -173,6 +198,16 @@ class GraphBuilder {
   PROCESS_BINOP_WITH_OVERFLOW(Divide, SignedDiv, CheckForMinusZero)
   PROCESS_BINOP_WITH_OVERFLOW(Modulus, SignedMod, CheckForMinusZero)
 #undef PROCESS_BINOP_WITH_OVERFLOW
+  maglev::ProcessResult Process(maglev::Int32IncrementWithOverflow* node,
+                                const maglev::ProcessingState& state) {
+    // Turboshaft doesn't have a dedicated Increment operation; we use a regular
+    // addition instead.
+    SetMap(node, __ Word32SignedAddDeoptOnOverflow(
+                     Map(node->value_input()), 1,
+                     BuildFrameState(node->eager_deopt_info()),
+                     node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
 
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)               \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,      \
@@ -304,6 +339,11 @@ class GraphBuilder {
     // No need to update the interrupt budget once we reach Turboshaft.
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForLoop*,
+                                const maglev::ProcessingState&) {
+    // No need to update the interrupt budget once we reach Turboshaft.
+    return maglev::ProcessResult::kContinue;
+  }
 
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
@@ -417,6 +457,35 @@ class GraphBuilder {
     V<Word32> right = Map(right_input);
     if (swap) std::swap(left, right);
     return __ Comparison(left, right, kind, WordRepresentation::Word32());
+  }
+
+  void FixLoopPhis(maglev::BasicBlock* loop) {
+    DCHECK(loop->is_loop());
+    for (maglev::Phi* maglev_phi : *loop->phis()) {
+      OpIndex phi_index = Map(maglev_phi);
+      PendingLoopPhiOp& pending_phi =
+          __ output_graph().Get(phi_index).Cast<PendingLoopPhiOp>();
+      __ output_graph().Replace<PhiOp>(
+          phi_index,
+          base::VectorOf({pending_phi.first(), Map(maglev_phi -> input(1))}),
+          pending_phi.rep);
+    }
+  }
+
+  RegisterRepresentation RegisterRepresentationFor(
+      maglev::ValueRepresentation value_rep) {
+    switch (value_rep) {
+      case maglev::ValueRepresentation::kTagged:
+        return RegisterRepresentation::Tagged();
+      case maglev::ValueRepresentation::kInt32:
+      case maglev::ValueRepresentation::kUint32:
+        return RegisterRepresentation::Word32();
+      case maglev::ValueRepresentation::kFloat64:
+      case maglev::ValueRepresentation::kHoleyFloat64:
+        return RegisterRepresentation::Float64();
+      case maglev::ValueRepresentation::kIntPtr:
+        return RegisterRepresentation::WordPtr();
+    }
   }
 
   OpIndex Map(const maglev::Input input) { return Map(input.node()); }
