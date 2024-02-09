@@ -6,11 +6,9 @@
 #define V8_TRACING_PERFETTO_UTILS_H_
 
 #include <cstdint>
-#include <cstring>
 #include <vector>
 
 #include "include/v8config.h"
-#include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
@@ -24,16 +22,10 @@ class PerfettoV8String {
  public:
   explicit PerfettoV8String(Tagged<String> string);
 
-  PerfettoV8String(const PerfettoV8String&) V8_NOEXCEPT = delete;
-  PerfettoV8String& operator=(const PerfettoV8String&) V8_NOEXCEPT = delete;
-
-  PerfettoV8String(PerfettoV8String&&) V8_NOEXCEPT = default;
-  PerfettoV8String& operator=(PerfettoV8String&&) V8_NOEXCEPT = default;
-
-  bool is_one_byte() const { return is_one_byte_; }
-  ::protozero::ConstBytes buffer() const { return {buffer_.get(), size_}; }
+  bool is_one_byte() const { return visitor_.is_one_byte_; }
+  const std::string& buffer() const { return visitor_.buffer_; }
   template <typename Proto>
-  void WriteToProto(Proto& proto) const {
+  void WriteToProto(Proto& proto) {
     if (is_one_byte()) {
       proto.set_latin1(buffer());
     } else {
@@ -45,26 +37,32 @@ class PerfettoV8String {
     }
   }
 
-  bool operator==(const PerfettoV8String& o) const {
-    return is_one_byte_ == o.is_one_byte_ && size_ == o.size_ &&
-           memcmp(buffer_.get(), o.buffer_.get(), size_) == 0;
-  }
-
-  bool operator!=(const PerfettoV8String& o) const { return !(*this == o); }
-
-  struct Hasher {
-    size_t operator()(const PerfettoV8String& s) const {
-      base::Hasher hash;
-      hash.AddRange(s.buffer_.get(), s.buffer_.get() + s.size_);
-      hash.Combine(s.is_one_byte_);
-      return hash.hash();
-    }
-  };
-
  private:
-  bool is_one_byte_;
-  size_t size_;
-  std::unique_ptr<uint8_t[]> buffer_;
+  struct Visitor {
+    void VisitOneByteString(const uint8_t* chars, int length) {
+      CHECK(!is_two_byte_);
+      is_one_byte_ = true;
+      const char* first = reinterpret_cast<const char*>(chars);
+      const char* last = reinterpret_cast<const char*>(chars + length);
+      buffer_.append(first, last);
+    }
+
+    void VisitTwoByteString(const uint16_t* chars, int length) {
+      CHECK(!is_one_byte_);
+      is_two_byte_ = true;
+      const char* first = reinterpret_cast<const char*>(chars);
+      const char* last = reinterpret_cast<const char*>(chars + length);
+      buffer_.append(first, last);
+    }
+
+    // Note: This should really be a std::vector<uint8_t> but this needs to be
+    // hashed and having a std::string is just convenient as we can use the
+    // standard std::hash<string>
+    std::string buffer_;
+    bool is_one_byte_{false};
+    bool is_two_byte_{false};
+  };
+  Visitor visitor_;
 };
 
 }  // namespace internal

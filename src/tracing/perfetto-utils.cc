@@ -4,30 +4,19 @@
 
 #include "src/tracing/perfetto-utils.h"
 
-#include "include/v8config.h"
-#include "protos/perfetto/trace/chrome/v8.pbzero.h"
+#include <algorithm>
+#include <cstdint>
+#include <vector>
+
+#include "src/base/logging.h"
 #include "src/objects/string-inl.h"
-#include "src/objects/string.h"
-#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
 
-PerfettoV8String::PerfettoV8String(Tagged<String> string)
-    : is_one_byte_(string->IsOneByteRepresentation()), size_(0) {
-  if (string->length() <= 0) {
-    return;
-  }
-  size_ = static_cast<size_t>(string->length()) *
-          (string->IsOneByteRepresentation() ? sizeof(uint8_t)
-                                             : sizeof(base::uc16));
-  buffer_.reset(new uint8_t[size_]);
-  if (is_one_byte_) {
-    String::WriteToFlat(string, buffer_.get(), 0, string->length());
-  } else {
-    String::WriteToFlat(string, reinterpret_cast<base::uc16*>(buffer_.get()), 0,
-                        string->length());
-  }
+PerfettoV8String::PerfettoV8String(Tagged<String> string) {
+  SharedStringAccessGuardIfNeeded access_guard(string);
+  String::VisitFlat(&visitor_, string);
 }
 
 }  // namespace internal
