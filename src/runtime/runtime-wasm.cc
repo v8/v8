@@ -1869,8 +1869,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code_point);
   }
   if (code_point > 0x10FFFF) {
+    // Allocate a new number to preserve the to-uint conversion (e.g. if
+    // args[0] == -1, we want the error message to report 4294967295).
     return ThrowWasmError(isolate, MessageTemplate::kInvalidCodePoint,
-                          {handle(args[0], isolate)});
+                          {isolate->factory()->NewNumberFromUint(code_point)});
   }
 
   base::uc16 char_buffer[] = {

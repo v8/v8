@@ -6665,8 +6665,10 @@ Node* WasmGraphBuilder::StringFromCodePoint(Node* code_point) {
   // TODO(jkummerow): Refactor the code in
   // EffectControlLinearizer::LowerStringFromSingleCodePoint to make it
   // accessible for Wasm.
+  // This call traps when the {code_point} is invalid.
   return gasm_->CallBuiltin(Builtin::kWasmStringFromCodePoint,
-                            Operator::kEliminatable, code_point);
+                            Operator::kNoDeopt | Operator::kNoWrite,
+                            code_point);
 }
 
 Node* WasmGraphBuilder::StringHash(Node* string, CheckForNull null_check,
