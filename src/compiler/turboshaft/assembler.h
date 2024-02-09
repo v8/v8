@@ -2250,7 +2250,6 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
-    // TODO(mliedtke): For Wasm, these loads should be immutable.
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
                        Word32Constant(instance_type));
   }

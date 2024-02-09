@@ -580,8 +580,6 @@ class WasmLoweringReducer : public Next {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(1));
         }
-        // TODO(mliedtke): Ideally we'd be able to mark the map load as
-        // immutable.
         result = IsDataRefMap(__ LoadMapField(object));
         break;
       }
@@ -716,7 +714,6 @@ class WasmLoweringReducer : public Next {
       __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
     }
 
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
@@ -788,7 +785,6 @@ class WasmLoweringReducer : public Next {
       GOTO_IF(__ IsSmi(object), end_label, __ Word32Constant(0));
     }
 
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
@@ -935,8 +931,6 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Word32> IsDataRefMap(V<Map> map) {
-    // TODO(mliedtke): LoadInstanceTypeField should emit an immutable load for
-    // wasm.
     V<Word32> instance_type = __ LoadInstanceTypeField(map);
     // We're going to test a range of WasmObject instance types with a single
     // unsigned comparison.
