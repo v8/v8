@@ -5,6 +5,12 @@
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 // Flags: --no-always-turbofan
 
+// TODO(dmercadier): re-allow optimization of these functions once the
+// maglev-to-turboshaft graph builder supports everything they need.
+%NeverOptimizeFunction(assertEquals);
+%NeverOptimizeFunction(assertOptimized);
+%NeverOptimizeFunction(assertUnoptimized);
+
 function math_smi(x, y) {
   let a = x * y;
   a = a + 152;
