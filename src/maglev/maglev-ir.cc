@@ -1568,7 +1568,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   // intersection is empty.
   DCHECK(!maps().is_empty());
 
-  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+  bool maps_include_heap_number = compiler::AnyMapIsHeapNumber(maps());
 
   // Experimentally figured out map limit (with slack) which allows us to use
   // near jumps in the code below. If --deopt-every-n-times is on, we generate
@@ -1622,7 +1622,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register object = ToRegister(receiver_input());
 
-  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+  bool maps_include_heap_number = compiler::AnyMapIsHeapNumber(maps());
 
   ZoneLabelRef map_checks(masm), done(masm);
 
@@ -5614,7 +5614,7 @@ void GenerateTransitionElementsKind(
     MaglevAssembler* masm, NodeT* node, Register object, Register map,
     base::Vector<const compiler::MapRef> transition_sources,
     const compiler::MapRef transition_target, ZoneLabelRef done) {
-  DCHECK(!AnyMapIsHeapNumber(transition_sources));
+  DCHECK(!compiler::AnyMapIsHeapNumber(transition_sources));
   DCHECK(!IsHeapNumberMap(*transition_target.object()));
 
   for (const compiler::MapRef transition_source : transition_sources) {

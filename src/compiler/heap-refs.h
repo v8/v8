@@ -1236,6 +1236,16 @@ namespace compiler {
 template <typename T>
 using ZoneRefSet = ZoneCompactSet<typename ref_traits<T>::ref_type>;
 
+inline bool AnyMapIsHeapNumber(const ZoneRefSet<Map>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](MapRef map) { return map.IsHeapNumberMap(); });
+}
+
+inline bool AnyMapIsHeapNumber(const base::Vector<const MapRef>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](MapRef map) { return map.IsHeapNumberMap(); });
+}
+
 }  // namespace compiler
 
 }  // namespace internal

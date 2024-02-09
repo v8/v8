@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
+#include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
@@ -12,6 +13,7 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/maglev/maglev-compilation-info.h"
@@ -29,9 +31,11 @@ class GraphBuilder {
       TSAssembler<MachineOptimizationReducer, VariableReducer,
                   RequiredOptimizationReducer, ValueNumberingReducer>;
 
-  GraphBuilder(Graph& graph, Zone* temp_zone)
+  GraphBuilder(Graph& graph, Zone* temp_zone,
+               maglev::MaglevCompilationUnit* maglev_compilation_unit)
       : temp_zone_(temp_zone),
         assembler_(graph, graph, temp_zone),
+        maglev_compilation_unit_(maglev_compilation_unit),
         node_mapping_(temp_zone),
         block_mapping_(temp_zone) {}
 
@@ -93,8 +97,16 @@ class GraphBuilder {
 #else
     char* debug_name = nullptr;
 #endif
-    SetMap(node, __ Parameter(node->source().ToParameterIndex(),
-                              RegisterRepresentation::Tagged(), debug_name));
+    interpreter::Register source = node->source();
+    int index = source.ToParameterIndex();
+    if (source.is_function_closure()) {
+      index = Linkage::kJSCallClosureParamIndex;
+    } else if (source.is_current_context()) {
+      index = Linkage::GetJSCallContextParamIndex(
+          maglev_compilation_unit_->parameter_count());
+    }
+    SetMap(node,
+           __ Parameter(index, RegisterRepresentation::Tagged(), debug_name));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -120,6 +132,68 @@ class GraphBuilder {
       }
       SetMap(node, __ Phi(base::VectorOf(inputs), rep));
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CheckMaps* node,
+                                const maglev::ProcessingState& state) {
+    Label<> done(this);
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
+      OpIndex is_smi = __ IsSmi(Map(node->receiver_input()));
+      if (AnyMapIsHeapNumber(node->maps())) {
+        // Smis count as matching the HeapNumber map, so we're done.
+        GOTO_IF(is_smi, done);
+      } else {
+        __ DeoptimizeIf(is_smi, frame_state, DeoptimizeReason::kWrongMap,
+                        node->eager_deopt_info()->feedback_to_update());
+      }
+    }
+    __ CheckMaps(Map(node->receiver_input()), frame_state, node->maps(),
+                 CheckMapsFlag::kNone,
+                 node->eager_deopt_info()->feedback_to_update());
+
+    if (done.has_incoming_jump()) {
+      GOTO(done);
+      BIND(done);
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    bool negate_result = false;
+    V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
+                                        node->condition(), &negate_result);
+    if (negate_result) {
+      __ DeoptimizeIf(cmp, frame_state, node->reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIfNot(cmp, frame_state, node->reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LoadTaggedField* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::AnyTagged(), node->offset()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ LoadFixedArrayElement(
+                     Map(node->elements_input()),
+                     __ ChangeInt32ToIntPtr(Map(node->index_input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadFixedDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ LoadFixedDoubleArrayElement(
+                     Map(node->elements_input()),
+                     __ ChangeInt32ToIntPtr(Map(node->index_input()))));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -177,6 +251,11 @@ class GraphBuilder {
            __ CheckedSmiUntag(Map(node->input()),
                               BuildFrameState(node->eager_deopt_info()),
                               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeSmiUntag* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ UntagSmi(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -327,6 +406,19 @@ class GraphBuilder {
     SetMap(node, Map(node->input()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ConvertJSPrimitiveToUntaggedOrDeopt(
+               Map(node->object_input()),
+               BuildFrameState(node->eager_deopt_info()),
+               ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+                   kNumberOrString,
+               ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
+               CheckForMinusZeroMode::kCheckForMinusZero,
+               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::Return* node,
                                 const maglev::ProcessingState& state) {
@@ -431,7 +523,7 @@ class GraphBuilder {
                                 maglev::Input right_input,
                                 ::Operation operation) {
     ComparisonOp::Kind kind;
-    bool swap = false;
+    bool swap_inputs = false;
     switch (operation) {
       case ::Operation::kEqual:
         kind = ComparisonOp::Kind::kEqual;
@@ -444,18 +536,67 @@ class GraphBuilder {
         break;
       case ::Operation::kGreaterThan:
         kind = ComparisonOp::Kind::kSignedLessThan;
-        swap = true;
+        swap_inputs = true;
         break;
       case ::Operation::kGreaterThanOrEqual:
         kind = ComparisonOp::Kind::kSignedLessThanOrEqual;
-        swap = true;
+        swap_inputs = true;
         break;
       default:
         UNREACHABLE();
     }
     V<Word32> left = Map(left_input);
     V<Word32> right = Map(right_input);
-    if (swap) std::swap(left, right);
+    if (swap_inputs) std::swap(left, right);
+    return __ Comparison(left, right, kind, WordRepresentation::Word32());
+  }
+
+  V<Word32> ConvertInt32Compare(maglev::Input left_input,
+                                maglev::Input right_input,
+                                maglev::AssertCondition condition,
+                                bool* negate_result) {
+    ComparisonOp::Kind kind;
+    bool swap_inputs = false;
+    switch (condition) {
+      case maglev::AssertCondition::kEqual:
+        kind = ComparisonOp::Kind::kEqual;
+        break;
+      case maglev::AssertCondition::kNotEqual:
+        kind = ComparisonOp::Kind::kEqual;
+        *negate_result = true;
+        break;
+      case maglev::AssertCondition::kLessThan:
+        kind = ComparisonOp::Kind::kSignedLessThan;
+        break;
+      case maglev::AssertCondition::kLessThanEqual:
+        kind = ComparisonOp::Kind::kSignedLessThanOrEqual;
+        break;
+      case maglev::AssertCondition::kGreaterThan:
+        kind = ComparisonOp::Kind::kSignedLessThan;
+        swap_inputs = true;
+        break;
+      case maglev::AssertCondition::kGreaterThanEqual:
+        kind = ComparisonOp::Kind::kSignedLessThanOrEqual;
+        swap_inputs = true;
+        break;
+      case maglev::AssertCondition::kUnsignedLessThan:
+        kind = ComparisonOp::Kind::kUnsignedLessThan;
+        break;
+      case maglev::AssertCondition::kUnsignedLessThanEqual:
+        kind = ComparisonOp::Kind::kUnsignedLessThanOrEqual;
+        break;
+      case maglev::AssertCondition::kUnsignedGreaterThan:
+        kind = ComparisonOp::Kind::kUnsignedLessThan;
+        swap_inputs = true;
+        break;
+      case maglev::AssertCondition::kUnsignedGreaterThanEqual:
+        kind = ComparisonOp::Kind::kUnsignedLessThanOrEqual;
+        swap_inputs = true;
+        break;
+    }
+    V<Word32> left = Map(left_input);
+    V<Word32> right = Map(right_input);
+    if (swap_inputs) std::swap(left, right);
     return __ Comparison(left, right, kind, WordRepresentation::Word32());
   }
 
@@ -502,6 +643,7 @@ class GraphBuilder {
   JSHeapBroker* broker_ = PipelineData::Get().broker();
   LocalFactory* factory_ = isolate_->factory();
   AssemblerT assembler_;
+  maglev::MaglevCompilationUnit* maglev_compilation_unit_;
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
 };
@@ -525,7 +667,8 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
       maglev_graph);
   maglev_graph_builder.Build();
 
-  maglev::GraphProcessor<GraphBuilder, true> builder(data.graph(), temp_zone);
+  maglev::GraphProcessor<GraphBuilder, true> builder(
+      data.graph(), temp_zone, compilation_info->toplevel_compilation_unit());
   builder.ProcessGraph(maglev_graph);
 }
 

@@ -113,3 +113,35 @@ assertEquals(simple_loop(17), 74);
 %OptimizeFunctionOnNextCall(simple_loop);
 assertEquals(simple_loop(17), 74);
 assertOptimized(simple_loop);
+
+function load_smi_arr(arr, idx) {
+  return arr[1] + arr[idx];
+}
+{
+  let smi_arr = [1, 2, 3, 4, {}];
+  %PrepareFunctionForOptimization(load_smi_arr);
+  assertEquals(load_smi_arr(smi_arr, 3), 6);
+  %OptimizeFunctionOnNextCall(load_smi_arr);
+  assertEquals(load_smi_arr(smi_arr, 3), 6);
+  assertOptimized(load_smi_arr);
+
+  // String indices currently work without requiring deopt.
+  assertEquals(load_smi_arr(smi_arr, '2'), 5);
+  assertOptimized(load_smi_arr);
+}
+
+function load_double_arr(arr, idx) {
+  return arr[2] + arr[idx];
+}
+{
+  let double_arr = [1.552, 2.425, 3.526, 4.596, 5.986, 6.321];
+  %PrepareFunctionForOptimization(load_double_arr);
+  assertEquals(load_double_arr(double_arr, 3), 8.122);
+  %OptimizeFunctionOnNextCall(load_double_arr);
+  assertEquals(load_double_arr(double_arr, 3), 8.122);
+  assertOptimized(load_double_arr);
+
+  // String indices currently work without requiring deopt.
+  assertEquals(load_double_arr(double_arr, '1'), 5.951);
+  assertOptimized(load_double_arr);
+}

@@ -38,6 +38,8 @@
 #include "src/compiler/turboshaft/utils.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/objects/elements-kind.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/tagged.h"
@@ -167,9 +169,12 @@ class LabelBase {
 
   Block* block() { return data_.block; }
 
+  bool has_incoming_jump() const { return has_incoming_jump_; }
+
   template <typename A>
   void Goto(A& assembler, const values_t& values) {
     if (assembler.generating_unreachable_operations()) return;
+    has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
     assembler.Goto(data_.block);
@@ -180,6 +185,7 @@ class LabelBase {
   void GotoIf(A& assembler, OpIndex condition, BranchHint hint,
               const values_t& values) {
     if (assembler.generating_unreachable_operations()) return;
+    has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
     if (assembler.GotoIf(condition, data_.block, hint) &
@@ -192,6 +198,7 @@ class LabelBase {
   void GotoIfNot(A& assembler, OpIndex condition, BranchHint hint,
                  const values_t& values) {
     if (assembler.generating_unreachable_operations()) return;
+    has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
     if (assembler.GotoIfNot(condition, data_.block, hint) &
@@ -283,6 +290,7 @@ class LabelBase {
   }
 
   BlockData data_;
+  bool has_incoming_jump_ = false;
 };
 
 template <typename... Ts>
@@ -2121,6 +2129,32 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_ENABLE_SANDBOX
   }
 
+  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
+    return Load(array, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(index));
+  }
+  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
+    return Load(array, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+  }
+
+  V<Float64> LoadFixedDoubleArrayElement(V<FixedDoubleArray> array, int index) {
+    return Load(array, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Float64(),
+                FixedDoubleArray::OffsetOfElementAt(index));
+  }
+  V<Float64> LoadFixedDoubleArrayElement(V<FixedDoubleArray> array,
+                                         V<WordPtr> index) {
+    DCHECK_EQ(ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS),
+              ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
+    return Load(array, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Float64(),
+                FixedDoubleArray::OffsetOfElementAt(0),
+                ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
+  }
+
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
@@ -3505,18 +3539,6 @@ class TurboshaftAssemblerOpInterface
   V<WasmTrustedInstanceData> WasmInstanceParameter() {
     return Parameter(wasm::kWasmInstanceParameterIndex,
                      RegisterRepresentation::Tagged());
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
-    return Load(array, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::AnyTagged(),
-                FixedArray::OffsetOfElementAt(index));
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
-    return Load(array, index, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::AnyTagged(),
-                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
   }
 
   V<Tagged> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
