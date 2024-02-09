@@ -1972,9 +1972,8 @@ DEFINE_BOOL(partial_constant_pool, true,
 DEFINE_STRING(sim_arm64_optional_features, "none",
               "enable optional features on the simulator for testing: none or "
               "all")
-DEFINE_BOOL(intel_jcc_erratum_mitigation, false,
+DEFINE_BOOL(intel_jcc_erratum_mitigation, true,
             "enable mitigation for Intel JCC erratum on affected CPUs")
-DEFINE_WEAK_IMPLICATION(future, intel_jcc_erratum_mitigation)
 
 #if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
 DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
