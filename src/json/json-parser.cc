@@ -801,6 +801,10 @@ class JSDataObjectBuilder {
       return false;
     }
 
+    if (!TransitionsAccessor::CanHaveMoreTransitions(isolate_, map_)) {
+      return false;
+    }
+
     Representation representation =
         Object::OptimalRepresentation(*value, isolate_);
     Handle<FieldType> type =
