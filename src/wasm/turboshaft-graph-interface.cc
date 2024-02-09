@@ -102,10 +102,16 @@ size_t GetTypeSize(DataViewOp op_type) {
 
 class TurboshaftGraphBuildingInterface {
  private:
+  class BlockPhis;
   class InstanceCache;
 
  public:
-  enum Mode { kRegular, kInlinedUnhandled, kInlinedWithCatch };
+  enum Mode {
+    kRegular,
+    kInlinedUnhandled,
+    kInlinedWithCatch,
+    kInlinedTailCall
+  };
   using ValidationTag = Decoder::FullValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
@@ -132,6 +138,8 @@ class TurboshaftGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
+ public:
+  // For non-inlined functions.
   TurboshaftGraphBuildingInterface(
       Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
@@ -146,15 +154,18 @@ class TurboshaftGraphBuildingInterface {
         ssa_env_(zone),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
-        return_phis_(zone) {}
+        return_phis_(nullptr),
+        is_inlined_tail_call_(false) {}
 
+  // For inlined functions.
   TurboshaftGraphBuildingInterface(
-      Zone* zone, Assembler& assembler, InstanceCache& instance_cache,
-      AssumptionsJournal* assumptions,
+      Zone* zone, Assembler& assembler, Mode mode,
+      InstanceCache& instance_cache, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
-      TSBlock* return_block, TSBlock* catch_block)
-      : mode_(catch_block == nullptr ? kInlinedUnhandled : kInlinedWithCatch),
+      TSBlock* return_block, BlockPhis* return_phis, TSBlock* catch_block,
+      bool is_inlined_tail_call)
+      : mode_(mode),
         block_phis_(zone),
         asm_(assembler),
         instance_cache_(instance_cache),
@@ -165,9 +176,12 @@ class TurboshaftGraphBuildingInterface {
         wire_bytes_(wire_bytes),
         real_parameters_(real_parameters),
         return_block_(return_block),
-        return_phis_(zone),
-        return_catch_block_(catch_block) {
-    DCHECK_NOT_NULL(return_block);
+        return_phis_(return_phis),
+        return_catch_block_(catch_block),
+        is_inlined_tail_call_(is_inlined_tail_call) {
+    DCHECK_NE(mode_, kRegular);
+    DCHECK_EQ(return_block == nullptr, mode == kInlinedTailCall);
+    DCHECK_EQ(catch_block != nullptr, mode == kInlinedWithCatch);
   }
 
   void StartFunction(FullDecoder* decoder) {
@@ -194,7 +208,9 @@ class TurboshaftGraphBuildingInterface {
         // instance.
         ssa_env_[index] = real_parameters_[index + 1];
       }
-      return_phis_.InitReturnPhis(decoder->sig_->returns(), instance_cache_);
+      if (!is_inlined_tail_call_) {
+        return_phis_->InitReturnPhis(decoder->sig_->returns(), instance_cache_);
+      }
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
@@ -224,7 +240,8 @@ class TurboshaftGraphBuildingInterface {
               func_index_,
               // Pass dummy values for caller, feedback slot, and case.
               -1, -1, -1,
-              /* inlining depth*/ 0);
+              0  // inlining depth
+          );
           inlining_decisions_->FullyExpand(
               decoder->module_->functions[func_index_].code.length());
         } else {
@@ -592,18 +609,18 @@ class TurboshaftGraphBuildingInterface {
       }
       CallRuntime(decoder, Runtime::kWasmTraceExit, {info});
     }
-    if (mode_ == kRegular) {
+    if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values));
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
       for (size_t i = 0; i < return_count; i++) {
-        return_phis_.AddInputForPhi(i, return_values[i]);
+        return_phis_->AddInputForPhi(i, return_values[i]);
       }
       uint32_t cached_values = instance_cache_.num_mutable_fields();
       for (uint32_t i = 0; i < cached_values; i++) {
-        return_phis_.AddInputForPhi(return_count + i,
-                                    instance_cache_.mutable_field_value(i));
+        return_phis_->AddInputForPhi(return_count + i,
+                                     instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -1767,7 +1784,7 @@ class TurboshaftGraphBuildingInterface {
                  func_index_, mode_ == kRegular ? "" : " (inlined)",
                  feedback_slot_, imm.index);
         }
-        InlineWasmCall(decoder, imm.index, imm.sig, 0, args, returns);
+        InlineWasmCall(decoder, imm.index, imm.sig, 0, false, args, returns);
       } else {
         V<WordPtr> callee =
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
@@ -1780,12 +1797,28 @@ class TurboshaftGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     feedback_slot_++;
-    auto [target, ref] =
-        imm.index < decoder->module_->num_imported_functions
-            ? BuildImportedFunctionTargetAndRef(imm.index)
-            : std::pair{__ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
-                        trusted_instance_data()};
-    BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
+    if (imm.index < decoder->module_->num_imported_functions) {
+      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
+    } else {
+      // Locally defined function.
+      if (inlining_enabled(decoder) &&
+          should_inline(feedback_slot_,
+                        decoder->module_->functions[imm.index].code.length())) {
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: inlining direct tail call #%d to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, imm.index);
+        }
+        InlineWasmCall(decoder, imm.index, imm.sig, 0, true, args, nullptr);
+      } else {
+        BuildWasmMaybeReturnCall(
+            decoder, imm.sig,
+            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
+            trusted_instance_data(), args);
+      }
+    }
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
@@ -1855,7 +1888,8 @@ class TurboshaftGraphBuildingInterface {
               feedback_slot_, static_cast<int>(i), inlined_index);
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
-                       args, direct_returns.data());
+                       false, args, direct_returns.data());
+        if (did_bailout()) return;
 
         if (__ current_block() != nullptr) {
           // Only add phi inputs and a Goto to {merge} if the current_block is
@@ -2313,7 +2347,7 @@ class TurboshaftGraphBuildingInterface {
     if (depth == decoder->control_depth() - 1) {
       if (mode_ == kInlinedWithCatch) {
         if (block->exception.valid()) {
-          return_phis_.AddIncomingException(block->exception);
+          return_phis_->AddIncomingException(block->exception);
         }
         __ Goto(return_catch_block_);
       } else {
@@ -5942,7 +5976,7 @@ class TurboshaftGraphBuildingInterface {
   void BuildWasmMaybeReturnCall(FullDecoder* decoder, const FunctionSig* sig,
                                 V<WordPtr> callee, V<HeapObject> ref,
                                 const Value args[]) {
-    if (mode_ == kRegular) {
+    if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
           compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
           compiler::CanThrow::kYes, __ graph_zone());
@@ -5956,10 +5990,9 @@ class TurboshaftGraphBuildingInterface {
       __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
     } else {
       if (__ generating_unreachable_operations()) return;
-      // This is a tail call in the inlinee. Transform it into a regular call,
-      // and return the return values to the caller.
-      // TODO(14108): This can remain a tail call if the inlined call is also a
-      // tail call.
+      // This is a tail call in the inlinee, which in turn was a regular call.
+      // Transform the tail call into a regular call, and return the return
+      // values to the caller.
       size_t return_count = sig->return_count();
       SmallZoneVector<Value, 16> returns(return_count, decoder->zone_);
       // Since an exception in a tail call cannot be caught in this frame, we
@@ -5968,12 +6001,12 @@ class TurboshaftGraphBuildingInterface {
       BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
                     CheckForException::kCatchInParentFrame);
       for (size_t i = 0; i < return_count; i++) {
-        return_phis_.AddInputForPhi(i, returns[i].op);
+        return_phis_->AddInputForPhi(i, returns[i].op);
       }
       uint32_t cached_values = instance_cache_.num_mutable_fields();
       for (uint32_t i = 0; i < cached_values; i++) {
-        return_phis_.AddInputForPhi(return_count + i,
-                                    instance_cache_.mutable_field_value(i));
+        return_phis_->AddInputForPhi(return_count + i,
+                                     instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -6096,7 +6129,7 @@ class TurboshaftGraphBuildingInterface {
       instance_cache_.RestoreFromSnapshot(saved);
     } else {
       DCHECK_EQ(mode_, kInlinedWithCatch);
-      if (exception.valid()) return_phis_.AddIncomingException(exception);
+      if (exception.valid()) return_phis_->AddIncomingException(exception);
       // Reloading the InstanceCache will happen when {return_exception_phis_}
       // are retrieved.
     }
@@ -6610,7 +6643,8 @@ class TurboshaftGraphBuildingInterface {
 
   void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
                       const FunctionSig* sig, uint32_t feedback_case,
-                      const Value args[], Value returns[]) {
+                      bool is_tail_call, const Value args[], Value returns[]) {
+    DCHECK_IMPLIES(is_tail_call, returns == nullptr);
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
     DCHECK_EQ(inlinee.sig->return_count(), sig->return_count());
     DCHECK_EQ(inlinee.sig->parameter_count(), sig->parameter_count());
@@ -6658,30 +6692,58 @@ class TurboshaftGraphBuildingInterface {
       decoder->module_->set_function_validated(func_index);
     }
 
-    Mode inlinee_mode =
-        mode_ != kInlinedWithCatch && decoder->current_catch() == -1
-            ? kInlinedUnhandled
-            : kInlinedWithCatch;
-    // TODO(14108): If this is nested inlined, can we forward the callers's
-    // catch block instead?
-    TSBlock* callee_catch_block =
-        inlinee_mode == kInlinedUnhandled ? nullptr : __ NewBlock();
-    TSBlock* callee_return_block = __ NewBlock();
+    BlockPhis fresh_return_phis(decoder->zone_);
+
+    Mode inlinee_mode;
+    TSBlock* callee_catch_block = nullptr;
+    TSBlock* callee_return_block;
+    BlockPhis* inlinee_return_phis;
+
+    if (is_tail_call) {
+      if (mode_ == kInlinedTailCall || mode_ == kRegular) {
+        inlinee_mode = kInlinedTailCall;
+        callee_return_block = nullptr;
+        inlinee_return_phis = nullptr;
+      } else {
+        // A tail call inlined inside a regular call inherits its settings,
+        // as any `return` statement returns to the nearest non-tail caller.
+        inlinee_mode = mode_;
+        callee_return_block = return_block_;
+        inlinee_return_phis = return_phis_;
+        if (mode_ == kInlinedWithCatch) {
+          callee_catch_block = return_catch_block_;
+        }
+      }
+    } else {
+      // Regular call (i.e. not a tail call).
+      if (mode_ == kInlinedWithCatch || decoder->current_catch() != -1) {
+        inlinee_mode = kInlinedWithCatch;
+        // TODO(14108): If this is a nested inlining, can we forward the
+        // caller's catch block instead?
+        callee_catch_block = __ NewBlock();
+      } else {
+        inlinee_mode = kInlinedUnhandled;
+      }
+      callee_return_block = __ NewBlock();
+      inlinee_return_phis = &fresh_return_phis;
+    }
 
     WasmFullDecoder<Decoder::FullValidationTag,
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
                         decoder->detected_, inlinee_body, decoder->zone_, asm_,
-                        instance_cache_, assumptions_, inlining_positions_,
-                        func_index, wire_bytes_, base::VectorOf(inlinee_args),
-                        callee_return_block, callee_catch_block);
-    size_t inlining_id = inlining_positions_->size();
-    SourcePosition call_position = SourcePosition(
-        decoder->position(), inlining_id_ == kNoInliningId ? -1 : inlining_id_);
+                        inlinee_mode, instance_cache_, assumptions_,
+                        inlining_positions_, func_index, wire_bytes_,
+                        base::VectorOf(inlinee_args), callee_return_block,
+                        inlinee_return_phis, callee_catch_block, is_tail_call);
+    SourcePosition call_position =
+        SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
+                                                ? SourcePosition::kNotInlined
+                                                : inlining_id_);
     inlining_positions_->push_back(
-        {static_cast<int>(func_index), call_position});
+        {static_cast<int>(func_index), is_tail_call, call_position});
     inlinee_decoder.interface().set_inlining_id(
-        static_cast<uint8_t>(inlining_id));
+        static_cast<uint8_t>(inlining_positions_->size() - 1));
     inlinee_decoder.interface().set_parent_position(call_position);
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
@@ -6699,29 +6761,26 @@ class TurboshaftGraphBuildingInterface {
     // validated, so graph building must always succeed, unless we bailed out.
     DCHECK_IMPLIES(!inlinee_decoder.ok(),
                    inlinee_decoder.interface().did_bailout());
+    if (!inlinee_decoder.ok()) {
+      Bailout(decoder);
+      return;
+    }
 
-    base::Vector<const OpIndex> inlinee_return_exception_phis =
-        inlinee_decoder.interface().return_phis().incoming_exceptions();
-    DCHECK_IMPLIES(inlinee_mode == kInlinedUnhandled,
-                   inlinee_return_exception_phis.empty());
+    DCHECK_IMPLIES(!is_tail_call && inlinee_mode == kInlinedWithCatch,
+                   inlinee_return_phis != nullptr);
 
-    if (inlinee_mode == kInlinedWithCatch &&
-        !inlinee_return_exception_phis.empty()) {
+    if (!is_tail_call && inlinee_mode == kInlinedWithCatch &&
+        !inlinee_return_phis->incoming_exceptions().empty()) {
       // We need to handle exceptions in the inlined call.
       __ Bind(callee_catch_block);
       OpIndex exception =
-          MaybePhi(inlinee_return_exception_phis, kWasmExternRef);
+          MaybePhi(inlinee_return_phis->incoming_exceptions(), kWasmExternRef);
       bool handled_in_this_frame = decoder->current_catch() != -1;
       TSBlock* catch_block;
       if (handled_in_this_frame) {
         Control* current_catch =
             decoder->control_at(decoder->control_depth_of_current_catch());
         catch_block = current_catch->false_or_loop_or_catch_block;
-      } else {
-        DCHECK_EQ(mode_, kInlinedWithCatch);
-        catch_block = return_catch_block_;
-      }
-      if (handled_in_this_frame) {
         // The exceptional operation could have modified memory size; we need
         // to reload the memory context into the exceptional control path.
         // Saving and restoring the InstanceCache's state makes sure that once
@@ -6732,25 +6791,30 @@ class TurboshaftGraphBuildingInterface {
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
         instance_cache_.RestoreFromSnapshot(saved);
       } else {
-        if (exception.valid()) return_phis_.AddIncomingException(exception);
+        DCHECK_EQ(mode_, kInlinedWithCatch);
+        catch_block = return_catch_block_;
+        if (exception.valid()) return_phis_->AddIncomingException(exception);
         // Reloading the InstanceCache will happen when {return_exception_phis_}
         // are retrieved.
       }
       __ Goto(catch_block);
     }
 
-    __ Bind(callee_return_block);
-    BlockPhis& return_phis = inlinee_decoder.interface().return_phis();
-    size_t return_count = inlinee.sig->return_count();
-    for (size_t i = 0; i < return_count; i++) {
-      returns[i].op =
-          MaybePhi(return_phis.phi_inputs(i), return_phis.phi_type(i));
-    }
-    uint32_t cached_values = instance_cache_.num_mutable_fields();
-    for (uint32_t i = 0; i < cached_values; i++) {
-      OpIndex phi = MaybePhi(return_phis.phi_inputs(i + return_count),
-                             instance_cache_.mutable_field_type(i));
-      instance_cache_.set_mutable_field_value(i, phi);
+    if (!is_tail_call) {
+      __ Bind(callee_return_block);
+      BlockPhis* return_phis = inlinee_decoder.interface().return_phis();
+      size_t return_count = inlinee.sig->return_count();
+      for (size_t i = 0; i < return_count; i++) {
+        returns[i].op =
+            MaybePhi(return_phis->phi_inputs(i), return_phis->phi_type(i));
+      }
+
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        OpIndex phi = MaybePhi(return_phis->phi_inputs(i + return_count),
+                               instance_cache_.mutable_field_type(i));
+        instance_cache_.set_mutable_field_value(i, phi);
+      }
     }
 
     if (!v8_flags.liftoff) {
@@ -6802,7 +6866,9 @@ class TurboshaftGraphBuildingInterface {
     DCHECK(index.valid());
     uint8_t inlining_id = InliningIdField::decode(index.offset());
     return SourcePosition(PositionField::decode(index.offset()),
-                          inlining_id == kNoInliningId ? -1 : inlining_id);
+                          inlining_id == kNoInliningId
+                              ? SourcePosition::kNotInlined
+                              : inlining_id);
   }
 
   BranchHint GetBranchHint(FullDecoder* decoder) {
@@ -6853,7 +6919,7 @@ class TurboshaftGraphBuildingInterface {
     inlining_decisions_ = inlining_decisions;
   }
 
-  BlockPhis& return_phis() { return return_phis_; }
+  BlockPhis* return_phis() { return return_phis_; }
   void set_inlining_id(uint8_t inlining_id) {
     DCHECK_NE(inlining_id, kNoInliningId);
     inlining_id_ = inlining_id;
@@ -6902,12 +6968,13 @@ class TurboshaftGraphBuildingInterface {
   TSBlock* return_block_ = nullptr;
   // The return values and exception values for this function.
   // The caller will reconstruct each one with a Phi.
-  BlockPhis return_phis_;
+  BlockPhis* return_phis_ = nullptr;
   // The block where exceptions from this function are caught (passed by the
   // caller).
   TSBlock* return_catch_block_ = nullptr;
   // The position of the call that is being inlined.
   SourcePosition parent_position_;
+  bool is_inlined_tail_call_ = false;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(

@@ -3037,27 +3037,33 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
   // Push regular non-inlined summary.
   SourcePosition pos = code->GetSourcePositionBefore(offset);
   bool at_conversion = at_to_number_conversion();
+  bool child_was_tail_call = false;
   // Add summaries for each inlined function at the current location.
   while (pos.isInlined()) {
     // Use current pc offset as the code offset for inlined functions.
     // This is not fully correct but there isn't a real code offset of a stack
     // frame for an inlined function as the inlined function is not a true
     // function with a defined start and end in the generated code.
-    //
-    const auto [func_index, caller_pos] =
+    const auto [func_index, was_tail_call, caller_pos] =
         code->GetInliningPosition(pos.InliningId());
+    if (!child_was_tail_call) {
+      FrameSummary::WasmFrameSummary summary(isolate(), instance, code,
+                                             pos.ScriptOffset(), func_index,
+                                             at_conversion);
+      functions->push_back(summary);
+    }
+    pos = caller_pos;
+    at_conversion = false;
+    child_was_tail_call = was_tail_call;
+  }
+
+  if (!child_was_tail_call) {
+    int func_index = code->index();
     FrameSummary::WasmFrameSummary summary(isolate(), instance, code,
                                            pos.ScriptOffset(), func_index,
                                            at_conversion);
     functions->push_back(summary);
-    pos = caller_pos;
-    at_conversion = false;
   }
-
-  int func_index = code->index();
-  FrameSummary::WasmFrameSummary summary(
-      isolate(), instance, code, pos.ScriptOffset(), func_index, at_conversion);
-  functions->push_back(summary);
 
   // The caller has to be on top.
   std::reverse(functions->begin(), functions->end());

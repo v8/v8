@@ -286,7 +286,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   SourcePosition GetSourcePositionBefore(int code_offset);
   int GetSourceOffsetBefore(int code_offset);
 
-  std::pair<int, SourcePosition> GetInliningPosition(int inlining_id) const;
+  std::tuple<int, bool, SourcePosition> GetInliningPosition(
+      int inlining_id) const;
 
   // Returns whether this code was generated for debugging. If this returns
   // {kForDebugging}, but {tier()} is not {kLiftoff}, then Liftoff compilation

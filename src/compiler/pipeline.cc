@@ -3517,14 +3517,18 @@ void LowerInt64(const wasm::FunctionSig* sig, MachineGraph* mcgraph,
 
 base::OwnedVector<uint8_t> SerializeInliningPositions(
     const ZoneVector<WasmInliningPosition>& positions) {
-  const size_t entry_size =
-      sizeof positions[0].inlinee_func_index + sizeof positions[0].caller_pos;
+  const size_t entry_size = sizeof positions[0].inlinee_func_index +
+                            sizeof positions[0].was_tail_call +
+                            sizeof positions[0].caller_pos;
   auto result = base::OwnedVector<uint8_t>::New(positions.size() * entry_size);
   uint8_t* iter = result.begin();
-  for (const auto& [func_index, caller_pos] : positions) {
+  for (const auto& [func_index, was_tail_call, caller_pos] : positions) {
     size_t index_size = sizeof func_index;
     std::memcpy(iter, &func_index, index_size);
     iter += index_size;
+    size_t was_tail_call_size = sizeof was_tail_call;
+    std::memcpy(iter, &was_tail_call, was_tail_call_size);
+    iter += was_tail_call_size;
     size_t pos_size = sizeof caller_pos;
     std::memcpy(iter, &caller_pos, pos_size);
     iter += pos_size;

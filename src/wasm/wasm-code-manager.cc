@@ -541,15 +541,18 @@ int WasmCode::GetSourceOffsetBefore(int code_offset) {
   return GetSourcePositionBefore(code_offset).ScriptOffset();
 }
 
-std::pair<int, SourcePosition> WasmCode::GetInliningPosition(
+std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
     int inlining_id) const {
-  const size_t elem_size = sizeof(int) + sizeof(SourcePosition);
+  const size_t elem_size = sizeof(int) + sizeof(bool) + sizeof(SourcePosition);
   const uint8_t* start = inlining_positions().begin() + elem_size * inlining_id;
   DCHECK_LE(start, inlining_positions().end());
-  std::pair<int, SourcePosition> result;
-  std::memcpy(&result.first, start, sizeof result.first);
-  std::memcpy(&result.second, start + sizeof result.first,
-              sizeof result.second);
+  std::tuple<int, bool, SourcePosition> result;
+  std::memcpy(&std::get<0>(result), start, sizeof std::get<0>(result));
+  std::memcpy(&std::get<1>(result), start + sizeof std::get<0>(result),
+              sizeof std::get<1>(result));
+  std::memcpy(&std::get<2>(result),
+              start + sizeof std::get<0>(result) + sizeof std::get<1>(result),
+              sizeof std::get<2>(result));
   return result;
 }
 

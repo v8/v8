@@ -210,8 +210,9 @@ void WasmInliner::Finalize() {
     Node* inlinee_end;
     SourcePosition caller_pos =
         data_.source_positions->GetSourcePosition(candidate.node);
-    inlining_positions_->push_back(
-        {static_cast<int>(candidate.inlinee_index), caller_pos});
+    inlining_positions_->push_back({static_cast<int>(candidate.inlinee_index),
+                                    call->opcode() == IrOpcode::kTailCall,
+                                    caller_pos});
     int inlining_position_id =
         static_cast<int>(inlining_positions_->size()) - 1;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
