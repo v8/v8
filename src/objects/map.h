@@ -609,6 +609,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_RELAXED_ACCESSORS(constructor_or_back_pointer, Tagged<Object>)
   DECL_ACCESSORS(native_context, Tagged<NativeContext>)
   DECL_ACCESSORS(native_context_or_null, Tagged<Object>)
+  DECL_GETTER(raw_native_context_or_null, Tagged<Object>)
   DECL_ACCESSORS(wasm_type_info, Tagged<WasmTypeInfo>)
 
   // Gets |constructor_or_back_pointer| field value from the root map.
