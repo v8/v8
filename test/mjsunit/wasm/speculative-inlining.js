@@ -236,3 +236,28 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(16, instance2.exports.main(5, f1, f2));
   assertEquals(12, instance2.exports.main(5, f1, f1));
 })();
+
+(function ReturnCallRefSpecSucceededTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = x - 1
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
+
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
+                                 [kExprRefFunc, callee.index]);
+
+  // g(x) = f(5 + x)
+  let main = builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
+              kExprGlobalGet, global.index,
+              kExprReturnCallRef, callee.type_index])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  for (let i = 0; i < 20; i++) assertEquals(14, instance.exports.main(10));
+  %WasmTierUpFunction(instance.exports.main);
+  // The tiered-up function should have {callee} speculatively inlined.
+  assertEquals(14, instance.exports.main(10));
+})();

@@ -1937,6 +1937,52 @@ class TurboshaftGraphBuildingInterface {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
+    if (inlining_enabled(decoder) &&
+        should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
+      V<FixedArray> internal_functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(), WasmInternalFunctions,
+          MemoryRepresentation::TaggedPointer());
+      base::Vector<InliningTree*> feedback_cases =
+          inlining_decisions_->function_calls()[feedback_slot_];
+      base::SmallVector<TSBlock*, 5> case_blocks;
+      for (size_t i = 0; i < feedback_cases.size() + 1; i++) {
+        case_blocks.push_back(__ NewBlock());
+      }
+      __ Goto(case_blocks[0]);
+      for (size_t i = 0; i < feedback_cases.size(); i++) {
+        __ Bind(case_blocks[i]);
+        InliningTree* tree = feedback_cases[i];
+        if (!tree || !tree->is_inlined()) {
+          __ Goto(case_blocks[i + 1]);
+          continue;
+        }
+        uint32_t inlined_index = tree->function_index();
+        V<Tagged> inlined_func_ref =
+            __ LoadFixedArrayElement(internal_functions, inlined_index);
+        TSBlock* inline_block = __ NewBlock();
+        bool is_last_case = (i == feedback_cases.size() - 1);
+        BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+        __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
+                  inline_block, case_blocks[i + 1]);
+
+        __ Bind(inline_block);
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: Speculatively inlining return_call_ref #%d, "
+              "case #%d, to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, static_cast<int>(i), inlined_index);
+        }
+        InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
+                       true, args, nullptr);
+        if (did_bailout()) return;
+        // An inlined tail call should still terminate execution.
+        DCHECK_EQ(__ current_block(), nullptr);
+      }
+
+      TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
+      __ Bind(no_inline_block);
+    }
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
     BuildWasmMaybeReturnCall(decoder, sig, target, ref, args);
