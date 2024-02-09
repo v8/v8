@@ -3505,13 +3505,11 @@ Isolate* Isolate::New() { return Allocate(); }
 Isolate* Isolate::Allocate() {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
-  // IsolateAllocator allocates the memory for the Isolate object according to
-  // the given allocation mode.
-  std::unique_ptr<IsolateAllocator> isolate_allocator =
-      std::make_unique<IsolateAllocator>();
-  // Construct Isolate object in the allocated memory.
-  void* isolate_ptr = isolate_allocator->isolate_memory();
-  Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
+  // Allocate Isolate itself on C++ heap, ensuring page alignment.
+  void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
+  // IsolateAllocator manages the virtual memory resources for the Isolate.
+  Isolate* isolate =
+      new (isolate_ptr) Isolate(std::make_unique<IsolateAllocator>());
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -3546,8 +3544,10 @@ void Isolate::Delete(Isolate* isolate) {
   std::unique_ptr<IsolateAllocator> isolate_allocator =
       std::move(isolate->isolate_allocator_);
   isolate->~Isolate();
-  // Now free the memory owned by the allocator.
+  // Now release the memory owned by the allocator.
   isolate_allocator.reset();
+  // And free the isolate itself.
+  base::AlignedFree(isolate);
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
