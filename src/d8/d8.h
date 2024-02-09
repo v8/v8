@@ -272,7 +272,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   Isolate* isolate_ = nullptr;
 
   // Only accessed by the worker thread.
-  v8::Persistent<v8::Context> context_;
+  Global<Context> context_;
 };
 
 class PerIsolateData {
@@ -287,7 +287,7 @@ class PerIsolateData {
 
   class V8_NODISCARD RealmScope {
    public:
-    explicit RealmScope(PerIsolateData* data);
+    explicit RealmScope(Isolate* isolate, const Global<Context>& context);
     ~RealmScope();
 
    private:
@@ -501,9 +501,9 @@ class Shell : public i::AllStatic {
   enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<String> name, PrintResult print_result,
+                            Local<String> name,
                             ReportExceptions report_exceptions,
-                            ProcessMessageQueue process_message_queue);
+                            Global<Value>* out_result = nullptr);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
@@ -521,11 +521,9 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
+  static bool FinishExecuting(Isolate* isolate, const Global<Context>& context);
 
   static bool HandleUnhandledPromiseRejections(Isolate* isolate);
-
-  static void PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task);
-  static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
 
   static std::unique_ptr<SerializationData> SerializeValue(
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
