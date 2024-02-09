@@ -508,10 +508,10 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
  * Here is a diagram of the relations between the types, where (*) means that
  * they have the kAnyHeapObject bit set.
  *
- *    NumberOrOddball              JsReceiver*            Name*
- *     /         \                     |                 /    \
- *  Oddball*     Number             Callable*        String*  Symbol*
- *    |          /    \                                |
+ *    NumberOrOddball            JsReceiver*            Name*
+ *     /         \                /       \             /    \
+ *  Oddball*     Number       Callable*  JSArray*   String*  Symbol*
+ *    |          /    \                               |
  *  Boolean*    Smi   HeapNumber*              InternalizedString*
  *
  */
@@ -529,7 +529,8 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   V(InternalizedString, (1 << 10) | kString)               \
   V(Symbol, (1 << 11) | kName)                             \
   V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
-  V(Callable, (1 << 13) | kJSReceiver | kAnyHeapObject)    \
+  V(JSArray, (1 << 13) | kJSReceiver)                      \
+  V(Callable, (1 << 14) | kJSReceiver)                     \
   V(HeapNumber, kAnyHeapObject | kNumber)
 
 enum class NodeType : uint16_t {
@@ -555,6 +556,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
   if (map.IsStringMap()) return NodeType::kString;
+  if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
   return NodeType::kAnyHeapObject;
 }
@@ -594,6 +596,8 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsSymbolMap();
     case NodeType::kJSReceiver:
       return map.IsJSReceiverMap();
+    case NodeType::kJSArray:
+      return map.IsJSArrayMap();
     case NodeType::kCallable:
       return map.is_callable();
   }

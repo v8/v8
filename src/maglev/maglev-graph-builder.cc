@@ -3040,7 +3040,12 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
+    case Opcode::kCreateObjectLiteral:
+    case Opcode::kCreateShallowObjectLiteral:
       return NodeType::kJSReceiver;
+    case Opcode::kCreateArrayLiteral:
+    case Opcode::kCreateShallowArrayLiteral:
+      return NodeType::kJSArray;
     case Opcode::kToName:
       return NodeType::kName;
     case Opcode::kFastCreateClosure:
@@ -5964,6 +5969,41 @@ bool CanInlineArrayIteratingBuiltin(compiler::JSHeapBroker* broker,
 }
 
 }  // namespace
+
+ReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) return GetBooleanConstant(false);
+
+  ValueNode* node = args[0];
+
+  if (CheckType(node, NodeType::kJSArray)) {
+    return GetBooleanConstant(true);
+  }
+
+  auto node_info = known_node_aspects().TryGetInfoFor(node);
+  if (node_info && node_info->possible_maps_are_known()) {
+    bool has_array_map = false;
+    bool has_proxy_map = false;
+    bool has_other_map = false;
+    for (compiler::MapRef map : node_info->possible_maps()) {
+      InstanceType type = map.instance_type();
+      if (InstanceTypeChecker::IsJSArray(type)) {
+        has_array_map = true;
+      } else if (InstanceTypeChecker::IsJSProxy(type)) {
+        has_proxy_map = true;
+      } else {
+        has_other_map = true;
+      }
+    }
+    if ((has_array_map ^ has_other_map) && !has_proxy_map) {
+      if (has_array_map) node_info->CombineType(NodeType::kJSArray);
+      return GetBooleanConstant(has_array_map);
+    }
+  }
+
+  // TODO(verwaest): Add a node that checks the instance type.
+  return ReduceResult::Fail();
+}
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     compiler::JSFunctionRef target, CallArguments& args) {

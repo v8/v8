@@ -1760,6 +1760,7 @@ class MaglevGraphBuilder {
 
 #define MAGLEV_REDUCED_BUILTIN(V)  \
   V(ArrayForEach)                  \
+  V(ArrayIsArray)                  \
   V(DataViewPrototypeGetInt8)      \
   V(DataViewPrototypeSetInt8)      \
   V(DataViewPrototypeGetInt16)     \
