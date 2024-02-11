@@ -4,6 +4,8 @@
 
 #include "src/flags/flags.h"
 
+#include <algorithm>
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
@@ -14,6 +16,7 @@
 #include <sstream>
 
 #include "src/base/functional.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
@@ -54,6 +57,7 @@ char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
 Flag* FindFlagByName(const char* name);
+Flag* FindImplicationFlagByName(const char* name);
 
 // Helper struct for printing normalized flag names.
 struct FlagName {
@@ -355,8 +359,8 @@ struct Flag {
       // can also be a condition e.g. flag_name > 3. Since this is only used for
       // checks in DEBUG mode, we will just ignore the more complex conditions
       // for now - that will just lead to a nullptr which won't be followed.
-      implied_by_ptr_ = static_cast<Flag*>(
-          FindFlagByName(implied_by[0] == '!' ? implied_by + 1 : implied_by));
+      implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
+          implied_by[0] == '!' ? implied_by + 1 : implied_by));
       DCHECK_NE(implied_by_ptr_, this);
 #endif
     }
@@ -460,19 +464,82 @@ Flag flags[] = {
 
 constexpr size_t kNumFlags = arraysize(flags);
 
-bool EqualNames(const char* a, const char* b) {
-  for (int i = 0; NormalizeChar(a[i]) == NormalizeChar(b[i]); i++) {
-    if (a[i] == '\0') {
-      return true;
-    }
-  }
-  return false;
+int FlagNamesCmp(const char* a, const char* b) {
+  int i = 0;
+  char ac, bc;
+  do {
+    ac = NormalizeChar(a[i]);
+    bc = NormalizeChar(b[i]);
+    if (ac < bc) return -1;
+    if (ac > bc) return 1;
+    i++;
+  } while (ac != '\0');
+  DCHECK(bc == '\0');
+  return 0;
 }
 
-Flag* FindFlagByName(const char* name) {
-  for (size_t i = 0; i < kNumFlags; ++i) {
-    if (EqualNames(name, flags[i].name())) return &flags[i];
+bool EqualNames(const char* a, const char* b) {
+  return FlagNamesCmp(a, b) == 0;
+}
+
+struct FlagLess {
+  bool operator()(const Flag* a, const Flag* b) const {
+    return FlagNamesCmp(a->name(), b->name()) < 0;
   }
+};
+
+struct FlagNameLess {
+  bool operator()(const Flag* a, const char* b) const {
+    return FlagNamesCmp(a->name(), b) < 0;
+  }
+};
+
+// Optimized look-up of flags by name using binary search. Works only for flags
+// that can be found. If the looked-up flag might not exit in the list, an
+// additional name check of the returned flag is required.
+class FlagMapByName {
+ public:
+  FlagMapByName() {
+    for (size_t i = 0; i < kNumFlags; ++i) {
+      flags_[i] = &flags[i];
+    }
+    std::sort(flags_.begin(), flags_.end(), FlagLess());
+  }
+
+  Flag* GetFlag(const char* name) {
+    auto it =
+        std::lower_bound(flags_.begin(), flags_.end(), name, FlagNameLess());
+    if (it == flags_.end()) return nullptr;
+    return *it;
+  }
+
+ private:
+  std::array<Flag*, kNumFlags> flags_;
+};
+
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(FlagMapByName, GetFlagMap)
+
+// This should be used to look up flags that we know were defined.
+Flag* FindImplicationFlagByName(const char* name) {
+  Flag* flag = GetFlagMap()->GetFlag(name);
+  CHECK(flag != nullptr);
+  DCHECK(EqualNames(flag->name(), name));
+  return flag;
+}
+
+// This can be used to look up flags that might not exist (e.g. invalid command
+// line flags).
+Flag* FindFlagByName(const char* name) {
+  Flag* flag = GetFlagMap()->GetFlag(name);
+  // GetFlag returns an invalid lower bound for flags not in the list. So
+  // we need to verify the name again.
+  if (flag != nullptr && EqualNames(flag->name(), name)) return flag;
+#ifdef DEBUG
+  // Ensure the flag is not in the global list.
+  for (size_t i = 0; i < kNumFlags; ++i) {
+    DCHECK(!EqualNames(name, flags[i].name()));
+  }
+#endif
   return nullptr;
 }
 
@@ -980,7 +1047,7 @@ class ImplicationProcessor {
                           const char* conclusion_name, T value,
                           bool weak_implication) {
     if (!premise) return false;
-    Flag* conclusion_flag = FindFlagByName(conclusion_name);
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
@@ -1008,7 +1075,7 @@ class ImplicationProcessor {
                           const char* conclusion_name, T value,
                           bool weak_implication) {
     if (!premise) return false;
-    Flag* conclusion_flag = FindFlagByName(conclusion_name);
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     // Because this is the `const FlagValue*` overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
