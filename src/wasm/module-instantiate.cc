@@ -1709,6 +1709,10 @@ bool InstanceBuilder::ProcessImportedFunction(
   ImportedFunctionEntry imported_entry(isolate_, trusted_instance_data,
                                        func_index);
   switch (kind) {
+    case ImportCallKind::kRuntimeTypeError:
+      imported_entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
+                                 expected_sig);
+      break;
     case ImportCallKind::kLinkError:
       thrower_->LinkError(
           "%s: imported function does not match the expected type",

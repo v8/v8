@@ -1064,10 +1064,18 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
                                         Handle<JSReceiver> callable,
                                         wasm::Suspend suspend,
                                         const wasm::FunctionSig* sig) {
-  DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-  Address wrapper = isolate->builtins()
-                        ->code(Builtin::kWasmToJsWrapperAsm)
-                        ->instruction_start();
+  Address wrapper;
+  if (wasm::IsJSCompatibleSignature(sig)) {
+    DCHECK(
+        UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
+    wrapper = isolate->builtins()
+                  ->code(Builtin::kWasmToJsWrapperAsm)
+                  ->instruction_start();
+  } else {
+    wrapper = isolate->builtins()
+                  ->code(Builtin::kWasmToJsWrapperInvalidSig)
+                  ->instruction_start();
+  }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
             instance_object_->ptr(), index_, callable->ptr(), wrapper);
@@ -1481,7 +1489,10 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
                            function_index)),
                    isolate);
 
-  if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
+  bool setup_new_ref_with_generic_wrapper =
+      v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref);
+
+  if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     ref = isolate->factory()->NewWasmApiFunctionRef(
         handle(wafr->callable(), isolate),
@@ -1501,21 +1512,39 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
     rtt = isolate->factory()->wasm_internal_function_map();
   }
 
-  // Only set the call target if the function is not an imported function. The
-  // reason is that after wrapper tier-up the call target cannot be set anymore
-  // for imported functions, because the slot in the imported function table
-  // cannot be found anymore. Avoiding setting the call target makes the wrapper
-  // tiers behave more consistently, which can prevent surprising bugs.
+  // Only set the call target if we do not use the generic wasm-to-js wrapper.
+  // The reason is that after wrapper tier-up the call target cannot be set
+  // anymore for imported functions, because the slot in the imported function
+  // table cannot be found anymore. Avoiding setting the call target makes the
+  // wrapper tiers behave more consistently, which can prevent surprising bugs.
+  // Background: the WasmInternalFunction has two fields to store a reference to
+  // wrapper code: 1) the `call_target` field, and 2) the `code` field. In
+  // generated code, we use the `call_target` if it is set, and if it is not
+  // set, the `code` field is used. During wrapper tier-up, only the `code`
+  // field can be updated, not the `call_target` field, because the slot in the
+  // imported function table cannot be found anymore. For the newly created
+  // WasmInternalFunction, this would mean that calls with the generic wrapper
+  // would be done with the `call_target`, but after tier-up, the call with the
+  // optimized wrapper would be done with the 'code' field.
   auto result = isolate->factory()->NewWasmInternalFunction(
-      IsWasmApiFunctionRef(*ref)
+      setup_new_ref_with_generic_wrapper
           ? 0
           : trusted_instance_data->GetCallTarget(function_index),
       ref, rtt, function_index);
 
-  if (IsWasmApiFunctionRef(*ref)) {
+  if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
-    WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr, result);
-    result->set_code(isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
+    const wasm::FunctionSig* sig =
+        module->signature(module->functions[function_index].sig_index);
+    if (wasm::IsJSCompatibleSignature(sig)) {
+      DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
+                                       wasm::Suspend::kNoSuspend));
+      WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr, result);
+      result->set_code(isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
+    } else {
+      result->set_code(
+          isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig));
+    }
   }
   WasmTrustedInstanceData::SetWasmInternalFunction(trusted_instance_data,
                                                    function_index, result);
@@ -2007,6 +2036,7 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
       kind != wasm::ImportCallKind::kJSFunctionArityMismatch) {
     return false;
   }
+  DCHECK(wasm::IsJSCompatibleSignature(sig));
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
     !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64 &&                     \
     !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_PPC64 &&                    \

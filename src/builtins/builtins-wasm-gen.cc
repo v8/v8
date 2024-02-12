@@ -143,4 +143,14 @@ TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
                result.result3);
 }
 
+TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
+  TNode<WasmApiFunctionRef> ref =
+      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef);
+  TNode<Context> context =
+      LoadObjectField<Context>(ref, WasmApiFunctionRef::kNativeContextOffset);
+
+  CallRuntime(Runtime::kWasmThrowJSTypeError, context);
+  Unreachable();
+}
+
 }  // namespace v8::internal

@@ -4,6 +4,7 @@
 
 namespace runtime {
 extern runtime TierUpWasmToJSWrapper(NoContext, WasmApiFunctionRef): JSAny;
+extern runtime WasmThrowJSTypeError(Context): never;
 }  // namespace runtime
 
 namespace wasm {
@@ -155,6 +156,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       const val = *RefCast<float64>(slot);
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
+      const paramKind = paramType & kValueTypeKindBitsMask;
+      dcheck(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
       nextIndex++;
       hasTaggedParams = true;
     }
