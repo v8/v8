@@ -232,16 +232,17 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                  value, is_true, is_false));
 
   // Check if {{value}} is a BigInt.
-  // The code that MakeDeferredCode emit run after JumpIfRoot, so map can be
-  // used as scratch in MakeDeferredCode.
+  // {{map}} is not needed after this check, we pass to the deferred code, so it
+  // can be added to the temporary registers.
   JumpIfRoot(map, RootIndex::kBigIntMap,
              MakeDeferredCode(
-                 [](MaglevAssembler* masm, Register value, Register scratch,
+                 [](MaglevAssembler* masm, Register value, Register map,
                     ZoneLabelRef is_true, ZoneLabelRef is_false) {
-                   __ Move(scratch,
-                           FieldMemOperand(value, offsetof(BigInt, bitfield_)));
+                   ScratchRegisterScope temps(masm);
+                   temps.Include(map);
                    __ TestInt32AndJumpIfAllClear(
-                       scratch, BigInt::LengthBits::kMask, *is_false);
+                       FieldMemOperand(value, offsetof(BigInt, bitfield_)),
+                       BigInt::LengthBits::kMask, *is_false);
                    __ Jump(*is_true);
                  },
                  value, map, is_true, is_false));
