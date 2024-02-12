@@ -124,9 +124,10 @@ ModuleResult DecodeWasmModule(
 }
 
 ModuleResult DecodeWasmModuleForDisassembler(
-    base::Vector<const uint8_t> wire_bytes) {
+    base::Vector<const uint8_t> wire_bytes, ITracer* tracer) {
   constexpr bool kNoValidateFunctions = false;
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin};
+  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
+                            kDoNotPopulateExplicitRecGroups, tracer};
   return decoder.DecodeModule(kNoValidateFunctions);
 }
 

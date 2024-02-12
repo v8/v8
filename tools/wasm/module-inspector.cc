@@ -521,8 +521,7 @@ class HexDumpModuleDis : public ITracer {
     description_ << "import #" << next_import_index_++;
     NextLine();
   }
-  void ImportsDone() override {
-    const WasmModule* module = decoder_->shared_module().get();
+  void ImportsDone(const WasmModule* module) override {
     next_table_index_ = static_cast<uint32_t>(module->tables.size());
     next_global_index_ = static_cast<uint32_t>(module->globals.size());
     next_tag_index_ = static_cast<uint32_t>(module->tags.size());
@@ -560,6 +559,9 @@ class HexDumpModuleDis : public ITracer {
       NextLine();
     }
   }
+
+  // We handle recgroups via {Description()} hooks.
+  void RecGroupOffset(uint32_t offset, uint32_t group_size) override {}
 
   // The following two hooks give us an opportunity to call the hex-dumping
   // function body disassembler for initializers and functions.
@@ -780,7 +782,9 @@ class FormatConverter {
     if (!LoadFile(input)) return;
     wire_bytes_ = ModuleWireBytes(raw_bytes());
     status_ = kIoInitialized;
-    ModuleResult result = DecodeWasmModuleForDisassembler(raw_bytes());
+    offsets_provider_ = AllocateOffsetsProvider();
+    ModuleResult result =
+        DecodeWasmModuleForDisassembler(raw_bytes(), offsets_provider_.get());
     if (result.failed()) {
       WasmError error = result.error();
       std::cerr << "Decoding error: " << error.message() << " at offset "
@@ -958,8 +962,11 @@ class FormatConverter {
 
     // Print any types that were used by the function.
     sb.NextLine(0);
+    // If we ever want to support disassembling more than one function, we
+    // should find a way to reuse the {offsets_provider_} (which is currently
+    // consumed and released by the {ModuleDisassembler}).
     ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_,
-                          print_offsets_);
+                          std::move(offsets_provider_));
     for (uint32_t type_index : d.used_types()) {
       md.PrintTypeDefinition(type_index, {0, 1},
                              NamesProvider::kIndexAsComment);
@@ -971,7 +978,7 @@ class FormatConverter {
     DCHECK_EQ(status_, kModuleReady);
     MultiLineStringBuilder sb;
     ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_,
-                          print_offsets_);
+                          std::move(offsets_provider_));
     // 100 GB is an approximation of "unlimited".
     size_t max_mb = 100'000;
     md.PrintModule({0, 2}, max_mb);
@@ -1164,6 +1171,7 @@ class FormatConverter {
   std::vector<uint8_t> raw_bytes_;
   ModuleWireBytes wire_bytes_{{}};
   std::shared_ptr<WasmModule> module_;
+  std::unique_ptr<ITracer> offsets_provider_;
   std::unique_ptr<NamesProvider> names_provider_;
 };
 

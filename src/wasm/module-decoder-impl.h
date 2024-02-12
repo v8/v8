@@ -613,10 +613,12 @@ class ModuleDecoderImpl : public Decoder {
       size_t initial_size = module_->types.size();
       if (kind == kWasmRecursiveTypeGroupCode) {
         module_->is_wasm_gc = true;
+        uint32_t rec_group_offset = pc_offset();
         consume_bytes(1, "rec. group definition", tracer_);
         if (tracer_) tracer_->NextLine();
         uint32_t group_size =
             consume_count("recursive group size", kV8MaxWasmTypes);
+        if (tracer_) tracer_->RecGroupOffset(rec_group_offset, group_size);
         if (initial_size + group_size > kV8MaxWasmTypes) {
           errorf(pc(), "Type definition count exceeds maximum %zu",
                  kV8MaxWasmTypes);
@@ -817,7 +819,7 @@ class ModuleDecoderImpl : public Decoder {
     UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
         module_->num_imported_functions);
-    if (tracer_) tracer_->ImportsDone();
+    if (tracer_) tracer_->ImportsDone(module_.get());
   }
 
   void DecodeFunctionSection() {
