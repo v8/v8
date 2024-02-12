@@ -984,10 +984,18 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
                                         Handle<JSReceiver> callable,
                                         wasm::Suspend suspend,
                                         const wasm::FunctionSig* sig) {
-  DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-  Address wrapper = isolate->builtins()
-                        ->code(Builtin::kWasmToJsWrapperAsm)
-                        ->instruction_start();
+  Address wrapper;
+  if (wasm::IsJSCompatibleSignature(sig)) {
+    DCHECK(
+        UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
+    wrapper = isolate->builtins()
+                  ->code(Builtin::kWasmToJsWrapperAsm)
+                  ->instruction_start();
+  } else {
+    wrapper = isolate->builtins()
+                  ->code(Builtin::kWasmToJsWrapperInvalidSig)
+                  ->instruction_start();
+  }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
             instance_object_->ptr(), index_, callable->ptr(), wrapper);
@@ -1418,8 +1426,17 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
 
   if (IsWasmApiFunctionRef(*ref)) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
-    WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr, result);
-    result->set_code(isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
+    const wasm::FunctionSig* sig =
+        module->signature(module->functions[function_index].sig_index);
+    if (wasm::IsJSCompatibleSignature(sig)) {
+      DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
+                                       wasm::Suspend::kNoSuspend));
+      WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr, result);
+      result->set_code(isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
+    } else {
+      result->set_code(
+          isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig));
+    }
   }
   WasmTrustedInstanceData::SetWasmInternalFunction(trusted_instance_data,
                                                    function_index, result);
@@ -1974,6 +1991,7 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
       kind != wasm::ImportCallKind::kJSFunctionArityMismatch) {
     return false;
   }
+  DCHECK(wasm::IsJSCompatibleSignature(sig));
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
     !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64 &&                     \
     !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_PPC64 &&                    \
