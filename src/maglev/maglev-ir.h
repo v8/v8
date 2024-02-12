@@ -214,6 +214,7 @@ class MergePointInterpreterFrameState;
   V(CheckedObjectToIndex)                           \
   V(CheckedTruncateNumberOrOddballToInt32)          \
   V(CheckedInt32ToUint32)                           \
+  V(UnsafeInt32ToUint32)                            \
   V(CheckedUint32ToInt32)                           \
   V(ChangeInt32ToFloat64)                           \
   V(ChangeUint32ToFloat64)                          \
@@ -329,7 +330,7 @@ class MergePointInterpreterFrameState;
   V(BranchIfFloat64IsHole)          \
   V(BranchIfReferenceEqual)         \
   V(BranchIfInt32Compare)           \
-  V(BranchIfInt32InBounds)          \
+  V(BranchIfUint32Compare)          \
   V(BranchIfFloat64Compare)         \
   V(BranchIfUndefinedOrNull)        \
   V(BranchIfUndetectable)           \
@@ -3491,6 +3492,25 @@ class CheckedInt32ToUint32
   static constexpr OpProperties kProperties = OpProperties::Uint32() |
                                               OpProperties::ConversionNode() |
                                               OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class UnsafeInt32ToUint32
+    : public FixedInputValueNodeT<1, UnsafeInt32ToUint32> {
+  using Base = FixedInputValueNodeT<1, UnsafeInt32ToUint32>;
+
+ public:
+  explicit UnsafeInt32ToUint32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Uint32() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
@@ -8878,27 +8898,30 @@ class BranchIfInt32Compare
   Operation operation_;
 };
 
-// Branch if {value} is in [0;upper_bound[ .
-class BranchIfInt32InBounds
-    : public BranchControlNodeT<2, BranchIfInt32InBounds> {
-  using Base = BranchControlNodeT<2, BranchIfInt32InBounds>;
+class BranchIfUint32Compare
+    : public BranchControlNodeT<2, BranchIfUint32Compare> {
+  using Base = BranchControlNodeT<2, BranchIfUint32Compare>;
 
  public:
-  static constexpr int kValueIndex = 0;
-  static constexpr int kUpperBoundIndex = 1;
-  Input& value_input() { return NodeBase::input(kValueIndex); }
-  Input& upper_bound_input() { return NodeBase::input(kUpperBoundIndex); }
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return NodeBase::input(kLeftIndex); }
+  Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfInt32InBounds(uint64_t bitfield, BasicBlockRef* if_true_refs,
+  explicit BranchIfUint32Compare(uint64_t bitfield, Operation operation,
+                                 BasicBlockRef* if_true_refs,
                                  BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs) {}
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+      ValueRepresentation::kUint32, ValueRepresentation::kUint32};
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Operation operation_;
 };
 
 class BranchIfFloat64Compare

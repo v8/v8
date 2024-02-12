@@ -4306,9 +4306,12 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
 
   if (LoadModeHandlesOOB(keyed_mode.load_mode()) &&
       broker()->dependencies()->DependOnNoElementsProtector()) {
-    return Select<BranchIfInt32InBounds>(
+    ValueNode* positive_index;
+    GET_VALUE_OR_ABORT(positive_index, GetUint32ElementIndex(index));
+    ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>({length});
+    return Select<BranchIfUint32Compare>(
         emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); },
-        {index, length});
+        {positive_index, uint32_length}, Operation::kLessThan);
   } else {
     AddNewNode<CheckInt32Condition>({index, length},
                                     AssertCondition::kUnsignedLessThan,
@@ -4526,9 +4529,12 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   };
 
   if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesOOB(load_mode)) {
-    return Select<BranchIfInt32InBounds>(
+    ValueNode* positive_index;
+    GET_VALUE_OR_ABORT(positive_index, GetUint32ElementIndex(index));
+    ValueNode* uint32_length = AddNewNode<UnsafeInt32ToUint32>({length});
+    return Select<BranchIfUint32Compare>(
         emit_load, [&] { return GetRootConstant(RootIndex::kUndefinedValue); },
-        {index, length});
+        {positive_index, uint32_length}, Operation::kLessThan);
   } else {
     AddNewNode<CheckInt32Condition>({index, length},
                                     AssertCondition::kUnsignedLessThan,

@@ -863,6 +863,24 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+constexpr Condition UnsignedConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return kEqual;
+    case Operation::kLessThan:
+      return kUnsignedLessThan;
+    case Operation::kLessThanOrEqual:
+      return kUnsignedLessThanEqual;
+    case Operation::kGreaterThan:
+      return kUnsignedGreaterThan;
+    case Operation::kGreaterThanOrEqual:
+      return kUnsignedGreaterThanEqual;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

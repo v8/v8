@@ -1240,6 +1240,13 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
+void UnsafeInt32ToUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeInt32ToUint32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {}
+
 void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
   UseRegister(input());
   set_temporaries_needed(1);
@@ -6133,16 +6140,16 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
                            if_false(), state.next_block());
 }
 
-void BranchIfInt32InBounds::SetValueLocationConstraints() {
-  UseRegister(value_input());
-  UseRegister(upper_bound_input());
+void BranchIfUint32Compare::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
 }
-void BranchIfInt32InBounds::GenerateCode(MaglevAssembler* masm,
+void BranchIfUint32Compare::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register value = ToRegister(value_input());
-  Register upper_bound = ToRegister(upper_bound_input());
-  __ CompareInt32AndBranch(value, upper_bound, kUnsignedLessThan, if_true(),
-                           if_false(), state.next_block());
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ CompareInt32AndBranch(left, right, UnsignedConditionFor(operation_),
+                           if_true(), if_false(), state.next_block());
 }
 
 void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
@@ -6744,6 +6751,11 @@ void BranchIfFloat64Compare::PrintParams(
 }
 
 void BranchIfInt32Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
+}
+
+void BranchIfUint32Compare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << operation_ << ")";
 }
