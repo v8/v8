@@ -67,6 +67,20 @@ class LoadStoreSimplificationReducer : public Next,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    if (write_barrier != WriteBarrierKind::kNoWriteBarrier &&
+        !index.has_value() && __ Get(base).template Is<ConstantOp>()) {
+      const ConstantOp& const_base = __ Get(base).template Cast<ConstantOp>();
+      if (const_base.IsIntegral() ||
+          const_base.kind == ConstantOp::Kind::kSmi) {
+        // It never makes sense to have a WriteBarrier for a store to a raw
+        // address. We should thus be in unreachable code.
+        // The instruction selector / register allocator don't handle this very
+        // well, so it's easier to emit an Unreachable rather than emitting a
+        // weird store that will never be executed.
+        __ Unreachable();
+        return OpIndex::Invalid();
+      }
+    }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_size_log2,
                              maybe_initializing_or_transitioning,
