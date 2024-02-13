@@ -126,3 +126,36 @@ assertEquals(
 // Test match indices with duplicate groups.
 assertEquals([2, 3], 'abxy'.match(/(?<a>x)|(?<a>y)/d).indices.groups.a);
 assertEquals([2, 3], 'bayx'.match(/(?<a>x)|(?<a>y)/d).indices.groups.a);
+
+// Replace with function as replacement.
+function testReplaceWithCallback(global) {
+  let replace_callback_cnt = 0;
+
+  function checkReplace(match, c1, c2, offset, string, groups) {
+    replace_callback_cnt++;
+    if (offset == 0) {
+      // First callback for match 'xx'.
+      assertEquals('xx', match);
+      assertEquals('x', c1);
+      assertEquals(undefined, c2);
+      assertEquals('xxyy', string);
+    } else {
+      // Second callback for match 'yy'.
+      assertTrue(global);
+      assertEquals(2, offset);
+      assertEquals('yy', match);
+      assertEquals(undefined, c1);
+      assertEquals('y', c2);
+      assertEquals('xxyy', string);
+    }
+    return '2' + groups.a;
+  }
+
+  let re = new RegExp('(?:(?:(?<a>x)|(?<a>y))\\k<a>)', global ? 'g' : '');
+  let expected = global ? '2x2y' : '2xyy';
+  assertEquals(expected, 'xxyy'.replace(re, checkReplace));
+  assertEquals(global ? 2 : 1, replace_callback_cnt);
+}
+
+testReplaceWithCallback(false);
+testReplaceWithCallback(true);
