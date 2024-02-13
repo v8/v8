@@ -597,10 +597,30 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   }
   Handle<WasmTrustedInstanceData> trusted_data(
       instance_object->trusted_data(isolate), isolate);
-  // Get the function's canonical signature index. Note that the function's
-  // signature may not be present in the importing module.
-  uint32_t canonical_sig_index =
-      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
+
+  // Get the function's canonical signature index.
+  uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
+  const wasm::WasmModule* module = trusted_data->module();
+  if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
+    int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+    canonical_sig_index =
+        module->isorecursive_canonical_type_ids[module->functions[func_index]
+                                                    .sig_index];
+  } else {
+    // Indirect function table index.
+    int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
+    int table_count = trusted_data->dispatch_tables()->length();
+    // We have to find the table which contains the correct entry.
+    for (int table_index = 0; table_index < table_count; ++table_index) {
+      Tagged<WasmDispatchTable> table =
+          trusted_data->dispatch_table(table_index);
+      if (table->ref(entry_index) == *ref) {
+        canonical_sig_index = table->sig(entry_index);
+        break;
+      }
+    }
+  }
+  DCHECK_NE(canonical_sig_index, std::numeric_limits<uint32_t>::max());
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(JSReceiver::cast(ref->callable()), isolate);
