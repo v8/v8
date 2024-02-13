@@ -65,7 +65,7 @@ bool Scavenger::PromotionList::Local::ShouldEagerlyProcessPromotionList()
   // now we only look into the regular object list.
   const int kProcessPromotionListThreshold =
       kRegularObjectPromotionListSegmentSize / 2;
-  return LocalPushSegmentSize() < kProcessPromotionListThreshold;
+  return LocalPushSegmentSize() >= kProcessPromotionListThreshold;
 }
 
 bool Scavenger::PromotionList::IsEmpty() const {

@@ -768,7 +768,7 @@ void Scavenger::Process(JobDelegate* delegate) {
   do {
     done = true;
     ObjectAndSize object_and_size;
-    while (promotion_list_local_.ShouldEagerlyProcessPromotionList() &&
+    while (!promotion_list_local_.ShouldEagerlyProcessPromotionList() &&
            copied_list_local_.Pop(&object_and_size)) {
       scavenge_visitor.Visit(object_and_size.first);
       done = false;
