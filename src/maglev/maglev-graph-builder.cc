@@ -8918,6 +8918,11 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
 
   compiler::NativeContextRef native_context = broker()->target_native_context();
   compiler::MapRef map = native_context.GetInitialJSArrayMap(broker(), kind);
+  // Initial JSArray map shouldn't have any in-object properties.
+  // The fields array of the FastObject is allocated according to the in-object
+  // property count. The array stays uninitialized, but it is later accessed in
+  // BuildAllocateFastObject
+  SBXCHECK_EQ(map.GetInObjectProperties(), 0);
   FastObject literal(map, zone(), {});
   literal.js_array_length = MakeRef(broker(), Object::cast(Smi::zero()));
   SetAccumulator(BuildAllocateFastObject(literal, AllocationType::kYoung));
