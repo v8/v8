@@ -7041,6 +7041,41 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
   return decoder.ok();
 }
 
+class WasmWrapperTSGraphBuilder : public TurboshaftGraphBuildingInterface {
+ public:
+  WasmWrapperTSGraphBuilder(Zone* zone, Assembler& assembler,
+                            const WasmModule* module,
+                            const wasm::FunctionSig* sig,
+                            StubCallMode stub_mode, Isolate* isolate)
+      : TurboshaftGraphBuildingInterface(zone, assembler, nullptr, {}, 0, {}) {}
+
+  void BuildJSToWasmWrapper(
+      bool is_import, bool do_conversion = true,
+      compiler::turboshaft::OptionalOpIndex frame_state =
+          compiler::turboshaft::OptionalOpIndex::Invalid(),
+      bool set_in_wasm_flag = true) {
+    // TODO(thibaudm): Implement.
+    UNIMPLEMENTED();
+  }
+};
+
+void BuildWasmWrapper(AccountingAllocator* allocator,
+                      compiler::turboshaft::Graph& graph, CodeKind code_kind,
+                      const wasm::FunctionSig* sig, bool is_import,
+                      const WasmModule* module) {
+  Zone zone(allocator, ZONE_NAME);
+  if (code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
+    Assembler assembler(graph, graph, &zone);
+    WasmWrapperTSGraphBuilder builder(&zone, assembler, module, sig,
+                                      StubCallMode::kCallBuiltinPointer,
+                                      nullptr);
+    builder.BuildJSToWasmWrapper(is_import);
+  } else {
+    // TODO(thibaudm): Port remaining wrappers.
+    UNREACHABLE();
+  }
+}
+
 #undef LOAD_IMMUTABLE_INSTANCE_FIELD
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_ROOT
