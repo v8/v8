@@ -1714,6 +1714,12 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
+    if (lookup_result.mode == VariableMode::kLet &&
+        v8_flags.const_tracking_let) {
+      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
+                                              lookup_result.slot_index, value,
+                                              isolate());
+    }
 
     Tagged<Object> previous_value =
         script_context->get(lookup_result.slot_index);
@@ -3023,26 +3029,30 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(name, &lookup_result)) {
-    DisallowGarbageCollection no_gc;
-    DisableGCMole no_gcmole;
-    Tagged<Context> script_context =
-        script_contexts->get(lookup_result.context_index);
+    Handle<Context> script_context =
+        handle(script_contexts->get(lookup_result.context_index), isolate);
     if (lookup_result.mode == VariableMode::kConst) {
-      AllowGarbageCollection yes_gc;
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
-    Tagged<Object> previous_value =
-        script_context->get(lookup_result.slot_index);
+    {
+      DisallowGarbageCollection no_gc;
+      Tagged<Object> previous_value =
+          script_context->get(lookup_result.slot_index);
 
-    if (IsTheHole(previous_value, isolate)) {
-      AllowGarbageCollection yes_gc;
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(
-                       MessageTemplate::kAccessedUninitializedVariable, name));
+      if (IsTheHole(previous_value, isolate)) {
+        AllowGarbageCollection yes_gc;
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate,
+            NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
+                              name));
+      }
     }
-
+    if (v8_flags.const_tracking_let) {
+      Context::UpdateConstTrackingLetSideData(
+          script_context, lookup_result.slot_index, value, isolate);
+    }
     script_context->set(lookup_result.slot_index, *value);
     return *value;
   }

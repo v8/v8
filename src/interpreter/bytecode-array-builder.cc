@@ -4,6 +4,8 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/ast/scopes.h"
+#include "src/ast/variables.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
@@ -770,12 +772,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
-                                                             int slot_index,
+                                                             Variable* variable,
                                                              int depth) {
-  if (context.is_current_context() && depth == 0) {
-    OutputStaCurrentContextSlot(slot_index);
+  int slot_index = variable->index();
+  if (v8_flags.const_tracking_let && variable->scope()->is_script_scope() &&
+      variable->mode() == VariableMode::kLet) {
+    if (context.is_current_context() && depth == 0) {
+      OutputStaCurrentScriptContextSlot(slot_index);
+    } else {
+      OutputStaScriptContextSlot(context, slot_index, depth);
+    }
   } else {
-    OutputStaContextSlot(context, slot_index, depth);
+    if (context.is_current_context() && depth == 0) {
+      OutputStaCurrentContextSlot(slot_index);
+    } else {
+      OutputStaContextSlot(context, slot_index, depth);
+    }
   }
   return *this;
 }

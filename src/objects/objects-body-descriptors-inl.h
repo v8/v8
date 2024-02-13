@@ -1340,6 +1340,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Cell);
     case PROPERTY_CELL_TYPE:
       return CALL_APPLY(PropertyCell);
+    case CONST_TRACKING_LET_CELL_TYPE:
+      return CALL_APPLY(ConstTrackingLetCell);
     case SYMBOL_TYPE:
       return CALL_APPLY(Symbol);
     case SMALL_ORDERED_HASH_SET_TYPE:

@@ -116,6 +116,7 @@ namespace internal {
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
   V(Constructor)                                \
+  V(ConstTrackingLetCell)                       \
   V(Context)                                    \
   V(CoverageInfo)                               \
   V(DataHandler)                                \
