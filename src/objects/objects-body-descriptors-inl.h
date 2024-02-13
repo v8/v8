@@ -366,7 +366,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
     v->VisitExternalPointer(
-        map, obj->RawExternalPointerField(kExtensionOffset,
+        obj, obj->RawExternalPointerField(kExtensionOffset,
                                           kArrayBufferExtensionTag));
   }
 
