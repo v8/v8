@@ -9186,6 +9186,13 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     if (i < number_of_own_descriptors && object.fields[i].IsInitialized()) {
       compiler::NameRef name =
           object.map.GetPropertyKey(broker(), InternalIndex(i));
+      if (object.fields[i].type == FastField::kMutableDouble) {
+        // Do not cache the property if it is a recently allocated HeapNumber,
+        // since the loaded result should be immutable.
+        // TOOD(victorgomes): we could cache the double value instead and force
+        // an allocation at loading point.
+        continue;
+      }
       // We record as a load, since we don't want to wipe the recorded
       // properties with this name so far. Since we have just allocated the
       // object, it is impossible to alias.
