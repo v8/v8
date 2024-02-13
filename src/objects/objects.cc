@@ -2452,8 +2452,11 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         return AddDataProperty(&own_lookup, value, NONE, should_throw,
                                store_origin);
 
-      case LookupIterator::TRANSITION:
       case LookupIterator::WASM_OBJECT:
+        RETURN_FAILURE(it->isolate(), kThrowOnError,
+                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
     }
     UNREACHABLE();
