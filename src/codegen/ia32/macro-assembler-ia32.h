@@ -236,12 +236,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  void CallCFunction(
+  int CallCFunction(
       ExternalReference function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
-  void CallCFunction(
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
+  int CallCFunction(
       Register function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
 
   void ShlPair(Register high, Register low, uint8_t imm8);
   void ShlPair_cl(Register high, Register low);

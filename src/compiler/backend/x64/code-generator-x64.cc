@@ -1550,21 +1550,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      int pc_offset;
       if (HasImmediateInput(instr, 0)) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters + num_fp_parameters,
-                         set_isolate_data_slots);
+        pc_offset = __ CallCFunction(ref, num_gp_parameters + num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters + num_fp_parameters,
-                         set_isolate_data_slots);
+        pc_offset =
+            __ CallCFunction(func, num_gp_parameters + num_fp_parameters,
+                             set_isolate_data_slots, &return_location);
       }
-      __ bind(&return_location);
-#if V8_ENABLE_WEBASSEMBLY
-      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
-        RecordSafepoint(instr->reference_map());
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
+      RecordSafepoint(instr->reference_map(), pc_offset);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
