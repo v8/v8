@@ -966,16 +966,6 @@ Correctly predicted as caught
 Running test: testCase
 > Throwing from rejectAfterFulfillInPromiseConstructor, handling with dontHandleAsync
 console: after pass
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:160:11)
-rejectAfterFulfillInPromiseConstructor (catch-prediction.js:157:9)
-dontHandleAsync (catch-prediction.js:183:8)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: after reject
 console: awaiting promise
 console: finished without error
@@ -986,16 +976,6 @@ WARNING: Test paused 0 times
 Running test: testCase
 > Throwing from rejectAfterFulfillInPromiseConstructor, handling with awaitAndCreateInTry
 console: after pass
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:160:11)
-rejectAfterFulfillInPromiseConstructor (catch-prediction.js:157:9)
-awaitAndCreateInTry (catch-prediction.js:189:10)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: after reject
 console: awaiting promise
 console: finished without error
@@ -1007,18 +987,6 @@ Running test: testCase
 > Throwing from rejectAfterDelayAfterFulfillInPromiseConstructor, handling with dontHandleAsync
 console: awaiting promise
 console: finished without error
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:168:28)
--- setTimeout --
-(anonymous) (catch-prediction.js:168:4)
-rejectAfterDelayAfterFulfillInPromiseConstructor (catch-prediction.js:166:9)
-dontHandleAsync (catch-prediction.js:183:8)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 
 WARNING: Test paused 0 times
 ------------------------------------------------------
@@ -1027,18 +995,6 @@ Running test: testCase
 > Throwing from rejectAfterDelayAfterFulfillInPromiseConstructor, handling with awaitAndCreateInTry
 console: awaiting promise
 console: finished without error
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:168:28)
--- setTimeout --
-(anonymous) (catch-prediction.js:168:4)
-rejectAfterDelayAfterFulfillInPromiseConstructor (catch-prediction.js:166:9)
-awaitAndCreateInTry (catch-prediction.js:189:10)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 
 WARNING: Test paused 0 times
 ------------------------------------------------------
@@ -1056,20 +1012,10 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:176:10)
-throwAfterFulfillInPromiseConstructor (catch-prediction.js:173:9)
-dontHandleAsync (catch-prediction.js:183:8)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: awaiting promise
 console: finished without error
 
-Correctly predicted as uncaught
+PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1085,20 +1031,10 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:176:10)
-throwAfterFulfillInPromiseConstructor (catch-prediction.js:173:9)
-awaitAndCreateInTry (catch-prediction.js:189:10)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: awaiting promise
 console: finished without error
 
-Correctly predicted as uncaught
+PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1740,20 +1676,8 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:10:63)
--- setTimeout --
-(anonymous) (catch-prediction.js:10:39)
-rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
-ignoredPromiseRace (catch-prediction.js:294:41)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 
-Correctly predicted as uncaught
+PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1769,18 +1693,9 @@ testWrapper (catch-prediction.js:438:8)
 
 Uncaught message immediately revoked for reason: Handler added to rejected promise
 console: awaiting promise
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-promiseReject (catch-prediction.js:14:24)
-ignoredPromiseRace (catch-prediction.js:294:41)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: finished without error
 
-Correctly predicted as uncaught
+PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1799,20 +1714,8 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-(anonymous) (catch-prediction.js:10:63)
--- setTimeout --
-(anonymous) (catch-prediction.js:10:39)
-rejectAfterDelayInPromiseConstructor (catch-prediction.js:10:9)
-ignoredPromiseRaceInTry (catch-prediction.js:301:43)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1828,18 +1731,9 @@ testWrapper (catch-prediction.js:438:8)
 
 Uncaught message immediately revoked for reason: Handler added to rejected promise
 console: awaiting promise
-Uncaught exception: Uncaught Error: fail
--- <empty> --
-promiseReject (catch-prediction.js:14:24)
-ignoredPromiseRaceInTry (catch-prediction.js:301:43)
-runWithResolution (catch-prediction.js:427:22)
--- setTimeout --
-(anonymous) (catch-prediction.js:438:31)
-testWrapper (catch-prediction.js:438:8)
-(anonymous) (test_framework.js:0:0)
 console: finished without error
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
