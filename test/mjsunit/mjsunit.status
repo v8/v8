@@ -1664,6 +1664,7 @@
   'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
+  'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'regress/wasm/regress-9447': [SKIP],

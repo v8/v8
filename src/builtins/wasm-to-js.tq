@@ -262,6 +262,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
+      const retKind = retType & kValueTypeKindBitsMask;
+      dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
       dcheck(ref.instance == Undefined || Is<WasmInstanceObject>(ref.instance));
       const trustedData = ref.instance == Undefined ?
           Undefined :
