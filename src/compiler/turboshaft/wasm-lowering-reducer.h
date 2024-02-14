@@ -922,7 +922,7 @@ class WasmLoweringReducer : public Next {
             ? RootIndex::kNullValue
             : RootIndex::kWasmNull;
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::UintPtr(),
+                   MemoryRepresentation::TaggedPointer(),
                    IsolateData::root_slot_offset(index));
   }
 

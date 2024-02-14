@@ -2244,6 +2244,7 @@ class TurboshaftAssemblerOpInterface
   V<Map> LoadMapField(V<Object> object) {
     return LoadField<Map>(object, AccessBuilder::ForMap());
   }
+
   V<Word32> LoadInstanceTypeField(V<Map> map) {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }

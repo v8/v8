@@ -5789,14 +5789,15 @@ class TurboshaftGraphBuildingInterface {
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
+        V<WeakArrayList> rtts = LOAD_TAGGED_ROOT(WasmCanonicalRtts);
         V<Tagged> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
             WeakArrayList::kHeaderSize, kTaggedSizeLog2);
-        V<Map> real_rtt = V<Map>::Cast(__ WordPtrBitwiseAnd(
-            __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(weak_rtt)),
-            ~kWeakHeapObjectMask));
+        V<Map> real_rtt =
+            V<Map>::Cast(__ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
+                __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(weak_rtt)),
+                ~kWeakHeapObjectMask)));
         V<WasmTypeInfo> type_info =
             __ Load(real_rtt, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::TaggedPointer(),
@@ -6199,7 +6200,7 @@ class TurboshaftGraphBuildingInterface {
         Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
     OpIndex centry_stub =
         __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::UintPtr(), builtin_slot_offset);
+                MemoryRepresentation::TaggedPointer(), builtin_slot_offset);
     // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
     // always suffices.
     SmallZoneVector<OpIndex, 4> centry_args(decoder->zone_);

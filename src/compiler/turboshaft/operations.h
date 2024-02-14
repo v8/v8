@@ -3528,7 +3528,13 @@ struct CallOp : OperationT<CallOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     storage.resize(input_count);
     size_t i = 0;
-    storage[i++] = MaybeRegisterRepresentation::Tagged();  // True for wasm?
+    if (descriptor->descriptor->IsCodeObjectCall() ||
+        descriptor->descriptor->IsJSFunctionCall() ||
+        descriptor->descriptor->IsBuiltinPointerCall()) {
+      storage[i++] = MaybeRegisterRepresentation::Tagged();
+    } else {
+      storage[i++] = MaybeRegisterRepresentation::WordPtr();
+    }
     if (HasFrameState()) {
       storage[i++] = MaybeRegisterRepresentation::None();
     }

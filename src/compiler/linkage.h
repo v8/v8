@@ -159,6 +159,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  bool IsBuiltinPointerCall() const { return kind_ == kCallBuiltinPointer; }
+
   bool RequiresFrameAsIncoming() const {
     if (IsCFunctionCall() || IsJSFunctionCall()) return true;
 #if V8_ENABLE_WEBASSEMBLY
