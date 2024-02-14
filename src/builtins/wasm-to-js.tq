@@ -4,7 +4,6 @@
 
 namespace runtime {
 extern runtime TierUpWasmToJSWrapper(NoContext, WasmApiFunctionRef): JSAny;
-extern runtime WasmThrowJSTypeError(Context): never;
 }  // namespace runtime
 
 namespace wasm {
