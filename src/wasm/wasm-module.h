@@ -83,6 +83,7 @@ struct WasmGlobal {
     // for value-typed globals, and in tagged words for reference-typed globals.
     uint32_t offset;
   };
+  bool shared;
   bool imported;  // true if imported.
   bool exported;  // true if exported.
 };

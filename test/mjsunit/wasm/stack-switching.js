@@ -102,7 +102,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchNoSuspend() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true).exportAs('g');
+  builder.addGlobal(kWasmI32, true, false).exportAs('g');
   builder.addFunction("test", kSig_i_r)
       .addBody([
           kExprI32Const, 42,
@@ -158,7 +158,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchSuspendLoop() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true).exportAs('g');
+  builder.addGlobal(kWasmI32, true, false).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_r);
   // Pseudo-code for the wasm function:
   // for (i = 0; i < 5; ++i) {
@@ -246,7 +246,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchNoPromise() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true).exportAs('g');
+  builder.addGlobal(kWasmI32, true, false).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_r);
   builder.addFunction("test", kSig_i_r)
       .addBody([
@@ -565,7 +565,7 @@ function TestNestedSuspenders(suspend) {
   let builder = new WasmModuleBuilder();
   let import1_index = builder.addImport("m", "import1", kSig_i_v);
   let import2_index = builder.addImport("m", "import2", kSig_i_r);
-  builder.addGlobal(kWasmExternRef, true);
+  builder.addGlobal(kWasmExternRef, true, false);
   builder.addFunction("export1", kSig_i_r)
       .addBody([
           // export1 -> import1 (unwrapped)

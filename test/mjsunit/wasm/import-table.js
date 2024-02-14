@@ -89,7 +89,7 @@ let kTableSize = 50;
 })();
 
 function addConstFuncUsingGlobal(builder, val) {
-  let g = builder.addGlobal(kWasmI32, false, wasmI32Const(val));
+  let g = builder.addGlobal(kWasmI32, false, false, wasmI32Const(val));
   return builder.addFunction("global" + val, kSig_i_v)
     .addBody([kExprGlobalGet, g.index]).index;
 }

@@ -81,7 +81,8 @@ class TestModuleBuilder {
     if (is_asmjs_module(&mod)) mod.validated_functions[0] = 0xff;
   }
   uint8_t AddGlobal(ValueType type, bool mutability = true) {
-    mod.globals.push_back({type, mutability, {}, {0}, false, false});
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    mod.globals.push_back({type, mutability, {}, {0}, kIsShared, false, false});
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.globals.size() - 1);
   }

@@ -294,7 +294,7 @@ let kBuiltins = { builtins: ["js-string", "text-decoder", "text-encoder"] };
       .addBody([kExprGlobalGet, i]);
   }
   for (let i = 0; i < interestingStrings.length; i++) {
-    builder.addGlobal(kRefExtern, false, [kExprGlobalGet, i])
+    builder.addGlobal(kRefExtern, false, false, [kExprGlobalGet, i])
       .exportAs("global" + i);
   }
   let instance = builder.instantiate(kImports, kBuiltins);

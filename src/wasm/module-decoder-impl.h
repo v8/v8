@@ -791,10 +791,14 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
           module_->num_imported_globals++;
-          module_->globals.push_back({kWasmVoid, false, {}, {0}, true, false});
+          module_->globals.push_back(
+              {kWasmVoid, false, {}, {0}, false, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
-          global->mutability = consume_mutability();
+          auto [mutability, shared] = consume_global_flags();
+          if (failed()) break;
+          global->mutability = mutability;
+          global->shared = shared;
           if (global->mutability) {
             module_->num_imported_mutable_globals++;
           }
@@ -960,10 +964,11 @@ class ModuleDecoderImpl : public Decoder {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->GlobalOffset(pc_offset());
       ValueType type = consume_value_type();
-      bool mutability = consume_mutability();
+      auto [mutability, shared] = consume_global_flags();
       if (failed()) break;
       ConstantExpression init = consume_init_expr(module_.get(), type);
-      module_->globals.push_back({type, mutability, init, {0}, false, false});
+      module_->globals.push_back(
+          {type, mutability, init, {0}, shared, false, false});
     }
   }
 
@@ -1905,6 +1910,24 @@ class ModuleDecoderImpl : public Decoder {
       tracer_->Description(has_maximum ? " with maximum" : " no maximum");
       tracer_->NextLine();
     }
+  }
+
+  std::pair<bool, bool> consume_global_flags() {
+    uint8_t flags = consume_u8("global flags", tracer_);
+    if (flags & ~0b11) {
+      errorf(pc() - 1, "invalid global flags 0x%x", flags);
+      return {false, false};
+    }
+    bool mutability = flags & 0b1;
+    bool shared = flags & 0b10;
+    if (shared && !v8_flags.experimental_wasm_shared) {
+      errorf(
+          pc() - 1,
+          "invalid global flags 0x%x (enable via --experimental-wasm-shared)",
+          flags);
+      return {false, false};
+    }
+    return {mutability, shared};
   }
 
   enum ResizableLimitsType : bool { k32BitLimits, k64BitLimits };

@@ -1225,6 +1225,7 @@ void ModuleDisassembler::PrintMemory(const WasmMemory& memory) {
 
 void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
   out_ << " ";
+  if (global.shared) out_ << "shared ";
   PrintMutableType(global.mutability, global.type);
 }
 

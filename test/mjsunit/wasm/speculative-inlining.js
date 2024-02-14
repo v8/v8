@@ -20,7 +20,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
-  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false, false,
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5) + x
@@ -51,9 +51,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee1 = builder.addFunction("callee1", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
-  let global0 = builder.addGlobal(wasmRefType(sig_index), false,
+  let global0 = builder.addGlobal(wasmRefType(sig_index), false, false,
                                   [kExprRefFunc, callee0.index]);
-  let global1 = builder.addGlobal(wasmRefType(sig_index), false,
+  let global1 = builder.addGlobal(wasmRefType(sig_index), false, false,
                                   [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(5) + x } else { f(7) + x }
@@ -91,7 +91,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
-  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false, false,
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5 + x)
@@ -123,9 +123,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee1 = builder.addFunction("callee1", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
-  let global0 = builder.addGlobal(wasmRefType(sig_index), false,
+  let global0 = builder.addGlobal(wasmRefType(sig_index), false, false,
                                  [kExprRefFunc, callee0.index]);
-  let global1 = builder.addGlobal(wasmRefType(sig_index), false,
+  let global1 = builder.addGlobal(wasmRefType(sig_index), false, false,
                                  [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(x) } else { f(x) }
@@ -245,7 +245,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
-  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false, false,
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5 + x)

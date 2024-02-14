@@ -309,7 +309,7 @@ function makeWtf16TestDataSegment() {
       .exportFunc()
       .addBody([...GCInstr(kExprStringConst), index]);
 
-    builder.addGlobal(kWasmStringRef, false,
+    builder.addGlobal(kWasmStringRef, false, false,
                       [...GCInstr(kExprStringConst), index])
       .exportAs("global" + index);
   }
@@ -1130,7 +1130,7 @@ function makeWtf16TestDataSegment() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let global = builder.addGlobal(kWasmStringViewIter, true);
+  let global = builder.addGlobal(kWasmStringViewIter, true, false);
 
   builder.addFunction("iterate", kSig_v_w)
     .exportFunc()

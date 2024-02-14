@@ -48,7 +48,12 @@
   /* JavaScript Promise Integration proposal. */                               \
   /* https://github.com/WebAssembly/js-promise-integration */                  \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(jspi, "javascript promise integration", false)
+  V(jspi, "javascript promise integration", false)                             \
+                                                                               \
+  /* Shared-Everything Threads proposal. */                                    \
+  /* https://github.com/WebAssembly/shared-everything-threads */               \
+  /* V8 side owner: manoskouk */                                               \
+  V(shared, "shared-everything threads", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

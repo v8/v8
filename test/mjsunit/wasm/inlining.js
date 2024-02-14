@@ -47,7 +47,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let global = builder.addGlobal(kWasmI32, true);
+  let global = builder.addGlobal(kWasmI32, true, false);
 
   let callee = builder.addFunction("callee", kSig_v_i)
     .addBody([kExprLocalGet, 0, kExprGlobalSet, global.index]);

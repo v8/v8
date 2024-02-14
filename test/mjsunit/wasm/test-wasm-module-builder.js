@@ -195,7 +195,7 @@ function instantiate(buffer, ffi) {
     builder.addType(kSig_i_i);
     builder.addFunction(undefined, i)
            .addBody([kExprLocalGet, 0]);
-    builder.addGlobal(wasmRefType(i), false,
+    builder.addGlobal(wasmRefType(i), false, false,
                       [kExprRefFunc, ...wasmSignedLeb(i)]);
   }
   for (let i of indices) {

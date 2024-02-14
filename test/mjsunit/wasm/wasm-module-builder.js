@@ -1190,10 +1190,11 @@ class WasmFunctionBuilder {
 }
 
 class WasmGlobalBuilder {
-  constructor(module, type, mutable, init) {
+  constructor(module, type, mutable, shared, init) {
     this.module = module;
     this.type = type;
     this.mutable = mutable;
+    this.shared = shared;
     this.init = init;
   }
 
@@ -1421,10 +1422,10 @@ class WasmModuleBuilder {
     }
   }
 
-  addGlobal(type, mutable, init) {
+  addGlobal(type, mutable, shared, init) {
     if (init === undefined) init = WasmModuleBuilder.defaultFor(type);
     checkExpr(init);
-    let glob = new WasmGlobalBuilder(this, type, mutable, init);
+    let glob = new WasmGlobalBuilder(this, type, mutable, shared, init);
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
@@ -1479,7 +1480,7 @@ class WasmModuleBuilder {
     return this.num_imported_funcs++;
   }
 
-  addImportedGlobal(module, name, type, mutable = false) {
+  addImportedGlobal(module, name, type, mutable = false, shared = false) {
     if (this.globals.length != 0) {
       throw new Error('Imported globals must be declared before local ones');
     }
@@ -1488,7 +1489,8 @@ class WasmModuleBuilder {
       name: name,
       kind: kExternalGlobal,
       type: type,
-      mutable: mutable
+      mutable: mutable,
+      shared: shared
     };
     this.imports.push(o);
     return this.num_imported_globals++;
@@ -1761,7 +1763,8 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.type_index);
           } else if (imp.kind == kExternalGlobal) {
             section.emit_type(imp.type);
-            section.emit_u8(imp.mutable);
+            let flags = (imp.mutable ? 1 : 0) | (imp.shared ? 0b10 : 0);
+            section.emit_u8(flags);
           } else if (imp.kind == kExternalMemory) {
             const has_max = imp.maximum !== undefined;
             const is_shared = !!imp.shared;
@@ -1870,7 +1873,7 @@ class WasmModuleBuilder {
         section.emit_u32v(wasm.globals.length);
         for (let global of wasm.globals) {
           section.emit_type(global.type);
-          section.emit_u8(global.mutable);
+          section.emit_u8((global.mutable ? 1 : 0) | (global.shared ? 0b10 : 0));
           section.emit_init_expr(global.init);
         }
       });
