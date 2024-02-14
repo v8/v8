@@ -224,10 +224,17 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  Handle<Code> code = job_->compilation_info()->code();
+  OptimizedCompilationInfo* info =
+      v8_flags.turboshaft_wasm_wrappers
+          ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
+                job_.get())
+                ->compilation_info()
+          : static_cast<TurbofanCompilationJob*>(job_.get())
+                ->compilation_info();
+  Handle<Code> code = info->code();
   if (isolate_->IsLoggingCodeCreation()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
-        job_->compilation_info()->GetDebugName().get());
+        info->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Handle<AbstractCode>::cast(code), name));
   }

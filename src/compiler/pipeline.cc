@@ -313,7 +313,7 @@ class PipelineData {
       machine_ = jsgraph->machine();
       common_ = jsgraph->common();
       javascript_ = jsgraph->javascript();
-    } else {
+    } else if (graph_) {
       simplified_ = graph_zone_->New<SimplifiedOperatorBuilder>(graph_zone_);
       machine_ = graph_zone_->New<MachineOperatorBuilder>(
           graph_zone_, MachineType::PointerRepresentation(),
@@ -2733,7 +2733,7 @@ class WasmTurboshaftWrapperCompilationJob final
       // dereferenced there.
       : TurboshaftCompilationJob(&info_,
                                  CompilationJob::State::kReadyToExecute),
-        zone_(isolate->allocator(), ZONE_NAME),
+        zone_(wasm::GetWasmEngine()->allocator(), ZONE_NAME),
         debug_name_(std::move(debug_name)),
         info_(base::CStrVector(debug_name_.get()), &zone_, kind),
         sig_(sig),
@@ -2919,8 +2919,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                    "Graph generation");
 
-  // Skip the LoopUnrolling, WasmGCOptimize and WasmOptimize phases for
-  // wrappers.
+  // Skip the LoopUnrolling and WasmGCOptimize phases for wrappers.
+  pipeline_.Run<turboshaft::WasmLoweringPhase>();
   // TODO(14108): Do we need value numbering if wasm_opt is turned off?
   if (v8_flags.wasm_opt) {
     pipeline_.Run<turboshaft::WasmOptimizePhase>();
@@ -4113,7 +4113,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     tracing_scope.stream()
         << "---------------------------------------------------\n"
         << "Finished compiling method " << data.info()->GetDebugName().get()
-        << " using TurboFan" << std::endl;
+        << " using Turboshaft" << std::endl;
   }
 
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {

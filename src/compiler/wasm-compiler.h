@@ -15,6 +15,7 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything else from src/compiler here!
 #include "src/base/small-vector.h"
+#include "src/codegen/compiler.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
@@ -86,7 +87,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              Handle<JSReceiver> callable);
 
 // Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
-std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     wasm::WasmFeatures enabled_features);

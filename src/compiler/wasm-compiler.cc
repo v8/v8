@@ -32,6 +32,7 @@
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turboshaft/wasm-turboshaft-compiler.h"
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
@@ -40,6 +41,7 @@
 #include "src/execution/simulator-base.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/name.h"
@@ -8565,40 +8567,47 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
   builder.BuildJSToWasmWrapper(is_import, false, frame_state, set_in_wasm_flag);
 }
 
-std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     wasm::WasmFeatures enabled_features) {
-  //----------------------------------------------------------------------------
-  // Create the Graph.
-  //----------------------------------------------------------------------------
-  std::unique_ptr<Zone> zone = std::make_unique<Zone>(
-      wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-  Graph* graph = zone->New<Graph>(zone.get());
-  CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
-  MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
-      zone.get(), MachineType::PointerRepresentation(),
-      InstructionSelector::SupportedMachineOperatorFlags(),
-      InstructionSelector::AlignmentRequirements());
-  MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
-
-  WasmWrapperGraphBuilder builder(
-      zone.get(), mcgraph, sig, module, WasmGraphBuilder::kJSFunctionAbiMode,
-      isolate, nullptr, StubCallMode::kCallBuiltinPointer, enabled_features);
-  builder.BuildJSToWasmWrapper(is_import);
-
-  //----------------------------------------------------------------------------
-  // Create the compilation job.
-  //----------------------------------------------------------------------------
   std::unique_ptr<char[]> debug_name = WasmExportedFunction::GetDebugName(sig);
+  if (v8_flags.turboshaft_wasm_wrappers) {
+    return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
+        isolate, sig, is_import, module, CodeKind::JS_TO_WASM_FUNCTION,
+        std::move(debug_name), WasmAssemblerOptions());
+  } else {
+    std::unique_ptr<Zone> zone = std::make_unique<Zone>(
+        wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
+    int params = static_cast<int>(sig->parameter_count());
+    CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
+        zone.get(), false, params + 1, CallDescriptor::kNoFlags);
 
-  int params = static_cast<int>(sig->parameter_count());
-  CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
-      zone.get(), false, params + 1, CallDescriptor::kNoFlags);
+    //----------------------------------------------------------------------------
+    // Create the Graph.
+    //----------------------------------------------------------------------------
+    Graph* graph = zone->New<Graph>(zone.get());
+    CommonOperatorBuilder* common =
+        zone->New<CommonOperatorBuilder>(zone.get());
+    MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
+        zone.get(), MachineType::PointerRepresentation(),
+        InstructionSelector::SupportedMachineOperatorFlags(),
+        InstructionSelector::AlignmentRequirements());
+    MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  return Pipeline::NewWasmHeapStubCompilationJob(
-      isolate, incoming, std::move(zone), graph, CodeKind::JS_TO_WASM_FUNCTION,
-      std::move(debug_name), WasmAssemblerOptions());
+    WasmWrapperGraphBuilder builder(
+        zone.get(), mcgraph, sig, module, WasmGraphBuilder::kJSFunctionAbiMode,
+        isolate, nullptr, StubCallMode::kCallBuiltinPointer, enabled_features);
+    builder.BuildJSToWasmWrapper(is_import);
+
+    //----------------------------------------------------------------------------
+    // Create the compilation job.
+    //----------------------------------------------------------------------------
+    return Pipeline::NewWasmHeapStubCompilationJob(
+        isolate, incoming, std::move(zone), graph,
+        CodeKind::JS_TO_WASM_FUNCTION, std::move(debug_name),
+        WasmAssemblerOptions());
+  }
 }
 
 namespace {

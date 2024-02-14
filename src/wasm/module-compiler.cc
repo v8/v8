@@ -2050,6 +2050,11 @@ void CompileNativeModule(Isolate* isolate,
       InitializeCompilation(isolate, native_module.get(), pgo_info);
   compilation_state->InitializeCompilationUnits(std::move(builder));
 
+  // Wrapper compilation jobs keep a pointer to the function signatures, so
+  // finish them before we validate and potentially free the module.
+  compilation_state->WaitForCompilationEvent(
+      CompilationEvent::kFinishedExportWrappers);
+
   // Validate wasm modules for lazy compilation if requested. Never validate
   // asm.js modules as these are valid by construction (additionally a CHECK
   // will catch this during lazy compilation).
@@ -2062,12 +2067,8 @@ void CompileNativeModule(Isolate* isolate,
     }
   }
 
-  compilation_state->WaitForCompilationEvent(
-      CompilationEvent::kFinishedExportWrappers);
-
   if (!compilation_state->failed()) {
     compilation_state->FinalizeJSToWasmWrappers(isolate, module);
-
     compilation_state->WaitForCompilationEvent(
         CompilationEvent::kFinishedBaselineCompilation);
 
