@@ -18,6 +18,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/cell.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
@@ -2206,6 +2207,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags = AllocationFlag::kNone);
   TNode<NameDictionary> AllocateNameDictionaryWithCapacity(
       TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
+
+  TNode<PropertyDictionary> AllocatePropertyDictionary(int at_least_space_for);
+  TNode<PropertyDictionary> AllocatePropertyDictionary(
+      TNode<IntPtrT> at_least_space_for,
+      AllocationFlags = AllocationFlag::kNone);
+  TNode<PropertyDictionary> AllocatePropertyDictionaryWithCapacity(
+      TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
+
   TNode<NameDictionary> CopyNameDictionary(TNode<NameDictionary> dictionary,
                                            Label* large_object_fallback);
 
@@ -2879,7 +2888,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(TNode<Map> map);
-  TNode<BoolT> IsNameDictionary(TNode<HeapObject> object);
+  TNode<BoolT> IsPropertyDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsOrderedNameDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(TNode<Map> map);
@@ -2992,7 +3001,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
-  TNode<BoolT> IsSwissNameDictionary(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);

@@ -2119,13 +2119,8 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   };
   NodeGenerator<HeapObject> cast_properties = [=] {
     TNode<HeapObject> dict = CAST(properties);
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(dict),
-                                IsGlobalDictionary(dict)));
-    } else {
-      CSA_DCHECK(this,
-                 Word32Or(IsNameDictionary(dict), IsGlobalDictionary(dict)));
-    }
+    CSA_DCHECK(this,
+               Word32Or(IsPropertyDictionary(dict), IsGlobalDictionary(dict)));
     return dict;
   };
   return Select<HeapObject>(TaggedIsSmi(properties), make_empty,
@@ -4248,6 +4243,40 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   return result;
 }
 
+TNode<PropertyDictionary> CodeStubAssembler::AllocatePropertyDictionary(
+    int at_least_space_for) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionary(at_least_space_for);
+  } else {
+    dict = AllocateNameDictionary(at_least_space_for);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
+TNode<PropertyDictionary> CodeStubAssembler::AllocatePropertyDictionary(
+    TNode<IntPtrT> at_least_space_for, AllocationFlags flags) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionary(at_least_space_for);
+  } else {
+    dict = AllocateNameDictionary(at_least_space_for, flags);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
+TNode<PropertyDictionary>
+CodeStubAssembler::AllocatePropertyDictionaryWithCapacity(
+    TNode<IntPtrT> capacity, AllocationFlags flags) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionaryWithCapacity(capacity);
+  } else {
+    dict = AllocateNameDictionaryWithCapacity(capacity, flags);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
 TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
     TNode<NameDictionary> dictionary, Label* large_object_fallback) {
   Comment("Copy boilerplate property dict");
@@ -4442,9 +4471,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
     StoreObjectFieldRoot(object, JSObject::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
   } else {
-    CSA_DCHECK(this, Word32Or(Word32Or(Word32Or(IsPropertyArray(*properties),
-                                                IsNameDictionary(*properties)),
-                                       IsSwissNameDictionary(*properties)),
+    CSA_DCHECK(this, Word32Or(Word32Or(IsPropertyArray(*properties),
+                                       IsPropertyDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    *properties);
@@ -7637,17 +7665,13 @@ TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(TNode<HeapObject> object) {
   return HasInstanceType(object, EPHEMERON_HASH_TABLE_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsNameDictionary(TNode<HeapObject> object) {
-  return HasInstanceType(object, NAME_DICTIONARY_TYPE);
+TNode<BoolT> CodeStubAssembler::IsPropertyDictionary(TNode<HeapObject> object) {
+  return HasInstanceType(object, PROPERTY_DICTIONARY_TYPE);
 }
+
 TNode<BoolT> CodeStubAssembler::IsOrderedNameDictionary(
     TNode<HeapObject> object) {
   return HasInstanceType(object, ORDERED_NAME_DICTIONARY_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsSwissNameDictionary(
-    TNode<HeapObject> object) {
-  return HasInstanceType(object, SWISS_NAME_DICTIONARY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(TNode<HeapObject> object) {
@@ -11126,9 +11150,9 @@ TNode<Object> CodeStubAssembler::GetInterestingProperty(
       TNode<Object> properties =
           LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
       CSA_DCHECK(this, TaggedIsNotSmi(properties));
+      CSA_DCHECK(this, IsPropertyDictionary(CAST(properties)));
       // TODO(pthier): Support swiss dictionaries.
       if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
         TNode<Smi> flags =
             GetNameDictionaryFlags<NameDictionary>(CAST(properties));
         GotoIf(IsSetSmi(flags,
@@ -16511,15 +16535,14 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85149
     // TODO(miladfarca): Use `if constexpr` once all compilers handle this
     // properly.
+    CSA_DCHECK(this, Word32Or(IsPropertyDictionary(properties),
+                              IsGlobalDictionary(properties)));
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(properties),
-                                IsGlobalDictionary(properties)));
-
       length = Select<Smi>(
-          IsSwissNameDictionary(properties),
+          IsPropertyDictionary(properties),
           [=] {
             return GetNumberOfElements(
-                UncheckedCast<SwissNameDictionary>(properties));
+                UncheckedCast<PropertyDictionary>(properties));
           },
           [=] {
             return GetNumberOfElements(
@@ -16527,8 +16550,6 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
           });
 
     } else {
-      CSA_DCHECK(this, Word32Or(IsNameDictionary(properties),
-                                IsGlobalDictionary(properties)));
       static_assert(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==
                     static_cast<int>(GlobalDictionary::kNumberOfElementsIndex));
       length = GetNumberOfElements(UncheckedCast<HashTableBase>(properties));

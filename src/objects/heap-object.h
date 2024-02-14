@@ -520,6 +520,7 @@ constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DECL
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst

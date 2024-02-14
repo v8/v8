@@ -767,13 +767,9 @@ Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
     return properties;
   }
 
-  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    DCHECK(IsSwissNameDictionary(properties));
-    SwissNameDictionary::cast(properties)->SetHash(hash);
-  } else {
-    DCHECK(IsNameDictionary(properties));
-    NameDictionary::cast(properties)->SetHash(hash);
-  }
+  DCHECK(IsPropertyDictionary(properties));
+  PropertyDictionary::cast(properties)->SetHash(hash);
+
   return properties;
 }
 
@@ -787,15 +783,9 @@ int GetIdentityHashHelper(Tagged<JSReceiver> object) {
   if (IsPropertyArray(properties)) {
     return PropertyArray::cast(properties)->Hash();
   }
-  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    if (IsSwissNameDictionary(properties)) {
-      return SwissNameDictionary::cast(properties)->Hash();
-    }
-  }
 
-  if (IsNameDictionary(properties)) {
-    DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
-    return NameDictionary::cast(properties)->Hash();
+  if (IsPropertyDictionary(properties)) {
+    return PropertyDictionary::cast(properties)->Hash();
   }
 
   if (IsGlobalDictionary(properties)) {
@@ -2375,9 +2365,7 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
-  constexpr int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                                       ? SwissNameDictionary::kInitialCapacity
-                                       : NameDictionary::kInitialCapacity;
+  constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
       initial_map, initial_capacity, AllocationType::kYoung, site);
   return result;
@@ -2387,9 +2375,7 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
 MaybeHandle<JSObject> JSObject::NewWithMap(Isolate* isolate,
                                            Handle<Map> initial_map,
                                            Handle<AllocationSite> site) {
-  int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                             ? SwissNameDictionary::kInitialCapacity
-                             : NameDictionary::kInitialCapacity;
+  constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
       initial_map, initial_capacity, AllocationType::kYoung, site);
   return result;
@@ -3267,9 +3253,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     property_count += expected_additional_properties;
   } else {
     // Make space for two more properties.
-    constexpr int initial_capacity = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                                         ? SwissNameDictionary::kInitialCapacity
-                                         : NameDictionary::kInitialCapacity;
+    constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
     property_count += initial_capacity;
   }
 
@@ -4533,15 +4517,9 @@ base::Optional<Tagged<Object>> JSObject::DictionaryPropertyAt(
   if (!IsHeapObject(backing_store)) return {};
   if (heap->IsPendingAllocation(HeapObject::cast(backing_store))) return {};
 
-  base::Optional<Tagged<Object>> maybe_obj;
-  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    if (!IsSwissNameDictionary(backing_store)) return {};
-    maybe_obj =
-        SwissNameDictionary::cast(backing_store)->TryValueAt(dict_index);
-  } else {
-    if (!IsNameDictionary(backing_store)) return {};
-    maybe_obj = NameDictionary::cast(backing_store)->TryValueAt(dict_index);
-  }
+  if (!IsPropertyDictionary(backing_store)) return {};
+  base::Optional<Tagged<Object>> maybe_obj =
+      PropertyDictionary::cast(backing_store)->TryValueAt(dict_index);
 
   if (!maybe_obj) return {};
   return maybe_obj.value();

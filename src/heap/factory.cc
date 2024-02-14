@@ -2890,18 +2890,13 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(DirectHandle<Map> map) {
-  return NewSlowJSObjectFromMap(map, V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                                         ? SwissNameDictionary::kInitialCapacity
-                                         : NameDictionary::kInitialCapacity);
+  return NewSlowJSObjectFromMap(map, PropertyDictionary::kInitialCapacity);
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, DirectHandle<HeapObject> properties,
     DirectHandle<FixedArrayBase> elements) {
-  DCHECK_IMPLIES(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 IsSwissNameDictionary(*properties));
-  DCHECK_IMPLIES(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 IsNameDictionary(*properties));
+  DCHECK(IsPropertyDictionary(*properties));
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {

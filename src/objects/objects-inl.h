@@ -108,6 +108,7 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DEF(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DEF
 
 bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {

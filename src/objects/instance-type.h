@@ -323,6 +323,13 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)              \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
+#ifdef V8_ENABLE_SWISS_NAME_DICTIONARY
+static constexpr InstanceType PROPERTY_DICTIONARY_TYPE =
+    SWISS_NAME_DICTIONARY_TYPE;
+#else
+static constexpr InstanceType PROPERTY_DICTIONARY_TYPE = NAME_DICTIONARY_TYPE;
+#endif
+
 }  // namespace internal
 }  // namespace v8
 
