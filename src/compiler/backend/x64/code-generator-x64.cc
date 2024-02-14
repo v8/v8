@@ -7128,6 +7128,12 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    Register base = offset.from_stack_pointer() ? rsp : rbp;
+    __ movq(Operand(base, offset.offset()), Immediate(0));
+  }
+
   if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
     const uint32_t saves_fp_count = saves_fp.Count();
     const int stack_size = saves_fp_count * kQuadWordSize;

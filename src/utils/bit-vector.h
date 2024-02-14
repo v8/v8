@@ -304,6 +304,8 @@ class GrowableBitVector {
     bits_.Add(value);
   }
 
+  bool IsEmpty() const { return bits_.IsEmpty(); }
+
   void Clear() { bits_.Clear(); }
 
   int length() const { return bits_.length(); }

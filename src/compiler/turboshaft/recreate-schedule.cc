@@ -1233,7 +1233,7 @@ Node* ScheduleBuilder::ProcessOperation(const StackPointerGreaterThanOp& op) {
                  {GetNode(op.stack_limit())});
 }
 Node* ScheduleBuilder::ProcessOperation(const StackSlotOp& op) {
-  return AddNode(machine.StackSlot(op.size, op.alignment), {});
+  return AddNode(machine.StackSlot(op.size, op.alignment, op.is_tagged), {});
 }
 Node* ScheduleBuilder::ProcessOperation(const FrameConstantOp& op) {
   switch (op.kind) {

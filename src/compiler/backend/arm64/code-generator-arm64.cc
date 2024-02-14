@@ -3391,6 +3391,12 @@ void CodeGenerator::AssembleConstructFrame() {
     __ Claim(required_slots);
   }
 
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    Register base = offset.from_stack_pointer() ? sp : fp;
+    __ str(xzr, MemOperand(base, offset.offset()));
+  }
+
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,
                  saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
