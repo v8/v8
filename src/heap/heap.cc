@@ -2324,6 +2324,9 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     CompleteSweepingFull();
   }
 
+  DCHECK_IMPLIES(v8_flags.minor_ms && IsYoungGenerationCollector(collector),
+                 !ShouldReduceMemory());
+
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
 
   base::Optional<SafepointScope> safepoint_scope;
