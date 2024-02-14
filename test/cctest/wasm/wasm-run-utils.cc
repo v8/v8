@@ -441,7 +441,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                &unused_detected_features, body, &loops, nullptr, nullptr, 0,
                nullptr, kRegularFunction);
-  builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
+  builder->LowerInt64(kCalledFromWasm);
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,

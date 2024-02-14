@@ -61,6 +61,7 @@ class WasmCode;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
 enum Suspend : bool;
+enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
 
 namespace compiler {
@@ -391,12 +392,10 @@ class WasmGraphBuilder {
 
   const wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  enum CallOrigin { kCalledFromWasm, kCalledFromJS };
-
   // Overload for when we want to provide a specific signature, rather than
   // build one using sig_, for example after scalar lowering.
   V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
-  V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
+  V8_EXPORT_PRIVATE void LowerInt64(wasm::CallOrigin origin);
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
@@ -917,6 +916,9 @@ V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
+
+Signature<MachineRepresentation>* CreateMachineSignature(
+    Zone* zone, const wasm::FunctionSig* sig, wasm::CallOrigin origin);
 
 }  // namespace compiler
 }  // namespace internal

@@ -30,11 +30,7 @@ namespace v8::internal::compiler::turboshaft {
 template <typename P>
 struct produces_printable_graph : public std::true_type {};
 
-enum class TurboshaftPipelineKind {
-  kJS,
-  kWasm,
-  kCSA,
-};
+enum class TurboshaftPipelineKind { kJS, kWasm, kCSA, kJSToWasm };
 
 class LoopUnrollingAnalyzer;
 class WasmRevecAnalyzer;
@@ -108,7 +104,8 @@ class V8_EXPORT_PRIVATE PipelineData
   void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig) {
     wasm_module_ = module;
     wasm_sig_ = sig;
-    is_wasm_ = true;
+    DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
+           pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   WasmRevecAnalyzer* wasm_revec_analyzer() const {
@@ -125,7 +122,13 @@ class V8_EXPORT_PRIVATE PipelineData
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  bool is_wasm() const { return is_wasm_; }
+  bool is_wasm() const {
+    return pipeline_kind() == TurboshaftPipelineKind::kWasm ||
+           pipeline_kind() == TurboshaftPipelineKind::kJSToWasm;
+  }
+  bool is_js_to_wasm() const {
+    return pipeline_kind() == TurboshaftPipelineKind::kJSToWasm;
+  }
 
   void reset_schedule() { schedule_ = nullptr; }
 
@@ -179,13 +182,10 @@ class V8_EXPORT_PRIVATE PipelineData
   // if we need many of them.
   const wasm::FunctionSig* wasm_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
-  bool is_wasm_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
-#else
-  static constexpr bool is_wasm_ = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   LoopUnrollingAnalyzer* loop_unrolling_analyzer_ = nullptr;

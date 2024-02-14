@@ -2900,7 +2900,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
   base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
       pipeline_.GetTurboshaftPipelineData(
-          turboshaft::TurboshaftPipelineKind::kWasm));
+          turboshaft::TurboshaftPipelineKind::kJSToWasm));
   auto& turboshaft_pipeline = turboshaft_scope.value();
   turboshaft_pipeline.Value().SetIsWasm(module_, sig_);
   DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
