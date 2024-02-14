@@ -2311,11 +2311,18 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig);
   // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
   // signature instead of compiling a new one for every instantiation.
-  Handle<Code> wrapper_code =
-      v8_flags.wasm_js_js_generic_wrapper
-          ? isolate->builtins()->code_handle(Builtin::kJSToJSWrapper)
-          : compiler::CompileJSToJSWrapper(isolate, sig, nullptr)
-                .ToHandleChecked();
+  Handle<Code> wrapper_code;
+  if (!v8_flags.wasm_js_js_generic_wrapper) {
+    wrapper_code =
+        compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
+  } else {
+    if (wasm::IsJSCompatibleSignature(sig)) {
+      wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToJSWrapper);
+    } else {
+      wrapper_code =
+          isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
+    }
+  }
 
   // WasmJSFunctions use on-heap Code objects as call targets, so we can't
   // cache the target address, unless the WasmJSFunction wraps a
@@ -2353,7 +2360,11 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       wasm::kNoPromise);
 
   Handle<Code> wasm_to_js_wrapper_code;
-  if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend)) {
+  if (!wasm::IsJSCompatibleSignature(sig)) {
+    wasm_to_js_wrapper_code =
+        isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperInvalidSig);
+  } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
+                                       suspend)) {
     wasm_to_js_wrapper_code =
         isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
   } else {

@@ -1551,6 +1551,8 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmI64;
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
+  } else if (string->StringEquals(v8_str(isolate, "v128"))) {
+    *type = i::wasm::kWasmS128;
   } else if (string->StringEquals(v8_str(isolate, "externref"))) {
     *type = i::wasm::kWasmExternRef;
   } else if (enabled_features.has_type_reflection() &&
@@ -1753,11 +1755,15 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       global_obj->SetRef(value_handle);
       break;
     }
+    case i::wasm::kS128: {
+      thrower.TypeError(
+          "A global of type 'v128' cannot be created in JavaScript");
+      return;
+    }
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:
-    case i::wasm::kS128:
     case i::wasm::kBottom:
       UNREACHABLE();
   }
