@@ -26,7 +26,7 @@ def main():
       help="Flag indicating that this run will only approve and merge "
       "exisiting PRs. Approval of these PRs needs to be done by an account "
       "different from the one that created the PR.",
-      default=False)
+      action="store_true")
   args, exporter_args = parser.parse_known_args(sys.argv)
 
   sys.path.append(args.blink_tools_path)
