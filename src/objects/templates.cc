@@ -252,10 +252,12 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
       for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
         Handle<Object> value =
             Utils::OpenHandle(*property_values[i].ToLocalChecked());
-        const auto details =
-            descriptors->GetDetails(InternalIndex{static_cast<size_t>(i)});
+        InternalIndex descriptor{static_cast<size_t>(i)};
+        const auto details = descriptors->GetDetails(descriptor);
 
-        if (!Object::FitsRepresentation(*value, details.representation())) {
+        if (!Object::FitsRepresentation(*value, details.representation()) ||
+            !FieldType::NowContains(descriptors->GetFieldType(descriptor),
+                                    value)) {
           can_use_cached_map = false;
           break;
         }
