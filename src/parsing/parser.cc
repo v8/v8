@@ -1432,7 +1432,7 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
     ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
     info_->pending_error_handler()->ReportWarningAt(
         position(), end_position(), MessageTemplate::kImportAssertDeprecated,
-        "12.6");
+        "V8 v12.6 and Chrome 126");
   } else {
     return import_attributes;
   }

@@ -5635,7 +5635,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
       }
       Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
           this, MessageTemplate::kImportAssertDeprecated, location,
-          factory()->NewStringFromAsciiChecked("12.6"),
+          factory()->NewStringFromAsciiChecked("V8 v12.6 and Chrome 126"),
           Handle<FixedArray>::null());
       message->set_error_level(v8::Isolate::kMessageWarning);
       MessageHandler::ReportMessage(this, location, message);
