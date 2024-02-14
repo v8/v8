@@ -7424,11 +7424,14 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork() {
-  if (sweeper()->major_sweeping_in_progress() && v8_flags.concurrent_sweeping &&
+  if (sweeper()->major_sweeping_in_progress() &&
+      sweeper()->UsingMajorSweeperTasks() &&
       !sweeper()->AreMajorSweeperTasksRunning()) {
     // At this point we know that all concurrent sweeping tasks have run
     // out of work and quit: all pages are swept. The main thread still needs
     // to complete sweeping though.
+    DCHECK_IMPLIES(!delay_sweeper_tasks_for_testing_,
+                   !sweeper()->HasUnsweptPagesForMajorSweeping());
     EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
   }
   if (cpp_heap()) {
@@ -7514,11 +7517,6 @@ void Heap::EnsureYoungSweepingCompleted() {
   old_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
-}
-
-void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
-  if (!sweeper()->sweeping_in_progress_for_space(space)) return;
-  sweeper()->DrainSweepingWorklistForSpace(space);
 }
 
 EmbedderStackStateScope::EmbedderStackStateScope(Heap* heap, Origin origin,

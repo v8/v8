@@ -1536,8 +1536,6 @@ class Heap final {
       SweepingForcedFinalizationMode mode);
   void EnsureYoungSweepingCompleted();
 
-  void DrainSweepingWorklistForSpace(AllocationSpace space);
-
   // =============================================================================
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
