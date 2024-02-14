@@ -2769,25 +2769,6 @@ void Isolate::ReportPendingMessages(bool report) {
   }
 }
 
-void Isolate::PushPromise(Handle<JSObject> promise) {
-  Handle<Object> promise_on_stack(debug()->thread_local_.promise_stack_, this);
-  promise_on_stack = factory()->NewPromiseOnStack(promise_on_stack, promise);
-  debug()->thread_local_.promise_stack_ = *promise_on_stack;
-}
-
-void Isolate::PopPromise() {
-  if (!IsPromiseStackEmpty()) {
-    debug()->thread_local_.promise_stack_ =
-        PromiseOnStack::cast(debug()->thread_local_.promise_stack_)->prev();
-  }
-}
-
-bool Isolate::IsPromiseStackEmpty() const {
-  DCHECK_IMPLIES(!IsSmi(debug()->thread_local_.promise_stack_),
-                 IsPromiseOnStack(debug()->thread_local_.promise_stack_));
-  return IsSmi(debug()->thread_local_.promise_stack_);
-}
-
 namespace {
 bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   // Recurse to the forwarding Promise (e.g. return false) due to
@@ -5946,11 +5927,6 @@ void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
     async_event_delegate_->AsyncEventOccurred(debug::kDebugAwait,
                                               promise->async_task_id(), false);
   }
-  if (debug()->is_active()) {
-    // We are about to suspend execution of the current async function,
-    // so pop the outer promise from the isolate's promise stack.
-    PopPromise();
-  }
 }
 
 void Isolate::OnPromiseThen(Handle<JSPromise> promise) {
@@ -6000,7 +5976,6 @@ void Isolate::OnPromiseBefore(Handle<JSPromise> promise) {
           debug::kDebugWillHandle, promise->async_task_id(), false);
     }
   }
-  if (debug()->is_active()) PushPromise(promise);
 }
 
 void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
@@ -6012,7 +5987,6 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
           debug::kDebugDidHandle, promise->async_task_id(), false);
     }
   }
-  if (debug()->is_active()) PopPromise();
 }
 
 void Isolate::OnTerminationDuringRunMicrotasks() {
@@ -6035,9 +6009,6 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   Handle<Microtask> current_microtask(
       Microtask::cast(heap()->current_microtask()), this);
   heap()->set_current_microtask(ReadOnlyRoots(this).undefined_value());
-
-  // Empty the promise stack.
-  debug()->thread_local_.promise_stack_ = Smi::zero();
 
   if (IsPromiseReactionJobTask(*current_microtask)) {
     Handle<PromiseReactionJobTask> promise_reaction_job_task =

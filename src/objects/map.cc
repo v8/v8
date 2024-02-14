@@ -349,9 +349,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-      if (instance_type == PROMISE_ON_STACK_TYPE) {
-        return kVisitPromiseOnStack;
-      }
       if (instance_type == PROTOTYPE_INFO_TYPE) {
         return kVisitPrototypeInfo;
       }

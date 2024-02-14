@@ -55,7 +55,6 @@ namespace internal {
   V(NativeContext)                     \
   V(Oddball)                           \
   V(PreparseData)                      \
-  V(PromiseOnStack)                    \
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \

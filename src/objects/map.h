@@ -71,7 +71,6 @@ enum InstanceType : uint16_t;
   V(NativeContext)                     \
   V(Oddball)                           \
   V(PreparseData)                      \
-  V(PromiseOnStack)                    \
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \

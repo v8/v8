@@ -6010,29 +6010,6 @@ class NoopDelegate : public v8::debug::DebugDelegate {};
 
 }  // namespace
 
-// Tests that the Isolate::Pop/Push leaves an empty stack for `await` when
-// the Debugger is active but the AsyncEventDelegate is not set.
-// Regression test for https://crbug.com/1225905
-TEST(AwaitCleansUpGlobalPromiseStack) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  NoopDelegate delegate;
-  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
-  v8::debug::SetAsyncEventDelegate(env->GetIsolate(), nullptr);
-
-  v8::Local<v8::String> source = v8_str(
-      "(async () => {\n"
-      "  await Promise.resolve();\n"
-      "})();\n");
-  CompileRun(source);
-
-  CHECK(CcTest::i_isolate()->IsPromiseStackEmpty());
-
-  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded();
-}
-
 TEST(CreateMessageFromOldException) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
