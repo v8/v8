@@ -1844,6 +1844,9 @@ DEFINE_BOOL(compact_with_stack, true,
 DEFINE_BOOL(
     compact_code_space_with_stack, true,
     "Perform code space compaction when finalizing a full GC with stack")
+// Disabling compaction with stack implies also disabling code space compaction
+// with stack.
+DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
