@@ -1447,6 +1447,7 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
         graph()->NewNode(simplified()->BooleanNot(), is_script_scope);
     JSGraphAssembler gasm(broker(), jsgraph_, jsgraph_->zone(),
                           BranchSemantics::kJS);
+    gasm.InitializeEffectControl(effect, control);
     gasm.Assert(is_not_script_scope, "we should no see a ScriptContext here",
                 __FILE__, __LINE__);
 #endif
