@@ -45,7 +45,9 @@ enum CodeEntrypointTag : uint64_t {
   // TODO(saelo): create more of these tags.
 
   // Tag to use for code that will never be called indirectly via the CPT.
-  kInvalidEntrypointTag = uint64_t{0xffff} << kCodeEntrypointTagShift,
+  kInvalidEntrypointTag = uint64_t{0xff} << kCodeEntrypointTagShift,
+  // Tag used internally by the code pointer table to mark free entries.
+  kFreeCodePointerTableEntryTag = uint64_t{0xffff} << kCodeEntrypointTagShift,
 };
 
 }  // namespace internal
