@@ -661,10 +661,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     }
 
     static constexpr int kMaxPagesToSweep = 1;
-    ContributeToSweeping(kMaxPagesToSweep);
-
-    if (TryAllocationFromFreeList(size_in_bytes, origin)) {
-      return true;
+    if (ContributeToSweeping(kMaxPagesToSweep)) {
+      if (TryAllocationFromFreeList(size_in_bytes, origin)) {
+        return true;
+      }
     }
   }
 
@@ -692,9 +692,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
   }
 
   // Try sweeping all pages.
-  ContributeToSweeping(0);
-  if (TryAllocationFromFreeList(size_in_bytes, origin)) {
-    return true;
+  if (ContributeToSweeping()) {
+    if (TryAllocationFromFreeList(size_in_bytes, origin)) {
+      return true;
+    }
   }
 
   if (allocator_->identity() != NEW_SPACE && allocator_->in_gc() &&
@@ -720,11 +721,11 @@ bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
   return false;
 }
 
-void PagedSpaceAllocatorPolicy::ContributeToSweeping(int max_pages) {
+bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
   if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity()))
-    return;
+    return false;
   if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
-    return;
+    return false;
 
   const bool is_main_thread =
       allocator_->is_main_thread() ||
@@ -744,9 +745,12 @@ void PagedSpaceAllocatorPolicy::ContributeToSweeping(int max_pages) {
       allocator_->in_gc_for_space() ? Sweeper::SweepingMode::kEagerDuringGC
                                     : Sweeper::SweepingMode::kLazyOrConcurrent;
 
-  space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
-                                              sweeping_mode, max_pages);
+  if (!space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
+                                                   sweeping_mode, max_pages)) {
+    return false;
+  }
   space_->RefillFreeList();
+  return true;
 }
 
 void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,

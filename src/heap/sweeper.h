@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_SWEEPER_H_
 #define V8_HEAP_SWEEPER_H_
 
+#include <limits>
 #include <map>
 #include <type_traits>
 #include <unordered_map>
@@ -72,8 +73,10 @@ class Sweeper {
     }
     ~LocalSweeper() = default;
 
-    void ParallelSweepSpace(AllocationSpace identity,
-                            SweepingMode sweeping_mode, int max_pages);
+    // Returns true if any swept pages can be allocated on.
+    bool ParallelSweepSpace(
+        AllocationSpace identity, SweepingMode sweeping_mode,
+        uint32_t max_pages = std::numeric_limits<uint32_t>::max());
     void ContributeAndWaitForPromotedPagesIteration();
 
    private:
@@ -111,8 +114,10 @@ class Sweeper {
   void AddNewSpacePage(Page* page);
   void AddPromotedPage(MemoryChunk* chunk);
 
-  void ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
-                          int max_pages);
+  // Returns true if any swept pages can be allocated on.
+  bool ParallelSweepSpace(
+      AllocationSpace identity, SweepingMode sweeping_mode,
+      uint32_t max_pages = std::numeric_limits<uint32_t>::max());
 
   void EnsurePageIsSwept(Page* page);
   void WaitForPageToBeSwept(Page* page);
