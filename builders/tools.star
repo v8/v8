@@ -44,6 +44,7 @@ v8_builder(
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
+    triggers = ["Test262 PR approver"],
 )
 
 v8_builder(
