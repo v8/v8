@@ -12,11 +12,16 @@ import logging
 _log = logging.getLogger(__name__)
 
 class V8TestExporter(TestExporter):
-
     def merge_pull_request(self, pull_request):
+        """Exporter mode does not merge any PRs. We only create them."""
+        pass
+
+
+class V8TestApprover(TestExporter):
+    def merge_pull_request(self, pull_request):
+        """Merges a pull request only if in approver mode."""
         self.approve(pull_request.number)
         super().merge_pull_request(pull_request)
-
 
     def approve(self, pr_number):
         """Approves a PR.
@@ -44,3 +49,7 @@ class V8TestExporter(TestExporter):
         except HTTPError as e:
             response = e.response
             _log.error('Failed to approve PR %d: %s', pr_number, response.text)
+
+    def create_or_update_pr_from_landed_commit(self, commit):
+        """Approver mode does not create any PRs"""
+        pass
