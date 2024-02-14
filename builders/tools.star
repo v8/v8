@@ -47,6 +47,18 @@ v8_builder(
 )
 
 v8_builder(
+    name = "Test262 PR approver",
+    bucket = "ci-hp",
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    service_account = V8_TEST262_EXPORT_ACCOUNT,
+    executable = "recipe:v8/test262_export",
+    in_list = "tools",
+    execution_timeout = 3600,
+    notifies = ["test262 impex", "infra"],
+    properties = {"approver": True},
+)
+
+v8_builder(
     name = "Test262 importer",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -68,4 +80,14 @@ v8_builder(
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
+)
+
+luci.gitiles_poller(
+    name = "test262-trigger",
+    bucket = "ci-hp",
+    repo = "https://chromium.googlesource.com/v8/v8",
+    triggers = ["Test262 exporter"],
+    path_regexps = [
+        "test/test262/local-tests/test/staging/.+",
+    ],
 )
