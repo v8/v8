@@ -620,8 +620,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Used for walking the promise tree for catch prediction.
   struct PromiseHandler {
-    Handle<JSReceiver> receiver;
-    bool catches;
+    Tagged<SharedFunctionInfo> function_info;
+    bool async;
   };
 
   static void InitializeOncePerProcess();
@@ -923,18 +923,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void PopPromise();
   bool IsPromiseStackEmpty() const;
 
-  // Return the relevant Promise that a throw/rejection pertains to, based
-  // on the contents of the Promise stack
-  Handle<Object> GetPromiseOnStackOnThrow();
-
-  // Heuristically guess whether a Promise is handled by user catch handler
-  bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
-
-  // Walks the promise tree and calls a callback on every handler an exception
-  // is likely to hit. Used in catch prediction. Will end the walk and return
-  // true if a callback returns true, otherwise returns false.
-  bool WalkPromiseTree(Handle<JSPromise> promise,
-                       std::function<bool(PromiseHandler)> callback);
+  // Walks the call stack and promise tree and calls a callback on every
+  // function an exception is likely to hit. Used in catch prediction.
+  // Returns true if the exception is expected to be caught.
+  bool WalkCallStackAndPromiseTree(
+      MaybeHandle<JSPromise> rejected_promise,
+      const std::function<void(PromiseHandler)>& callback);
 
   class V8_NODISCARD ExceptionScope {
    public:
@@ -1056,7 +1050,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_JAVASCRIPT,
     CAUGHT_BY_EXTERNAL,
     CAUGHT_BY_PROMISE,
-    CAUGHT_BY_ASYNC_AWAIT
+    CAUGHT_BY_ASYNC_AWAIT,
   };
   CatchType PredictExceptionCatcher();
   CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);

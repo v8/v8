@@ -122,7 +122,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from throwInPromiseConstructor, handling with awaitAndCreateInTry
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:18:28)
 throwInPromiseConstructor (catch-prediction.js:18:9)
 awaitAndCreateInTry (catch-prediction.js:189:10)
@@ -137,7 +137,7 @@ console: awaiting promise
 console: caught
 console: finished without error
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -181,7 +181,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from rejectInPromiseConstructor, handling with awaitAndCreateInTry
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:23:4)
 rejectInPromiseConstructor (catch-prediction.js:22:9)
 awaitAndCreateInTry (catch-prediction.js:189:10)
@@ -207,7 +207,7 @@ console: awaiting promise
 console: caught
 console: finished without error
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -611,7 +611,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from rejectInGenerator, handling with awaitAndCreateInTry
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 promiseReject (catch-prediction.js:14:17)
 gen (catch-prediction.js:91:10)
 rejectInGenerator (catch-prediction.js:93:18)
@@ -627,7 +627,7 @@ console: awaiting promise
 console: caught
 console: finished without error
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -920,7 +920,7 @@ Correctly predicted as caught
 
 Running test: testCase
 > Throwing from promiseRejectInTry, handling with dontHandleAsync
-Paused on caught promiseRejection
+Paused on uncaught promiseRejection
 promiseRejectInTry (catch-prediction.js:150:19)
 dontHandleAsync (catch-prediction.js:183:8)
 runWithResolution (catch-prediction.js:427:22)
@@ -941,7 +941,7 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1021,7 +1021,7 @@ PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 Running test: testCase
 > Throwing from throwAfterFulfillInPromiseConstructor, handling with awaitAndCreateInTry
 console: after pass
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:176:4)
 throwAfterFulfillInPromiseConstructor (catch-prediction.js:173:9)
 awaitAndCreateInTry (catch-prediction.js:189:10)
@@ -1034,7 +1034,7 @@ testWrapper (catch-prediction.js:438:8)
 console: awaiting promise
 console: finished without error
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1163,7 +1163,7 @@ Correctly predicted as caught
 
 Running test: testCase
 > Throwing from promiseReject, handling with catchMethodInTry
-Paused on caught promiseRejection
+Paused on uncaught promiseRejection
 promiseReject (catch-prediction.js:14:17)
 catchMethodInTry (catch-prediction.js:207:4)
 runWithResolution (catch-prediction.js:427:22)
@@ -1177,7 +1177,7 @@ console: awaiting promise
 console: caught
 console: finished without error
 
-Correctly predicted as caught
+PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1360,7 +1360,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from promiseReject, handling with fireAndForgetInTry
-Paused on caught promiseRejection
+Paused on uncaught promiseRejection
 promiseReject (catch-prediction.js:14:17)
 fireAndForgetInTry (catch-prediction.js:250:4)
 runWithResolution (catch-prediction.js:427:22)
@@ -1381,7 +1381,7 @@ testWrapper (catch-prediction.js:438:8)
 console: awaiting promise
 console: finished without error
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as uncaught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1664,7 +1664,7 @@ Running test: testCase
 > Throwing from rejectAfterDelayInPromiseConstructor, handling with ignoredPromiseRace
 console: awaiting promise
 console: finished without error
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:10:56)
 -- setTimeout --
 (anonymous) (catch-prediction.js:10:39)
@@ -1677,7 +1677,7 @@ testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1920,7 +1920,7 @@ Running test: testCase
 > Throwing from rejectAfterDelayInPromiseConstructor, handling with ignoredPromiseAny
 console: awaiting promise
 console: finished without error
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:10:56)
 -- setTimeout --
 (anonymous) (catch-prediction.js:10:39)
@@ -1933,7 +1933,7 @@ testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -1996,7 +1996,7 @@ Running test: testCase
 > Throwing from rejectAfterDelayInPromiseConstructor, handling with ignoredPromiseAnyWithIndirection
 console: awaiting promise
 console: finished without error
-Paused on uncaught promiseRejection
+Paused on caught promiseRejection
 (anonymous) (catch-prediction.js:10:56)
 -- setTimeout --
 (anonymous) (catch-prediction.js:10:39)
@@ -2011,7 +2011,7 @@ testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
 
-PREDICTION MISMATCH: Exception was caught but was predicted to be uncaught
+Correctly predicted as caught
 ------------------------------------------------------
 
 Running test: testCase
@@ -2211,7 +2211,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from promiseReject, handling with catchInGenerator
-Paused on caught promiseRejection
+Paused on uncaught promiseRejection
 promiseReject (catch-prediction.js:14:17)
 gen (catch-prediction.js:402:12)
 catchInGenerator (catch-prediction.js:407:18)
@@ -2234,13 +2234,13 @@ runWithResolution (catch-prediction.js:427:22)
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as uncaught
 ------------------------------------------------------
 
 Running test: testCase
 > Throwing from rejectAfterDelayInPromiseConstructor, handling with catchAndAlsoDont
 console: awaiting promise
-Paused on caught promiseRejection
+Paused on uncaught promiseRejection
 (anonymous) (catch-prediction.js:10:56)
 -- setTimeout --
 (anonymous) (catch-prediction.js:10:39)
@@ -2261,7 +2261,7 @@ Uncaught exception: Uncaught Error: fail
 testWrapper (catch-prediction.js:438:8)
 (anonymous) (test_framework.js:0:0)
 
-PREDICTION MISMATCH: Exception was uncaught but was predicted to be caught
+Correctly predicted as uncaught
 ------------------------------------------------------
 
 Running test: testCase
