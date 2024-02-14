@@ -73,14 +73,14 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:a2e2717ea670249a34b0de4b3e54f268d320bdfa',
+  'gn_version': 'git_revision:a3dcd7a7ad861a9c1b9930a654f2feaeb03b4c0c',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:c7b026b3a6a1f877ce46a90c5f761b10e5149891',
+  'luci_go': 'git_revision:3df60a11d33a59614c0e8d2bccc58d8c30984901',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -125,7 +125,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f8c5fdfd4c004cdccf29a0841a01ffed2e72f6c5',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd05f30eb8a158039de2cceac853b12f4c9d3817a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f35a7d885ace0b7dd8e8ac2376ca759d3905f4dc',
   'buildtools/linux64': {
@@ -249,7 +249,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7571749aadc0513a6b3ff5624689f2fedbfe9bfc',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a5a09d23fa8ffa03d70f0e3c586b926302fa49d9',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -327,7 +327,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4b5807f344182fd392849b820642457212618e5f',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '894ad691c60ed0a74997554f2f54e3b74c367940',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '786fced3153c1b25bdf7b34d2a6bacc116b2e889',
   'tools/luci-go': {
       'packages': [
         {
