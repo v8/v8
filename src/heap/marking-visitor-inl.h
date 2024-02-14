@@ -316,7 +316,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
     if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
-    data = baseline_code->bytecode_or_interpreter_data(heap_->isolate());
+    data = baseline_code->bytecode_or_interpreter_data();
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing isn't enabled and there is no baseline code there is
     // nothing to flush.

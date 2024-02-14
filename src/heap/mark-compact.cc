@@ -3121,7 +3121,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
       baseline_code->instruction_stream(baseline_code->code_cage_base(),
                                         kRelaxedLoad);
   Tagged<HeapObject> baseline_bytecode_or_interpreter_data =
-      baseline_code->bytecode_or_interpreter_data(heap_->isolate());
+      baseline_code->bytecode_or_interpreter_data();
 
   // During flushing a BytecodeArray is transformed into an UncompiledData
   // in place. Seeing an UncompiledData here implies that another
@@ -3154,7 +3154,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
     // or UncompiledData found on the baseline code. We can skip this step
     // if the BytecodeArray is not live and not already decompiled, because
     // FlushBytecodeFromSFI below will set the function_data field.
-    flushing_candidate->FlushBaselineCode(heap_->isolate());
+    flushing_candidate->FlushBaselineCode();
   }
 
   if (!is_bytecode_live) {

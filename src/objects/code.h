@@ -136,8 +136,7 @@ class Code : public ExposedTrustedObject {
 
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  inline Tagged<TrustedObject> bytecode_or_interpreter_data(
-      IsolateForSandbox isolate) const;
+  inline Tagged<TrustedObject> bytecode_or_interpreter_data() const;
   inline void set_bytecode_or_interpreter_data(
       Tagged<TrustedObject> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -417,9 +416,8 @@ class Code : public ExposedTrustedObject {
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<Object> raw_deoptimization_data_or_interpreter_data(
-      IsolateForSandbox isolate) const;
-  Tagged<ByteArray> raw_position_table() const;
+  Tagged<Object> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<Object> raw_position_table() const;
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,

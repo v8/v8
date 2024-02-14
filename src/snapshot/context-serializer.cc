@@ -176,7 +176,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       closure->ResetIfCodeFlushed(isolate());
       if (closure->is_compiled(isolate())) {
         if (closure->shared()->HasBaselineCode()) {
-          closure->shared()->FlushBaselineCode(isolate());
+          closure->shared()->FlushBaselineCode();
         }
         closure->set_code(closure->shared()->GetCode(isolate()), kReleaseStore);
       }

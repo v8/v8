@@ -20,14 +20,13 @@
 namespace v8 {
 namespace internal {
 
-Tagged<ByteArray> Code::raw_position_table() const {
-  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
-}
-
-Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data(
-    IsolateForSandbox isolate) const {
+Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data() const {
   return RawProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset)
       .load();
+}
+
+Tagged<Object> Code::raw_position_table() const {
+  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {

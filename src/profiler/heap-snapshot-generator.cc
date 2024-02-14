@@ -1681,10 +1681,9 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
                        Code::kInstructionStreamOffset);
 
   if (code->kind() == CodeKind::BASELINE) {
-    TagObject(code->bytecode_or_interpreter_data(isolate()),
-              "(interpreter data)");
+    TagObject(code->bytecode_or_interpreter_data(), "(interpreter data)");
     SetInternalReference(entry, "interpreter_data",
-                         code->bytecode_or_interpreter_data(isolate()),
+                         code->bytecode_or_interpreter_data(),
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code->bytecode_offset_table(), "(bytecode offset table)",
               HeapEntry::kCode);

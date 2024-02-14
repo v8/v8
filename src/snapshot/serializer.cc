@@ -163,7 +163,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
       // serialize it.
-      obj = handle(code->bytecode_or_interpreter_data(isolate()), isolate());
+      obj = handle(code->bytecode_or_interpreter_data(), isolate());
     }
   }
   SerializeObjectImpl(obj, slot_type);

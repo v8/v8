@@ -2658,8 +2658,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
   DCHECK(Builtins::IsBuiltinId(code->builtin_id()));
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
   DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
-  DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(isolate()),
-            Smi::zero());
+  DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(), Smi::zero());
   // .. because we don't explicitly initialize these flags:
   DCHECK(!code->marked_for_deoptimization());
   DCHECK(!code->can_have_weak_objects());

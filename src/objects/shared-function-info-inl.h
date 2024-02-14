@@ -748,7 +748,7 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
 #endif  // V8_ENABLE_SANDBOX
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   if (IsBytecodeArray(data)) {
     return BytecodeArray::cast(data);
@@ -795,7 +795,7 @@ bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   return IsInterpreterData(data);
 }
@@ -811,7 +811,7 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
   if (IsCode(data)) {
     Tagged<Code> baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-    data = baseline_code->bytecode_or_interpreter_data(isolate);
+    data = baseline_code->bytecode_or_interpreter_data();
   }
   return InterpreterData::cast(data);
 }
@@ -862,9 +862,9 @@ void SharedFunctionInfo::set_baseline_code(Tagged<Code> baseline_code,
   SetData(baseline_code, tag, DataType::kTrusted, mode);
 }
 
-void SharedFunctionInfo::FlushBaselineCode(IsolateForSandbox isolate) {
+void SharedFunctionInfo::FlushBaselineCode() {
   DCHECK(HasBaselineCode());
-  SetData(baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(isolate),
+  SetData(baseline_code(kAcquireLoad)->bytecode_or_interpreter_data(),
           kReleaseStore, DataType::kTrusted);
 }
 

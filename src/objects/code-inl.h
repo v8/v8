@@ -121,8 +121,7 @@ inline bool Code::has_deoptimization_data_or_interpreter_data() const {
       kDeoptimizationDataOrInterpreterDataOffset);
 }
 
-Tagged<TrustedObject> Code::bytecode_or_interpreter_data(
-    IsolateForSandbox isolate) const {
+Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
   DCHECK_EQ(kind(), CodeKind::BASELINE);
   return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
