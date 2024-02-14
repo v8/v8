@@ -822,9 +822,7 @@ void MarkCompactCollector::Finish() {
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
 
-  if (UseBackgroundThreadsInCycle()) {
-    sweeper_->StartMajorSweeperTasks();
-  }
+  sweeper_->StartMajorSweeperTasks();
 
   // Release empty pages now, when the pointer-update phase is done.
   heap_->memory_allocator()->ReleaseQueuedPages();
