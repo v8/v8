@@ -3533,33 +3533,37 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNameDictionaryFlags(TNode<Dictionary>, TNode<Smi> flags);
 
-  enum LookupMode { kFindExisting, kFindInsertionIndex };
+  enum LookupMode {
+    kFindExisting,
+    kFindInsertionIndex,
+    kFindExistingOrInsertionIndex
+  };
 
   template <typename Dictionary>
   TNode<HeapObject> LoadName(TNode<HeapObject> key);
 
   // Looks up an entry in a NameDictionaryBase successor.
-  // For {mode} == kFindExisting:
-  //   If the entry is found control goes to {if_found} and {var_name_index}
-  //   contains an index of the key field of the entry found.
-  //   If the key is not found and {if_not_found_with_insertion_index} is
-  //   provided, control goes to {if_not_found_with_insertion_index} and
-  //   {var_name_index} contains the index of the key field to insert the given
-  //   name at.
-  //   Otherwise control goes to {if_not_found_no_insertion_index}.
-  // For {mode} == kFindInsertionIndex:
-  //   {if_not_found_no_insertion_index} and {if_not_found_with_insertion_index}
-  //   are treated equally. If {if_not_found_with_insertion_index} is provided,
-  //   control goes to {if_not_found_with_insertion_index}, otherwise control
-  //   goes to {if_not_found_no_insertion_index}. In both cases {var_name_index}
-  //   contains the index of the key field to insert the given name at.
+  // If the entry is found control goes to {if_found} and {var_name_index}
+  // contains an index of the key field of the entry found.
+  // If the key is not found control goes to {if_not_found}. If mode is
+  // {kFindExisting}, {var_name_index} might contain garbage, otherwise
+  // {var_name_index} contains the index of the key field to insert the given
+  // name at.
   template <typename Dictionary>
   void NameDictionaryLookup(TNode<Dictionary> dictionary,
                             TNode<Name> unique_name, Label* if_found,
                             TVariable<IntPtrT>* var_name_index,
-                            Label* if_not_found_no_insertion_index,
-                            LookupMode mode = kFindExisting,
-                            Label* if_not_found_with_insertion_index = nullptr);
+                            Label* if_not_found,
+                            LookupMode mode = kFindExisting);
+  // Slow lookup for unique_names with forwarding index.
+  // Both resolving the actual hash and the lookup are handled via runtime.
+  template <typename Dictionary>
+  void NameDictionaryLookupWithForwardIndex(TNode<Dictionary> dictionary,
+                                            TNode<Name> unique_name,
+                                            Label* if_found,
+                                            TVariable<IntPtrT>* var_name_index,
+                                            Label* if_not_found,
+                                            LookupMode mode = kFindExisting);
 
   TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 

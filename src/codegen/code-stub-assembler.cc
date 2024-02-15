@@ -9454,8 +9454,7 @@ TNode<IntPtrT> CodeStubAssembler::NameToIndexHashTableLookup(
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
-    TVariable<IntPtrT>* var_name_index, Label* if_not_found_no_insertion_index,
-    LookupMode mode, Label* if_not_found_with_insertion_index) {
+    TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
   static_assert(std::is_same<Dictionary, NameDictionary>::value ||
                     std::is_same<Dictionary, GlobalDictionary>::value ||
                     std::is_same<Dictionary, NameToIndexHashTable>::value,
@@ -9463,13 +9462,8 @@ void CodeStubAssembler::NameDictionaryLookup(
   DCHECK_IMPLIES(var_name_index != nullptr,
                  MachineType::PointerRepresentation() == var_name_index->rep());
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
-  DCHECK_IMPLIES(if_not_found_with_insertion_index != nullptr,
-                 var_name_index != nullptr);
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
-  if (if_not_found_with_insertion_index == nullptr) {
-    if_not_found_with_insertion_index = if_not_found_no_insertion_index;
-  }
 
   Label if_not_computed(this, Label::kDeferred);
 
@@ -9503,17 +9497,19 @@ void CodeStubAssembler::NameDictionaryLookup(
 
     TNode<HeapObject> current =
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
-    GotoIf(TaggedEqual(current, undefined), if_not_found_with_insertion_index);
-    if (mode == kFindExisting) {
-      if (Dictionary::TodoShape::kMatchNeedsHoleCheck) {
-        GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
-      }
-      current = LoadName<Dictionary>(current);
-      GotoIf(TaggedEqual(current, unique_name), if_found);
-    } else {
-      DCHECK_EQ(kFindInsertionIndex, mode);
-      GotoIf(TaggedEqual(current, TheHoleConstant()),
-             if_not_found_with_insertion_index);
+    GotoIf(TaggedEqual(current, undefined), if_not_found);
+    switch (mode) {
+      case kFindInsertionIndex:
+        GotoIf(TaggedEqual(current, TheHoleConstant()), if_not_found);
+        break;
+      case kFindExisting:
+      case kFindExistingOrInsertionIndex:
+        if (Dictionary::TodoShape::kMatchNeedsHoleCheck) {
+          GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
+        }
+        current = LoadName<Dictionary>(current);
+        GotoIf(TaggedEqual(current, unique_name), if_found);
+        break;
     }
     Goto(&next_probe);
 
@@ -9532,46 +9528,8 @@ void CodeStubAssembler::NameDictionaryLookup(
     // memory features turned on. To minimize affecting the fast path, the
     // forwarding index branch defers both fetching the actual hash value and
     // the dictionary lookup to the runtime.
-    using ER = ExternalReference;  // To avoid super long lines below.
-    ER func_ref;
-    if constexpr (std::is_same<Dictionary, NameDictionary>::value) {
-      func_ref =
-          mode == kFindExisting
-              ? ER::name_dictionary_lookup_forwarded_string()
-              : ER::name_dictionary_find_insertion_entry_forwarded_string();
-    } else if constexpr (std::is_same<Dictionary, GlobalDictionary>::value) {
-      func_ref =
-          mode == kFindExisting
-              ? ER::global_dictionary_lookup_forwarded_string()
-              : ER::global_dictionary_find_insertion_entry_forwarded_string();
-    } else {
-      auto ref0 = ER::name_to_index_hashtable_lookup_forwarded_string();
-      auto ref1 =
-          ER::name_to_index_hashtable_find_insertion_entry_forwarded_string();
-      func_ref = mode == kFindExisting ? ref0 : ref1;
-    }
-    const TNode<ER> function = ExternalConstant(func_ref);
-    const TNode<ER> isolate_ptr =
-        ExternalConstant(ER::isolate_address(isolate()));
-    TNode<IntPtrT> entry = UncheckedCast<IntPtrT>(CallCFunction(
-        function, MachineType::IntPtr(),
-        std::make_pair(MachineType::Pointer(), isolate_ptr),
-        std::make_pair(MachineType::TaggedPointer(), dictionary),
-        std::make_pair(MachineType::TaggedPointer(), unique_name)));
-
-    if (var_name_index) *var_name_index = EntryToIndex<Dictionary>(entry);
-    if (mode == kFindExisting) {
-      GotoIf(IntPtrEqual(entry,
-                         IntPtrConstant(InternalIndex::NotFound().raw_value())),
-             if_not_found_no_insertion_index);
-      Goto(if_found);
-    } else {
-      CSA_DCHECK(
-          this,
-          WordNotEqual(entry,
-                       IntPtrConstant(InternalIndex::NotFound().raw_value())));
-      Goto(if_not_found_with_insertion_index);
-    }
+    NameDictionaryLookupWithForwardIndex(dictionary, unique_name, if_found,
+                                         var_name_index, if_not_found, mode);
   }
 }
 
@@ -9580,11 +9538,66 @@ template V8_EXPORT_PRIVATE void
 CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
                                                         TNode<Name>, Label*,
                                                         TVariable<IntPtrT>*,
-                                                        Label*, LookupMode,
-                                                        Label*);
+                                                        Label*, LookupMode);
 template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
-                      TVariable<IntPtrT>*, Label*, LookupMode, Label*);
+                      TVariable<IntPtrT>*, Label*, LookupMode);
+
+template <typename Dictionary>
+void CodeStubAssembler::NameDictionaryLookupWithForwardIndex(
+    TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
+    TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
+  using ER = ExternalReference;  // To avoid super long lines below.
+  ER func_ref;
+  if constexpr (std::is_same<Dictionary, NameDictionary>::value) {
+    func_ref = mode == kFindInsertionIndex
+                   ? ER::name_dictionary_find_insertion_entry_forwarded_string()
+                   : ER::name_dictionary_lookup_forwarded_string();
+  } else if constexpr (std::is_same<Dictionary, GlobalDictionary>::value) {
+    func_ref =
+        mode == kFindInsertionIndex
+            ? ER::global_dictionary_find_insertion_entry_forwarded_string()
+            : ER::global_dictionary_lookup_forwarded_string();
+  } else {
+    auto ref0 =
+        ER::name_to_index_hashtable_find_insertion_entry_forwarded_string();
+    auto ref1 = ER::name_to_index_hashtable_lookup_forwarded_string();
+    func_ref = mode == kFindInsertionIndex ? ref0 : ref1;
+  }
+  const TNode<ER> function = ExternalConstant(func_ref);
+  const TNode<ER> isolate_ptr =
+      ExternalConstant(ER::isolate_address(isolate()));
+  TNode<IntPtrT> entry = UncheckedCast<IntPtrT>(
+      CallCFunction(function, MachineType::IntPtr(),
+                    std::make_pair(MachineType::Pointer(), isolate_ptr),
+                    std::make_pair(MachineType::TaggedPointer(), dictionary),
+                    std::make_pair(MachineType::TaggedPointer(), unique_name)));
+
+  if (var_name_index) *var_name_index = EntryToIndex<Dictionary>(entry);
+  switch (mode) {
+    case kFindInsertionIndex:
+      CSA_DCHECK(
+          this,
+          WordNotEqual(entry,
+                       IntPtrConstant(InternalIndex::NotFound().raw_value())));
+      Goto(if_not_found);
+      break;
+    case kFindExisting:
+      GotoIf(IntPtrEqual(entry,
+                         IntPtrConstant(InternalIndex::NotFound().raw_value())),
+             if_not_found);
+      Goto(if_found);
+      break;
+    case kFindExistingOrInsertionIndex:
+      GotoIfNot(IntPtrEqual(entry, IntPtrConstant(
+                                       InternalIndex::NotFound().raw_value())),
+                if_found);
+      NameDictionaryLookupWithForwardIndex(dictionary, unique_name, if_found,
+                                           var_name_index, if_not_found,
+                                           kFindInsertionIndex);
+      break;
+  }
+}
 
 TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   const TNode<ExternalReference> function_addr =
@@ -9604,13 +9617,12 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
 template <>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
-    Label* if_found, TVariable<IntPtrT>* var_name_index,
-    Label* if_not_found_no_insertion_index, LookupMode mode,
-    Label* if_not_found_with_insertion_index) {
-  // TODO(pthier): Support path for not found with valid insertion index for
+    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
+    LookupMode mode) {
+  // TODO(pthier): Support mode kFindExistingOrInsertionIndex for
   // SwissNameDictionary.
   SwissNameDictionaryFindEntry(dictionary, unique_name, if_found,
-                               var_name_index, if_not_found_no_insertion_index);
+                               var_name_index, if_not_found);
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
