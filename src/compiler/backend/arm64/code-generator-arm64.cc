@@ -3402,6 +3402,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (returns != 0) {
     __ Claim(returns);
   }
+
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    DCHECK(offset.from_frame_pointer());
+    __ Str(xzr, MemOperand(fp, offset.offset()));
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {

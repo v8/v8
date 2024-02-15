@@ -70,7 +70,7 @@ inline Node* AdaptLocalArgument(GraphAssembler* graph_assembler,
 #else
   // With indirect locals, the argument has to be stored on the stack and the
   // slot address is passed.
-  Node* stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
+  Node* stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t), true);
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            stack_slot, 0, __ BitcastTaggedToWord(argument));

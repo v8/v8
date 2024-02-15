@@ -4114,6 +4114,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame()->GetReturnSlotCount() > 0) {
     __ AllocateStackSpace(frame()->GetReturnSlotCount() * kSystemPointerSize);
   }
+
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    DCHECK(offset.from_frame_pointer());
+    __ mov(Operand(ebp, offset.offset()), Immediate(0));
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {

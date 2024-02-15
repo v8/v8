@@ -736,7 +736,8 @@ void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
   StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  int slot =
+      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
