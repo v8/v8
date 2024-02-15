@@ -76,7 +76,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_IMPORT_ACCOUNT,
     executable = "recipe:v8/test262_watch",
-    schedule = "* * * * * 1970",
+    schedule = "*/30 * * * *",
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
