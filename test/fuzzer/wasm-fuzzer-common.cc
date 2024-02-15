@@ -589,20 +589,24 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
            << ")";
         if (index + 1 < field_count) os << ", ";
       }
-      os << "]";
+      os << "], ";
       if (module->types[i].supertype != kNoSuperType) {
-        os << ", " << module->types[i].supertype;
+        os << module->types[i].supertype;
+      } else {
+        os << "kNoSuperType";
       }
-      os << ");\n";
+      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
     } else if (module->has_array(i)) {
       const ArrayType* array_type = module->types[i].array_type;
       os << "builder.addArray("
          << ValueTypeToConstantName(array_type->element_type()) << ", "
-         << (array_type->mutability() ? "true" : "false");
+         << (array_type->mutability() ? "true" : "false") << ", ";
       if (module->types[i].supertype != kNoSuperType) {
-        os << ", " << module->types[i].supertype;
+        os << module->types[i].supertype;
+      } else {
+        os << "kNoSuperType";
       }
-      os << ");\n";
+      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
     } else {
       DCHECK(module->has_signature(i));
       const FunctionSig* sig = module->types[i].function_sig;
@@ -659,7 +663,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (WasmGlobal& global : module->globals) {
     os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
-       << global.mutability << ", ";
+       << global.mutability << ", " << global.shared << ", ";
     DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
                             global.type);
     os << ");\n";
@@ -780,7 +784,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   if (compiles) {
-    os << "const instance = builder.instantiate();\n"
+    os << "let kBuiltins = { builtins: ['js-string', 'text-decoder', "
+          "'text-encoder'] };\n"
+          "const instance = builder.instantiate({}, kBuiltins);\n"
           "try {\n"
           "  print(instance.exports.main(1, 2, 3));\n"
           "} catch (e) {\n"
