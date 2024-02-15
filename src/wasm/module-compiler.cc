@@ -2050,6 +2050,11 @@ void CompileNativeModule(Isolate* isolate,
       InitializeCompilation(isolate, native_module.get(), pgo_info);
   compilation_state->InitializeCompilationUnits(std::move(builder));
 
+  // Wrapper compilation jobs keep a pointer to the function signatures, so
+  // finish them before we validate and potentially free the module.
+  compilation_state->WaitForCompilationEvent(
+      CompilationEvent::kFinishedExportWrappers);
+
   // Validate wasm modules for lazy compilation if requested. Never validate
   // asm.js modules as these are valid by construction (additionally a CHECK
   // will catch this during lazy compilation).
@@ -2062,12 +2067,8 @@ void CompileNativeModule(Isolate* isolate,
     }
   }
 
-  compilation_state->WaitForCompilationEvent(
-      CompilationEvent::kFinishedExportWrappers);
-
   if (!compilation_state->failed()) {
     compilation_state->FinalizeJSToWasmWrappers(isolate, module);
-
     compilation_state->WaitForCompilationEvent(
         CompilationEvent::kFinishedBaselineCompilation);
 
@@ -2186,13 +2187,15 @@ class AsyncCompileJSToWasmWrapperJob final
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
+      BackgroundCompileScope compile_scope(native_module_);
+      if (compile_scope.cancelled()) return;
+      // The wrapper unit keeps a pointer to the signature, so execute the unit
+      // inside the compile scope to keep the WasmModule's signature_zone alive.
       wrapper_unit->Execute();
       bool complete_last_unit = CompleteUnit();
       bool yield = delegate && delegate->ShouldYield();
       if (yield && !complete_last_unit) return;
 
-      BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return;
       if (complete_last_unit) {
         compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
       }
