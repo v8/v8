@@ -2709,8 +2709,12 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
   copy->set_constant_pool(raw_source->constant_pool());
   copy->set_handler_table(raw_source->handler_table());
   copy->set_wrapper(*wrapper);
-  copy->set_source_position_table(
-      raw_source->source_position_table(kAcquireLoad), kReleaseStore);
+  if (raw_source->has_source_position_table(kAcquireLoad)) {
+    copy->set_source_position_table(
+        raw_source->source_position_table(kAcquireLoad), kReleaseStore);
+  } else {
+    copy->clear_source_position_table(kReleaseStore);
+  }
   raw_source->CopyBytecodesTo(copy);
   wrapper->set_bytecode(copy);
   return handle(copy, isolate());

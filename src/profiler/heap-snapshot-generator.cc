@@ -1870,7 +1870,7 @@ void V8HeapExplorer::ExtractBytecodeArrayReferences(
   RecursivelyTagConstantPool(bytecode->constant_pool(), "(constant pool)",
                              HeapEntry::kCode, 3);
   TagObject(bytecode->handler_table(), "(handler table)", HeapEntry::kCode);
-  TagObject(bytecode->source_position_table(kAcquireLoad),
+  TagObject(bytecode->raw_source_position_table(kAcquireLoad),
             "(source position table)", HeapEntry::kCode);
 }
 

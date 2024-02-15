@@ -325,9 +325,8 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       interpreter::Register::invalid_value());
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(*handler_table);
+  instance->clear_source_position_table(kReleaseStore);
   instance->set_wrapper(*wrapper);
-  instance->set_source_position_table(read_only_roots().undefined_value(),
-                                      kReleaseStore, SKIP_WRITE_BARRIER);
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();

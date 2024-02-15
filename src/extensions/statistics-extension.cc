@@ -165,7 +165,7 @@ void StatisticsExtension::GetCounters(
         maybe_source_positions = code->source_position_table();
       } else if (IsBytecodeArray(obj)) {
         maybe_source_positions =
-            BytecodeArray::cast(obj)->source_position_table(kAcquireLoad);
+            BytecodeArray::cast(obj)->raw_source_position_table(kAcquireLoad);
       } else {
         continue;
       }
