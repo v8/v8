@@ -337,6 +337,54 @@ class WasmGenerator {
     loop({}, base::VectorOf({ValueType::Primitive(T)}), data);
   }
 
+  void finite_loop(base::Vector<const ValueType> param_types,
+                   base::Vector<const ValueType> return_types,
+                   DataRange* data) {
+    // int counter = `kLoopConstant`;
+    int kLoopConstant = data->get<uint8_t>() % 8 + 1;
+    uint32_t counter = builder_->AddLocal(kWasmI32);
+    builder_->EmitI32Const(kLoopConstant);
+    builder_->EmitSetLocal(counter);
+
+    // begin loop {
+    BlockScope block_scope(this, kExprLoop, param_types, return_types,
+                           param_types);
+    //   Consume the parameters:
+    //   Resetting locals in each iteration can create interesting loop-phis.
+    //   TODO(evih): Iterate through existing locals and try to reuse them
+    //   instead of creating new locals.
+    for (ValueType v : param_types) {
+      uint32_t local = builder_->AddLocal(v);
+      builder_->EmitSetLocal(local);
+    }
+
+    //   Loop body.
+    Generate(kWasmVoid, data);
+
+    //   Decrement the counter.
+    builder_->EmitGetLocal(counter);
+    builder_->EmitI32Const(1);
+    builder_->Emit(kExprI32Sub);
+    builder_->EmitTeeLocal(counter);
+
+    //   If there is another iteration, generate new parameters for the loop and
+    //   go to the beginning of the loop.
+    builder_->Emit(kExprIf);
+    builder_->EmitByte(kVoidCode);
+    Generate(param_types, data);
+    builder_->EmitWithI32V(kExprBr, 0);
+    builder_->Emit(kExprEnd);
+
+    //   Otherwise, generate the return types.
+    Generate(return_types, data);
+    // } end loop
+  }
+
+  template <ValueKind T>
+  void finite_loop(DataRange* data) {
+    finite_loop({}, base::VectorOf({ValueType::Primitive(T)}), data);
+  }
+
   enum IfType { kIf, kIfElse };
 
   void if_(base::Vector<const ValueType> param_types,
@@ -511,7 +559,7 @@ class WasmGenerator {
 
   void any_block(base::Vector<const ValueType> param_types,
                  base::Vector<const ValueType> return_types, DataRange* data) {
-    uint8_t block_type = data->get<uint8_t>() % 5;
+    uint8_t block_type = data->get<uint8_t>() % 6;
     switch (block_type) {
       case 0:
         block(param_types, return_types, data);
@@ -520,15 +568,18 @@ class WasmGenerator {
         loop(param_types, return_types, data);
         return;
       case 2:
+        finite_loop(param_types, return_types, data);
+        return;
+      case 3:
         if (param_types == return_types) {
           if_({}, {}, kIf, data);
           return;
         }
         V8_FALLTHROUGH;
-      case 3:
+      case 4:
         if_(param_types, return_types, kIfElse, data);
         return;
-      case 4:
+      case 5:
         try_table_block_helper(param_types, return_types, data);
         return;
     }
@@ -2085,6 +2136,11 @@ void WasmGenerator::loop<kVoid>(DataRange* data) {
 }
 
 template <>
+void WasmGenerator::finite_loop<kVoid>(DataRange* data) {
+  finite_loop({}, {}, data);
+}
+
+template <>
 void WasmGenerator::Generate<kVoid>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
@@ -2096,6 +2152,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
                                kVoid>,
       &WasmGenerator::block<kVoid>,
       &WasmGenerator::loop<kVoid>,
+      &WasmGenerator::finite_loop<kVoid>,
       &WasmGenerator::if_<kVoid, kIf>,
       &WasmGenerator::if_<kVoid, kIfElse>,
       &WasmGenerator::br,
@@ -2238,6 +2295,7 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
 
       &WasmGenerator::block<kI32>,
       &WasmGenerator::loop<kI32>,
+      &WasmGenerator::finite_loop<kI32>,
       &WasmGenerator::if_<kI32, kIfElse>,
       &WasmGenerator::br_if<kI32>,
       &WasmGenerator::br_on_null<kI32>,
@@ -2385,6 +2443,7 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
 
       &WasmGenerator::block<kI64>,
       &WasmGenerator::loop<kI64>,
+      &WasmGenerator::finite_loop<kI64>,
       &WasmGenerator::if_<kI64, kIfElse>,
       &WasmGenerator::br_if<kI64>,
       &WasmGenerator::br_on_null<kI64>,
@@ -2492,6 +2551,7 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
 
       &WasmGenerator::block<kF32>,
       &WasmGenerator::loop<kF32>,
+      &WasmGenerator::finite_loop<kF32>,
       &WasmGenerator::if_<kF32, kIfElse>,
       &WasmGenerator::br_if<kF32>,
       &WasmGenerator::br_on_null<kF32>,
@@ -2556,6 +2616,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
 
       &WasmGenerator::block<kF64>,
       &WasmGenerator::loop<kF64>,
+      &WasmGenerator::finite_loop<kF64>,
       &WasmGenerator::if_<kF64, kIfElse>,
       &WasmGenerator::br_if<kF64>,
       &WasmGenerator::br_on_null<kF64>,
