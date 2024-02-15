@@ -39,8 +39,6 @@ ALL_VARIANT_FLAGS = {
         "--turboshaft",
         "--turboshaft-future",
         "--turboshaft-wasm",
-        "--turboshaft-wasm-wrappers",
-        "--no-wasm-generic-wrapper",
         "--no-liftoff",
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
