@@ -1165,10 +1165,10 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kLoadParentFramePointer:
       return __ ParentFramePointer();
 
-    case IrOpcode::kStackSlot: {
-      StackSlotRepresentation rep = StackSlotRepresentationOf(op);
-      return __ StackSlot(rep.size(), rep.alignment(), rep.is_tagged());
-    }
+    case IrOpcode::kStackSlot:
+      return __ StackSlot(StackSlotRepresentationOf(op).size(),
+                          StackSlotRepresentationOf(op).alignment());
+
     case IrOpcode::kBranch:
       DCHECK_EQ(block->SuccessorCount(), 2);
       __ Branch(Map(node->InputAt(0)), Map(block->SuccessorAt(0)),

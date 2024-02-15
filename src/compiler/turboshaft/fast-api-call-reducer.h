@@ -136,8 +136,7 @@ class FastApiCallReducer : public Next {
 #else
     // With indirect locals, the argument has to be stored on the stack and the
     // slot address is passed.
-    OpIndex stack_slot =
-        __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t), true);
+    OpIndex stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
     __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
                     MemoryRepresentation::UintPtr());
     return stack_slot;
