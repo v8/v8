@@ -3842,17 +3842,6 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  if (!frame()->tagged_slots().IsEmpty()) {
-    UseScratchRegisterScope temps(masm());
-    Register zero = temps.Acquire();
-    __ mov(zero, Operand(0));
-    for (int spill_slot : frame()->tagged_slots()) {
-      FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
-      Register base = offset.from_stack_pointer() ? sp : fp;
-      __ str(zero, MemOperand(base, offset.offset()));
-    }
-  }
-
   if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
     static_assert(DwVfpRegister::kNumRegisters == 32);

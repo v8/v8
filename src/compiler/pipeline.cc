@@ -569,7 +569,7 @@ class PipelineData {
       fixed_frame_size =
           call_descriptor->CalculateFixedFrameSize(info()->code_kind());
     }
-    frame_ = codegen_zone()->New<Frame>(fixed_frame_size, codegen_zone());
+    frame_ = codegen_zone()->New<Frame>(fixed_frame_size);
     if (osr_helper_.has_value()) osr_helper()->SetupFrame(frame());
   }
 

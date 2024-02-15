@@ -2384,8 +2384,8 @@ class TurboshaftAssemblerOpInterface
         FrameConstantOp::Kind::kParentFramePointer);
   }
 
-  V<WordPtr> StackSlot(int size, int alignment, bool is_tagged = false) {
-    return ReduceIfReachableStackSlot(size, alignment, is_tagged);
+  V<WordPtr> StackSlot(int size, int alignment) {
+    return ReduceIfReachableStackSlot(size, alignment);
   }
 
   OpIndex LoadRootRegister() { return ReduceIfReachableLoadRootRegister(); }

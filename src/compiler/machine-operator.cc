@@ -1094,15 +1094,14 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   SIMD_I16x8_LANES(V) V(8) V(9) V(10) V(11) V(12) V(13) V(14) V(15)
 
 #define STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(V) \
-  V(4, 0, false)                                   \
-  V(8, 0, false) V(16, 0, false) V(4, 4, false) V(8, 8, false) V(16, 16, false)
+  V(4, 0) V(8, 0) V(16, 0) V(4, 4) V(8, 8) V(16, 16)
 
 struct StackSlotOperator : public Operator1<StackSlotRepresentation> {
-  explicit StackSlotOperator(int size, int alignment, bool is_tagged)
+  explicit StackSlotOperator(int size, int alignment)
       : Operator1<StackSlotRepresentation>(
             IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow,
             "StackSlot", 0, 0, 0, 1, 0, 0,
-            StackSlotRepresentation(size, alignment, is_tagged)) {}
+            StackSlotRepresentation(size, alignment)) {}
 };
 
 struct MachineOperatorGlobalCache {
@@ -1292,14 +1291,14 @@ struct MachineOperatorGlobalCache {
 #undef LOAD_TRANSFORM_KIND
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#define STACKSLOT(Size, Alignment, IsTagged)                               \
-  struct StackSlotOfSize##Size##OfAlignment##Alignment##IsTagged##Operator \
-      final : public StackSlotOperator {                                   \
-    StackSlotOfSize##Size##OfAlignment##Alignment##IsTagged##Operator()    \
-        : StackSlotOperator(Size, Alignment, IsTagged) {}                  \
-  };                                                                       \
-  StackSlotOfSize##Size##OfAlignment##Alignment##IsTagged##Operator        \
-      kStackSlotOfSize##Size##OfAlignment##Alignment##IsTagged;
+#define STACKSLOT(Size, Alignment)                                     \
+  struct StackSlotOfSize##Size##OfAlignment##Alignment##Operator final \
+      : public StackSlotOperator {                                     \
+    StackSlotOfSize##Size##OfAlignment##Alignment##Operator()          \
+        : StackSlotOperator(Size, Alignment) {}                        \
+  };                                                                   \
+  StackSlotOfSize##Size##OfAlignment##Alignment##Operator              \
+      kStackSlotOfSize##Size##OfAlignment##Alignment;
   STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(STACKSLOT)
 #undef STACKSLOT
 
@@ -2018,19 +2017,18 @@ const Operator* MachineOperatorBuilder::StoreLane(MemoryAccessKind kind,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment,
-                                                  bool is_tagged) {
+const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
   DCHECK_LE(0, size);
   DCHECK(alignment == 0 || alignment == 4 || alignment == 8 || alignment == 16);
-#define CASE_CACHED_SIZE(Size, Alignment, IsTagged)                          \
-  if (size == Size && alignment == Alignment && is_tagged == IsTagged) {     \
-    return &cache_.kStackSlotOfSize##Size##OfAlignment##Alignment##IsTagged; \
+#define CASE_CACHED_SIZE(Size, Alignment)                          \
+  if (size == Size && alignment == Alignment) {                    \
+    return &cache_.kStackSlotOfSize##Size##OfAlignment##Alignment; \
   }
 
   STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(CASE_CACHED_SIZE)
 
 #undef CASE_CACHED_SIZE
-  return zone_->New<StackSlotOperator>(size, alignment, is_tagged);
+  return zone_->New<StackSlotOperator>(size, alignment);
 }
 
 const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,

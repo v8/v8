@@ -3192,7 +3192,6 @@ struct StackPointerGreaterThanOp
 struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
   int size;
   int alignment;
-  bool is_tagged;
 
   // We can freely reorder stack slot operations, but must not de-duplicate
   // them.
@@ -3206,10 +3205,9 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
     return {};
   }
 
-  StackSlotOp(int size, int alignment, bool is_tagged = false)
-      : size(size), alignment(alignment), is_tagged(is_tagged) {}
+  StackSlotOp(int size, int alignment) : size(size), alignment(alignment) {}
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{size, alignment, is_tagged}; }
+  auto options() const { return std::tuple{size, alignment}; }
 };
 
 // Values that are constant for the current stack frame/invocation.

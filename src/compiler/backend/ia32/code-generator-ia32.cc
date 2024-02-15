@@ -4103,12 +4103,6 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  for (int spill_slot : frame()->tagged_slots()) {
-    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
-    Register base = offset.from_stack_pointer() ? esp : ebp;
-    __ mov(Operand(base, offset.offset()), Immediate(0));
-  }
-
   if (!saves.is_empty()) {  // Save callee-saved registers.
     DCHECK(!info()->is_osr());
     for (Register reg : base::Reversed(saves)) {

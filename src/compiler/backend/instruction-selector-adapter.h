@@ -1305,8 +1305,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     DCHECK(is_stack_slot(node));
     const turboshaft::StackSlotOp& stack_slot =
         graph_->Get(node).Cast<turboshaft::StackSlotOp>();
-    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment,
-                                   stack_slot.is_tagged);
+    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment);
   }
   bool is_integer_constant(node_t node) const {
     if (const auto constant =
