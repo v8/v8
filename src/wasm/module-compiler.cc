@@ -1147,7 +1147,9 @@ DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
   // is the case, and exit early if so.
   if (module->function_was_validated(func_index)) return {};
   const WasmFunction* func = &module->functions[func_index];
-  FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
+  bool is_shared = module->types[func->sig_index].is_shared;
+  FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end(),
+                    is_shared};
   WasmFeatures detected_features;
   DecodeResult result = ValidateFunctionBody(zone, enabled_features, module,
                                              &detected_features, body);

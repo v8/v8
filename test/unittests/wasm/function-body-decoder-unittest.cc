@@ -89,7 +89,8 @@ class TestModuleBuilder {
   uint8_t AddSignature(const FunctionSig* sig,
                        uint32_t supertype = kNoSuperType) {
     const bool is_final = true;
-    mod.AddSignatureForTesting(sig, supertype, is_final);
+    const bool is_shared = false;
+    mod.AddSignatureForTesting(sig, supertype, is_final, is_shared);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
@@ -134,7 +135,9 @@ class TestModuleBuilder {
       type_builder.AddField(field.first, field.second);
     }
     const bool is_final = true;
-    mod.AddStructTypeForTesting(type_builder.Build(), supertype, is_final);
+    const bool is_shared = false;
+    mod.AddStructTypeForTesting(type_builder.Build(), supertype, is_final,
+                                is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
@@ -142,7 +145,8 @@ class TestModuleBuilder {
   uint8_t AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     const bool is_final = true;
-    mod.AddArrayTypeForTesting(array, kNoSuperType, is_final);
+    const bool is_shared = false;
+    mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
@@ -265,7 +269,8 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
         PrepareBytecode(CodeToVector(std::forward<Code>(raw_code)), append_end);
 
     // Validate the code.
-    FunctionBody body(sig, 0, code.begin(), code.end());
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    FunctionBody body(sig, 0, code.begin(), code.end(), kIsShared);
     WasmFeatures unused_detected_features = WasmFeatures::None();
     DecodeResult result =
         ValidateFunctionBody(this->zone(), enabled_features_, module,
@@ -3241,7 +3246,8 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   uint8_t code[] = {WASM_NOP, WASM_END};
 
   for (size_t i = 0; i < arraysize(code); ++i) {
-    FunctionBody body(sigs.v_v(), 0, code, code + i);
+    constexpr bool kIsShared = false;
+    FunctionBody body(sigs.v_v(), 0, code, code + i, kIsShared);
     WasmFeatures unused_detected_features;
     DecodeResult result =
         ValidateFunctionBody(this->zone(), WasmFeatures::All(), module,
@@ -4709,9 +4715,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
     const uint8_t code[] = {
         static_cast<uint8_t>(bytes)..., 0, 0, 0, 0, 0, 0, 0, 0};
     WasmFeatures no_features = WasmFeatures::None();
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     WasmDecoder<Decoder::FullValidationTag> decoder(
-        this->zone(), nullptr, no_features, &no_features, nullptr, code,
-        code + sizeof(code), 0);
+        this->zone(), nullptr, no_features, &no_features, nullptr, kIsShared,
+        code, code + sizeof(code), 0);
     WasmDecoder<Decoder::FullValidationTag>::OpcodeLength(&decoder, code);
     EXPECT_TRUE(decoder.failed());
   }
@@ -4734,9 +4741,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
       }
     }
     WasmFeatures detected;
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     WasmDecoder<Decoder::BooleanValidationTag> decoder(
-        this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr, bytes,
-        bytes + sizeof(bytes), 0);
+        this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr,
+        kIsShared, bytes, bytes + sizeof(bytes), 0);
     WasmDecoder<Decoder::BooleanValidationTag>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
         << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
@@ -5001,8 +5009,9 @@ class LocalDeclDecoderTest : public TestWithZone {
   bool DecodeLocalDecls(BodyLocalDecls* decls, const uint8_t* start,
                         const uint8_t* end) {
     WasmModule module;
-    return ValidateAndDecodeLocalDeclsForTesting(enabled_features_, decls,
-                                                 &module, start, end, zone());
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    return ValidateAndDecodeLocalDeclsForTesting(
+        enabled_features_, decls, &module, kIsShared, start, end, zone());
   }
 };
 
@@ -5118,7 +5127,6 @@ TEST_F(LocalDeclDecoderTest, ExnRef) {
 }
 
 TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
-
   const uint8_t* data = nullptr;
   const uint8_t* end = nullptr;
   LocalDeclEncoder local_decls(zone());

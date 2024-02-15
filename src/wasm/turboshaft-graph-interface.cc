@@ -6807,9 +6807,11 @@ class TurboshaftGraphBuildingInterface {
     base::Vector<const uint8_t> function_bytes =
         wire_bytes_->GetCode(inlinee.code);
 
+    bool is_shared = decoder->module_->types[inlinee.sig_index].is_shared;
+
     const wasm::FunctionBody inlinee_body{inlinee.sig, inlinee.code.offset(),
                                           function_bytes.begin(),
-                                          function_bytes.end()};
+                                          function_bytes.end(), is_shared};
 
     // If the inlinee was not validated before, do that now.
     if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {

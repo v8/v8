@@ -436,7 +436,8 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   Zone* zone, const FunctionSig* sig,
                                   const uint8_t* start, const uint8_t* end) {
   WasmFeatures unused_detected_features;
-  FunctionBody body(sig, 0, start, end);
+  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+  FunctionBody body(sig, 0, start, end, kIsShared);
   std::vector<compiler::WasmLoopInfo> loops;
   BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                &unused_detected_features, body, &loops, nullptr, nullptr, 0,
@@ -483,9 +484,11 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.length());
+  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
-                         func_wire_bytes.begin(), func_wire_bytes.end()};
+                         func_wire_bytes.begin(), func_wire_bytes.end(),
+                         kIsShared};
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

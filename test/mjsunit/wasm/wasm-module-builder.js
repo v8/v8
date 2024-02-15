@@ -76,6 +76,7 @@ let kModuleNameCode = 0;
 let kFunctionNamesCode = 1;
 let kLocalNamesCode = 2;
 
+let kWasmSharedTypeForm = 0x65;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
@@ -1241,23 +1242,25 @@ function makeField(type, mutability) {
 }
 
 class WasmStruct {
-  constructor(fields, is_final, supertype_idx) {
+  constructor(fields, is_final, is_shared, supertype_idx) {
     if (!Array.isArray(fields)) {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
     this.type_form = kWasmStructTypeForm;
     this.is_final = is_final;
+    this.is_shared = is_shared;
     this.supertype = supertype_idx;
   }
 }
 
 class WasmArray {
-  constructor(type, mutability, is_final, supertype_idx) {
+  constructor(type, mutability, is_final, is_shared, supertype_idx) {
     this.type = type;
     this.mutability = mutability;
     this.type_form = kWasmArrayTypeForm;
     this.is_final = is_final;
+    this.is_shared = is_shared;
     this.supertype = supertype_idx;
   }
 }
@@ -1377,11 +1380,11 @@ class WasmModuleBuilder {
 
   // We use {is_final = true} so that the MVP syntax is generated for
   // signatures.
-  addType(type, supertype_idx = kNoSuperType, is_final = true) {
+  addType(type, supertype_idx = kNoSuperType, is_final = true, is_shared = false) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
     var type_copy = {params: type.params, results: type.results,
-                     is_final: is_final, supertype: supertype_idx};
+                     is_final: is_final, is_shared: is_shared, supertype: supertype_idx};
     this.types.push(type_copy);
     return this.types.length - 1;
   }
@@ -1391,13 +1394,13 @@ class WasmModuleBuilder {
     return this.stringrefs.length - 1;
   }
 
-  addStruct(fields, supertype_idx = kNoSuperType, is_final = false) {
-    this.types.push(new WasmStruct(fields, is_final, supertype_idx));
+  addStruct(fields, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
+    this.types.push(new WasmStruct(fields, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
 
-  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false) {
-    this.types.push(new WasmArray(type, mutability, is_final, supertype_idx));
+  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
+    this.types.push(new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1724,6 +1727,7 @@ class WasmModuleBuilder {
             section.emit_u8(kWasmSubtypeForm);
             section.emit_u8(0);  // no supertypes
           }
+          if (type.is_shared) section.emit_u8(kWasmSharedTypeForm);
           if (type instanceof WasmStruct) {
             section.emit_u8(kWasmStructTypeForm);
             section.emit_u32v(type.fields.length);

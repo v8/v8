@@ -855,12 +855,15 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   }
   if (type.kind == TypeDefinition::kArray) {
     const ArrayType* atype = type.array_type;
-    out_ << " (array (field ";
+    out_ << " (array";
+    if (type.is_shared) out_ << " shared";
+    out_ << " (field ";
     PrintMutableType(atype->mutability(), atype->element_type());
     out_ << ")";  // Closes "(field ...".
   } else if (type.kind == TypeDefinition::kStruct) {
     const StructType* stype = type.struct_type;
     out_ << " (struct";
+    if (type.is_shared) out_ << " shared";
     bool break_lines = stype->field_count() > 2;
     for (uint32_t i = 0; i < stype->field_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
@@ -873,6 +876,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   } else if (type.kind == TypeDefinition::kFunction) {
     const FunctionSig* sig = type.function_sig;
     out_ << " (func";
+    if (type.is_shared) out_ << " shared";
     bool break_lines = sig->parameter_count() + sig->return_count() > 2;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);

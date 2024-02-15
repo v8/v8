@@ -319,7 +319,7 @@ uint32_t WasmModuleBuilder::ForceAddSignature(const FunctionSig* sig,
                                               uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
-  types_.emplace_back(sig, supertype, is_final);
+  types_.emplace_back(sig, supertype, is_final, false);
   return index;
 }
 
@@ -341,14 +341,14 @@ uint32_t WasmModuleBuilder::AddTag(const FunctionSig* type) {
 uint32_t WasmModuleBuilder::AddStructType(StructType* type, bool is_final,
                                           uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final);
+  types_.emplace_back(type, supertype, is_final, false);
   return index;
 }
 
 uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
                                          uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final);
+  types_.emplace_back(type, supertype, is_final, false);
   return index;
 }
 

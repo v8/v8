@@ -1434,7 +1434,7 @@ class WasmDecoder : public Decoder {
 
  public:
   WasmDecoder(Zone* zone, const WasmModule* module, WasmFeatures enabled,
-              WasmFeatures* detected, const FunctionSig* sig,
+              WasmFeatures* detected, const FunctionSig* sig, bool is_shared,
               const uint8_t* start, const uint8_t* end,
               uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
@@ -1442,7 +1442,8 @@ class WasmDecoder : public Decoder {
         module_(module),
         enabled_(enabled),
         detected_(detected),
-        sig_(sig) {
+        sig_(sig),
+        is_shared_(is_shared) {
     current_inst_trace_ = &invalid_instruction_trace;
     if (V8_UNLIKELY(module_ && !module_->inst_traces.empty())) {
       auto last_trace = module_->inst_traces.end() - 1;
@@ -1531,6 +1532,10 @@ class WasmDecoder : public Decoder {
           value_type_reader::read_value_type<ValidationTag>(
               this, pc + total_length, enabled_);
       ValidateValueType(pc + total_length, type);
+      if (!VALIDATE(!is_shared_ || IsShared(type, module_))) {
+        DecodeError(pc + total_length, "local must have shared type");
+        return 0;
+      }
       if (!VALIDATE(ok())) return 0;
       total_length += type_length;
 
@@ -1642,6 +1647,13 @@ class WasmDecoder : public Decoder {
     }
     V8_ASSUME(imm.index < num_globals);
     imm.global = &module_->globals[imm.index];
+    if (!VALIDATE(!is_shared_ || imm.global->shared)) {
+      DecodeError(pc, "Cannot access non-shared global %d in a shared %s",
+                  imm.index,
+                  decoding_mode == kConstantExpression ? "constant expression"
+                                                       : "function");
+      return false;
+    }
 
     if constexpr (decoding_mode == kConstantExpression) {
       if (!VALIDATE(!imm.global->mutability)) {
@@ -2525,6 +2537,7 @@ class WasmDecoder : public Decoder {
   const WasmFeatures enabled_;
   WasmFeatures* detected_;
   const FunctionSig* sig_;
+  bool is_shared_;
   const std::pair<uint32_t, uint32_t>* current_inst_trace_;
 };
 
@@ -2589,8 +2602,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                   WasmFeatures* detected, const FunctionBody& body,
                   InterfaceArgs&&... interface_args)
       : WasmDecoder<ValidationTag, decoding_mode>(
-            zone, module, enabled, detected, body.sig, body.start, body.end,
-            body.offset),
+            zone, module, enabled, detected, body.sig, body.is_shared,
+            body.start, body.end, body.offset),
         interface_(std::forward<InterfaceArgs>(interface_args)...),
         stack_(16, zone),
         control_(16, zone) {}
@@ -5981,6 +5994,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   V8_INLINE Value* Push(Value value) {
     DCHECK_IMPLIES(this->ok(), value.type != kWasmVoid);
+    if (!VALIDATE(!this->is_shared_ || IsShared(value.type, this->module_))) {
+      this->DecodeError(value.pc(), "%s does not have a shared type",
+                        SafeOpcodeNameAt(value.pc()));
+      return nullptr;
+    }
     // {stack_.EnsureMoreCapacity} should have been called before, either in the
     // central decoding loop, or individually if more than one element is
     // pushed.
@@ -5998,11 +6016,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (merge->arity == 1) {
       // {stack_.EnsureMoreCapacity} should have been called before in the
       // central decoding loop.
-      stack_.push(merge->vals.first);
+      Push(merge->vals.first);
     } else {
       stack_.EnsureMoreCapacity(merge->arity, this->zone_);
       for (uint32_t i = 0; i < merge->arity; i++) {
-        stack_.push(merge->vals.array[i]);
+        Push(merge->vals.array[i]);
       }
     }
     DCHECK_EQ(c->stack_depth + merge->arity, stack_.size());

@@ -88,8 +88,10 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
                            const uint8_t* end, uint32_t offset,
                            const ModuleWireBytes wire_bytes,
                            NamesProvider* names)
-      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
-                                   sig, start, end, offset),
+      : WasmDecoder<ValidationTag>(
+            zone, module, WasmFeatures::All(), detected, sig,
+            module->types[module->functions[func_index].sig_index].is_shared,
+            start, end, offset),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         names_(names) {}

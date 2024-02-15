@@ -69,8 +69,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
+    constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end());
+                           func_code.end(), kIsShared);
     auto result =
         ExecuteLiftoffCompilation(&env, func_body,
                                   LiftoffOptions{}
@@ -519,8 +520,9 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
     case ConstantExpression::kWireBytesRef: {
       WireBytesRef ref = init.wire_bytes_ref();
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
       FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
-                        module_bytes.start() + ref.end_offset());
+                        module_bytes.start() + ref.end_offset(), kIsShared);
       WasmFeatures detected;
       WasmFullDecoder<Decoder::FullValidationTag, InitExprInterface,
                       kConstantExpression>
@@ -752,8 +754,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     // Add body.
     os << "  .addBodyWithEnd([\n";
 
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end());
+                           func_code.end(), kIsShared);
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
     os << "]);\n";
   }

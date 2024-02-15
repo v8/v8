@@ -8758,8 +8758,10 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
+  bool is_shared =
+      native_module->module()->types[function->sig_index].is_shared;
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
-                         function_bytes.end()};
+                         function_bytes.end(), is_shared};
 
   Zone zone(GetWasmEngine()->allocator(), "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, function->sig);

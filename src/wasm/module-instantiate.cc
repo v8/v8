@@ -2747,7 +2747,9 @@ ValueOrError ConsumeElementSegmentEntry(
   }
 
   auto sig = FixedSizeSignature<ValueType>::Returns(segment.type);
-  FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end());
+  constexpr bool kIsShared = false;  // TODO(14616): Is this correct?
+  FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end(),
+                    kIsShared);
   WasmFeatures detected;
   ValueOrError result;
   {

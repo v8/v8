@@ -60,10 +60,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
-  auto* func = &env->module->functions[func_index_];
+  const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
+  bool is_shared = env->module->types[func->sig_index].is_shared;
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
-                               code.end()};
+                               code.end(), is_shared};
 
   base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
   base::Optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
@@ -181,9 +182,12 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
                                               const WasmFunction* function,
                                               ExecutionTier tier) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  bool is_shared =
+      native_module->module()->types[function->sig_index].is_shared;
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
-                             wire_bytes.start() + function->code.end_offset()};
+                             wire_bytes.start() + function->code.end_offset(),
+                             is_shared};
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());

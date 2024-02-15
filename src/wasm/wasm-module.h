@@ -423,29 +423,33 @@ struct TypeDefinition {
   enum Kind : int8_t { kFunction, kStruct, kArray };
 
   constexpr TypeDefinition(const FunctionSig* sig, uint32_t supertype,
-                           bool is_final)
+                           bool is_final, bool is_shared)
       : function_sig(sig),
         supertype(supertype),
         kind(kFunction),
-        is_final(is_final) {}
+        is_final(is_final),
+        is_shared(is_shared) {}
   constexpr TypeDefinition(const StructType* type, uint32_t supertype,
-                           bool is_final)
+                           bool is_final, bool is_shared)
       : struct_type(type),
         supertype(supertype),
         kind(kStruct),
-        is_final(is_final) {}
+        is_final(is_final),
+        is_shared(is_shared) {}
   constexpr TypeDefinition(const ArrayType* type, uint32_t supertype,
-                           bool is_final)
+                           bool is_final, bool is_shared)
       : array_type(type),
         supertype(supertype),
         kind(kArray),
-        is_final(is_final) {}
+        is_final(is_final),
+        is_shared(is_shared) {}
   constexpr TypeDefinition() = default;
 
   bool operator==(const TypeDefinition& other) const {
     if (supertype != other.supertype) return false;
     if (kind != other.kind) return false;
     if (is_final != other.is_final) return false;
+    if (is_shared != other.is_shared) return false;
     if (kind == kFunction) return *function_sig == *other.function_sig;
     if (kind == kStruct) return *struct_type == *other.struct_type;
     DCHECK_EQ(kArray, kind);
@@ -464,6 +468,7 @@ struct TypeDefinition {
   uint32_t supertype = kNoSuperType;
   Kind kind = kFunction;
   bool is_final = false;
+  bool is_shared = false;
   uint8_t subtyping_depth = 0;
 };
 
@@ -679,21 +684,21 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   void AddSignatureForTesting(const FunctionSig* sig, uint32_t supertype,
-                              bool is_final) {
+                              bool is_final, bool is_shared) {
     DCHECK_NOT_NULL(sig);
-    AddTypeForTesting(TypeDefinition(sig, supertype, is_final));
+    AddTypeForTesting(TypeDefinition(sig, supertype, is_final, is_shared));
   }
 
   void AddStructTypeForTesting(const StructType* type, uint32_t supertype,
-                               bool is_final) {
+                               bool is_final, bool is_shared) {
     DCHECK_NOT_NULL(type);
-    AddTypeForTesting(TypeDefinition(type, supertype, is_final));
+    AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
 
   void AddArrayTypeForTesting(const ArrayType* type, uint32_t supertype,
-                              bool is_final) {
+                              bool is_final, bool is_shared) {
     DCHECK_NOT_NULL(type);
-    AddTypeForTesting(TypeDefinition(type, supertype, is_final));
+    AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
 
   // ================ Accessors ================================================
