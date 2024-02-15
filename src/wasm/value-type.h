@@ -66,6 +66,9 @@ class HeapType {
     kArray,                   // shorthand: g
     kAny,                     //
     kExtern,                  // shorthand: a.
+    kExternString,            // Internal type for optimization purposes.
+                              // Subtype of extern.
+                              // Used by the js-builtin-strings proposal.
     kExn,                     //
     kString,                  // shorthand: w.
     kStringViewWtf8,          // shorthand: x.
@@ -172,6 +175,8 @@ class HeapType {
         return std::string("array");
       case kExtern:
         return std::string("extern");
+      case kExternString:
+        return std::string("<extern_string>");
       case kAny:
         return std::string("any");
       case kString:
@@ -745,6 +750,10 @@ constexpr ValueType kWasmStructRef = ValueType::RefNull(HeapType::kStruct);
 constexpr ValueType kWasmArrayRef = ValueType::RefNull(HeapType::kArray);
 constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
 constexpr ValueType kWasmRefString = ValueType::Ref(HeapType::kString);
+constexpr ValueType kWasmRefNullExternString =
+    ValueType::RefNull(HeapType::kExternString);
+constexpr ValueType kWasmRefExternString =
+    ValueType::Ref(HeapType::kExternString);
 constexpr ValueType kWasmStringViewWtf8 =
     ValueType::RefNull(HeapType::kStringViewWtf8);
 constexpr ValueType kWasmStringViewWtf16 =
