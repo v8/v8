@@ -2404,10 +2404,15 @@ base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
 void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return;
-  OnException(value,
-              IsJSPromise(*promise) ? Handle<JSPromise>::cast(promise)
-                                    : MaybeHandle<JSPromise>(),
-              v8::debug::kPromiseRejection);
+  MaybeHandle<JSPromise> maybe_promise;
+  if (IsJSPromise(*promise)) {
+    Handle<JSPromise> js_promise = Handle<JSPromise>::cast(promise);
+    if (js_promise->is_silent()) {
+      return;
+    }
+    maybe_promise = js_promise;
+  }
+  OnException(value, maybe_promise, v8::debug::kPromiseRejection);
 }
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {

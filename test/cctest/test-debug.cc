@@ -5738,7 +5738,8 @@ TEST(TerminateOnResumeAtUnhandledRejection) {
 }
 
 namespace {
-void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void RejectPromiseThroughCppInternal(
+    const v8::FunctionCallbackInfo<v8::Value>& info, bool silent) {
   CHECK(i::ValidateCallbackInfo(info));
   auto data = reinterpret_cast<std::pair<v8::Isolate*, LocalContext*>*>(
       info.Data().As<v8::External>()->Value());
@@ -5751,9 +5752,23 @@ void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Promise> promise = resolver->GetPromise();
   CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
 
+  if (silent) {
+    promise->MarkAsSilent();
+  }
+
   resolver->Reject(data->second->local(), value1).ToChecked();
   CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
 }
+
+void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  RejectPromiseThroughCppInternal(info, false);
+}
+
+void SilentRejectPromiseThroughCpp(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  RejectPromiseThroughCppInternal(info, true);
+}
+
 }  // namespace
 
 TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
@@ -5778,6 +5793,36 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
     CompileRun("RejectPromiseThroughCpp(); while (true) {}");
     CHECK_EQ(delegate.break_count(), 0);
     CHECK_EQ(delegate.exception_thrown_count(), 1);
+  }
+  ExpectInt32("1 + 1", 2);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(env->GetIsolate());
+  ChangeBreakOnException(isolate, true, true);
+  SetTerminateOnResumeDelegate delegate;
+  auto data = std::make_pair(isolate, &env);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  {
+    // We want to reject in a way that would trigger a breakpoint if it were
+    // not silenced (as in TerminateOnResumeAtUnhandledRejectionCppImpl), but
+    // that would also requre that there is at least one JavaScript frame
+    // on the stack.
+    v8::Local<v8::Function> func =
+        v8::Function::New(env.local(), SilentRejectPromiseThroughCpp,
+                          v8::External::New(isolate, &data))
+            .ToLocalChecked();
+    CHECK(env->Global()
+              ->Set(env.local(), v8_str("RejectPromiseThroughCpp"), func)
+              .FromJust());
+
+    CompileRun("RejectPromiseThroughCpp(); debugger;");
+    CHECK_EQ(delegate.break_count(), 1);
+    CHECK_EQ(delegate.exception_thrown_count(), 0);
   }
   ExpectInt32("1 + 1", 2);
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
