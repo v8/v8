@@ -2886,6 +2886,7 @@ filegroup(
             "src/wasm/wasm-value.h",
             "src/wasm/well-known-imports.cc",
             "src/wasm/well-known-imports.h",
+            "src/wasm/wrappers.cc",
         ],
         "//conditions:default": [],
     }),

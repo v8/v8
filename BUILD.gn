@@ -5718,6 +5718,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
       "src/wasm/well-known-imports.cc",
+      "src/wasm/wrappers.cc",
     ]
   }
 
