@@ -2063,10 +2063,10 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   // This phase doesn't support parallel marking.
   DCHECK(heap_->concurrent_marking()->IsStopped());
-  // We need to use the FullPtrComparer here as we'll be querying this map with
-  // objects from other pointer compression cages (e.g. code- or trusted cage).
+  // We must use the full pointer comparison here as this map will be queried
+  // with objects from different cages (e.g. code- or trusted cage).
   std::unordered_multimap<Tagged<HeapObject>, Tagged<HeapObject>,
-                          Object::Hasher, Object::FullPtrComparer>
+                          Object::Hasher, Object::KeyEqualSafe>
       key_to_values;
   Ephemeron ephemeron;
 
