@@ -594,6 +594,34 @@ class MachineRepresentationChecker {
                     node, 2, inferrer_->GetRepresentation(node));
             }
             break;
+          case IrOpcode::kStorePair: {
+            CheckValueInputIsTaggedOrPointer(node, 0);
+            CheckValueInputRepresentationIs(
+                node, 1, MachineType::PointerRepresentation());
+            auto CheckInput = [&](MachineRepresentation rep, int input) {
+              switch (rep) {
+                case MachineRepresentation::kTagged:
+                case MachineRepresentation::kTaggedPointer:
+                case MachineRepresentation::kTaggedSigned:
+                case MachineRepresentation::kIndirectPointer:
+                  if (COMPRESS_POINTERS_BOOL) {
+                    CheckValueInputIsCompressedOrTagged(node, input);
+                  } else {
+                    CheckValueInputIsTagged(node, input);
+                  }
+                  break;
+                default:
+                  CheckValueInputRepresentationIs(node, input, rep);
+              }
+            };
+            auto rep = StorePairRepresentationOf(node->op());
+            CHECK_GE(ElementSizeLog2Of(rep.first.representation()), 2);
+            CHECK_EQ(ElementSizeLog2Of(rep.first.representation()),
+                     ElementSizeLog2Of(rep.second.representation()));
+            CheckInput(rep.first.representation(), 2);
+            CheckInput(rep.second.representation(), 3);
+            break;
+          }
           case IrOpcode::kWord32AtomicPairCompareExchange:
             CheckValueInputRepresentationIs(node, 4,
                                             MachineRepresentation::kWord32);
