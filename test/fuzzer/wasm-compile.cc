@@ -347,14 +347,14 @@ class WasmGenerator {
     builder_->EmitSetLocal(counter);
 
     // begin loop {
-    BlockScope block_scope(this, kExprLoop, param_types, return_types,
-                           param_types);
+    BlockScope loop_scope(this, kExprLoop, param_types, return_types,
+                          param_types);
     //   Consume the parameters:
     //   Resetting locals in each iteration can create interesting loop-phis.
     //   TODO(evih): Iterate through existing locals and try to reuse them
     //   instead of creating new locals.
-    for (ValueType v : param_types) {
-      uint32_t local = builder_->AddLocal(v);
+    for (auto it = param_types.rbegin(); it != param_types.rend(); it++) {
+      uint32_t local = builder_->AddLocal(*it);
       builder_->EmitSetLocal(local);
     }
 
@@ -369,11 +369,11 @@ class WasmGenerator {
 
     //   If there is another iteration, generate new parameters for the loop and
     //   go to the beginning of the loop.
-    builder_->Emit(kExprIf);
-    builder_->EmitByte(kVoidCode);
-    Generate(param_types, data);
-    builder_->EmitWithI32V(kExprBr, 0);
-    builder_->Emit(kExprEnd);
+    {
+      BlockScope if_scope(this, kExprIf, {}, {}, {});
+      Generate(param_types, data);
+      builder_->EmitWithI32V(kExprBr, 1);
+    }
 
     //   Otherwise, generate the return types.
     Generate(return_types, data);
