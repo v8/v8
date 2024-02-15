@@ -644,7 +644,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     if (segment.active) {
       // TODO(wasm): Add other expressions when needed.
       CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
-      os << "builder.addDataSegment(" << segment.dest_addr.i32_value() << ", ";
+      os << "builder.addActiveDataSegment(0, [kExprI32Const, "
+         << segment.dest_addr.i32_value() << "], ";
     } else {
       os << "builder.addPassiveDataSegment(";
     }

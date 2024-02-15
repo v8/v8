@@ -1577,20 +1577,19 @@ class WasmModuleBuilder {
     return this;
   }
 
-  // TODO(manoskouk): Refactor this to use initializer expression for {offset}.
-  addDataSegment(offset, data, is_global = false, memory_index = 0) {
+  addActiveDataSegment(memory_index, offset, data) {
+    checkExpr(offset);
     this.data_segments.push({
-      offset: offset,
-      data: data,
-      is_global: is_global,
       is_active: true,
-      mem_index: memory_index
+      mem_index: memory_index,
+      offset: offset,
+      data: data
     });
     return this.data_segments.length - 1;
   }
 
   addPassiveDataSegment(data) {
-    this.data_segments.push({data: data, is_active: false});
+    this.data_segments.push({is_active: false, data: data});
     return this.data_segments.length - 1;
   }
 
@@ -2060,15 +2059,7 @@ class WasmModuleBuilder {
               section.emit_u8(kActiveWithIndex);
               section.emit_u32v(seg.mem_index);
             }
-            if (seg.is_global) {
-              // Offset is taken from a global.
-              section.emit_u8(kExprGlobalGet);
-              section.emit_u32v(seg.offset);
-            } else {
-              // Offset is a constant.
-              section.emit_bytes(wasmI32Const(seg.offset));
-            }
-            section.emit_u8(kExprEnd);
+            section.emit_init_expr(seg.offset);
           } else {
             section.emit_u8(kPassive);
           }

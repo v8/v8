@@ -162,7 +162,7 @@ function makeWtf8TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("string_new_utf8", kSig_w_ii)
     .exportFunc()
@@ -231,7 +231,7 @@ function makeWtf8TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("is_null_new_utf8_try", kSig_i_ii)
     .exportFunc()
@@ -284,7 +284,7 @@ function makeWtf16TestDataSegment() {
 
   builder.addMemory(1, undefined);
   let data = makeWtf16TestDataSegment();
-  builder.addDataSegment(0, data.data);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], data.data);
 
   builder.addFunction("string_new_wtf16", kSig_w_ii)
     .exportFunc()

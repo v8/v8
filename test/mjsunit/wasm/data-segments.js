@@ -15,7 +15,7 @@ function SimpleDataSegmentTest(offset) {
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
     .exportAs("load");
-  builder.addDataSegment(offset, [9, 9, 9, 9]);
+  builder.addActiveDataSegment(0, wasmI32Const(offset), [9, 9, 9, 9]);
 
   var buffer = builder.toBuffer(debug);
   var instance = new WebAssembly.Instance(new WebAssembly.Module(buffer));
@@ -32,7 +32,7 @@ SimpleDataSegmentTest(12);
 SimpleDataSegmentTest(1064);
 
 function GlobalImportedInitTest(pad) {
-  print("GlobaleImportedInitTest(" + pad + ")...");
+  print("GlobalImportedInitTest(" + pad + ")...");
   var builder = new WasmModuleBuilder();
   builder.addMemory(1, 1);
 
@@ -43,7 +43,7 @@ function GlobalImportedInitTest(pad) {
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
     .exportAs("load");
-  builder.addDataSegment(g.index, [5, 5, 5, 5], true);
+  builder.addActiveDataSegment(0, [kExprGlobalGet, g], [5, 5, 5, 5]);
 
   var buffer = builder.toBuffer(debug);
   var module = new WebAssembly.Module(buffer);

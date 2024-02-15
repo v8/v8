@@ -118,7 +118,7 @@ function instantiate(buffer, ffi) {
   builder.addFunction('load', kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportAs('load');
-  builder.addDataSegment(0, [9, 9, 9, 9]);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], [9, 9, 9, 9]);
 
   var buffer = builder.toBuffer(debug);
   var instance = instantiate(buffer);

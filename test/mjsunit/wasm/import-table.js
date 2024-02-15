@@ -164,7 +164,7 @@ function addConstFuncUsingMemory(builder, val) {
   var addr = builder.address;
   builder.address += 8;
   var bytes = [val & 0xff, (val>>8) & 0xff, (val>>16) & 0xff, (val>>24) & 0xff];
-  builder.addDataSegment(addr, bytes);
+  builder.addActiveDataSegment(0, [kExprI32Const, addr], bytes);
   return builder.addFunction("mem" + val, kSig_i_v)
     .addBody([
       ...wasmI32Const(addr),
