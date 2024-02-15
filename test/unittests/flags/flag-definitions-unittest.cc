@@ -295,4 +295,29 @@ TEST(FlagContradictionsTest, ResolvesContradictions) {
 #endif
 }
 
+const char* smallerValues[] = {"", "--a", "--a-b-c", "--a_b_c"};
+const char* largerValues[] = {"--a-c-b", "--a_c_b",   "--a_b_d",
+                              "--a-b-d", "--a_b_c_d", "--a-b-c-d"};
+
+TEST(FlagHelpersTest, CompareDifferentFlags) {
+  TRACED_FOREACH(const char*, smaller, smallerValues) {
+    TRACED_FOREACH(const char*, larger, largerValues) {
+      CHECK_EQ(-1, FlagHelpers::FlagNamesCmp(smaller, larger));
+      CHECK_EQ(1, FlagHelpers::FlagNamesCmp(larger, smaller));
+    }
+  }
+}
+
+void CheckEqualFlags(const char* f1, const char* f2) {
+  CHECK(FlagHelpers::EqualNames(f1, f2));
+  CHECK(FlagHelpers::EqualNames(f2, f1));
+}
+
+TEST(FlagHelpersTest, CompareSameFlags) {
+  CheckEqualFlags("", "");
+  CheckEqualFlags("--a", "--a");
+  CheckEqualFlags("--a-b-c", "--a_b_c");
+  CheckEqualFlags("--a-b-c", "--a-b-c");
+}
+
 }  // namespace v8::internal

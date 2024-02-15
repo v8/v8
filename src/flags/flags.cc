@@ -50,9 +50,27 @@ static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_DEFAULTS
 
-namespace {
+char FlagHelpers::NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
-char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
+int FlagHelpers::FlagNamesCmp(const char* a, const char* b) {
+  int i = 0;
+  char ac, bc;
+  do {
+    ac = NormalizeChar(a[i]);
+    bc = NormalizeChar(b[i]);
+    if (ac < bc) return -1;
+    if (ac > bc) return 1;
+    i++;
+  } while (ac != '\0');
+  DCHECK(bc == '\0');
+  return 0;
+}
+
+bool FlagHelpers::EqualNames(const char* a, const char* b) {
+  return FlagNamesCmp(a, b) == 0;
+}
+
+namespace {
 
 struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
@@ -76,7 +94,9 @@ struct FlagName {
 
 std::ostream& operator<<(std::ostream& os, FlagName flag_name) {
   os << (flag_name.negated ? "--no-" : "--");
-  for (const char* p = flag_name.name; *p; ++p) os << NormalizeChar(*p);
+  for (const char* p = flag_name.name; *p; ++p) {
+    os << FlagHelpers::NormalizeChar(*p);
+  }
   return os;
 }
 
@@ -464,33 +484,15 @@ Flag flags[] = {
 
 constexpr size_t kNumFlags = arraysize(flags);
 
-int FlagNamesCmp(const char* a, const char* b) {
-  int i = 0;
-  char ac, bc;
-  do {
-    ac = NormalizeChar(a[i]);
-    bc = NormalizeChar(b[i]);
-    if (ac < bc) return -1;
-    if (ac > bc) return 1;
-    i++;
-  } while (ac != '\0');
-  DCHECK(bc == '\0');
-  return 0;
-}
-
-bool EqualNames(const char* a, const char* b) {
-  return FlagNamesCmp(a, b) == 0;
-}
-
 struct FlagLess {
   bool operator()(const Flag* a, const Flag* b) const {
-    return FlagNamesCmp(a->name(), b->name()) < 0;
+    return FlagHelpers::FlagNamesCmp(a->name(), b->name()) < 0;
   }
 };
 
 struct FlagNameLess {
   bool operator()(const Flag* a, const char* b) const {
-    return FlagNamesCmp(a->name(), b) < 0;
+    return FlagHelpers::FlagNamesCmp(a->name(), b) < 0;
   }
 };
 
@@ -523,7 +525,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(FlagMapByName, GetFlagMap)
 Flag* FindImplicationFlagByName(const char* name) {
   Flag* flag = GetFlagMap()->GetFlag(name);
   CHECK(flag != nullptr);
-  DCHECK(EqualNames(flag->name(), name));
+  DCHECK(FlagHelpers::EqualNames(flag->name(), name));
   return flag;
 }
 
@@ -533,11 +535,13 @@ Flag* FindFlagByName(const char* name) {
   Flag* flag = GetFlagMap()->GetFlag(name);
   // GetFlag returns an invalid lower bound for flags not in the list. So
   // we need to verify the name again.
-  if (flag != nullptr && EqualNames(flag->name(), name)) return flag;
+  if (flag != nullptr && FlagHelpers::EqualNames(flag->name(), name)) {
+    return flag;
+  }
 #ifdef DEBUG
   // Ensure the flag is not in the global list.
   for (size_t i = 0; i < kNumFlags; ++i) {
-    DCHECK(!EqualNames(name, flags[i].name()));
+    DCHECK(!FlagHelpers::EqualNames(name, flags[i].name()));
   }
 #endif
   return nullptr;
@@ -731,7 +735,9 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
     }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;                                 // remove "no"
-      if (NormalizeChar(arg[0]) == '-') arg++;  // remove dash after "no".
+      if (FlagHelpers::NormalizeChar(arg[0]) == '-') {
+        arg++;  // remove dash after "no".
+      }
       *negated = true;
     }
     *name = arg;
