@@ -674,6 +674,7 @@ filegroup(
     name = "v8_flags",
     srcs = [
         "src/flags/flag-definitions.h",
+        "src/flags/flags-impl.h",
         "src/flags/flags.h",
     ] + select({
         "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
@@ -1540,6 +1541,7 @@ filegroup(
         "src/extensions/trigger-failure-extension.cc",
         "src/extensions/trigger-failure-extension.h",
         "src/flags/flag-definitions.h",
+        "src/flags/flags-impl.h",
         "src/flags/flags.cc",
         "src/flags/flags.h",
         "src/handles/global-handles.cc",

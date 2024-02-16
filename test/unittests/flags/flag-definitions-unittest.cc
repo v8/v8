@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/flags/flags-impl.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "test/unittests/fuzztest.h"

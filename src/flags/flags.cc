@@ -20,6 +20,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
+#include "src/flags/flags-impl.h"
 #include "src/logging/counters.h"
 #include "src/logging/tracing-flags.h"
 #include "src/tracing/tracing-category-observer.h"
