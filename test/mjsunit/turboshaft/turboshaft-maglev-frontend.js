@@ -20,9 +20,9 @@ function math_smi(x, y) {
   return a;
 }
 %PrepareFunctionForOptimization(math_smi);
-assertEquals(math_smi(4, 3), 3);
+assertEquals(3, math_smi(4, 3));
 %OptimizeFunctionOnNextCall(math_smi);
-assertEquals(math_smi(4, 3), 3);
+assertEquals(3, math_smi(4, 3));
 assertOptimized(math_smi);
 assertEquals(NaN, math_smi("a", "b"));
 assertUnoptimized(math_smi);
@@ -38,9 +38,9 @@ function math_float(x, y) {
   return h;
 }
 %PrepareFunctionForOptimization(math_float);
-assertEquals(math_float(4.21, 3.56), -42.56563728706824);
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 %OptimizeFunctionOnNextCall(math_float);
-assertEquals(math_float(4.21, 3.56), -42.56563728706824);
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 assertOptimized(math_float);
 
 function cmp(which, a, b) {
@@ -51,39 +51,39 @@ function cmp(which, a, b) {
 }
 %PrepareFunctionForOptimization(cmp);
 // >
-assertEquals(cmp(0, 10, 20), false);
-assertEquals(cmp(0, 20, 10), true);
-assertEquals(cmp(0, 15, 15), false);
+assertEquals(false, cmp(0, 10, 20));
+assertEquals(true, cmp(0, 20, 10));
+assertEquals(false, cmp(0, 15, 15));
 // >=
-assertEquals(cmp(1, 10, 20), false);
-assertEquals(cmp(1, 20, 10), true);
-assertEquals(cmp(1, 15, 15), true);
+assertEquals(false, cmp(1, 10, 20));
+assertEquals(true, cmp(1, 20, 10));
+assertEquals(true, cmp(1, 15, 15));
 // <
-assertEquals(cmp(2, 10, 20), true);
-assertEquals(cmp(2, 20, 10), false);
-assertEquals(cmp(2, 15, 15), false);
+assertEquals(true, cmp(2, 10, 20));
+assertEquals(false, cmp(2, 20, 10));
+assertEquals(false, cmp(2, 15, 15));
 // <=
-assertEquals(cmp(3, 10, 20), true);
-assertEquals(cmp(3, 20, 10), false);
-assertEquals(cmp(3, 15, 15), true);
+assertEquals(true, cmp(3, 10, 20));
+assertEquals(false, cmp(3, 20, 10));
+assertEquals(true, cmp(3, 15, 15));
 
 %OptimizeFunctionOnNextCall(cmp);
 // >
-assertEquals(cmp(0, 10, 20), false);
-assertEquals(cmp(0, 20, 10), true);
-assertEquals(cmp(0, 15, 15), false);
+assertEquals(false, cmp(0, 10, 20));
+assertEquals(true, cmp(0, 20, 10));
+assertEquals(false, cmp(0, 15, 15));
 // >=
-assertEquals(cmp(1, 10, 20), false);
-assertEquals(cmp(1, 20, 10), true);
-assertEquals(cmp(1, 15, 15), true);
+assertEquals(false, cmp(1, 10, 20));
+assertEquals(true, cmp(1, 20, 10));
+assertEquals(true, cmp(1, 15, 15));
 // <
-assertEquals(cmp(2, 10, 20), true);
-assertEquals(cmp(2, 20, 10), false);
-assertEquals(cmp(2, 15, 15), false);
+assertEquals(true, cmp(2, 10, 20));
+assertEquals(false, cmp(2, 20, 10));
+assertEquals(false, cmp(2, 15, 15));
 // <=
-assertEquals(cmp(3, 10, 20), true);
-assertEquals(cmp(3, 20, 10), false);
-assertEquals(cmp(3, 15, 15), true);
+assertEquals(true, cmp(3, 10, 20));
+assertEquals(false, cmp(3, 20, 10));
+assertEquals(true, cmp(3, 15, 15));
 assertOptimized(cmp);
 
 function bitwise_smi(a, b) {
@@ -96,9 +96,9 @@ function bitwise_smi(a, b) {
   return ~x;
 }
 %PrepareFunctionForOptimization(bitwise_smi);
-assertEquals(bitwise_smi(1548, 45235), -23041);
+assertEquals(-23041, bitwise_smi(1548, 45235));
 %OptimizeFunctionOnNextCall(bitwise_smi);
-assertEquals(bitwise_smi(1548, 45235), -23041);
+assertEquals(-23041, bitwise_smi(1548, 45235));
 assertOptimized(bitwise_smi);
 
 function simple_loop(x) {
@@ -109,9 +109,9 @@ function simple_loop(x) {
   return s;
 }
 %PrepareFunctionForOptimization(simple_loop);
-assertEquals(simple_loop(17), 74);
+assertEquals(74, simple_loop(17));
 %OptimizeFunctionOnNextCall(simple_loop);
-assertEquals(simple_loop(17), 74);
+assertEquals(74, simple_loop(17));
 assertOptimized(simple_loop);
 
 function load_smi_arr(arr, idx) {
@@ -120,13 +120,13 @@ function load_smi_arr(arr, idx) {
 {
   let smi_arr = [1, 2, 3, 4, {}];
   %PrepareFunctionForOptimization(load_smi_arr);
-  assertEquals(load_smi_arr(smi_arr, 3), 6);
+  assertEquals(6, load_smi_arr(smi_arr, 3));
   %OptimizeFunctionOnNextCall(load_smi_arr);
-  assertEquals(load_smi_arr(smi_arr, 3), 6);
+  assertEquals(6, load_smi_arr(smi_arr, 3));
   assertOptimized(load_smi_arr);
 
   // String indices currently work without requiring deopt.
-  assertEquals(load_smi_arr(smi_arr, '2'), 5);
+  assertEquals(5, load_smi_arr(smi_arr, '2'));
   assertOptimized(load_smi_arr);
 }
 
@@ -136,12 +136,103 @@ function load_double_arr(arr, idx) {
 {
   let double_arr = [1.552, 2.425, 3.526, 4.596, 5.986, 6.321];
   %PrepareFunctionForOptimization(load_double_arr);
-  assertEquals(load_double_arr(double_arr, 3), 8.122);
+  assertEquals(8.122, load_double_arr(double_arr, 3));
   %OptimizeFunctionOnNextCall(load_double_arr);
-  assertEquals(load_double_arr(double_arr, 3), 8.122);
+  assertEquals(8.122, load_double_arr(double_arr, 3));
   assertOptimized(load_double_arr);
 
   // String indices currently work without requiring deopt.
-  assertEquals(load_double_arr(double_arr, '1'), 5.951);
+  assertEquals(5.951, load_double_arr(double_arr, '1'));
   assertOptimized(load_double_arr);
+}
+
+// Simple JS function call
+{
+  %NeverOptimizeFunction(h);
+  function h(x) { return x; }
+  function g(x) { return h(x); }
+  function f(x) { return g(x); }
+
+  %PrepareFunctionForOptimization(g);
+  %PrepareFunctionForOptimization(f);
+  assertEquals(42, f(42));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(42, f(42));
+  assertOptimized(f);
+}
+
+// Simple JS call with receiver
+{
+  function f(o) { return o.x(17); }
+
+  let o = { y : 42, x : function(a) { return a + this.y; } };
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(59, f(o));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(59, f(o));
+  assertOptimized(f);
+}
+
+// Lazy deopt during JS function call
+{
+  %NeverOptimizeFunction(h);
+  function h(x, d) {
+    if (d == 2) { return f(x, d-1); }
+    if (d == 1) {
+      // Calling `f` with a string as input will trigger an eager deopt of `f`,
+      // which will also trigger a lazy deopt of all instances `f` on the caller
+      // stack.
+      return f("str", d-1);
+    }
+    return x;
+  }
+
+  function g(x, d) {
+    let tmp = x * 12;
+    let v = h(x, d);
+    return tmp + v;
+  }
+
+  function f(x, d) {
+    let a = x + 2;
+    return g(a, d);
+  }
+
+  %PrepareFunctionForOptimization(f);
+  %PrepareFunctionForOptimization(g);
+  assertEquals(572, f(42, 0));
+
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(572, f(42, 0));
+  assertOptimized(f);
+  assertEquals("528552NaNstr2", f(42, 2));
+  assertUnoptimized(f);
+}
+
+// Testing deopt with raw floats and raw integers in the frame state.
+{
+  %NeverOptimizeFunction(sum);
+  function sum(...args) {
+    return args.reduce((a,b) => a + b, 0);
+  }
+
+  function f(a, b, c) {
+    let x = a * 4.25;
+    let y = b * 17;
+    // This call to `sum` causes `x` and `y` to be part of the frame state.
+    let s = sum(a, b);
+    let z = b + c;
+    // This call is just to use the values we computed before.
+    return sum(s, x, y, z);
+  }
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(113.39, f(2.36, 5, 6));
+
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(113.39, f(2.36, 5, 6));
+  assertOptimized(f);
+  assertEquals(113.93, f(2.36, 5, 6.54));
+  assertUnoptimized(f);
 }

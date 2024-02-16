@@ -25,6 +25,28 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+namespace {
+
+MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
+  switch (repr) {
+    case maglev::ValueRepresentation::kTagged:
+      return MachineType::AnyTagged();
+    case maglev::ValueRepresentation::kInt32:
+      return MachineType::Int32();
+    case maglev::ValueRepresentation::kUint32:
+      return MachineType::Uint32();
+    case maglev::ValueRepresentation::kIntPtr:
+      return MachineType::IntPtr();
+    case maglev::ValueRepresentation::kFloat64:
+      return MachineType::Float64();
+    case maglev::ValueRepresentation::kHoleyFloat64:
+      // TODO(dmercadier): is this correct?
+      return MachineType::Float64();
+  }
+}
+
+}  // namespace
+
 class GraphBuilder {
  public:
   using AssemblerT =
@@ -135,6 +157,35 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): handle builtin calls.
+    DCHECK(!node->shared_function_info().HasBuiltinId());
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Tagged> callee = Map(node->closure());
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(Map(node->receiver()));
+    for (int i = 0; i < node->num_args(); i++) {
+      arguments.push_back(Map(node->arg(i)));
+    }
+
+    arguments.push_back(Map(node->new_target()));
+    arguments.push_back(__ Word32Constant(JSParameterCount(node->num_args())));
+
+    // Load the context from {callee}.
+    OpIndex context =
+        __ LoadField(callee, AccessBuilder::ForJSFunctionContext());
+    arguments.push_back(context);
+
+    const CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+        graph_zone(), false, 1 + node->num_args(),
+        CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+    SetMap(node, __ Call(callee, frame_state, base::VectorOf(arguments),
+                         TSCallDescriptor::Create(descriptor, CanThrow::kYes,
+                                                  graph_zone())));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckMaps* node,
                                 const maglev::ProcessingState& state) {
     Label<> done(this);
@@ -157,6 +208,15 @@ class GraphBuilder {
       GOTO(done);
       BIND(done);
     }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckValue* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    __ DeoptimizeIfNot(__ TaggedEqual(Map(node->target_input()),
+                                      __ HeapConstant(node->value().object())),
+                       frame_state, DeoptimizeReason::kWrongValue,
+                       node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -449,74 +509,113 @@ class GraphBuilder {
 
  private:
   OpIndex BuildFrameState(maglev::EagerDeoptInfo* eager_deopt_info) {
+    // TODO(dmercadier): handle other FrameTypes.
     DCHECK_EQ(eager_deopt_info->top_frame().type(),
               maglev::DeoptFrame::FrameType::kInterpretedFrame);
     maglev::InterpretedDeoptFrame& frame =
         eager_deopt_info->top_frame().as_interpreted();
+    return BuildFrameState(frame, OutputFrameStateCombine::Ignore(), true);
+  }
+
+  OpIndex BuildFrameState(maglev::LazyDeoptInfo* lazy_deopt_info) {
+    DCHECK_EQ(lazy_deopt_info->top_frame().type(),
+              maglev::DeoptFrame::FrameType::kInterpretedFrame);
+    maglev::InterpretedDeoptFrame& frame =
+        lazy_deopt_info->top_frame().as_interpreted();
+    // TODO(dmercadier): handle cases where the following DCHECK doesn't hold
+    // (ie, cases where the return value is not the accumulator, and where there
+    // are multiple return values).
+    DCHECK(lazy_deopt_info->result_location() ==
+               interpreter::Register::virtual_accumulator() &&
+           lazy_deopt_info->result_size() == 1);
+    return BuildFrameState(frame, OutputFrameStateCombine::PokeAt(0), true);
+  }
+
+  OpIndex BuildFrameState(maglev::InterpretedDeoptFrame& frame,
+                          OutputFrameStateCombine combine, bool is_topmost) {
     FrameStateData::Builder builder;
-    if (eager_deopt_info->top_frame().parent() != nullptr) {
-      // TODO(dmercadier): do something about inlining.
-      UNIMPLEMENTED();
+
+    if (frame.parent() != nullptr) {
+      DCHECK_EQ(frame.parent()->type(),
+                maglev::DeoptFrame::FrameType::kInterpretedFrame);
+      OpIndex parent_frame =
+          BuildFrameState(frame.parent()->as_interpreted(), combine, false);
+      builder.AddParentFrameState(parent_frame);
     }
 
     // Closure
-    builder.AddInput(MachineType::AnyTagged(), Map(frame.closure()));
+    AddDeoptInput(builder, frame.closure());
 
     // Parameters
     frame.frame_state()->ForEachParameter(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          builder.AddInput(MachineType::AnyTagged(), Map(value));
+          AddDeoptInput(builder, value);
         });
 
     // Context
-    builder.AddInput(MachineType::AnyTagged(),
-                     Map(frame.frame_state()->context(frame.unit())));
-
-    // The accumulator should be included both in the locals and the "stack"
-    // input.
-    if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
-      builder.AddInput(MachineType::AnyTagged(),
-                       Map(frame.frame_state()->accumulator(frame.unit())));
-    } else {
-      // TODO(dmercadier): should we add an unused register or nothing here?
-      builder.AddUnusedRegister();
-    }
+    AddDeoptInput(builder, frame.frame_state()->context(frame.unit()));
 
     // Locals
-    // note that ForEachLocal skips the accumulator.
+    // ForEachLocal in Maglev skips over dead registers, but we still need to
+    // call AddUnusedRegister on the Turboshaft FrameStateData Builder.
+    // {local_index} is used to keep track of such unused registers.
+    // Among the variables not included in ForEachLocal is the Accumulator (but
+    // this is fine since there is an entry in the state specifically for the
+    // accumulator later).
+    int local_index = 0;
     frame.frame_state()->ForEachLocal(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          builder.AddInput(MachineType::AnyTagged(), Map(value));
+          while (local_index < reg.index()) {
+            builder.AddUnusedRegister();
+            local_index++;
+          }
+          AddDeoptInput(builder, value);
+          local_index++;
         });
+    for (; local_index < frame.unit().register_count(); local_index++) {
+      builder.AddUnusedRegister();
+    }
 
     // Accumulator
-    if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
-      builder.AddInput(MachineType::AnyTagged(),
-                       Map(frame.frame_state()->accumulator(frame.unit())));
+    // When `combine` is PokeAt(0), the value of the accumulator is produced by
+    // the function that lazy deopts, and thus it shouldn't be in the
+    // FrameState (since the FrameState is defined before the function is
+    // called), so in that case we set the Accumulator to UnusedRegister, even
+    // if it is alive.
+    // TODO(dmercadier): the "combine != PokeAt(0)" is fine for now since we
+    // don't have PokeAt with other values than 0 for now, but once we do, we
+    // should use instead something similar to InReturnValues in Maglev.
+    if (is_topmost && frame.frame_state()->liveness()->AccumulatorIsLive() &&
+        combine != OutputFrameStateCombine::PokeAt(0)) {
+      AddDeoptInput(builder, frame.frame_state()->accumulator(frame.unit()));
     } else {
       builder.AddUnusedRegister();
     }
 
-    const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame);
+    const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame, combine);
     return __ FrameState(
         builder.Inputs(), builder.inlined(),
         builder.AllocateFrameStateData(*frame_state_info, graph_zone()));
   }
 
+  void AddDeoptInput(FrameStateData::Builder& builder,
+                     maglev::ValueNode* node) {
+    builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
+  }
+
   const FrameStateInfo* MakeFrameStateInfo(
-      maglev::InterpretedDeoptFrame& maglev_frame) {
+      maglev::InterpretedDeoptFrame& maglev_frame,
+      OutputFrameStateCombine combine) {
     FrameStateType type = FrameStateType::kUnoptimizedFunction;
     int parameter_count = maglev_frame.unit().parameter_count();
-    int local_count =
-        maglev_frame.frame_state()->liveness()->live_value_count();
+    int local_count = maglev_frame.unit().register_count();
     Handle<SharedFunctionInfo> shared_info =
-        PipelineData::Get().info()->shared_info();
+        maglev_frame.unit().shared_function_info().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
         type, parameter_count, local_count, shared_info);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
-                                             OutputFrameStateCombine::Ignore(),
-                                             info);
+                                             combine, info);
   }
 
   V<Word32> ConvertInt32Compare(maglev::Input left_input,
@@ -630,10 +729,14 @@ class GraphBuilder {
   }
 
   OpIndex Map(const maglev::Input input) { return Map(input.node()); }
-  OpIndex Map(const maglev::NodeBase* node) { return node_mapping_[node]; }
+  OpIndex Map(const maglev::NodeBase* node) {
+    DCHECK(node_mapping_[node].valid());
+    return node_mapping_[node];
+  }
   Block* Map(const maglev::BasicBlock* block) { return block_mapping_[block]; }
 
   OpIndex SetMap(maglev::NodeBase* node, OpIndex idx) {
+    DCHECK(idx.valid());
     node_mapping_[node] = idx;
     return idx;
   }
