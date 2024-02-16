@@ -40,12 +40,6 @@ class ConstantExpression {
     kLastKind = kWireBytesRef
   };
 
-  union Value {
-    int32_t i32_value;
-    uint32_t index_or_offset;
-    HeapType::Representation repr;
-  };
-
   ConstantExpression() : bit_field_(KindField::encode(kEmpty)) {}
 
   static ConstantExpression I32Const(int32_t value) {

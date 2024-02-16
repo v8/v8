@@ -1577,10 +1577,11 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addActiveDataSegment(memory_index, offset, data) {
+  addActiveDataSegment(memory_index, offset, data, is_shared = false) {
     checkExpr(offset);
     this.data_segments.push({
       is_active: true,
+      is_shared: is_shared,
       mem_index: memory_index,
       offset: offset,
       data: data
@@ -1588,8 +1589,9 @@ class WasmModuleBuilder {
     return this.data_segments.length - 1;
   }
 
-  addPassiveDataSegment(data) {
-    this.data_segments.push({is_active: false, data: data});
+  addPassiveDataSegment(data, is_shared = false) {
+    this.data_segments.push({
+      is_active: false, is_shared: is_shared, data: data});
     return this.data_segments.length - 1;
   }
 
@@ -2052,16 +2054,17 @@ class WasmModuleBuilder {
       binary.emit_section(kDataSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
         for (let seg of wasm.data_segments) {
+          let shared_flag = seg.is_shared ? 0b1000 : 0;
           if (seg.is_active) {
             if (seg.mem_index == 0) {
-              section.emit_u8(kActiveNoIndex);
+              section.emit_u8(kActiveNoIndex | shared_flag);
             } else {
-              section.emit_u8(kActiveWithIndex);
+              section.emit_u8(kActiveWithIndex | shared_flag);
               section.emit_u32v(seg.mem_index);
             }
             section.emit_init_expr(seg.offset);
           } else {
-            section.emit_u8(kPassive);
+            section.emit_u8(kPassive | shared_flag);
           }
           section.emit_u32v(seg.data.length);
           section.emit_bytes(seg.data);

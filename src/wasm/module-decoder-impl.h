@@ -1236,6 +1236,13 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
+  struct DataSegmentHeader {
+    bool is_active;
+    bool is_shared;
+    uint32_t memory_index;
+    ConstantExpression dest_addr;
+  };
+
   void DecodeDataSection() {
     uint32_t data_segments_count =
         consume_count("data segments count", kV8MaxWasmDataSegments);
@@ -1247,11 +1254,7 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->DataOffset(pc_offset());
 
-      bool is_active;
-      uint32_t memory_index;
-      ConstantExpression dest_addr;
-      std::tie(is_active, memory_index, dest_addr) =
-          consume_data_segment_header();
+      DataSegmentHeader header = consume_data_segment_header();
 
       uint32_t source_length = consume_u32v("source size", tracer_);
       if (tracer_) {
@@ -1269,8 +1272,8 @@ class ModuleDecoderImpl : public Decoder {
 
       if (failed()) break;
       module_->data_segments.emplace_back(
-          is_active, memory_index, dest_addr,
-          WireBytesRef{source_offset, source_length});
+          header.is_active, header.is_shared, header.memory_index,
+          header.dest_addr, WireBytesRef{source_offset, source_length});
     }
   }
 
@@ -2399,29 +2402,49 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  std::tuple<bool, uint32_t, ConstantExpression> consume_data_segment_header() {
+  DataSegmentHeader consume_data_segment_header() {
     const uint8_t* pos = pc();
     uint32_t flag = consume_u32v("flag: ", tracer_);
-    if (tracer_) {
-      tracer_->Description(
-          flag == SegmentFlags::kActiveNoIndex     ? "active no index"
-          : flag == SegmentFlags::kPassive         ? "passive"
-          : flag == SegmentFlags::kActiveWithIndex ? "active with index"
-                                                   : "unknown");
-      tracer_->NextLine();
-    }
 
-    // Some flag values are only valid for specific proposals.
-    if (flag != SegmentFlags::kActiveNoIndex &&
-        flag != SegmentFlags::kPassive &&
-        flag != SegmentFlags::kActiveWithIndex) {
-      errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flag);
+    if (flag & ~0b1011) {
+      errorf(pos, "illegal flag value %u", flag);
       return {};
     }
 
-    bool is_active = flag == SegmentFlags::kActiveNoIndex ||
-                     flag == SegmentFlags::kActiveWithIndex;
-    uint32_t mem_index = flag == SegmentFlags::kActiveWithIndex
+    uint32_t status_flag = flag & 0b11;
+
+    if (tracer_) {
+      tracer_->Description(
+          status_flag == SegmentFlags::kActiveNoIndex     ? "active no index"
+          : status_flag == SegmentFlags::kPassive         ? "passive"
+          : status_flag == SegmentFlags::kActiveWithIndex ? "active with index"
+                                                          : "unknown");
+    }
+
+    if (status_flag != SegmentFlags::kActiveNoIndex &&
+        status_flag != SegmentFlags::kPassive &&
+        status_flag != SegmentFlags::kActiveWithIndex) {
+      errorf(pos, "illegal flag value %u", flag);
+      return {};
+    }
+
+    bool is_shared = flag & 0b1000;
+
+    if (V8_UNLIKELY(is_shared && !v8_flags.experimental_wasm_shared)) {
+      errorf(pos,
+             "illegal flag value %u. Enable with --experimental-wasm-shared",
+             flag);
+      return {};
+    }
+
+    if (tracer_) {
+      if (is_shared) tracer_->Description(" shared");
+      tracer_->NextLine();
+    }
+
+    bool is_active = status_flag == SegmentFlags::kActiveNoIndex ||
+                     status_flag == SegmentFlags::kActiveWithIndex;
+    uint32_t mem_index = status_flag == SegmentFlags::kActiveWithIndex
                              ? consume_u32v("memory index", tracer_)
                              : 0;
     ConstantExpression offset;
@@ -2436,11 +2459,10 @@ class ModuleDecoderImpl : public Decoder {
       }
       ValueType expected_type =
           module_->memories[mem_index].is_memory64 ? kWasmI64 : kWasmI32;
-      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-      offset = consume_init_expr(module_.get(), expected_type, kIsShared);
+      offset = consume_init_expr(module_.get(), expected_type, is_shared);
     }
 
-    return {is_active, mem_index, offset};
+    return {is_active, is_shared, mem_index, offset};
   }
 
   uint32_t consume_element_func_index(WasmModule* module, ValueType expected) {

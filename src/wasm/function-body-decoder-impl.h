@@ -2012,6 +2012,12 @@ class WasmDecoder : public Decoder {
       DecodeError(pc, "invalid data segment index: %u", imm.index);
       return false;
     }
+    if (!VALIDATE(!is_shared_ || module_->data_segments[imm.index].shared)) {
+      DecodeError(
+          pc, "cannot refer to non-shared segment %u from a shared function",
+          imm.index);
+      return false;
+    }
     return true;
   }
 

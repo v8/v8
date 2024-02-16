@@ -139,3 +139,25 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /ref.func does not have a shared type/);
 })();
+
+(function DataSegmentInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_v_v, kNoSuperType, false, true);
+  let data = builder.addPassiveDataSegment([1, 2, 3], true);
+  builder.addFunction("drop", sig)
+    .addBody([kNumericPrefix, kExprDataDrop, data])
+  builder.instantiate();
+})();
+
+(function InvalidDataSegmentInFunction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_v_v, kNoSuperType, false, true);
+  let data = builder.addPassiveDataSegment([1, 2, 3], false);
+  builder.addFunction("drop", sig)
+    .addBody([kNumericPrefix, kExprDataDrop, data])
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /cannot refer to non-shared segment/);
+})();

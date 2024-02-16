@@ -177,18 +177,21 @@ struct WasmStringRefLiteral {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
-  explicit WasmDataSegment(bool is_active, uint32_t memory_index,
-                           ConstantExpression dest_addr, WireBytesRef source)
+  explicit WasmDataSegment(bool is_active, bool is_shared,
+                           uint32_t memory_index, ConstantExpression dest_addr,
+                           WireBytesRef source)
       : active(is_active),
+        shared(is_shared),
         memory_index(memory_index),
         dest_addr(dest_addr),
         source(source) {}
 
   static WasmDataSegment PassiveForTesting() {
-    return WasmDataSegment{false, 0, {}, {}};
+    return WasmDataSegment{false, false, 0, {}, {}};
   }
 
   bool active = true;     // true if copied automatically during instantiation.
+  bool shared = false;    // true if shared.
   uint32_t memory_index;  // memory index (if active).
   ConstantExpression dest_addr;  // destination memory address (if active).
   WireBytesRef source;           // start offset in the module bytes.
