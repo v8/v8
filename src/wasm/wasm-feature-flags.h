@@ -90,6 +90,7 @@
   /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \
   /* Staged in v11.3 */                                                        \
+  /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
   /* Launch bug: https://crbug.com/1424350 */                                  \
   V(inlining, "wasm-into-wasm inlining", false)                                \
                                                                                \

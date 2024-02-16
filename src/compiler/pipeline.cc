@@ -1729,7 +1729,8 @@ struct WasmInliningPhase {
            ZoneVector<WasmInliningPosition>* inlining_positions,
            wasm::WasmFeatures* detected) {
     if (!WasmInliner::graph_size_allows_inlining(
-            data->graph()->NodeCount(), v8_flags.wasm_inlining_budget)) {
+            env->module, data->graph()->NodeCount(),
+            v8_flags.wasm_inlining_budget)) {
       return;
     }
     GraphReducer graph_reducer(
