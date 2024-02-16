@@ -544,16 +544,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::kEqStrict:
       OutputTestEqualStrict(reg, feedback_slot);
       break;
-    case Token::kLt:
+    case Token::kLessThan:
       OutputTestLessThan(reg, feedback_slot);
       break;
-    case Token::kGt:
+    case Token::kGreaterThan:
       OutputTestGreaterThan(reg, feedback_slot);
       break;
-    case Token::kLte:
+    case Token::kLessThanEq:
       OutputTestLessThanOrEqual(reg, feedback_slot);
       break;
-    case Token::kGte:
+    case Token::kGreaterThanEq:
       OutputTestGreaterThanOrEqual(reg, feedback_slot);
       break;
     case Token::kInstanceOf:

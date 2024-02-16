@@ -2259,7 +2259,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     builder()->LoadLiteral(Smi::kMinValue);
     builder()->StoreAccumulatorInRegister(r2);
     builder()->CompareOperation(
-        Token::kGte, r1, feedback_index(feedback_spec()->AddCompareICSlot()));
+        Token::kGreaterThanEq, r1,
+        feedback_index(feedback_spec()->AddCompareICSlot()));
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
@@ -2267,7 +2268,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     builder()->LoadLiteral(Smi::kMaxValue);
     builder()->StoreAccumulatorInRegister(r2);
     builder()->CompareOperation(
-        Token::kLte, r1, feedback_index(feedback_spec()->AddCompareICSlot()));
+        Token::kLessThanEq, r1,
+        feedback_index(feedback_spec()->AddCompareICSlot()));
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
@@ -6858,7 +6860,8 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // typeof(x) === 'string'
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, right_lit);
-    } else if (expr->op() == Token::kGt && IsCharU(right_lit->AsRawString())) {
+    } else if (expr->op() == Token::kGreaterThan &&
+               IsCharU(right_lit->AsRawString())) {
       // typeof(x) > 'u'
       // Minifier may convert `typeof(x) === 'undefined'` to this form,
       // since `undefined` is the only valid value that is greater than 'u'.
@@ -6878,7 +6881,8 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // 'string' === typeof(x)
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, left_lit);
-    } else if (expr->op() == Token::kLt && IsCharU(left_lit->AsRawString())) {
+    } else if (expr->op() == Token::kLessThan &&
+               IsCharU(left_lit->AsRawString())) {
       // 'u' < typeof(x)
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
     } else {

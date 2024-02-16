@@ -1674,28 +1674,28 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
   CHECK_EQ(Handle<HeapNumber>::cast(return_value)->value(), 65536.5);
 }
 
-static const Token::Value kComparisonTypes[] = {Token::kEq, Token::kEqStrict,
-                                                Token::kLt, Token::kLte,
-                                                Token::kGt, Token::kGte};
+static const Token::Value kComparisonTypes[] = {
+    Token::kEq,         Token::kEqStrict,    Token::kLessThan,
+    Token::kLessThanEq, Token::kGreaterThan, Token::kGreaterThanEq};
 
 template <typename T>
 bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {
   switch (op) {
     case Token::kEq:
       return lhs == rhs;
-    case Token::kNe:
+    case Token::kNotEq:
       return lhs != rhs;
     case Token::kEqStrict:
       return (lhs == rhs) && !types_differed;
-    case Token::kNeStrict:
+    case Token::kNotEqStrict:
       return (lhs != rhs) || types_differed;
-    case Token::kLt:
+    case Token::kLessThan:
       return lhs < rhs;
-    case Token::kLte:
+    case Token::kLessThanEq:
       return lhs <= rhs;
-    case Token::kGt:
+    case Token::kGreaterThan:
       return lhs > rhs;
-    case Token::kGte:
+    case Token::kGreaterThanEq:
       return lhs >= rhs;
     default:
       UNREACHABLE();
@@ -2041,7 +2041,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
       CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
-               CompareC(Token::kNeStrict, lhs, rhs, true));
+               CompareC(Token::kNotEqStrict, lhs, rhs, true));
     }
   }
 
@@ -2058,7 +2058,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
       CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
-               CompareC(Token::kNeStrict, inputs_str[i], inputs_str[j]));
+               CompareC(Token::kNotEqStrict, inputs_str[i], inputs_str[j]));
     }
   }
 
@@ -2078,8 +2078,9 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
-      CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
-               CompareC(Token::kNeStrict, inputs_number[i], inputs_number[j]));
+      CHECK_EQ(
+          Object::BooleanValue(*return_value, i_isolate()),
+          CompareC(Token::kNotEqStrict, inputs_number[i], inputs_number[j]));
     }
   }
 }
