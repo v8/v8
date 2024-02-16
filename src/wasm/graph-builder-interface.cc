@@ -964,6 +964,25 @@ class WasmGraphBuildingInterface {
     }
     assumptions_->RecordAssumption(index, import);
     SetAndTypeNode(&returns[0], result);
+    // The decoder assumes that any call might throw, so if we are in a try
+    // block, it marks the associated catch block as reachable, and will
+    // later ask the graph builder to build the catch block's graph.
+    // However, we just replaced the call with a sequence that doesn't throw,
+    // which might make the catch block unreachable as far as the graph builder
+    // is concerned, which would violate assumptions when trying to build a
+    // graph for it. So we insert a fake branch to the catch block to make it
+    // reachable. Later phases will optimize this out.
+    if (decoder->current_catch() != -1) {
+      TryInfo* try_info = current_try_info(decoder);
+      if (try_info->catch_env->state == SsaEnv::kUnreachable) {
+        auto [true_cont, false_cont] =
+            builder_->BranchExpectTrue(builder_->Int32Constant(1));
+        builder_->SetControl(false_cont);
+        Goto(decoder, try_info->catch_env);
+        try_info->exception = false_cont;
+        builder_->SetControl(true_cont);
+      }
+    }
     return true;
   }
 

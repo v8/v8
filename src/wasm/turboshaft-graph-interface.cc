@@ -3482,6 +3482,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // TODO(jkummerow): This check would be more elegant if we made
   // {ArrayNewSegment} a high-level node that's lowered later.
   bool IsArrayNewSegment(V<Object> array) {
+    DCHECK_IMPLIES(!array.valid(), __ generating_unreachable_operations());
+    if (__ generating_unreachable_operations()) return false;
     const CallOp* call = __ output_graph().Get(array).TryCast<CallOp>();
     if (call == nullptr) return false;
     int64_t stub_id{};
