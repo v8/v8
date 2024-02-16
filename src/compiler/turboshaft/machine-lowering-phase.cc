@@ -5,8 +5,8 @@
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 
 #include "src/compiler/turboshaft/copying-phase.h"
-#include "src/compiler/turboshaft/dataview-reducer.h"
-#include "src/compiler/turboshaft/fast-api-call-reducer.h"
+#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
+#include "src/compiler/turboshaft/fast-api-call-lowering-reducer.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
@@ -16,8 +16,8 @@
 namespace v8::internal::compiler::turboshaft {
 
 void MachineLoweringPhase::Run(Zone* temp_zone) {
-  CopyingPhase<DataViewReducer, MachineLoweringReducer, FastApiCallReducer,
-               SelectLoweringReducer,
+  CopyingPhase<DataViewLoweringReducer, MachineLoweringReducer,
+               FastApiCallLoweringReducer, SelectLoweringReducer,
                MachineOptimizationReducer>::Run(temp_zone);
 }
 

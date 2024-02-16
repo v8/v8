@@ -6,8 +6,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_GC_TYPE_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_GC_TYPE_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_GC_TYPED_OPTIMIZATION_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_GC_TYPED_OPTIMIZATION_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -18,8 +18,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// The WasmGCTypeReducer infers type information based on the input graph and
-// reduces type checks and casts based on that information.
+// The WasmGCTypedOptimizationReducer infers type information based on the input
+// graph and reduces type checks and casts based on that information.
 //
 // This is done in two steps:
 // 1) The WasmGCTypeAnalyzer infers the types based on the input graph, e.g.:
@@ -35,9 +35,10 @@ namespace v8::internal::compiler::turboshaft {
 //      end                    // local 0 is still anyref
 //        i32.const 0
 //
-// 2) The WasmGCTypeReducer reduces the graph to a new graph potentially
-//    removing, simplifying (e.g. replacing a cast with a null check) or
-//    refining (setting the from type to a more specific type) type operations.
+// 2) The WasmGCTypedOptimizationReducer reduces the graph to a new graph
+//    potentially removing, simplifying (e.g. replacing a cast with a null
+//    check) or refining (setting the from type to a more specific type) type
+//    operations.
 
 class WasmGCTypeAnalyzer {
  public:
@@ -119,9 +120,9 @@ class WasmGCTypeAnalyzer {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
-class WasmGCTypeReducer : public Next {
+class WasmGCTypedOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmGCTypedOptimization)
 
   void Analyze() {
     analyzer_.Run();
@@ -349,4 +350,4 @@ class WasmGCTypeReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_WASM_GC_TYPE_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_WASM_GC_TYPED_OPTIMIZATION_REDUCER_H_

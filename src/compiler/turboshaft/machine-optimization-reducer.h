@@ -57,7 +57,7 @@ class GraphVisitor;
 template <class Next>
 class MachineOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(MachineOptimization)
 #if defined(__clang__)
   // TODO(dmercadier): this static_assert ensures that the stack contains a
   // VariableReducer. It is currently not very clean, because when GraphVisitor

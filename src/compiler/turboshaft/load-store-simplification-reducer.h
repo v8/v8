@@ -49,7 +49,7 @@ template <class Next>
 class LoadStoreSimplificationReducer : public Next,
                                        LoadStoreSimplificationConfiguration {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LoadStoreSimplification)
 
   OpIndex REDUCE(Load)(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                        MemoryRepresentation loaded_rep,

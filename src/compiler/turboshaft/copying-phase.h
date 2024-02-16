@@ -87,7 +87,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
  public:
   using Next = VariableReducer<AfterNext>;
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(CopyingPhase)
 
   GraphVisitor()
       : input_graph_(Asm().modifiable_input_graph()),

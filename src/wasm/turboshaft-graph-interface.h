@@ -11,7 +11,7 @@
 
 #include "src/base/macros.h"
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/dataview-reducer.h"
+#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/objects/code-kind.h"
@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
  public:
   using Assembler = compiler::turboshaft::TSAssembler<
       compiler::turboshaft::SelectLoweringReducer,
-      compiler::turboshaft::DataViewReducer,
+      compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;
 
  protected:

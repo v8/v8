@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_STACK_CHECK_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_STACK_CHECK_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_STACK_CHECK_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_STACK_CHECK_LOWERING_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -17,9 +17,9 @@ namespace v8::internal::compiler::turboshaft {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <class Next>
-class StackCheckReducer : public Next {
+class StackCheckLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(StackCheckLowering)
 
   OpIndex REDUCE(StackCheck)(StackCheckOp::CheckOrigin origin,
                              StackCheckOp::CheckKind kind) {
@@ -88,4 +88,4 @@ class StackCheckReducer : public Next {
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
-#endif  // V8_COMPILER_TURBOSHAFT_STACK_CHECK_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_STACK_CHECK_LOWERING_REDUCER_H_

@@ -732,7 +732,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 template <class Next>
 class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LateLoadElimination)
   using Replacement = LoadEliminationReplacement;
 
   void Analyze() {

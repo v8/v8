@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_DATAVIEW_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_DATAVIEW_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_DATAVIEW_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_DATAVIEW_LOWERING_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
 
@@ -12,9 +12,9 @@ namespace v8::internal::compiler::turboshaft {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <typename Next>
-class DataViewReducer : public Next {
+class DataViewLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DataViewLowering)
 
   OpIndex BuildReverseBytes(ExternalArrayType type, OpIndex value) {
     switch (type) {
@@ -134,4 +134,4 @@ class DataViewReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_DATAVIEW_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_DATAVIEW_LOWERING_REDUCER_H_

@@ -10,7 +10,7 @@
 #include "src/compiler/turboshaft/duplication-optimization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
-#include "src/compiler/turboshaft/stack-check-reducer.h"
+#include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -20,7 +20,7 @@ void WasmDeadCodeEliminationPhase::Run(Zone* temp_zone) {
 
   // The value numbering ensures that load with similar patterns in the complex
   // loads can share those calculations.
-  CopyingPhase<DeadCodeEliminationReducer, StackCheckReducer,
+  CopyingPhase<DeadCodeEliminationReducer, StackCheckLoweringReducer,
                LoadStoreSimplificationReducer,
                // We make sure that DuplicationOptimizationReducer runs after
                // LoadStoreSimplificationReducer, so that it can optimize

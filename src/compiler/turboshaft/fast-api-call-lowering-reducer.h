@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_FAST_API_CALL_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_FAST_API_CALL_REDUCER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_FAST_API_CALL_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_FAST_API_CALL_LOWERING_REDUCER_H_
 
 #include "include/v8-fast-api-calls.h"
 #include "src/compiler/fast-api-calls.h"
@@ -19,9 +19,9 @@ namespace v8::internal::compiler::turboshaft {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 template <typename Next>
-class FastApiCallReducer : public Next {
+class FastApiCallLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
   OpIndex REDUCE(FastApiCall)(OpIndex data_argument,
                               base::Vector<const OpIndex> arguments,
@@ -644,4 +644,4 @@ class FastApiCallReducer : public Next {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_FAST_API_CALL_REDUCER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_FAST_API_CALL_LOWERING_REDUCER_H_

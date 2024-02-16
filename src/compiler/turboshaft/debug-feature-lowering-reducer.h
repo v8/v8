@@ -20,7 +20,7 @@ namespace v8::internal::compiler::turboshaft {
 template <typename Next>
 class DebugFeatureLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DebugFeatureLowering)
 
   OpIndex REDUCE(DebugPrint)(OpIndex input, RegisterRepresentation rep) {
     if (isolate_ != nullptr) {

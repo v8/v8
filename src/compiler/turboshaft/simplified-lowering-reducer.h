@@ -19,7 +19,7 @@ namespace v8::internal::compiler::turboshaft {
 template <typename Next>
 class SimplifiedLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(SimplifiedLowering)
 
   using Rep = RegisterRepresentation;
 

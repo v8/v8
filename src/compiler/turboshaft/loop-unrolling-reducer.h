@@ -188,7 +188,7 @@ class LoopPeelingReducer;
 template <class Next>
 class LoopUnrollingReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LoopUnrolling)
 
 #if defined(__clang__)
   // LoopUnrolling and LoopPeeling shouldn't be performed in the same phase, see

@@ -88,7 +88,7 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
   };
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(VariableReducer)
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);

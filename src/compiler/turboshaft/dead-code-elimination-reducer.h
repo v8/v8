@@ -420,7 +420,7 @@ template <class Next>
 class DeadCodeEliminationReducer
     : public UniformReducerAdapter<DeadCodeEliminationReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DeadCodeElimination)
 
   using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
 

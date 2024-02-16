@@ -26,7 +26,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class WasmJSLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmJSLowering)
 
   OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
                          bool negated, TrapId trap_id) {

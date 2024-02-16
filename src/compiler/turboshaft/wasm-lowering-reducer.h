@@ -28,7 +28,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class WasmLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmLowering)
 
   OpIndex REDUCE(GlobalGet)(OpIndex instance, const wasm::WasmGlobal* global) {
     return LowerGlobalSetOrGet(instance, OpIndex::Invalid(), global,

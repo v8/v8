@@ -26,7 +26,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class Int64LoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(Int64Lowering)
 
   Int64LoweringReducer() {
     PipelineData& data = PipelineData::Get();

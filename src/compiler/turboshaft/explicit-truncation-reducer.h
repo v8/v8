@@ -21,7 +21,7 @@ template <class Next>
 class ExplicitTruncationReducer
     : public UniformReducerAdapter<ExplicitTruncationReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(ExplicitTruncation)
 
   template <Opcode opcode, typename Continuation, typename... Ts>
   OpIndex ReduceOperation(Ts... args) {

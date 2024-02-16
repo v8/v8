@@ -153,7 +153,7 @@ class WasmRevecAnalyzer {
 template <class Next>
 class WasmRevecReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmRevec)
 
  private:
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();

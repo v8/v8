@@ -1337,13 +1337,19 @@ DEFINE_BOOL(turboshaft_trace_typing, false,
             "print typing steps of turboshaft type inference")
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
+DEFINE_BOOL(turboshaft_trace_intermediate_reductions, false,
+            "trace intermediate Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_trace_emitted, false,
             "trace emitted Turboshaft instructions")
+DEFINE_WEAK_IMPLICATION(turboshaft_trace_intermediate_reductions,
+                        turboshaft_trace_reduction)
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
 DEFINE_BOOL_READONLY(turboshaft_trace_emitted, false,
                      "trace emitted Turboshaft instructions")
+DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
+                     "trace intermediate Turboshaft reduction steps")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, false, "profile guided optimization")

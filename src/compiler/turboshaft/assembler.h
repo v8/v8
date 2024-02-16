@@ -592,19 +592,20 @@ class GenericReducerBase;
 // TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE should almost never be needed: it
 // should only be used by the IR-specific base class, while other reducers
 // should simply use `TURBOSHAFT_REDUCER_BOILERPLATE`.
-#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE()                           \
+#define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                       \
   using ReducerList = typename Next::ReducerList;                          \
   Assembler<ReducerList>& Asm() {                                          \
     return *static_cast<Assembler<ReducerList>*>(this);                    \
   }                                                                        \
   template <class T>                                                       \
   using ScopedVar = turboshaft::ScopedVariable<T, Assembler<ReducerList>>; \
-  using CatchScope = CatchScopeImpl<Assembler<ReducerList>>;
+  using CatchScope = CatchScopeImpl<Assembler<ReducerList>>;               \
+  static constexpr auto& ReducerName() { return #Name; }
 
 // Defines a few helpers to use the Assembler and its stack in Reducers.
-#define TURBOSHAFT_REDUCER_BOILERPLATE()   \
-  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE() \
-  using node_t = typename Next::node_t;    \
+#define TURBOSHAFT_REDUCER_BOILERPLATE(Name)   \
+  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name) \
+  using node_t = typename Next::node_t;        \
   using block_t = typename Next::block_t;
 
 template <class T, class Assembler>
@@ -663,7 +664,7 @@ template <class Next>
 class EmitProjectionReducer
     : public UniformReducerAdapter<EmitProjectionReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(EmitProjection)
 
   OpIndex ReduceCatchBlockBegin() {
     // CatchBlockBegin have a single output, so they never have projections,
@@ -712,7 +713,7 @@ template <class Next>
 class TSReducerBase : public Next {
  public:
   static constexpr bool kIsBottomOfStack = true;
-  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE()
+  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(TSReducerBase)
   using node_t = OpIndex;
   using block_t = Block;
 
@@ -726,6 +727,10 @@ class TSReducerBase : public Next {
     Asm().output_graph().operation_origins()[result] =
         Asm().current_operation_origin();
 #ifdef DEBUG
+    if (v8_flags.turboshaft_trace_intermediate_reductions) {
+      std::cout << std::setw(Asm().intermediate_tracing_depth()) << ' ' << "["
+                << ReducerName() << "]: emitted " << op << "\n";
+    }
     op_to_block_[result] = Asm().current_block();
     DCHECK(ValidInputs(result));
 #endif  // DEBUG
@@ -775,7 +780,7 @@ class TSReducerBase : public Next {
 template <class Next>
 class ReducerBaseForwarder : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(ReducerBaseForwarder)
 
 #define EMIT_OP(Name)                                                    \
   OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
@@ -796,7 +801,7 @@ class ReducerBaseForwarder : public Next {
 template <class Next>
 class GenericReducerBase : public ReducerBaseForwarder<Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(GenericReducerBase)
 
   using Base = ReducerBaseForwarder<Next>;
 
@@ -847,20 +852,19 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
         input_phi.rep);
   }
 
-  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
-                    RegisterRepresentation rep) {
+  OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
+                      RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsMerge() &&
            inputs.size() == Asm().current_block()->Predecessors().size());
     return Base::ReducePhi(inputs, rep);
   }
 
-  template <class... Args>
-  OpIndex ReducePendingLoopPhi(Args... args) {
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsLoop());
-    return Base::ReducePendingLoopPhi(args...);
+    return Base::ReducePendingLoopPhi(first, rep);
   }
 
-  OpIndex ReduceGoto(Block* destination, bool is_backedge) {
+  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
     // Calling Base::Goto will call Emit<Goto>, which will call FinalizeBlock,
     // which will reset {current_block_}. We thus save {current_block_} before
     // calling Base::Goto, as we'll need it for AddPredecessor. Note also that
@@ -873,8 +877,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false,
-                       BranchHint hint) {
+  OpIndex REDUCE(Branch)(OpIndex condition, Block* if_true, Block* if_false,
+                         BranchHint hint) {
     // There should never be a good reason to generate a Branch where both the
     // {if_true} and {if_false} are the same Block. If we ever decide to lift
     // this condition, then AddPredecessor and SplitEdge should be updated
@@ -888,7 +892,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceCatchBlockBegin() {
+  OpIndex REDUCE(CatchBlockBegin)() {
     Block* current_block = Asm().current_block();
     if (current_block->IsBranchTarget()) {
       DCHECK_EQ(current_block->PredecessorCount(), 1);
@@ -914,8 +918,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                      RegisterRepresentation::Tagged());
   }
 
-  OpIndex ReduceSwitch(OpIndex input, base::Vector<SwitchOp::Case> cases,
-                       Block* default_case, BranchHint default_hint) {
+  OpIndex REDUCE(Switch)(OpIndex input, base::Vector<SwitchOp::Case> cases,
+                         Block* default_case, BranchHint default_hint) {
 #ifdef DEBUG
     // Making sure that all cases and {default_case} are different. If we ever
     // decide to lift this condition, then AddPredecessor and SplitEdge should
@@ -937,9 +941,9 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceCall(OpIndex callee, OptionalOpIndex frame_state,
-                     base::Vector<const OpIndex> arguments,
-                     const TSCallDescriptor* descriptor, OpEffects effects) {
+  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
+                       base::Vector<const OpIndex> arguments,
+                       const TSCallDescriptor* descriptor, OpEffects effects) {
     OpIndex raw_call =
         Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
@@ -954,8 +958,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   // automatically by `CatchIfInCatchScope` and `DoNotCatch` defined below and
   // never explicitly.
   using Base::ReduceDidntThrow;
-  OpIndex ReduceCheckException(OpIndex throwing_operation, Block* successor,
-                               Block* catch_block) {
+  OpIndex REDUCE(CheckException)(OpIndex throwing_operation, Block* successor,
+                                 Block* catch_block) {
     // {successor} and {catch_block} should never be the same.  AddPredecessor
     // and SplitEdge rely on this.
     DCHECK_NE(successor, catch_block);
@@ -982,7 +986,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
 template <class Next>
 class GenericAssemblerOpInterface : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(GenericAssemblerOpInterface)
 
   ~GenericAssemblerOpInterface() {
     // If the {if_scope_stack_} is not empty, it means that a END_IF is missing.
@@ -1113,7 +1117,7 @@ template <class Next>
 class TurboshaftAssemblerOpInterface
     : public GenericAssemblerOpInterface<Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(TurboshaftAssemblerOpInterface)
 
   template <typename... Args>
   explicit TurboshaftAssemblerOpInterface(Args... args)
@@ -1129,8 +1133,8 @@ class TurboshaftAssemblerOpInterface
   // stack, and that the BaseReducer will actually emit an Operation. If we put
   // this projection-to-tuple-simplification in the BaseReducer, then this
   // assumption of the ValueNumberingReducer will break.
-  OpIndex ReduceProjection(OpIndex tuple, uint16_t index,
-                           RegisterRepresentation rep) {
+  OpIndex REDUCE(Projection)(OpIndex tuple, uint16_t index,
+                             RegisterRepresentation rep) {
     if (auto* tuple_op = Asm().matcher().template TryCast<TupleOp>(tuple)) {
       return tuple_op->input(index);
     }
@@ -3777,6 +3781,10 @@ class Assembler : public AssemblerData,
     return this->output_graph().Get(op_idx);
   }
 
+#ifdef DEBUG
+  int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
+#endif
+
   // Adds {source} to the predecessors of {destination}.
   void AddPredecessor(Block* source, Block* destination, bool branch) {
     DCHECK_IMPLIES(branch, source->EndsWithBranchingOp(this->output_graph()));
@@ -3987,6 +3995,10 @@ class Assembler : public AssemblerData,
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();
+
+#ifdef DEBUG
+  int intermediate_tracing_depth_ = 0;
+#endif
 
   template <class Next>
   friend class TSReducerBase;

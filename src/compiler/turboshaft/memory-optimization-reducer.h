@@ -175,7 +175,7 @@ struct MemoryAnalyzer {
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(MemoryOptimization)
   // TODO(dmercadier): Add static_assert that this is ran as part of a
   // CopyingPhase.
 

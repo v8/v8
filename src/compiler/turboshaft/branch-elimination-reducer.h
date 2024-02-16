@@ -194,7 +194,7 @@ class BranchEliminationReducer : public Next {
   // that's the case, then we copy the destination block, and the 1st
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(BranchElimination)
   // TODO(dmercadier): Add static_assert that this is ran as part of a
   // CopyingPhase.
 
