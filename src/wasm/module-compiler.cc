@@ -2189,22 +2189,30 @@ class AsyncCompileJSToWasmWrapperJob final
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
-      BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return;
-      // The wrapper unit keeps a pointer to the signature, so execute the unit
-      // inside the compile scope to keep the WasmModule's signature_zone alive.
+      base::Optional<BackgroundCompileScope> compile_scope;
+      if (v8_flags.turboshaft_wasm_wrappers) {
+        compile_scope.emplace(native_module_);
+        if (compile_scope->cancelled()) return;
+        // The wrapper unit keeps a pointer to the signature, so execute the
+        // unit inside the compile scope to keep the WasmModule's signature_zone
+        // alive.
+      }
       wrapper_unit->Execute();
       bool complete_last_unit = CompleteUnit();
       bool yield = delegate && delegate->ShouldYield();
       if (yield && !complete_last_unit) return;
 
+      if (!v8_flags.turboshaft_wasm_wrappers) {
+        compile_scope.emplace(native_module_);
+        if (compile_scope->cancelled()) return;
+      }
       if (complete_last_unit) {
-        compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
+        compile_scope->compilation_state()->OnFinishedJSToWasmWrapperUnits();
       }
       if (yield) return;
       if (!GetNextUnitIndex(&index)) return;
       wrapper_unit =
-          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
+          compile_scope->compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
     }
   }
