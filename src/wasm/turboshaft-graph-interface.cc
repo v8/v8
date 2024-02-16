@@ -2032,6 +2032,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
     feedback_slot_++;
+    if (__ generating_unreachable_operations()) return;
     if (inlining_enabled(decoder) &&
         should_inline(feedback_slot_, std::numeric_limits<int>::max())) {
       V<FixedArray> internal_functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
