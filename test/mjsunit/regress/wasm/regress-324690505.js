@@ -20,12 +20,6 @@ let kStringFromCharCode =
 let kStringFromUtf8Array = builder.addImport(
     'wasm:text-decoder', 'decodeStringFromUTF8Array',
     makeSig([kArray8Ref, kWasmI32, kWasmI32], [kRefExtern]));
-let imp_nop = builder.addImport("m", "f", kSig_v_v);
-
-let id = builder.addFunction('id', kSig_i_i).addBody([
-    kExprLocalGet, 0,
-]);
-let nop = builder.addFunction('nop', kSig_v_v).addBody([]);
 
 let main = builder.addFunction('main', kSig_e_i).exportFunc().addBody([
   kExprTry, kWasmVoid,
@@ -37,7 +31,7 @@ let main = builder.addFunction('main', kSig_e_i).exportFunc().addBody([
     // everything after it) unreachable.
     kExprCallFunction, kStringFromCharCode,
     kExprReturn,
-    //kExprDrop,
+  kExprCatch, tag0,
   kExprCatchAll,
   kExprEnd,
   kExprRefNull, kArrayI8,
@@ -73,7 +67,7 @@ builder.addFunction('inlined_catch', kSig_e_i).exportFunc().addBody([
 ]);
 
 let kBuiltins = {builtins: ['js-string', 'text-decoder']};
-let instance = builder.instantiate({m: {f: () => {}}}, kBuiltins);
+let instance = builder.instantiate({}, kBuiltins);
 instance.exports.main(1);
 instance.exports.inlined(1);
 instance.exports.inlined_catch(1);

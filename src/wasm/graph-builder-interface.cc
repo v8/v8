@@ -979,7 +979,7 @@ class WasmGraphBuildingInterface {
             builder_->BranchExpectTrue(builder_->Int32Constant(1));
         builder_->SetControl(false_cont);
         Goto(decoder, try_info->catch_env);
-        try_info->exception = false_cont;
+        try_info->exception = builder_->Int32Constant(1);
         builder_->SetControl(true_cont);
       }
     }
