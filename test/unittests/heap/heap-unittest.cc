@@ -501,7 +501,6 @@ TEST_F(HeapTest, Regress978156) {
 namespace {
 struct RandomGCIntervalTestSetter {
   RandomGCIntervalTestSetter() {
-    fprintf(stderr, "RandomGCIntervalTestSetter\n");
     static constexpr int kInterval = 87;
     v8_flags.random_gc_interval = kInterval;
   }
