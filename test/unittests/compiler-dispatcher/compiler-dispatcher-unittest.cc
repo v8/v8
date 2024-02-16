@@ -286,18 +286,23 @@ class MockPlatform : public v8::Platform {
     explicit MockForegroundTaskRunner(MockPlatform* platform)
         : platform_(platform) {}
 
-    void PostTask(std::unique_ptr<v8::Task> task) override { UNREACHABLE(); }
-
-    void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+    void PostTaskImpl(std::unique_ptr<v8::Task>,
+                      const SourceLocation&) override {
       UNREACHABLE();
     }
 
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) override {
+    void PostNonNestableTaskImpl(std::unique_ptr<v8::Task>,
+                                 const SourceLocation&) override {
       UNREACHABLE();
     }
 
-    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+    void PostDelayedTaskImpl(std::unique_ptr<Task>, double,
+                             const SourceLocation&) override {
+      UNREACHABLE();
+    }
+
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation&) override {
       DCHECK(IdleTasksEnabled());
       base::MutexGuard lock(&platform_->idle_task_mutex_);
       ASSERT_TRUE(platform_->idle_task_ == nullptr);

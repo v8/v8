@@ -79,8 +79,10 @@ class TaskRunner {
    *
    * Embedders should override PostTaskImpl instead of this.
    */
-  virtual void PostTask(std::unique_ptr<Task> task) {
-    PostTaskImpl(std::move(task), SourceLocation::Current());
+  void PostTask(
+      std::unique_ptr<Task> task,
+      const SourceLocation& location = SourceLocation::Current()) {
+    PostTaskImpl(std::move(task), location);
   }
 
   /**
@@ -100,8 +102,10 @@ class TaskRunner {
    *
    * Embedders should override PostNonNestableTaskImpl instead of this.
    */
-  virtual void PostNonNestableTask(std::unique_ptr<Task> task) {
-    PostNonNestableTaskImpl(std::move(task), SourceLocation::Current());
+  void PostNonNestableTask(
+      std::unique_ptr<Task> task,
+      const SourceLocation& location = SourceLocation::Current()) {
+    PostNonNestableTaskImpl(std::move(task), location);
   }
 
   /**
@@ -111,10 +115,10 @@ class TaskRunner {
    *
    * Embedders should override PostDelayedTaskImpl instead of this.
    */
-  virtual void PostDelayedTask(std::unique_ptr<Task> task,
-                               double delay_in_seconds) {
-    PostDelayedTaskImpl(std::move(task), delay_in_seconds,
-                        SourceLocation::Current());
+  void PostDelayedTask(
+      std::unique_ptr<Task> task, double delay_in_seconds,
+      const SourceLocation& location = SourceLocation::Current()) {
+    PostDelayedTaskImpl(std::move(task), delay_in_seconds, location);
   }
 
   /**
@@ -135,10 +139,10 @@ class TaskRunner {
    *
    * Embedders should override PostNonNestableDelayedTaskImpl instead of this.
    */
-  virtual void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
-                                          double delay_in_seconds) {
-    PostNonNestableDelayedTaskImpl(std::move(task), delay_in_seconds,
-                                   SourceLocation::Current());
+  void PostNonNestableDelayedTask(
+      std::unique_ptr<Task> task, double delay_in_seconds,
+      const SourceLocation& location = SourceLocation::Current()) {
+    PostNonNestableDelayedTaskImpl(std::move(task), delay_in_seconds, location);
   }
 
   /**
@@ -151,8 +155,10 @@ class TaskRunner {
    *
    * Embedders should override PostIdleTaskImpl instead of this.
    */
-  virtual void PostIdleTask(std::unique_ptr<IdleTask> task) {
-    PostIdleTaskImpl(std::move(task), SourceLocation::Current());
+  void PostIdleTask(
+      std::unique_ptr<IdleTask> task,
+      const SourceLocation& location = SourceLocation::Current()) {
+    PostIdleTaskImpl(std::move(task), location);
   }
 
   /**
