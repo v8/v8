@@ -978,9 +978,9 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       }
 
       __ bind(&reload_string_start_minus_one);
-      // Prepare r2 to initialize registers with its value in the next run.
+      // Prepare r1 to initialize registers with its value in the next run.
       // Must be immediately before the jump to avoid clobbering.
-      __ LoadU64(r2, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
+      __ LoadU64(r1, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
 
       __ b(&load_char_start_regexp);
     } else {
