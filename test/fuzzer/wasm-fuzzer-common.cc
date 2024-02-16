@@ -837,6 +837,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   v8::Isolate::Scope isolate_scope(isolate);
 
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  GetTypeCanonicalizer()->EmptyStorageForTesting();
+
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {
     i_isolate->clear_exception();

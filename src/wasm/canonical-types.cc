@@ -205,6 +205,14 @@ bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
   return IsCanonicalSubtype(canonical_sub, canonical_super);
 }
 
+void TypeCanonicalizer::EmptyStorageForTesting() {
+  base::MutexGuard mutex_guard(&mutex_);
+  canonical_supertypes_.clear();
+  canonical_groups_.clear();
+  canonical_singleton_groups_.clear();
+  zone_.Reset();
+}
+
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     const WasmModule* module, TypeDefinition type,
     uint32_t recursive_group_start) {
