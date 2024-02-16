@@ -847,8 +847,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
-  return op == Token::MUL || op == Token::BIT_AND || op == Token::BIT_OR ||
-         op == Token::BIT_XOR;
+  return op == Token::kMul || op == Token::kBitAnd || op == Token::kBitOr ||
+         op == Token::kBitXor;
 }
 
 // Check for the pattern: x + 1.
@@ -871,7 +871,7 @@ bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
 
 static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
+  return maybe_unary != nullptr && maybe_unary->op() == Token::kVoid &&
          maybe_unary->expression()->IsLiteral();
 }
 
@@ -879,7 +879,7 @@ static bool MatchLiteralStrictCompareBoolean(Expression* left, Token::Value op,
                                              Expression* right,
                                              Expression** expr,
                                              Literal** literal) {
-  if (left->IsBooleanLiteral() && op == Token::EQ_STRICT) {
+  if (left->IsBooleanLiteral() && op == Token::kEqStrict) {
     *expr = right;
     *literal = left->AsLiteral();
     return true;

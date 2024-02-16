@@ -1129,11 +1129,11 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
-    ParseStatementList(body, Token::RBRACE);
+    ParseStatementList(body, Token::kRBrace);
   }
   V8_INLINE void ParseAndRewriteAsyncGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
-    ParseStatementList(body, Token::RBRACE);
+    ParseStatementList(body, Token::kRBrace);
   }
   V8_INLINE void DeclareFunctionNameVar(const AstRawString* function_name,
                                         FunctionSyntaxKind function_syntax_kind,
@@ -1166,7 +1166,7 @@ class PreParser : public ParserBase<PreParser> {
                                         &was_added, beg_pos, kind);
     if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
       Token::Value init =
-          loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
+          loop_nesting_depth() > 0 ? Token::kAssign : Token::kInit;
       SloppyBlockFunctionStatement* statement =
           factory()->ast_node_factory()->NewSloppyBlockFunctionStatement(
               end_pos, var, init);
@@ -1572,7 +1572,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression ExpressionFromLiteral(Token::Value token,
                                                       int pos) {
-    if (token != Token::STRING) return PreParserExpression::Default();
+    if (token != Token::kString) return PreParserExpression::Default();
     return PreParserExpression::StringLiteral();
   }
 

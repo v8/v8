@@ -1813,7 +1813,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitFunctionLiteral(decl->fun());
-      BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
+      BuildVariableAssignment(variable, Token::kInit, HoleCheckMode::kElided);
       break;
     }
     case VariableLocation::REPL_GLOBAL:
@@ -1853,7 +1853,7 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
     Variable* var = closure_scope()->LookupInModule(entry->local_name);
-    BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
+    BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kElided);
   }
 }
 
@@ -2259,8 +2259,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     builder()->LoadLiteral(Smi::kMinValue);
     builder()->StoreAccumulatorInRegister(r2);
     builder()->CompareOperation(
-        Token::Value::GTE, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+        Token::kGte, r1, feedback_index(feedback_spec()->AddCompareICSlot()));
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
@@ -2268,19 +2267,18 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     builder()->LoadLiteral(Smi::kMaxValue);
     builder()->StoreAccumulatorInRegister(r2);
     builder()->CompareOperation(
-        Token::Value::LTE, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+        Token::kLte, r1, feedback_index(feedback_spec()->AddCompareICSlot()));
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
 
     builder()->BinaryOperationSmiLiteral(
-        Token::Value::BIT_OR, Smi::FromInt(0),
+        Token::kBitOr, Smi::FromInt(0),
         feedback_index(feedback_spec()->AddBinaryOpICSlot()));
 
     builder()->StoreAccumulatorInRegister(r2);
     builder()->CompareOperation(
-        Token::Value::EQ_STRICT, r1,
+        Token::kEqStrict, r1,
         feedback_index(feedback_spec()->AddCompareICSlot()));
 
     switch_builder.JumpToFallThroughIfFalse();
@@ -2323,7 +2321,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
           // Perform label comparison as if via '===' with tag.
           VisitForAccumulatorValue(clause->label());
-          builder()->CompareOperation(Token::Value::EQ_STRICT, tag_holder,
+          builder()->CompareOperation(Token::kEqStrict, tag_holder,
                                       feedback_index(slot));
 #ifdef DEBUG
           case_ctr_checker[i] = case_compare_ctr;
@@ -2669,7 +2667,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       AssignmentLhsData lhs_data = PrepareAssignmentLhs(
           stmt->each(), AccumulatorPreservingMode::kPreserve);
       builder()->SetExpressionPosition(stmt->each());
-      BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+      BuildAssignment(lhs_data, Token::kAssign, LookupHoistingMode::kNormal);
     }
 
     VisitIterationBody(stmt, &loop_builder);
@@ -2761,7 +2759,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // Assign to the 'each' target.
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(stmt->each());
           builder()->LoadAccumulatorWithRegister(next_result);
-          BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+          BuildAssignment(lhs_data, Token::kAssign,
+                          LookupHoistingMode::kNormal);
         }
 
         VisitIterationBody(stmt, &loop_builder);
@@ -2896,7 +2895,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         .CallRuntime(Runtime::kCreatePrivateBrandSymbol, brand);
     register_allocator()->ReleaseRegister(brand);
 
-    BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
+    BuildVariableAssignment(expr->scope()->brand(), Token::kInit,
                             HoleCheckMode::kElided);
   }
 
@@ -2918,14 +2917,14 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
             .StoreAccumulatorInRegister(private_name)
             .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
         DCHECK_NOT_NULL(property->private_name_var());
-        BuildVariableAssignment(property->private_name_var(), Token::INIT,
+        BuildVariableAssignment(property->private_name_var(), Token::kInit,
                                 HoleCheckMode::kElided);
         break;
       }
       case ClassLiteral::Property::METHOD: {
         RegisterAllocationScope register_scope(this);
         VisitForAccumulatorValue(property->value());
-        BuildVariableAssignment(property->private_name_var(), Token::INIT,
+        BuildVariableAssignment(property->private_name_var(), Token::kInit,
                                 HoleCheckMode::kElided);
         break;
       }
@@ -2987,8 +2986,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
           BytecodeLabel done;
           builder()
               ->LoadLiteral(ast_string_constants()->prototype_string())
-              .CompareOperation(Token::Value::EQ_STRICT, key,
-                                feedback_index(slot))
+              .CompareOperation(Token::kEqStrict, key, feedback_index(slot))
               .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
               .CallRuntime(Runtime::kThrowStaticPrototypeError)
               .Bind(&done);
@@ -2999,7 +2997,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
           // Initialize field's name variable with the computed name.
           DCHECK_NOT_NULL(property->computed_name_var());
           builder()->LoadAccumulatorWithRegister(key);
-          BuildVariableAssignment(property->computed_name_var(), Token::INIT,
+          BuildVariableAssignment(property->computed_name_var(), Token::kInit,
                                   HoleCheckMode::kElided);
         }
       }
@@ -3025,7 +3023,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   if (home_object_variable != nullptr) {
     DCHECK(home_object_variable->is_used());
     DCHECK(home_object_variable->IsContextSlot());
-    BuildVariableAssignment(home_object_variable, Token::INIT,
+    BuildVariableAssignment(home_object_variable, Token::kInit,
                             HoleCheckMode::kElided);
   }
   Variable* static_home_object_variable = expr->static_home_object();
@@ -3033,7 +3031,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     DCHECK(static_home_object_variable->is_used());
     DCHECK(static_home_object_variable->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);
-    BuildVariableAssignment(static_home_object_variable, Token::INIT,
+    BuildVariableAssignment(static_home_object_variable, Token::kInit,
                             HoleCheckMode::kElided);
   }
 
@@ -3042,7 +3040,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   if (class_variable != nullptr && class_variable->is_used()) {
     DCHECK(class_variable->IsStackLocal() || class_variable->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);
-    BuildVariableAssignment(class_variable, Token::INIT,
+    BuildVariableAssignment(class_variable, Token::kInit,
                             HoleCheckMode::kElided);
   }
 
@@ -3060,7 +3058,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     Variable* var = getter != nullptr ? getter->private_name_var()
                                       : setter->private_name_var();
     DCHECK_NOT_NULL(var);
-    BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
+    BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kElided);
   }
 
   if (expr->instance_members_initializer_function() != nullptr) {
@@ -3686,7 +3684,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   if (home_object != nullptr) {
     object_literal_context_scope.SetEnteredIf(true);
     builder()->LoadAccumulatorWithRegister(literal);
-    BuildVariableAssignment(home_object, Token::INIT, HoleCheckMode::kElided);
+    BuildVariableAssignment(home_object, Token::kInit, HoleCheckMode::kElided);
   }
   // Make sure to exit the scope before materialising the value into the
   // accumulator, to prevent the context scope from clobbering it.
@@ -3735,7 +3733,7 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
       .StoreInArrayLiteral(array, index, feedback_index(element_slot))
       // index++
       .LoadAccumulatorWithRegister(index)
-      .UnaryOperation(Token::INC, feedback_index(index_slot))
+      .UnaryOperation(Token::kInc, feedback_index(index_slot))
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
 }
@@ -3881,7 +3879,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       // Only increase the index if we are not the last element.
       if (current + 1 != end) {
         builder()
-            ->UnaryOperation(Token::INC, feedback_index(index_slot.Get()))
+            ->UnaryOperation(Token::kInc, feedback_index(index_slot.Get()))
             .StoreAccumulatorInRegister(index);
       }
     } else {
@@ -3890,7 +3888,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       auto length = ast_string_constants()->length_string();
       builder()
           ->LoadAccumulatorWithRegister(index)
-          .UnaryOperation(Token::INC, feedback_index(index_slot.Get()))
+          .UnaryOperation(Token::kInc, feedback_index(index_slot.Get()))
           .StoreAccumulatorInRegister(index)
           .SetNamedProperty(array, length, feedback_index(length_slot.Get()),
                             LanguageMode::kStrict);
@@ -4142,7 +4140,7 @@ bool BytecodeGenerator::VariableNeedsHoleCheckInCurrentBlockForAssignment(
     Variable* variable, Token::Value op, HoleCheckMode hole_check_mode) {
   return VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode) ||
          (variable->is_this() && variable->mode() == VariableMode::kConst &&
-          op == Token::INIT);
+          op == Token::kInit);
 }
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
@@ -4151,7 +4149,7 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
   DCHECK(VariableNeedsHoleCheckInCurrentBlockForAssignment(
       variable, op, HoleCheckMode::kRequired));
   if (variable->is_this()) {
-    DCHECK(variable->mode() == VariableMode::kConst && op == Token::INIT);
+    DCHECK(variable->mode() == VariableMode::kConst && op == Token::kInit);
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
@@ -4198,8 +4196,8 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode != VariableMode::kConst || op == Token::INIT) {
-        if (op == Token::INIT &&
+      if (mode != VariableMode::kConst || op == Token::kInit) {
+        if (op == Token::kInit &&
             variable->HasHoleCheckUseInSameClosureScope()) {
           // After initializing a variable it won't be the hole anymore, so
           // elide subsequent checks.
@@ -4240,8 +4238,8 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode != VariableMode::kConst || op == Token::INIT) {
-        if (op == Token::INIT &&
+      if (mode != VariableMode::kConst || op == Token::kInit) {
+        if (op == Token::kInit &&
             variable->HasHoleCheckUseInSameClosureScope()) {
           // After initializing a variable it won't be the hole anymore, so
           // elide subsequent checks.
@@ -4261,7 +4259,7 @@ void BytecodeGenerator::BuildVariableAssignment(
     case VariableLocation::MODULE: {
       DCHECK(IsDeclaredVariableMode(mode));
 
-      if (mode == VariableMode::kConst && op != Token::INIT) {
+      if (mode == VariableMode::kConst && op != Token::kInit) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError);
         break;
       }
@@ -4297,7 +4295,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       // necessarily the ScriptContext of this script, but rather the
       // first ScriptContext that has a slot for name 'x'.
       DCHECK(variable->IsReplGlobal());
-      if (op == Token::INIT) {
+      if (op == Token::kInit) {
         RegisterList store_args = register_allocator()->NewRegisterList(2);
         builder()
             ->StoreAccumulatorInRegister(store_args[1])
@@ -4589,7 +4587,7 @@ Expression* BytecodeGenerator::GetDestructuringDefaultValue(
   Expression* default_value = nullptr;
   if ((*target)->IsAssignment()) {
     Assignment* default_init = (*target)->AsAssignment();
-    DCHECK_EQ(default_init->op(), Token::ASSIGN);
+    DCHECK_EQ(default_init->op(), Token::kAssign);
     default_value = default_init->value();
     *target = default_init->target();
     DCHECK((*target)->IsValidReferenceExpression() || (*target)->IsPattern());
@@ -5116,17 +5114,17 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
   BinaryOperation* binop = expr->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
   BytecodeLabel short_circuit;
-  if (binop->op() == Token::NULLISH) {
+  if (binop->op() == Token::kNullish) {
     BytecodeLabel nullish;
     builder()
         ->JumpIfUndefinedOrNull(&nullish)
         .Jump(&short_circuit)
         .Bind(&nullish);
     VisitInHoleCheckElisionScopeForAccumulatorValue(expr->value());
-  } else if (binop->op() == Token::OR) {
+  } else if (binop->op() == Token::kOr) {
     builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, &short_circuit);
     VisitInHoleCheckElisionScopeForAccumulatorValue(expr->value());
-  } else if (binop->op() == Token::AND) {
+  } else if (binop->op() == Token::kAnd) {
     builder()->JumpIfFalse(ToBooleanMode::kConvertToBoolean, &short_circuit);
     VisitInHoleCheckElisionScopeForAccumulatorValue(expr->value());
   } else if (expr->value()->IsSmiLiteral()) {
@@ -5755,7 +5753,7 @@ void BytecodeGenerator::BuildPrivateMethodIn(Variable* private_name,
     builder()->SetExpressionPosition(object_expression);
 
     FeedbackSlot slot = feedback_spec()->AddKeyedHasICSlot();
-    builder()->CompareOperation(Token::IN, brand, feedback_index(slot));
+    builder()->CompareOperation(Token::kIn, brand, feedback_index(slot));
     execution_result()->SetResultIsBoolean();
   }
 }
@@ -6238,7 +6236,7 @@ void BytecodeGenerator::BuildInstanceInitializationAfterSuperCall(
   if (!IsDefaultConstructor(info()->literal()->kind())) {
     Variable* var = closure_scope()->GetReceiverScope()->receiver();
     builder()->LoadAccumulatorWithRegister(instance);
-    BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kRequired);
+    BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kRequired);
   }
 
   // The constructor scope always needs ScopeInfo, so we are certain that
@@ -6439,7 +6437,7 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
     VisitInSameTestExecutionScope(expr->expression());
   } else {
     UnaryOperation* unary_op = expr->expression()->AsUnaryOperation();
-    if (unary_op && unary_op->op() == Token::Value::NOT) {
+    if (unary_op && unary_op->op() == Token::kNot) {
       // Shortcut repeated nots, to capture the `!!foo` pattern for converting
       // expressions to booleans.
       TypeHint type_hint = VisitForAccumulatorValue(unary_op->expression());
@@ -6455,21 +6453,21 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
 
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
-    case Token::Value::NOT:
+    case Token::kNot:
       VisitNot(expr);
       break;
-    case Token::Value::TYPEOF:
+    case Token::kTypeOf:
       VisitTypeOf(expr);
       break;
-    case Token::Value::VOID:
+    case Token::kVoid:
       VisitVoid(expr);
       break;
-    case Token::Value::DELETE:
+    case Token::kDelete:
       VisitDelete(expr);
       break;
-    case Token::Value::ADD:
-    case Token::Value::SUB:
-    case Token::Value::BIT_NOT:
+    case Token::kAdd:
+    case Token::kSub:
+    case Token::kBitNot:
       VisitForAccumulatorValue(expr->expression());
       builder()->SetExpressionPosition(expr);
       builder()->UnaryOperation(
@@ -6764,16 +6762,16 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 
 void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
   switch (binop->op()) {
-    case Token::COMMA:
+    case Token::kComma:
       VisitCommaExpression(binop);
       break;
-    case Token::OR:
+    case Token::kOr:
       VisitLogicalOrExpression(binop);
       break;
-    case Token::AND:
+    case Token::kAnd:
       VisitLogicalAndExpression(binop);
       break;
-    case Token::NULLISH:
+    case Token::kNullish:
       VisitNullishExpression(binop);
       break;
     default:
@@ -6784,16 +6782,16 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 
 void BytecodeGenerator::VisitNaryOperation(NaryOperation* expr) {
   switch (expr->op()) {
-    case Token::COMMA:
+    case Token::kComma:
       VisitNaryCommaExpression(expr);
       break;
-    case Token::OR:
+    case Token::kOr:
       VisitNaryLogicalOrExpression(expr);
       break;
-    case Token::AND:
+    case Token::kAnd:
       VisitNaryLogicalAndExpression(expr);
       break;
-    case Token::NULLISH:
+    case Token::kNullish:
       VisitNaryNullishExpression(expr);
       break;
     default:
@@ -6843,7 +6841,7 @@ bool BytecodeGenerator::IsLocalVariableWithInternalizedStringHint(
 
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
+  return maybe_unary != nullptr && maybe_unary->op() == Token::kTypeOf;
 }
 
 static bool IsCharU(const AstRawString* str) {
@@ -6860,7 +6858,7 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // typeof(x) === 'string'
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, right_lit);
-    } else if (expr->op() == Token::GT && IsCharU(right_lit->AsRawString())) {
+    } else if (expr->op() == Token::kGt && IsCharU(right_lit->AsRawString())) {
       // typeof(x) > 'u'
       // Minifier may convert `typeof(x) === 'undefined'` to this form,
       // since `undefined` is the only valid value that is greater than 'u'.
@@ -6880,7 +6878,7 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // 'string' === typeof(x)
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, left_lit);
-    } else if (expr->op() == Token::LT && IsCharU(left_lit->AsRawString())) {
+    } else if (expr->op() == Token::kLt && IsCharU(left_lit->AsRawString())) {
       // 'u' < typeof(x)
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
     } else {
@@ -6909,7 +6907,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       builder()->CompareTypeOf(flag);
     }
   } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
-    DCHECK(expr->op() == Token::EQ_STRICT);
+    DCHECK(expr->op() == Token::kEqStrict);
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
     BuildLiteralStrictCompareBoolean(literal);
@@ -6927,7 +6925,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     builder()->CompareReference(
         GetRegisterForLocalVariable(sub_expr->AsVariableProxy()->var()));
   } else {
-    if (expr->op() == Token::IN && expr->left()->IsPrivateName()) {
+    if (expr->op() == Token::kIn && expr->left()->IsPrivateName()) {
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());
@@ -6940,9 +6938,9 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     VisitForAccumulatorValue(expr->right());
     builder()->SetExpressionPosition(expr);
     FeedbackSlot slot;
-    if (expr->op() == Token::IN) {
+    if (expr->op() == Token::kIn) {
       slot = feedback_spec()->AddKeyedHasICSlot();
-    } else if (expr->op() == Token::INSTANCEOF) {
+    } else if (expr->op() == Token::kInstanceOf) {
       slot = feedback_spec()->AddInstanceOfSlot();
     } else {
       slot = feedback_spec()->AddCompareICSlot();
@@ -6962,7 +6960,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     builder()->SetExpressionPosition(expr);
     builder()->BinaryOperationSmiLiteral(expr->op(), literal,
                                          feedback_index(slot));
-    if (expr->op() == Token::ADD && IsStringTypeHint(type_hint)) {
+    if (expr->op() == Token::kAdd && IsStringTypeHint(type_hint)) {
       execution_result()->SetResultIsString();
     }
   } else {
@@ -6970,7 +6968,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     Register lhs = register_allocator()->NewRegister();
     builder()->StoreAccumulatorInRegister(lhs);
     TypeHint rhs_type = VisitForAccumulatorValue(expr->right());
-    if (expr->op() == Token::ADD &&
+    if (expr->op() == Token::kAdd &&
         (IsStringTypeHint(lhs_type) || IsStringTypeHint(rhs_type))) {
       execution_result()->SetResultIsString();
     }
@@ -7003,7 +7001,7 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
     }
   }
 
-  if (IsStringTypeHint(type_hint) && expr->op() == Token::ADD) {
+  if (IsStringTypeHint(type_hint) && expr->op() == Token::kAdd) {
     // If any operand of an ADD is a String, a String is produced.
     execution_result()->SetResultIsString();
   }
@@ -7208,7 +7206,8 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
     if (!parts[i]->IsEmpty()) {
       builder()->LoadLiteral(parts[i]);
       if (last_part_valid) {
-        builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+        builder()->BinaryOperation(Token::kAdd, last_part,
+                                   feedback_index(slot));
       }
       builder()->StoreAccumulatorInRegister(last_part);
       last_part_valid = true;
@@ -7219,7 +7218,7 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
       builder()->ToString();
     }
     if (last_part_valid) {
-      builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+      builder()->BinaryOperation(Token::kAdd, last_part, feedback_index(slot));
     }
     last_part_valid = false;
   }
@@ -7227,7 +7226,7 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
   if (!parts.last()->IsEmpty()) {
     builder()->StoreAccumulatorInRegister(last_part);
     builder()->LoadLiteral(parts.last());
-    builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+    builder()->BinaryOperation(Token::kAdd, last_part, feedback_index(slot));
   }
 }
 
@@ -7280,15 +7279,16 @@ void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
 void BytecodeGenerator::VisitLogicalTestSubExpression(
     Token::Value token, Expression* expr, BytecodeLabels* then_labels,
     BytecodeLabels* else_labels, int coverage_slot) {
-  DCHECK(token == Token::OR || token == Token::AND || token == Token::NULLISH);
+  DCHECK(token == Token::kOr || token == Token::kAnd ||
+         token == Token::kNullish);
 
   BytecodeLabels test_next(zone());
-  if (token == Token::OR) {
+  if (token == Token::kOr) {
     VisitForTest(expr, then_labels, &test_next, TestFallthrough::kElse);
-  } else if (token == Token::AND) {
+  } else if (token == Token::kAnd) {
     VisitForTest(expr, &test_next, else_labels, TestFallthrough::kThen);
   } else {
-    DCHECK_EQ(Token::NULLISH, token);
+    DCHECK_EQ(Token::kNullish, token);
     VisitForNullishTest(expr, then_labels, &test_next, else_labels);
   }
   test_next.Bind(builder());
@@ -7299,7 +7299,8 @@ void BytecodeGenerator::VisitLogicalTestSubExpression(
 void BytecodeGenerator::VisitLogicalTest(Token::Value token, Expression* left,
                                          Expression* right,
                                          int right_coverage_slot) {
-  DCHECK(token == Token::OR || token == Token::AND || token == Token::NULLISH);
+  DCHECK(token == Token::kOr || token == Token::kAnd ||
+         token == Token::kNullish);
   TestResultScope* test_result = execution_result()->AsTest();
   BytecodeLabels* then_labels = test_result->then_labels();
   BytecodeLabels* else_labels = test_result->else_labels();
@@ -7315,7 +7316,8 @@ void BytecodeGenerator::VisitLogicalTest(Token::Value token, Expression* left,
 void BytecodeGenerator::VisitNaryLogicalTest(
     Token::Value token, NaryOperation* expr,
     const NaryCodeCoverageSlots* coverage_slots) {
-  DCHECK(token == Token::OR || token == Token::AND || token == Token::NULLISH);
+  DCHECK(token == Token::kOr || token == Token::kAnd ||
+         token == Token::kNullish);
   DCHECK_GT(expr->subsequent_length(), 0);
 
   TestResultScope* test_result = execution_result()->AsTest();
@@ -7408,7 +7410,7 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
       BuildIncrementBlockCoverageCounterIfEnabled(right_coverage_slot);
       builder()->Jump(test_result->NewElseLabel());
     } else {
-      VisitLogicalTest(Token::OR, left, right, right_coverage_slot);
+      VisitLogicalTest(Token::kOr, left, right, right_coverage_slot);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7432,7 +7434,7 @@ void BytecodeGenerator::VisitNaryLogicalOrExpression(NaryOperation* expr) {
     if (first->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else {
-      VisitNaryLogicalTest(Token::OR, expr, &coverage_slots);
+      VisitNaryLogicalTest(Token::kOr, expr, &coverage_slots);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7471,7 +7473,7 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
       BuildIncrementBlockCoverageCounterIfEnabled(right_coverage_slot);
       builder()->Jump(test_result->NewThenLabel());
     } else {
-      VisitLogicalTest(Token::AND, left, right, right_coverage_slot);
+      VisitLogicalTest(Token::kAnd, left, right, right_coverage_slot);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7495,7 +7497,7 @@ void BytecodeGenerator::VisitNaryLogicalAndExpression(NaryOperation* expr) {
     if (first->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
     } else {
-      VisitNaryLogicalTest(Token::AND, expr, &coverage_slots);
+      VisitNaryLogicalTest(Token::kAnd, expr, &coverage_slots);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7534,7 +7536,7 @@ void BytecodeGenerator::VisitNullishExpression(BinaryOperation* binop) {
       BuildIncrementBlockCoverageCounterIfEnabled(right_coverage_slot);
       builder()->Jump(test_result->NewElseLabel());
     } else {
-      VisitLogicalTest(Token::NULLISH, left, right, right_coverage_slot);
+      VisitLogicalTest(Token::kNullish, left, right, right_coverage_slot);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7558,7 +7560,7 @@ void BytecodeGenerator::VisitNaryNullishExpression(NaryOperation* expr) {
     if (first->IsLiteralButNotNullOrUndefined() && first->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else {
-      VisitNaryLogicalTest(Token::NULLISH, expr, &coverage_slots);
+      VisitNaryLogicalTest(Token::kNullish, expr, &coverage_slots);
     }
     test_result->SetResultConsumedByTest();
   } else {
@@ -7679,7 +7681,7 @@ void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
   // Allocate and initialize a new arguments object and assign to the
   // {arguments} variable.
   builder()->CreateArguments(closure_scope()->GetArgumentsType());
-  BuildVariableAssignment(variable, Token::ASSIGN, HoleCheckMode::kElided);
+  BuildVariableAssignment(variable, Token::kAssign, HoleCheckMode::kElided);
 }
 
 void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
@@ -7689,7 +7691,7 @@ void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
   // variable.
   builder()->CreateArguments(CreateArgumentsType::kRestParameter);
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
-  BuildVariableAssignment(rest, Token::ASSIGN, HoleCheckMode::kElided);
+  BuildVariableAssignment(rest, Token::kAssign, HoleCheckMode::kElided);
 }
 
 void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
@@ -7697,7 +7699,7 @@ void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
 
   // Store the closure we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::function_closure());
-  BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
+  BuildVariableAssignment(variable, Token::kInit, HoleCheckMode::kElided);
 }
 
 void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
@@ -7718,7 +7720,7 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
   // Store the new target we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(incoming_new_target_or_generator_);
-  BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
+  BuildVariableAssignment(variable, Token::kInit, HoleCheckMode::kElided);
 }
 
 void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
@@ -7745,7 +7747,7 @@ void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
     DCHECK_EQ(generator_object().index(),
               GetRegisterForLocalVariable(generator_object_var).index());
   } else {
-    BuildVariableAssignment(generator_object_var, Token::INIT,
+    BuildVariableAssignment(generator_object_var, Token::kInit,
                             HoleCheckMode::kElided);
   }
 }

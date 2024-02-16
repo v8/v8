@@ -1931,7 +1931,7 @@ class NaryOperation final : public Expression {
         subsequent_(zone) {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsBinaryOp(op));
-    DCHECK_NE(op, Token::EXP);
+    DCHECK_NE(op, Token::kExp);
     subsequent_.reserve(initial_subsequent_size);
   }
 
@@ -2092,7 +2092,7 @@ class ConditionalChain : public Expression {
   // conditionat_chain_entries_: [(v1 == 1, "a", 0), (v2 == 2, "b", 14)]
   // else_expression_: "c"
   //
-  // Example of a NOT expected expression:
+  // Example of a _not_ expected expression (only one chain entry):
   //
   //    Expression: v1 == 1 ? "a" : "b"
   //
@@ -3299,11 +3299,11 @@ class AstNodeFactory final {
     DCHECK_NOT_NULL(target);
     DCHECK_NOT_NULL(value);
 
-    if (op != Token::INIT && target->IsVariableProxy()) {
+    if (op != Token::kInit && target->IsVariableProxy()) {
       target->AsVariableProxy()->set_is_assigned();
     }
 
-    if (op == Token::ASSIGN || op == Token::INIT) {
+    if (op == Token::kAssign || op == Token::kInit) {
       return zone_->New<Assignment>(AstNode::kAssignment, op, target, value,
                                     pos);
     } else {

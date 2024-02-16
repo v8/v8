@@ -63,7 +63,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
-      .CompareOperation(Token::Value::EQ, reg,
+      .CompareOperation(Token::kEq, reg,
                         1)  // Prevent peephole optimization
                             // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
@@ -84,7 +84,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Ldar and Star taking care to foil the register optimizer.
   builder.LoadAccumulatorWithRegister(other)
-      .BinaryOperation(Token::ADD, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, 1)
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
 
@@ -229,43 +229,43 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
-  builder.BinaryOperation(Token::Value::ADD, reg, 1)
-      .BinaryOperation(Token::Value::SUB, reg, 2)
-      .BinaryOperation(Token::Value::MUL, reg, 3)
-      .BinaryOperation(Token::Value::DIV, reg, 4)
-      .BinaryOperation(Token::Value::MOD, reg, 5)
-      .BinaryOperation(Token::Value::EXP, reg, 6);
+  builder.BinaryOperation(Token::kAdd, reg, 1)
+      .BinaryOperation(Token::kSub, reg, 2)
+      .BinaryOperation(Token::kMul, reg, 3)
+      .BinaryOperation(Token::kDiv, reg, 4)
+      .BinaryOperation(Token::kMod, reg, 5)
+      .BinaryOperation(Token::kExp, reg, 6);
 
   // Emit bitwise operator invocations
-  builder.BinaryOperation(Token::Value::BIT_OR, reg, 6)
-      .BinaryOperation(Token::Value::BIT_XOR, reg, 7)
-      .BinaryOperation(Token::Value::BIT_AND, reg, 8);
+  builder.BinaryOperation(Token::kBitOr, reg, 6)
+      .BinaryOperation(Token::kBitXor, reg, 7)
+      .BinaryOperation(Token::kBitAnd, reg, 8);
 
   // Emit shift operator invocations
-  builder.BinaryOperation(Token::Value::SHL, reg, 9)
-      .BinaryOperation(Token::Value::SAR, reg, 10)
-      .BinaryOperation(Token::Value::SHR, reg, 11);
+  builder.BinaryOperation(Token::kShl, reg, 9)
+      .BinaryOperation(Token::kSar, reg, 10)
+      .BinaryOperation(Token::kShr, reg, 11);
 
   // Emit Smi binary operations.
-  builder.BinaryOperationSmiLiteral(Token::Value::ADD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SUB, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MUL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::DIV, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MOD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::EXP, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_OR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_XOR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_AND, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
+  builder.BinaryOperationSmiLiteral(Token::kAdd, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kSub, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kMul, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kDiv, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kMod, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kExp, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitOr, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitXor, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kBitAnd, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kShl, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kSar, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::kShr, Smi::FromInt(42), 2);
 
   // Emit unary and count operator invocations.
-  builder.UnaryOperation(Token::Value::INC, 1)
-      .UnaryOperation(Token::Value::DEC, 1)
-      .UnaryOperation(Token::Value::ADD, 1)
-      .UnaryOperation(Token::Value::SUB, 1)
-      .UnaryOperation(Token::Value::BIT_NOT, 1);
+  builder.UnaryOperation(Token::kInc, 1)
+      .UnaryOperation(Token::kDec, 1)
+      .UnaryOperation(Token::kAdd, 1)
+      .UnaryOperation(Token::kSub, 1)
+      .UnaryOperation(Token::kBitNot, 1);
 
   // Emit unary operator invocations.
   builder.LogicalNot(ToBooleanMode::kConvertToBoolean)
@@ -281,15 +281,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .ConstructForwardAllArgs(reg, 1);
 
   // Emit test operator invocations.
-  builder.CompareOperation(Token::Value::EQ, reg, 1)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
-      .CompareOperation(Token::Value::LT, reg, 3)
-      .CompareOperation(Token::Value::GT, reg, 4)
-      .CompareOperation(Token::Value::LTE, reg, 5)
-      .CompareOperation(Token::Value::GTE, reg, 6)
+  builder.CompareOperation(Token::kEq, reg, 1)
+      .CompareOperation(Token::kEqStrict, reg, 2)
+      .CompareOperation(Token::kLt, reg, 3)
+      .CompareOperation(Token::kGt, reg, 4)
+      .CompareOperation(Token::kLte, reg, 5)
+      .CompareOperation(Token::kGte, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
-      .CompareOperation(Token::Value::IN, reg, 8)
+      .CompareOperation(Token::kInstanceOf, reg, 7)
+      .CompareOperation(Token::kIn, reg, 8)
       .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()
@@ -615,13 +615,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   builder.JumpIfNull(&after_jump_near0)
       .Jump(&near0)
       .Bind(&after_jump_near0)
-      .CompareOperation(Token::Value::EQ, reg, 1)
+      .CompareOperation(Token::kEq, reg, 1)
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &near1)
-      .CompareOperation(Token::Value::EQ, reg, 2)
+      .CompareOperation(Token::kEq, reg, 2)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &near2)
-      .BinaryOperation(Token::Value::ADD, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, 1)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &near3)
-      .BinaryOperation(Token::Value::ADD, reg, 2)
+      .BinaryOperation(Token::kAdd, reg, 2)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &near4)
       .Bind(&near0)
       .Bind(&near1)
@@ -631,13 +631,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .JumpIfNull(&after_jump_far0)
       .Jump(&far0)
       .Bind(&after_jump_far0)
-      .CompareOperation(Token::Value::EQ, reg, 3)
+      .CompareOperation(Token::kEq, reg, 3)
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &far1)
-      .CompareOperation(Token::Value::EQ, reg, 4)
+      .CompareOperation(Token::kEq, reg, 4)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &far2)
-      .BinaryOperation(Token::Value::ADD, reg, 3)
+      .BinaryOperation(Token::kAdd, reg, 3)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &far3)
-      .BinaryOperation(Token::Value::ADD, reg, 4)
+      .BinaryOperation(Token::kAdd, reg, 4)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &far4);
   for (int i = 0; i < kFarJumpDistance - 22; i++) {
     builder.Debugger();

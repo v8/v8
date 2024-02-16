@@ -186,8 +186,8 @@ class ScopeChainRetriever {
     const bool position_fits_end =
         closure_scope_ ? position_ < end : position_ <= end;
     // While we're evaluating a class, the calling function will have a class
-    // context on the stack with a range that starts at Token::CLASS, and the
-    // source position will also point to Token::CLASS.  To identify the
+    // context on the stack with a range that starts at Token::kClass, and the
+    // source position will also point to Token::kClass.  To identify the
     // matching scope we include start in the accepted range for class scopes.
     //
     // Similarly "with" scopes can already have bytecodes where the source

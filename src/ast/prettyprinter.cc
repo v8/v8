@@ -507,7 +507,7 @@ void CallPrinter::VisitSuperCallForwardArgs(SuperCallForwardArgs* node) {
 void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
   bool needsSpace =
-      op == Token::DELETE || op == Token::TYPEOF || op == Token::VOID;
+      op == Token::kDelete || op == Token::kTypeOf || op == Token::kVoid;
   Print("(");
   Print(Token::String(op));
   if (needsSpace) Print(" ");
