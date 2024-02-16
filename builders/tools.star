@@ -40,6 +40,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     service_account = V8_TEST262_EXPORT_ACCOUNT,
     executable = "recipe:v8/test262_export",
+    schedule = "18 * * * *",
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
@@ -80,14 +81,4 @@ v8_builder(
     in_list = "tools",
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
-)
-
-luci.gitiles_poller(
-    name = "test262-trigger",
-    bucket = "ci-hp",
-    repo = "https://chromium.googlesource.com/v8/v8",
-    triggers = ["Test262 exporter"],
-    path_regexps = [
-        "test/test262/local-tests/test/staging/.+",
-    ],
 )
