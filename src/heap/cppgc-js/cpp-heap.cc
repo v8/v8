@@ -473,6 +473,9 @@ CppHeap::CppHeap(
   // garbage collections.
   no_gc_scope_++;
   stats_collector()->RegisterObserver(this);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  object_allocator().UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 }
 
 CppHeap::~CppHeap() {
@@ -1201,6 +1204,19 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
 }
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+v8::base::Optional<int> CppHeap::UpdateAllocationTimeout() {
+  if (!v8_flags.cppgc_random_gc_interval) {
+    return v8::base::nullopt;
+  }
+  if (!allocation_timeout_rng_) {
+    allocation_timeout_rng_.emplace(v8_flags.fuzzer_random_seed);
+  }
+  return allocation_timeout_rng_->NextInt(v8_flags.cppgc_random_gc_interval) +
+         1;
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void CppHeap::ResetCrossHeapRememberedSet() {
   if (!generational_gc_supported()) {
