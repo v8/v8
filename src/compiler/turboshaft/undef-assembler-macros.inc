@@ -18,8 +18,6 @@
 
 #undef BIND
 #undef ELSE
-#undef ELSE_IF
-#undef END_IF
 #undef GOTO
 #undef GOTO_IF
 #undef GOTO_IF_NOT

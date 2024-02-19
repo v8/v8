@@ -988,12 +988,7 @@ class GenericAssemblerOpInterface : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(GenericAssemblerOpInterface)
 
-  ~GenericAssemblerOpInterface() {
-    // If the {if_scope_stack_} is not empty, it means that a END_IF is missing.
-    DCHECK(if_scope_stack_.empty());
-  }
-
-  // These methods are used by the assembler macros (IF, ELSE, ELSE_IF, END_IF).
+  // These methods are used by the assembler macros (LOOP, BIND, GOTO, GOTO_IF).
   template <typename L>
   auto ControlFlowHelper_Bind(L& label)
       -> base::prepend_tuple_type<bool, typename L::values_t> {
@@ -1039,78 +1034,6 @@ class GenericAssemblerOpInterface : public Next {
     label.GotoIfNot(Asm(), condition.condition(), condition.hint(),
                     resolved_values);
   }
-
-  bool ControlFlowHelper_If(ConditionWithHint condition, bool negate) {
-    block_t* then_block = Asm().NewBlock();
-    block_t* else_block = Asm().NewBlock();
-    block_t* end_block = Asm().NewBlock();
-    if (negate) {
-      Asm().Branch(condition, else_block, then_block);
-    } else {
-      Asm().Branch(condition, then_block, else_block);
-    }
-    if_scope_stack_.emplace_back(else_block, end_block);
-    return Asm().Bind(then_block);
-  }
-
-  template <typename F>
-  bool ControlFlowHelper_ElseIf(F&& condition_builder) {
-    DCHECK_LT(0, if_scope_stack_.size());
-    auto& info = if_scope_stack_.back();
-    block_t* else_block = info.else_block;
-    DCHECK_NOT_NULL(else_block);
-    if (!Asm().Bind(else_block)) return false;
-    block_t* then_block = Asm().NewBlock();
-    info.else_block = Asm().NewBlock();
-    Asm().Branch(ConditionWithHint{condition_builder()}, then_block,
-                 info.else_block);
-    return Asm().Bind(then_block);
-  }
-
-  bool ControlFlowHelper_Else() {
-    DCHECK_LT(0, if_scope_stack_.size());
-    auto& info = if_scope_stack_.back();
-    block_t* else_block = info.else_block;
-    DCHECK_NOT_NULL(else_block);
-    info.else_block = nullptr;
-    return Asm().Bind(else_block);
-  }
-
-  void ControlFlowHelper_EndIf() {
-    DCHECK_LT(0, if_scope_stack_.size());
-    auto& info = if_scope_stack_.back();
-    // Do we still have to place an else block (aka we had if's without else).
-    if (info.else_block) {
-      if (Asm().Bind(info.else_block)) {
-        Asm().Goto(info.end_block);
-      }
-    }
-    Asm().Bind(info.end_block);
-    if_scope_stack_.pop_back();
-  }
-
-  void ControlFlowHelper_GotoEnd() {
-    DCHECK_LT(0, if_scope_stack_.size());
-    auto& info = if_scope_stack_.back();
-
-    if (!Asm().current_block()) {
-      // We had an unconditional goto inside the block, so we don't need to add
-      // a jump to the end block.
-      return;
-    }
-    // Generate a jump to the end block.
-    Asm().Goto(info.end_block);
-  }
-
- private:
-  struct IfScopeInfo {
-    block_t* else_block;
-    block_t* end_block;
-
-    IfScopeInfo(block_t* else_block, block_t* end_block)
-        : else_block(else_block), end_block(end_block) {}
-  };
-  base::SmallVector<IfScopeInfo, 16> if_scope_stack_;
 };
 
 template <class Next>
@@ -3089,7 +3012,7 @@ class TurboshaftAssemblerOpInterface
       Comment("ASSERT FAILED");
       DebugBreak();
     }
-    END_IF
+
 #endif
   }
 

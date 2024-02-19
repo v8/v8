@@ -35,20 +35,63 @@
 #define GOTO_IF_NOT(cond, label, ...)                           \
   Asm().ControlFlowHelper_GotoIfNot(cond, label, {__VA_ARGS__})
 
-#define IF(...)                                                            \
-  for (bool bound = Asm().ControlFlowHelper_If(__VA_ARGS__, false); bound; \
-       (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define IF_NOT(...)                                                       \
-  for (bool bound = Asm().ControlFlowHelper_If(__VA_ARGS__, true); bound; \
-       (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define ELSE_IF(...)                                               \
-   for (bool bound = Asm().ControlFlowHelper_ElseIf(               \
-                                   [&]() { return __VA_ARGS__; }); \
-        bound; (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define ELSE                                               \
-  for (bool bound = Asm().ControlFlowHelper_Else(); bound; \
-       (bound = false), Asm().ControlFlowHelper_GotoEnd())
-#define END_IF Asm().ControlFlowHelper_EndIf();
+// Clang/GCC helpfully warn us about dangling else in nested if statements. This
+// dangling is intentional for the way these macros work, so suppress the
+// warning with Pragmas. Clang and GCC helpfully disagree on where the _Pragma
+// is allowed to be, so they need separate macros.
+#if defined(__clang__)
+#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...)                \
+  _Pragma("GCC diagnostic push") _Pragma(                                 \
+      "GCC diagnostic ignored \"-Wdangling-else\"") else if (__VA_ARGS__) \
+      _Pragma("GCC diagnostic pop")
+#elif defined(__GNUC__)
+#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...)                   \
+  else _Pragma("GCC diagnostic push")                                        \
+      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") if (__VA_ARGS__) \
+          _Pragma("GCC diagnostic pop")
+#else
+#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...) else if (__VA_ARGS__)
+#endif
+
+// IF/ELSE macros. These expand to a real C++ if-else, so that we can get
+// similar block syntax behaviour (with an optional `ELSE`). Since C++ will only
+// evaluate one side of the if-else, wrap it in a for loop that executes the
+// if-else twice, once for each side of the branch. Each iteration also emits a
+// goto-end if the corresponding branch target was bound. This for loop also
+// encapsulates the state of the IF, including block pointers.
+#define IF(...)                                                                \
+  for (auto [then_block, else_block, end_block, iteration, explicit_else] =    \
+           std::tuple{Asm().NewBlock(), Asm().NewBlock(), Asm().NewBlock(), 0, \
+                      false};                                                  \
+       iteration < 2 ||                                                        \
+       (!explicit_else && Asm().Bind(else_block) ? Asm().Goto(end_block)       \
+                                                 : (void)0,                    \
+        Asm().Bind(end_block), false);                                         \
+       (Asm().current_block() != nullptr ? Asm().Goto(end_block) : (void)0),   \
+                                                           iteration++)        \
+    if (iteration == 0 &&                                                      \
+        (Asm().Branch(::v8::internal::compiler::turboshaft::ConditionWithHint(__VA_ARGS__), then_block, else_block), \
+         true) &&                                                              \
+        Asm().Bind(then_block))
+
+#define IF_NOT(...)                                                            \
+  for (auto [then_block, else_block, end_block, iteration, explicit_else] =    \
+           std::tuple{Asm().NewBlock(), Asm().NewBlock(), Asm().NewBlock(), 0, \
+                      false};                                                  \
+       iteration < 2 ||                                                        \
+       (!explicit_else && Asm().Bind(else_block) ? Asm().Goto(end_block)       \
+                                                 : (void)0,                    \
+        Asm().Bind(end_block), false);                                         \
+       (Asm().current_block() != nullptr ? Asm().Goto(end_block) : (void)0),   \
+                                                           iteration++)        \
+    if (iteration == 0 &&                                                      \
+        (Asm().Branch(::v8::internal::compiler::turboshaft::ConditionWithHint(__VA_ARGS__), else_block, then_block), \
+         true) &&                                                              \
+        Asm().Bind(then_block))
+
+#define ELSE                                     \
+  ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING( \
+      iteration == 1 && (explicit_else = true) && Asm().Bind(else_block))
 
 #define Assert(condition) AssertImpl(condition, #condition, __FILE__, __LINE__)
 

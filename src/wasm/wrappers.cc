@@ -55,7 +55,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       CallRuntime(__ phase_zone(), Runtime::kAbort, {message_id},
                   __ NoContextConstant());
     }
-    END_IF
   }
 
   void BuildModifyThreadInWasmFlagHelper(V<WordPtr> thread_in_wasm_flag_address,
@@ -168,14 +167,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // value.
       __ SetVariable(result,
                      __ ChangeInt32ToIntPtr(__ Projection<Word32>(add, 0)));
-    }
-    ELSE {
+    } ELSE{
       // Otherwise, call builtin, to convert to a HeapNumber.
       V<HeapNumber> call = CallBuiltin<WasmInt32ToHeapNumberDescriptor>(
           Builtin::kWasmInt32ToHeapNumber, Operator::kNoProperties, value);
       __ SetVariable(result, call);
     }
-    END_IF
     return __ GetVariable(result);
   }
 
@@ -238,7 +235,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                         Builtin::kWasmInternalFunctionCreateExternal,
                         Operator::kNoProperties, ret, context));
               }
-              END_IF
               return __ GetVariable(maybe_external);
             } else {
               return ret;
@@ -263,11 +259,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             Variable result = __ NewVariable(RegisterRepresentation::Tagged());
             IF_NOT (__ IsNull(ret, type)) {
               __ SetVariable(result, ret);
-            }
-            ELSE {
+            } ELSE{
               __ SetVariable(result, LOAD_ROOT(NullValue));
             }
-            END_IF
             return __ GetVariable(result);
           }
           case wasm::HeapType::kFunc:
@@ -278,8 +272,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                   __ NewVariable(RegisterRepresentation::Tagged());
               IF (__ IsNull(ret, type)) {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
-              }
-              ELSE {
+              } ELSE{
                 V<Tagged> maybe_external =
                     __ Load(ret, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::AnyTagged(),
@@ -291,24 +284,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                           Builtin::kWasmInternalFunctionCreateExternal,
                           Operator::kNoProperties, ret, context);
                   __ SetVariable(result, from_builtin);
-                }
-                ELSE {
+                } ELSE{
                   __ SetVariable(result, maybe_external);
                 }
-                END_IF
               }
-              END_IF
               return __ GetVariable(result);
             } else {
               Variable result =
                   __ NewVariable(RegisterRepresentation::Tagged());
               IF (__ IsNull(ret, type)) {
                 __ SetVariable(result, LOAD_IMMUTABLE_ROOT(NullValue));
-              }
-              ELSE {
+              } ELSE{
                 __ SetVariable(result, ret);
               }
-              END_IF
               return __ GetVariable(result);
             }
           }
@@ -584,23 +572,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         Variable result = __ NewVariable(RegisterRepresentation::Float32());
         IF (__ IsSmi(input)) {
           __ SetVariable(result, __ ChangeInt32ToFloat32(__ UntagSmi(input)));
-        }
-        ELSE {
+        } ELSE {
           __ SetVariable(result,
                          __ ChangeFloat64ToFloat32(HeapNumberToFloat64(input)));
         }
-        END_IF
         return __ GetVariable(result);
       }
       case wasm::kF64: {
         Variable result = __ NewVariable(RegisterRepresentation::Float64());
         IF (__ IsSmi(input)) {
           __ SetVariable(result, __ ChangeInt32ToFloat64(__ UntagSmi(input)));
-        }
-        ELSE {
+        } ELSE{
           __ SetVariable(result, HeapNumberToFloat64(input));
         }
-        END_IF
         return __ GetVariable(result);
       }
       case wasm::kRef:
@@ -672,8 +656,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     Variable result = __ NewVariable(RegisterRepresentation::Word32());
     IF (__ IsSmi(value)) {
       __ SetVariable(result, BuildChangeSmiToInt32(value));
-    }
-    ELSE {
+    } ELSE{
       OpIndex call =
           frame_state.valid()
               ? CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
@@ -687,7 +670,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // source position of the call to JavaScript in the wasm-to-js wrapper.
       __ output_graph().source_positions()[call] = SourcePosition(1);
     }
-    END_IF
     return __ GetVariable(result);
   }
 
@@ -734,7 +716,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                             context);
                 __ Unreachable();
               }
-              END_IF
               return input;
             }
             return input;

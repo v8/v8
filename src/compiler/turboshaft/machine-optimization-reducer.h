@@ -582,11 +582,10 @@ class MachineOptimizationReducer : public Next {
           IF (UNLIKELY(__ FloatLessThanOrEqual(
                   lhs, __ FloatConstant(-V8_INFINITY, rep), rep))) {
             __ SetVariable(result, __ FloatConstant(V8_INFINITY, rep));
-          }
-          ELSE {
+          } ELSE {
             __ SetVariable(result, __ FloatSqrt(lhs, rep));
           }
-          END_IF
+
           return __ GetVariable(result);
         }
       }

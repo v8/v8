@@ -288,11 +288,9 @@ class GraphBuilder {
     IF (ConvertInt32Compare(node->left_input(), node->right_input(),
                             node->operation())) {
       GOTO(done, __ HeapConstant(factory_->true_value()));
-    }
-    ELSE {
+    } ELSE {
       GOTO(done, __ HeapConstant(factory_->false_value()));
     }
-    END_IF
     BIND(done, result);
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
@@ -417,7 +415,7 @@ class GraphBuilder {
       IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(*result, 0.5), input)) {
         result = __ Float64Sub(*result, 1.0);
       }
-      END_IF
+
       SetMap(node, *result);
     }
     return maglev::ProcessResult::kContinue;

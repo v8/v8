@@ -357,11 +357,10 @@ class WasmLoweringReducer : public Next {
               BuiltinCallDescriptor::WasmRefFunc>({function_index_constant});
 
       GOTO(done, from_builtin);
-    }
-    ELSE {
+    } ELSE {
       GOTO(done, V<WasmInternalFunction>::Cast(maybe_function));
     }
-    END_IF
+
     BIND(done, result_value);
     return result_value;
   }

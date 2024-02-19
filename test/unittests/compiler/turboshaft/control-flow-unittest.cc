@@ -154,11 +154,9 @@ TEST_F(ControlFlowTest, DCEGoto) {
       __ Goto(b2);
       __ Bind(b2);
       __ Word32Constant(53);
-    }
-    ELSE {
+    } ELSE {
       __ Word32Constant(19);
     }
-    END_IF
     __ Word32Constant(42);
     __ Goto(b3);
     __ Bind(b3);

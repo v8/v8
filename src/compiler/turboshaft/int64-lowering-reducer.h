@@ -503,11 +503,10 @@ class Int64LoweringReducer : public Next {
     ScopedVar<Word32> result(Asm());
     IF (__ Word32Equal(high, 0)) {
       result = __ Word32Add(32, __ Word32CountLeadingZeros(low));
-    }
-    ELSE {
+    } ELSE {
       result = __ Word32CountLeadingZeros(high);
     }
-    END_IF
+
     return __ Tuple(*result, __ Word32Constant(0));
   }
 
@@ -517,11 +516,10 @@ class Int64LoweringReducer : public Next {
     ScopedVar<Word32> result(Asm());
     IF (__ Word32Equal(low, 0)) {
       result = __ Word32Add(32, __ Word32CountTrailingZeros(high));
-    }
-    ELSE {
+    } ELSE {
       result = __ Word32CountTrailingZeros(low);
     }
-    END_IF
+
     return __ Tuple(*result, __ Word32Constant(0));
   }
 
@@ -631,7 +629,6 @@ class Int64LoweringReducer : public Next {
       var_low = left_low;
       var_high = left_high;
     }
-    END_IF
 
     V<Word32> rotate_low = __ Word32RotateRight(*var_low, safe_shift);
     V<Word32> rotate_high = __ Word32RotateRight(*var_high, safe_shift);
