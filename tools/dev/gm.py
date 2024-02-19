@@ -414,7 +414,28 @@ class RawConfig:
     self.tests.update(tests)
     self.clean |= clean
 
+  def update_build_distribution_args(self):
+    args_gn = self.path / "args.gn"
+    assert args_gn.exists()
+    with open(args_gn) as f:
+      gn_args = f.read()
+    # Remove custom reclient config path (it will be added again as part of
+    # the config line below if needed).
+    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
+    new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
+                                            new_gn_args)
+    if gn_args != new_gn_args:
+      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
+      _write(args_gn, new_gn_args, log=False)
+
   def build(self):
+    self.update_build_distribution_args()
+    # If the target is to just build args.gn then we are done here; otherwise
+    # drop that target because it's not something ninja can build.
+    if 'gn_args' in self.targets:
+      self.targets.remove('gn_args')
+    if len(self.targets) == 0:
+      return 0
     build_ninja = self.path / "build.ninja"
     if not build_ninja.exists():
       code = _call(f"gn gen {self.path}")
@@ -552,20 +573,6 @@ class ManagedConfig(RawConfig):
         self.get_sandbox_flag())
     return template % "\n".join(arch_specific)
 
-  def update_build_distribution_args(self):
-    args_gn = self.path / "args.gn"
-    assert args_gn.exists()
-    with open(args_gn) as f:
-      gn_args = f.read()
-    # Remove custom reclient config path (it will be added again as part of
-    # the config line below if needed).
-    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
-    new_gn_args = BUILD_DISTRIBUTION_RE.sub(
-        BUILD_DISTRIBUTION_LINE, new_gn_args)
-    if gn_args != new_gn_args:
-      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
-      _write(args_gn, new_gn_args, log=False)
-
   def build(self):
     path = self.path
     args_gn = path / "args.gn"
@@ -574,14 +581,6 @@ class ManagedConfig(RawConfig):
       path.mkdir(parents=True)
     if not args_gn.exists():
       _write(args_gn, self.get_gn_args())
-    else:
-      self.update_build_distribution_args()
-    # If the target is to just build args.gn then we are done here; otherwise
-    # drop that target because it's not something ninja can build.
-    if 'gn_args' in self.targets:
-      self.targets.remove('gn_args')
-    if len(self.targets) == 0:
-      return 0
     return super().build()
 
   def run_tests(self):
