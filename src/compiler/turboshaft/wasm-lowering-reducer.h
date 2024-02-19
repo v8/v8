@@ -922,8 +922,16 @@ class WasmLoweringReducer : public Next {
                 wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
             ? RootIndex::kNullValue
             : RootIndex::kWasmNull;
+    // We load WasmNull as a pointer here and not as a TaggedPointer because
+    // WasmNull is stored uncompressed in the IsolateData, and a load of a
+    // TaggedPointer loads compressed pointers. We do not bitcast the WasmNull
+    // to Tagged at the moment because it would increase graph size, which may
+    // affect optimizations negatively. These regressions would be worth it if
+    // there was any benefit of the bitcast. However, the graph validation
+    // currently allows implicit representation changes from `WordPtr` to
+    // `Tagged`.
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::TaggedPointer(),
+                   MemoryRepresentation::UintPtr(),
                    IsolateData::root_slot_offset(index));
   }
 
