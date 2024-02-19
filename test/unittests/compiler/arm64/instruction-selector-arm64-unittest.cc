@@ -2968,11 +2968,12 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
                          ::testing::ValuesIn(kFPCmpInstructions));
 
 TEST_F(InstructionSelectorTest, Float32SelectWithRegisters) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Float32(),
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
                   MachineType::Float32());
   Node* cond = m.Int32Constant(1);
   m.Return(m.Float32Select(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2980,15 +2981,44 @@ TEST_F(InstructionSelectorTest, Float32SelectWithRegisters) {
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
 
+TEST_F(InstructionSelectorTest, Float32SelectWithZero) {
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Float32Select(cond, m.Parameter(0), m.Float32Constant(0.0f)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
 TEST_F(InstructionSelectorTest, Float64SelectWithRegisters) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Float64(),
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());
   Node* cond = m.Int32Constant(1);
   m.Return(m.Float64Select(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
+TEST_F(InstructionSelectorTest, Float64SelectWithZero) {
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Float64Select(cond, m.Parameter(0), m.Float64Constant(0.0f)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
@@ -2999,6 +3029,7 @@ TEST_F(InstructionSelectorTest, Word32SelectWithRegisters) {
   Node* cond = m.Int32Constant(1);
   m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
@@ -3006,15 +3037,44 @@ TEST_F(InstructionSelectorTest, Word32SelectWithRegisters) {
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
 
+TEST_F(InstructionSelectorTest, Word32SelectWithZero) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word32Select(cond, m.Parameter(0), m.Int32Constant(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
 TEST_F(InstructionSelectorTest, Word64SelectWithRegisters) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                   MachineType::Int64());
   Node* cond = m.Int32Constant(1);
   m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
   EXPECT_EQ(4U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
+TEST_F(InstructionSelectorTest, Word64SelectWithZero) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word64Select(cond, m.Parameter(0), m.Int64Constant(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
   EXPECT_EQ(kFlags_select, s[0]->flags_mode());
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }

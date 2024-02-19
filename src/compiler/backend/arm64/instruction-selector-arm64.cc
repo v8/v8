@@ -50,19 +50,37 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return UseRegister(node);
   }
 
-  // Use the zero register if the node has the immediate value zero, otherwise
-  // assign a register.
-  InstructionOperand UseRegisterOrImmediateZero(typename Adapter::node_t node) {
+  bool IsImmediateZero(typename Adapter::node_t node) {
     if (this->is_constant(node)) {
       auto constant = selector()->constant_view(node);
       if ((IsIntegerConstant(constant) &&
            GetIntegerConstantValue(constant) == 0) ||
           (constant.is_float() &&
-           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
-        return UseImmediate(node);
+           base::bit_cast<uint64_t>(constant.float_value()) == 0)) {
+        return true;
       }
     }
+    return false;
+  }
+
+  // Use the zero register if the node has the immediate value zero, otherwise
+  // assign a register.
+  InstructionOperand UseRegisterOrImmediateZero(typename Adapter::node_t node) {
+    if (IsImmediateZero(node)) {
+      return UseImmediate(node);
+    }
     return UseRegister(node);
+  }
+
+  // Use the zero register if the node has the immediate value zero, otherwise
+  // assign a register, keeping it alive for the whole sequence of continuation
+  // instructions.
+  InstructionOperand UseRegisterAtEndOrImmediateZero(
+      typename Adapter::node_t node) {
+    if (IsImmediateZero(node)) {
+      return UseImmediate(node);
+    }
+    return this->UseRegisterAtEnd(node);
   }
 
   // Use the provided node if it has the required value, or create a
@@ -765,8 +783,10 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector,
     // Keep the values live until the end so that we can use operations that
     // write registers to generate the condition, without accidently
     // overwriting the inputs.
-    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
-    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->true_value());
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->false_value());
   }
 
   DCHECK_NE(0u, input_count);
@@ -4009,9 +4029,9 @@ void VisitCompare(InstructionSelectorT<Adapter>* selector,
                   InstructionOperand right, FlagsContinuationT<Adapter>* cont) {
   if (cont->IsSelect()) {
     Arm64OperandGeneratorT<Adapter> g(selector);
-    InstructionOperand inputs[] = {left, right,
-                                   g.UseRegister(cont->true_value()),
-                                   g.UseRegister(cont->false_value())};
+    InstructionOperand inputs[] = {
+        left, right, g.UseRegisterOrImmediateZero(cont->true_value()),
+        g.UseRegisterOrImmediateZero(cont->false_value())};
     selector->EmitWithContinuation(opcode, 0, nullptr, 4, inputs, cont);
   } else {
     selector->EmitWithContinuation(opcode, left, right, cont);
