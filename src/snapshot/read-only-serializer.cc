@@ -225,7 +225,7 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
 
  private:
   void ProcessSlot(MaybeObjectSlot slot) {
-    MaybeObject o = *slot;
+    Tagged<MaybeObject> o = *slot;
     if (!o.IsStrongOrWeak()) return;  // Smis don't need relocation.
     DCHECK(o.IsStrong());
 

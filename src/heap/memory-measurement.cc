@@ -198,7 +198,7 @@ bool MemoryMeasurement::EnqueueRequest(
   Handle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    weak_contexts->set(i, HeapObjectReference::Weak(*contexts[i]));
+    weak_contexts->set(i, MakeWeak(*contexts[i]));
   }
   Handle<WeakFixedArray> global_weak_contexts =
       isolate_->global_handles()->Create(*weak_contexts);

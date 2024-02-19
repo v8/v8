@@ -213,8 +213,8 @@
   DECL_RELEASE_SETTER(name, type)
 
 #define DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(name) \
-  DECL_ACQUIRE_GETTER(name, MaybeObject)          \
-  DECL_RELEASE_SETTER(name, MaybeObject)
+  DECL_ACQUIRE_GETTER(name, Tagged<MaybeObject>)  \
+  DECL_RELEASE_SETTER(name, Tagged<MaybeObject>)
 
 #define DECL_CAST(Type)                                      \
   V8_INLINE static Tagged<Type> cast(Tagged<Object> object); \
@@ -392,18 +392,18 @@
 #define RELEASE_ACQUIRE_ACCESSORS(holder, name, type, offset) \
   RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
-                                set_condition)                        \
-  DEF_GETTER(holder, name, MaybeObject) {                             \
-    MaybeObject value =                                               \
-        TaggedField<MaybeObject, offset>::load(cage_base, *this);     \
-    DCHECK(get_condition);                                            \
-    return value;                                                     \
-  }                                                                   \
-  void holder::set_##name(MaybeObject value, WriteBarrierMode mode) { \
-    DCHECK(set_condition);                                            \
-    TaggedField<MaybeObject, offset>::store(*this, value);            \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);       \
+#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,          \
+                                set_condition)                                \
+  DEF_GETTER(holder, name, Tagged<MaybeObject>) {                             \
+    Tagged<MaybeObject> value =                                               \
+        TaggedField<MaybeObject, offset>::load(cage_base, *this);             \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(Tagged<MaybeObject> value, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                                    \
+    TaggedField<MaybeObject, offset>::store(*this, value);                    \
+    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
   }
 
 #define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
@@ -414,13 +414,13 @@
 
 #define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
                                                 get_condition, set_condition) \
-  DEF_ACQUIRE_GETTER(holder, name, MaybeObject) {                             \
-    MaybeObject value =                                                       \
+  DEF_ACQUIRE_GETTER(holder, name, Tagged<MaybeObject>) {                     \
+    Tagged<MaybeObject> value =                                               \
         TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);     \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
   }                                                                           \
-  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                 \
+  void holder::set_##name(Tagged<MaybeObject> value, ReleaseStoreTag,         \
                           WriteBarrierMode mode) {                            \
     DCHECK(set_condition);                                                    \
     TaggedField<MaybeObject, offset>::Release_Store(*this, value);            \

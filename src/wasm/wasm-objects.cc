@@ -764,8 +764,8 @@ void WasmMemoryObject::SetNewBuffer(Tagged<JSArrayBuffer> new_buffer) {
   Tagged<WeakArrayList> instances = this->instances();
   Isolate* isolate = GetIsolate();
   for (int i = 0, len = instances->length(); i < len; ++i) {
-    MaybeObject elem = instances->Get(i);
-    if (elem->IsCleared()) continue;
+    Tagged<MaybeObject> elem = instances->Get(i);
+    if (elem.IsCleared()) continue;
     Tagged<WasmInstanceObject> instance_object =
         WasmInstanceObject::cast(elem.GetHeapObjectAssumeWeak());
     Tagged<WasmTrustedInstanceData> trusted_data =
@@ -1477,7 +1477,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   int wrapper_index =
       wasm::GetExportWrapperIndex(canonical_sig_index, function.imported);
 
-  MaybeObject entry =
+  Tagged<MaybeObject> entry =
       isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
 
   Handle<Code> wrapper_code;
@@ -1502,7 +1502,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
     // Store the wrapper in the isolate, or make its reference weak now that we
     // have a function referencing it.
     isolate->heap()->js_to_wasm_wrappers()->Set(
-        wrapper_index, HeapObjectReference::Weak(wrapper_code->wrapper()));
+        wrapper_index, MakeWeak(wrapper_code->wrapper()));
   }
   auto result = WasmExportedFunction::New(
       isolate, instance_object, internal, internal->function_index(),
@@ -2345,14 +2345,15 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<WeakArrayList> canonical_rtts =
       handle(isolate->heap()->wasm_canonical_rtts(), isolate);
 
-  MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+  Tagged<MaybeObject> maybe_canonical_map =
+      canonical_rtts->Get(canonical_type_index);
 
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
     rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
   } else {
     rtt = CreateFuncRefMap(isolate, Handle<Map>());
-    canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*rtt));
+    canonical_rtts->Set(canonical_type_index, MakeWeak(*rtt));
   }
 
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(

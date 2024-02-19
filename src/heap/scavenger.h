@@ -121,7 +121,7 @@ class Scavenger {
 
   inline Heap* heap() { return heap_; }
 
-  inline void PageMemoryFence(MaybeObject object);
+  inline void PageMemoryFence(Tagged<MaybeObject> object);
 
   void AddPageToSweeperIfNecessary(MemoryChunk* page);
 
@@ -135,7 +135,7 @@ class Scavenger {
   inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
                                               SlotType slot_type,
                                               Address slot_address,
-                                              MaybeObject new_target);
+                                              Tagged<MaybeObject> new_target);
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.

@@ -132,7 +132,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   barrier->AssertMarkingIsActivated();
 #endif  // DEBUG
 
-  WriteBarrier::Marking(host, slot, MaybeObject(value));
+  WriteBarrier::Marking(host, slot, Tagged<MaybeObject>(value));
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }
@@ -167,7 +167,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   Tagged<HeapObject> host = HeapObject::cast(Tagged<Object>(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address raw_value = (*slot).ptr();
-  MaybeObject value(raw_value);
+  Tagged<MaybeObject> value(raw_value);
 
   DCHECK(InWritableSharedSpace(host));
 
@@ -184,7 +184,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
   barrier->AssertSharedMarkingIsActivated();
 #endif  // DEBUG
 
-  WriteBarrier::Marking(host, slot, MaybeObject(value));
+  WriteBarrier::Marking(host, slot, Tagged<MaybeObject>(value));
 
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;

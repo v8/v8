@@ -1642,7 +1642,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void DispatchMaybeObject(TNode<MaybeObject> maybe_object, Label* if_smi,
                            Label* if_cleared, Label* if_weak, Label* if_strong,
                            TVariable<Object>* extracted);
-  // See MaybeObject for semantics of these functions.
+  // See Tagged<MaybeObject> for semantics of these functions.
   TNode<BoolT> IsStrong(TNode<MaybeObject> value);
   TNode<BoolT> IsStrong(TNode<HeapObjectReference> value);
   TNode<HeapObject> GetHeapObjectIfStrong(TNode<MaybeObject> value,

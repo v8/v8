@@ -1005,7 +1005,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
   }
 
   void VisitPointer(Tagged<HeapObject> host, MaybeObjectSlot p) final {
-    MaybeObject object = p.load(cage_base());
+    Tagged<MaybeObject> object = p.load(cage_base());
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObject(&heap_object))
       CheckForSharedObject(host, ObjectSlot(p), heap_object);
@@ -1215,8 +1215,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   inline void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
-    RecordMigratedSlot(host, MaybeObject::FromObject(p.load(cage_base())),
-                       p.address());
+    RecordMigratedSlot(host, p.load(cage_base()), p.address());
   }
 
   inline void VisitMapPointer(Tagged<HeapObject> host) final {
@@ -1250,7 +1249,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // new kind of slot.
     DCHECK(!HasWeakHeapObjectTag(slot.load(code_cage_base())));
     Tagged<Object> code = slot.load(code_cage_base());
-    RecordMigratedSlot(host, MaybeObject::FromObject(code), slot.address());
+    RecordMigratedSlot(host, code, slot.address());
   }
 
   inline void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
@@ -1305,14 +1304,13 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   inline void VisitProtectedPointer(Tagged<TrustedObject> host,
                                     ProtectedPointerSlot slot) final {
-    RecordMigratedSlot(host, MaybeObject::FromObject(slot.load()),
-                       slot.address());
+    RecordMigratedSlot(host, slot.load(), slot.address());
   }
 
  protected:
-  inline void RecordMigratedSlot(Tagged<HeapObject> host, MaybeObject value,
-                                 Address slot) {
-    if (value->IsStrongOrWeak()) {
+  inline void RecordMigratedSlot(Tagged<HeapObject> host,
+                                 Tagged<MaybeObject> value, Address slot) {
+    if (value.IsStrongOrWeak()) {
       BasicMemoryChunk* value_chunk =
           BasicMemoryChunk::FromAddress(value.ptr());
       MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
@@ -1911,7 +1909,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [collector = this, cage_base](MaybeObjectSlot slot) {
-          MaybeObject obj = slot.Relaxed_Load(cage_base);
+          Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
           Tagged<HeapObject> heap_object;
 
           if (obj.GetHeapObject(&heap_object) &&
@@ -2360,7 +2358,7 @@ void MarkCompactCollector::RetainMaps() {
   for (Tagged<WeakArrayList> retained_maps : heap_->FindAllRetainedMaps()) {
     DCHECK_EQ(0, retained_maps->length() % 2);
     for (int i = 0; i < retained_maps->length(); i += 2) {
-      MaybeObject value = retained_maps->Get(i);
+      Tagged<MaybeObject> value = retained_maps->Get(i);
       Tagged<HeapObject> map_heap_object;
       if (!value.GetHeapObjectIfWeak(&map_heap_object)) {
         continue;
@@ -2393,7 +2391,7 @@ void MarkCompactCollector::RetainMaps() {
       }
       // Compact the array and update the age.
       if (new_age != age) {
-        retained_maps->Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+        retained_maps->Set(i + 1, Smi::FromInt(new_age));
       }
     }
   }
@@ -2979,7 +2977,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(
     Tagged<Map> map, Tagged<Map> dead_target) {
   DCHECK(!map->is_prototype_map());
   DCHECK(!dead_target->is_prototype_map());
-  DCHECK_EQ(map->raw_transitions(), HeapObjectReference::Weak(dead_target));
+  DCHECK_EQ(map->raw_transitions(), MakeWeak(dead_target));
   // Take ownership of the descriptor array.
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Tagged<DescriptorArray> descriptors =
@@ -3261,7 +3259,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 bool MarkCompactCollector::TransitionArrayNeedsCompaction(
     Tagged<TransitionArray> transitions, int num_transitions) {
   for (int i = 0; i < num_transitions; ++i) {
-    MaybeObject raw_target = transitions->GetRawTarget(i);
+    Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
     if (raw_target.IsSmi()) {
       // This target is still being deserialized,
       DCHECK(heap_->isolate()->has_active_deserializer());
@@ -3315,7 +3313,7 @@ bool MarkCompactCollector::CompactTransitionArray(
         transitions->SetKey(transition_index, key);
         HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
-        MaybeObject raw_target = transitions->GetRawTarget(i);
+        Tagged<MaybeObject> raw_target = transitions->GetRawTarget(i);
         transitions->SetRawTarget(transition_index, raw_target);
         HeapObjectSlot target_slot =
             transitions->GetTargetSlot(transition_index);
@@ -3480,8 +3478,7 @@ void MarkCompactCollector::ClearWeakCollections() {
 void MarkCompactCollector::ClearWeakReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
   HeapObjectAndSlot slot;
-  HeapObjectReference cleared_weak_ref =
-      HeapObjectReference::ClearedValue(heap_->isolate());
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
   while (local_weak_objects()->weak_references_local.Pop(&slot)) {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
@@ -3573,10 +3570,6 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   heap_->PostFinalizationRegistryCleanupTaskIfNeeded();
 }
 
-bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
-  return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
-}
-
 // static
 bool MarkCompactCollector::ShouldRecordRelocSlot(Tagged<InstructionStream> host,
                                                  RelocInfo* rinfo,
@@ -3662,15 +3655,17 @@ Tagged<Object> MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
 }
 
 template <>
-MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
+Tagged<MaybeObject>
+MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
     Tagged<HeapObject> heap_object) {
-  return HeapObjectReference::Strong(heap_object);
+  return heap_object;
 }
 
 template <>
-MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
+Tagged<MaybeObject>
+MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
     Tagged<HeapObject> heap_object) {
-  return HeapObjectReference::Weak(heap_object);
+  return MakeWeak(heap_object);
 }
 
 template <>
@@ -3704,15 +3699,17 @@ Tagged<Object> MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
 }
 
 template <>
-MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
+Tagged<MaybeObject>
+MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
     Tagged<HeapObject> heap_object) {
-  return HeapObjectReference::Strong(heap_object);
+  return heap_object;
 }
 
 template <>
-MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
+Tagged<MaybeObject>
+MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
     Tagged<HeapObject> heap_object) {
-  return HeapObjectReference::Weak(heap_object);
+  return MakeWeak(heap_object);
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -3787,7 +3784,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
 
 static inline SlotCallbackResult UpdateOldToSharedSlot(
     PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-  MaybeObject obj = slot.Relaxed_Load(cage_base);
+  Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
   Tagged<HeapObject> heap_obj;
 
   if (obj.GetHeapObject(&heap_obj)) {
@@ -3818,7 +3815,7 @@ static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
 
 static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
     PtrComprCageBase cage_base, FullMaybeObjectSlot slot) {
-  MaybeObject obj = slot.Relaxed_Load(cage_base);
+  Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
 #ifdef V8_ENABLE_DIRECT_LOCAL
   if (obj.ptr() == kTaggedNullAddress) return REMOVE_SLOT;
 #endif

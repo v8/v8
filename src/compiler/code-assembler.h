@@ -441,9 +441,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator TNode<A>() {
-      static_assert(
-          !std::is_same<A, MaybeObject>::value,
-          "Can't cast to MaybeObject, use explicit conversion functions. ");
+      static_assert(!std::is_same<A, Tagged<MaybeObject>>::value,
+                    "Can't cast to Tagged<MaybeObject>, use explicit "
+                    "conversion functions. ");
 
       static_assert(types_have_common_values<A, PreviousType>::value,
                     "Incompatible types: this cast can never succeed.");

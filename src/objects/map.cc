@@ -434,15 +434,15 @@ MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
 }
 
 // static
-Tagged<FieldType> Map::UnwrapFieldType(MaybeObject wrapped_type) {
-  if (wrapped_type->IsCleared()) {
+Tagged<FieldType> Map::UnwrapFieldType(Tagged<MaybeObject> wrapped_type) {
+  if (wrapped_type.IsCleared()) {
     return FieldType::None();
   }
   Tagged<HeapObject> heap_object;
   if (wrapped_type.GetHeapObjectIfWeak(&heap_object)) {
     return FieldType::cast(heap_object);
   }
-  return wrapped_type->cast<FieldType>();
+  return Tagged<FieldType>::cast(wrapped_type);
 }
 
 MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
@@ -879,7 +879,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
         Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
     // TODO(verwaest): Use inobject slack tracking for this map.
     Tagged<HeapObject> map_obj;
-    if (info->ObjectCreateMap()->GetHeapObjectIfWeak(&map_obj)) {
+    if (info->ObjectCreateMap().GetHeapObjectIfWeak(&map_obj)) {
       map = handle(Tagged<Map>::cast(map_obj), isolate);
     } else {
       map = Map::CopyInitialMap(isolate, map);
@@ -1298,8 +1298,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
         static_assert(Map::kTransitionsOrPrototypeInfoOffset ==
                       Map::kPrototypeValidityCellOffset + kTaggedSize);
         offset = kTransitionsOrPrototypeInfoOffset + kTaggedSize;
-        DCHECK_EQ(fresh->raw_transitions(),
-                  MaybeObject::FromObject(Smi::zero()));
+        DCHECK_EQ(fresh->raw_transitions(), Smi::zero());
       }
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
                           reinterpret_cast<void*>(new_map->address() + offset),
@@ -2443,7 +2442,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          ElementsKind elements_kind,
                                          PropertyNormalizationMode mode) {
   DisallowGarbageCollection no_gc;
-  MaybeObject value = WeakFixedArray::get(GetIndex(fast_map));
+  Tagged<MaybeObject> value = WeakFixedArray::get(GetIndex(fast_map));
   Tagged<HeapObject> heap_object;
   if (!value.GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
@@ -2460,8 +2459,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
 void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map) {
   DisallowGarbageCollection no_gc;
   DCHECK(normalized_map->is_dictionary_map());
-  WeakFixedArray::set(GetIndex(fast_map),
-                      HeapObjectReference::Weak(*normalized_map));
+  WeakFixedArray::set(GetIndex(fast_map), MakeWeak(*normalized_map));
 }
 
 }  // namespace internal

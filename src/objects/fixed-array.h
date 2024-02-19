@@ -11,6 +11,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "src/utils/memcopy.h"
@@ -31,8 +32,7 @@ class TaggedArrayBase : public Super {
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(ShapeT::kElementSize == kTaggedSize);
-  static_assert(is_subtype_v<ElementT, Object> ||
-                is_subtype_v<ElementT, MaybeObject>);
+  static_assert(is_subtype_v<ElementT, MaybeObject>);
 
   using ElementFieldT =
       TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
@@ -43,15 +43,9 @@ class TaggedArrayBase : public Super {
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
-  static constexpr bool kElementsAreMaybeObject =
-      std::is_base_of_v<MaybeObject, ElementT>;
+  static constexpr bool kElementsAreMaybeObject = is_maybe_weak_v<ElementT>;
 
  private:
-  // Usually the PtrType is Tagged<T>, but for MaybeObject it's just the raw
-  // MaybeObject.
-  // TODO(leszeks): Clean this up to be more uniform.
-  using PtrType =
-      std::conditional_t<is_taggable_v<ElementT>, Tagged<ElementT>, ElementT>;
   using SlotType =
       std::conditional_t<kElementsAreMaybeObject, MaybeObjectSlot, ObjectSlot>;
 
@@ -74,33 +68,34 @@ class TaggedArrayBase : public Super {
   template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
   inline void set_length(int value, ReleaseStoreTag tag);
 
-  inline PtrType get(int index) const;
-  inline PtrType get(int index, RelaxedLoadTag) const;
-  inline PtrType get(int index, AcquireLoadTag) const;
-  inline PtrType get(int index, SeqCstAccessTag) const;
+  inline Tagged<ElementT> get(int index) const;
+  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
+  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
+  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
 
-  inline void set(int index, PtrType value,
+  inline void set(int index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value);
-  inline void set(int index, PtrType value, RelaxedStoreTag,
+  inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
-  inline void set(int index, PtrType value, ReleaseStoreTag,
+  inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(int index, PtrType value, SeqCstAccessTag,
+  inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
                   WriteBarrierMode mode = kDefaultMode);
   template <typename = std::enable_if<kSupportsSmiElements>>
   inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
-  inline PtrType swap(int index, PtrType value, SeqCstAccessTag,
-                      WriteBarrierMode mode = kDefaultMode);
-  inline PtrType compare_and_swap(int index, PtrType expected, PtrType value,
-                                  SeqCstAccessTag,
-                                  WriteBarrierMode mode = kDefaultMode);
+  inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
+                               SeqCstAccessTag,
+                               WriteBarrierMode mode = kDefaultMode);
+  inline Tagged<ElementT> compare_and_swap(
+      int index, Tagged<ElementT> expected, Tagged<ElementT> value,
+      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.
@@ -159,7 +154,8 @@ class TaggedArrayBase : public Super {
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
 
   inline void ConditionalWriteBarrier(Tagged<HeapObject> object, int offset,
-                                      PtrType value, WriteBarrierMode mode);
+                                      Tagged<ElementT> value,
+                                      WriteBarrierMode mode);
 
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
@@ -516,7 +512,8 @@ class WeakFixedArrayShape final : public AllStatic {
 #undef FIELD_LIST
 };
 
-// WeakFixedArray describes fixed-sized arrays with element type MaybeObject.
+// WeakFixedArray describes fixed-sized arrays with element type
+// Tagged<MaybeObject>.
 class WeakFixedArray
     : public TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape> {
   using Super = TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape>;
@@ -567,16 +564,16 @@ class WeakArrayList
   // Compact weak references to the beginning of the array.
   V8_EXPORT_PRIVATE void Compact(Isolate* isolate);
 
-  inline MaybeObject Get(int index) const;
-  inline MaybeObject Get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<MaybeObject> Get(int index) const;
+  inline Tagged<MaybeObject> Get(PtrComprCageBase cage_base, int index) const;
   // TODO(jgruber): Remove this once it's no longer needed for compatibility
   // with WeakFixedArray.
-  inline MaybeObject get(int index) const;
+  inline Tagged<MaybeObject> get(int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
-  inline void Set(int index, MaybeObject value,
+  inline void Set(int index, Tagged<MaybeObject> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(int index, Tagged<Smi> value);
 
@@ -621,7 +618,7 @@ class WeakArrayList
   V8_EXPORT_PRIVATE bool RemoveOne(MaybeObjectHandle value);
 
   // Searches the array (linear time) and returns whether it contains the value.
-  V8_EXPORT_PRIVATE bool Contains(MaybeObject value);
+  V8_EXPORT_PRIVATE bool Contains(Tagged<MaybeObject> value);
 
   class Iterator;
 

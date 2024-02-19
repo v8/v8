@@ -611,7 +611,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK(Object::StrictEquals(Script::cast(result->script())->source(),
                                 *source));
     DCHECK(isolate->factory()->script_list()->Contains(
-        MaybeObject::MakeWeak(MaybeObject::FromObject(result->script()))));
+        MakeWeak(result->script())));
   } else {
     Handle<Script> script(Script::cast(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized

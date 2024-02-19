@@ -968,7 +968,7 @@ void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(
+  Object::VerifyMaybeObjectPointer(
       isolate, TaggedField<MaybeObject>::load(isolate, *this, offset));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }

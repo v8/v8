@@ -474,7 +474,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions, MaybeObject)
+  DECL_ACCESSORS(raw_transitions, Tagged<MaybeObject>)
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(raw_transitions)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
@@ -744,7 +744,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
   V8_EXPORT_PRIVATE static Tagged<FieldType> UnwrapFieldType(
-      MaybeObject wrapped_type);
+      Tagged<MaybeObject> wrapped_type);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Map> CopyWithField(
       Isolate* isolate, Handle<Map> map, Handle<Name> name,

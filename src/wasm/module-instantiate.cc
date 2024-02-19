@@ -156,7 +156,8 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
   DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
             canonical_type_index);
-  MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+  Tagged<MaybeObject> maybe_canonical_map =
+      canonical_rtts->Get(canonical_type_index);
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
     maps->set(type_index, maybe_canonical_map.GetHeapObject());
@@ -186,7 +187,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, rtt_parent);
       break;
   }
-  canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
+  canonical_rtts->Set(canonical_type_index, MakeWeak(*map));
   maps->set(type_index, *map);
 }
 

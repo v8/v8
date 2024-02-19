@@ -112,7 +112,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
             std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
         "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-    scavenger_->PageMemoryFence(MaybeObject::FromObject(target));
+    scavenger_->PageMemoryFence(target);
 
     if (Heap::InFromPage(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);
@@ -301,7 +301,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     MapWord first_word = heap_object->map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
-    HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
+    UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
     CHECK_IMPLIES(Heap::InYoungGeneration(dest),
                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
   }
@@ -736,7 +736,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
       UpdateTypedSlotHelper::UpdateTypedSlot(
           jit_allocation, heap_, slot_type, slot_address,
           [new_target](FullMaybeObjectSlot slot) {
-            slot.store(MaybeObject::FromObject(new_target));
+            slot.store(new_target);
             return KEEP_SLOT;
           });
     }
@@ -885,7 +885,7 @@ void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
 template <typename TSlot>
 void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
                                                   TSlot slot) {
-  MaybeObject object = *slot;
+  Tagged<MaybeObject> object = *slot;
   Tagged<HeapObject> heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
@@ -895,10 +895,9 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
   }
 }
 
-void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                                SlotType slot_type,
-                                                Address slot_address,
-                                                MaybeObject new_target) {
+void Scavenger::CheckOldToNewSlotForSharedTyped(
+    MemoryChunk* chunk, SlotType slot_type, Address slot_address,
+    Tagged<MaybeObject> new_target) {
   Tagged<HeapObject> heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&

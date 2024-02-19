@@ -1845,7 +1845,7 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
     if (wrapper_index < isolate->heap()->js_to_wasm_wrappers()->length()) {
-      MaybeObject existing_wrapper =
+      Tagged<MaybeObject> existing_wrapper =
           isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
       if (existing_wrapper.IsStrongOrWeak() &&
           !IsUndefined(existing_wrapper.GetHeapObject())) {
@@ -3877,8 +3877,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
     DCHECK(!code->is_builtin());
     uint32_t index =
         GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
-    isolate->heap()->js_to_wasm_wrappers()->Set(
-        index, MaybeObject::FromObject(code->wrapper()));
+    isolate->heap()->js_to_wasm_wrappers()->Set(index, code->wrapper());
     RecordStats(*code, isolate->counters());
     isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
   }
@@ -4387,7 +4386,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
         module->isorecursive_canonical_type_ids[function.sig_index];
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
-    MaybeObject existing_wrapper =
+    Tagged<MaybeObject> existing_wrapper =
         isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
         !IsUndefined(existing_wrapper.GetHeapObject())) {
@@ -4431,8 +4430,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     Handle<Code> code = unit->Finalize();
     DCHECK(!code->is_builtin());
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
-    isolate->heap()->js_to_wasm_wrappers()->Set(
-        wrapper_index, HeapObjectReference::Strong(code->wrapper()));
+    isolate->heap()->js_to_wasm_wrappers()->Set(wrapper_index, code->wrapper());
     // Do not increase code stats for non-jitted wrappers.
     RecordStats(*code, isolate->counters());
     isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);

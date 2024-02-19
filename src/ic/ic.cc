@@ -645,7 +645,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
     DisallowGarbageCollection no_gc;
     int i = 0;
     for (FeedbackIterator it(nexus()); !it.done(); it.Advance()) {
-      if (it.handler()->IsCleared()) continue;
+      if (it.handler().IsCleared()) continue;
       MaybeObjectHandle existing_handler = handle(it.handler(), isolate());
       Handle<Map> existing_map = handle(it.map(), isolate());
 
@@ -2477,7 +2477,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       MaybeHandle<Object> validity_cell;
       Tagged<HeapObject> old_handler_obj;
       if (!old_handler.is_null() &&
-          old_handler->GetHeapObject(&old_handler_obj) &&
+          (*old_handler).GetHeapObject(&old_handler_obj) &&
           IsDataHandler(old_handler_obj)) {
         validity_cell = MaybeHandle<Object>(
             DataHandler::cast(old_handler_obj)->validity_cell(), isolate());

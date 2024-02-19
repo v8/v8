@@ -5341,12 +5341,12 @@ void CheckSFIsAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
-    MaybeObject maybe_object = sfis->get(i);
+    Tagged<MaybeObject> maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
-    CHECK(maybe_object->IsWeakOrCleared() ||
+    CHECK(maybe_object.IsWeakOrCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
            IsUndefined(heap_object, isolate)));
-    if (maybe_object->IsWeak()) {
+    if (maybe_object.IsWeak()) {
       ++no_of_weak;
     }
   }

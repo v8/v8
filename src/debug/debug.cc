@@ -2129,7 +2129,7 @@ MaybeHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
   DCHECK_LE(kFunctionLiteralIdTopLevel, script->shared_function_info_count());
   DCHECK_LE(script->shared_function_info_count(),
             script->shared_function_infos()->length());
-  MaybeObject maybeToplevel = script->shared_function_infos()->get(0);
+  Tagged<MaybeObject> maybeToplevel = script->shared_function_infos()->get(0);
   Tagged<HeapObject> heap_object;
   const bool topLevelInfoExists =
       maybeToplevel.GetHeapObject(&heap_object) && !IsUndefined(heap_object);

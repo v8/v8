@@ -6110,9 +6110,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    MaybeObject context = detached_contexts->Get(i);
-    DCHECK(context->IsWeakOrCleared());
-    if (!context->IsCleared()) {
+    Tagged<MaybeObject> context = detached_contexts->Get(i);
+    DCHECK(context.IsWeakOrCleared());
+    if (!context.IsCleared()) {
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
       detached_contexts->Set(new_length, context);
       detached_contexts->Set(new_length + 1, Smi::FromInt(mark_sweeps + 1));
@@ -6129,9 +6129,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      MaybeObject context = detached_contexts->Get(i);
+      Tagged<MaybeObject> context = detached_contexts->Get(i);
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
-      DCHECK(context->IsWeakOrCleared());
+      DCHECK(context.IsWeakOrCleared());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
                reinterpret_cast<void*>(context.ptr()), mark_sweeps);

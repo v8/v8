@@ -162,12 +162,12 @@ void Object::VerifyAnyTagged(Isolate* isolate, Tagged<Object> p) {
   }
 }
 
-void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
+void Object::VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p) {
   Tagged<HeapObject> heap_object;
   if (p.GetHeapObject(&heap_object)) {
     HeapObject::VerifyHeapPointer(isolate, heap_object);
   } else {
-    CHECK(p->IsSmi() || p->IsCleared() || MapWord::IsPacked(p->ptr()));
+    CHECK(p.IsSmi() || p.IsCleared() || MapWord::IsPacked(p.ptr()));
   }
 }
 
@@ -800,7 +800,7 @@ void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
-    MaybeObject::VerifyMaybeObjectPointer(isolate, get(i));
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
   }
 }
 
@@ -945,18 +945,17 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       if (Name::cast(key)->IsPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
-      MaybeObject value = GetValue(descriptor);
+      Tagged<MaybeObject> value = GetValue(descriptor);
       Tagged<HeapObject> heap_object;
       if (details.location() == PropertyLocation::kField) {
         CHECK_EQ(details.field_index(), expected_field_index);
-        CHECK(value == MaybeObject::FromObject(FieldType::None()) ||
-              value == MaybeObject::FromObject(FieldType::Any()) ||
-              value->IsCleared() ||
+        CHECK(value == FieldType::None() || value == FieldType::Any() ||
+              value.IsCleared() ||
               (value.GetHeapObjectIfWeak(&heap_object) && IsMap(heap_object)));
         expected_field_index += details.field_width_in_words();
       } else {
-        CHECK(!value->IsWeakOrCleared());
-        CHECK(!IsMap(value->cast<Object>()));
+        CHECK(!value.IsWeakOrCleared());
+        CHECK(!IsMap(Tagged<Object>::cast(value)));
       }
     }
   }
@@ -2126,7 +2125,7 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
     auto derived_list = WeakArrayList::cast(derived);
     CHECK_GT(derived_list->length(), 0);
     for (int i = 0; i < derived_list->length(); ++i) {
-      derived_list->Get(i)->IsWeakOrCleared();
+      derived_list->Get(i).IsWeakOrCleared();
     }
   }
 }
@@ -2151,9 +2150,9 @@ void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
   int weak_maps_count = 0;
   for (int i = kFirstIndex; i < array->length(); ++i) {
     Tagged<HeapObject> heap_object;
-    MaybeObject object = array->Get(i);
+    Tagged<MaybeObject> object = array->Get(i);
     if ((object.GetHeapObjectIfWeak(&heap_object) && IsMap(heap_object)) ||
-        object->IsCleared()) {
+        object.IsCleared()) {
       ++weak_maps_count;
     } else {
       CHECK(IsSmi(object));
@@ -2314,9 +2313,9 @@ void Script::ScriptVerify(Isolate* isolate) {
   CHECK(CanHaveLineEnds());
 #endif  // V8_ENABLE_WEBASSEMBLY
   for (int i = 0; i < shared_function_info_count(); ++i) {
-    MaybeObject maybe_object = shared_function_infos()->get(i);
+    Tagged<MaybeObject> maybe_object = shared_function_infos()->get(i);
     Tagged<HeapObject> heap_object;
-    CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||
+    CHECK(maybe_object.IsWeak() || maybe_object.IsCleared() ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
            IsUndefined(heap_object, isolate)));
   }
@@ -2326,13 +2325,13 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   WeakFixedArray::cast(*this)->WeakFixedArrayVerify(isolate);
   if (v8_flags.enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      MaybeObject e = WeakFixedArray::get(i);
+      Tagged<MaybeObject> e = WeakFixedArray::get(i);
       Tagged<HeapObject> heap_object;
       if (e.GetHeapObjectIfWeak(&heap_object)) {
         Map::cast(heap_object)->DictionaryMapVerify(isolate);
       } else {
-        CHECK(e->IsCleared() || (e.GetHeapObjectIfStrong(&heap_object) &&
-                                 IsUndefined(heap_object, isolate)));
+        CHECK(e.IsCleared() || (e.GetHeapObjectIfStrong(&heap_object) &&
+                                IsUndefined(heap_object, isolate)));
       }
     }
   }

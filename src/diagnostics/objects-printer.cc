@@ -807,9 +807,9 @@ void PrintFixedArrayWithHeader(std::ostream& os, Tagged<T> array,
 template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
-  MaybeObject previous_value =
-      array->length() > 0 ? array->get(0) : MaybeObject(kNullAddress);
-  MaybeObject value;
+  Tagged<MaybeObject> previous_value =
+      array->length() > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
+  Tagged<MaybeObject> value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
@@ -3426,7 +3426,7 @@ void Map::MapPrint(std::ostream& os) {
       os << "\n - transitions #" << nof_transitions << ": ";
       Tagged<HeapObject> heap_object;
       Tagged<Smi> smi;
-      if (raw_transitions()->ToSmi(&smi)) {
+      if (raw_transitions().ToSmi(&smi)) {
         os << Brief(smi);
       } else if (raw_transitions().GetHeapObject(&heap_object)) {
         os << Brief(heap_object);

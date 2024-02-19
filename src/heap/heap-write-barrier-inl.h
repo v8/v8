@@ -112,14 +112,15 @@ inline void CombinedWriteBarrier(Tagged<HeapObject> host, ObjectSlot slot,
 }
 
 inline void CombinedWriteBarrier(Tagged<HeapObject> host, MaybeObjectSlot slot,
-                                 MaybeObject value, WriteBarrierMode mode) {
+                                 Tagged<MaybeObject> value,
+                                 WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
   }
 
   Tagged<HeapObject> value_object;
-  if (!value->GetHeapObject(&value_object)) return;
+  if (!value.GetHeapObject(&value_object)) return;
   heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
                                                value_object, mode);
 }
@@ -273,7 +274,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ObjectSlot slot,
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
-                           MaybeObject value) {
+                           Tagged<MaybeObject> value) {
   Tagged<HeapObject> value_heap_object;
   if (!value.GetHeapObject(&value_heap_object)) return;
   // This barrier is called from generated code and from C++ code.

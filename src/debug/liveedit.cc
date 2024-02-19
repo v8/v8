@@ -922,7 +922,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     sfi->set_script(*new_script, kReleaseStore);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos()->set(
-        mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
+        mapping.second->function_literal_id(), MakeWeak(*sfi));
     DCHECK_EQ(sfi->function_literal_id(),
               mapping.second->function_literal_id());
 

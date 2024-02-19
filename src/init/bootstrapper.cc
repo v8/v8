@@ -6384,13 +6384,12 @@ void Genesis::InitializeMapCaches() {
 
     DisallowGarbageCollection no_gc;
     for (int i = 0; i < JSObject::kMapCacheSize; i++) {
-      cache->set(i, HeapObjectReference::ClearedValue(isolate()));
+      cache->set(i, ClearedValue(isolate()));
     }
     native_context()->set_map_cache(*cache);
     Tagged<Map> initial = native_context()->object_function()->initial_map();
-    cache->set(0, HeapObjectReference::Weak(initial));
-    cache->set(initial->GetInObjectProperties(),
-               HeapObjectReference::Weak(initial));
+    cache->set(0, MakeWeak(initial));
+    cache->set(initial->GetInObjectProperties(), MakeWeak(initial));
   }
 }
 

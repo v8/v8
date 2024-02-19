@@ -441,8 +441,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::Call(Label* target) { bl(target); }

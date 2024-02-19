@@ -76,11 +76,9 @@ class MarkCompactCollector final {
 
   void StartMarking();
 
-  static inline bool IsOnEvacuationCandidate(Tagged<Object> obj) {
+  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
     return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
-
-  static bool IsOnEvacuationCandidate(MaybeObject obj);
 
   struct RecordRelocSlotInfo {
     MemoryChunk* memory_chunk;

@@ -655,8 +655,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
 }
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
-    MaybeObject maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
-  if (maybe_obj->IsCleared())
+    Tagged<MaybeObject> maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
+  if (maybe_obj.IsCleared())
     return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
   Tagged<Object> obj = maybe_obj.GetHeapObjectOrSmi();
   switch (kind) {
@@ -727,7 +727,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
     // Log the monomorphic/polymorphic helper objects that this slot owns.
     for (int i = 0; i < it.entry_size(); i++) {
-      MaybeObject raw_object = vector->Get(slot.WithOffset(i));
+      Tagged<MaybeObject> raw_object = vector->Get(slot.WithOffset(i));
       Tagged<HeapObject> object;
       if (raw_object.GetHeapObject(&object)) {
         if (IsCell(object, cage_base()) ||

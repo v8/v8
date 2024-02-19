@@ -736,8 +736,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
 }
 
 Immediate MacroAssembler::ClearedValue() const {
-  return Immediate(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+  return Immediate(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
 }
 
 namespace {

@@ -453,7 +453,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
       : ObjectVisitorWithCageBases(isolate), untyped_(untyped), typed_(typed) {}
 
   virtual bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                                      MaybeObject target) = 0;
+                                      Tagged<MaybeObject> target) = 0;
 
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
@@ -477,8 +477,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
-    if (ShouldHaveBeenRecorded(
-            host, MaybeObject::FromObject(slot.load(code_cage_base())))) {
+    if (ShouldHaveBeenRecorded(host, slot.load(code_cage_base()))) {
       CHECK_GT(untyped_->count(slot.address()), 0);
     }
   }
@@ -487,7 +486,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
                        RelocInfo* rinfo) override {
     Tagged<Object> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(SlotType::kConstPoolCodeEntry,
@@ -498,7 +497,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
     Tagged<Object> target = rinfo->target_object(cage_base());
-    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
@@ -533,10 +532,10 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                              MaybeObject target) override {
-    DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InYoungGeneration(target),
+                              Tagged<MaybeObject> target) override {
+    DCHECK_IMPLIES(target.IsStrongOrWeak() && Heap::InYoungGeneration(target),
                    Heap::InToPage(target));
-    return target->IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
+    return target.IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
            !Heap::InYoungGeneration(host);
   }
 
@@ -569,7 +568,7 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
       : SlotVerifyingVisitor(isolate, untyped, typed) {}
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
-                              MaybeObject target) override {
+                              Tagged<MaybeObject> target) override {
     Tagged<HeapObject> target_heap_object;
     return target.GetHeapObject(&target_heap_object) &&
            InWritableSharedSpace(target_heap_object) &&

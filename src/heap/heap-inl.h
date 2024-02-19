@@ -281,7 +281,7 @@ bool Heap::InYoungGeneration(Tagged<Object> object) {
 }
 
 // static
-bool Heap::InYoungGeneration(MaybeObject object) {
+bool Heap::InYoungGeneration(Tagged<MaybeObject> object) {
   Tagged<HeapObject> heap_object;
   return object.GetHeapObject(&heap_object) && InYoungGeneration(heap_object);
 }
@@ -311,7 +311,7 @@ bool Heap::InFromPage(Tagged<Object> object) {
 }
 
 // static
-bool Heap::InFromPage(MaybeObject object) {
+bool Heap::InFromPage(Tagged<MaybeObject> object) {
   Tagged<HeapObject> heap_object;
   return object.GetHeapObject(&heap_object) && InFromPage(heap_object);
 }
@@ -328,7 +328,7 @@ bool Heap::InToPage(Tagged<Object> object) {
 }
 
 // static
-bool Heap::InToPage(MaybeObject object) {
+bool Heap::InToPage(Tagged<MaybeObject> object) {
   Tagged<HeapObject> heap_object;
   return object.GetHeapObject(&heap_object) && InToPage(heap_object);
 }

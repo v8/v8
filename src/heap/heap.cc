@@ -1002,10 +1002,10 @@ bool Heap::IsRetainingPathTarget(Tagged<HeapObject> object,
                                  RetainingPathOption* option) {
   Tagged<WeakArrayList> targets = retaining_path_targets();
   int length = targets->length();
-  MaybeObject object_to_check = HeapObjectReference::Weak(object);
+  Tagged<MaybeObject> object_to_check = MakeWeak(object);
   for (int i = 0; i < length; i++) {
-    MaybeObject target = targets->Get(i);
-    DCHECK(target->IsWeakOrCleared());
+    Tagged<MaybeObject> target = targets->Get(i);
+    DCHECK(target.IsWeakOrCleared());
     if (target == object_to_check) {
       DCHECK(retaining_path_target_option_.count(i));
       *option = retaining_path_target_option_[i];
@@ -6197,8 +6197,8 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   // fill in the new array.
   int copy_to = 0;
   for (int i = 0; i < array->length(); i++) {
-    MaybeObject element = array->Get(i);
-    if (element->IsCleared()) continue;
+    Tagged<MaybeObject> element = array->Get(i);
+    if (element.IsCleared()) continue;
     new_array->Set(copy_to++, element);
   }
   new_array->set_length(copy_to);
@@ -6264,7 +6264,7 @@ void Heap::AddRetainedMaps(Handle<NativeContext> context,
         continue;
       }
 
-      raw_array->Set(cur_length, HeapObjectReference::Weak(*map));
+      raw_array->Set(cur_length, MakeWeak(*map));
       raw_array->Set(cur_length + 1,
                      Smi::FromInt(v8_flags.retain_maps_for_n_gc));
       cur_length += 2;
@@ -6280,14 +6280,14 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
   int new_length = 0;
   // This loop compacts the array by removing cleared weak cells.
   for (int i = 0; i < length; i += 2) {
-    MaybeObject maybe_object = retained_maps->Get(i);
-    if (maybe_object->IsCleared()) {
+    Tagged<MaybeObject> maybe_object = retained_maps->Get(i);
+    if (maybe_object.IsCleared()) {
       continue;
     }
 
-    DCHECK(maybe_object->IsWeak());
+    DCHECK(maybe_object.IsWeak());
 
-    MaybeObject age = retained_maps->Get(i + 1);
+    Tagged<MaybeObject> age = retained_maps->Get(i + 1);
     DCHECK(IsSmi(age));
     if (i != new_length) {
       retained_maps->Set(new_length, maybe_object);
@@ -6297,7 +6297,7 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
   }
   Tagged<HeapObject> undefined = ReadOnlyRoots(this).undefined_value();
   for (int i = new_length; i < length; i++) {
-    retained_maps->Set(i, HeapObjectReference::Strong(undefined));
+    retained_maps->Set(i, undefined);
   }
   if (new_length != length) retained_maps->set_length(new_length);
 }

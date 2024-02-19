@@ -61,7 +61,7 @@ class IC {
     return IsDefineNamedOwnIC() || IsDefineKeyedOwnIC();
   }
 
-  static inline bool IsHandler(MaybeObject object);
+  static inline bool IsHandler(Tagged<MaybeObject> object);
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,

@@ -782,7 +782,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->BitcastTaggedToWordForTagAndSmiBits(), a);
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
-      return AddNode(machine()->BitcastMaybeObjectToWord(), a);
+    return AddNode(machine()->BitcastMaybeObjectToWord(), a);
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);

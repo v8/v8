@@ -435,6 +435,11 @@ class Object : public AllStatic {
   // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
   // not allowed.
   static void VerifyPointer(Isolate* isolate, Tagged<Object> p);
+  // Verify a pointer is a valid (non-InstructionStream) object pointer,
+  // potentially a weak one.
+  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
+  // not allowed.
+  static void VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p);
   // Verify a pointer is a valid object pointer.
   // InstructionStream objects are allowed regardless of the
   // V8_EXTERNAL_CODE_SPACE mode.
@@ -587,6 +592,11 @@ V8_INLINE constexpr bool IsSmi(TaggedImpl<kRefType, StorageType> obj) {
 template <HeapObjectReferenceType kRefType, typename StorageType>
 V8_INLINE constexpr bool IsHeapObject(TaggedImpl<kRefType, StorageType> obj) {
   return obj.IsHeapObject();
+}
+template <typename StorageType>
+V8_INLINE constexpr bool IsWeak(
+    TaggedImpl<HeapObjectReferenceType::WEAK, StorageType> obj) {
+  return obj.IsWeak();
 }
 
 // TODO(leszeks): These exist both as free functions and members of Tagged. They

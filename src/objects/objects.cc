@@ -1828,12 +1828,12 @@ std::ostream& operator<<(std::ostream& os, Tagged<Object> obj) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
-  MaybeObject maybe_object(v.value);
+  Tagged<MaybeObject> maybe_object(v.value);
   Tagged<Smi> smi;
   Tagged<HeapObject> heap_object;
-  if (maybe_object->ToSmi(&smi)) {
+  if (maybe_object.ToSmi(&smi)) {
     Smi::SmiPrint(smi, os);
-  } else if (maybe_object->IsCleared()) {
+  } else if (maybe_object.IsCleared()) {
     os << "[cleared]";
   } else if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
     os << "[weak] ";
@@ -2189,7 +2189,7 @@ void DescriptorArray::GeneralizeAllFields(TransitionKindFlag transition_kind) {
         details = details.CopyWithConstness(PropertyConstness::kMutable);
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      SetValue(i, MaybeObject::FromObject(FieldType::Any()));
+      SetValue(i, FieldType::Any());
     }
     SetDetails(i, details);
   }
@@ -3621,7 +3621,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 
   if (attributes != NONE) {
     for (InternalIndex i : InternalIndex::Range(size)) {
-      MaybeObject value_or_field_type = source->GetValue(i);
+      Tagged<MaybeObject> value_or_field_type = source->GetValue(i);
       Tagged<Name> key = source->GetKey(i);
       PropertyDetails details = source->GetDetails(i);
       // Bulk attribute changes never affect private properties.
@@ -3677,7 +3677,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
     // Uninitialized WeakArrayList; need to initialize empty_slot_index.
     array = WeakArrayList::EnsureSpace(isolate, array, kFirstIndex + 1);
     set_empty_slot_index(*array, kNoEmptySlotsMarker);
-    array->Set(kFirstIndex, HeapObjectReference::Weak(*value));
+    array->Set(kFirstIndex, MakeWeak(*value));
     array->set_length(kFirstIndex + 1);
     if (assigned_index != nullptr) *assigned_index = kFirstIndex;
     return array;
@@ -3685,7 +3685,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
   // If the array has unfilled space at the end, use it.
   if (!array->IsFull()) {
-    array->Set(length, HeapObjectReference::Weak(*value));
+    array->Set(length, MakeWeak(*value));
     array->set_length(length + 1);
     if (assigned_index != nullptr) *assigned_index = length;
     return array;
@@ -3705,7 +3705,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
     CHECK_LT(empty_slot, array->length());
     int next_empty_slot = array->Get(empty_slot).ToSmi().value();
 
-    array->Set(empty_slot, HeapObjectReference::Weak(*value));
+    array->Set(empty_slot, MakeWeak(*value));
     if (assigned_index != nullptr) *assigned_index = empty_slot;
 
     set_empty_slot_index(*array, next_empty_slot);
@@ -3716,7 +3716,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
   // Array full and no empty slots. Grow the array.
   array = WeakArrayList::EnsureSpace(isolate, array, length + 1);
-  array->Set(length, HeapObjectReference::Weak(*value));
+  array->Set(length, MakeWeak(*value));
   array->set_length(length + 1);
   if (assigned_index != nullptr) *assigned_index = length;
   return array;
@@ -3725,7 +3725,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 // static
 void PrototypeUsers::ScanForEmptySlots(Tagged<WeakArrayList> array) {
   for (int i = kFirstIndex; i < array->length(); i++) {
-    if (array->Get(i)->IsCleared()) {
+    if (array->Get(i).IsCleared()) {
       PrototypeUsers::MarkSlotEmpty(array, i);
     }
   }
@@ -3751,13 +3751,13 @@ Tagged<WeakArrayList> PrototypeUsers::Compact(Handle<WeakArrayList> array,
   // cleared weak heap objects. Count the number of live objects again.
   int copy_to = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
-    MaybeObject element = array->Get(i);
+    Tagged<MaybeObject> element = array->Get(i);
     Tagged<HeapObject> value;
     if (element.GetHeapObjectIfWeak(&value)) {
       callback(value, i, copy_to);
       new_array->Set(copy_to++, element);
     } else {
-      DCHECK(element->IsCleared() || element->IsSmi());
+      DCHECK(element.IsCleared() || element.IsSmi());
     }
   }
   new_array->set_length(copy_to);
@@ -4523,7 +4523,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
   CHECK_LT(function_literal_id, script->shared_function_info_count());
-  MaybeObject shared =
+  Tagged<MaybeObject> shared =
       script->shared_function_infos()->get(function_literal_id);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||

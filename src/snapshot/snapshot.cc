@@ -254,7 +254,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
     Handle<WeakArrayList> wrappers =
         handle(isolate->heap()->js_to_wasm_wrappers(), isolate);
     for (int i = 0; i < wrappers->length(); ++i) {
-      wrappers->Set(i, MaybeObject{});
+      wrappers->Set(i, Tagged<MaybeObject>{});
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

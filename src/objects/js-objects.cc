@@ -4987,7 +4987,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
                                    isolate);
   Handle<WeakArrayList> prototype_users(
       WeakArrayList::cast(proto_info->prototype_users()), isolate);
-  DCHECK_EQ(prototype_users->Get(slot), HeapObjectReference::Weak(*user));
+  DCHECK_EQ(prototype_users->Get(slot), MakeWeak(*user));
   PrototypeUsers::MarkSlotEmpty(*prototype_users, slot);
   if (v8_flags.trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",

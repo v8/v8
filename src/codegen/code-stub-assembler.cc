@@ -16649,7 +16649,8 @@ void CodeStubAssembler::PrintToStream(const char* prefix,
                 HeapConstantNoHole(string), SmiConstant(stream));
   }
   // CallRuntime only accepts Objects, so do an UncheckedCast to object.
-  // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
+  // DebugPrint explicitly checks whether the tagged value is a
+  // Tagged<MaybeObject>.
   TNode<Object> arg = UncheckedCast<Object>(tagged_value);
   CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg,
               SmiConstant(stream));

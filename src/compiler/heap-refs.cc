@@ -2350,10 +2350,10 @@ OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
       map_handle->prototype_info(kAcquireLoad));
   if (!IsPrototypeInfo(*maybe_proto_info)) return {};
 
-  MaybeObject maybe_object_create_map =
+  Tagged<MaybeObject> maybe_object_create_map =
       Handle<PrototypeInfo>::cast(maybe_proto_info)
           ->ObjectCreateMap(kAcquireLoad);
-  if (!maybe_object_create_map->IsWeak()) return {};
+  if (!maybe_object_create_map.IsWeak()) return {};
 
   return MapRef(broker->GetOrCreateData(
       maybe_object_create_map.GetHeapObjectAssumeWeak(), kAssumeMemoryFence));

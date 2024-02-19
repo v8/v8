@@ -972,7 +972,7 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
     }
     // TODO(ishell): Revisit this change once we stick to 32-bit compressed
     // tagged values.
-    while (current < end && current.load(cage_base)->IsCleared()) {
+    while (current < end && current.load(cage_base).IsCleared()) {
       sink_->Put(kClearedWeakReference, "ClearedWeakReference");
       bytes_processed_so_far_ += kTaggedSize;
       ++current;

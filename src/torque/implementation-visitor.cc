@@ -5206,7 +5206,7 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
       !field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
   const char* object_type = maybe_object ? "MaybeObject" : "Object";
   const char* tagged_object_type =
-      maybe_object ? "MaybeObject" : "Tagged<Object>";
+      maybe_object ? "Tagged<MaybeObject>" : "Tagged<Object>";
   const char* verify_fn =
       maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
   if (indexed) {
@@ -5226,8 +5226,7 @@ void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
   }
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
-  cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
-              << value << ");\n";
+  cc_contents << "    Object::" << verify_fn << "(isolate, " << value << ");\n";
 
   // Check that the value is of an appropriate type. We can skip this part for
   // the Object type because it would not check anything beyond what we already

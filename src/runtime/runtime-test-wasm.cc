@@ -493,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   Tagged<WeakArrayList> weak_instance_list =
       module_obj->script()->wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
-    if (weak_instance_list->Get(i)->IsWeak()) instance_count++;
+    if (weak_instance_list->Get(i).IsWeak()) instance_count++;
   }
   return Smi::FromInt(instance_count);
 }

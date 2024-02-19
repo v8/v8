@@ -445,8 +445,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
           size, AllocationType::kOld, *feedback_vector_map()));
   DisallowGarbageCollection no_gc;
   vector->set_shared_function_info(*shared);
-  vector->set_maybe_optimized_code(
-      HeapObjectReference::ClearedValue(isolate()));
+  vector->set_maybe_optimized_code(ClearedValue(isolate()));
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_invocation_count_before_stable(0);
@@ -2060,10 +2059,9 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
     heap->mark_compact_collector()->AddTransitionArray(*array);
   }
   array->WeakFixedArray::set(TransitionArray::kPrototypeTransitionsIndex,
-                             MaybeObject::FromObject(Smi::zero()));
-  array->WeakFixedArray::set(
-      TransitionArray::kTransitionLengthIndex,
-      MaybeObject::FromObject(Smi::FromInt(number_of_transitions)));
+                             Smi::zero());
+  array->WeakFixedArray::set(TransitionArray::kTransitionLengthIndex,
+                             Smi::FromInt(number_of_transitions));
   return array;
 }
 
@@ -2150,8 +2148,7 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   }
   map->set_dependent_code(DependentCode::empty_dependent_code(roots),
                           SKIP_WRITE_BARRIER);
-  map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()),
-                           SKIP_WRITE_BARRIER);
+  map->set_raw_transitions(Smi::zero(), SKIP_WRITE_BARRIER);
   map->SetInObjectUnusedPropertyFields(inobject_properties);
   map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   // Must be called only after |instance_type| and |instance_size| are set.
@@ -2495,8 +2492,8 @@ Handle<WeakArrayList> Factory::CompactWeakArrayList(
   WriteBarrierMode mode = raw_result->GetWriteBarrierMode(no_gc);
   int copy_to = 0, length = raw_src->length();
   for (int i = 0; i < length; i++) {
-    MaybeObject element = raw_src->Get(i);
-    if (element->IsCleared()) continue;
+    Tagged<MaybeObject> element = raw_src->Get(i);
+    if (element.IsCleared()) continue;
     raw_result->Set(copy_to++, element, mode);
   }
   raw_result->set_length(copy_to);
@@ -3755,7 +3752,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
                                isolate());
 
   // Check to see whether there is a matching element in the cache.
-  MaybeObject result = cache->get(number_of_properties);
+  Tagged<MaybeObject> result = cache->get(number_of_properties);
   Tagged<HeapObject> heap_object;
   if (result.GetHeapObjectIfWeak(&heap_object)) {
     Tagged<Map> map = Tagged<Map>::cast(heap_object);
@@ -3766,7 +3763,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
   // Create a new map and add it to the cache.
   Handle<Map> map = Map::Create(isolate(), number_of_properties);
   DCHECK(!map->is_dictionary_map());
-  cache->set(number_of_properties, HeapObjectReference::Weak(*map));
+  cache->set(number_of_properties, MakeWeak(*map));
   return map;
 }
 
@@ -4252,7 +4249,7 @@ Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
   obj->set_property_names(*property_names);
-  obj->set_fully_populated_map(HeapObjectReference::ClearedValue(isolate()));
+  obj->set_fully_populated_map(ClearedValue(isolate()));
   return handle(obj, isolate());
 }
 

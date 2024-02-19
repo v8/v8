@@ -23,13 +23,12 @@ bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 #endif
 
 // An TaggedImpl is a base class for Object (which is either a Smi or a strong
-// reference to a HeapObject) and MaybeObject (which is either a Smi, a strong
-// reference to a HeapObject, a weak reference to a HeapObject, or a cleared
-// weak reference.
-// This class provides storage and one canonical implementation of various
-// predicates that check Smi and heap object tags' values and also take into
-// account whether the tagged value is expected to be weak reference to a
-// HeapObject or cleared weak reference.
+// reference to a HeapObject) and Tagged<MaybeObject> (which is either a Smi, a
+// strong reference to a HeapObject, a weak reference to a HeapObject, or a
+// cleared weak reference. This class provides storage and one canonical
+// implementation of various predicates that check Smi and heap object tags'
+// values and also take into account whether the tagged value is expected to be
+// weak reference to a HeapObject or cleared weak reference.
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl {
  public:
@@ -58,8 +57,8 @@ class TaggedImpl {
   // Don't use this operator for comparing with stale or invalid pointers
   // because CheckObjectComparisonAllowed() might crash when trying to access
   // the object's page header. Use SafeEquals() instead.
-  template <typename U>
-  constexpr bool operator==(TaggedImpl<kRefType, U> other) const {
+  template <HeapObjectReferenceType kOtherRefType, typename U>
+  constexpr bool operator==(TaggedImpl<kOtherRefType, U> other) const {
     static_assert(
         std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
         "U must be either Address or Tagged_t");
@@ -76,8 +75,8 @@ class TaggedImpl {
   // Don't use this operator for comparing with stale or invalid pointers
   // because CheckObjectComparisonAllowed() might crash when trying to access
   // the object's page header. Use SafeEquals() instead.
-  template <typename U>
-  constexpr bool operator!=(TaggedImpl<kRefType, U> other) const {
+  template <HeapObjectReferenceType kOtherRefType, typename U>
+  constexpr bool operator!=(TaggedImpl<kOtherRefType, U> other) const {
     static_assert(
         std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
         "U must be either Address or Tagged_t");
