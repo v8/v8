@@ -872,8 +872,7 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
 #if V8_ENABLE_WEBASSEMBLY
 // Wasm tiering thresholds.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_wrapper_tiering_budget, 1)
-// The minimum value of the tiering budget is 4.
-DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_tiering_budget, 4)
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_tiering_budget, 1)
 DEFINE_IMPLICATION(jit_fuzzing, wasm_inlining_ignore_call_counts)
 #endif  // V8_ENABLE_WEBASSEMBLY
 

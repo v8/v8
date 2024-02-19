@@ -275,7 +275,7 @@ class StreamTester {
   v8::Context::Scope context_scope(context);                                 \
   /* Reduce tiering budget so we do not need to execute too long. */         \
   i::FlagScope<int> reduced_tiering_budget(&i::v8_flags.wasm_tiering_budget, \
-                                           10);                              \
+                                           1);                               \
   RunStream_##name(&platform, isolate);
 
 #define STREAM_TEST(name)                                                  \

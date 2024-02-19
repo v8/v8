@@ -777,15 +777,15 @@ class LiftoffCompiler {
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
                    int budget_used) {
-    // We should always decrement the budget, and we don't expect integer
-    // overflows in the budget calculation.
-    DCHECK_LE(1, budget_used);
-
     if (for_debugging_ != kNotForDebugging) return;
     SCOPED_CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
-    const int kMax = v8_flags.wasm_tiering_budget / 4;
-    if (budget_used > kMax) budget_used = kMax;
+    const int max_budget_use = std::max(1, v8_flags.wasm_tiering_budget / 4);
+    if (budget_used > max_budget_use) budget_used = max_budget_use;
+
+    // We should always decrement the budget, and we don't expect integer
+    // overflows in the budget calculation.
+    DCHECK_LE(1, budget_used);
 
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
