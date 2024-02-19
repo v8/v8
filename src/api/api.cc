@@ -768,33 +768,36 @@ void HandleHelper::VerifyOnMainThread() {
 
 #if V8_STATIC_ROOTS_BOOL
 
-// Initialize static root constants exposed in v8-internal.h.
+// Check static root constants exposed in v8-internal.h.
 
 namespace {
 constexpr InstanceTypeChecker::TaggedAddressRange kStringMapRange =
     *InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(FIRST_STRING_TYPE,
                                                             LAST_STRING_TYPE);
-constexpr Tagged_t kFirstStringMapPtr = kStringMapRange.first;
-constexpr Tagged_t kLastStringMapPtr = kStringMapRange.second;
 }  // namespace
 
-#define EXPORTED_STATIC_ROOTS_MAPPING(V)                    \
+#define EXPORTED_STATIC_ROOTS_PTR_MAPPING(V)                \
   V(UndefinedValue, i::StaticReadOnlyRoot::kUndefinedValue) \
   V(NullValue, i::StaticReadOnlyRoot::kNullValue)           \
   V(TrueValue, i::StaticReadOnlyRoot::kTrueValue)           \
   V(FalseValue, i::StaticReadOnlyRoot::kFalseValue)         \
   V(EmptyString, i::StaticReadOnlyRoot::kempty_string)      \
   V(TheHoleValue, i::StaticReadOnlyRoot::kTheHoleValue)     \
-  V(FirstStringMap, kFirstStringMapPtr)                     \
-  V(LastStringMap, kLastStringMapPtr)
+  V(FirstStringMap, kStringMapRange.first)                  \
+  V(LastStringMap, kStringMapRange.second)
 
 static_assert(std::is_same<Internals::Tagged_t, Tagged_t>::value);
-#define DEF_STATIC_ROOT(name, internal_value)                        \
-  const Internals::Tagged_t Internals::StaticReadOnlyRoot::k##name = \
-      internal_value;
-EXPORTED_STATIC_ROOTS_MAPPING(DEF_STATIC_ROOT)
-#undef DEF_STATIC_ROOT
-#undef EXPORTED_STATIC_ROOTS_MAPPING
+// Ensure they have the correct value.
+#define CHECK_STATIC_ROOT(name, value) \
+  static_assert(Internals::StaticReadOnlyRoot::k##name == value);
+EXPORTED_STATIC_ROOTS_PTR_MAPPING(CHECK_STATIC_ROOT)
+#undef CHECK_STATIC_ROOT
+#define PLUS_ONE(...) +1
+static constexpr int kNumberOfCheckedStaticRoots =
+    0 EXPORTED_STATIC_ROOTS_PTR_MAPPING(PLUS_ONE);
+#undef EXPORTED_STATIC_ROOTS_PTR_MAPPING
+static_assert(Internals::StaticReadOnlyRoot::kNumberOfExportedStaticRoots ==
+              kNumberOfCheckedStaticRoots);
 
 #endif  // V8_STATIC_ROOTS_BOOL
 

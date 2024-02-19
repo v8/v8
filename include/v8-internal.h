@@ -746,23 +746,28 @@ class Internals {
 
 #if V8_STATIC_ROOTS_BOOL
 
-// These constants need to be initialized in api.cc.
+// These constants are copied from static-roots.h and guarded by static asserts.
 #define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
-  V(UndefinedValue)                       \
-  V(NullValue)                            \
-  V(TrueValue)                            \
-  V(FalseValue)                           \
-  V(EmptyString)                          \
-  V(TheHoleValue)
+  V(UndefinedValue, 0x61)                 \
+  V(NullValue, 0x7d)                      \
+  V(TrueValue, 0xc1)                      \
+  V(FalseValue, 0xa5)                     \
+  V(EmptyString, 0x99)                    \
+  V(TheHoleValue, 0x711)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
-#define DEF_ROOT(name) V8_EXPORT static const Tagged_t k##name;
+#define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
 
-    V8_EXPORT static const Tagged_t kFirstStringMap;
-    V8_EXPORT static const Tagged_t kLastStringMap;
+    static constexpr Tagged_t kFirstStringMap = 0xdd;
+    static constexpr Tagged_t kLastStringMap = 0x475;
+
+#define PLUSONE(...) +1
+    static constexpr size_t kNumberOfExportedStaticRoots =
+        2 + EXPORTED_STATIC_ROOTS_PTR_LIST(PLUSONE);
+#undef PLUSONE
   };
 
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -939,15 +944,15 @@ class Internals {
     Address base = *reinterpret_cast<Address*>(
         reinterpret_cast<uintptr_t>(isolate) + kIsolateCageBaseOffset);
     switch (index) {
-#define DECOMPRESS_ROOT(name) \
-  case k##name##RootIndex:    \
+#define DECOMPRESS_ROOT(name, ...) \
+  case k##name##RootIndex:         \
     return base + StaticReadOnlyRoot::k##name;
       EXPORTED_STATIC_ROOTS_PTR_LIST(DECOMPRESS_ROOT)
 #undef DECOMPRESS_ROOT
+#undef EXPORTED_STATIC_ROOTS_PTR_LIST
       default:
         break;
     }
-#undef EXPORTED_STATIC_ROOTS_PTR_LIST
 #endif  // V8_STATIC_ROOTS_BOOL
     return *GetRootSlot(isolate, index);
   }
