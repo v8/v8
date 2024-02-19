@@ -60,7 +60,9 @@ struct TurbofanAdapter {
              node_->opcode() == IrOpcode::kRelocatableInt64Constant ||
              node_->opcode() == IrOpcode::kHeapConstant ||
              node_->opcode() == IrOpcode::kCompressedHeapConstant ||
-             node_->opcode() == IrOpcode::kNumberConstant);
+             node_->opcode() == IrOpcode::kNumberConstant ||
+             node_->opcode() == IrOpcode::kFloat32Constant ||
+             node_->opcode() == IrOpcode::kFloat64Constant);
     }
 
     bool is_int32() const {
@@ -452,6 +454,8 @@ struct TurbofanAdapter {
       case IrOpcode::kHeapConstant:
       case IrOpcode::kCompressedHeapConstant:
       case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat32Constant:
+      case IrOpcode::kFloat64Constant:
         // For those, a view must be constructible.
         DCHECK_EQ(constant_view(node), node);
         return true;
