@@ -143,8 +143,8 @@ DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
 }
 
 DEF_ACQUIRE_GETTER(BytecodeArray, raw_source_position_table, Tagged<Object>) {
-  Tagged<Object> value =
-      TaggedField<Object>::load(cage_base, *this, kSourcePositionTableOffset);
+  Tagged<Object> value = TaggedField<Object>::Acquire_Load(
+      cage_base, *this, kSourcePositionTableOffset);
   // This field might be 0 during deserialization or if source positions have
   // not been (successfully) collected.
   DCHECK(value == Smi::zero() || IsByteArray(value));
