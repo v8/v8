@@ -21,6 +21,7 @@ function math_smi(x, y) {
 }
 %PrepareFunctionForOptimization(math_smi);
 assertEquals(3, math_smi(4, 3));
+assertEquals(3, math_smi(4, 3));
 %OptimizeFunctionOnNextCall(math_smi);
 assertEquals(3, math_smi(4, 3));
 assertOptimized(math_smi);
@@ -38,6 +39,7 @@ function math_float(x, y) {
   return h;
 }
 %PrepareFunctionForOptimization(math_float);
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 %OptimizeFunctionOnNextCall(math_float);
 assertEquals(-42.56563728706824, math_float(4.21, 3.56));
@@ -97,6 +99,7 @@ function bitwise_smi(a, b) {
 }
 %PrepareFunctionForOptimization(bitwise_smi);
 assertEquals(-23041, bitwise_smi(1548, 45235));
+assertEquals(-23041, bitwise_smi(1548, 45235));
 %OptimizeFunctionOnNextCall(bitwise_smi);
 assertEquals(-23041, bitwise_smi(1548, 45235));
 assertOptimized(bitwise_smi);
@@ -110,6 +113,7 @@ function simple_loop(x) {
 }
 %PrepareFunctionForOptimization(simple_loop);
 assertEquals(74, simple_loop(17));
+assertEquals(74, simple_loop(17));
 %OptimizeFunctionOnNextCall(simple_loop);
 assertEquals(74, simple_loop(17));
 assertOptimized(simple_loop);
@@ -120,6 +124,7 @@ function load_smi_arr(arr, idx) {
 {
   let smi_arr = [1, 2, 3, 4, {}];
   %PrepareFunctionForOptimization(load_smi_arr);
+  assertEquals(6, load_smi_arr(smi_arr, 3));
   assertEquals(6, load_smi_arr(smi_arr, 3));
   %OptimizeFunctionOnNextCall(load_smi_arr);
   assertEquals(6, load_smi_arr(smi_arr, 3));
@@ -136,6 +141,7 @@ function load_double_arr(arr, idx) {
 {
   let double_arr = [1.552, 2.425, 3.526, 4.596, 5.986, 6.321];
   %PrepareFunctionForOptimization(load_double_arr);
+  assertEquals(8.122, load_double_arr(double_arr, 3));
   assertEquals(8.122, load_double_arr(double_arr, 3));
   %OptimizeFunctionOnNextCall(load_double_arr);
   assertEquals(8.122, load_double_arr(double_arr, 3));
@@ -156,6 +162,7 @@ function load_double_arr(arr, idx) {
   %PrepareFunctionForOptimization(g);
   %PrepareFunctionForOptimization(f);
   assertEquals(42, f(42));
+  assertEquals(42, f(42));
   %OptimizeFunctionOnNextCall(f);
   assertEquals(42, f(42));
   assertOptimized(f);
@@ -168,6 +175,7 @@ function load_double_arr(arr, idx) {
   let o = { y : 42, x : function(a) { return a + this.y; } };
 
   %PrepareFunctionForOptimization(f);
+  assertEquals(59, f(o));
   assertEquals(59, f(o));
   %OptimizeFunctionOnNextCall(f);
   assertEquals(59, f(o));
@@ -202,6 +210,7 @@ function load_double_arr(arr, idx) {
   %PrepareFunctionForOptimization(f);
   %PrepareFunctionForOptimization(g);
   assertEquals(572, f(42, 0));
+  assertEquals(572, f(42, 0));
 
   %OptimizeFunctionOnNextCall(f);
   assertEquals(572, f(42, 0));
@@ -228,6 +237,7 @@ function load_double_arr(arr, idx) {
   }
 
   %PrepareFunctionForOptimization(f);
+  assertEquals(113.39, f(2.36, 5, 6));
   assertEquals(113.39, f(2.36, 5, 6));
 
   %OptimizeFunctionOnNextCall(f);
