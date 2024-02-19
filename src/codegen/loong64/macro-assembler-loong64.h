@@ -900,6 +900,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                         MemOperand field_operand);
 #endif
 
+  // Load a protected pointer field.
+  void LoadProtectedPointerField(Register destination,
+                                 MemOperand field_operand);
+
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
@@ -928,6 +932,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     LoadRoot(scratch, index);
     Push(scratch);
   }
+
+  // Compare the object in a register to a value from the root list.
+  void CompareRootAndBranch(const Register& obj, RootIndex index, Condition cc,
+                            Label* target,
+                            ComparisonMode mode = ComparisonMode::kDefault);
+  void CompareTaggedRootAndBranch(const Register& with, RootIndex index,
+                                  Condition cc, Label* target);
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
