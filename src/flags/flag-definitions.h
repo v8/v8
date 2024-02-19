@@ -869,6 +869,14 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev_osr, 1)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
 
+#if V8_ENABLE_WEBASSEMBLY
+// Wasm tiering thresholds.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_wrapper_tiering_budget, 1)
+// The minimum value of the tiering budget is 4.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_tiering_budget, 4)
+DEFINE_IMPLICATION(jit_fuzzing, wasm_inlining_ignore_call_counts)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
 DEFINE_BOOL(lazy_feedback_allocation, true, "Allocate feedback vectors lazily")
@@ -1552,6 +1560,9 @@ DEFINE_SIZE_T(
 DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
               "minimum graph size budget (in TF nodes) for which the "
               "wasm_inlinining_factor does not apply")
+DEFINE_BOOL(wasm_inlining_ignore_call_counts, false,
+            "Ignore call counts when considering inlining candidates. The flag "
+            "is supposed to be used for fuzzing")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 
