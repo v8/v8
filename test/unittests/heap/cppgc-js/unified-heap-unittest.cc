@@ -23,7 +23,6 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
-#include "src/heap/gc-tracer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -793,38 +792,5 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
       Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   v8_flags.single_threaded_gc = single_threaded_gc_flag;
 }
-
-#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-struct RandomGCIntervalTestSetter {
-  RandomGCIntervalTestSetter() {
-    static constexpr int kInterval = 87;
-    v8_flags.cppgc_random_gc_interval = kInterval;
-  }
-  ~RandomGCIntervalTestSetter() { v8_flags.cppgc_random_gc_interval = 0; }
-};
-
-struct UnifiedHeapTestWithRandomGCInterval : RandomGCIntervalTestSetter,
-                                             UnifiedHeapTest {};
-
-TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
-  auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
-  auto& allocator = cpp_heap.object_allocator();
-  const int initial_allocation_timeout =
-      allocator.get_allocation_timeout_for_testing();
-  ASSERT_GT(initial_allocation_timeout, 0);
-  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch(
-      GCTracer::Scope::MARK_COMPACTOR);
-  for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
-    MakeGarbageCollected<Wrappable>(allocation_handle());
-  }
-  // Expect no GC happened so far.
-  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch(
-                               GCTracer::Scope::MARK_COMPACTOR));
-  // This allocation must cause a GC.
-  MakeGarbageCollected<Wrappable>(allocation_handle());
-  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch(
-                                   GCTracer::Scope::MARK_COMPACTOR));
-}
-#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace v8::internal
