@@ -346,9 +346,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 #endif  // !V8_JITLESS
 
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  __ LoadTrustedPointerField(
-      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag);
+  __ LoadProtectedPointerField(
+      bytecode, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
 }
@@ -1712,7 +1711,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ JumpIfObjectType(&builtin_trampoline, ne, t0, INTERPRETER_DATA_TYPE,
                       kInterpreterDispatchTableRegister);
 
-  __ LoadTaggedField(
+  __ LoadProtectedPointerField(
       t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
   __ LoadCodeInstructionStart(t0, t0);
   __ Branch(&trampoline_loaded);
@@ -1971,7 +1970,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ LoadTaggedField(
+  __ LoadProtectedPointerField(
       a1, MemOperand(maybe_target_code,
                      Code::kDeoptimizationDataOrInterpreterDataOffset -
                          kHeapObjectTag));
@@ -1979,7 +1978,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
   __ SmiUntagField(a1,
-                   MemOperand(a1, FixedArray::OffsetOfElementAt(
+                   MemOperand(a1, TrustedFixedArray::OffsetOfElementAt(
                                       DeoptimizationData::kOsrPcOffsetIndex) -
                                       kHeapObjectTag));
 
