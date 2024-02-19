@@ -1480,7 +1480,7 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
 
 void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                             Handle<Map> child, Handle<Name> name,
-                            SimpleTransitionFlag flag) {
+                            TransitionKindFlag transition_kind) {
   DCHECK_EQ(parent->map(), child->map());
   DCHECK_IMPLIES(name->IsInteresting(isolate),
                  child->may_have_interesting_properties());
@@ -1500,7 +1500,7 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
     }
   } else {
-    TransitionsAccessor::Insert(isolate, parent, name, child, flag);
+    TransitionsAccessor::Insert(isolate, parent, name, child, transition_kind);
     if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "", name));
     }
@@ -1512,7 +1512,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
                                         TransitionFlag flag,
                                         MaybeHandle<Name> maybe_name,
                                         const char* reason,
-                                        SimpleTransitionFlag simple_flag) {
+                                        TransitionKindFlag transition_kind) {
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
@@ -1532,12 +1532,12 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       result->InitializeDescriptors(isolate, *descriptors);
 
       DCHECK(!maybe_name.is_null());
-      ConnectTransition(isolate, map, result, name, simple_flag);
+      ConnectTransition(isolate, map, result, name, transition_kind);
       is_connected = true;
     } else if (isolate->bootstrapper()->IsActive()) {
       result->InitializeDescriptors(isolate, *descriptors);
     } else {
-      descriptors->GeneralizeAllFields();
+      descriptors->GeneralizeAllFields(transition_kind);
       result->InitializeDescriptors(isolate, *descriptors);
     }
   }
@@ -1724,15 +1724,27 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
   return new_map;
 }
 
-Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
+Handle<Map> Map::CopyForPrototypeTransition(Isolate* isolate, Handle<Map> map) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                       isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       isolate, descriptors, number_of_own_descriptors);
   return CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
-                                MaybeHandle<Name>(), reason,
-                                SPECIAL_TRANSITION);
+                                MaybeHandle<Name>(), "TransitionToPrototype",
+                                PROTOTYPE_TRANSITION);
+}
+
+Handle<Map> Map::Copy(Isolate* isolate, Handle<Map> map, const char* reason) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                      isolate);
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      isolate, descriptors, number_of_own_descriptors);
+  auto res =
+      CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
+                             MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
+  return res;
 }
 
 Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
@@ -2153,7 +2165,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
 
   new_descriptors->Replace(insertion_index, descriptor);
 
-  SimpleTransitionFlag simple_flag =
+  TransitionKindFlag simple_flag =
       (insertion_index.as_int() == descriptors->number_of_descriptors() - 1)
           ? SIMPLE_PROPERTY_TRANSITION
           : PROPERTY_TRANSITION;
@@ -2413,7 +2425,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
   Handle<Map> new_map =
       TransitionsAccessor::GetPrototypeTransition(isolate, map, prototype);
   if (new_map.is_null()) {
-    new_map = Copy(isolate, map, "TransitionToPrototype");
+    new_map = CopyForPrototypeTransition(isolate, map);
     TransitionsAccessor::PutPrototypeTransition(isolate, map, prototype,
                                                 new_map);
     Map::SetPrototype(isolate, new_map, prototype);

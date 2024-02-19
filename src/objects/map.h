@@ -802,6 +802,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> CopyForElementsTransition(Isolate* isolate,
                                                Handle<Map> map);
 
+  // Returns a copy of the map, prepared for inserting into the transition
+  // tree as a prototype transition.
+  static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
+                                                Handle<Map> map);
+
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Isolate* isolate, Handle<Map> map,
@@ -958,7 +963,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static void ConnectTransition(Isolate* isolate, Handle<Map> parent,
                                 Handle<Map> child, Handle<Name> name,
-                                SimpleTransitionFlag flag);
+                                TransitionKindFlag transition_kind);
 
   bool EquivalentToForTransition(const Tagged<Map> other,
                                  ConcurrencyMode cmode) const;
@@ -983,7 +988,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                             TransitionFlag flag,
                                             MaybeHandle<Name> maybe_name,
                                             const char* reason,
-                                            SimpleTransitionFlag simple_flag);
+                                            TransitionKindFlag transition_kind);
 
   static Handle<Map> CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                            Handle<DescriptorArray> descriptors,

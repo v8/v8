@@ -64,12 +64,14 @@ enum PropertyNormalizationMode {
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag { INSERT_TRANSITION, OMIT_TRANSITION };
 
-// Indicates whether the transition is simple: the target map of the transition
+// Indicates the kind of transition: the target map of the transition
 // either extends the current map with a new property, or it modifies the
-// property that was added last to the current map.
-enum SimpleTransitionFlag {
+// property that was added last to the current map. Otherwise, it can
+// be a prototype transition, or anything else.
+enum TransitionKindFlag {
   SIMPLE_PROPERTY_TRANSITION,
   PROPERTY_TRANSITION,
+  PROTOTYPE_TRANSITION,
   SPECIAL_TRANSITION
 };
 

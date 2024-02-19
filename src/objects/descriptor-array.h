@@ -95,7 +95,7 @@ class DescriptorArray
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields();
+  void GeneralizeAllFields(TransitionKindFlag transition_kind);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor

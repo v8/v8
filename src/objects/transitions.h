@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary. This can trigger GC.
   static void Insert(Isolate* isolate, Handle<Map> map, Handle<Name> name,
-                     Handle<Map> target, SimpleTransitionFlag flag);
+                     Handle<Map> target, TransitionKindFlag flag);
 
   Tagged<Map> SearchTransition(Tagged<Name> name, PropertyKind kind,
                                PropertyAttributes attributes);

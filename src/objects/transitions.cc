@@ -40,7 +40,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 // static
 void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
                                  Handle<Name> name, Handle<Map> target,
-                                 SimpleTransitionFlag flag) {
+                                 TransitionKindFlag flag) {
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
   target->SetBackPointer(*map);
