@@ -3539,6 +3539,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  OpIndex Simd256Extract128Lane(V<Simd256> source, uint8_t lane) {
+    return ReduceIfReachableSimd256Extract128Lane(source, lane);
+  }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
   V<WasmTrustedInstanceData> WasmInstanceParameter() {
     return Parameter(wasm::kWasmInstanceParameterIndex,
                      RegisterRepresentation::Tagged());

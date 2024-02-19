@@ -5384,6 +5384,14 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
     }
 
+    // SIMD256
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    case Opcode::kSimd256Extract128Lane: {
+      MarkAsSimd128(node);
+      return VisitExtractF128(node);
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
     case Opcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
 

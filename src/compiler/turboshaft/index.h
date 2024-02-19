@@ -192,7 +192,7 @@ struct Any {};
 template <size_t Bits>
 struct WordWithBits : public Any {
   static constexpr int bits = Bits;
-  static_assert(Bits == 32 || Bits == 64 || Bits == 128);
+  static_assert(Bits == 32 || Bits == 64 || Bits == 128 || Bits == 256);
 };
 
 using Word32 = WordWithBits<32>;
@@ -209,6 +209,7 @@ using Float32 = FloatWithBits<32>;
 using Float64 = FloatWithBits<64>;
 
 using Simd128 = WordWithBits<128>;
+using Simd256 = WordWithBits<256>;
 
 // TODO(nicohartmann@): Replace all uses of `V<Tagged>` by `V<Object>`.
 using Tagged = Object;
@@ -316,6 +317,21 @@ struct v_traits<Simd128> {
   template <typename U>
   struct implicitly_convertible_to
       : std::bool_constant<std::is_base_of_v<U, Simd128>> {};
+};
+
+template <>
+struct v_traits<Simd256> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr RegisterRepresentation rep =
+      RegisterRepresentation::Simd256();
+  using constexpr_type = uint8_t[kSimd256Size];
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Simd256();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Simd256>> {};
 };
 
 template <typename T>

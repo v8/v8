@@ -925,6 +925,7 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
     case RegisterRepresentation::Enum::kTagged:
     case RegisterRepresentation::Enum::kCompressed:
     case RegisterRepresentation::Enum::kSimd128:
+    case RegisterRepresentation::Enum::kSimd256:
       UNREACHABLE();
   }
 
@@ -1814,6 +1815,13 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
   return AddNode(machine.I8x16Shuffle(op.shuffle),
                  {GetNode(op.left()), GetNode(op.right())});
 }
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
+  const Operator* o = machine.ExtractF128(op.lane);
+  return AddNode(o, {GetNode(op.input())});
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {
   return AddNode(machine.LoadStackPointer(), {});

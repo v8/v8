@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/use-map.h"
 #include "src/compiler/wasm-graph-assembler.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -92,9 +93,6 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   void Print(const char* info);
 
-  template <typename FunctionType>
-  void ForEach(FunctionType callback);
-
  private:
   // This is the recursive part of BuildTree.
   PackNode* BuildTreeRec(const NodeGroup& node_group, unsigned depth);
@@ -128,7 +126,8 @@ class WasmRevecAnalyzer {
         store_seeds_(zone),
         slp_tree_(nullptr),
         revectorizable_node_(zone),
-        should_reduce_(false) {
+        should_reduce_(false),
+        use_map_(nullptr) {
     Run();
   }
 
@@ -137,8 +136,37 @@ class WasmRevecAnalyzer {
   bool CanMergeSLPTrees();
   bool ShouldReduce() const { return should_reduce_; }
 
+  PackNode* GetPackNode(const OpIndex ig_index) {
+    auto itr = revectorizable_node_.find(ig_index);
+    if (itr != revectorizable_node_.end()) {
+      return itr->second;
+    }
+    return nullptr;
+  }
+
+  const OpIndex GetReduced(const OpIndex node) {
+    auto pnode = GetPackNode(node);
+    if (!pnode) {
+      return OpIndex::Invalid();
+    }
+    return pnode->RevectorizedNode();
+  }
+
+  const Operation& GetStartOperation(const PackNode* pnode, const OpIndex node,
+                                     const Operation& op) {
+    DCHECK(pnode);
+    OpIndex start = pnode->Nodes()[0];
+    if (start == node) return op;
+    return graph_.Get(start);
+  }
+
+  base::Vector<const OpIndex> uses(OpIndex node) {
+    return use_map_->uses(node);
+  }
+
  private:
   void ProcessBlock(const Block& block);
+  bool DecideVectorize();
 
   Graph& graph_;
   Zone* phase_zone_;
@@ -148,12 +176,87 @@ class WasmRevecAnalyzer {
   SLPTree* slp_tree_;
   ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_;
   bool should_reduce_;
+  SimdUseMap* use_map_;
 };
 
 template <class Next>
 class WasmRevecReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmRevec)
+
+  OpIndex GetExtractOpIfNeeded(PackNode* pnode, OpIndex ig_index,
+                               OpIndex og_index) {
+    uint8_t lane = 0;
+    for (; lane < static_cast<uint8_t>(pnode->Nodes().size()); lane++) {
+      if (pnode->Nodes()[lane] == ig_index) break;
+    }
+
+    for (auto use : analyzer_.uses(ig_index)) {
+      if (!analyzer_.GetPackNode(use)) {
+        OpIndex extract_128 = __ Simd256Extract128Lane(og_index, lane);
+        return extract_128;
+      }
+    }
+
+    return OpIndex::Invalid();
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+
+      // Emit revectorized op.
+      if (!og_index.valid()) {
+        const LoadOp* start = analyzer_.GetStartOperation(pnode, ig_index, load)
+                                  .TryCast<LoadOp>();
+        DCHECK_EQ(start->base(), load.base());
+
+        auto base = __ MapToNewGraph(start->base());
+        auto index = __ MapToNewGraph(start->index());
+        og_index = __ Load(base, index, load.kind,
+                           MemoryRepresentation::Simd256(), start->offset);
+        pnode->SetRevectorizedNode(og_index);
+      }
+
+      // Emit extract op if needed.
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    // no_change
+    return Next::ReduceInputGraphLoad(ig_index, load);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Store)(OpIndex ig_index, const StoreOp& store) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+
+      // Emit revectorized op.
+      if (!og_index.valid()) {
+        const StoreOp* start =
+            (analyzer_.GetStartOperation(pnode, ig_index, store))
+                .TryCast<StoreOp>();
+        DCHECK_EQ(start->base(), store.base());
+
+        auto base = __ MapToNewGraph(start->base());
+        auto index = __ MapToNewGraph(start->index());
+        OpIndex value = analyzer_.GetReduced(start->value());
+        DCHECK(value.valid());
+
+        __ Store(base, index, value, store.kind,
+                 MemoryRepresentation::Simd256(), store.write_barrier,
+                 start->offset);
+
+        // Set an arbitrary valid opindex here to skip reduce later.
+        pnode->SetRevectorizedNode(ig_index);
+      }
+
+      // No extract op needed for Store.
+      return OpIndex::Invalid();
+    }
+
+    // no_change
+    return Next::ReduceInputGraphStore(ig_index, store);
+  }
 
  private:
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
