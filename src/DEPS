@@ -15,6 +15,7 @@ include_rules = [
   "+src/compiler/turboshaft/wasm-turboshaft-compiler.h",
   "+src/compiler/wasm-compiler-definitions.h",
   "+src/compiler/wasm-compiler.h",
+  "-src/flags/flags-impl.h",
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",
   "+src/heap/code-range.h",
