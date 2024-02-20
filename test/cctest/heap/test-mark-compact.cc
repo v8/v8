@@ -345,8 +345,8 @@ TEST(Regress5829) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                  i::GarbageCollectionReason::kTesting);
+    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
+                                     i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
   CHECK(marking->black_allocation());

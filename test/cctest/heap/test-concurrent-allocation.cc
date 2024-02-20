@@ -397,8 +397,8 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
     CHECK(thread->Start());
 
     sema_white.Wait();
-    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                  i::GarbageCollectionReason::kTesting);
+    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
+                                     i::GarbageCollectionReason::kTesting);
     sema_marking_started.Signal();
 
     thread->Join();
@@ -465,8 +465,8 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
       fixed_array = *fixed_array_handle;
       value = *value_handle;
     }
-    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                  i::GarbageCollectionReason::kTesting);
+    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
+                                     i::GarbageCollectionReason::kTesting);
     CHECK(heap->marking_state()->IsUnmarked(value));
 
     // Mark host |fixed_array| to trigger the barrier.
@@ -561,8 +561,8 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       code = *code_handle;
       value = *value_handle;
     }
-    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                  i::GarbageCollectionReason::kTesting);
+    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
+                                     i::GarbageCollectionReason::kTesting);
     CHECK(heap->marking_state()->IsUnmarked(value));
 
     // Advance marking to make sure |code| is marked.

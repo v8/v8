@@ -291,8 +291,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   }
 
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                  i::GarbageCollectionReason::kTesting);
+    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
+                                     i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
   if (!force_completion) return;

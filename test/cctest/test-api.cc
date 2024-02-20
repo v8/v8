@@ -16806,7 +16806,7 @@ TEST(TestIdleNotification) {
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
     if (i < 10 && CcTest::heap()->incremental_marking()->IsStopped()) {
-      CcTest::heap()->StartIncrementalMarking(
+      CcTest::heap()->TryStartIncrementalMarking(
           i::GCFlag::kReduceMemoryFootprint,
           i::GarbageCollectionReason::kTesting);
     }
