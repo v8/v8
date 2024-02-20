@@ -2641,132 +2641,6 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
 
 }  // namespace
 
-void LoadPolymorphicTaggedField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(2);
-  set_double_temporaries_needed(1);
-}
-void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  EmitPolymorphicAccesses(
-      masm, this, object,
-      [](MaglevAssembler* masm, LoadPolymorphicTaggedField* node,
-         const PolymorphicAccessInfo& access_info, Register object,
-         Register map, Register result) {
-        switch (access_info.kind()) {
-          case PolymorphicAccessInfo::kNotFound:
-            __ LoadRoot(result, RootIndex::kUndefinedValue);
-            break;
-          case PolymorphicAccessInfo::kConstant: {
-            Handle<Object> constant = access_info.constant();
-            if (IsSmi(*constant)) {
-              __ Move(result, Smi::cast(*constant));
-            } else {
-              DCHECK(IsHeapObject(*access_info.constant()));
-              if (node->decompresses_tagged_result()) {
-                __ Move(result, Handle<HeapObject>::cast(constant));
-              } else {
-                __ MoveTagged(result, Handle<HeapObject>::cast(constant));
-              }
-            }
-            break;
-          }
-          case PolymorphicAccessInfo::kConstantDouble: {
-            MaglevAssembler::ScratchRegisterScope temps(masm);
-            DoubleRegister double_scratch = temps.AcquireDouble();
-            double constant = access_info.constant_double();
-            __ Move(double_scratch, constant);
-            __ AllocateHeapNumber(node->register_snapshot(), result,
-                                  double_scratch);
-            break;
-          }
-          case PolymorphicAccessInfo::kModuleExport: {
-            Register cell = map;  // Reuse scratch.
-            __ Move(cell, access_info.cell());
-            __ AssertNotSmi(cell);
-            __ LoadTaggedField(result, cell, Cell::kValueOffset);
-            break;
-          }
-          case PolymorphicAccessInfo::kDataLoad: {
-            MaglevAssembler::ScratchRegisterScope temps(masm);
-            DoubleRegister double_scratch = temps.AcquireDouble();
-            __ LoadDataField(access_info, result, object, map);
-            if (access_info.field_index().is_double()) {
-              __ LoadHeapNumberValue(double_scratch, result);
-              __ AllocateHeapNumber(node->register_snapshot(), result,
-                                    double_scratch);
-            }
-            break;
-          }
-          case PolymorphicAccessInfo::kStringLength:
-            __ StringLength(result, object);
-            __ SmiTag(result);
-            break;
-        }
-      },
-      ToRegister(result()));
-}
-
-void LoadPolymorphicDoubleField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadPolymorphicDoubleField::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  EmitPolymorphicAccesses(
-      masm, this, object,
-      [](MaglevAssembler* masm, LoadPolymorphicDoubleField* node,
-         const PolymorphicAccessInfo& access_info, Register object,
-         Register map, DoubleRegister result) {
-        Register scratch = map;
-        switch (access_info.kind()) {
-          case PolymorphicAccessInfo::kDataLoad:
-            __ LoadDataField(access_info, scratch, object, map);
-            switch (access_info.field_representation().kind()) {
-              case Representation::kSmi:
-                __ SmiToDouble(result, scratch);
-                break;
-              case Representation::kDouble:
-                __ LoadHeapNumberValue(result, scratch);
-                break;
-              default:
-                UNREACHABLE();
-            }
-            break;
-          case PolymorphicAccessInfo::kConstant: {
-            Handle<Object> constant = access_info.constant();
-            if (IsSmi(*constant)) {
-              // Remove the cast to Tagged<Smi> once Smi::cast returns Tagged.
-              __ Move(scratch, Smi::cast(*constant));
-              __ SmiToDouble(result, scratch);
-            } else {
-              DCHECK(IsHeapNumber(*constant));
-              __ Move(result, Handle<HeapNumber>::cast(constant)->value());
-            }
-            break;
-          }
-          case PolymorphicAccessInfo::kConstantDouble: {
-            double constant = access_info.constant_double();
-            __ Move(result, constant);
-            break;
-          }
-          case PolymorphicAccessInfo::kStringLength:
-            __ StringLength(scratch, object);
-            __ Int32ToDouble(result, scratch);
-            break;
-
-          case PolymorphicAccessInfo::kModuleExport:
-          case PolymorphicAccessInfo::kNotFound:
-            break;
-        }
-      },
-      ToDoubleRegister(result()));
-}
-
 void LoadEnumCacheLength::SetValueLocationConstraints() {
   UseRegister(map_input());
   DefineAsRegister(this);
@@ -6068,6 +5942,15 @@ void JumpLoop::SetValueLocationConstraints() {}
 void JumpLoop::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   __ Jump(target()->label());
+}
+
+void BranchIfSmi::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+}
+void BranchIfSmi::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  __ Branch(__ CheckSmi(ToRegister(condition_input())), if_true(), if_false(),
+            state.next_block());
 }
 
 void BranchIfRootConstant::SetValueLocationConstraints() {

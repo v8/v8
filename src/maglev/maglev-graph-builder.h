@@ -1928,11 +1928,13 @@ class MaglevGraphBuilder {
       ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target);
   ReduceResult BuildCompareMaps(
-      ValueNode* object, base::Vector<const compiler::MapRef> maps,
+      ValueNode* heap_object, base::Optional<ValueNode*> object_map,
+      base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
       base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
-      ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
+      ValueNode* heap_object,
+      const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
       base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   // Emits an unconditional deopt and returns false if the node is a constant

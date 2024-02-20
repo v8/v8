@@ -175,8 +175,6 @@ class MergePointInterpreterFrameState;
   V(GetTemplateObject)                              \
   V(HasInPrototypeChain)                            \
   V(InitialValue)                                   \
-  V(LoadPolymorphicDoubleField)                     \
-  V(LoadPolymorphicTaggedField)                     \
   V(LoadTaggedField)                                \
   V(LoadDoubleField)                                \
   V(LoadTaggedFieldByFieldIndex)                    \
@@ -325,6 +323,7 @@ class MergePointInterpreterFrameState;
   VALUE_NODE_LIST(V)
 
 #define BRANCH_CONTROL_NODE_LIST(V) \
+  V(BranchIfSmi)                    \
   V(BranchIfRootConstant)           \
   V(BranchIfToBooleanTrue)          \
   V(BranchIfInt32ToBooleanTrue)     \
@@ -742,6 +741,13 @@ inline bool HasOnlyNumberMaps(base::Vector<const compiler::MapRef> maps) {
     if (map.instance_type() != HEAP_NUMBER_TYPE) return false;
   }
   return true;
+}
+
+inline bool HasNumberMap(base::Vector<const compiler::MapRef> maps) {
+  for (compiler::MapRef map : maps) {
+    if (map.instance_type() == HEAP_NUMBER_TYPE) return true;
+  }
+  return false;
 }
 
 #define DEF_FORWARD_DECLARATION(type, ...) class type;
@@ -6008,77 +6014,6 @@ class PolymorphicAccessInfo {
   };
 };
 
-class LoadPolymorphicTaggedField
-    : public FixedInputValueNodeT<1, LoadPolymorphicTaggedField> {
-  using Base = FixedInputValueNodeT<1, LoadPolymorphicTaggedField>;
-
- public:
-  explicit LoadPolymorphicTaggedField(
-      uint64_t bitfield, Representation field_representation,
-      ZoneVector<PolymorphicAccessInfo>&& access_info)
-      : Base(bitfield),
-        field_representation_(field_representation),
-        access_infos_(access_info) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::CanAllocate() | OpProperties::CanRead() |
-      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr int kObjectIndex = 0;
-  Input& object_input() { return input(kObjectIndex); }
-
-  Representation field_representation() const { return field_representation_; }
-  const ZoneVector<PolymorphicAccessInfo> access_infos() const {
-    return access_infos_;
-  }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
-  auto options() const {
-    return std::tuple{field_representation(), access_infos()};
-  }
-
- private:
-  Representation field_representation_;
-  ZoneVector<PolymorphicAccessInfo> access_infos_;
-};
-
-class LoadPolymorphicDoubleField
-    : public FixedInputValueNodeT<1, LoadPolymorphicDoubleField> {
-  using Base = FixedInputValueNodeT<1, LoadPolymorphicDoubleField>;
-
- public:
-  explicit LoadPolymorphicDoubleField(
-      uint64_t bitfield, ZoneVector<PolymorphicAccessInfo>&& access_info)
-      : Base(bitfield), access_infos_(access_info) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanRead() |
-                                              OpProperties::EagerDeopt() |
-                                              OpProperties::Float64();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr int kObjectIndex = 0;
-  Input& object_input() { return input(kObjectIndex); }
-  const ZoneVector<PolymorphicAccessInfo> access_infos() const {
-    return access_infos_;
-  }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
-  auto options() const { return std::tuple{access_infos()}; }
-
- private:
-  ZoneVector<PolymorphicAccessInfo> access_infos_;
-};
-
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
   using Base = FixedInputValueNodeT<1, LoadTaggedField>;
 
@@ -8752,6 +8687,30 @@ class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
   const BasicBlockRef* targets_;
   const int size_;
   base::Optional<BasicBlockRef> fallthrough_;
+};
+
+class BranchIfSmi : public BranchControlNodeT<1, BranchIfSmi> {
+  using Base = BranchControlNodeT<1, BranchIfSmi>;
+
+ public:
+  explicit BranchIfSmi(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                       BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& condition_input() { return input(0); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress values to reference compare.
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class BranchIfRootConstant

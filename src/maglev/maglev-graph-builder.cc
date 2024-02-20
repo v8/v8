@@ -3053,18 +3053,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
           MaglevGraphBuilder::TryGetConstant(broker, isolate, node).value();
       return StaticTypeForConstant(broker, ref);
     }
-    case Opcode::kLoadPolymorphicTaggedField: {
-      Representation field_representation =
-          node->Cast<LoadPolymorphicTaggedField>()->field_representation();
-      switch (field_representation.kind()) {
-        case Representation::kSmi:
-          return NodeType::kSmi;
-        case Representation::kHeapObject:
-          return NodeType::kAnyHeapObject;
-        default:
-          return NodeType::kUnknown;
-      }
-    }
     case Opcode::kToNumberOrNumeric:
       if (node->Cast<ToNumberOrNumeric>()->mode() ==
           Object::Conversion::kToNumber) {
@@ -3469,14 +3457,15 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
-    ValueNode* object, base::Vector<const compiler::MapRef> maps,
-    MaglevSubGraphBuilder* sub_graph,
+    ValueNode* heap_object, base::Optional<ValueNode*> object_map_opt,
+    base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(heap_object);
+  known_info->CombineType(
+      StaticTypeForNode(broker(), local_isolate(), heap_object));
 
   KnownMapsMerger merger(broker(), maps);
-  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+  merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
 
   if (merger.intersect_set().is_empty()) {
     return ReduceResult::DoneWithAbort();
@@ -3485,9 +3474,11 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
   // TODO(pthier): Avoid relaoding the map. This also applies to CheckMaps,
   // TransitionElementsKind, etc. We could change those nodes to optionally
   // take a map as input and returning the map.
-  AddNewNode<CheckHeapObject>({object});
   ValueNode* object_map =
-      AddNewNode<LoadTaggedField>({object}, HeapObject::kMapOffset);
+      object_map_opt.has_value()
+          ? object_map_opt.value()
+          : AddNewNode<LoadTaggedField>({heap_object}, HeapObject::kMapOffset);
+
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
 
@@ -3509,28 +3500,29 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     sub_graph->Goto(&*map_matched);
     sub_graph->Bind(&*map_matched);
   }
-  merger.UpdateKnownNodeAspects(object, known_node_aspects());
+  merger.UpdateKnownNodeAspects(heap_object, known_node_aspects());
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
-    ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
+    ValueNode* heap_object,
+    const ZoneVector<compiler::MapRef>& transition_sources,
     compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
     base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   DCHECK(!transition_target.is_migration_target());
 
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  known_info->CombineType(StaticTypeForNode(broker(), local_isolate(), object));
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(heap_object);
+  known_info->CombineType(
+      StaticTypeForNode(broker(), local_isolate(), heap_object));
 
   // TODO(pthier): Calculate and use the intersection of known maps with
   // (transition_sources union transition_target).
 
-  AddNewNode<TransitionElementsKind>({object}, transition_sources,
+  AddNewNode<TransitionElementsKind>({heap_object}, transition_sources,
                                      transition_target);
-  // TODO(pthier): Avoid relaoding the map.
-  AddNewNode<CheckHeapObject>({object});
   ValueNode* object_map =
-      AddNewNode<LoadTaggedField>({object}, HeapObject::kMapOffset);
+      AddNewNode<LoadTaggedField>({heap_object}, HeapObject::kMapOffset);
+
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
   if_not_matched.emplace(sub_graph, 1);
@@ -4133,120 +4125,111 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     return TryBuildPropertyAccess(receiver, lookup_start_object,
                                   feedback.name(), access_info, access_mode);
   } else {
-    // TODO(victorgomes): Support more generic polymorphic case.
+    // TODO(victorgomes): Unify control flow logic with
+    // TryBuildPolymorphicElementAccess and support polymorphic stores.
 
     // Only support polymorphic load at the moment.
     if (access_mode != compiler::AccessMode::kLoad) {
       return ReduceResult::Fail();
     }
 
-    // Check if we support the polymorphic load.
-    for (compiler::PropertyAccessInfo const& access_info : access_infos) {
-      DCHECK(!access_info.IsInvalid());
-      if (access_info.IsDictionaryProtoDataConstant()) {
-        compiler::OptionalObjectRef constant =
-            access_info.holder()->GetOwnDictionaryProperty(
-                broker(), access_info.dictionary_index(),
-                broker()->dependencies());
-        if (!constant.has_value()) {
-          return ReduceResult::Fail();
-        }
-      } else if (access_info.IsDictionaryProtoAccessorConstant() ||
-                 access_info.IsFastAccessorConstant()) {
-        return ReduceResult::Fail();
-      }
+    const int access_info_count = static_cast<int>(access_infos.size());
+    int number_map_index = -1;
 
+    // Check if we support the polymorphic load.
+    for (int i = 0; i < access_info_count; i++) {
+      compiler::PropertyAccessInfo const& access_info = access_infos[i];
+      DCHECK(!access_info.IsInvalid());
       // TODO(victorgomes): Support map migration.
       for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
         if (map.is_migration_target()) {
           return ReduceResult::Fail();
         }
+        if (map.IsHeapNumberMap()) {
+          DCHECK_EQ(number_map_index, -1);
+          number_map_index = i;
+        }
       }
     }
 
-    // Add compilation dependencies if needed, get constants and fill
-    // polymorphic access info.
-    Representation field_repr = Representation::Smi();
-    ZoneVector<PolymorphicAccessInfo> poly_access_infos(zone());
-    poly_access_infos.reserve(access_infos.size());
+    MaglevSubGraphBuilder subgraph(this, 1);
+    MaglevSubGraphBuilder::Variable ret_val(0);
+    MaglevSubGraphBuilder::Label done(&subgraph, access_info_count, {&ret_val});
+    base::Optional<MaglevSubGraphBuilder::Label> is_number;
+    base::Optional<MaglevSubGraphBuilder::Label> generic_access;
 
-    for (compiler::PropertyAccessInfo const& access_info : access_infos) {
-      if (access_info.holder().has_value() &&
-          !access_info.HasDictionaryHolder()) {
-        broker()->dependencies()->DependOnStablePrototypeChains(
-            access_info.lookup_start_object_maps(), kStartAtPrototype,
-            access_info.holder().value());
+    if (number_map_index >= 0) {
+      is_number.emplace(&subgraph, 2);
+      subgraph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
+    } else {
+      AddNewNode<CheckHeapObject>({lookup_start_object});
+    }
+    ValueNode* lookup_start_object_map = AddNewNode<LoadTaggedField>(
+        {lookup_start_object}, HeapObject::kMapOffset);
+
+    for (int i = 0; i < access_info_count; i++) {
+      compiler::PropertyAccessInfo const& access_info = access_infos[i];
+      base::Optional<MaglevSubGraphBuilder::Label> check_next_map;
+      ReduceResult map_check_result;
+      const auto& maps = access_info.lookup_start_object_maps();
+      if (i == access_info_count - 1) {
+        map_check_result =
+            BuildCheckMaps(lookup_start_object, base::VectorOf(maps));
+      } else {
+        map_check_result =
+            BuildCompareMaps(lookup_start_object, lookup_start_object_map,
+                             base::VectorOf(maps), &subgraph, check_next_map);
+      }
+      if (map_check_result.IsDoneWithAbort()) {
+        // We know from known possible maps that this branch is not reachable,
+        // so don't emit any code for it.
+        continue;
+      }
+      if (i == number_map_index) {
+        DCHECK(is_number.has_value());
+        subgraph.Goto(&*is_number);
+        subgraph.Bind(&*is_number);
       }
 
-      const auto& maps = access_info.lookup_start_object_maps();
-      switch (access_info.kind()) {
-        case compiler::PropertyAccessInfo::kNotFound:
-          field_repr = Representation::Tagged();
-          poly_access_infos.push_back(PolymorphicAccessInfo::NotFound(maps));
+      ReduceResult result = TryBuildPropertyLoad(receiver, lookup_start_object,
+                                                 feedback.name(), access_info);
+      switch (result.kind()) {
+        case ReduceResult::kDoneWithValue:
+          subgraph.set(ret_val, result.value());
           break;
-        case compiler::PropertyAccessInfo::kDataField:
-        case compiler::PropertyAccessInfo::kFastDataConstant: {
-          field_repr =
-              field_repr.generalize(access_info.field_representation());
-
-          compiler::OptionalJSObjectRef constant_holder =
-              TryGetConstantDataFieldHolder(access_info, lookup_start_object);
-          if (constant_holder) {
-            if (access_info.field_representation().IsDouble()) {
-              base::Optional<Float64> constant = TryFoldLoadConstantDoubleField(
-                  constant_holder.value(), access_info);
-              if (constant.has_value()) {
-                poly_access_infos.push_back(
-                    PolymorphicAccessInfo::ConstantDouble(maps,
-                                                          constant.value()));
-                break;
-              }
-            } else {
-              compiler::OptionalObjectRef constant =
-                  TryFoldLoadConstantDataField(constant_holder.value(),
-                                               access_info);
-              if (constant.has_value()) {
-                poly_access_infos.push_back(
-                    PolymorphicAccessInfo::Constant(maps, constant.value()));
-                break;
-              }
-            }
+        case ReduceResult::kDoneWithAbort:
+          break;
+        case ReduceResult::kFail:
+          if (!generic_access.has_value()) {
+            // Conservatively assume that all remaining branches can go into the
+            // generic path, as we have to initialize the predecessors upfront.
+            // TODO(pthier): Find a better way to do that.
+            generic_access.emplace(&subgraph, access_info_count - i);
           }
-
-          poly_access_infos.push_back(PolymorphicAccessInfo::DataLoad(
-              maps, access_info.field_representation(), access_info.holder(),
-              access_info.field_index()));
-          break;
-        }
-        case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant: {
-          field_repr =
-              field_repr.generalize(access_info.field_representation());
-          compiler::OptionalObjectRef constant =
-              TryFoldLoadDictPrototypeConstant(access_info);
-          DCHECK(constant.has_value());
-          poly_access_infos.push_back(
-              PolymorphicAccessInfo::Constant(maps, constant.value()));
-          break;
-        }
-        case compiler::PropertyAccessInfo::kModuleExport:
-          field_repr = Representation::Tagged();
-          break;
-        case compiler::PropertyAccessInfo::kStringLength:
-          poly_access_infos.push_back(
-              PolymorphicAccessInfo::StringLength(maps));
+          subgraph.Goto(&*generic_access);
           break;
         default:
           UNREACHABLE();
       }
+      subgraph.Goto(&done);
+
+      if (check_next_map.has_value()) {
+        subgraph.Bind(&*check_next_map);
+      }
     }
 
-    if (field_repr.kind() == Representation::kDouble) {
-      return AddNewNode<LoadPolymorphicDoubleField>(
-          {lookup_start_object}, std::move(poly_access_infos));
+    if (generic_access.has_value() &&
+        !subgraph.TrimPredecessorsAndBind(&*generic_access).IsDoneWithAbort()) {
+      // Create a generic load.
+      ValueNode* context = GetContext();
+      subgraph.set(ret_val, AddNewNode<LoadNamedGeneric>(
+                                {context, lookup_start_object}, feedback.name(),
+                                feedback_source));
+      subgraph.Goto(&done);
     }
 
-    return AddNewNode<LoadPolymorphicTaggedField>(
-        {lookup_start_object}, field_repr, std::move(poly_access_infos));
+    RETURN_IF_ABORT(subgraph.TrimPredecessorsAndBind(&done));
+    return subgraph.get(ret_val);
   }
 }
 
@@ -4853,6 +4836,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   base::Optional<MaglevSubGraphBuilder::Label> done;
   base::Optional<MaglevSubGraphBuilder::Label> generic_access;
 
+  AddNewNode<CheckHeapObject>({object});
+
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
   // access for Uint16/Uint32/Int16/Int32/...).
@@ -4880,7 +4865,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
             &sub_graph, check_next_map);
       } else {
         map_check_result = BuildCompareMaps(
-            object, base::VectorOf(access_info.lookup_start_object_maps()),
+            object, {}, base::VectorOf(access_info.lookup_start_object_maps()),
             &sub_graph, check_next_map);
       }
     }
