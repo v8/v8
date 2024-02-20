@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
+// Flags: --no-always-turbofan --no-stress-concurrent-inlining
 
 // TODO(dmercadier): re-allow optimization of these functions once the
 // maglev-to-turboshaft graph builder supports everything they need.
