@@ -213,7 +213,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                      MemoryRepresentation::AnyTagged(),
                                      WasmInternalFunction::kExternalOffset));
               IF (__ TaggedEqual(__ GetVariable(maybe_external),
-                                 LOAD_IMMUTABLE_ROOT(UndefinedValue))) {
+                                 LOAD_ROOT(UndefinedValue))) {
                 __ SetVariable(
                     maybe_external,
                     CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
@@ -262,8 +262,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                     __ Load(ret, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::AnyTagged(),
                             WasmInternalFunction::kExternalOffset);
-                IF (__ TaggedEqual(maybe_external,
-                                   LOAD_IMMUTABLE_ROOT(UndefinedValue))) {
+                IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
                   V<Tagged> from_builtin =
                       CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                           Builtin::kWasmInternalFunctionCreateExternal,
@@ -278,7 +277,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               Variable result =
                   __ NewVariable(RegisterRepresentation::Tagged());
               IF (__ IsNull(ret, type)) {
-                __ SetVariable(result, LOAD_IMMUTABLE_ROOT(NullValue));
+                __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
                 __ SetVariable(result, ret);
               }
@@ -389,7 +388,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     V<Tagged> jsval;
     if (sig_->return_count() == 0) {
-      jsval = LOAD_IMMUTABLE_ROOT(UndefinedValue);
+      jsval = LOAD_ROOT(UndefinedValue);
     } else if (sig_->return_count() == 1) {
       jsval = do_conversion ? ToJS(rets[0], sig_->GetReturn(), js_context)
                             : rets[0];
@@ -594,7 +593,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     auto done = __ NewBlock();
     auto type_error = __ NewBlock();
     Variable result = __ NewVariable(RegisterRepresentation::Tagged());
-    __ SetVariable(result, LOAD_IMMUTABLE_ROOT(WasmNull));
+    __ SetVariable(result, LOAD_ROOT(WasmNull));
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = __ NewBlock();
@@ -696,7 +695,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
             if (type.kind() == wasm::kRef) {
-              IF (__ TaggedEqual(input, LOAD_IMMUTABLE_ROOT(NullValue))) {
+              IF (__ TaggedEqual(input, LOAD_ROOT(NullValue))) {
                 CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
                             context);
                 __ Unreachable();

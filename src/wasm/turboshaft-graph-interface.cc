@@ -2498,8 +2498,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
-            {block->exception,
-             LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol)}));
+            {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
@@ -2523,7 +2522,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // the JSTag signature, i.e. a single externref or (ref extern), otherwise
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
-          __ TaggedEqual(caught_tag, LOAD_IMMUTABLE_ROOT(UndefinedValue));
+          __ TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
       Label<Tagged> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
@@ -2616,8 +2615,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, instance_cache_.native_context(),
-            {block->exception,
-             LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol)}));
+            {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
@@ -5841,7 +5839,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakArrayList> rtts = LOAD_TAGGED_ROOT(WasmCanonicalRtts);
+        V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
         V<Tagged> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
@@ -6336,7 +6334,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<FixedArray> exception_values_array = V<FixedArray>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, instance_cache_.native_context(),
-            {exception, LOAD_IMMUTABLE_ROOT(wasm_exception_values_symbol)}));
+            {exception, LOAD_ROOT(wasm_exception_values_symbol)}));
 
     int index = 0;
     for (Value& value : values) {
@@ -7004,7 +7002,6 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
 #undef LOAD_IMMUTABLE_INSTANCE_FIELD
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_ROOT
-#undef LOAD_IMMUTABLE_ROOT
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::wasm
