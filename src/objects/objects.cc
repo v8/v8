@@ -2112,7 +2112,8 @@ template <typename IsolateT>
 void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
   switch (map(isolate)->instance_type()) {
     case HASH_TABLE_TYPE:
-      UNREACHABLE();
+      ObjectHashTable::cast(*this)->Rehash(isolate);
+      break;
     case NAME_DICTIONARY_TYPE:
       NameDictionary::cast(*this)->Rehash(isolate);
       break;
@@ -2169,6 +2170,11 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
       String::cast(*this)->EnsureHash();
       break;
     default:
+      // TODO(ishell): remove once b/326043780 is no longer an issue.
+      isolate->AsIsolate()->PushParamsAndDie(
+          reinterpret_cast<void*>(ptr()), reinterpret_cast<void*>(map().ptr()),
+          reinterpret_cast<void*>(
+              static_cast<uintptr_t>(map()->instance_type())));
       UNREACHABLE();
   }
 }
