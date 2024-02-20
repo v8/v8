@@ -673,7 +673,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
   Handle<Code> foo_code =
-      Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
+      Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(i_isolate->heap()->InSpace(foo_code->instruction_stream(),
                                    CODE_LO_SPACE));

@@ -109,7 +109,7 @@ inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
 }
 
 inline bool Code::uses_deoptimization_data() const {
-  return kind() == CodeKind::MAGLEV || kind() == CodeKind::TURBOFAN;
+  return CodeKindUsesDeoptimizationData(kind());
 }
 
 inline void Code::clear_deoptimization_data_and_interpreter_data() {
@@ -137,7 +137,8 @@ void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
 }
 
 ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
-                   kPositionTableOffset, kind() != CodeKind::BASELINE,
+                   kPositionTableOffset,
+                   kind() != CodeKind::BASELINE && has_source_position_table(),
                    kind() != CodeKind::BASELINE &&
                        !ObjectInYoungGeneration(value))
 ACCESSORS_CHECKED2(Code, bytecode_offset_table, Tagged<ByteArray>,
@@ -145,18 +146,40 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, Tagged<ByteArray>,
                    kind() == CodeKind::BASELINE &&
                        !ObjectInYoungGeneration(value))
 
+bool Code::has_source_position_table_or_bytecode_offset_table() const {
+  return TaggedField<Object, kPositionTableOffset>::load(*this) != Smi::zero();
+}
+
+bool Code::has_source_position_table() const {
+  bool has_table = has_source_position_table_or_bytecode_offset_table() &&
+                   !CodeKindUsesBytecodeOffsetTable(kind());
+  DCHECK_IMPLIES(!CodeKindMayLackSourcePositionTable(kind()), has_table);
+  return has_table;
+}
+
+bool Code::has_bytecode_offset_table() const {
+  return has_source_position_table_or_bytecode_offset_table() &&
+         CodeKindUsesBytecodeOffsetTable(kind());
+}
+
+void Code::clear_source_position_table_and_bytecode_offset_table() {
+  TaggedField<Object, kPositionTableOffset>::store(*this, Smi::zero());
+}
+
 ACCESSORS(Code, wrapper, Tagged<CodeWrapper>, kWrapperOffset)
 
 Tagged<ByteArray> Code::SourcePositionTable(
     Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const {
-  if (!has_instruction_stream()) {
-    return GetReadOnlyRoots().empty_byte_array();
-  }
-
   DisallowGarbageCollection no_gc;
+
   if (kind() == CodeKind::BASELINE) {
     return sfi->GetBytecodeArray(isolate)->SourcePositionTable(isolate);
   }
+
+  if (!has_source_position_table()) {
+    return GetReadOnlyRoots().empty_byte_array();
+  }
+
   return source_position_table(isolate);
 }
 

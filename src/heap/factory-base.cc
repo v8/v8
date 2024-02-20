@@ -95,29 +95,43 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_code_comments_offset(options.code_comments_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
 
-  if (options.kind == CodeKind::BASELINE) {
+  // Set bytecode/interpreter data or deoptimization data.
+  if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
     DCHECK(options.deoptimization_data.is_null());
-    Tagged<HeapObject> data =
+    Tagged<TrustedObject> data =
         *options.bytecode_or_interpreter_data.ToHandleChecked();
     DCHECK(IsBytecodeArray(data) || IsInterpreterData(data));
-    code->set_bytecode_or_interpreter_data(ExposedTrustedObject::cast(data));
-    code->set_bytecode_offset_table(
-        *options.bytecode_offsets_or_source_position_table);
-  } else if (options.kind == CodeKind::MAGLEV ||
-             options.kind == CodeKind::TURBOFAN) {
+    code->set_bytecode_or_interpreter_data(data);
+  } else if (CodeKindUsesDeoptimizationData(options.kind)) {
     DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->set_deoptimization_data(
         *options.deoptimization_data.ToHandleChecked());
-    code->set_source_position_table(
-        *options.bytecode_offsets_or_source_position_table);
   } else {
-    DCHECK(options.deoptimization_data.is_null() &&
-           options.bytecode_or_interpreter_data.is_null());
+    DCHECK(options.deoptimization_data.is_null());
+    DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->clear_deoptimization_data_and_interpreter_data();
-    code->set_source_position_table(
-        *options.bytecode_offsets_or_source_position_table);
   }
 
+  // Set bytecode offset table or source position table.
+  if (CodeKindUsesBytecodeOffsetTable(options.kind)) {
+    DCHECK(options.source_position_table.is_null());
+    code->set_bytecode_offset_table(
+        *options.bytecode_offset_table.ToHandleChecked());
+  } else if (CodeKindMayLackSourcePositionTable(options.kind)) {
+    DCHECK(options.bytecode_offset_table.is_null());
+    Handle<ByteArray> table;
+    if (options.source_position_table.ToHandle(&table)) {
+      code->set_source_position_table(*table);
+    } else {
+      code->clear_source_position_table_and_bytecode_offset_table();
+    }
+  } else {
+    DCHECK(options.bytecode_offset_table.is_null());
+    code->set_source_position_table(
+        *options.source_position_table.ToHandleChecked());
+  }
+
+  // Set instruction stream and entrypoint.
   Handle<InstructionStream> istream;
   if (options.instruction_stream.ToHandle(&istream)) {
     CodePageHeaderModificationScope header_modification_scope(

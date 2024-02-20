@@ -94,16 +94,14 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
     : isolate_(isolate),
       local_isolate_(isolate_->main_thread_local_isolate()),
       code_desc_(desc),
-      kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()) {}
+      kind_(kind) {}
 
 Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
                                   const CodeDesc& desc, CodeKind kind)
     : isolate_(local_isolate->GetMainThreadIsolateUnsafe()),
       local_isolate_(local_isolate),
       code_desc_(desc),
-      kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()) {}
+      kind_(kind) {}
 
 Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
     int length, AllocationType allocation) {
@@ -181,7 +179,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         code_desc_.unwinding_info_offset_relative(),
         interpreter_data_,
         deoptimization_data_,
-        /*bytecode_offsets_or_source_position_table=*/position_table_,
+        bytecode_offset_table_,
+        source_position_table_,
         istream,
         /*instruction_start=*/kNullAddress,
     };
@@ -2660,10 +2659,9 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
   DCHECK(!code->marked_for_deoptimization());
   DCHECK(!code->can_have_weak_objects());
   DCHECK(!code->embedded_objects_cleared());
-  // This check would fail. We explicitly replace any existing position tables
-  // with the empty byte array below. Note this isn't strictly necessary - we
-  // could keep the position tables if we'd properly allocate them into RO
-  // space when needed.
+  // This check would fail. We explicitly clear any existing position tables
+  // below. Note this isn't strictly necessary - we could keep the position
+  // tables if we'd properly allocate them into RO space when needed.
   // DCHECK_EQ(code->raw_position_table(), *empty_byte_array());
 
   NewCodeOptions new_code_options = {
@@ -2679,10 +2677,11 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
       code->constant_pool_offset(),
       code->code_comments_offset(),
       code->unwinding_info_offset(),
-      MaybeHandle<HeapObject>{},
+      MaybeHandle<TrustedObject>{},
       MaybeHandle<DeoptimizationData>{},
-      /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
-      /*instruction_stream=*/MaybeHandle<InstructionStream>{},
+      /*bytecode_offset_table=*/MaybeHandle<ByteArray>{},
+      /*source_position_table=*/MaybeHandle<ByteArray>{},
+      MaybeHandle<InstructionStream>{},
       off_heap_entry,
   };
 

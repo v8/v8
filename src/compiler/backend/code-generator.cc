@@ -506,8 +506,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
       .set_profiler_data(info()->profiler_data())
       .set_osr_offset(info()->osr_offset());
 
-  if (info()->code_kind() == CodeKind::TURBOFAN) {
-    // Deoptimization data is only used in this case.
+  if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
   }
 

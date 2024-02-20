@@ -146,6 +146,12 @@ class Code : public ExposedTrustedObject {
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
   DECL_ACCESSORS(bytecode_offset_table, Tagged<ByteArray>)
+
+  inline bool has_source_position_table_or_bytecode_offset_table() const;
+  inline bool has_source_position_table() const;
+  inline bool has_bytecode_offset_table() const;
+  inline void clear_source_position_table_and_bytecode_offset_table();
+
   DECL_PRIMITIVE_ACCESSORS(inlined_bytecode_size, unsigned)
   DECL_PRIMITIVE_ACCESSORS(osr_offset, BytecodeOffset)
   // [code_comments_offset]: Offset of the code comment section.
@@ -340,6 +346,13 @@ class Code : public ExposedTrustedObject {
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   /* Strong pointer fields. */                                                \
   V(kStartOfStrongFieldsOffset, 0)                                            \
+  /* This field contains: */                                                  \
+  /*  - A bytecode offset table (byte array) for baseline code */             \
+  /*  - A (possibly empty) source position table (byte array) for most */     \
+  /*    other types of code */                                                \
+  /*  - Smi::zero() for embedded builtin code (in RO space) */                \
+  /*    TODO(saelo) once we have a  trusted RO space, we could instead use */ \
+  /*    empty_trusted_byte_array to avoid using Smi::zero() at all. */        \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kWrapperOffset, kTaggedSize)                                              \
   V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
