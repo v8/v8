@@ -3426,6 +3426,13 @@ void WasmJs::InstallTypeReflection(Isolate* isolate,
             .FromJust());
   JSFunction::SetInitialMap(isolate, function_constructor, function_map,
                             function_proto);
+
+  constexpr PropertyAttributes ro_attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+  JSObject::AddProperty(isolate, function_proto,
+                        isolate->factory()->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Function"), ro_attributes);
+
   InstallFunc(isolate, function_proto, "type", WebAssemblyFunctionType, 0);
   SimpleInstallFunction(isolate, function_proto, "bind",
                         Builtin::kWebAssemblyFunctionPrototypeBind, 1, false);
