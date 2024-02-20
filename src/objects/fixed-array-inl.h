@@ -51,25 +51,25 @@ void TaggedArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 int TaggedArrayBase<D, S, P>::length() const {
   return capacity();
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 int TaggedArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
   return capacity(tag);
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set_length(int value) {
   set_capacity(value);
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
   set_capacity(value, tag);
 }
@@ -137,7 +137,7 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value) {
   set(index, value, SKIP_WRITE_BARRIER);
 }
@@ -153,7 +153,7 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    RelaxedStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
@@ -170,7 +170,7 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    ReleaseStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
@@ -187,7 +187,7 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
 }
 
 template <class D, class S, class P>
-template <typename>
+template <typename, typename>
 void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
                                    SeqCstAccessTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);

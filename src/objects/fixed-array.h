@@ -37,8 +37,10 @@ class TaggedArrayBase : public Super {
   using ElementFieldT =
       TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
 
+  template <typename ElementT>
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
+
   static constexpr WriteBarrierMode kDefaultMode =
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
@@ -59,13 +61,17 @@ class TaggedArrayBase : public Super {
 
   // For most arraylike objects, length equals capacity. Provide these
   // convenience accessors:
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline int length() const;
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline int length(AcquireLoadTag tag) const;
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline void set_length(int value);
-  template <typename = std::enable_if<Shape::kLengthEqualsCapacity>>
+  template <typename T = Shape,
+            typename = std::enable_if<T::kLengthEqualsCapacity>>
   inline void set_length(int value, ReleaseStoreTag tag);
 
   inline Tagged<ElementT> get(int index) const;
@@ -75,19 +81,23 @@ class TaggedArrayBase : public Super {
 
   inline void set(int index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value);
   inline void set(int index, Tagged<ElementT> value, RelaxedStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
   inline void set(int index, Tagged<ElementT> value, ReleaseStoreTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
   inline void set(int index, Tagged<ElementT> value, SeqCstAccessTag,
                   WriteBarrierMode mode = kDefaultMode);
-  template <typename = std::enable_if<kSupportsSmiElements>>
+  template <typename T = ElementT,
+            typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
   inline Tagged<ElementT> swap(int index, Tagged<ElementT> value,
@@ -451,9 +461,13 @@ class FixedDoubleArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kDoubleSize;
   using ElementT = double;
-  static constexpr int kLengthOffset = HeapObject::kHeaderSize;
-  static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
   static constexpr RootIndex kMapRootIndex = RootIndex::kFixedDoubleArrayMap;
+
+#define FIELD_LIST(V)           \
+  V(kLengthOffset, kTaggedSize) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
 };
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
@@ -721,6 +735,7 @@ class ByteArrayShape final : public AllStatic {
   static constexpr int kElementSize = kUInt8Size;
   using ElementT = uint8_t;
   static constexpr RootIndex kMapRootIndex = RootIndex::kByteArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \
@@ -770,6 +785,7 @@ class TrustedByteArrayShape final : public AllStatic {
   static constexpr int kElementSize = kUInt8Size;
   using ElementT = uint8_t;
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedByteArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \
