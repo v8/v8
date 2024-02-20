@@ -614,7 +614,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     for (int table_index = 0; table_index < table_count; ++table_index) {
       Tagged<WasmIndirectFunctionTable> table =
           trusted_data->indirect_function_table(table_index);
-      if (table->refs()->get(entry_index) == *ref) {
+      if (entry_index < table->refs()->length() &&
+          table->refs()->get(entry_index) == *ref) {
         canonical_sig_index = table->sig_ids()->get(entry_index);
         break;
       }
@@ -685,7 +686,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     for (int table_index = 0; table_index < table_count; ++table_index) {
       Tagged<WasmIndirectFunctionTable> table =
           trusted_data->indirect_function_table(table_index);
-      if (table->refs()->get(entry_index) == *ref) {
+      if (entry_index < table->refs()->length() &&
+          table->refs()->get(entry_index) == *ref) {
         table->targets()
             ->set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
                 entry_index, isolate, wasm_code->instruction_start());
