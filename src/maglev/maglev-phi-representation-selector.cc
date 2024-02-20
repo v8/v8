@@ -57,17 +57,35 @@ void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
   }
 }
 
-namespace {
-
-bool CanHoistUntaggingTo(BasicBlock* block) {
+bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {
   if (block->successors().size() != 1) return false;
-  if (!block->successors()[0]->is_loop()) return true;
+  BasicBlock* next = block->successors()[0];
   // To be able to hoist above resumable loops we would have to be able to
   // convert during resumption.
-  return !block->successors()[0]->state()->is_resumable_loop();
+  if (next->is_loop() && next->state()->is_resumable_loop()) return false;
+  // Ensure that there is no exception handler between the current location and
+  // the BB where we want to hoist to.
+  if (builder_->compilation_unit()->bytecode().handler_table_size() == 0) {
+    return true;
+  }
+  // TODO(olivf): Currently, excluding exception handlers is done very
+  // conservatively, essentially bailing on any kind of merge block encountered.
+  BasicBlock* pos = current_block_;
+  while (true) {
+    if (pos->is_merge_block()) {
+      if (pos->is_loop() && pos->predecessor_count() == 2) {
+        pos = pos->predecessor_at(0);
+      } else {
+        return false;
+      }
+    } else {
+      pos = pos->predecessor();
+    }
+    if (pos == block) return true;
+    DCHECK_NE(pos, current_block_);
+    DCHECK_NE(pos, *builder_->graph()->begin());
+  }
 }
-
-}  // namespace
 
 MaglevPhiRepresentationSelector::ProcessPhiResult
 MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
@@ -585,7 +603,6 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       }
       ValueNode* untagged;
       switch (repr) {
-        case ValueRepresentation::kUint32:
         case ValueRepresentation::kInt32:
           if (!deopt_frame) {
             DCHECK(
@@ -606,8 +623,6 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                                block, NewNodePosition::kEnd, deopt_frame);
           }
           break;
-        case ValueRepresentation::kTagged:
-          UNREACHABLE();
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kHoleyFloat64:
           if (!deopt_frame) {
@@ -624,8 +639,15 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                                    builder_->zone(), {input},
                                    TaggedToFloat64ConversionType::kOnlyNumber),
                                block, NewNodePosition::kEnd, deopt_frame);
+            if (repr != ValueRepresentation::kHoleyFloat64) {
+              untagged = AddNode(NodeBase::New<CheckedHoleyFloat64ToFloat64>(
+                                     builder_->zone(), {untagged}),
+                                 block, NewNodePosition::kEnd, deopt_frame);
+            }
           }
           break;
+        case ValueRepresentation::kTagged:
+        case ValueRepresentation::kUint32:
         case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }

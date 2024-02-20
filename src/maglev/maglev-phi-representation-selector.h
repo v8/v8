@@ -207,6 +207,8 @@ class MaglevPhiRepresentationSelector {
     return builder_->graph_labeller();
   }
 
+  bool CanHoistUntaggingTo(BasicBlock* block);
+
   MaglevGraphBuilder* builder_ = nullptr;
   BasicBlock* current_block_ = nullptr;
 
