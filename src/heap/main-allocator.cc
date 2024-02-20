@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/execution/vm-state.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap.h"
@@ -542,6 +543,11 @@ bool PagedNewSpaceAllocatorPolicy::EnsureAllocation(
   DCHECK_NOT_NULL(space_->paged_space()->last_lab_page_);
   space_->paged_space()->last_lab_page_->IncreaseAllocatedLabSize(
       allocator_->limit() - allocator_->top());
+
+  if (space_heap()->incremental_marking()->IsMinorMarking()) {
+    space_heap()->concurrent_marking()->RescheduleJobIfNeeded(
+        GarbageCollector::MINOR_MARK_SWEEPER);
+  }
 
   return true;
 }
