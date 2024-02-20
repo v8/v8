@@ -244,6 +244,15 @@ class RootVisitor;
   IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
+// TODO(saelo): ideally, these would be read-only roots (and then become part
+// of the READ_ONLY_ROOT_LIST instead of the
+// STRONG_MUTABLE_IMMOVABLE_ROOT_LIST). However, currently we do not have a
+// trusted RO space.
+#define TRUSTED_ROOT_LIST(V)                                              \
+  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
+  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
+
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
 #define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                  \
@@ -338,7 +347,8 @@ class RootVisitor;
   V(SharedFunctionInfo, array_from_async_array_like_on_fulfilled_shared_fun,   \
     ArrayFromAsyncArrayLikeOnFulfilledSharedFun)                               \
   V(SharedFunctionInfo, array_from_async_array_like_on_rejected_shared_fun,    \
-    ArrayFromAsyncArrayLikeOnRejectedSharedFun)
+    ArrayFromAsyncArrayLikeOnRejectedSharedFun)                                \
+  TRUSTED_ROOT_LIST(V)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
@@ -425,14 +435,6 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
-// TODO(saelo): ideally, these would be read-only roots (and then become part
-// of the READ_ONLY_ROOT_LIST instead of the MUTABLE_ROOT_LIST). However,
-// currently we do not have a trusted RO space.
-#define TRUSTED_ROOT_LIST(V)                                              \
-  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
-  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
-  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
-
 #define READ_ONLY_ROOT_LIST(V)     \
   STRONG_READ_ONLY_ROOT_LIST(V)    \
   INTERNALIZED_STRING_ROOT_LIST(V) \
@@ -448,7 +450,6 @@ class RootVisitor;
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
   STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)   \
-  TRUSTED_ROOT_LIST(V)                  \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \
@@ -492,8 +493,7 @@ enum class RootIndex : uint16_t {
   // roots).
   kMutableRootsCount = 0
       STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(COUNT_ROOT)
-      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT)
-      TRUSTED_ROOT_LIST(COUNT_ROOT),
+      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT),
   kFirstStrongRoot = kLastReadOnlyRoot + 1,
   kLastStrongRoot = kFirstStrongRoot + kMutableRootsCount - 1,
 
