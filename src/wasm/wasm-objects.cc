@@ -1399,7 +1399,10 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
                            function_index)),
                    isolate);
 
-  if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
+  bool setup_new_ref_with_generic_wrapper =
+      v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref);
+
+  if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     ref = isolate->factory()->NewWasmApiFunctionRef(
         handle(wafr->callable(), isolate),
@@ -1413,18 +1416,27 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
       Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
       isolate);
 
-  // Only set the call target if the function is not an imported function. The
-  // reason is that after wrapper tier-up the call target cannot be set anymore
-  // for imported functions, because the slot in the imported function table
-  // cannot be found anymore. Avoiding setting the call target makes the wrapper
-  // tiers behave more consistently, which can prevent surprising bugs.
+  // Only set the call target if we do not use the generic wasm-to-js wrapper.
+  // The reason is that after wrapper tier-up the call target cannot be set
+  // anymore for imported functions, because the slot in the imported function
+  // table cannot be found anymore. Avoiding setting the call target makes the
+  // wrapper tiers behave more consistently, which can prevent surprising bugs.
+  // Background: the WasmInternalFunction has two fields to store a reference to
+  // wrapper code: 1) the `call_target` field, and 2) the `code` field. In
+  // generated code, we use the `call_target` if it is set, and if it is not
+  // set, the `code` field is used. During wrapper tier-up, only the `code`
+  // field can be updated, not the `call_target` field, because the slot in the
+  // imported function table cannot be found anymore. For the newly created
+  // WasmInternalFunction, this would mean that calls with the generic wrapper
+  // would be done with the `call_target`, but after tier-up, the call with the
+  // optimized wrapper would be done with the 'code' field.
   auto result = isolate->factory()->NewWasmInternalFunction(
-      IsWasmApiFunctionRef(*ref)
+      setup_new_ref_with_generic_wrapper
           ? 0
           : trusted_instance_data->GetCallTarget(function_index),
       ref, rtt, function_index);
 
-  if (IsWasmApiFunctionRef(*ref)) {
+  if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     const wasm::FunctionSig* sig =
         module->signature(module->functions[function_index].sig_index);
