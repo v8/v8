@@ -74,6 +74,13 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
     DCHECK_EQ(block.index().id(), 0);
     types_table_.StartNewSnapshot();
   } else if (block.IsLoop()) {
+    const Block& forward_predecessor =
+        *block.LastPredecessor()->NeighboringPredecessor();
+    if (!IsReachable(forward_predecessor)) {
+      // If a loop isn't reachable through its forward edge, it can't possibly
+      // become reachable via the backedge.
+      block_is_unreachable_.Add(block.index().id());
+    }
     MaybeSnapshot back_edge_snap =
         block_to_snapshot_[block.LastPredecessor()->index()];
     if (back_edge_snap.has_value()) {
@@ -84,11 +91,6 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
       // The loop wasn't visited yet. There isn't any type information available
       // for the backedge.
       is_first_loop_header_evaluation_ = true;
-      const Block& forward_predecessor =
-          *block.LastPredecessor()->NeighboringPredecessor();
-      if (!IsReachable(forward_predecessor)) {
-        block_is_unreachable_.Add(block.index().id());
-      }
       Snapshot forward_edge_snap =
           block_to_snapshot_[forward_predecessor.index()].value();
       types_table_.StartNewSnapshot(forward_edge_snap);
