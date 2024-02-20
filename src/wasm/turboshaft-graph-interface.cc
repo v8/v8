@@ -270,6 +270,40 @@ V<HeapObject> WasmGraphBuilderBase::LoadTrustedDataFromMaybeInstanceObject(
   return result;
 }
 
+void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
+    Zone* zone, OpIndex thread_in_wasm_flag_address, bool new_value) {
+  if (v8_flags.debug_code) {
+    V<Word32> flag_value =
+        __ Load(thread_in_wasm_flag_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Int32(), 0);
+
+    IF (UNLIKELY(__ Word32Equal(flag_value, new_value))) {
+      OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
+          new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                    : AbortReason::kUnexpectedThreadInWasmUnset));
+      CallRuntime(zone, Runtime::kAbort, {message_id}, __ NoContextConstant());
+      __ Unreachable();
+    }
+  }
+
+  __ Store(thread_in_wasm_flag_address, __ Word32Constant(new_value),
+           LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
+           compiler::kNoWriteBarrier);
+}
+
+void WasmGraphBuilderBase::BuildModifyThreadInWasmFlag(Zone* zone,
+                                                       bool new_value) {
+  if (!trap_handler::IsTrapHandlerEnabled()) return;
+
+  OpIndex isolate_root = __ LoadRootRegister();
+  OpIndex thread_in_wasm_flag_address =
+      __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
+              MemoryRepresentation::UintPtr(),
+              Isolate::thread_in_wasm_flag_address_offset());
+  BuildModifyThreadInWasmFlagHelper(zone, thread_in_wasm_flag_address,
+                                    new_value);
+}
+
 class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   class BlockPhis;
@@ -1264,58 +1298,23 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // This can't overflow because we've clamped `start` above.
     V<Smi> start_smi = __ TagSmi(start);
-    BuildModifyThreadInWasmFlag(decoder, false);
+    BuildModifyThreadInWasmFlag(decoder->zone(), false);
 
     V<Smi> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringIndexOf>(
             decoder, {string, search, start_smi});
-    BuildModifyThreadInWasmFlag(decoder, true);
+    BuildModifyThreadInWasmFlag(decoder->zone(), true);
 
     return __ UntagSmi(result_value);
   }
 
-  void BuildModifyThreadInWasmFlagHelper(FullDecoder* decoder,
-                                         OpIndex thread_in_wasm_flag_address,
-                                         bool new_value) {
-    if (v8_flags.debug_code) {
-      V<Word32> flag_value =
-          __ Load(thread_in_wasm_flag_address, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::Int32(), 0);
-
-      IF (UNLIKELY(__ Word32Equal(flag_value, new_value))) {
-        OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
-            new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                      : AbortReason::kUnexpectedThreadInWasmUnset));
-        CallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
-                    __ NoContextConstant());
-        __ Unreachable();
-      }
-    }
-
-    __ Store(thread_in_wasm_flag_address, __ Word32Constant(new_value),
-             LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
-             compiler::kNoWriteBarrier);
-  }
-
-  void BuildModifyThreadInWasmFlag(FullDecoder* decoder, bool new_value) {
-    if (!trap_handler::IsTrapHandlerEnabled()) return;
-
-    OpIndex isolate_root = __ LoadRootRegister();
-    OpIndex thread_in_wasm_flag_address =
-        __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
-                MemoryRepresentation::UintPtr(),
-                Isolate::thread_in_wasm_flag_address_offset());
-    BuildModifyThreadInWasmFlagHelper(decoder, thread_in_wasm_flag_address,
-                                      new_value);
-  }
-
 #if V8_INTL_SUPPORT
   V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
-    BuildModifyThreadInWasmFlag(decoder, false);
+    BuildModifyThreadInWasmFlag(decoder->zone(), false);
     OpIndex result = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::StringToLowerCaseIntl>(
         decoder, __ NoContextConstant(), {string});
-    BuildModifyThreadInWasmFlag(decoder, true);
+    BuildModifyThreadInWasmFlag(decoder->zone(), true);
     return result;
   }
 #endif
@@ -1728,23 +1727,23 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
       // Other string-related imports.
       case WKI::kDoubleToString:
-        BuildModifyThreadInWasmFlag(decoder, false);
+        BuildModifyThreadInWasmFlag(decoder->zone(), false);
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmFloat64ToString>(decoder, {args[0].op});
         result = AnnotateAsString(result, returns[0].type);
-        BuildModifyThreadInWasmFlag(decoder, true);
+        BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
                 : kFeature_imported_strings);
         break;
       case WKI::kIntToString:
-        BuildModifyThreadInWasmFlag(decoder, false);
+        BuildModifyThreadInWasmFlag(decoder->zone(), false);
         result =
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
                 decoder, {args[0].op, args[1].op});
         result = AnnotateAsString(result, returns[0].type);
-        BuildModifyThreadInWasmFlag(decoder, true);
+        BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
@@ -1756,19 +1755,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           GOTO_IF(__ IsNull(args[0].op, args[0].type), done,
                   __ Float64Constant(std::numeric_limits<double>::quiet_NaN()));
 
-          BuildModifyThreadInWasmFlag(decoder, false);
+          BuildModifyThreadInWasmFlag(decoder->zone(), false);
           V<Float64> not_null_res = CallBuiltinThroughJumptable<
               BuiltinCallDescriptor::WasmStringToDouble>(decoder, {args[0].op});
-          BuildModifyThreadInWasmFlag(decoder, true);
+          BuildModifyThreadInWasmFlag(decoder->zone(), true);
           GOTO(done, not_null_res);
 
           BIND(done, result_f64);
           result = result_f64;
         } else {
-          BuildModifyThreadInWasmFlag(decoder, false);
+          BuildModifyThreadInWasmFlag(decoder->zone(), false);
           result = CallBuiltinThroughJumptable<
               BuiltinCallDescriptor::WasmStringToDouble>(decoder, {args[0].op});
-          BuildModifyThreadInWasmFlag(decoder, true);
+          BuildModifyThreadInWasmFlag(decoder->zone(), true);
         }
         decoder->detected_->Add(kFeature_stringref);
         break;

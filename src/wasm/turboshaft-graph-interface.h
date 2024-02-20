@@ -60,11 +60,17 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
       compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;
 
+ public:
+  using OpIndex = compiler::turboshaft::OpIndex;
+  void BuildModifyThreadInWasmFlagHelper(Zone* zone,
+                                         OpIndex thread_in_wasm_flag_address,
+                                         bool new_value);
+  void BuildModifyThreadInWasmFlag(Zone* zone, bool new_value);
+
  protected:
   WasmGraphBuilderBase(Zone* zone, Assembler& assembler)
       : zone_(zone), asm_(assembler) {}
 
-  using OpIndex = compiler::turboshaft::OpIndex;
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
   using TSCallDescriptor = compiler::turboshaft::TSCallDescriptor;
   using Word32 = compiler::turboshaft::Word32;

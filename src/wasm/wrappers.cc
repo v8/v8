@@ -57,23 +57,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
-  void BuildModifyThreadInWasmFlagHelper(V<WordPtr> thread_in_wasm_flag_address,
-                                         bool new_value) {
-    if (v8_flags.debug_code) {
-      V<Word32> flag_value =
-          __ Load(thread_in_wasm_flag_address, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::UintPtr());
-      V<Word32> check =
-          __ Word32Equal(flag_value, __ Word32Constant(new_value ? 0 : 1));
-      AbortIfNot(check, new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                                  : AbortReason::kUnexpectedThreadInWasmUnset);
-    }
-
-    __ Store(thread_in_wasm_flag_address, __ Word32Constant(new_value ? 1 : 0),
-             StoreOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
-             compiler::WriteBarrierKind::kNoWriteBarrier);
-  }
-
   class ModifyThreadInWasmFlagScope {
    public:
     ModifyThreadInWasmFlagScope(
@@ -87,6 +70,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                     RegisterRepresentation::WordPtr(),
                     Isolate::thread_in_wasm_flag_address_offset());
       wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
+          wasm_wrapper_graph_builder_->Asm().phase_zone(),
           thread_in_wasm_flag_address_, true);
     }
 
@@ -95,6 +79,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     ~ModifyThreadInWasmFlagScope() {
       if (!trap_handler::IsTrapHandlerEnabled()) return;
       wasm_wrapper_graph_builder_->BuildModifyThreadInWasmFlagHelper(
+          wasm_wrapper_graph_builder_->Asm().phase_zone(),
           thread_in_wasm_flag_address_, false);
     }
 
