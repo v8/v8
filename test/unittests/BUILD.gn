@@ -697,6 +697,9 @@ v8_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [ "compiler/riscv64/instruction-selector-riscv64-unittest.cc" ]
     }
+    if (v8_enable_webassembly && current_cpu == "riscv64") {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
@@ -755,11 +758,11 @@ v8_source_set("v8_unittests_sources") {
       sources += [ "wasm/trap-handler-win-unittest.cc" ]
     }
 
-    # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
+    # Include this test only on simulator builds on x64 on Linux, Mac and
     # Windows.
     if (current_cpu == "x64" &&
-        (v8_current_cpu == "arm64" || v8_current_cpu == "loong64") &&
-        (is_linux || is_mac || is_win)) {
+        (v8_current_cpu == "arm64" || v8_current_cpu == "loong64" ||
+         v8_current_cpu == "riscv64") && (is_linux || is_mac || is_win)) {
       sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
     }
   }

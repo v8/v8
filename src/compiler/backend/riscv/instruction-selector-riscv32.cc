@@ -233,6 +233,18 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
   UNREACHABLE();
 }
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
+
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   RiscvOperandGeneratorT<TurbofanAdapter> g(this);
@@ -1303,6 +1315,59 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
 
     VisitAtomicStore(this, node, opcode, AtomicWidth::kWord32);
   }
+}
+
+template <typename Adapter>
+void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
+                         ArchOpcode opcode, AtomicWidth width) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temp[3];
+  temp[0] = g.TempRegister();
+  temp[1] = g.TempRegister();
+  temp[2] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
+                         AtomicWidthField::encode(width);
+  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+}
+
+template <typename Adapter>
+void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
+                                Node* node, ArchOpcode opcode,
+                                AtomicWidth width) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+
+  AddressingMode addressing_mode = kMode_MRI;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(old_value);
+  inputs[input_count++] = g.UseUniqueRegister(new_value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temp[3];
+  temp[0] = g.TempRegister();
+  temp[1] = g.TempRegister();
+  temp[2] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
+                         AtomicWidthField::encode(width);
+  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
 
 template <typename Adapter>

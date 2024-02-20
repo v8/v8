@@ -4664,6 +4664,17 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       ]
     }
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on riscv64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "riscv64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [ "src/trap-handler/handler-inside-posix.h" ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/trap-handler-simulator.h" ]
+      }
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       ### gcmole(riscv32) ###
@@ -5971,6 +5982,20 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/riscv/simulator-riscv.cc",
       "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
     ]
+    if (v8_enable_webassembly) {
+      # Trap handling is enabled on riscv64 Linux and in simulators on
+      # x64 on Linux.
+      if ((current_cpu == "riscv64" && is_linux) ||
+          (current_cpu == "x64" && is_linux)) {
+        sources += [
+          "src/trap-handler/handler-inside-posix.cc",
+          "src/trap-handler/handler-outside-posix.cc",
+        ]
+      }
+      if (current_cpu == "x64" && is_linux) {
+        sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
+      }
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       ### gcmole(riscv32) ###

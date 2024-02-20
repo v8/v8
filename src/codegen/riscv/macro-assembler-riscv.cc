@@ -156,6 +156,9 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
            Operand(FEEDBACK_VECTOR_TYPE));
   }
 }
+void MacroAssembler::AssertUnreachable(AbortReason reason) {
+  if (v8_flags.debug_code) Abort(reason);
+}
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
