@@ -615,7 +615,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       if (!trusted_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
           trusted_data->dispatch_table(table_index);
-      if (table->ref(entry_index) == *ref) {
+      if (entry_index < table->length() && table->ref(entry_index) == *ref) {
         canonical_sig_index = table->sig(entry_index);
         break;
       }
@@ -687,7 +687,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       if (!trusted_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
           trusted_data->dispatch_table(table_index);
-      if (table->ref(entry_index) == *ref) {
+      if (entry_index < table->length() && table->ref(entry_index) == *ref) {
         table->SetTarget(entry_index, wasm_code->instruction_start());
         // {ref} is used in at most one table.
         break;
