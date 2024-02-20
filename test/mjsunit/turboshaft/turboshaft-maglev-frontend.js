@@ -173,6 +173,7 @@ function load_double_arr(arr, idx) {
   function f(o) { return o.x(17); }
 
   let o = { y : 42, x : function(a) { return a + this.y; } };
+  %NeverOptimizeFunction(o.x);
 
   %PrepareFunctionForOptimization(f);
   assertEquals(59, f(o));
