@@ -53,7 +53,7 @@ BUILD_TARGETS_ALL = ["all"]
 ARCHES = [
     "ia32", "x64", "arm", "arm64", "mips64el", "ppc", "ppc64", "riscv32",
     "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64",
-    "fuchsia_x64", "fuchsia_arm64"
+    "fuchsia_x64", "fuchsia_arm64", "android_riscv64"
 ]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
@@ -518,6 +518,8 @@ class ManagedConfig(RawConfig):
       cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       cpu = "arm64"
+    elif self.arch == "android_riscv64":
+      cpu = "riscv64"
     elif self.arch == "arm64" and _get_machine() in ("aarch64", "arm64"):
       # arm64 build host:
       cpu = "arm64"
@@ -537,6 +539,8 @@ class ManagedConfig(RawConfig):
       v8_cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       v8_cpu = "arm64"
+    elif self.arch == "android_riscv64":
+      v8_cpu = "riscv64"
     elif self.arch in ("arm", "arm64", "mips64el", "ppc", "ppc64", "riscv64",
                        "riscv32", "s390", "s390x", "loong64"):
       v8_cpu = self.arch
@@ -545,7 +549,7 @@ class ManagedConfig(RawConfig):
     return [f"v8_target_cpu = \"{v8_cpu}\""]
 
   def get_target_os(self):
-    if self.arch in ("android_arm", "android_arm64"):
+    if self.arch in ("android_arm", "android_arm64", "android_riscv64"):
       return ["target_os = \"android\""]
     elif self.arch in ("fuchsia_x64", "fuchsia_arm64"):
       return ["target_os = \"fuchsia\""]
