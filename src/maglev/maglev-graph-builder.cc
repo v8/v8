@@ -4358,6 +4358,30 @@ ReduceResult TryFindLoadedProperty(
 
 }  // namespace
 
+ValueNode* MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
+  ReduceResult known_elements =
+      TryFindLoadedProperty(known_node_aspects().loaded_properties, object,
+                            KnownNodeAspects::LoadedPropertyMapKey::Elements());
+  if (known_elements.IsDone()) {
+    DCHECK(known_elements.IsDoneWithValue());
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Reusing non-constant [Elements] "
+                << PrintNodeLabel(graph_labeller(), known_elements.value())
+                << ": " << PrintNode(graph_labeller(), known_elements.value())
+                << std::endl;
+    }
+    return known_elements.value();
+  }
+
+  DCHECK_EQ(JSObject::kElementsOffset, JSArray::kElementsOffset);
+  ValueNode* elements =
+      AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+  RecordKnownProperty(object,
+                      KnownNodeAspects::LoadedPropertyMapKey::Elements(),
+                      elements, false, compiler::AccessMode::kLoad);
+  return elements;
+}
+
 ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
     ValueNode* object, ElementsKind elements_kind) {
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
@@ -4508,8 +4532,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   bool is_jsarray = HasOnlyJSArrayMaps(maps);
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
-  ValueNode* elements_array =
-      AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+  ValueNode* elements_array = BuildLoadElements(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
   ValueNode* length;
   if (is_jsarray) {
@@ -4587,9 +4610,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
   // Get the elements array.
-  ValueNode* elements_array =
-      AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
-
+  ValueNode* elements_array = BuildLoadElements(object);
   GET_VALUE_OR_ABORT(value, ConvertForStoring(value, elements_kind));
   ValueNode* index;
 
@@ -4975,6 +4996,9 @@ void MaglevGraphBuilder::RecordKnownProperty(
         case KnownNodeAspects::LoadedPropertyMapKey::kName:
           std::cout << "properties with name " << *key.name().object();
           break;
+        case KnownNodeAspects::LoadedPropertyMapKey::kElements:
+          std::cout << "Elements";
+          break;
         case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
           std::cout << "TypedArray length";
           break;
@@ -4992,6 +5016,9 @@ void MaglevGraphBuilder::RecordKnownProperty(
     switch (key.type()) {
       case KnownNodeAspects::LoadedPropertyMapKey::kName:
         std::cout << *key.name().object();
+        break;
+      case KnownNodeAspects::LoadedPropertyMapKey::kElements:
+        std::cout << "Elements";
         break;
       case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
         std::cout << "TypedArray length";
@@ -6181,8 +6208,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   // element = array.elements[index]
   // ```
-  ValueNode* elements =
-      AddNewNode<LoadTaggedField>({receiver}, JSArray::kElementsOffset);
+  ValueNode* elements = BuildLoadElements(receiver);
   ValueNode* element;
   if (IsDoubleElementsKind(elements_kind)) {
     element = AddNewNode<LoadFixedDoubleArrayElement>({elements, index_int32});
@@ -6744,9 +6770,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   ValueNode* new_array_length_smi =
       AddNewNode<CheckedSmiIncrement>({old_array_length_smi});
 
-  ValueNode* elements_array =
-      AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
-
+  ValueNode* elements_array = BuildLoadElements(receiver);
   ValueNode* elements_array_length =
       AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
           {elements_array}, FixedArray::kLengthOffset)});
@@ -6897,9 +6921,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
       &empty_array, {old_array_length_smi, GetSmiConstant(0)});
 
-  ValueNode* elements_array =
-      AddNewNode<LoadTaggedField>({receiver}, JSObject::kElementsOffset);
-
+  ValueNode* elements_array = BuildLoadElements(receiver);
   ValueNode* new_array_length_smi =
       AddNewNode<CheckedSmiDecrement>({old_array_length_smi});
   ValueNode* new_array_length =
@@ -9166,9 +9188,14 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   if (object.js_array_length.has_value()) {
     BuildStoreTaggedField(allocation, GetConstant(*object.js_array_length),
                           JSArray::kLengthOffset);
+    RecordKnownProperty(allocation, broker()->length_string(),
+                        GetConstant(*object.js_array_length), false,
+                        compiler::AccessMode::kLoad);
   }
-
   BuildStoreTaggedField(allocation, elements, JSObject::kElementsOffset);
+  RecordKnownProperty(allocation,
+                      KnownNodeAspects::LoadedPropertyMapKey::Elements(),
+                      elements, false, compiler::AccessMode::kLoad);
   int number_of_own_descriptors = object.map.NumberOfOwnDescriptors();
   for (int i = 0; i < object.inobject_properties; ++i) {
     BuildStoreTaggedField(allocation, properties[i],
