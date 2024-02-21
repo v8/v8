@@ -5491,13 +5491,20 @@ void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
 }
 
 void ElementsAccessor::InitializeOncePerProcess() {
-  static ElementsAccessor* accessor_array[] = {
+  // Here we create an array with more entries than element kinds.
+  // This is due to the sandbox: this array is indexed with an ElementsKind
+  // read directly from within the sandbox, which must therefore be considered
+  // attacker-controlled. An ElementsKind is a uint8_t under the hood, so we
+  // can either use an array with 256 entries or have an explicit bounds-check
+  // on access. The latter is probably more expensive.
+  static_assert(std::is_same_v<std::underlying_type_t<ElementsKind>, uint8_t>);
+  static ElementsAccessor* accessor_array[256] = {
 #define ACCESSOR_ARRAY(Class, Kind, Store) new Class(),
       ELEMENTS_LIST(ACCESSOR_ARRAY)
 #undef ACCESSOR_ARRAY
   };
 
-  static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) ==
+  static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) >=
                 kElementsKindCount);
 
   elements_accessors_ = accessor_array;
