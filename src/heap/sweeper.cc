@@ -623,7 +623,6 @@ void Sweeper::InitializeMajorSweeping() {
 
 void Sweeper::InitializeMinorSweeping() {
   minor_sweeping_state_.InitializeSweeping();
-  DCHECK(!minor_sweeping_state_.should_reduce_memory());
 }
 
 namespace {
