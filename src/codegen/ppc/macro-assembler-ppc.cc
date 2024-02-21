@@ -5485,12 +5485,12 @@ void MacroAssembler::ByteReverseU64(Register dst, Register val, Register) {
 }
 
 void MacroAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  CmpS64(x, Operand(y), r0);
+  CmpS32(x, Operand(y), r0);
   beq(dest);
 }
 
 void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  CmpS64(x, Operand(y), r0);
+  CmpS32(x, Operand(y), r0);
   blt(dest);
 }
 
