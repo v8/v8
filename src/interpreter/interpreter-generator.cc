@@ -2236,6 +2236,8 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
+  ClobberAccumulator(UndefinedConstant());
+
 #ifndef V8_JITLESS
   TVARIABLE(HeapObject, maybe_feedback_vector);
   Label ok(this);
@@ -2277,8 +2279,6 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
 
   BIND(&ok);
 #endif  // !V8_JITLESS
-
-  ClobberAccumulator(UndefinedConstant());
 
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
