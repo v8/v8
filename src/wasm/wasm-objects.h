@@ -460,9 +460,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #undef ASSERT_FIELD_ALIGNED
 #undef FIELD_LIST
 
-  // GC support: List all tagged fields.
+  // GC support: List all tagged fields and protected fields.
   // V(offset, name)
-#define WASM_TAGGED_INSTANCE_OBJECT_FIELDS(V)                                 \
+#define WASM_TAGGED_INSTANCE_DATA_FIELDS(V)                                   \
   V(kImportedFunctionRefsOffset, "imported_function_refs")                    \
   V(kInstanceObjectOffset, "instance_object")                                 \
   V(kNativeContextOffset, "native_context")                                   \
@@ -482,22 +482,31 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kDataSegmentStartsOffset, "data_segment_starts")                          \
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V) \
+  V(kDispatchTable0Offset, "dispatch_table0")  \
+  V(kDispatchTablesOffset, "dispatch_tables")
+
+#define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
+#define WASM_INSTANCE_FIELD_NAME(_, name) name,
 
   static constexpr std::array<uint16_t, 19> kTaggedFieldOffsets = {
-#define WASM_INSTANCE_TAGGED_FIELD_OFFSET(offset, _) offset,
-      WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_OFFSET)
-#undef WASM_INSTANCE_TAGGED_FIELD_OFFSET
-  };
-
+      WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
   static constexpr std::array<const char*, 19> kTaggedFieldNames = {
-#define WASM_INSTANCE_TAGGED_FIELD_NAME(_, name) name,
-      WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_NAME)
-#undef WASM_INSTANCE_TAGGED_FIELD_NAME
-  };
-#undef WASM_TAGGED_INSTANCE_OBJECT_FIELDS
+      WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
+  static constexpr std::array<uint16_t, 2> kProtectedFieldOffsets = {
+      WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
+  static constexpr std::array<const char*, 2> kProtectedFieldNames = {
+      WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
+
+#undef WASM_INSTANCE_FIELD_OFFSET
+#undef WASM_INSTANCE_FIELD_NAME
+#undef WASM_TAGGED_INSTANCE_DATA_FIELDS
+#undef WASM_PROTECTED_INSTANCE_DATA_FIELDS
 
   static_assert(kTaggedFieldOffsets.size() == kTaggedFieldNames.size(),
-                "every field offset needs a name");
+                "every tagged field offset needs a name");
+  static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
+                "every protected field offset needs a name");
 
   const wasm::WasmModule* module();
 

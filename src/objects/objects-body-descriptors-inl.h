@@ -811,8 +811,9 @@ class WasmTrustedInstanceData::BodyDescriptor final
       IteratePointer(obj, offset, v);
     }
 
-    IterateProtectedPointer(obj, kDispatchTable0Offset, v);
-    IterateProtectedPointer(obj, kDispatchTablesOffset, v);
+    for (uint16_t offset : kProtectedFieldOffsets) {
+      IterateProtectedPointer(obj, offset, v);
+    }
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

@@ -56,6 +56,10 @@ class TrustedObject : public HeapObject {
 
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
 
+#ifdef VERIFY_HEAP
+  inline void VerifyProtectedPointerField(Isolate* isolate, int offset);
+#endif
+
   static constexpr int kHeaderSize = HeapObject::kHeaderSize;
 
   OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);

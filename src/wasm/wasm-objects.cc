@@ -1083,6 +1083,12 @@ constexpr std::array<uint16_t, 19> WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
 constexpr std::array<const char*, 19>
     WasmTrustedInstanceData::kTaggedFieldNames;
+// static
+constexpr std::array<uint16_t, 2>
+    WasmTrustedInstanceData::kProtectedFieldOffsets;
+// static
+constexpr std::array<const char*, 2>
+    WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
 void WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(

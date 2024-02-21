@@ -2202,6 +2202,11 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
     VerifyObjectField(isolate, offset);
   }
 
+  // Check all protected fields.
+  for (uint16_t offset : kProtectedFieldOffsets) {
+    VerifyProtectedPointerField(isolate, offset);
+  }
+
   int num_dispatch_tables = dispatch_tables()->length();
   for (int i = 0; i < num_dispatch_tables; ++i) {
     Tagged<Object> table = dispatch_tables()->get(i);

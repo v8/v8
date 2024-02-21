@@ -59,6 +59,12 @@ ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
   return ProtectedPointerSlot(field_address(byte_offset));
 }
 
+#ifdef VERIFY_HEAP
+void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
+  Object::VerifyPointer(isolate, ReadProtectedPointerField(offset));
+}
+#endif
+
 CAST_ACCESSOR(ExposedTrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(ExposedTrustedObject, TrustedObject)
 
