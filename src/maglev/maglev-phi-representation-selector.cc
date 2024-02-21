@@ -62,29 +62,7 @@ bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {
   BasicBlock* next = block->successors()[0];
   // To be able to hoist above resumable loops we would have to be able to
   // convert during resumption.
-  if (next->is_loop() && next->state()->is_resumable_loop()) return false;
-  // Ensure that there is no exception handler between the current location and
-  // the BB where we want to hoist to.
-  if (builder_->compilation_unit()->bytecode().handler_table_size() == 0) {
-    return true;
-  }
-  // TODO(olivf): Currently, excluding exception handlers is done very
-  // conservatively, essentially bailing on any kind of merge block encountered.
-  BasicBlock* pos = current_block_;
-  while (true) {
-    if (pos->is_merge_block()) {
-      if (pos->is_loop() && pos->predecessor_count() == 2) {
-        pos = pos->predecessor_at(0);
-      } else {
-        return false;
-      }
-    } else {
-      pos = pos->predecessor();
-    }
-    if (pos == block) return true;
-    DCHECK_NE(pos, current_block_);
-    DCHECK_NE(pos, *builder_->graph()->begin());
-  }
+  return !next->state()->is_resumable_loop();
 }
 
 MaglevPhiRepresentationSelector::ProcessPhiResult
