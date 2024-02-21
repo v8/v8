@@ -261,7 +261,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
       result = gasm_.HasInstanceType(object, WASM_STRUCT_TYPE);
       break;
     }
-    if (to_rep == wasm::HeapType::kString) {
+    if (to_rep == wasm::HeapType::kString ||
+        to_rep == wasm::HeapType::kExternString) {
       Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
       result = gasm_.Uint32LessThan(instance_type,
                                     gasm_.Uint32Constant(FIRST_NONSTRING_TYPE));
@@ -441,7 +442,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
-    if (to_rep == wasm::HeapType::kString) {
+    if (to_rep == wasm::HeapType::kString ||
+        to_rep == wasm::HeapType::kExternString) {
       Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
       gasm_.TrapUnless(
           gasm_.Uint32LessThan(instance_type,

@@ -138,13 +138,6 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
     type_from_state = state.LookupState(object);
   }
   if (!type_from_state.IsSet()) return type_from_node;
-  // When abstract casts have performed implicit internalization (see
-  // {ReduceWasmTypeCastAbstract} below), we may encounter the results
-  // of that here.
-  if (IsImplicitInternalization(type_from_node.type, type_from_state.type.type,
-                                type_from_state.type.module)) {
-    return type_from_state.type;
-  }
   return wasm::Intersection(type_from_node, type_from_state.type);
 }
 
@@ -472,12 +465,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
     }
   }
 
-  // This can never result from user code, only from internal shortcuts,
-  // e.g. when using externrefs as strings.
-  const bool implicit_internalize =
-      IsImplicitInternalization(config.from, config.to, object_type.module);
-  if (!implicit_internalize &&
-      wasm::HeapTypesUnrelated(object_type.type.heap_type(),
+  if (wasm::HeapTypesUnrelated(object_type.type.heap_type(),
                                config.to.heap_type(), object_type.module,
                                object_type.module)) {
     gasm_.InitializeEffectControl(effect, control);
@@ -501,9 +489,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
                                      {object_type.type, config.to}));
 
   wasm::TypeInModule new_type =
-      implicit_internalize
-          ? wasm::TypeInModule{config.to, module_}
-          : wasm::Intersection(object_type, {config.to, module_});
+      wasm::Intersection(object_type, {config.to, module_});
 
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
                                    false);
