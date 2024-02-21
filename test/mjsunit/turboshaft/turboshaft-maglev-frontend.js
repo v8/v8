@@ -247,3 +247,33 @@ function load_double_arr(arr, idx) {
   assertEquals(113.93, f(2.36, 5, 6.54));
   assertUnoptimized(f);
 }
+
+// Testing exceptions.
+{
+  function h(x) {
+    if (x) { willThrow(); }
+    else { return 17; }
+  }
+  %NeverOptimizeFunction(h);
+
+  function f(a, b) {
+    let r = a;
+    try {
+      r = h(a);
+      return h(b) + r;
+    }
+    catch {
+      return r * b;
+    }
+  }
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(34, f(0, 0)); // Won't cause an exception
+  assertEquals(187, f(0, 11)); // Will cause an exception on the 2nd call to h
+  assertEquals(0, f(7, 0)); // Will cause an exception on the 1st call to h
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(34, f(0, 0));
+  assertEquals(187, f(0, 11));
+  assertEquals(0, f(7, 0));
+  assertOptimized(f);
+}

@@ -16,6 +16,7 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -59,7 +60,8 @@ class GraphBuilder {
         assembler_(graph, graph, temp_zone),
         maglev_compilation_unit_(maglev_compilation_unit),
         node_mapping_(temp_zone),
-        block_mapping_(temp_zone) {}
+        block_mapping_(temp_zone),
+        regs_to_vars_(temp_zone) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
     for (maglev::BasicBlock* block : *graph) {
@@ -144,6 +146,10 @@ class GraphBuilder {
     int input_count = node->input_count();
     RegisterRepresentation rep =
         RegisterRepresentationFor(node->value_representation());
+    if (node->is_exception_phi()) {
+      SetMap(node, __ GetVariable(regs_to_vars_[node->owner().index()]));
+      return maglev::ProcessResult::kContinue;
+    }
     if (__ current_block()->IsLoop()) {
       DCHECK_EQ(input_count, 2);
       SetMap(node, __ PendingLoopPhi(Map(node->input(0)), rep));
@@ -159,6 +165,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
+    MaybeRegisterExceptionHandler(node);
+
     // TODO(dmercadier): handle builtin calls.
     DCHECK(!node->shared_function_info().HasBuiltinId());
     OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
@@ -183,6 +191,11 @@ class GraphBuilder {
     SetMap(node, __ Call(callee, frame_state, base::VectorOf(arguments),
                          TSCallDescriptor::Create(descriptor, CanThrow::kYes,
                                                   graph_zone())));
+
+    // Resetting the catch handler, since it is manually set on a case-by-case
+    // basis before generating throwing instructions.
+    __ set_current_catch_block(nullptr);
+
     return maglev::ProcessResult::kContinue;
   }
 
@@ -484,6 +497,15 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::SetPendingMessage* node,
+                                const maglev::ProcessingState& state) {
+    __ StoreMessage(
+        __ ExternalConstant(
+            ExternalReference::address_of_pending_message(isolate_)),
+        Map(node->value()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.
@@ -726,6 +748,60 @@ class GraphBuilder {
     }
   }
 
+  // In Maglev, exception handlers have no predecessors, and their Phis are a
+  // bit special: they all correspond to interpreter registers, and get
+  // eventually initialized with the value that their predecessors have for the
+  // corresponding interpreter registers.
+  // In Turboshaft, exception handlers have predecessors and contain regular
+  // phis. MaybeRegisterExceptionHandler takes care of recording in Variables
+  // the current value of interpreter registers (right before emitting a node
+  // that can throw). Then, when calling Process(Phi), for exception phis, their
+  // Turboshaft inputs come from the Variable corresponding to their owning
+  // intepreter register.
+  void MaybeRegisterExceptionHandler(maglev::NodeBase* throwing_node) {
+    DCHECK(throwing_node->properties().can_throw());
+    const maglev::ExceptionHandlerInfo* info =
+        throwing_node->exception_handler_info();
+    if (!info->HasExceptionHandler()) return;
+
+    maglev::BasicBlock* block = info->catch_block.block_ptr();
+    auto* liveness = block->state()->frame_state().liveness();
+
+    maglev::LazyDeoptInfo* deopt_info = throwing_node->lazy_deopt_info();
+    const maglev::InterpretedDeoptFrame* lazy_frame;
+    switch (deopt_info->top_frame().type()) {
+      case maglev::DeoptFrame::FrameType::kInterpretedFrame:
+        lazy_frame = &deopt_info->top_frame().as_interpreted();
+        break;
+      case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        UNREACHABLE();
+      case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
+        break;
+    }
+
+    lazy_frame->frame_state()->ForEachValue(
+        lazy_frame->unit(),
+        [this, liveness](maglev::ValueNode* value, interpreter::Register reg) {
+          if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
+            // Skip, since not live at the handler offset.
+            return;
+          }
+          auto it = regs_to_vars_.find(reg.index());
+          Variable var;
+          if (it == regs_to_vars_.end()) {
+            var = __ NewVariable(RegisterRepresentation::Tagged());
+            regs_to_vars_.insert({reg.index(), var});
+          } else {
+            var = it->second;
+          }
+          __ SetVariable(var, Map(value));
+        });
+
+    __ set_current_catch_block(Map(block));
+  }
+
   OpIndex Map(const maglev::Input input) { return Map(input.node()); }
   OpIndex Map(const maglev::NodeBase* node) {
     DCHECK(node_mapping_[node].valid());
@@ -747,6 +823,7 @@ class GraphBuilder {
   maglev::MaglevCompilationUnit* maglev_compilation_unit_;
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
+  ZoneUnorderedMap<int, Variable> regs_to_vars_;
 };
 
 void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {

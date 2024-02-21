@@ -3700,7 +3700,6 @@ class Assembler : public AssemblerData,
 #endif
 
   Block* current_block() const { return current_block_; }
-  Block* current_catch_block() const { return current_catch_block_; }
   bool generating_unreachable_operations() const {
     return current_block() == nullptr;
   }
@@ -3709,6 +3708,11 @@ class Assembler : public AssemblerData,
   const Operation& Get(OpIndex op_idx) const {
     return this->output_graph().Get(op_idx);
   }
+
+  Block* current_catch_block() const { return current_catch_block_; }
+  // CatchScope should be used in most cases to set the current catch block, but
+  // this is sometimes impractical.
+  void set_current_catch_block(Block* block) { current_catch_block_ = block; }
 
 #ifdef DEBUG
   int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
