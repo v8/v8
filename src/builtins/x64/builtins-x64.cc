@@ -3996,7 +3996,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ PrepareCallCFunction(2);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
+    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
+                     SetIsolateDataSlots::kNo);
     __ movq(central_stack_sp, kReturnRegister0);
 
     __ popq(argc_input);
@@ -4039,7 +4040,8 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
 
     __ Move(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(1);
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
+    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
+                     SetIsolateDataSlots::kNo);
 
     __ popq(kReturnRegister1);
     __ popq(kReturnRegister0);
@@ -4215,7 +4217,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Move(kCArgRegs[1], 0);  // argv.
     __ Move(kCArgRegs[2], ER::isolate_address(masm->isolate()));
     __ PrepareCallCFunction(3);
-    __ CallCFunction(find_handler, 3);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK

@@ -4441,7 +4441,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ Push(argc_input, target_input, argv_input, padreg);
     __ Mov(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ Mov(kCArgRegs[1], kOldSPRegister);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
+    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
+                     SetIsolateDataSlots::kNo);
     __ Mov(central_stack_sp, kReturnRegister0);
     __ Pop(padreg, argv_input, target_input, argc_input);
   }
@@ -4471,7 +4472,8 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
   {
     __ Push(kReturnRegister0, kReturnRegister1);
     __ Mov(kCArgRegs[0], ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
+    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
+                     SetIsolateDataSlots::kNo);
     __ Pop(kReturnRegister1, kReturnRegister0);
   }
 
@@ -4622,7 +4624,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Mov(x0, 0);  // argc.
     __ Mov(x1, 0);  // argv.
     __ Mov(x2, ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3);
+    __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
+                     SetIsolateDataSlots::kNo);
   }
 
   // Retrieve the handler context, SP and FP.
