@@ -1515,6 +1515,7 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // Test that calling a function expecting any ref accepts the abstract null
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
+  FlagScope<bool> exnref(&v8_flags.experimental_wasm_exnref, true);
   const struct {
     ValueType super_type;
     ValueTypeCode sub_type_code;
@@ -1526,6 +1527,7 @@ WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
       {kWasmArrayRef.AsNullable(), kNoneCode},
       {kWasmAnyRef, kNoneCode},
       {kWasmExternRef, kNoExternCode},
+      {kWasmExnRef, kNoExnCode},
       {refNull(0), kNoneCode},    // struct
       {refNull(1), kNoneCode},    // array
       {refNull(2), kNoFuncCode},  // signature

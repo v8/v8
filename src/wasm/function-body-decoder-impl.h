@@ -241,11 +241,13 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       case kExternRefCode:
       case kFuncRefCode:
         return {HeapType::from_code(code), length};
+      case kNoExnCode:
       case kExnRefCode:
         if (!VALIDATE(enabled.has_exnref())) {
           DecodeError<ValidationTag>(decoder, pc,
-                                     "invalid heap type 'exnref', enable with "
-                                     "--experimental-wasm-exnref");
+                                     "invalid heap type '%s', enable with "
+                                     "--experimental-wasm-exnref",
+                                     HeapType::from_code(code).name().c_str());
         }
         return {HeapType::from_code(code), length};
       case kStringRefCode:
@@ -302,14 +304,16 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kExternRefCode:
     case kFuncRefCode:
       return {ValueType::RefNull(HeapType::from_code(code)), 1};
+    case kNoExnCode:
     case kExnRefCode:
       if (!VALIDATE(enabled.has_exnref())) {
         DecodeError<ValidationTag>(decoder, pc,
-                                   "invalid value type 'exnref', enable with "
-                                   "--experimental-wasm-exnref");
+                                   "invalid value type '%s', enable with "
+                                   "--experimental-wasm-exnref",
+                                   HeapType::from_code(code).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {kWasmExnRef, 1};
+      return {code == kExnRefCode ? kWasmExnRef : kWasmNullExnRef, 1};
     case kStringRefCode:
     case kStringViewWtf8Code:
     case kStringViewWtf16Code:

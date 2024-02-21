@@ -184,6 +184,7 @@ struct ValueTypePair {
     {kNoFuncCode, kWasmNullFuncRef},               // --
     {kExternRefCode, kWasmExternRef},              // --
     {kNoExternCode, kWasmNullExternRef},           // --
+    {kNoExnCode, kWasmNullExnRef},                 // --
     {kAnyRefCode, kWasmAnyRef},                    // --
     {kEqRefCode, kWasmEqRef},                      // --
     {kI31RefCode, kWasmI31Ref},                    // --
@@ -2206,6 +2207,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   WASM_FEATURE_SCOPE(stringref);
+  WASM_FEATURE_SCOPE(exnref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_x(ret_type.code)};
@@ -2221,6 +2223,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   WASM_FEATURE_SCOPE(stringref);
+  WASM_FEATURE_SCOPE(exnref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_v_x(param_type.code)};
@@ -2236,6 +2239,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
   WASM_FEATURE_SCOPE(stringref);
+  WASM_FEATURE_SCOPE(exnref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2255,6 +2259,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   WASM_FEATURE_SCOPE(stringref);
+  WASM_FEATURE_SCOPE(exnref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2276,6 +2281,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
   WASM_FEATURE_SCOPE(stringref);
+  WASM_FEATURE_SCOPE(exnref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {

@@ -115,6 +115,8 @@ class HeapType {
         return HeapType(kNoExtern);
       case ValueTypeCode::kNoFuncCode:
         return HeapType(kNoFunc);
+      case ValueTypeCode::kNoExnCode:
+        return HeapType(kNoExn);
       default:
         return HeapType(kBottom);
     }
@@ -240,6 +242,8 @@ class HeapType {
         return mask | kNoExternCode;
       case kNoFunc:
         return mask | kNoFuncCode;
+      case kNoExn:
+        return mask | kNoExnCode;
       default:
         return static_cast<int32_t>(representation_);
     }

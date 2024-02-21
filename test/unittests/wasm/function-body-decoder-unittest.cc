@@ -2158,6 +2158,19 @@ TEST_F(FunctionBodyDecoderTest, NullFuncRefGlobals) {
                          WASM_LOCAL_GET(0)});
 }
 
+TEST_F(FunctionBodyDecoderTest, NullExnRefGlobals) {
+  WASM_FEATURE_SCOPE(exnref);
+  ValueType nullFuncRefs[] = {kWasmNullExnRef, kWasmNullExnRef,
+                              kWasmNullExnRef};
+  FunctionSig sig(1, 2, nullFuncRefs);
+  builder.AddGlobal(kWasmNullExnRef);
+  ExpectValidates(&sig, {WASM_GLOBAL_GET(0)});
+  ExpectValidates(&sig,
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+  ExpectValidates(
+      &sig, {WASM_GLOBAL_SET(0, WASM_REF_NULL(kNoExnCode)), WASM_LOCAL_GET(0)});
+}
+
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType local_type = kValueTypes[i];
