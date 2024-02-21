@@ -6420,11 +6420,9 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
   WasmJs::Install(isolate, v8_flags.expose_wasm);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
-  if (GetProcessWideSandbox()->is_initialized()) {
-    SandboxTesting::InstallMemoryCorruptionApi(isolate);
-  }
-#endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::InstallMemoryCorruptionApiIfEnabled(isolate);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
   return true;
 }

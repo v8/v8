@@ -2176,7 +2176,6 @@ DEFINE_BOOL(soft_abort, false,
             "exit cleanly on fatal errors and ignore DCHECK failures entirely. "
             "Useful when \"safe\" crashes should be ignored, for example for "
             "fuzzing the sandbox.")
-// TODO(saelo): introduce a --sandbox-fuzzing mode as well here
 DEFINE_IMPLICATION(hole_fuzzing, soft_abort)
 
 // disassembler
@@ -2478,6 +2477,26 @@ DEFINE_BOOL(
     "silent exits. This is useful if we want to find memory corruption "
     "primitives with a leaked hole, where the engine is already in a weird "
     "state")
+
+//
+// Sandbox-related flags.
+//
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+// Sandbox fuzzing mode requires the memory corruption API to be enabled at
+// compile-time.
+DEFINE_BOOL(sandbox_fuzzing, false,
+            "Enable sandbox fuzzing mode. This exposes the memory corruption "
+            "API and enables the sandbox crash filter.")
+#else
+DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
+                     "Enable sandbox fuzzing mode. This exposes the memory "
+                     "corruption API and enables the sandbox crash filter.")
+#endif
+
+// Sandbox testing mode requires soft abort so that DCHECKs are skipped over
+// and other fatal errors lead to normal process termination as they do not
+// represent sandbox violations.
+DEFINE_IMPLICATION(sandbox_fuzzing, soft_abort)
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on

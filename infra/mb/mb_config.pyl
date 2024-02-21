@@ -184,7 +184,7 @@
       'V8 Clusterfuzz Linux64 UBSan - release builder':
           'release_x64_ubsan_recover',
       'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
-          'release_x64_asan_symbolized_expose_memory_corruption',
+          'release_x64_asan_symbolized_sandbox_testing',
     },
     'client.v8.perf' : {
       # Arm
@@ -293,7 +293,7 @@
       'v8_linux64_arm64_no_wasm_compile_dbg': 'debug_arm64_webassembly_disabled',
       'v8_linux64_verify_csa_compile_rel': 'release_x64_verify_csa',
       'v8_linux64_asan_compile_rel': 'release_x64_asan_minimal_symbols',
-      'v8_linux64_asan_sandbox_compile_rel': 'release_x64_asan_symbolized_expose_memory_corruption',
+      'v8_linux64_asan_sandbox_testing_compile_rel': 'release_x64_asan_symbolized_sandbox_testing',
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
@@ -562,9 +562,9 @@
     'release_x64_asan_no_lsan_verify_heap_dchecks': [
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap'],
-    'release_x64_asan_symbolized_expose_memory_corruption': [
+    'release_x64_asan_symbolized_sandbox_testing': [
       'release_bot', 'x64', 'asan', 'symbolized',
-      'v8_expose_memory_corruption_api'],
+      'v8_enable_memory_corruption_api'],
     'release_x64_asan_symbolized_verify_heap': [
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
@@ -1042,8 +1042,8 @@
       'gn_args': 'v8_enable_verify_heap=false',
     },
 
-    'v8_expose_memory_corruption_api': {
-      'gn_args': 'v8_expose_memory_corruption_api=true',
+    'v8_enable_memory_corruption_api': {
+      'gn_args': 'v8_enable_memory_corruption_api=true',
     },
 
     'v8_enable_lite_mode': {

@@ -29,7 +29,9 @@ namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
-#ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
+SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
 
@@ -329,23 +331,22 @@ void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
                         int num_parameters) {
   InstallFunc(isolate, holder, func, name, num_parameters, true);
 }
-
 }  // namespace
 
-void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
-  CHECK(GetProcessWideSandbox()->is_initialized());
-
-#ifndef V8_EXPOSE_MEMORY_CORRUPTION_API
+void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
 #error "This function should not be available in any shipping build "          \
        "where it could potentially be abused to facilitate exploitation."
 #endif
 
-  Factory* factory = isolate->factory();
+  if (!IsEnabled()) return;
+
+  CHECK(GetProcessWideSandbox()->is_initialized());
 
   // Create the special Sandbox object that provides read/write access to the
   // sandbox address space alongside other miscellaneous functionality.
-  Handle<JSObject> sandbox =
-      factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
+  Handle<JSObject> sandbox = isolate->factory()->NewJSObject(
+      isolate->object_function(), AllocationType::kOld);
 
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
@@ -366,11 +367,12 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<String> name = factory->NewStringFromAsciiChecked("Sandbox");
+  Handle<String> name =
+      isolate->factory()->NewStringFromAsciiChecked("Sandbox");
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
 }
 
-#endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
 #ifdef V8_OS_LINUX
@@ -380,6 +382,11 @@ void PrintToStderr(const char* output) {
   // NO malloc or stdio is allowed here.
   ssize_t return_val = write(STDERR_FILENO, output, strlen(output));
   USE(return_val);
+}
+
+void FilterCrash(const char* reason) {
+  PrintToStderr(reason);
+  _exit(-1);
 }
 
 // Signal handler checking whether a memory access violation happened inside or
@@ -419,24 +426,20 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
 
   if (signal == SIGABRT) {
     // SIGABRT typically indicates a failed CHECK or similar, which is harmless.
-    PrintToStderr("Caught harmless signal (SIGABRT). Exiting process...\n");
-    _exit(0);
+    FilterCrash("Caught harmless signal (SIGABRT). Exiting process...\n");
   }
 
   if (signal == SIGTRAP) {
     // Similarly, SIGTRAP may for example indicate UNREACHABLE code.
-    PrintToStderr("Caught harmless signal (SIGTRAP). Exiting process...\n");
-    _exit(0);
+    FilterCrash("Caught harmless signal (SIGTRAP). Exiting process...\n");
   }
 
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
-    // Access violation happened inside the sandbox.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (inside sandbox address "
         "space). Exiting process...\n");
-    _exit(0);
   }
 
   if (info->si_code == SI_KERNEL && faultaddr == 0) {
@@ -446,10 +449,9 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // at a non-canonical address are not exploitable and so these are filtered
     // out here. However, testcases need to be written with this in mind and
     // must cause crashes at valid addresses.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (non-canonical address). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   if (faultaddr >= 0x8000'0000'0000'0000ULL) {
@@ -458,29 +460,26 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // handle these separately. We've already filtered out non-canonical
     // addresses above, so here we can just test if the most-significant bit of
     // the address is set, and if so assume that it's a kernel address.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violatation (kernel space address). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   if (faultaddr < 0x1000) {
     // Nullptr dereferences are harmless as nothing can be mapped there. We use
     // the typical page size (which is also the default value of mmap_min_addr
     // on Linux) to determine what counts as a nullptr dereference here.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (nullptr dereference). Exiting "
         "process...\n");
-    _exit(0);
   }
 
   if (faultaddr < 4ULL * GB) {
     // Currently we also ignore access violations in the first 4GB of the
     // virtual address space. See crbug.com/1470641 for more details.
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless memory access violaton (first 4GB of virtual address "
         "space). Exiting process...\n");
-    _exit(0);
   }
 
   // Stack overflow detection.
@@ -522,8 +521,7 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     uintptr_t stack_guard_region_end = stack_base;
     if (!pthread_error && stack_guard_region_start <= faultaddr &&
         faultaddr < stack_guard_region_end) {
-      PrintToStderr("Caught harmless stack overflow. Exiting process...\n");
-      _exit(0);
+      FilterCrash("Caught harmless stack overflow. Exiting process...\n");
     }
   }
 
@@ -542,10 +540,12 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // testcases need to be written with this behavior in mind and should
     // typically try to access non-existing memory to demonstrate the ability
     // to escape from the sandbox.
-    PrintToStderr(
+    //
+    // An exception to this rule is the target page: in sandbox testing mode a
+    // write access to this read-only page is considered a sandbox bypass.
+    FilterCrash(
         "Caught harmless memory access violaton (memory permission violation). "
         "Exiting process...\n");
-    _exit(0);
   }
 
   // Otherwise it's a sandbox violation, so restore the original signal
@@ -562,17 +562,15 @@ void AsanFaultHandler() {
   Address faultaddr = reinterpret_cast<Address>(__asan_get_report_address());
 
   if (faultaddr == kNullAddress) {
-    PrintToStderr(
+    FilterCrash(
         "Caught ASan fault without a fault address. Ignoring it as we cannot "
         "check if it is a sandbox violation. Exiting process...\n");
-    _exit(0);
   }
 
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
-    PrintToStderr(
+    FilterCrash(
         "Caught harmless ASan fault (inside sandbox address space). Exiting "
         "process...\n");
-    _exit(0);
   }
 
   // Asan may report the failure via abort(), so we should also restore the
@@ -590,11 +588,13 @@ void InstallCrashFilter() {
   // Note that the alternate stack is currently only registered for the main
   // thread. Stack pointer corruption or stack overflows on background threads
   // may therefore still cause the signal handler to crash.
-  void* alternate_stack = mmap(nullptr, SIGSTKSZ, PROT_READ | PROT_WRITE,
-                               MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  CHECK_NE(alternate_stack, MAP_FAILED);
+  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  Address alternate_stack =
+      vas->AllocatePages(VirtualAddressSpace::kNoHint, SIGSTKSZ,
+                         vas->page_size(), PagePermissions::kReadWrite);
+  CHECK_NE(alternate_stack, kNullAddress);
   stack_t signalstack = {
-      .ss_sp = alternate_stack,
+      .ss_sp = reinterpret_cast<void*>(alternate_stack),
       .ss_flags = 0,
       .ss_size = static_cast<size_t>(SIGSTKSZ),
   };
@@ -625,8 +625,12 @@ void InstallCrashFilter() {
 #endif  // V8_OS_LINUX
 }  // namespace
 
-void SandboxTesting::InstallSandboxCrashFilter() {
+void SandboxTesting::Enable(Mode mode) {
+  CHECK_EQ(mode_, Mode::kDisabled);
+  CHECK_NE(mode, Mode::kDisabled);
   CHECK(GetProcessWideSandbox()->is_initialized());
+
+  mode_ = mode;
 
 #ifdef V8_OS_LINUX
   InstallCrashFilter();

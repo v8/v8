@@ -5060,16 +5060,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
       options.expose_fast_api = true;
       argv[i] = nullptr;
-#if V8_ENABLE_SANDBOX
-    } else if (strcmp(argv[i], "--enable-sandbox-crash-filter") == 0) {
-      options.enable_sandbox_crash_filter = true;
-      // Enable the "soft" abort mode in addition to the crash filter. This is
-      // mostly so that we get better error output for (safe) fatal errors.
-      // TODO(saelo): consider renaming --enable-sandbox-crash-filter to
-      // --sandbox-fuzzing and make it a V8 flag that implies --soft-abort.
-      i::v8_flags.soft_abort = true;
-      argv[i] = nullptr;
-#endif  // V8_ENABLE_SANDBOX
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -5874,13 +5864,19 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
 #ifdef V8_ENABLE_SANDBOX
-  if (options.enable_sandbox_crash_filter) {
-    // Note: this must happen before the Wasm trap handler is installed, so
-    // that the Wasm trap handler is invoked first (and can handle Wasm OOB
-    // accesses), then forwards all "real" crashes to the sandbox crash filter.
-    i::SandboxTesting::InstallSandboxCrashFilter();
+  // Enable sandbox testing mode if requested.
+  //
+  // This will install the sandbox crash filter to ignore all crashes that do
+  // not represent sandbox violations.
+  //
+  // Note: this must happen before the Wasm trap handler is installed, so that
+  // the wasm trap handler is invoked first (and can handle Wasm OOB accesses),
+  // then forwards all "real" crashes to the sandbox crash filter.
+  if (i::v8_flags.sandbox_fuzzing) {
+    i::SandboxTesting::Mode mode = i::SandboxTesting::Mode::kForFuzzing;
+    i::SandboxTesting::Enable(mode);
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {

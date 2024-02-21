@@ -479,10 +479,6 @@ class ShellOptions {
   DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowReassignment<bool> expose_fast_api = {"expose-fast-api", false};
-#if V8_ENABLE_SANDBOX
-  DisallowReassignment<bool> enable_sandbox_crash_filter = {
-      "enable-sandbox-crash-filter", false};
-#endif  // V8_ENABLE_SANDBOX
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
 };
