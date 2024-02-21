@@ -281,6 +281,12 @@ Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
   return WasmDispatchTable::cast(table);
 }
 
+bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
+  Tagged<Object> maybe_table = dispatch_tables()->get(table_index);
+  DCHECK(maybe_table == Smi::zero() || IsWasmDispatchTable(maybe_table));
+  return maybe_table != Smi::zero();
+}
+
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
   return instance_object()->module_object();
 }
