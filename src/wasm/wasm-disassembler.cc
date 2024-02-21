@@ -1107,6 +1107,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       PrintInitExpression(elem.offset, kWasmI32);
     }
     out_ << " ";
+    if (elem.shared) out_ << "shared ";
     names_->PrintValueType(out_, elem.type);
 
     ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes_.module_bytes(),
@@ -1167,6 +1168,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       out_ << " ";
       names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
+    if (data.shared) out_ << " shared";
     if (data.active) {
       ValueType type = module_->memories[data.memory_index].is_memory64
                            ? kWasmI64
@@ -1216,6 +1218,7 @@ void ModuleDisassembler::PrintMutableType(bool mutability, ValueType type) {
 }
 
 void ModuleDisassembler::PrintTable(const WasmTable& table) {
+  if (table.shared) out_ << " shared";
   out_ << " " << table.initial_size << " ";
   if (table.has_maximum_size) out_ << table.maximum_size << " ";
   names_->PrintValueType(out_, table.type);

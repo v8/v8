@@ -167,14 +167,17 @@ class TestModuleBuilder {
   }
 
   uint8_t AddPassiveElementSegment(wasm::ValueType type) {
-    mod.elem_segments.emplace_back(type, WasmElemSegment::kStatusPassive,
-                                   WasmElemSegment::kExpressionElements, 0, 0);
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    mod.elem_segments.emplace_back(WasmElemSegment::kStatusPassive, kIsShared,
+                                   type, WasmElemSegment::kExpressionElements,
+                                   0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }
 
   uint8_t AddDeclarativeElementSegment() {
-    mod.elem_segments.emplace_back(kWasmFuncRef,
-                                   WasmElemSegment::kStatusDeclarative,
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+    mod.elem_segments.emplace_back(WasmElemSegment::kStatusDeclarative,
+                                   kIsShared, kWasmFuncRef,
                                    WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }

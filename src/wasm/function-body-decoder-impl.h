@@ -1955,6 +1955,12 @@ class WasmDecoder : public Decoder {
       return false;
     }
     V8_ASSUME(imm.index < num_tables);
+    if (!VALIDATE(!is_shared_ || module_->tables[imm.index].shared)) {
+      DecodeError(pc,
+                  "cannot reference non-shared table %u from shared function",
+                  imm.index);
+      return false;
+    }
     return true;
   }
 
@@ -1965,6 +1971,13 @@ class WasmDecoder : public Decoder {
       return false;
     }
     V8_ASSUME(imm.index < num_elem_segments);
+    if (!VALIDATE(!is_shared_ || module_->elem_segments[imm.index].shared)) {
+      DecodeError(
+          pc,
+          "cannot reference non-shared element segment %u from shared function",
+          imm.index);
+      return false;
+    }
     return true;
   }
 

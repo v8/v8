@@ -648,8 +648,10 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     if (segment.active) {
       // TODO(wasm): Add other expressions when needed.
       CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
-      os << "builder.addActiveDataSegment(0, [kExprI32Const, "
-         << segment.dest_addr.i32_value() << "], ";
+      os << "builder.addActiveDataSegment(0, ";
+      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, segment.dest_addr,
+                              kWasmI32);
+      os << ", ";
     } else {
       os << "builder.addPassiveDataSegment(";
     }
@@ -658,7 +660,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << unsigned{data[0]};
       for (unsigned byte : data + 1) os << ", " << byte;
     }
-    os << "]);\n";
+    os << "]";
+    if (segment.shared) os << ", true";
+    os << ");\n";
   }
 
   for (WasmGlobal& global : module->globals) {
@@ -683,7 +687,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     } else {
       os << "undefined";
     }
-    os << ")\n";
+    if (table.shared) os << ", true";
+    os << ");\n";
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     const char* status_str =
@@ -718,8 +723,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "], "
        << (elem_segment.element_type == WasmElemSegment::kExpressionElements
                ? ValueTypeToConstantName(elem_segment.type)
-               : "undefined")
-       << ");\n";
+               : "undefined");
+    if (elem_segment.shared) os << ", true";
+    os << ");\n";
   }
 
   for (const WasmTag& tag : module->tags) {
