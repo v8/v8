@@ -1584,21 +1584,6 @@ class MaglevGraphBuilder {
         std::is_same_v<NodeT, StoreFixedArrayElementNoWriteBarrier> ||
         std::is_same_v<NodeT, StoreFixedDoubleArrayElement>;
 
-    static constexpr bool is_elements_array_write =
-        std::is_same_v<NodeT, MaybeGrowAndEnsureWritableFastElements>;
-
-    if constexpr (is_elements_array_write) {
-      // Clear Elements cache.
-      auto elements_properties = known_node_aspects().loaded_properties.find(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements());
-      if (elements_properties != known_node_aspects().loaded_properties.end()) {
-        elements_properties->second.clear();
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  * Removing non-constant cached [Elements]";
-        }
-      }
-    }
-
     // Don't change known node aspects for:
     //
     //   * Simple field stores -- the only relevant side effect on these is
@@ -1608,7 +1593,7 @@ class MaglevGraphBuilder {
     //   * CheckMapsWithMigration -- this only migrates representations of
     //     values, not the values themselves, so cached values are still valid.
     static constexpr bool should_clear_unstable_node_aspects =
-        !is_simple_field_store && !is_elements_array_write &&
+        !is_simple_field_store &&
         !std::is_same_v<NodeT, CheckMapsWithMigration>;
 
     // Simple field stores can't possibly change or migrate the map.
@@ -2008,7 +1993,6 @@ class MaglevGraphBuilder {
       ValueNode* value);
 
   ValueNode* BuildLoadJSArrayLength(ValueNode* js_array);
-  ValueNode* BuildLoadElements(ValueNode* object);
 
   ReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,

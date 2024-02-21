@@ -362,7 +362,6 @@ struct KnownNodeAspects {
     enum Type {
       // kName must be zero so that pointers are unaffected.
       kName = 0,
-      kElements,
       kTypedArrayLength
     };
     static constexpr int kTypeMask = 0x3;
@@ -371,10 +370,6 @@ struct KnownNodeAspects {
 
     static LoadedPropertyMapKey TypedArrayLength() {
       return LoadedPropertyMapKey(kTypedArrayLength);
-    }
-
-    static LoadedPropertyMapKey Elements() {
-      return LoadedPropertyMapKey(kElements);
     }
 
     // Allow implicit conversion from NameRef to key, so that callers in the
