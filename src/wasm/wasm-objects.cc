@@ -2381,14 +2381,14 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     wasm_to_js_wrapper_code =
         isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
   } else {
-    int expected_arity = parameter_count;
+    int expected_arity = parameter_count - suspend;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
     if (IsJSFunction(*callable)) {
       Tagged<SharedFunctionInfo> shared =
           Handle<JSFunction>::cast(callable)->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != parameter_count) {
+      if (expected_arity != parameter_count - suspend) {
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }

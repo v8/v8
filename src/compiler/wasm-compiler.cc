@@ -7955,37 +7955,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // =======================================================================
       // === JS Functions with matching arity ==================================
       // =======================================================================
-      case wasm::ImportCallKind::kJSFunctionArityMatch: {
-        base::SmallVector<Node*, 16> args(wasm_count + 7 - suspend);
-        int pos = 0;
-        Node* function_context =
-            gasm_->LoadContextFromJSFunction(callable_node);
-        args[pos++] = callable_node;  // target callable.
-
-        // Determine receiver at runtime.
-        args[pos++] =
-            BuildReceiverNode(callable_node, native_context, undefined_node);
-
-        auto call_descriptor = Linkage::GetJSCallDescriptor(
-            graph()->zone(), false, wasm_count + 1 - suspend,
-            CallDescriptor::kNoFlags);
-
-        // Convert wasm numbers to JS values.
-        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
-                               native_context, suspend);
-
-        args[pos++] = undefined_node;  // new target
-        args[pos++] = Int32Constant(
-            JSParameterCount(wasm_count - suspend));  // argument count
-        args[pos++] = function_context;
-
-        call =
-            BuildCallOnCentralStack(args, pos, call_descriptor, callable_node);
-        break;
-      }
-      // =======================================================================
-      // === JS Functions with mismatching arity ===============================
-      // =======================================================================
+      case wasm::ImportCallKind::kJSFunctionArityMatch:
+        DCHECK_EQ(expected_arity, wasm_count - suspend);
+        V8_FALLTHROUGH;
       case wasm::ImportCallKind::kJSFunctionArityMismatch: {
         int pushed_count = std::max(expected_arity, wasm_count - suspend);
         base::SmallVector<Node*, 16> args(pushed_count + 7);

@@ -1778,7 +1778,8 @@ bool InstanceBuilder::ProcessImportedFunction(
                                    expected_sig);
         break;
       }
-      int expected_arity = static_cast<int>(expected_sig->parameter_count());
+      int expected_arity = static_cast<int>(expected_sig->parameter_count()) -
+                           resolved.suspend();
       if (kind == ImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         Tagged<SharedFunctionInfo> shared = function->shared();
@@ -2170,7 +2171,8 @@ void InstanceBuilder::CompileImportWrappers(
       continue;
     }
 
-    int expected_arity = static_cast<int>(sig->parameter_count());
+    int expected_arity =
+        static_cast<int>(sig->parameter_count() - resolved.suspend());
     if (kind == ImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function =
           Handle<JSFunction>::cast(resolved.callable());
