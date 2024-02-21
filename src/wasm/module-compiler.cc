@@ -1526,6 +1526,22 @@ void TierUpNowForTesting(Isolate* isolate,
   CHECK(!native_module->compilation_state()->failed());
 }
 
+void TierUpAllForTesting(
+    Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data) {
+  const WasmModule* mod = trusted_instance_data->module();
+  NativeModule* native_module =
+      trusted_instance_data->module_object()->native_module();
+  WasmCodeRefScope code_ref_scope;
+
+  uint32_t start = mod->num_imported_functions;
+  uint32_t end = start + mod->num_declared_functions;
+  for (uint32_t func_index = start; func_index < end; func_index++) {
+    if (!native_module->HasCodeWithTier(func_index, ExecutionTier::kTurbofan)) {
+      TierUpNowForTesting(isolate, trusted_instance_data, func_index);
+    }
+  }
+}
+
 bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();

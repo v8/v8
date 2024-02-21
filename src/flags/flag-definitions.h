@@ -1418,6 +1418,8 @@ DEFINE_BOOL(wasm_tier_up, true,
 DEFINE_BOOL(wasm_dynamic_tiering, true,
             "enable dynamic tier up to the optimizing compiler")
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
+DEFINE_BOOL(wasm_sync_tier_up, false,
+            "run tier up jobs synchronously for testing")
 DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
@@ -1471,13 +1473,14 @@ DEFINE_BOOL(trace_wasm_memory, false,
 // {no_wasm_tier_up} to force some functions to be compiled with TurboFan or for
 // debug.
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
-           "bitmask of functions to compile with TurboFan instead of Liftoff")
+           "bitmask of declared(!) function indices to compile with TurboFan "
+           "instead of Liftoff")
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
-           "bitmask of functions to compile for debugging, only applies if the "
-           "tier is Liftoff")
-DEFINE_INT(
-    wasm_turboshaft_mask_for_testing, 0,
-    "bitmask of functions to compile with Turboshaft instead of TurboFan")
+           "bitmask of declared(!) function indices to compile for debugging, "
+           "only applies if the tier is Liftoff")
+DEFINE_INT(wasm_turboshaft_mask_for_testing, 0,
+           "bitmask of declared(!) function indices to compile with Turboshaft "
+           "instead of TurboFan")
 // TODO(clemensb): Introduce experimental_wasm_pgo to read from a custom section
 // instead of from a local file.
 DEFINE_BOOL(

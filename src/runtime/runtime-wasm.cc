@@ -711,7 +711,11 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     int func_index = frame_finder.frame()->function_index();
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
-    wasm::TriggerTierUp(trusted_data, func_index);
+    if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
+      wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+    } else {
+      wasm::TriggerTierUp(trusted_data, func_index);
+    }
   }
 
   // We're reusing this interrupt mechanism to interrupt long-running loops.

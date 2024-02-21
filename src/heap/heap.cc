@@ -2270,6 +2270,11 @@ void Heap::EnsureWasmCanonicalRttsSize(int length) {
   new_wrappers->set_length(required_wrapper_length);
   set_js_to_wasm_wrappers(*new_wrappers);
 }
+
+void Heap::ClearWasmCanonicalRttsForTesting() {
+  ReadOnlyRoots roots(this);
+  set_wasm_canonical_rtts(roots.empty_weak_array_list());
+}
 #endif
 
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {

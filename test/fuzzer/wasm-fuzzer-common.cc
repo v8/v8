@@ -16,6 +16,7 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
@@ -53,6 +54,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
+  WasmError imports_error = ValidateAndSetBuiltinImports(
+      module.get(), wire_bytes, CompileTimeImportsForFuzzing());
+  CHECK(!imports_error.has_error());  // The module was compiled before.
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
@@ -138,12 +142,13 @@ void ExecuteAgainstReference(Isolate* isolate,
   std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
       isolate, instance_ref, "main", compiled_args.as_vector(), &exception_ref);
+  bool execute = true;
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
-  if (max_steps < 0) return;
+  if (max_steps < 0) execute = false;
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
-  if (nondeterminism != 0) return;
+  if (nondeterminism != 0) execute = false;
 
   if (exception_ref) {
     if (strcmp(exception_ref.get(),
@@ -151,8 +156,13 @@ void ExecuteAgainstReference(Isolate* isolate,
       // There was a stack overflow, which may happen nondeterministically. We
       // cannot guarantee the behavior of the test module, and in particular it
       // may not terminate.
-      return;
+      execute = false;
     }
+  }
+  if (!execute) {
+    // Before discarding the module, see if Turbofan runs into any DCHECKs.
+    TierUpAllForTesting(isolate, instance_ref->trusted_data(isolate));
+    return;
   }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
@@ -847,6 +857,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
   GetTypeCanonicalizer()->EmptyStorageForTesting();
+  i_isolate->heap()->ClearWasmCanonicalRttsForTesting();
 
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {
@@ -910,10 +921,15 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, valid);
   }
 
-  // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
-  // way, we deterministically test a combination of Liftoff and Turbofan.
-  FlagScope<bool> liftoff(&v8_flags.liftoff, true);
-  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+  FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
+  // We want to keep dynamic tiering enabled because that changes the code
+  // Liftoff generates as well as optimizing compilers' behavior (especially
+  // around inlining). We switch it to synchronous mode to avoid the
+  // nondeterminism of background jobs finishing at random times.
+  FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
+  // The purpose of setting the tier mask (which affects the initial
+  // compilation of each function) is to deterministically test a combination
+  // of Liftoff and Turbofan.
   FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
                                  tier_mask);
   FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,

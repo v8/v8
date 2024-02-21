@@ -1217,6 +1217,20 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     CreateMapForType(isolate_, module_, index, instance_object, maps);
   }
   trusted_data->set_managed_object_maps(*maps);
+#if DEBUG
+  for (uint32_t index = 0; index < module_->types.size(); index++) {
+    Tagged<Object> o = maps->get(index);
+    DCHECK(IsMap(o));
+    Tagged<Map> map = Map::cast(o);
+    if (module_->has_signature(index)) {
+      DCHECK_EQ(map->instance_type(), WASM_INTERNAL_FUNCTION_TYPE);
+    } else if (module_->has_array(index)) {
+      DCHECK_EQ(map->instance_type(), WASM_ARRAY_TYPE);
+    } else if (module_->has_struct(index)) {
+      DCHECK_EQ(map->instance_type(), WASM_STRUCT_TYPE);
+    }
+  }
+#endif
 
   //--------------------------------------------------------------------------
   // Allocate the array that will hold type feedback vectors.
