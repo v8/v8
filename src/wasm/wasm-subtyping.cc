@@ -736,13 +736,4 @@ bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
   return NullSentinelImpl(type1, module) == NullSentinelImpl(type2, module);
 }
 
-bool IsImplicitInternalization(wasm::ValueType from, wasm::ValueType to,
-                               const wasm::WasmModule* to_module) {
-  return from.is_object_reference() &&
-         from.heap_representation() == wasm::HeapType::kExtern &&
-         to.is_object_reference() &&
-         wasm::IsHeapSubtypeOf(to.heap_type(),
-                               wasm::HeapType(wasm::HeapType::kAny), to_module);
-}
-
 }  // namespace v8::internal::wasm
