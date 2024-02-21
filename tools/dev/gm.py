@@ -308,15 +308,20 @@ def print_help_and_exit():
   sys.exit(0)
 
 
+# Used by `tools/bash-completion.sh`
 def print_completions_and_exit():
   for a in ARCHES:
     print(str(a))
     for m in set(MODES.values()):
-      print(str(m))
       print(f"{a}.{m}")
       for t in TARGETS:
-        print(str(t))
-        print("{a}.{m}.{t}")
+        print(f"{a}.{m}.{t}")
+      for k in ACTIONS.keys():
+        print(f"{a}.{m}.{k}")
+  for t in TARGETS:
+    print(str(t))
+  for m in set(MODES.values()):
+    print(str(m))
   sys.exit(0)
 
 
