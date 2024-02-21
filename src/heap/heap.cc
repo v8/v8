@@ -1801,8 +1801,12 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
+    const GCFlags gc_flags = current_gc_flags_;
+    // Minor GCs should not be memory reducing.
+    current_gc_flags_ &= ~GCFlag::kReduceMemoryFootprint;
     CollectGarbage(NEW_SPACE,
                    GarbageCollectionReason::kFinalizeConcurrentMinorMS);
+    current_gc_flags_ = gc_flags;
   }
 
   const GCType gc_type = GetGCTypeFromGarbageCollector(collector);
@@ -2336,6 +2340,9 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
   }
+
+  DCHECK_IMPLIES(v8_flags.minor_ms && IsYoungGenerationCollector(collector),
+                 !ShouldReduceMemory());
 
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
 
