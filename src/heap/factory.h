@@ -1078,7 +1078,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
+    CodeBuilder& set_source_position_table(Handle<TrustedByteArray> table) {
       DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
       source_position_table_ = table;
@@ -1087,7 +1087,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     inline CodeBuilder& set_empty_source_position_table();
 
-    CodeBuilder& set_bytecode_offset_table(Handle<ByteArray> table) {
+    CodeBuilder& set_bytecode_offset_table(Handle<TrustedByteArray> table) {
       DCHECK_EQ(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
       bytecode_offset_table_ = table;
@@ -1140,8 +1140,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     BytecodeOffset osr_offset_ = BytecodeOffset::None();
-    MaybeHandle<ByteArray> bytecode_offset_table_;
-    MaybeHandle<ByteArray> source_position_table_;
+    MaybeHandle<TrustedByteArray> bytecode_offset_table_;
+    MaybeHandle<TrustedByteArray> source_position_table_;
     MaybeHandle<DeoptimizationData> deoptimization_data_;
     MaybeHandle<TrustedObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;

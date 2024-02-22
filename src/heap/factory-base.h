@@ -86,8 +86,8 @@ struct NewCodeOptions {
   int32_t unwinding_info_offset;
   MaybeHandle<TrustedObject> bytecode_or_interpreter_data;
   MaybeHandle<DeoptimizationData> deoptimization_data;
-  MaybeHandle<ByteArray> bytecode_offset_table;
-  MaybeHandle<ByteArray> source_position_table;
+  MaybeHandle<TrustedByteArray> bytecode_offset_table;
+  MaybeHandle<TrustedByteArray> source_position_table;
   // Either instruction_stream is set and instruction_start is kNullAddress, or
   // instruction_stream is empty and instruction_start a valid target.
   MaybeHandle<InstructionStream> instruction_stream;

@@ -27,15 +27,10 @@ PROTECTED_POINTER_ACCESSORS(BytecodeArray, handler_table, TrustedByteArray,
 PROTECTED_POINTER_ACCESSORS(BytecodeArray, constant_pool, TrustedFixedArray,
                             kConstantPoolOffset)
 ACCESSORS(BytecodeArray, wrapper, Tagged<BytecodeWrapper>, kWrapperOffset)
-RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
-                          Tagged<ByteArray>, kSourcePositionTableOffset)
-bool BytecodeArray::has_source_position_table(AcquireLoadTag tag) const {
-  return raw_source_position_table(tag) != Smi::zero();
-}
-void BytecodeArray::clear_source_position_table(ReleaseStoreTag) {
-  TaggedField<Object, kSourcePositionTableOffset>::Release_Store(*this,
-                                                                 Smi::zero());
-}
+RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(BytecodeArray,
+                                            source_position_table,
+                                            TrustedByteArray,
+                                            kSourcePositionTableOffset)
 
 uint8_t BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < length());
@@ -113,14 +108,16 @@ bool BytecodeArray::HasSourcePositionTable() const {
   return has_source_position_table(kAcquireLoad);
 }
 
-DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<ByteArray>) {
+DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<TrustedByteArray>) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
-  Tagged<Object> maybe_table =
-      raw_source_position_table(cage_base, kAcquireLoad);
-  if (IsByteArray(maybe_table, cage_base)) return ByteArray::cast(maybe_table);
+  Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
+  if (IsTrustedByteArray(maybe_table))
+    return TrustedByteArray::cast(maybe_table);
   DCHECK_EQ(maybe_table, Smi::zero());
-  return GetReadOnlyRoots().empty_byte_array();
+  return GetIsolateFromWritableObject(*this)
+      ->heap()
+      ->empty_trusted_byte_array();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
@@ -143,11 +140,11 @@ DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
 }
 
 DEF_ACQUIRE_GETTER(BytecodeArray, raw_source_position_table, Tagged<Object>) {
-  Tagged<Object> value = TaggedField<Object>::Acquire_Load(
-      cage_base, *this, kSourcePositionTableOffset);
+  Tagged<Object> value =
+      RawProtectedPointerField(kSourcePositionTableOffset).Acquire_Load();
   // This field might be 0 during deserialization or if source positions have
   // not been (successfully) collected.
-  DCHECK(value == Smi::zero() || IsByteArray(value));
+  DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
   return value;
 }
 

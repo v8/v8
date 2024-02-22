@@ -97,7 +97,8 @@ HeapAllocator* Factory::allocator() const {
 }
 
 Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
-  return set_source_position_table(isolate_->factory()->empty_byte_array());
+  return set_source_position_table(
+      isolate_->factory()->empty_trusted_byte_array());
 }
 
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(

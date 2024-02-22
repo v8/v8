@@ -4817,7 +4817,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
 
   Compiler::CollectSourcePositions(i_isolate(), sfi);
 
-  Tagged<ByteArray> source_position_table =
+  Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
   CHECK_GT(source_position_table->length(), 0);
@@ -4846,7 +4846,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
   i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition());
   Compiler::CollectSourcePositions(i_isolate(), sfi);
   // Stack overflowed so source position table can be returned but is empty.
-  Tagged<ByteArray> source_position_table =
+  Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(!bytecode_array->HasSourcePositionTable());
   CHECK_EQ(source_position_table->length(), 0);
@@ -4981,7 +4981,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   }
 
   CHECK(bytecode_array->HasSourcePositionTable());
-  Tagged<ByteArray> source_position_table =
+  Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK_GT(source_position_table->length(), 0);
 }

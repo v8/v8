@@ -167,9 +167,9 @@ void StatisticsExtension::GetCounters(
       } else {
         continue;
       }
-      if (!IsByteArray(maybe_source_positions)) continue;
-      Tagged<ByteArray> source_positions =
-          ByteArray::cast(maybe_source_positions);
+      if (!IsTrustedByteArray(maybe_source_positions)) continue;
+      Tagged<TrustedByteArray> source_positions =
+          TrustedByteArray::cast(maybe_source_positions);
       if (source_positions->length() == 0) continue;
       source_position_table_total += source_positions->AllocatedSize();
     }

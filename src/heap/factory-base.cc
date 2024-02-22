@@ -119,7 +119,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
         *options.bytecode_offset_table.ToHandleChecked());
   } else if (CodeKindMayLackSourcePositionTable(options.kind)) {
     DCHECK(options.bytecode_offset_table.is_null());
-    Handle<ByteArray> table;
+    Handle<TrustedByteArray> table;
     if (options.source_position_table.ToHandle(&table)) {
       code->set_source_position_table(*table);
     } else {

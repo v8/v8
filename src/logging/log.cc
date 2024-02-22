@@ -1710,7 +1710,7 @@ void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
 }  // namespace
 
 void V8FileLogger::CodeLinePosInfoRecordEvent(
-    Address code_start, Tagged<ByteArray> source_position_table,
+    Address code_start, Tagged<TrustedByteArray> source_position_table,
     JitCodeEvent::CodeType code_type) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);

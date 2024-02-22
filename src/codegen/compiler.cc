@@ -2565,7 +2565,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   if (base::Optional<Tagged<DebugInfo>> debug_info =
           shared_info->TryGetDebugInfo(isolate)) {
     if (debug_info.value()->HasInstrumentedBytecodeArray()) {
-      Tagged<ByteArray> source_position_table =
+      Tagged<TrustedByteArray> source_position_table =
           job->compilation_info()->bytecode_array()->SourcePositionTable();
       shared_info->GetActiveBytecodeArray(isolate)->set_source_position_table(
           source_position_table, kReleaseStore);

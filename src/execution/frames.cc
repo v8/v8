@@ -2196,7 +2196,8 @@ int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
   return -1;
 }
 
-void JavaScriptFrame::PrintFunctionAndOffset(Tagged<JSFunction> function,
+void JavaScriptFrame::PrintFunctionAndOffset(Isolate* isolate,
+                                             Tagged<JSFunction> function,
                                              Tagged<AbstractCode> code,
                                              int code_offset, FILE* file,
                                              bool print_line_number) {
@@ -2206,7 +2207,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(Tagged<JSFunction> function,
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
     Tagged<SharedFunctionInfo> shared = function->shared();
-    int source_pos = code->SourcePosition(cage_base, code_offset);
+    int source_pos = code->SourcePosition(isolate, code_offset);
     Tagged<Object> maybe_script = shared->script();
     if (IsScript(maybe_script)) {
       Tagged<Script> script = Script::cast(maybe_script);
@@ -2250,8 +2251,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         code_offset = frame->LookupCode()->GetOffsetFromInstructionStart(
             isolate, frame->pc());
       }
-      PrintFunctionAndOffset(function, abstract_code, code_offset, file,
-                             print_line_number);
+      PrintFunctionAndOffset(isolate, function, abstract_code, code_offset,
+                             file, print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
@@ -2273,8 +2274,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
 
 // static
 void JavaScriptFrame::CollectFunctionAndOffsetForICStats(
-    IsolateForSandbox isolate, Tagged<JSFunction> function,
-    Tagged<AbstractCode> code, int code_offset) {
+    Isolate* isolate, Tagged<JSFunction> function, Tagged<AbstractCode> code,
+    int code_offset) {
   auto ic_stats = ICStats::instance();
   ICInfo& ic_info = ic_stats->Current();
   PtrComprCageBase cage_base = GetPtrComprCageBase(function);
@@ -2283,7 +2284,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(
   ic_info.function_name = ic_stats->GetOrCacheFunctionName(isolate, function);
   ic_info.script_offset = code_offset;
 
-  int source_pos = code->SourcePosition(cage_base, code_offset);
+  int source_pos = code->SourcePosition(isolate, code_offset);
   Tagged<Object> maybe_script = shared->script(cage_base, kAcquireLoad);
   if (IsScript(maybe_script, cage_base)) {
     Tagged<Script> script = Script::cast(maybe_script);

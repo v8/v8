@@ -613,6 +613,32 @@
   }                                                                          \
   void holder::clear_##name() { return ClearProtectedPointerField(offset); }
 
+#define DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(name, type)    \
+  inline Tagged<type> name(AcquireLoadTag) const;                       \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,           \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
+  inline bool has_##name(AcquireLoadTag) const;                         \
+  inline void clear_##name(ReleaseStoreTag);
+
+#define RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(holder, name, type,      \
+                                                    offset)                  \
+  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
+    DCHECK(has_##name(tag));                                                 \
+    return type::cast(ReadProtectedPointerField(offset, tag));               \
+  }                                                                          \
+  void holder::set_##name(Tagged<type> value, ReleaseStoreTag tag,           \
+                          WriteBarrierMode mode) {                           \
+    WriteProtectedPointerField(offset, value, tag);                          \
+    CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, offset, value, mode); \
+  }                                                                          \
+  bool holder::has_##name(AcquireLoadTag tag) const {                        \
+    return !IsProtectedPointerFieldCleared(offset, tag);                     \
+  }                                                                          \
+  void holder::clear_##name(ReleaseStoreTag tag) {                           \
+    return ClearProtectedPointerField(offset, tag);                          \
+  }
+
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
     return BitField::decode(get_field());                                  \

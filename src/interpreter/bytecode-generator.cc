@@ -1369,7 +1369,7 @@ template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     LocalIsolate* isolate, Handle<Script> script);
 
 template <typename IsolateT>
-Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
+Handle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     IsolateT* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
@@ -1378,7 +1378,7 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
   NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
-  Handle<ByteArray> source_position_table =
+  Handle<TrustedByteArray> source_position_table =
       builder()->ToSourcePositionTable(isolate);
 
   LOG_CODE_EVENT(isolate,
@@ -1389,10 +1389,10 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
   return source_position_table;
 }
 
-template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    Isolate* isolate);
-template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    LocalIsolate* isolate);
+template Handle<TrustedByteArray>
+BytecodeGenerator::FinalizeSourcePositionTable(Isolate* isolate);
+template Handle<TrustedByteArray>
+BytecodeGenerator::FinalizeSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeGenerator::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {

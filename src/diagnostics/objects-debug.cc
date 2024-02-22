@@ -404,7 +404,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     // Use the raw accessor here as source positions may not be available.
     auto o = raw_source_position_table(kAcquireLoad);
     Object::VerifyPointer(isolate, o);
-    CHECK(o == Smi::zero() || IsByteArray(o));
+    CHECK(o == Smi::zero() || IsTrustedByteArray(o));
   }
 
   for (int i = 0; i < constant_pool()->length(); ++i) {

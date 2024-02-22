@@ -479,7 +479,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   }
 
   // Allocate the source position table.
-  Handle<ByteArray> source_positions =
+  Handle<TrustedByteArray> source_positions =
       source_position_table_builder_.ToSourcePositionTable(isolate());
 
   // Allocate and install the code.

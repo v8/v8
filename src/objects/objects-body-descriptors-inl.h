@@ -486,7 +486,7 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kBytecodeArrayIndirectPointerTag, v);
     IteratePointer(obj, kWrapperOffset, v);
-    IteratePointer(obj, kSourcePositionTableOffset, v);
+    IterateProtectedPointer(obj, kSourcePositionTableOffset, v);
     IterateProtectedPointer(obj, kHandlerTableOffset, v);
     IterateProtectedPointer(obj, kConstantPoolOffset, v);
   }
@@ -1032,6 +1032,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IterateSelfIndirectPointer(obj, kCodeIndirectPointerTag, v);
     IterateProtectedPointer(
         obj, Code::kDeoptimizationDataOrInterpreterDataOffset, v);
+    IterateProtectedPointer(obj, Code::kPositionTableOffset, v);
     IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
                     Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 

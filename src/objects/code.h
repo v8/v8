@@ -142,10 +142,10 @@ class Code : public ExposedTrustedObject {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
-  DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
+  DECL_ACCESSORS(source_position_table, Tagged<TrustedByteArray>)
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
-  DECL_ACCESSORS(bytecode_offset_table, Tagged<ByteArray>)
+  DECL_ACCESSORS(bytecode_offset_table, Tagged<TrustedByteArray>)
 
   inline bool has_source_position_table_or_bytecode_offset_table() const;
   inline bool has_source_position_table() const;
@@ -208,7 +208,7 @@ class Code : public ExposedTrustedObject {
   // reserved in the code prologue; otherwise 0.
   inline int stack_slots() const;
 
-  inline Tagged<ByteArray> SourcePositionTable(
+  inline Tagged<TrustedByteArray> SourcePositionTable(
       Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
 
   inline Address safepoint_table_address() const;
@@ -344,16 +344,16 @@ class Code : public ExposedTrustedObject {
   /*  - A BytecodeArray or InterpreterData for baseline code */               \
   /*  - Smi::zero() for all other types of code (e.g. builtin) */             \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
-  /* Strong pointer fields. */                                                \
-  V(kStartOfStrongFieldsOffset, 0)                                            \
   /* This field contains: */                                                  \
-  /*  - A bytecode offset table (byte array) for baseline code */             \
-  /*  - A (possibly empty) source position table (byte array) for most */     \
-  /*    other types of code */                                                \
+  /*  - A bytecode offset table (trusted byte array) for baseline code */     \
+  /*  - A (possibly empty) source position table (trusted byte array) for */  \
+  /*    most other types of code */                                           \
   /*  - Smi::zero() for embedded builtin code (in RO space) */                \
   /*    TODO(saelo) once we have a  trusted RO space, we could instead use */ \
   /*    empty_trusted_byte_array to avoid using Smi::zero() at all. */        \
   V(kPositionTableOffset, kTaggedSize)                                        \
+  /* Strong pointer fields. */                                                \
+  V(kStartOfStrongFieldsOffset, 0)                                            \
   V(kWrapperOffset, kTaggedSize)                                              \
   V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
   /* The InstructionStream field is special: it uses code_cage_base. */       \

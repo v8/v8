@@ -50,7 +50,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Handle<BytecodeArray> FinalizeBytecode(IsolateT* isolate,
                                          Handle<Script> script);
   template <typename IsolateT>
-  Handle<ByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
 
   // Check if hint2 is same or the subtype of hint1.
   static bool IsSameOrSubTypeHint(TypeHint hint1, TypeHint hint2) {

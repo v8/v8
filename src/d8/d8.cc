@@ -2294,11 +2294,11 @@ void Shell::TestVerifySourcePositions(
       handle(function->shared()->GetBytecodeArray(i_isolate), i_isolate);
   i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
   bool has_baseline = function->shared()->HasBaselineCode();
-  i::Handle<i::ByteArray> bytecode_offsets;
+  i::Handle<i::TrustedByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
     bytecode_offsets = handle(
-        i::ByteArray::cast(
+        i::TrustedByteArray::cast(
             function->shared()->GetCode(i_isolate)->bytecode_offset_table()),
         i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(

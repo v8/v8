@@ -980,7 +980,7 @@ class BytecodeArrayRef : public HeapObjectRef {
   int parameter_count() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 
-  Handle<ByteArray> SourcePositionTable(JSHeapBroker* broker) const;
+  Handle<TrustedByteArray> SourcePositionTable(JSHeapBroker* broker) const;
 
   // Exception handler table.
   Address handler_table_address() const;

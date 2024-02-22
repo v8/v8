@@ -927,8 +927,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     reloc_info = base::OwnedVector<uint8_t>::Of(
         base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
-  Handle<ByteArray> source_pos_table(code->source_position_table(),
-                                     code->instruction_stream()->GetIsolate());
+  Handle<TrustedByteArray> source_pos_table(
+      code->source_position_table(), code->instruction_stream()->GetIsolate());
   int source_pos_len = source_pos_table->length();
   auto source_pos = base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_len);
   if (source_pos_len > 0) {

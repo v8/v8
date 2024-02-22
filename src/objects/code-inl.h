@@ -128,7 +128,6 @@ Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
 void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
   DCHECK(kind() == CodeKind::BASELINE);
-  DCHECK(!ObjectInYoungGeneration(value));
   DCHECK(IsBytecodeArray(value) || IsInterpreterData(value));
 
   WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
@@ -136,15 +135,35 @@ void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
       *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
-ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
-                   kPositionTableOffset,
-                   kind() != CodeKind::BASELINE && has_source_position_table(),
-                   kind() != CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
-ACCESSORS_CHECKED2(Code, bytecode_offset_table, Tagged<ByteArray>,
-                   kPositionTableOffset, kind() == CodeKind::BASELINE,
-                   kind() == CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
+inline Tagged<TrustedByteArray> Code::source_position_table() const {
+  DCHECK(has_source_position_table());
+  return TrustedByteArray::cast(
+      ReadProtectedPointerField(kPositionTableOffset));
+}
+
+inline void Code::set_source_position_table(Tagged<TrustedByteArray> value,
+                                            WriteBarrierMode mode) {
+  DCHECK(!CodeKindUsesBytecodeOffsetTable(kind()));
+
+  WriteProtectedPointerField(kPositionTableOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kPositionTableOffset,
+                                              value, mode);
+}
+
+inline Tagged<TrustedByteArray> Code::bytecode_offset_table() const {
+  DCHECK(has_bytecode_offset_table());
+  return TrustedByteArray::cast(
+      ReadProtectedPointerField(kPositionTableOffset));
+}
+
+inline void Code::set_bytecode_offset_table(Tagged<TrustedByteArray> value,
+                                            WriteBarrierMode mode) {
+  DCHECK(CodeKindUsesBytecodeOffsetTable(kind()));
+
+  WriteProtectedPointerField(kPositionTableOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kPositionTableOffset,
+                                              value, mode);
+}
 
 bool Code::has_source_position_table_or_bytecode_offset_table() const {
   return TaggedField<Object, kPositionTableOffset>::load(*this) != Smi::zero();
@@ -168,7 +187,7 @@ void Code::clear_source_position_table_and_bytecode_offset_table() {
 
 ACCESSORS(Code, wrapper, Tagged<CodeWrapper>, kWrapperOffset)
 
-Tagged<ByteArray> Code::SourcePositionTable(
+Tagged<TrustedByteArray> Code::SourcePositionTable(
     Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const {
   DisallowGarbageCollection no_gc;
 
@@ -177,10 +196,10 @@ Tagged<ByteArray> Code::SourcePositionTable(
   }
 
   if (!has_source_position_table()) {
-    return GetReadOnlyRoots().empty_byte_array();
+    return *isolate->factory()->empty_trusted_byte_array();
   }
 
-  return source_position_table(isolate);
+  return source_position_table();
 }
 
 Address Code::body_start() const { return instruction_start(); }
@@ -312,7 +331,7 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   Address pc = baseline_pc - instruction_start();
   offset_iterator.AdvanceToPCOffset(pc);
   return offset_iterator.current_bytecode_offset();
@@ -324,7 +343,7 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
   uintptr_t pc = 0;
   if (position == kPcAtStartOfBytecode) {
@@ -353,7 +372,7 @@ uintptr_t Code::GetBaselinePCForNextExecutedBytecode(
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
   baseline::BytecodeOffsetIterator offset_iterator(
-      ByteArray::cast(bytecode_offset_table()), bytecodes);
+      TrustedByteArray::cast(bytecode_offset_table()), bytecodes);
   Handle<BytecodeArray> bytecodes_handle(
       reinterpret_cast<Address*>(&bytecodes));
   interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes_handle,

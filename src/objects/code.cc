@@ -26,7 +26,7 @@ Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data() const {
 }
 
 Tagged<Object> Code::raw_position_table() const {
-  return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
+  return RawProtectedPointerField(kPositionTableOffset).load();
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
