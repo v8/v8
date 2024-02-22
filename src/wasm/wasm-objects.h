@@ -595,6 +595,7 @@ class WasmInstanceObject
 
   class BodyDescriptor;
 
+  DECL_PRINTER(WasmInstanceObject)
   TQ_OBJECT_CONSTRUCTORS(WasmInstanceObject)
 };
 

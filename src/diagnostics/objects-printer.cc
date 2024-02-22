@@ -2346,6 +2346,16 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  JSObjectPrintHeader(os, *this, "WasmInstanceObject");
+  os << "\n - trusted_data: " << Brief(trusted_data(isolate));
+  os << "\n - module_object: " << Brief(module_object());
+  os << "\n - exports_object: " << Brief(exports_object());
+  JSObjectPrintBody(os, *this);
+  os << "\n";
+}
+
 void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 #define PRINT_WASM_INSTANCE_FIELD(name, convert) \
   os << "\n - " #name ": " << convert(name());
@@ -2420,7 +2430,7 @@ void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   os << "\n - internal: " << Brief(internal());
   os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
-  os << "\n";
+  // No newline here; the caller prints it after printing additional fields.
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
