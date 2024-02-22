@@ -706,7 +706,8 @@ void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
     UNIMPLEMENTED();
   } else {
     StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+    int slot =
+        frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
     OperandGenerator g(this);
 
     Emit(kArchStackSlot, g.DefineAsRegister(node),
