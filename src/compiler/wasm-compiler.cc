@@ -6201,8 +6201,9 @@ Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
     Node* segment_offset_smi = gasm_->BuildChangeInt32ToSmi(segment_offset);
     Node* segment_length = NodeProperties::GetValueInput(array, 3);
     return gasm_->CallBuiltin(Builtin::kWasmStringFromDataSegment,
-                              Operator::kEliminatable, segment_length, start,
-                              end, segment_index_smi, segment_offset_smi);
+                              Operator::Operator::kNoDeopt | Operator::kNoThrow,
+                              segment_length, start, end, segment_index_smi,
+                              segment_offset_smi);
   }
 
   // Regular path if the shortcut wasn't taken.
