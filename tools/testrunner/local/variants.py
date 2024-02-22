@@ -57,8 +57,7 @@ ALL_VARIANT_FLAGS = {
     # compilation. "Liftoff-only" and eager compilation is not a problem,
     # because test functions do typically not get optimized to TurboFan anyways.
     "nooptimization": [[
-        "--no-turbofan", "--no-maglev", "--liftoff", "--no-wasm-tier-up",
-        "--no-wasm-lazy-compilation"
+        "--disable-optimizing-compilers", "--no-wasm-lazy-compilation"
     ]],
     "rehash_snapshot": [["--rehash-snapshot"]],
     "slow_path": [["--force-slow-path"]],
@@ -104,7 +103,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
             "--no-regexp-interpret-all", "--interpreted-frames-native-stack"
         ],
     "nooptimization": [
-        "--turbofan", "--always-turbofan", "--stress-concurrent-inlining"
+        "--turbofan", "--always-turbofan", "--turboshaft",
+        "--turboshaft-future", "--maglev", "--no-liftoff", "--wasm-tier-up",
+        "--validate-asm", "--track-field-types", "--stress-concurrent-inlining"
     ],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [

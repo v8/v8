@@ -737,6 +737,25 @@ DEFINE_NEG_IMPLICATION(jitless, maglev)
 // Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
+DEFINE_BOOL(
+    disable_optimizing_compilers, false,
+    "Disable all optimizing compilers while leaving baseline compilers enabled")
+// Disable all optimizing JavaScript compilers.
+// JavaScript code can execute either in Ignition or Sparkplug.
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
+#if V8_ENABLE_WEBASSEMBLY
+// Disable optimizing Wasm compilers. Wasm code must execute with Liftoff.
+DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_tier_up)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_dynamic_tiering)
+// Disable translation of asm.js to Wasm
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, validate_asm)
+#endif  // V8_ENABLE_WEBASSEMBLY
+// Field type tracking is only used by TurboFan, so can be disabled.
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, track_field_types)
+
 DEFINE_BOOL(memory_protection_keys, true,
             "protect code memory with PKU if available")
 

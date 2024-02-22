@@ -1436,12 +1436,23 @@
 
 ##############################################################################
 ['variant == nooptimization', {
+  # nooptimization disables asm.js -> wasm translation, so disable these tests.
+  'regress/asm/*': [SKIP],
+  'asm/*': [SKIP],
+
   # Tests that depend on optimization (beyond doing assertOptimized).
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+
   # Wasm serialization relies on TurboFan to be available, hence does not work
   # in the 'nooptimization' variant.
+  'wasm/serialization-with-compilation-hints': [SKIP],
   'regress/wasm/regress-7785': [SKIP],
+
+  # Tests that require wasm tier up.
+  'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+  'regress/wasm/regress-1179065': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################

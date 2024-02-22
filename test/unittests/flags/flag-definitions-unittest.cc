@@ -195,6 +195,22 @@ TEST_F(FlagDefinitionsTest, FlagsJitlessImplications) {
   }
 }
 
+TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
+  if (v8_flags.disable_optimizing_compilers) {
+    // Double-check implications work as expected. Our implication system is
+    // fairly primitive and can break easily depending on the implication
+    // definition order in flag-definitions.h.
+    CHECK(!v8_flags.turbofan);
+    CHECK(!v8_flags.turboshaft);
+    CHECK(!v8_flags.maglev);
+#ifdef V8_ENABLE_WEBASSEMBLY
+    CHECK(!v8_flags.wasm_tier_up);
+    CHECK(!v8_flags.wasm_dynamic_tiering);
+    CHECK(!v8_flags.validate_asm);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  }
+}
+
 TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // Before freezing, we can arbitrarily change values.
   CHECK_EQ(13, v8_flags.testing_int_flag);  // Initial (default) value.

@@ -38,6 +38,7 @@
   'octane/regexp': [PASS, SLOW],
   'octane/splay': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
+  'octane/zlib': [PASS, SLOW],
 
   # https://crbug.com/v8/11905
   'kraken/stanford-crypto-pbkdf2': [PASS, SLOW],
