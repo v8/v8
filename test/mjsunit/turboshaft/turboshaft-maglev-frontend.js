@@ -277,3 +277,53 @@ function load_double_arr(arr, idx) {
   assertEquals(0, f(7, 0));
   assertOptimized(f);
 }
+
+// Testing builtin calls
+{
+  // String comparison (which are currently done with builtin calls in Maglev).
+  function cmp_str(a, b) {
+    return a < b;
+  }
+
+  %PrepareFunctionForOptimization(cmp_str);
+  assertEquals(true, cmp_str("abc", "def"));
+  %OptimizeFunctionOnNextCall(cmp_str);
+  assertEquals(true, cmp_str("abc", "def"));
+  assertOptimized(cmp_str);
+
+  // Megamorphic load.
+  function load(o) {
+    return o.x;
+  }
+
+  let o1 = { x : 42 };
+  let o2 = { a : {}, x : 2.5 };
+  let o3 = 42;
+  let o4 = { b : 42, c: {}, x : 5.35 };
+  let o5 = { u : 14, c : 2.28, d: 4.2, x : 5 };
+
+  %PrepareFunctionForOptimization(load);
+  assertEquals(42, load(o1));
+  assertEquals(2.5, load(o2));
+  assertEquals(undefined, load(o3));
+  assertEquals(5.35, load(o4));
+  assertEquals(5, load(o5));
+  %OptimizeFunctionOnNextCall(load);
+  assertEquals(42, load(o1));
+  assertEquals(2.5, load(o2));
+  assertEquals(undefined, load(o3));
+  assertEquals(5.35, load(o4));
+  assertEquals(5, load(o5));
+  assertOptimized(load);
+
+  // charAt is a builtin call but is done with a CallKnowJSFunctionCall
+  function string_char_at(s) {
+    return s.charAt(2);
+  }
+
+  %PrepareFunctionForOptimization(string_char_at);
+  assertEquals("c", string_char_at("abcdef"));
+  %OptimizeFunctionOnNextCall(string_char_at);
+  assertEquals("c", string_char_at("abcdef"));
+  assertOptimized(string_char_at);
+}

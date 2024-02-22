@@ -165,10 +165,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
-    MaybeRegisterExceptionHandler(node);
+    ThrowingScope throwing_scope(this, node);
 
-    // TODO(dmercadier): handle builtin calls.
-    DCHECK(!node->shared_function_info().HasBuiltinId());
     OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Tagged> callee = Map(node->closure());
     base::SmallVector<OpIndex, 16> arguments;
@@ -192,9 +190,39 @@ class GraphBuilder {
                          TSCallDescriptor::Create(descriptor, CanThrow::kYes,
                                                   graph_zone())));
 
-    // Resetting the catch handler, since it is manually set on a case-by-case
-    // basis before generating throwing instructions.
-    __ set_current_catch_block(nullptr);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CallBuiltin* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    Callable callable = Builtins::CallableFor(
+        isolate_->GetMainThreadIsolateUnsafe(), node->builtin());
+    const CallInterfaceDescriptor& descriptor = callable.descriptor();
+    CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+        graph_zone(), descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNeedsFrameState);
+    V<Code> stub_code = __ HeapConstant(callable.code());
+    base::SmallVector<OpIndex, 16> arguments;
+
+    for (int i = 0; i < node->InputCountWithoutContext(); i++) {
+      arguments.push_back(Map(node->input(i)));
+    }
+
+    if (node->has_feedback()) {
+      arguments.push_back(__ TaggedIndexConstant(node->feedback().index()));
+      arguments.push_back(__ HeapConstant(node->feedback().vector));
+    }
+
+    if (Builtins::CallInterfaceDescriptorFor(node->builtin())
+            .HasContextParameter()) {
+      arguments.push_back(Map(node->context_input()));
+    }
+
+    SetMap(node, __ Call(stub_code, frame_state, base::VectorOf(arguments),
+                         TSCallDescriptor::Create(
+                             call_descriptor, CanThrow::kYes, graph_zone())));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -229,6 +257,19 @@ class GraphBuilder {
     __ DeoptimizeIfNot(__ TaggedEqual(Map(node->target_input()),
                                       __ HeapConstant(node->value().object())),
                        frame_state, DeoptimizeReason::kWrongValue,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckString* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions input_assumptions =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    V<Word32> check = __ ObjectIs(Map(node->receiver_input()),
+                                  ObjectIsOp::Kind::kString, input_assumptions);
+    __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kNotAString,
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -748,59 +789,83 @@ class GraphBuilder {
     }
   }
 
-  // In Maglev, exception handlers have no predecessors, and their Phis are a
-  // bit special: they all correspond to interpreter registers, and get
-  // eventually initialized with the value that their predecessors have for the
-  // corresponding interpreter registers.
-  // In Turboshaft, exception handlers have predecessors and contain regular
-  // phis. MaybeRegisterExceptionHandler takes care of recording in Variables
-  // the current value of interpreter registers (right before emitting a node
-  // that can throw). Then, when calling Process(Phi), for exception phis, their
-  // Turboshaft inputs come from the Variable corresponding to their owning
-  // intepreter register.
-  void MaybeRegisterExceptionHandler(maglev::NodeBase* throwing_node) {
-    DCHECK(throwing_node->properties().can_throw());
-    const maglev::ExceptionHandlerInfo* info =
-        throwing_node->exception_handler_info();
-    if (!info->HasExceptionHandler()) return;
+  class ThrowingScope {
+    // In Maglev, exception handlers have no predecessors, and their Phis are a
+    // bit special: they all correspond to interpreter registers, and get
+    // eventually initialized with the value that their predecessors have for
+    // the corresponding interpreter registers.
 
-    maglev::BasicBlock* block = info->catch_block.block_ptr();
-    auto* liveness = block->state()->frame_state().liveness();
+    // In Turboshaft, exception handlers have predecessors and contain regular
+    // phis. Creating a ThrowingScope takes care of recording in Variables
+    // the current value of interpreter registers (right before emitting a node
+    // that can throw), and sets the current_catch_block of the Assembler.
+    // Throwing operations that are emitted while the scope is active will
+    // automatically be wired to the catch handler. Then, when calling
+    // Process(Phi) on exception phis (= when processing the catch handler),
+    // these Phis will be mapped to the Variable corresponding to their owning
+    // intepreter register.
 
-    maglev::LazyDeoptInfo* deopt_info = throwing_node->lazy_deopt_info();
-    const maglev::InterpretedDeoptFrame* lazy_frame;
-    switch (deopt_info->top_frame().type()) {
-      case maglev::DeoptFrame::FrameType::kInterpretedFrame:
-        lazy_frame = &deopt_info->top_frame().as_interpreted();
-        break;
-      case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        UNREACHABLE();
-      case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
-        break;
+   public:
+    ThrowingScope(GraphBuilder* builder, maglev::NodeBase* throwing_node)
+        : builder_(*builder) {
+      DCHECK(throwing_node->properties().can_throw());
+      const maglev::ExceptionHandlerInfo* info =
+          throwing_node->exception_handler_info();
+      if (!info->HasExceptionHandler()) return;
+
+      maglev::BasicBlock* block = info->catch_block.block_ptr();
+      auto* liveness = block->state()->frame_state().liveness();
+
+      maglev::LazyDeoptInfo* deopt_info = throwing_node->lazy_deopt_info();
+      const maglev::InterpretedDeoptFrame* lazy_frame;
+      switch (deopt_info->top_frame().type()) {
+        case maglev::DeoptFrame::FrameType::kInterpretedFrame:
+          lazy_frame = &deopt_info->top_frame().as_interpreted();
+          break;
+        case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
+          UNREACHABLE();
+        case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
+        case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
+          lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
+          break;
+      }
+
+      lazy_frame->frame_state()->ForEachValue(
+          lazy_frame->unit(), [this, liveness](maglev::ValueNode* value,
+                                               interpreter::Register reg) {
+            if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
+              // Skip, since not live at the handler offset.
+              return;
+            }
+            auto it = builder_.regs_to_vars_.find(reg.index());
+            Variable var;
+            if (it == builder_.regs_to_vars_.end()) {
+              var = __ NewVariable(RegisterRepresentation::Tagged());
+              builder_.regs_to_vars_.insert({reg.index(), var});
+            } else {
+              var = it->second;
+            }
+            __ SetVariable(var, builder_.Map(value));
+          });
+
+      DCHECK_EQ(__ current_catch_block(), nullptr);
+      __ set_current_catch_block(builder_.Map(block));
     }
 
-    lazy_frame->frame_state()->ForEachValue(
-        lazy_frame->unit(),
-        [this, liveness](maglev::ValueNode* value, interpreter::Register reg) {
-          if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
-            // Skip, since not live at the handler offset.
-            return;
-          }
-          auto it = regs_to_vars_.find(reg.index());
-          Variable var;
-          if (it == regs_to_vars_.end()) {
-            var = __ NewVariable(RegisterRepresentation::Tagged());
-            regs_to_vars_.insert({reg.index(), var});
-          } else {
-            var = it->second;
-          }
-          __ SetVariable(var, Map(value));
-        });
+    ~ThrowingScope() {
+      // Resetting the catch handler. It is always set on a case-by-case basis
+      // before emitting a throwing node, so there is no need to "reset the
+      // previous catch handler" or something like that, since there is no
+      // previous handler (there is a DCHECK in the ThrowingScope constructor
+      // checking that the current_catch_block is indeed nullptr when the scope
+      // is created).
+      __ set_current_catch_block(nullptr);
+    }
 
-    __ set_current_catch_block(Map(block));
-  }
+   private:
+    GraphBuilder::AssemblerT& Asm() { return builder_.Asm(); }
+    GraphBuilder& builder_;
+  };
 
   OpIndex Map(const maglev::Input input) { return Map(input.node()); }
   OpIndex Map(const maglev::NodeBase* node) {
