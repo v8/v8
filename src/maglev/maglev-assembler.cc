@@ -328,7 +328,7 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       bind(&done);
       break;
     }
-    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kTypedArrayLength:
     case ValueRepresentation::kTagged:
       UNREACHABLE();
   }

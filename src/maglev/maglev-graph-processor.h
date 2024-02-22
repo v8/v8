@@ -102,6 +102,7 @@ class GraphProcessor {
     process_constants(graph->tagged_index());
     process_constants(graph->int32());
     process_constants(graph->uint32());
+    process_constants(graph->typed_array_length());
     process_constants(graph->float64());
     process_constants(graph->external_references());
 

@@ -371,7 +371,7 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
-  Uint32Constant* GetUint32Constant(int constant) {
+  Uint32Constant* GetUint32Constant(uint32_t constant) {
     // The constant must fit in a Smi, since it could be later tagged in a Phi.
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->uint32().find(constant);
@@ -379,6 +379,22 @@ class MaglevGraphBuilder {
       Uint32Constant* node = CreateNewConstantNode<Uint32Constant>(0, constant);
       if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->uint32().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  TypedArrayLengthConstant* GetTypedArrayLengthConstant(size_t constant) {
+    // The constant must be less than the maximum typed array length (which is
+    // the max byte length, for Uint8 arrays).
+    DCHECK_LT(constant, JSTypedArray::kMaxByteLength);
+
+    auto it = graph_->typed_array_length().find(constant);
+    if (it == graph_->typed_array_length().end()) {
+      TypedArrayLengthConstant* node =
+          CreateNewConstantNode<TypedArrayLengthConstant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->typed_array_length().emplace(constant, node);
       return node;
     }
     return it->second;
@@ -1749,6 +1765,8 @@ class MaglevGraphBuilder {
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       ValueNode* node, ValueNode** constant_node = nullptr);
+  compiler::OptionalJSTypedArrayRef TryGetTypedArrayConstant(
+      ValueNode* node, ValueNode** constant_node = nullptr);
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,
@@ -1804,6 +1822,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharCodeAt)     \
   V(StringPrototypeCodePointAt)    \
   V(StringPrototypeLocaleCompare)  \
+  V(TypedArrayPrototypeLength)     \
   MATH_UNARY_IEEE_BUILTIN(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name)                           \

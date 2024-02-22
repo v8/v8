@@ -725,6 +725,9 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   Mov(dst.W(), Immediate(i));
 }
+inline void MaglevAssembler::Move(Register dst, size_t i) {
+  Mov(dst.X(), Immediate(i));
+}
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   Fmov(dst, n);
 }
@@ -1088,17 +1091,23 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   CompareAndBranch(r1.W(), r2.W(), cond, target);
 }
 
-void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
-                                             Condition cond, Label* target,
-                                             Label::Distance distance) {
-  CompareAndBranch(r1.X(), r2.X(), cond, target);
-}
-
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
   CompareAndBranch(r1.W(), Immediate(value), cond, target);
+}
+
+void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, Register r2, Condition cond, Label* target,
+    Label::Distance distance) {
+  CompareAndBranch(r1.X(), r2.X(), cond, target);
+}
+
+void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, int32_t value, Condition cond, Label* target,
+    Label::Distance distance) {
+  CompareAndBranch(r1.X(), Immediate(value), cond, target);
 }
 
 inline void MaglevAssembler::CompareInt32AndAssert(Register r1, Register r2,
@@ -1230,6 +1239,19 @@ inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
 inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
                                             Register src) {
   Ucvtf(result, src.W());
+}
+
+inline void MaglevAssembler::TypedArrayLengthToDouble(DoubleRegister result,
+                                                      Register src) {
+  if (v8_flags.debug_code) {
+    // TypedArrayLength values shouldn't be larger than the max array length,
+    // otherwise the conversion to double could be lossy. They also shouldn't be
+    // negative, so use an unsigned comparison.
+    static_assert(JSTypedArray::kMaxByteLength <= kMaxSafeIntegerUint64);
+    Cmp(src.X(), Immediate(static_cast<size_t>(kMaxSafeIntegerUint64)));
+    Assert(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+  }
+  Ucvtf(result, src.X());
 }
 
 inline void MaglevAssembler::Pop(Register dst) { Pop(dst, padreg); }

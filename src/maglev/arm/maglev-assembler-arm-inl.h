@@ -939,18 +939,24 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   JumpIf(cond, target);
 }
 
-inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
-                                                    Condition cond,
-                                                    Label* target,
-                                                    Label::Distance distance) {
-  cmp(r1, r2);
-  JumpIf(cond, target);
-}
-
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
+  cmp(r1, Operand(value));
+  JumpIf(cond, target);
+}
+
+inline void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, Register r2, Condition cond, Label* target,
+    Label::Distance distance) {
+  cmp(r1, r2);
+  JumpIf(cond, target);
+}
+
+inline void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, int32_t value, Condition cond, Label* target,
+    Label::Distance distance) {
   cmp(r1, Operand(value));
   JumpIf(cond, target);
 }
@@ -1102,6 +1108,13 @@ inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
   }
   vmov(temp_vfps, src);
   vcvt_f64_u32(result, temp_vfps);
+}
+
+inline void MaglevAssembler::TypedArrayLengthToDouble(DoubleRegister result,
+                                                      Register src) {
+  // Doesn't matter if we use int32 or uint32 here, typed array lengths are
+  // positive int32s.
+  return Int32ToDouble(result, src);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { pop(dst); }

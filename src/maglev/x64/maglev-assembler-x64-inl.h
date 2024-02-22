@@ -581,7 +581,10 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
 }
 
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
-  // Move as a uint32 to avoid sign extension.
+  MacroAssembler::Move(dst, i);
+}
+
+inline void MaglevAssembler::Move(Register dst, size_t i) {
   MacroAssembler::Move(dst, i);
 }
 
@@ -966,13 +969,6 @@ void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   JumpIf(cond, target, distance);
 }
 
-void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
-                                             Condition cond, Label* target,
-                                             Label::Distance distance) {
-  cmpq(r1, r2);
-  JumpIf(cond, target, distance);
-}
-
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
@@ -1026,6 +1022,20 @@ inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
                                                   Label* target,
                                                   Label::Distance distance) {
   cmpb(left, Immediate(right));
+  JumpIf(cond, target, distance);
+}
+
+void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, Register r2, Condition cond, Label* target,
+    Label::Distance distance) {
+  cmpq(r1, r2);
+  JumpIf(cond, target, distance);
+}
+
+void MaglevAssembler::CompareTypedArrayLengthAndJumpIf(
+    Register r1, int32_t value, Condition cond, Label* target,
+    Label::Distance distance) {
+  cmpq(r1, Immediate(value));
   JumpIf(cond, target, distance);
 }
 
@@ -1114,6 +1124,20 @@ inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
   // input register. We could eliminate this movl by ensuring that word32
   // registers are always written with 32-bit ops and not 64-bit ones.
   Cvtlui2sd(result, src);
+}
+
+inline void MaglevAssembler::TypedArrayLengthToDouble(DoubleRegister result,
+                                                      Register src) {
+  if (v8_flags.debug_code) {
+    // TypedArrayLength values shouldn't be larger than the max array length,
+    // otherwise the conversion to double could be lossy. They also shouldn't be
+    // negative, so use an unsigned comparison.
+    static_assert(JSTypedArray::kMaxByteLength <= kMaxSafeIntegerUint64);
+    Move(kScratchRegister, static_cast<size_t>(kMaxSafeIntegerUint64));
+    cmpq(src, kScratchRegister);
+    Assert(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+  }
+  Cvtqsi2sd(result, src);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }

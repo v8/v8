@@ -32,6 +32,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
@@ -129,6 +130,7 @@ class MergePointInterpreterFrameState;
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
+  V(TypedArrayLengthConstant)       \
   V(RootConstant)                   \
   V(SmiConstant)                    \
   V(TaggedIndexConstant)
@@ -214,12 +216,15 @@ class MergePointInterpreterFrameState;
   V(CheckedInt32ToUint32)                           \
   V(UnsafeInt32ToUint32)                            \
   V(CheckedUint32ToInt32)                           \
+  V(CheckedTypedArrayLengthToInt32)                 \
   V(ChangeInt32ToFloat64)                           \
   V(ChangeUint32ToFloat64)                          \
+  V(ChangeTypedArrayLengthToFloat64)                \
   V(CheckedTruncateFloat64ToInt32)                  \
   V(CheckedTruncateFloat64ToUint32)                 \
   V(TruncateNumberOrOddballToInt32)                 \
   V(TruncateUint32ToInt32)                          \
+  V(TruncateTypedArrayLengthToInt32)                \
   V(TruncateFloat64ToInt32)                         \
   V(UnsafeTruncateUint32ToInt32)                    \
   V(UnsafeTruncateFloat64ToInt32)                   \
@@ -229,6 +234,7 @@ class MergePointInterpreterFrameState;
   V(CheckedNumberToUint8Clamped)                    \
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
+  V(TypedArrayLengthToNumber)                       \
   V(Float64ToTagged)                                \
   V(Float64ToHeapNumberForField)                    \
   V(HoleyFloat64ToTagged)                           \
@@ -492,7 +498,7 @@ enum class ValueRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
-  kIntPtr
+  kTypedArrayLength
 };
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
@@ -674,6 +680,7 @@ inline int ElementsKindSize(ElementsKind element_kind) {
     DCHECK_LE(sizeof(ctype), 8);                  \
     return sizeof(ctype);
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
 #undef TYPED_ARRAY_CASE
@@ -693,8 +700,8 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "Float64";
     case ValueRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
-    case ValueRepresentation::kIntPtr:
-      return os << "Word64";
+    case ValueRepresentation::kTypedArrayLength:
+      return os << "TypedArrayLength";
   }
 }
 
@@ -968,8 +975,8 @@ class OpProperties {
         kValueRepresentationBits::encode(ValueRepresentation::kTagged));
   }
   static constexpr OpProperties ExternalReference() {
-    return OpProperties(
-        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
+    return OpProperties(kValueRepresentationBits::encode(
+        ValueRepresentation::kTypedArrayLength));
   }
   static constexpr OpProperties Int32() {
     return OpProperties(
@@ -987,9 +994,9 @@ class OpProperties {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kHoleyFloat64));
   }
-  static constexpr OpProperties IntPtr() {
-    return OpProperties(
-        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
+  static constexpr OpProperties TypedArrayLength() {
+    return OpProperties(kValueRepresentationBits::encode(
+        ValueRepresentation::kTypedArrayLength));
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
@@ -2219,7 +2226,7 @@ class ValueNode : public Node {
       case ValueRepresentation::kInt32:
       case ValueRepresentation::kUint32:
         return MachineRepresentation::kWord32;
-      case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kTypedArrayLength:
         return MachineType::PointerRepresentation();
       case ValueRepresentation::kFloat64:
         return MachineRepresentation::kFloat64;
@@ -3231,6 +3238,33 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
   const uint32_t value_;
 };
 
+class TypedArrayLengthConstant
+    : public FixedInputValueNodeT<0, TypedArrayLengthConstant> {
+  using Base = FixedInputValueNodeT<0, TypedArrayLengthConstant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit TypedArrayLengthConstant(uint64_t bitfield, size_t value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::TypedArrayLength();
+
+  size_t value() const { return value_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  Handle<Object> DoReify(LocalIsolate* isolate) const;
+
+ private:
+  const size_t value_;
+};
+
 class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   using Base = FixedInputValueNodeT<0, Float64Constant>;
 
@@ -3363,6 +3397,27 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
                                               OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TypedArrayLengthToNumber
+    : public FixedInputValueNodeT<1, TypedArrayLengthToNumber> {
+  using Base = FixedInputValueNodeT<1, TypedArrayLengthToNumber>;
+
+ public:
+  explicit TypedArrayLengthToNumber(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTypedArrayLength};
 
   Input& input() { return Node::input(0); }
 
@@ -3550,6 +3605,26 @@ class CheckedUint32ToInt32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedTypedArrayLengthToInt32
+    : public FixedInputValueNodeT<1, CheckedTypedArrayLengthToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedTypedArrayLengthToInt32>;
+
+ public:
+  explicit CheckedTypedArrayLengthToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32() |
+                                              OpProperties::ConversionNode() |
+                                              OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTypedArrayLength};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class ChangeInt32ToFloat64
     : public FixedInputValueNodeT<1, ChangeInt32ToFloat64> {
   using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
@@ -3580,6 +3655,26 @@ class ChangeUint32ToFloat64
       OpProperties::Float64() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ChangeTypedArrayLengthToFloat64
+    : public FixedInputValueNodeT<1, ChangeTypedArrayLengthToFloat64> {
+  using Base = FixedInputValueNodeT<1, ChangeTypedArrayLengthToFloat64>;
+
+ public:
+  explicit ChangeTypedArrayLengthToFloat64(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTypedArrayLength};
 
   Input& input() { return Node::input(0); }
 
@@ -3684,6 +3779,8 @@ class CheckedTruncateFloat64ToUint32
   };
 
 DEFINE_TRUNCATE_NODE(TruncateUint32ToInt32, Uint32, OpProperties::Int32())
+DEFINE_TRUNCATE_NODE(TruncateTypedArrayLengthToInt32, TypedArrayLength,
+                     OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(TruncateFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 DEFINE_TRUNCATE_NODE(UnsafeTruncateUint32ToInt32, Uint32, OpProperties::Int32())
@@ -5464,7 +5561,7 @@ class LoadTypedArrayLength
   explicit LoadTypedArrayLength(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
   static constexpr OpProperties kProperties =
-      OpProperties::IntPtr() | OpProperties::CanRead();
+      OpProperties::TypedArrayLength() | OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5507,7 +5604,7 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
   explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kUint32, ValueRepresentation::kIntPtr};
+      ValueRepresentation::kUint32, ValueRepresentation::kTypedArrayLength};
 
   static constexpr int kIndexIndex = 0;
   static constexpr int kLengthIndex = 1;
