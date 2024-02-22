@@ -36,6 +36,7 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 #include "src/compiler/turboshaft/utils.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/elements-kind.h"
@@ -1504,6 +1505,14 @@ class TurboshaftAssemblerOpInterface
   V<Word32> Float64IsNaN(V<Float64> input) {
     return FloatIs(input, NumericKind::kNaN, FloatRepresentation::Float64());
   }
+  V<Word32> Float64IsHole(V<Float64> input) {
+    return FloatIs(input, NumericKind::kFloat64Hole,
+                   FloatRepresentation::Float64());
+  }
+  // Float64IsSmi returns true if {input} is an integer in smi range.
+  V<Word32> Float64IsSmi(V<Float64> input) {
+    return FloatIs(input, NumericKind::kSmi, FloatRepresentation::Float64());
+  }
 
   OpIndex ObjectIsNumericValue(OpIndex input, NumericKind kind,
                                FloatRepresentation input_rep) {
@@ -2073,8 +2082,8 @@ class TurboshaftAssemblerOpInterface
   }
   V<Float64> LoadFixedDoubleArrayElement(V<FixedDoubleArray> array,
                                          V<WordPtr> index) {
-    DCHECK_EQ(ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS),
-              ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
+    static_assert(ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS) ==
+                  ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
     return Load(array, index, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::Float64(),
                 FixedDoubleArray::OffsetOfElementAt(0),
@@ -2181,6 +2190,13 @@ class TurboshaftAssemblerOpInterface
                        Word32Constant(instance_type));
   }
 
+  template <typename Type = Tagged,
+            typename = std::enable_if_t<is_subtype_v<Type, Tagged>>>
+  V<Type> LoadTaggedField(V<Object> object, int field_offset) {
+    return Load(object, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(), field_offset);
+  }
+
   template <typename Base>
   void StoreField(V<Base> object, const FieldAccess& access, V<Any> value) {
     StoreFieldImpl(object, access, value,
@@ -2227,6 +2243,30 @@ class TurboshaftAssemblerOpInterface
         MemoryRepresentation::FromMachineType(machine_type);
     Store(object, value, kind, rep, access.write_barrier_kind, access.offset,
           maybe_initializing_or_transitioning);
+  }
+
+  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
+                              compiler::WriteBarrierKind write_barrier) {
+    Store(array, value, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::AnyTagged(), write_barrier,
+          FixedArray::kHeaderSize + index * kTaggedSize);
+  }
+
+  void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
+                              V<Tagged> value,
+                              compiler::WriteBarrierKind write_barrier) {
+    Store(array, index, value, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::AnyTagged(), write_barrier,
+          FixedArray::kHeaderSize, kTaggedSizeLog2);
+  }
+  void StoreFixedDoubleArrayElement(V<FixedDoubleArray> array, V<WordPtr> index,
+                                    V<Float64> value) {
+    static_assert(ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS) ==
+                  ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
+    Store(array, index, value, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::Float64(), WriteBarrierKind::kNoWriteBarrier,
+          FixedDoubleArray::kHeaderSize,
+          ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
   }
 
   template <typename T = Any, typename Base>
@@ -3477,21 +3517,6 @@ class TurboshaftAssemblerOpInterface
                                            int index) {
     return LoadProtectedPointerField(
         array, ProtectedFixedArray::OffsetOfElementAt(index));
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    Store(array, value, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize + index * kTaggedSize);
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
-                              V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    Store(array, index, value, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize, kTaggedSizeLog2);
   }
 
   OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }

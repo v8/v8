@@ -447,7 +447,7 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> REDUCE(FloatIs)(OpIndex value, NumericKind kind,
+  V<Word32> REDUCE(FloatIs)(V<Float64> value, NumericKind kind,
                             FloatRepresentation input_rep) {
     DCHECK_EQ(input_rep, FloatRepresentation::Float64());
     switch (kind) {
@@ -479,6 +479,29 @@ class MachineLoweringReducer : public Next {
         V<Word32> in_range =
             __ Float64LessThanOrEqual(__ Float64Abs(trunc), kMaxSafeInteger);
         GOTO(done, in_range);
+
+        BIND(done, result);
+        return result;
+      }
+      case NumericKind::kSmi: {
+        Label<Word32> done(this);
+        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value);
+        GOTO_IF_NOT(__ Float64Equal(value, __ ChangeInt32ToFloat64(v32)), done,
+                    0);
+        IF (__ Word32Equal(v32, 0)) {
+          // Checking -0.
+          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value), 0), done,
+                  0);
+        }
+
+        if constexpr (SmiValuesAre32Bits()) {
+          GOTO(done, 1);
+        } else {
+          OpIndex add = __ Int32AddCheckOverflow(v32, v32);
+          V<Word32> overflow = __ template Projection<Word32>(add, 1);
+          GOTO_IF(overflow, done, 0);
+          GOTO(done, 1);
+        }
 
         BIND(done, result);
         return result;
@@ -516,6 +539,7 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFinite:
       case NumericKind::kInteger:
       case NumericKind::kSafeInteger:
+      case NumericKind::kSmi:
         GOTO_IF(__ IsSmi(input), done, 1);
         break;
       case NumericKind::kMinusZero:

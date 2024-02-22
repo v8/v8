@@ -1054,6 +1054,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
       return os << "Integer";
     case NumericKind::kSafeInteger:
       return os << "SafeInteger";
+    case NumericKind::kSmi:
+      return os << "kSmi";
     case NumericKind::kMinusZero:
       return os << "MinusZero";
     case NumericKind::kNaN:

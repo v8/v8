@@ -4093,6 +4093,7 @@ enum class NumericKind : uint8_t {
   kFinite,
   kInteger,
   kSafeInteger,
+  kSmi,
   kMinusZero,
   kNaN,
 };

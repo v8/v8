@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
@@ -21,6 +22,7 @@
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/heap-object.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -292,8 +294,14 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::AnyTagged(), node->offset()));
+    SetMap(node, __ LoadTaggedField(Map(node->object_input()), node->offset()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadDoubleField* node,
+                                const maglev::ProcessingState& state) {
+    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
+        Map(node->object_input()), node->offset());
+    SetMap(node, __ LoadField(field, AccessBuilder::ForHeapNumberValue()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
@@ -308,6 +316,75 @@ class GraphBuilder {
     SetMap(node, __ LoadFixedDoubleArrayElement(
                      Map(node->elements_input()),
                      __ ChangeInt32ToIntPtr(Map(node->index_input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadHoleyFixedDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ LoadFixedDoubleArrayElement(
+                     Map(node->elements_input()),
+                     __ ChangeInt32ToIntPtr(Map(node->index_input()))));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
+      const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<Float64> result = __ LoadFixedDoubleArrayElement(
+        Map(node->elements_input()),
+        __ ChangeInt32ToIntPtr(Map(node->index_input())));
+    __ DeoptimizeIf(__ Float64IsHole(result), frame_state,
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreTaggedFieldWithWriteBarrier* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+             WriteBarrierKind::kFullWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreDoubleField* node,
+                                const maglev::ProcessingState& state) {
+    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
+        Map(node->object_input()), node->offset());
+    __ StoreField(field, AccessBuilder::ForHeapNumberValue(),
+                  Map(node->value_input()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::StoreFixedArrayElementNoWriteBarrier* node,
+      const maglev::ProcessingState& state) {
+    __ StoreFixedArrayElement(Map(node->elements_input()),
+                              __ ChangeInt32ToIntPtr(Map(node->index_input())),
+                              Map(node->value_input()),
+                              WriteBarrierKind::kNoWriteBarrier);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::StoreFixedArrayElementWithWriteBarrier* node,
+      const maglev::ProcessingState& state) {
+    __ StoreFixedArrayElement(Map(node->elements_input()),
+                              __ ChangeInt32ToIntPtr(Map(node->index_input())),
+                              Map(node->value_input()),
+                              WriteBarrierKind::kFullWriteBarrier);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFixedDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    __ StoreFixedDoubleArrayElement(
+        Map(node->elements_input()),
+        __ ChangeInt32ToIntPtr(Map(node->index_input())),
+        Map(node->value_input()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -499,6 +576,36 @@ class GraphBuilder {
                CheckForMinusZeroMode::kCheckForMinusZero));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::HoleyFloat64ToTagged* node,
+                                const maglev::ProcessingState& state) {
+    Label<Tagged> done(this);
+    V<Float64> input = Map(node->input());
+    if (node->conversion_mode() ==
+        maglev::HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi) {
+      // ConvertUntaggedToJSPrimitive cannot at the same time canonicalize smis
+      // and handle holes. We thus manually insert a smi check when the
+      // conversion_mode is CanonicalizeSmi.
+      IF (__ Float64IsSmi(input)) {
+        GOTO(done,
+             __ ConvertUntaggedToJSPrimitive(
+                 __ TruncateFloat64ToInt32OverflowUndefined(input),
+                 ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi,
+                 RegisterRepresentation::Word32(),
+                 ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+                 CheckForMinusZeroMode::kDontCheckForMinusZero));
+      }
+    }
+    GOTO(done, __ ConvertUntaggedToJSPrimitive(
+                   Map(node->input()),
+                   ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+                       kHeapNumberOrUndefined,
+                   RegisterRepresentation::Float64(),
+                   ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+                   CheckForMinusZeroMode::kCheckForMinusZero));
+    BIND(done, result);
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
@@ -529,6 +636,11 @@ class GraphBuilder {
                ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
                CheckForMinusZeroMode::kCheckForMinusZero,
                node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ChangeInt32ToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ChangeInt32ToFloat64(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 

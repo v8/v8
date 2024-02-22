@@ -118,10 +118,28 @@ assertEquals(74, simple_loop(17));
 assertEquals(74, simple_loop(17));
 assertOptimized(simple_loop);
 
-function load_smi_arr(arr, idx) {
-  return arr[1] + arr[idx];
-}
+// Testing field loads
 {
+  function load_field(o) {
+    let x = o.x;
+    let y = o.y;
+    return x + y;
+  }
+
+  let o = { x : 42, y : 15.71 };
+
+  %PrepareFunctionForOptimization(load_field);
+  assertEquals(57.71, load_field(o));
+  %OptimizeFunctionOnNextCall(load_field);
+  assertEquals(57.71, load_field(o));
+  assertOptimized(load_field);
+}
+
+// Testing array loads
+{
+  function load_smi_arr(arr, idx) {
+    return arr[1] + arr[idx];
+  }
   let smi_arr = [1, 2, 3, 4, {}];
   %PrepareFunctionForOptimization(load_smi_arr);
   assertEquals(6, load_smi_arr(smi_arr, 3));
@@ -133,12 +151,10 @@ function load_smi_arr(arr, idx) {
   // String indices currently work without requiring deopt.
   assertEquals(5, load_smi_arr(smi_arr, '2'));
   assertOptimized(load_smi_arr);
-}
 
-function load_double_arr(arr, idx) {
-  return arr[2] + arr[idx];
-}
-{
+  function load_double_arr(arr, idx) {
+    return arr[2] + arr[idx];
+  }
   let double_arr = [1.552, 2.425, 3.526, 4.596, 5.986, 6.321];
   %PrepareFunctionForOptimization(load_double_arr);
   assertEquals(8.122, load_double_arr(double_arr, 3));
@@ -150,6 +166,28 @@ function load_double_arr(arr, idx) {
   // String indices currently work without requiring deopt.
   assertEquals(5.951, load_double_arr(double_arr, '1'));
   assertOptimized(load_double_arr);
+
+  function load_holey_fixed_double(arr, idx) {
+    return arr[idx];
+  }
+  let holey_double_arr = [2.58,3.41,,4.55];
+
+  %PrepareFunctionForOptimization(load_holey_fixed_double);
+  assertEquals(3.41, load_holey_fixed_double(holey_double_arr, 1));
+  %OptimizeFunctionOnNextCall(load_holey_fixed_double);
+  assertEquals(3.41, load_holey_fixed_double(holey_double_arr, 1));
+  assertOptimized(load_holey_fixed_double);
+  // Loading a hole should trigger a deopt
+  assertEquals(undefined, load_holey_fixed_double(holey_double_arr, 2));
+  assertUnoptimized(load_holey_fixed_double);
+
+  // Reoptimizing, holes should now be handled
+  %OptimizeMaglevOnNextCall(load_holey_fixed_double);
+  assertEquals(3.41, load_holey_fixed_double(holey_double_arr, 1));
+  %OptimizeFunctionOnNextCall(load_holey_fixed_double);
+  assertEquals(3.41, load_holey_fixed_double(holey_double_arr, 1));
+  assertEquals(undefined, load_holey_fixed_double(holey_double_arr, 2));
+  assertOptimized(load_holey_fixed_double);
 }
 
 // Simple JS function call
@@ -326,4 +364,48 @@ function load_double_arr(arr, idx) {
   %OptimizeFunctionOnNextCall(string_char_at);
   assertEquals("c", string_char_at("abcdef"));
   assertOptimized(string_char_at);
+}
+
+// Testing stores
+{
+  function store_field(o, v) {
+    o.x = 17; // Tagged field, no write barrier
+    o.y = v; // Tagged field, with write barrier
+    o.z = 12.29; // Double field
+    return o;
+  }
+
+  let o = { x : 42, y : 10, z : 14.58 };
+
+  %PrepareFunctionForOptimization(store_field);
+  assertEquals({ x : 17, y : undefined, z : 12.29 }, store_field(o));
+  o = { x : 42, y : 10, z : 14.58 }; // Resetting {o}
+  %OptimizeFunctionOnNextCall(store_field);
+  assertEquals({ x : 17, y : undefined, z : 12.29 }, store_field(o));
+  assertOptimized(store_field);
+
+  function store_arr(obj_arr, double_arr) {
+    obj_arr[0] = 42; // FixedArray, no write barrier
+    obj_arr[1] = double_arr; // FixedArray, with write barrier
+    double_arr[1] = 42.25; // DoubleFixedArray
+  }
+
+  let obj_arr = [0, {}, 2];
+  let double_arr = [1.56, 2.68, 3.51];
+
+  %PrepareFunctionForOptimization(store_arr);
+  store_arr(obj_arr, double_arr);
+  assertEquals([42, double_arr, 2], obj_arr);
+  assertEquals([1.56, 42.25, 3.51], double_arr);
+
+  // Resetting {obj_arr} and {double_arr}
+  obj_arr[0] = 0;
+  obj_arr[1] = {};
+  double_arr[1] = 2.68;
+
+  %OptimizeFunctionOnNextCall(store_arr);
+  store_arr(obj_arr, double_arr);
+  assertEquals([42, double_arr, 2], obj_arr);
+  assertEquals([1.56, 42.25, 3.51], double_arr);
+  assertOptimized(store_arr);
 }

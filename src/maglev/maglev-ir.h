@@ -3459,13 +3459,14 @@ class HoleyFloat64ToTagged
 
   auto options() const { return std::tuple{conversion_mode()}; }
 
+  ConversionMode conversion_mode() const {
+    return ConversionModeBitField::decode(bitfield());
+  }
+
  private:
   bool canonicalize_smi() {
     return ConversionModeBitField::decode(bitfield()) ==
            ConversionMode::kCanonicalizeSmi;
-  }
-  ConversionMode conversion_mode() const {
-    return ConversionModeBitField::decode(bitfield());
   }
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
