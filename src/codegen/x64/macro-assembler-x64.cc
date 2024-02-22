@@ -3959,6 +3959,13 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
            kScratchRegister);
       movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
            rbp);
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      movq(Operand(kRootRegister, IsolateData::context_offset()),
+           Immediate(Context::kNoContext));
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       // Use alternative scratch register in order not to overwrite
@@ -3973,7 +3980,14 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
       movq(ExternalReferenceAsOperand(
                ExternalReference::fast_c_call_caller_fp_address(isolate())),
            rbp);
-
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      movq(ExternalReferenceAsOperand(
+               ExternalReference::context_address(isolate()), kScratchRegister),
+           Immediate(Context::kNoContext));
+#endif
       popq(scratch);
     }
   }

@@ -2289,7 +2289,8 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
     if (it.frame()->is_optimized()) {
       Tagged<GcSafeCode> lookup_result = it.frame()->GcSafeLookupCode();
       if (!lookup_result->has_instruction_stream()) return;
-      if (!lookup_result->CanDeoptAt(isolate, it.frame()->pc())) {
+      if (!lookup_result->CanDeoptAt(isolate,
+                                     it.frame()->maybe_unauthenticated_pc())) {
         Tagged<InstructionStream> istream = InstructionStream::unchecked_cast(
             lookup_result->raw_instruction_stream());
         PtrComprCageBase cage_base(isolate);

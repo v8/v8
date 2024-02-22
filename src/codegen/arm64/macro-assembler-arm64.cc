@@ -2107,6 +2107,14 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       static_assert(IsolateData::fast_c_call_caller_pc_offset() ==
                     fp_offset + 8);
       Stp(fp, pc_scratch, MemOperand(kRootRegister, fp_offset));
+
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      static_assert(Context::kNoContext == 0);
+      StoreRootRelative(IsolateData::context_offset(), xzr);
+#endif
     } else {
       DCHECK_NOT_NULL(isolate());
       Mov(addr_scratch,
@@ -2115,6 +2123,15 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Str(fp, MemOperand(addr_scratch));
+#if DEBUG
+      // Reset Isolate::context field right before the fast C call such that the
+      // GC can visit this field unconditionally. This is necessary because
+      // CEntry sets it to kInvalidContext in debug build only.
+      static_assert(Context::kNoContext == 0);
+      Str(xzr,
+          ExternalReferenceAsOperand(
+              ExternalReference::context_address(isolate()), addr_scratch));
+#endif
     }
 
     Pop(addr_scratch, pc_scratch);

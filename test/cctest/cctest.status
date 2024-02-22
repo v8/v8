@@ -1185,6 +1185,7 @@
   'test-verify-type/TestVerifyType': [FAIL],
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGC': [FAIL],
   'test-api/FastApiSequenceOverloads': [FAIL],
   # Maglev doesn't produce optimized enough code to match heap tests
   # expectations.

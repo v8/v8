@@ -69,6 +69,7 @@ class StatsCounter;
   V(execution_mode_address, "IsolateData::execution_mode")                     \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
+  V(context_address, "Isolate::context_address()")                             \
   V(fast_c_call_caller_fp_address,                                             \
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \

@@ -28046,6 +28046,40 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
   }
 };
 
+struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
+  explicit AllocationChecker(i::Isolate* isolate, int32_t expected_argument)
+      : isolate_(isolate), expected_argument_(expected_argument) {}
+
+  static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
+                           v8::FastApiCallbackOptions& options) {
+    AllocationChecker* receiver_ptr =
+        GetInternalField<AllocationChecker>(*receiver);
+    CHECK_EQ(receiver_ptr->expected_argument_, argument);
+    receiver_ptr->SetCallFast();
+    i::Isolate* isolate = receiver_ptr->isolate_;
+    i::HandleScope handle_scope(isolate);
+    i::Handle<i::HeapNumber> number =
+        isolate->factory()->NewHeapNumber(argument);
+    isolate->heap()->CollectGarbage(i::OLD_SPACE,
+                                    i::GarbageCollectionReason::kTesting);
+    CHECK_EQ(receiver_ptr, GetInternalField<AllocationChecker>(*receiver));
+    CHECK_EQ(receiver_ptr->expected_argument_, number->value());
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    AllocationChecker* receiver_ptr =
+        GetInternalField<AllocationChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+    info.GetReturnValue().Set(info[0]);
+  }
+
+ private:
+  i::Isolate* isolate_;
+  int32_t expected_argument_;
+};
+
 template <typename T>
 void CheckFastReturnValue(v8::Local<v8::Value> expected_value,
                           ApiCheckerResultFlags expected_path) {
@@ -28159,6 +28193,42 @@ void CallWithMoreArguments() {
             "func(value);");
 
   // Passing too many arguments should just ignore the extra ones.
+  CHECK(checker.DidCallFast());
+}
+
+TEST(FastApiCallWithAllocationAndGC) {
+  if (i::v8_flags.jitless) return;
+
+  i::v8_flags.turbofan = true;
+  i::v8_flags.turbo_fast_api_calls = true;
+  i::v8_flags.allow_natives_syntax = true;
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  i::v8_flags.always_turbofan = false;
+  i::v8_flags.allow_allocation_in_fast_c_call = true;
+  i::FlagList::EnforceFlagImplications();
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  v8::HandleScope scope(isolate);
+
+  LocalContext env;
+  v8::Local<v8::Value> initial_value(v8_num(42));
+  AllocationChecker checker(i_isolate, 42);
+  SetupTest(initial_value, &env, &checker,
+            "function func(arg) { receiver.api_func(arg); }"
+            "function wrapper(){"
+            "%PrepareFunctionForOptimization(func);"
+            "func(value);"
+            "%OptimizeFunctionOnNextCall(func);"
+            "func(value);"
+            "}wrapper(value);");
+
   CHECK(checker.DidCallFast());
 }
 

@@ -1224,7 +1224,9 @@ bool CppHeap::IsGCAllowed() const {
 }
 
 bool CppHeap::IsGCForbidden() const {
-  return (isolate_ && isolate_->InFastCCall()) || HeapBase::IsGCForbidden();
+  return (isolate_ && isolate_->InFastCCall() &&
+          !v8_flags.allow_allocation_in_fast_c_call) ||
+         HeapBase::IsGCForbidden();
 }
 
 }  // namespace internal

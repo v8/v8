@@ -160,10 +160,34 @@ StackFrame* StackFrameIterator::Reframe() {
 
 void StackFrameIterator::Reset(ThreadLocalTop* top) {
   StackFrame::State state;
-  StackFrame::Type type =
-      ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
-  handler_ = StackHandler::FromAddress(Isolate::handler(top));
-  frame_ = SingletonFor(type, &state);
+
+  const Address fast_c_call_caller_fp =
+      isolate_->isolate_data()->fast_c_call_caller_fp();
+  if (fast_c_call_caller_fp != kNullAddress) {
+    // 'Fast C calls' are a special type of C call where we call directly from
+    // JS to C without an exit frame inbetween. The CEntryStub is responsible
+    // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
+    // calls. To keep the stack iterable, we store the FP and PC of the caller
+    // of the fast C call on the isolate. This is guaranteed to be the topmost
+    // JS frame, because fast C calls cannot call back into JS. We start
+    // iterating the stack from this topmost JS frame.
+    DCHECK_NE(kNullAddress, isolate_->isolate_data()->fast_c_call_caller_pc());
+    state.fp = fast_c_call_caller_fp;
+    state.sp = kNullAddress;
+    state.pc_address = reinterpret_cast<Address*>(
+        isolate_->isolate_data()->fast_c_call_caller_pc_address());
+    state.callee_pc_address = nullptr;
+    state.constant_pool_address = nullptr;
+
+    handler_ = StackHandler::FromAddress(Isolate::handler(top));
+    frame_ = SingletonFor(StackFrame::TURBOFAN, &state);
+
+  } else {
+    StackFrame::Type type =
+        ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
+    handler_ = StackHandler::FromAddress(Isolate::handler(top));
+    frame_ = SingletonFor(type, &state);
+  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -207,7 +231,7 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 // -------------------------------------------------------------------------
@@ -607,10 +631,10 @@ base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
 }  // namespace
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
-  base::Optional<Tagged<GcSafeCode>> result =
-      GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result.value()->InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), result.value()->InstructionEnd(isolate(), pc()));
+  const Address pc = maybe_unauthenticated_pc();
+  base::Optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
+  DCHECK_GE(pc, result.value()->InstructionStart(isolate(), pc));
+  DCHECK_LT(pc, result.value()->InstructionEnd(isolate(), pc));
   return result.value();
 }
 
@@ -619,10 +643,9 @@ Tagged<Code> StackFrame::LookupCode() const {
   return GcSafeLookupCode()->UnsafeCastToCode();
 }
 
-void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
-                           Address* constant_pool_address,
+void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
                            Tagged<GcSafeCode> holder) const {
-  const Address old_pc = ReadPC(pc_address);
+  const Address old_pc = maybe_unauthenticated_pc();
   DCHECK_GE(old_pc, holder->InstructionStart(isolate(), old_pc));
   DCHECK_LT(old_pc, holder->InstructionEnd(isolate(), old_pc));
 
@@ -646,12 +669,17 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   }
 
   DCHECK(visited_holder->has_instruction_stream());
+  // We can only relocate the InstructionStream object when we are able to patch
+  // the return address. We only know the location of the return address if the
+  // stack pointer is known. This means we cannot relocate InstructionStreams
+  // for fast c calls.
+  DCHECK(!InFastCCall());
 
   Tagged<InstructionStream> istream =
       InstructionStream::unchecked_cast(visited_istream);
   const Address new_pc = istream->instruction_start() + pc_offset_from_start;
   // TODO(v8:10026): avoid replacing a signed pointer.
-  PointerAuthentication::ReplacePC(pc_address, new_pc, kSystemPointerSize);
+  PointerAuthentication::ReplacePC(pc_address(), new_pc, kSystemPointerSize);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {
     *constant_pool_address = istream->constant_pool();
   }
@@ -950,7 +978,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
 void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
@@ -1748,7 +1776,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  IteratePc(v, constant_pool_address(), code);
 }
 
 void MaglevFrame::Iterate(RootVisitor* v) const {
@@ -1859,7 +1887,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  IteratePc(v, constant_pool_address(), code);
 }
 
 Handle<JSFunction> MaglevFrame::GetInnermostFunction() const {
@@ -1956,7 +1984,7 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   //  +-----------------+-----------------------------------------
 
   // Find the code and compute the safepoint information.
-  Address inner_pointer = pc();
+  const Address inner_pointer = maybe_unauthenticated_pc();
   InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
@@ -1981,14 +2009,20 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
-  // Parameters passed to the callee.
-  FullObjectSlot parameters_base(&Memory<Address>(sp()));
+
   FullObjectSlot parameters_limit = frame_header_base - spill_slot_count;
 
-  // Visit the outgoing parameters if they are tagged.
-  if (HasTaggedOutgoingParams(code)) {
-    v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
-                         parameters_limit);
+  if (!InFastCCall()) {
+    // Parameters passed to the callee.
+    FullObjectSlot parameters_base(&Memory<Address>(sp()));
+
+    // Visit the outgoing parameters if they are tagged.
+    if (HasTaggedOutgoingParams(code)) {
+      v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
+                           parameters_limit);
+    }
+  } else {
+    // There are no outgoing parameters to visit for fast C calls.
   }
 
   // Spill slots are in the region ]frame_header_base, parameters_limit];
@@ -2004,7 +2038,7 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  IteratePc(v, constant_pool_address(), code);
 }
 
 void TurbofanStubWithContextFrame::Iterate(RootVisitor* v) const {
@@ -3414,7 +3448,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 void EntryFrame::Iterate(RootVisitor* v) const {
-  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 void CommonFrame::IterateExpressions(RootVisitor* v) const {
@@ -3437,12 +3471,12 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
+  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 void InternalFrame::Iterate(RootVisitor* v) const {
   Tagged<GcSafeCode> code = GcSafeLookupCode();
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  IteratePc(v, constant_pool_address(), code);
   // Internal frames typically do not receive any arguments, hence their stack
   // only contains tagged pointers.
   // We are misusing the has_tagged_outgoing_params flag here to tell us whether

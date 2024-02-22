@@ -180,7 +180,9 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
   // We are not supposed to allocate in fast c calls.
-  CHECK_IMPLIES(is_main_thread(), !isolate_heap()->isolate()->InFastCCall());
+  CHECK_IMPLIES(is_main_thread(),
+                v8_flags.allow_allocation_in_fast_c_call ||
+                    !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result =
       USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
