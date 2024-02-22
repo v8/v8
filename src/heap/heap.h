@@ -1941,7 +1941,6 @@ class Heap final {
   bool ShouldExpandYoungGenerationOnSlowAllocation();
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
-  bool IsMajorMarkingComplete(LocalHeap* local_heap);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
