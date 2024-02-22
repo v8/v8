@@ -5440,6 +5440,9 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
     return std::tuple{check_type(), first_instance_type_, last_instance_type_};
   }
 
+  InstanceType first_instance_type() const { return first_instance_type_; }
+  InstanceType last_instance_type() const { return last_instance_type_; }
+
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const InstanceType first_instance_type_;
@@ -9075,6 +9078,8 @@ class BranchIfFloat64Compare
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  Operation operation() const { return operation_; }
 
  private:
   Operation operation_;

@@ -45,48 +45,94 @@ assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 assertOptimized(math_float);
 
-function cmp(which, a, b) {
-  if (which == 0) { return a > b; }
-  if (which == 1) { return a >= b; }
-  if (which == 2) { return a < b; }
-  if (which == 3) { return a <= b; }
-}
-%PrepareFunctionForOptimization(cmp);
-// >
-assertEquals(false, cmp(0, 10, 20));
-assertEquals(true, cmp(0, 20, 10));
-assertEquals(false, cmp(0, 15, 15));
-// >=
-assertEquals(false, cmp(1, 10, 20));
-assertEquals(true, cmp(1, 20, 10));
-assertEquals(true, cmp(1, 15, 15));
-// <
-assertEquals(true, cmp(2, 10, 20));
-assertEquals(false, cmp(2, 20, 10));
-assertEquals(false, cmp(2, 15, 15));
-// <=
-assertEquals(true, cmp(3, 10, 20));
-assertEquals(false, cmp(3, 20, 10));
-assertEquals(true, cmp(3, 15, 15));
+// Comparisons
+{
+  function cmp_int32(which, a, b) {
+    if (which == 0) { return a > b; }
+    if (which == 1) { return a >= b; }
+    if (which == 2) { return a < b; }
+    if (which == 3) { return a <= b; }
+  }
+  %PrepareFunctionForOptimization(cmp_int32);
+  // >
+  assertEquals(false, cmp_int32(0, 10, 20));
+  assertEquals(true, cmp_int32(0, 20, 10));
+  assertEquals(false, cmp_int32(0, 15, 15));
+  // >=
+  assertEquals(false, cmp_int32(1, 10, 20));
+  assertEquals(true, cmp_int32(1, 20, 10));
+  assertEquals(true, cmp_int32(1, 15, 15));
+  // <
+  assertEquals(true, cmp_int32(2, 10, 20));
+  assertEquals(false, cmp_int32(2, 20, 10));
+  assertEquals(false, cmp_int32(2, 15, 15));
+  // <=
+  assertEquals(true, cmp_int32(3, 10, 20));
+  assertEquals(false, cmp_int32(3, 20, 10));
+  assertEquals(true, cmp_int32(3, 15, 15));
 
-%OptimizeFunctionOnNextCall(cmp);
-// >
-assertEquals(false, cmp(0, 10, 20));
-assertEquals(true, cmp(0, 20, 10));
-assertEquals(false, cmp(0, 15, 15));
-// >=
-assertEquals(false, cmp(1, 10, 20));
-assertEquals(true, cmp(1, 20, 10));
-assertEquals(true, cmp(1, 15, 15));
-// <
-assertEquals(true, cmp(2, 10, 20));
-assertEquals(false, cmp(2, 20, 10));
-assertEquals(false, cmp(2, 15, 15));
-// <=
-assertEquals(true, cmp(3, 10, 20));
-assertEquals(false, cmp(3, 20, 10));
-assertEquals(true, cmp(3, 15, 15));
-assertOptimized(cmp);
+  %OptimizeFunctionOnNextCall(cmp_int32);
+  // >
+  assertEquals(false, cmp_int32(0, 10, 20));
+  assertEquals(true, cmp_int32(0, 20, 10));
+  assertEquals(false, cmp_int32(0, 15, 15));
+  // >=
+  assertEquals(false, cmp_int32(1, 10, 20));
+  assertEquals(true, cmp_int32(1, 20, 10));
+  assertEquals(true, cmp_int32(1, 15, 15));
+  // <
+  assertEquals(true, cmp_int32(2, 10, 20));
+  assertEquals(false, cmp_int32(2, 20, 10));
+  assertEquals(false, cmp_int32(2, 15, 15));
+  // <=
+  assertEquals(true, cmp_int32(3, 10, 20));
+  assertEquals(false, cmp_int32(3, 20, 10));
+  assertEquals(true, cmp_int32(3, 15, 15));
+  assertOptimized(cmp_int32);
+
+  function cmp_float64(which, a, b) {
+    if (which == 0) { return a > b; }
+    if (which == 1) { return a >= b; }
+    if (which == 2) { return a < b; }
+    if (which == 3) { return a <= b; }
+  }
+  %PrepareFunctionForOptimization(cmp_float64);
+  // >
+  assertEquals(false, cmp_float64(0, 10.25, 20.25));
+  assertEquals(true, cmp_float64(0, 20.25, 10.25));
+  assertEquals(false, cmp_float64(0, 15.25, 15.25));
+  // >=
+  assertEquals(false, cmp_float64(1, 10.25, 20.25));
+  assertEquals(true, cmp_float64(1, 20.25, 10.25));
+  assertEquals(true, cmp_float64(1, 15.25, 15.25));
+  // <
+  assertEquals(true, cmp_float64(2, 10.25, 20.25));
+  assertEquals(false, cmp_float64(2, 20.25, 10.25));
+  assertEquals(false, cmp_float64(2, 15.25, 15.25));
+  // <=
+  assertEquals(true, cmp_float64(3, 10.25, 20.25));
+  assertEquals(false, cmp_float64(3, 20.25, 10.25));
+  assertEquals(true, cmp_float64(3, 15.25, 15.25));
+
+  %OptimizeFunctionOnNextCall(cmp_float64);
+  // >
+  assertEquals(false, cmp_float64(0, 10.25, 20.25));
+  assertEquals(true, cmp_float64(0, 20.25, 10.25));
+  assertEquals(false, cmp_float64(0, 15.25, 15.25));
+  // >=
+  assertEquals(false, cmp_float64(1, 10.25, 20.25));
+  assertEquals(true, cmp_float64(1, 20.25, 10.25));
+  assertEquals(true, cmp_float64(1, 15.25, 15.25));
+  // <
+  assertEquals(true, cmp_float64(2, 10.25, 20.25));
+  assertEquals(false, cmp_float64(2, 20.25, 10.25));
+  assertEquals(false, cmp_float64(2, 15.25, 15.25));
+  // <=
+  assertEquals(true, cmp_float64(3, 10.25, 20.25));
+  assertEquals(false, cmp_float64(3, 20.25, 10.25));
+  assertEquals(true, cmp_float64(3, 15.25, 15.25));
+  assertOptimized(cmp_float64);
+}
 
 function bitwise_smi(a, b) {
   let x = a | b;
@@ -408,4 +454,70 @@ assertOptimized(simple_loop);
   assertEquals([42, double_arr, 2], obj_arr);
   assertEquals([1.56, 42.25, 3.51], double_arr);
   assertOptimized(store_arr);
+}
+
+// Testing branches
+{
+  function branch_cmp(w32, f64) {
+    let c1 = w32 + 2;
+    let v;
+    if (c1) {
+      v = c1 + 12;
+    } else {
+      v = c1 + 17;
+    }
+    let c2 = f64 + 1.5;
+    if (c2) {
+      v += 10;
+    } else {
+      v += 3;
+    }
+    if (f64 > 1.5) {
+      v += 2;
+    } else {
+      v += 7;
+    }
+    return v;
+  }
+
+  %PrepareFunctionForOptimization(branch_cmp);
+  assertEquals(41, branch_cmp(15, 3.25));
+  assertEquals(29, branch_cmp(-2, 3.25));
+  assertEquals(27, branch_cmp(-2, -1.5));
+  %OptimizeFunctionOnNextCall(branch_cmp);
+  assertEquals(41, branch_cmp(15, 3.25));
+  assertEquals(29, branch_cmp(-2, 3.25));
+  assertEquals(27, branch_cmp(-2, -1.5));
+  assertOptimized(f);
+}
+
+// Test BranchIfReferenceEqual and TaggedEqual
+{
+  function f(x, y) {
+    let is_eq = x === y;
+    let r = is_eq + 2;
+    if (x === y) {
+      return r + 42;
+    } else {
+      return r + 25;
+    }
+  }
+
+  let o = {};
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(27, f(o, []));
+  assertEquals(45, f(o, o));
+  %OptimizeMaglevOnNextCall(f);
+  assertEquals(27, f(o, []));
+  assertEquals(45, f(o, o));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(27, f(o, []));
+  assertEquals(45, f(o, o));
+  assertOptimized(f);
+
+  // Making sure that strings trigger a deopt (since === for strings is regular
+  // string equality, not reference equality).
+  assertEquals(45, f("abcdefghijklmno", "abcde" + "fghijklmno"));
+  assertUnoptimized(f);
 }

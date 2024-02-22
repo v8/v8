@@ -8,6 +8,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
+#include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
@@ -53,8 +54,9 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
 class GraphBuilder {
  public:
   using AssemblerT =
-      TSAssembler<MachineOptimizationReducer, VariableReducer,
-                  RequiredOptimizationReducer, ValueNumberingReducer>;
+      TSAssembler<MaglevEarlyLoweringReducer, MachineOptimizationReducer,
+                  VariableReducer, RequiredOptimizationReducer,
+                  ValueNumberingReducer>;
 
   GraphBuilder(Graph& graph, Zone* temp_zone,
                maglev::MaglevCompilationUnit* maglev_compilation_unit)
@@ -275,6 +277,16 @@ class GraphBuilder {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckInstanceType* node,
+                                const maglev::ProcessingState& state) {
+    __ CheckInstanceType(
+        Map(node->receiver_input()), BuildFrameState(node->eager_deopt_info()),
+        node->eager_deopt_info()->feedback_to_update(),
+        node->first_instance_type(), node->last_instance_type(),
+        node->check_type() != maglev::CheckType::kOmitHeapObjectCheck);
+
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
                                 const maglev::ProcessingState& state) {
@@ -401,6 +413,27 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Int32Compare* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> bool_res = ConvertCompare<Word32>(
+        node->left_input(), node->right_input(), node->operation());
+    SetMap(node, ConvertWord32ToJSBool(bool_res));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64Compare* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> bool_res = ConvertCompare<Float64>(
+        node->left_input(), node->right_input(), node->operation());
+    SetMap(node, ConvertWord32ToJSBool(bool_res));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::TaggedEqual* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(
+                     __ TaggedEqual(Map(node->lhs()), Map(node->rhs()))));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::BranchIfToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumption =
@@ -413,23 +446,38 @@ class GraphBuilder {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::Int32Compare* node,
-                                const maglev::ProcessingState& state) {
-    Label<Tagged> done(this);
-    IF (ConvertInt32Compare(node->left_input(), node->right_input(),
-                            node->operation())) {
-      GOTO(done, __ HeapConstant(factory_->true_value()));
-    } ELSE {
-      GOTO(done, __ HeapConstant(factory_->false_value()));
-    }
-    BIND(done, result);
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::BranchIfInt32Compare* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> condition = ConvertInt32Compare(
+    V<Word32> condition = ConvertCompare<Word32>(
         node->left_input(), node->right_input(), node->operation());
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfFloat64Compare* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = ConvertCompare<Float64>(
+        node->left_input(), node->right_input(), node->operation());
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfInt32ToBooleanTrue* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = Map(node->condition_input());
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfFloat64ToBooleanTrue* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = __ Float64Equal(Map(node->condition_input()), 0.0);
+    // Swapping if_true and if_false because we the real condition is "!= 0"
+    // rather than "== 0" (but Turboshaft doesn't have Float64NotEqual).
+    __ Branch(condition, Map(node->if_false()), Map(node->if_true()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition =
+        __ TaggedEqual(Map(node->left_input()), Map(node->right_input()));
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
@@ -619,6 +667,15 @@ class GraphBuilder {
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::UncheckedNumberOrOddballToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ConvertJSPrimitiveToUntagged(
+                     Map(node->input()),
+                     ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
+                     ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                         kNumberOrOddball));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::TruncateUint32ToInt32* node,
                                 const maglev::ProcessingState& state) {
     // This doesn't matter in Turboshaft: both Uint32 and Int32 are Word32.
@@ -641,6 +698,15 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::ChangeInt32ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ChangeInt32ToFloat64(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ ChangeFloat64ToInt32OrDeopt(
+               Map(node->input()), BuildFrameState(node->eager_deopt_info()),
+               CheckForMinusZeroMode::kCheckForMinusZero,
+               node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -791,9 +857,9 @@ class GraphBuilder {
                                              combine, info);
   }
 
-  V<Word32> ConvertInt32Compare(maglev::Input left_input,
-                                maglev::Input right_input,
-                                ::Operation operation) {
+  template <typename rep>
+  V<Word32> ConvertCompare(maglev::Input left_input, maglev::Input right_input,
+                           ::Operation operation) {
     ComparisonOp::Kind kind;
     bool swap_inputs = false;
     switch (operation) {
@@ -817,10 +883,10 @@ class GraphBuilder {
       default:
         UNREACHABLE();
     }
-    V<Word32> left = Map(left_input);
-    V<Word32> right = Map(right_input);
+    V<rep> left = Map(left_input);
+    V<rep> right = Map(right_input);
     if (swap_inputs) std::swap(left, right);
-    return __ Comparison(left, right, kind, WordRepresentation::Word32());
+    return __ Comparison(left, right, kind, V<rep>::rep);
   }
 
   V<Word32> ConvertInt32Compare(maglev::Input left_input,
@@ -899,6 +965,21 @@ class GraphBuilder {
       case maglev::ValueRepresentation::kTypedArrayLength:
         return RegisterRepresentation::WordPtr();
     }
+  }
+
+  // TODO(dmercadier): Using a Branch would open more optimization opportunities
+  // for BranchElimination compared to using a Select. However, in most cases,
+  // Maglev should avoid materializing JS booleans, so there is a good chance
+  // that it we actually need to do it, it's because we have to, and
+  // BranchElimination probably cannot help. Thus, using a Select rather than a
+  // Branch leads to smaller graphs, which is generally beneficial. Still, once
+  // the graph builder is finished, we should evaluate whether Select or Branch
+  // is the best choice here.
+  V<Tagged> ConvertWord32ToJSBool(V<Word32> b) {
+    return __ Select(b, __ HeapConstant(factory_->true_value()),
+                     __ HeapConstant(factory_->false_value()),
+                     RegisterRepresentation::Tagged(), BranchHint::kNone,
+                     SelectOp::Implementation::kBranch);
   }
 
   class ThrowingScope {

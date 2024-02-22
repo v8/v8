@@ -3236,6 +3236,7 @@ filegroup(
         "src/compiler/turboshaft/machine-lowering-phase.cc",
         "src/compiler/turboshaft/machine-lowering-phase.h",
         "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
+        "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h",
         "src/compiler/turboshaft/maglev-graph-building-phase.cc",
         "src/compiler/turboshaft/maglev-graph-building-phase.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
