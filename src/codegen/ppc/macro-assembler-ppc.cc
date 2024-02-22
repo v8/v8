@@ -2914,23 +2914,35 @@ void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
   }
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
   Move(ip, function);
-  CallCFunction(ip, num_reg_arguments, num_double_arguments,
-                set_isolate_data_slots, has_function_descriptor);
+  return CallCFunction(ip, num_reg_arguments, num_double_arguments,
+                       set_isolate_data_slots, has_function_descriptor);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+  Label start_call;
+  Register pc_scratch = r11;
+  DCHECK(!AreAliased(pc_scratch, function));
+  LoadPC(pc_scratch);
+  bind(&start_call);
+  int start_pc_offset = pc_offset();
+  // We are going to patch this instruction after emitting
+  // Call, using a zero offset here as placeholder for now.
+  // patch_pc_address assumes `addi` is used here to
+  // add the offset to pc.
+  addi(pc_scratch, pc_scratch, Operand::Zero());
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
@@ -2940,9 +2952,9 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     mflr(scratch);
     // See x64 code for reasoning about how to address the isolate data fields.
     if (root_array_available()) {
-      LoadPC(r0);
-      StoreU64(r0, MemOperand(kRootRegister,
-                              IsolateData::fast_c_call_caller_pc_offset()));
+      StoreU64(pc_scratch,
+               MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
       StoreU64(fp, MemOperand(kRootRegister,
                               IsolateData::fast_c_call_caller_fp_offset()));
     } else {
@@ -2952,8 +2964,7 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      LoadPC(r0);
-      StoreU64(r0, MemOperand(addr_scratch));
+      StoreU64(pc_scratch, MemOperand(addr_scratch));
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       StoreU64(fp, MemOperand(addr_scratch));
@@ -2981,6 +2992,15 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   }
 
   Call(dest);
+  int call_pc_offset = pc_offset();
+  int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
+  // Here we are going to patch the `addi` instruction above to use the
+  // correct offset.
+  // LoadPC emits two instructions and pc is the address of its
+  // second emitted instruction therefore there is one more instruction to
+  // count.
+  offset_since_start_call += kInstrSize;
+  patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -3011,21 +3031,22 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   } else {
     AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
   }
+
+  return call_pc_offset;
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       has_function_descriptor);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots,
-                                   bool has_function_descriptor) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                has_function_descriptor);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  bool has_function_descriptor) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       has_function_descriptor);
 }
 
 void MacroAssembler::CheckPageFlag(
