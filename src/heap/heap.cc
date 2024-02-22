@@ -529,6 +529,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               const char** reason) const {
   if (gc_reason == GarbageCollectionReason::kFinalizeConcurrentMinorMS) {
     DCHECK(new_space());
+    DCHECK(!ShouldReduceMemory());
     *reason = "Concurrent MinorMS needs finalization";
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
@@ -1512,7 +1513,7 @@ void Heap::CollectAllGarbage(GCFlags gc_flags,
                              const v8::GCCallbackFlags gc_callback_flags) {
   current_gc_flags_ = gc_flags;
   CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
-  current_gc_flags_ = GCFlag::kNoFlags;
+  DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 }
 
 namespace {
@@ -1607,20 +1608,21 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   isolate()->ClearSerializerData();
   isolate()->compilation_cache()->Clear();
 
-  current_gc_flags_ =
+  const GCFlags gc_flags =
       GCFlag::kReduceMemoryFootprint |
       (gc_reason == GarbageCollectionReason::kLowMemoryNotification
            ? GCFlag::kForced
            : GCFlag::kNoFlags);
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
+    current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags);
+    DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
     if ((roots_before == num_roots()) &&
         ((attempt + 1) >= kMinNumberOfAttempts)) {
       break;
     }
   }
-  current_gc_flags_ = GCFlag::kNoFlags;
 
   EagerlyFreeExternalMemory();
 
@@ -1801,11 +1803,17 @@ void Heap::CollectGarbage(AllocationSpace space,
   const GarbageCollector collector =
       SelectGarbageCollector(space, gc_reason, &collector_reason);
   current_or_last_garbage_collector_ = collector;
+  DCHECK_IMPLIES(v8_flags.minor_ms && IsYoungGenerationCollector(collector),
+                 !ShouldReduceMemory());
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
+    const GCFlags gc_flags = current_gc_flags_;
+    // Minor GCs should not be memory reducing.
+    current_gc_flags_ &= ~GCFlag::kReduceMemoryFootprint;
     CollectGarbage(NEW_SPACE,
                    GarbageCollectionReason::kFinalizeConcurrentMinorMS);
+    current_gc_flags_ = gc_flags;
   }
 
   const GCType gc_type = GetGCTypeFromGarbageCollector(collector);
@@ -1956,6 +1964,10 @@ void Heap::CollectGarbage(AllocationSpace space,
       }
       FatalProcessOutOfMemory("Reached heap limit");
     }
+  }
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    current_gc_flags_ = GCFlag::kNoFlags;
   }
 }
 

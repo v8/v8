@@ -2717,9 +2717,11 @@ HEAP_TEST(GCFlags) {
                                    GarbageCollectionReason::kTesting);
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
-  heap::InvokeMinorGC(heap);
-  // NewSpace scavenges should not overwrite the flags.
-  CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
+  if (!v8_flags.separate_gc_phases) {
+    heap::InvokeMinorGC(heap);
+    // NewSpace scavenges should not overwrite the flags.
+    CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
+  }
 
   heap::InvokeMajorGC(heap, GCFlag::kNoFlags);
   CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);

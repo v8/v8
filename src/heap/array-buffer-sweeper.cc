@@ -167,6 +167,8 @@ void ArrayBufferSweeper::RequestSweep(
   TRACE_GC_WITH_FLOW(heap_->tracer(), scope_id, trace_id,
                      TRACE_EVENT_FLAG_FLOW_OUT);
   Prepare(type, treat_all_young_as_promoted);
+  DCHECK_IMPLIES(v8_flags.minor_ms && type == SweepingType::kYoung,
+                 !heap_->ShouldReduceMemory());
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       v8_flags.concurrent_array_buffer_sweeping &&
       heap_->ShouldUseBackgroundThreads()) {
