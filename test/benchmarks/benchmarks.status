@@ -63,6 +63,7 @@
   'octane/gbemu-part1': [PASS, SLOW],
   'octane/navier-stokes': [PASS, SLOW],
   'octane/pdfjs': [PASS, SLOW],
+  'octane/zlib': [PASS, SLOW, ['mode == debug', SKIP]],
 }],
 
 ['variant == stress', {
