@@ -525,36 +525,35 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
   *value = nullptr;
   *negated = false;
 
-  if (arg != nullptr && *arg == '-') {
-    // find the begin of the flag name
-    arg++;  // remove 1st '-'
-    if (*arg == '-') {
-      arg++;                    // remove 2nd '-'
-      DCHECK_NE('\0', arg[0]);  // '--' arguments are handled in the caller.
-    }
-    if (arg[0] == 'n' && arg[1] == 'o') {
-      arg += 2;                                 // remove "no"
-      if (FlagHelpers::NormalizeChar(arg[0]) == '-') {
-        arg++;  // remove dash after "no".
-      }
-      *negated = true;
-    }
-    *name = arg;
+  if (arg[0] != '-') return;
 
-    // find the end of the flag name
-    while (*arg != '\0' && *arg != '=') arg++;
-
-    // get the value if any
-    if (*arg == '=') {
-      // make a copy so we can NUL-terminate flag name
-      size_t n = arg - *name;
-      CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
-      MemCopy(buffer, *name, n);
-      buffer[n] = '\0';
-      *name = buffer;
-      // get the value
-      *value = arg + 1;
+  // Find the begin of the flag name.
+  arg++;  // remove 1st '-'
+  if (*arg == '-') {
+    arg++;                    // remove 2nd '-'
+    DCHECK_NE('\0', arg[0]);  // '--' arguments are handled in the caller.
+  }
+  if (arg[0] == 'n' && arg[1] == 'o') {
+    arg += 2;  // remove "no"
+    if (FlagHelpers::NormalizeChar(arg[0]) == '-') {
+      arg++;  // remove dash after "no".
     }
+    *negated = true;
+  }
+  *name = arg;
+
+  // Find the end of the flag name.
+  while (*arg != '\0' && *arg != '=') arg++;
+
+  // Get the value if any.
+  if (*arg == '=') {
+    // Make a copy so we can NUL-terminate the flag name.
+    size_t n = arg - *name;
+    CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
+    MemCopy(buffer, *name, n);
+    buffer[n] = '\0';
+    *name = buffer;
+    *value = arg + 1;
   }
 }
 
@@ -582,121 +581,125 @@ bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
 int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
                                       HelpOptions help_options) {
   int return_code = 0;
-  // parse arguments
+  // Parse arguments.
   for (int i = 1; i < *argc;) {
     int j = i;  // j > 0
     const char* arg = argv[i++];
+    if (arg == nullptr) continue;
 
-    // split arg into flag components
+    // Stop processing flags on '--'.
+    if (arg[0] == '-' && arg[1] == '-' && arg[2] == '\0') break;
+
+    // Split arg into flag components.
     char buffer[1 * KB];
     const char* name;
     const char* value;
     bool negated;
     SplitArgument(arg, buffer, sizeof buffer, &name, &value, &negated);
 
-    if (name != nullptr) {
-      // lookup the flag
-      Flag* flag = FindFlagByName(name);
-      if (flag == nullptr) {
-        if (remove_flags) {
-          // We don't recognize this flag but since we're removing
-          // the flags we recognize we assume that the remaining flags
-          // will be processed somewhere else so this flag might make
-          // sense there.
-          continue;
-        } else {
-          PrintF(stderr, "Error: unrecognized flag %s\n", arg);
-          return_code = j;
-          break;
-        }
-      }
+    if (name == nullptr) continue;
 
-      // if we still need a flag value, use the next argument if available
-      if (flag->type() != Flag::TYPE_BOOL &&
-          flag->type() != Flag::TYPE_MAYBE_BOOL && value == nullptr) {
-        if (i < *argc) {
-          value = argv[i++];
-        }
-        if (!value) {
-          PrintF(stderr, "Error: missing value for flag %s of type %s\n", arg,
-                 Type2String(flag->type()));
-          return_code = j;
-          break;
-        }
-      }
-
-      // set the flag
-      char* endp = const_cast<char*>("");  // *endp is only read
-      switch (flag->type()) {
-        case Flag::TYPE_BOOL:
-          flag->set_bool_variable(!negated, Flag::SetBy::kCommandLine);
-          break;
-        case Flag::TYPE_MAYBE_BOOL:
-          flag->set_maybe_bool_variable(!negated, Flag::SetBy::kCommandLine);
-          break;
-        case Flag::TYPE_INT:
-          flag->set_int_variable(static_cast<int>(strtol(value, &endp, 10)),
-                                 Flag::SetBy::kCommandLine);
-          break;
-        case Flag::TYPE_UINT: {
-          unsigned int parsed_value;
-          if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
-            flag->set_uint_variable(parsed_value, Flag::SetBy::kCommandLine);
-          } else {
-            return_code = j;
-          }
-          break;
-        }
-        case Flag::TYPE_UINT64: {
-          uint64_t parsed_value;
-          if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
-            flag->set_uint64_variable(parsed_value, Flag::SetBy::kCommandLine);
-          } else {
-            return_code = j;
-          }
-          break;
-        }
-        case Flag::TYPE_FLOAT:
-          flag->set_float_variable(strtod(value, &endp),
-                                   Flag::SetBy::kCommandLine);
-          break;
-        case Flag::TYPE_SIZE_T: {
-          size_t parsed_value;
-          if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
-            flag->set_size_t_variable(parsed_value, Flag::SetBy::kCommandLine);
-          } else {
-            return_code = j;
-          }
-          break;
-        }
-        case Flag::TYPE_STRING:
-          flag->set_string_value(value ? StrDup(value) : nullptr, true,
-                                 Flag::SetBy::kCommandLine);
-          break;
-      }
-
-      // handle errors
-      bool is_bool_type = flag->type() == Flag::TYPE_BOOL ||
-                          flag->type() == Flag::TYPE_MAYBE_BOOL;
-      if ((is_bool_type && value != nullptr) || (!is_bool_type && negated) ||
-          *endp != '\0') {
-        // TODO(neis): TryParseUnsigned may return with {*endp == '\0'} even in
-        // an error case.
-        PrintF(stderr, "Error: illegal value for flag %s of type %s\n", arg,
-               Type2String(flag->type()));
-        if (is_bool_type) {
-          PrintF(stderr,
-                 "To set or unset a boolean flag, use --flag or --no-flag.\n");
-        }
+    // Lookup the flag.
+    Flag* flag = FindFlagByName(name);
+    if (flag == nullptr) {
+      if (remove_flags) {
+        // We don't recognize this flag but since we're removing
+        // the flags we recognize we assume that the remaining flags
+        // will be processed somewhere else so this flag might make
+        // sense there.
+        continue;
+      } else {
+        PrintF(stderr, "Error: unrecognized flag %s\n", arg);
         return_code = j;
         break;
       }
+    }
 
-      // remove the flag & value from the command
-      if (remove_flags) {
-        while (j < i) {
-          argv[j++] = nullptr;
+    // If we still need a flag value, use the next argument if available.
+    if (flag->type() != Flag::TYPE_BOOL &&
+        flag->type() != Flag::TYPE_MAYBE_BOOL && value == nullptr) {
+      if (i < *argc) {
+        value = argv[i++];
+      }
+      if (!value) {
+        PrintF(stderr, "Error: missing value for flag %s of type %s\n", arg,
+               Type2String(flag->type()));
+        return_code = j;
+        break;
+      }
+    }
+
+    // Set the flag.
+    char* endp = const_cast<char*>("");  // *endp is only read
+    switch (flag->type()) {
+      case Flag::TYPE_BOOL:
+        flag->set_bool_variable(!negated, Flag::SetBy::kCommandLine);
+        break;
+      case Flag::TYPE_MAYBE_BOOL:
+        flag->set_maybe_bool_variable(!negated, Flag::SetBy::kCommandLine);
+        break;
+      case Flag::TYPE_INT:
+        flag->set_int_variable(static_cast<int>(strtol(value, &endp, 10)),
+                               Flag::SetBy::kCommandLine);
+        break;
+      case Flag::TYPE_UINT: {
+        unsigned int parsed_value;
+        if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
+          flag->set_uint_variable(parsed_value, Flag::SetBy::kCommandLine);
+        } else {
+          return_code = j;
         }
+        break;
+      }
+      case Flag::TYPE_UINT64: {
+        uint64_t parsed_value;
+        if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
+          flag->set_uint64_variable(parsed_value, Flag::SetBy::kCommandLine);
+        } else {
+          return_code = j;
+        }
+        break;
+      }
+      case Flag::TYPE_FLOAT:
+        flag->set_float_variable(strtod(value, &endp),
+                                 Flag::SetBy::kCommandLine);
+        break;
+      case Flag::TYPE_SIZE_T: {
+        size_t parsed_value;
+        if (TryParseUnsigned(flag, arg, value, &endp, &parsed_value)) {
+          flag->set_size_t_variable(parsed_value, Flag::SetBy::kCommandLine);
+        } else {
+          return_code = j;
+        }
+        break;
+      }
+      case Flag::TYPE_STRING:
+        flag->set_string_value(value ? StrDup(value) : nullptr, true,
+                               Flag::SetBy::kCommandLine);
+        break;
+    }
+
+    // Handle errors.
+    bool is_bool_type = flag->type() == Flag::TYPE_BOOL ||
+                        flag->type() == Flag::TYPE_MAYBE_BOOL;
+    if ((is_bool_type && value != nullptr) || (!is_bool_type && negated) ||
+        *endp != '\0') {
+      // TODO(neis): TryParseUnsigned may return with {*endp == '\0'} even in
+      // an error case.
+      PrintF(stderr, "Error: illegal value for flag %s of type %s\n", arg,
+             Type2String(flag->type()));
+      if (is_bool_type) {
+        PrintF(stderr,
+               "To set or unset a boolean flag, use --flag or --no-flag.\n");
+      }
+      return_code = j;
+      break;
+    }
+
+    // Remove the flag & value from the command.
+    if (remove_flags) {
+      while (j < i) {
+        argv[j++] = nullptr;
       }
     }
   }
@@ -712,7 +715,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
   }
 
   if (remove_flags) {
-    // shrink the argument list
+    // Shrink the argument list.
     int j = 1;
     for (int i = 1; i < *argc; i++) {
       if (argv[i] != nullptr) argv[j++] = argv[i];
@@ -744,25 +747,25 @@ static char* SkipBlackSpace(char* p) {
 
 // static
 int FlagList::SetFlagsFromString(const char* str, size_t len) {
-  // make a 0-terminated copy of str
+  // Make a 0-terminated copy of str.
   std::unique_ptr<char[]> copy0{NewArray<char>(len + 1)};
   MemCopy(copy0.get(), str, len);
   copy0[len] = '\0';
 
-  // strip leading white space
+  // Strip leading white space.
   char* copy = SkipWhiteSpace(copy0.get());
 
-  // count the number of 'arguments'
+  // Count the number of 'arguments'.
   int argc = 1;  // be compatible with SetFlagsFromCommandLine()
   for (char* p = copy; *p != '\0'; argc++) {
     p = SkipBlackSpace(p);
     p = SkipWhiteSpace(p);
   }
 
-  // allocate argument array
+  // Allocate argument array.
   base::ScopedVector<char*> argv(argc);
 
-  // split the flags string into arguments
+  // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()
   for (char* p = copy; *p != '\0'; argc++) {
     argv[argc] = p;

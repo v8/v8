@@ -20,10 +20,12 @@ int main(int argc, char* argv[]) {
 
   std::vector<uint8_t> input_data;
 
+  bool after_dash_dash = false;
   for (int arg_idx = 1; arg_idx < argc; ++arg_idx) {
     const char* const arg = argv[arg_idx];
-    if (arg[0] == '-' && arg[1] == '-') {
-      fprintf(stderr, "Unrecognized flag %s\n", arg);
+    // Ignore first '--' argument.
+    if (!after_dash_dash && strcmp(arg, "--") == 0) {
+      after_dash_dash = true;
       continue;
     }
 
