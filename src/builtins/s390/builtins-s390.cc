@@ -3297,7 +3297,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(r2, Operand::Zero());
     __ mov(r3, Operand::Zero());
     __ Move(r4, ExternalReference::isolate_address(masm->isolate()));
-    __ CallCFunction(find_handler, 3);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
   }
 
   // Retrieve the handler context, SP and FP.
