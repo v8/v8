@@ -282,6 +282,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
+  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
   LoadTaggedField(dst, src_op);
 
   // Since LoadTaggedField might start with an instruction loading an immediate
@@ -317,15 +318,17 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  {
+    Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+    StoreTaggedField(src, dst_op);
 
-  StoreTaggedField(src, dst_op);
-
-  // Since StoreTaggedField might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
-  // calling it.
-  if (protected_store_pc) {
-    *protected_store_pc = pc_offset() - kInstrSize;
-    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+    // Since StoreTaggedField might start with an instruction loading an
+    // immediate argument to a register, we have to compute the
+    // {protected_load_pc} after calling it.
+    if (protected_store_pc) {
+      *protected_store_pc = pc_offset() - kInstrSize;
+      DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+    }
   }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
@@ -349,7 +352,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         i64_offset, shift_amount);
-
+  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
@@ -431,7 +434,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 #endif
 
-
+  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
