@@ -3502,9 +3502,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
+  // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC
   OpIndex Simd256Extract128Lane(V<Simd256> source, uint8_t lane) {
     return ReduceIfReachableSimd256Extract128Lane(source, lane);
+  }
+
+  V<Simd256> Simd256Unary(V<Simd256> input, Simd256UnaryOp::Kind kind) {
+    return ReduceIfReachableSimd256Unary(input, kind);
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

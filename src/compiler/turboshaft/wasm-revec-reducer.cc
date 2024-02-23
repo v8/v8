@@ -236,6 +236,21 @@ bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
   return true;
 }
 
+// Returns true if op in node_group have same kind.
+bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
+#define CASE(operation)                                           \
+  case Opcode::k##operation: {                                    \
+    using Op = opcode_to_operation_map<Opcode::k##operation>::Op; \
+    return op0.Cast<Op>().kind == op1.Cast<Op>().kind;            \
+  }
+  switch (op0.opcode) {
+    CASE(Simd128Unary)
+    default:
+      return true;
+  }
+#undef CASE
+}
+
 bool SLPTree::CanBePacked(const NodeGroup& node_group) {
   OpIndex node0 = node_group[0];
   OpIndex node1 = node_group[1];
@@ -256,6 +271,12 @@ bool SLPTree::CanBePacked(const NodeGroup& node_group) {
   // mapping now, if node A is already packed with B into PackNode (A,B), can't
   // pack it with C into PackNode (A,C) anymore.
   if (GetPackNode(node0) != GetPackNode(node1)) {
+    return false;
+  }
+
+  if (!IsSameOpAndKind(op0, op1)) {
+    TRACE("(%s, %s) have different op\n", GetSimdOpcodeName(op0).c_str(),
+          GetSimdOpcodeName(op1).c_str());
     return false;
   }
 
@@ -307,6 +328,8 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
   }
 
+  int value_in_count = op0.input_count;
+
   switch (op0.opcode) {
     case Opcode::kLoad: {
       TRACE("Load leaf node\n");
@@ -329,6 +352,23 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       // input: base, value, [index]
       PackNode* pnode = NewPackNodeAndRecurs(node_group, 1, 1, recursion_depth);
       return pnode;
+    }
+    case Opcode::kSimd128Unary: {
+#define UNARY_CASE(op_128, not_used) case Simd128UnaryOp::Kind::k##op_128:
+      switch (op0.Cast<Simd128UnaryOp>().kind) {
+        SIMD256_UNARY_OP(UNARY_CASE) {
+          TRACE("Added a vector of Unary\n");
+          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                                 recursion_depth);
+          return pnode;
+        }
+        default: {
+          TRACE("Unsupported Simd128Unary: %s\n",
+                GetSimdOpcodeName(op0).c_str());
+          return nullptr;
+        }
+      }
+#undef UNARY_CASE
     }
 
     default:

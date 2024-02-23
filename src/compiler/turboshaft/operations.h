@@ -134,7 +134,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringPrepareForGetCodeUnit)
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
-#define TURBOSHAFT_SIMD256_OPERATION_LIST(V) V(Simd256Extract128Lane)
+#define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
+  V(Simd256Extract128Lane)                   \
+  V(Simd256Unary)
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -3072,8 +3074,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   AllocateOp(OpIndex size, AllocationType type) : Base(size), type(type) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
 
   auto options() const { return std::tuple{type}; }
@@ -5487,8 +5488,7 @@ struct TransitionAndStoreArrayElementOp
         fast_map(fast_map),
         double_map(double_map) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   RegisterRepresentation value_representation() const {
     switch (kind) {
@@ -6556,8 +6556,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{array_type, is_signed}; }
   void PrintOptions(std::ostream& os) const;
@@ -7604,6 +7603,55 @@ struct Simd256Extract128LaneOp
 
   auto options() const { return std::tuple{lane}; }
 };
+
+#define FOREACH_SIMD_256_UNARY_OPCODE(V) \
+  V(S256Not)                             \
+  V(I8x32Abs)                            \
+  V(I8x32Neg)                            \
+  V(I16x16ExtAddPairwiseI8x32S)          \
+  V(I16x16ExtAddPairwiseI8x32U)          \
+  V(I32x8ExtAddPairwiseI16x16S)          \
+  V(I32x8ExtAddPairwiseI16x16U)          \
+  V(I16x16Abs)                           \
+  V(I16x16Neg)                           \
+  V(I32x8Abs)                            \
+  V(I32x8Neg)                            \
+  V(F32x8Abs)                            \
+  V(F32x8Neg)                            \
+  V(F32x8Sqrt)                           \
+  V(F64x4Sqrt)                           \
+  V(I32x8UConvertF32x8)                  \
+  V(F32x8UConvertI32x8)
+
+struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_UNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256UnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {

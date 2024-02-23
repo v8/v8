@@ -1941,6 +1941,67 @@ WASM_EXEC_TEST(I16x8ExtAddPairwiseI8x16U) {
       interleave_8x16_shuffle);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Narrow, typename Wide>
+void RunExtAddPairwiseRevecTest(WasmOpcode ext_add_pairwise) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  // [intput1(128bit)|intput2(128bit)|output(256bit)]
+  Narrow* memory =
+      r.builder().AddMemoryElems<Narrow>(kSimd128Size / sizeof(Narrow) * 4);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(ext_add_pairwise,
+                                                WASM_SIMD_LOAD_MEM(
+                                                    WASM_LOCAL_GET(param1)))),
+           WASM_LOCAL_SET(temp2,
+                          WASM_SIMD_UNOP(ext_add_pairwise,
+                                         WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_ONE});
+
+  for (Narrow x : compiler::ValueHelper::GetVector<Narrow>()) {
+    for (int i = 0; i < static_cast<int>(kSimd128Size / sizeof(Narrow) * 2);
+         i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 32);
+    Wide expected = AddLong<Wide>(x, x);
+    for (int i = 0; i < static_cast<int>(kSimd128Size / sizeof(Wide) * 2);
+         i++) {
+      CHECK_EQ(memcmp((const void*)&expected,
+                      &memory[kSimd128Size / sizeof(Narrow) * 2 + i * 2], 2),
+               0);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16ExtAddPairwiseI8x32S) {
+  RunExtAddPairwiseRevecTest<int8_t, int16_t>(kExprI16x8ExtAddPairwiseI8x16S);
+}
+
+TEST(RunWasmTurbofan_I16x16ExtAddPairwiseI8x32U) {
+  RunExtAddPairwiseRevecTest<uint8_t, uint16_t>(kExprI16x8ExtAddPairwiseI8x16U);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtAddPairwiseI16x16S) {
+  RunExtAddPairwiseRevecTest<int16_t, int32_t>(kExprI32x4ExtAddPairwiseI16x8S);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtAddPairwiseI16x16U) {
+  RunExtAddPairwiseRevecTest<uint16_t, uint32_t>(
+      kExprI32x4ExtAddPairwiseI16x8U);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 WASM_EXEC_TEST(I32x4Add) {
   RunI32x4BinOpTest(execution_tier, kExprI32x4Add, base::AddWithWraparound);
 }

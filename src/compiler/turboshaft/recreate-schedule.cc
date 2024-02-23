@@ -1821,6 +1821,16 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
   const Operator* o = machine.ExtractF128(op.lane);
   return AddNode(o, {GetNode(op.input())});
 }
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256UnaryOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256UnaryOp::Kind::k##kind: \
+    return AddNode(machine.kind(), {GetNode(op.input())});
+    FOREACH_SIMD_256_UNARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {

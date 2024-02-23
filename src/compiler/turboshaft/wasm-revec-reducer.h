@@ -17,6 +17,40 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#define SIMD256_UNARY_OP(V)                                \
+  V(S128Not, S256Not)                                      \
+  V(I8x16Abs, I8x32Abs)                                    \
+  V(I8x16Neg, I8x32Neg)                                    \
+  V(I16x8ExtAddPairwiseI8x16S, I16x16ExtAddPairwiseI8x32S) \
+  V(I16x8ExtAddPairwiseI8x16U, I16x16ExtAddPairwiseI8x32U) \
+  V(I32x4ExtAddPairwiseI16x8S, I32x8ExtAddPairwiseI16x16S) \
+  V(I32x4ExtAddPairwiseI16x8U, I32x8ExtAddPairwiseI16x16U) \
+  V(I16x8Abs, I16x16Abs)                                   \
+  V(I16x8Neg, I16x16Neg)                                   \
+  V(I32x4Abs, I32x8Abs)                                    \
+  V(I32x4Neg, I32x8Neg)                                    \
+  V(F32x4Abs, F32x8Abs)                                    \
+  V(F32x4Neg, F32x8Neg)                                    \
+  V(F32x4Sqrt, F32x8Sqrt)                                  \
+  V(F64x2Sqrt, F64x4Sqrt)                                  \
+  V(I32x4UConvertF32x4, I32x8UConvertF32x8)                \
+  V(F32x4UConvertI32x4, F32x8UConvertI32x8)
+
+namespace {
+
+Simd256UnaryOp::Kind GetSimd256UnaryKind(Simd128UnaryOp::Kind simd128_kind) {
+  switch (simd128_kind) {
+#define UNOP_KIND_MAPPING(from, to)   \
+  case Simd128UnaryOp::Kind::k##from: \
+    return Simd256UnaryOp::Kind::k##to;
+    SIMD256_UNARY_OP(UNOP_KIND_MAPPING)
+#undef UNOP_KIND_MAPPING
+    default:
+      UNIMPLEMENTED();
+  }
+}
+}  // namespace
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 class NodeGroup {
@@ -256,6 +290,22 @@ class WasmRevecReducer : public Next {
 
     // no_change
     return Next::ReduceInputGraphStore(ig_index, store);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Unary)(OpIndex ig_index,
+                                           const Simd128UnaryOp& unary) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        auto input = analyzer_.GetReduced(unary.input());
+        og_index = __ Simd256Unary(V<Simd256>::Cast(input),
+                                   GetSimd256UnaryKind(unary.kind));
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+    return Next::ReduceInputGraphSimd128Unary(ig_index, unary);
   }
 
  private:
