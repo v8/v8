@@ -18,6 +18,7 @@
 
 namespace v8 {
 
+class CFunctionInfo;
 class JobHandle;
 
 namespace internal {
@@ -59,6 +60,10 @@ struct CompilationEnv {
 
   const DynamicTiering dynamic_tiering;
 
+  const std::atomic<Address>* fast_api_targets;
+
+  const v8::CFunctionInfo** fast_api_sigs;
+
   // Create a {CompilationEnv} object for compilation. The caller has to ensure
   // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
   // being used.
@@ -69,10 +74,14 @@ struct CompilationEnv {
  private:
   constexpr CompilationEnv(const WasmModule* module,
                            WasmFeatures enabled_features,
-                           DynamicTiering dynamic_tiering)
+                           DynamicTiering dynamic_tiering,
+                           std::atomic<Address>* fast_api_targets,
+                           const CFunctionInfo** fast_api_sigs)
       : module(module),
         enabled_features(enabled_features),
-        dynamic_tiering(dynamic_tiering) {}
+        dynamic_tiering(dynamic_tiering),
+        fast_api_targets(fast_api_targets),
+        fast_api_sigs(fast_api_sigs) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)

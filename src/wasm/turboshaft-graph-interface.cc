@@ -4,6 +4,7 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/data-view-ops.h"
@@ -14,6 +15,7 @@
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/torque-defined-classes.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -345,12 +347,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  public:
   // For non-inlined functions.
   TurboshaftGraphBuildingInterface(
-      Zone* zone, Assembler& assembler, AssumptionsJournal* assumptions,
+      Zone* zone, CompilationEnv* env, Assembler& assembler,
+      AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(kRegular),
         block_phis_(zone),
+        env_(env),
         owned_instance_cache_(std::make_unique<InstanceCache>(assembler)),
         instance_cache_(*owned_instance_cache_.get()),
         assumptions_(assumptions),
@@ -363,7 +367,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   // For inlined functions.
   TurboshaftGraphBuildingInterface(
-      Zone* zone, Assembler& assembler, Mode mode,
+      Zone* zone, CompilationEnv* env, Assembler& assembler, Mode mode,
       InstanceCache& instance_cache, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
@@ -372,6 +376,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
+        env_(env),
         instance_cache_(instance_cache),
         assumptions_(assumptions),
         inlining_positions_(inlining_positions),
@@ -1570,8 +1575,151 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return __ AnnotateWasmType(value, type);
   }
 
-  bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
+  void WellKnown_FastApi(FullDecoder* decoder, const CallFunctionImmediate& imm,
+                         const Value args[], Value returns[]) {
+    uint32_t func_index = imm.index;
+    V<Tagged> receiver = args[0].op;
+    V<FixedArray> imports_array =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), WellKnownImports,
+                                      MemoryRepresentation::TaggedPointer());
+    V<Tagged> data = __ LoadFixedArrayElement(imports_array, func_index);
+    V<Tagged> cached_map = __ Load(data, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedPointer(),
+                                   WasmFastApiCallData::kCachedMapOffset);
+
+    Label<> if_equal_maps(&asm_);
+    Label<> if_unknown_receiver(&asm_);
+    GOTO_IF(__ IsSmi(receiver), if_unknown_receiver);
+
+    V<Map> map = __ LoadMapField(V<Object>::Cast(receiver));
+
+    // Clear the weak bit.
+    cached_map = __ BitcastWordPtrToTagged(
+        __ WordBitwiseAnd(__ BitcastTaggedToWordPtr(cached_map),
+                          __ IntPtrConstant(~kWeakHeapObjectMask),
+                          WordRepresentation::WordPtr()));
+    GOTO_IF(__ TaggedEqual(map, cached_map), if_equal_maps);
+    GOTO(if_unknown_receiver);
+
+    BIND(if_unknown_receiver);
+    V<NativeContext> context = instance_cache_.native_context();
+    CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmFastApiCallTypeCheckAndUpdateIC>(
+        decoder, context, {data, receiver});
+    GOTO(if_equal_maps);
+
+    BIND(if_equal_maps);
+    OpIndex receiver_handle;
+    {
+      constexpr int kAlign = alignof(uintptr_t);
+      constexpr int kSize = sizeof(uintptr_t);
+      receiver_handle = __ StackSlot(kSize, kAlign);
+      __ Store(receiver_handle, __ BitcastTaggedToWordPtr(receiver),
+               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+               compiler::kNoWriteBarrier);
+    }
+    OpIndex options_object;
+    {
+      const int kAlign = alignof(v8::FastApiCallbackOptions);
+      const int kSize = sizeof(v8::FastApiCallbackOptions);
+
+      options_object = __ StackSlot(kSize, kAlign);
+
+      __ Store(options_object, __ Word32Constant(0),
+               StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint32(),
+               compiler::kNoWriteBarrier,
+               offsetof(v8::FastApiCallbackOptions, fallback));
+
+      static_assert(
+          sizeof(v8::FastApiCallbackOptions::data) == sizeof(intptr_t),
+          "We expected 'data' to be pointer sized, but it is not.");
+      // TODO(41492790): Provide the actual data pointer here.
+      __ Store(options_object, __ IntPtrConstant(0),
+               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+               compiler::kNoWriteBarrier,
+               offsetof(v8::FastApiCallbackOptions, data));
+
+      static_assert(
+          sizeof(v8::FastApiCallbackOptions::wasm_memory) == sizeof(intptr_t),
+          "We expected 'wasm_memory' to be pointer sized, but it is not.");
+      __ Store(options_object, __ IntPtrConstant(0),
+               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+               compiler::kNoWriteBarrier,
+               offsetof(v8::FastApiCallbackOptions, wasm_memory));
+    }
+
+    const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
+    size_t param_count = sig->parameter_count();
+    // All normal parameters + the options as additional parameter at the end.
+    MachineSignature::Builder builder(decoder->zone(), 1, param_count + 1);
+    builder.AddReturn(sig->GetReturn().machine_type());
+    // The first parameter is the receiver. Because of the fake handle on the
+    // stack the type is `Pointer`.
+    builder.AddParam(MachineType::Pointer());
+
+    for (size_t i = 1; i < sig->parameter_count(); ++i) {
+      builder.AddParam(sig->GetParam(i).machine_type());
+    }
+    // Options object.
+    builder.AddParam(MachineType::Pointer());
+
+    base::SmallVector<OpIndex, 16> inputs(param_count + 1);
+
+    inputs[0] = receiver_handle;
+
+    for (size_t i = 1; i < param_count; ++i) {
+      if (sig->GetParam(i).is_reference()) {
+        constexpr int kAlign = alignof(uintptr_t);
+        constexpr int kSize = sizeof(uintptr_t);
+        OpIndex fake_handle = __ StackSlot(kSize, kAlign);
+        __ Store(fake_handle, __ BitcastTaggedToWordPtr(args[i].op),
+                 StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+                 compiler::kNoWriteBarrier);
+        inputs[i] = fake_handle;
+      } else {
+        inputs[i] = args[i].op;
+      }
+    }
+
+    inputs[param_count] = options_object;
+
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
+                                                    builder.Get());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
+    Variable result =
+        __ NewVariable(RegisterRepresentation::FromMachineRepresentation(
+            sig->GetReturn().machine_representation()));
+    OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
+        env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
+        ExternalReference::FAST_C_CALL));
+    OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
+                              base::VectorOf(inputs), ts_call_descriptor);
+
+    const CFunctionInfo* c_sig = env_->fast_api_sigs[func_index];
+
+    if (c_sig->ReturnInfo().GetType() == CTypeInfo::Type::kBool) {
+      ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
+                                  WordRepresentation::Word32());
+    }
+    IF (__ Load(options_object, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint32(),
+                offsetof(v8::FastApiCallbackOptions, fallback))) {
+      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+      __ SetVariable(result, returns[0].op);
+    } ELSE {
+      __ SetVariable(result, ret_val);
+    }
+    returns[0].op = __ GetVariable(result);
+    __ SetVariable(result, OpIndex::Invalid());
+  }
+
+  bool HandleWellKnownImport(FullDecoder* decoder,
+                             const CallFunctionImmediate& imm,
                              const Value args[], Value returns[]) {
+    uint32_t index = imm.index;
     if (!decoder->module_) return false;  // Only needed for tests.
     const WellKnownImportsList& well_known_imports =
         decoder->module_->type_feedback.well_known_imports;
@@ -1918,7 +2066,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kDataViewSetUint32:
         DataViewSetter(decoder, args, DataViewOp::kSetUint32);
         break;
-      case WKI::kDataViewByteLength:
+      case WKI::kDataViewByteLength: {
         V<Tagged> dataview = args[0].op;
 
         V<WordPtr> view_byte_length =
@@ -1931,6 +2079,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               __ TruncateWordPtrToWord32(view_byte_length));
         }
         break;
+      }
+      case WKI::kFastAPICall: {
+        WellKnown_FastApi(decoder, imm, args, returns);
+        result = returns[0].op;
+      }
     }
     if (v8_flags.trace_wasm_inlining) {
       PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
@@ -1945,7 +2098,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   const Value args[], Value returns[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
+      if (HandleWellKnownImport(decoder, imm, args, returns)) {
         return;
       }
       auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
@@ -6732,11 +6885,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     WasmFullDecoder<Decoder::FullValidationTag,
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
-                        decoder->detected_, inlinee_body, decoder->zone_, asm_,
-                        inlinee_mode, instance_cache_, assumptions_,
-                        inlining_positions_, func_index, wire_bytes_,
-                        base::VectorOf(inlinee_args), callee_return_block,
-                        inlinee_return_phis, callee_catch_block, is_tail_call);
+                        decoder->detected_, inlinee_body, decoder->zone_,
+                        nullptr, asm_, inlinee_mode, instance_cache_,
+                        assumptions_, inlining_positions_, func_index,
+                        wire_bytes_, base::VectorOf(inlinee_args),
+                        callee_return_block, inlinee_return_phis,
+                        callee_catch_block, is_tail_call);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined
@@ -6939,6 +7093,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   Mode mode_;
   ZoneAbslFlatHashMap<TSBlock*, BlockPhis> block_phis_;
+  CompilationEnv* env_;
   // Only used for "top-level" instantiations, not for inlining.
   std::unique_ptr<InstanceCache> owned_instance_cache_;
 
@@ -6982,16 +7137,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, WasmFeatures enabled,
-    const WasmModule* module, WasmFeatures* detected, Graph& graph,
-    const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
-    AssumptionsJournal* assumptions,
+    AccountingAllocator* allocator, CompilationEnv* env, WasmFeatures* detected,
+    Graph& graph, const FunctionBody& func_body,
+    const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(graph, graph, &zone);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
-      decoder(&zone, module, enabled, detected, func_body, &zone, assembler,
-              assumptions, inlining_positions, func_index, wire_bytes);
+      decoder(&zone, env->module, env->enabled_features, detected, func_body,
+              &zone, env, assembler, assumptions, inlining_positions,
+              func_index, wire_bytes);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.

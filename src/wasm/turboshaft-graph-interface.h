@@ -38,10 +38,10 @@ class WasmFeatures;
 struct WasmModule;
 class WireBytesStorage;
 class TurboshaftGraphBuildingInterface;
+struct CompilationEnv;
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, WasmFeatures enabled,
-    const WasmModule* module, WasmFeatures* detected,
+    AccountingAllocator* allocator, CompilationEnv* env, WasmFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
     const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);

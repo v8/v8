@@ -835,7 +835,11 @@ NativeModule::NativeModule(WasmFeatures enabled,
       code_allocator_(async_counters),
       enabled_features_(enabled),
       compile_imports_(compile_imports),
-      module_(std::move(module)) {
+      module_(std::move(module)),
+      fast_api_targets_(
+          new std::atomic<Address>[module_->num_imported_functions]()),
+      fast_api_sigs_(
+          new const CFunctionInfo*[module_->num_imported_functions]()) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
@@ -2427,7 +2431,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 520);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 536);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2444,6 +2448,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For {tiering_budgets_}.
   result += module_->num_declared_functions * sizeof(uint32_t);
 
+  // For fast api call targets.
+  result += module_->num_imported_functions *
+            (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
   {
     base::RecursiveMutexGuard lock(&allocation_mutex_);
     result += ContentSize(owned_code_);

@@ -34,6 +34,7 @@
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
+class CFunctionInfo;
 namespace internal {
 
 class InstructionStream;
@@ -760,6 +761,30 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kLazyCompileTable,
   };
 
+  bool TrySetFastApiCallTarget(int index, Address target) {
+    Address old_val = fast_api_targets_[index].load(std::memory_order_relaxed);
+    if (old_val == target) {
+      return true;
+    }
+    if (old_val != kNullAddress) {
+      // If already a different target is stored, then there are conflicting
+      // targets and fast api calls are not possible.
+      return false;
+    }
+    return fast_api_targets_[index].compare_exchange_weak(
+        old_val, target, std::memory_order_relaxed);
+  }
+
+  std::atomic<Address>* fast_api_targets() const {
+    return fast_api_targets_.get();
+  }
+
+  void set_fast_api_sig(int index, const CFunctionInfo* sig) {
+    fast_api_sigs_[index] = sig;
+  }
+
+  const CFunctionInfo** fast_api_sigs() const { return fast_api_sigs_.get(); }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -950,6 +975,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // you would typically call into {WasmEngine::LogCode} which then checks
   // (under a mutex) which isolate needs logging.
   std::atomic<bool> log_code_{false};
+
+  std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
+  std::unique_ptr<const v8::CFunctionInfo*[]> fast_api_sigs_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

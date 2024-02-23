@@ -1142,6 +1142,20 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
   };
 
+  struct WasmFastApiCallTypeCheckAndUpdateIC
+      : public Descriptor<WasmFastApiCallTypeCheckAndUpdateIC> {
+    static constexpr auto kFunction =
+        Builtin::kWasmFastApiCallTypeCheckAndUpdateIC;
+    using arguments_t = std::tuple<V<Tagged>, V<Tagged>>;
+    using results_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoWrite;
+    static constexpr OpEffects kEffects =
+        base_effects.CanLeaveCurrentFunction();
+  };
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

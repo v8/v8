@@ -1670,6 +1670,16 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
                                handle(ref->sig(), isolate()));
 }
 
+Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
+    DirectHandle<HeapObject> signature) {
+  Tagged<Map> map = *wasm_fast_api_call_data_map();
+  auto result = Tagged<WasmFastApiCallData>::cast(AllocateRawWithImmortalMap(
+      map->instance_size(), AllocationType::kOld, map));
+  result->set_signature(*signature);
+  result->set_cached_map(*null_value());
+  return handle(result, isolate());
+}
+
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     Address opt_call_target, DirectHandle<HeapObject> ref,
     DirectHandle<Map> rtt, int function_index) {

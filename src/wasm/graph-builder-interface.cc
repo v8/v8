@@ -956,6 +956,7 @@ class WasmGraphBuildingInterface {
       case WKI::kDataViewSetUint16:
       case WKI::kDataViewSetUint32:
       case WKI::kDataViewByteLength:
+      case WKI::kFastAPICall:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {

@@ -3967,10 +3967,10 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     AccountingAllocator allocator;
     if (!wasm::BuildTSGraph(
-            &allocator, env->enabled_features, env->module, detected,
-            turboshaft_pipeline.Value().graph(), compilation_data.func_body,
-            compilation_data.wire_bytes_storage, compilation_data.assumptions,
-            &inlining_positions, compilation_data.func_index)) {
+            &allocator, env, detected, turboshaft_pipeline.Value().graph(),
+            compilation_data.func_body, compilation_data.wire_bytes_storage,
+            compilation_data.assumptions, &inlining_positions,
+            compilation_data.func_index)) {
       return false;
     }
     CodeTracer* code_tracer = nullptr;

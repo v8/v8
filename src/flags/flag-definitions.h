@@ -1526,6 +1526,9 @@ DEFINE_BOOL(stress_validate_asm, false, "try to validate everything as asm.js")
 DEFINE_DEBUG_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, nullptr,
               "directory to dump wasm modules to")
+DEFINE_BOOL(wasm_fast_api, false,
+            "Enable direct calls from wasm to fast API functions with bound "
+            "call function to pass the the receiver as first parameter")
 
 // Declare command-line flags for Wasm features. Warning: avoid using these
 // flags directly in the implementation. Instead accept wasm::WasmFeatures

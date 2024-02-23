@@ -111,6 +111,10 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "js-string:test";
     case WellKnownImport::kStringToWtf16Array:
       return "js-string:intoCharCodeArray";
+
+      // Fast API Call:
+    case WellKnownImport::kFastAPICall:
+      return "fast API call";
   }
 }
 

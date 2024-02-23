@@ -35,6 +35,11 @@ extern class WasmApiFunctionRef extends HeapObject {
   sig: PodArrayOfWasmValueType;
 }
 
+class WasmFastApiCallData extends HeapObject {
+  signature: HeapObject;
+  cached_map: Weak<Map>|Null;
+}
+
 // This is the representation that is used internally by wasm to represent
 // function references.
 extern class WasmInternalFunction extends HeapObject {

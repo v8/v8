@@ -706,6 +706,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       DirectHandle<WasmApiFunctionRef> ref);
+
+  Handle<WasmFastApiCallData> NewWasmFastApiCallData(
+      DirectHandle<HeapObject> signature);
+
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(

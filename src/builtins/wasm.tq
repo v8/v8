@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include 'src/builtins/builtins-wasm-gen.h'
+#include 'src/builtins/builtins-call-gen.h'
 
 namespace runtime {
 extern runtime WasmMemoryGrow(Context, WasmTrustedInstanceData, Smi, Smi): Smi;
@@ -1422,4 +1423,24 @@ builtin WasmAnyConvertExtern(externObject: JSAny): JSAny {
       context, externObject, SmiConstant(kAnyType));
 }
 
+extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
+    JSReceiver, HeapObject, Context): JSReceiver;
+
+builtin WasmFastApiCallTypeCheckAndUpdateIC(
+    implicit context: Context)(data: WasmFastApiCallData,
+    receiver: JSAny): Smi {
+  try {
+    const rec = Cast<JSReceiver>(receiver) otherwise goto IllegalCast;
+    ModifyThreadInWasmFlag(0);
+    // We don't care about the actual compatible receiver; we just rely
+    // on this helper throwing an exception when there isn't one.
+    GetCompatibleReceiver(rec, data.signature, context);
+    ModifyThreadInWasmFlag(1);
+    data.cached_map = StrongToWeak(rec.map);
+    return 1;
+  } label IllegalCast {
+    const error = MessageTemplate::kIllegalInvocation;
+    runtime::WasmThrowTypeError(context, SmiConstant(error), Convert<Smi>(0));
+  }
+}
 }  // namespace wasm
