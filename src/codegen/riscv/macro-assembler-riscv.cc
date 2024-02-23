@@ -6418,37 +6418,42 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   PrepareCallCFunction(num_reg_arguments, 0, scratch);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t6, function);
-  CallCFunctionHelper(t6, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  return CallCFunctionHelper(t6, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunctionHelper(
+int MacroAssembler::CallCFunctionHelper(
     Register function, int num_reg_arguments, int num_double_arguments,
-    SetIsolateDataSlots set_isolate_data_slots) {
+    SetIsolateDataSlots set_isolate_data_slots, Label* return_location) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
   ASM_CODE_COMMENT(this);
@@ -6482,6 +6487,7 @@ void MacroAssembler::CallCFunctionHelper(
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
+  Label get_pc;
   {
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
       if (function != t6) {
@@ -6496,7 +6502,7 @@ void MacroAssembler::CallCFunctionHelper(
       Register pc_scratch = t1;
       Register scratch = t2;
 
-      auipc(pc_scratch, 0);
+      LoadAddress(pc_scratch, &get_pc);
       // See x64 code for reasoning about how to address the isolate data
       // fields.
       if (root_array_available()) {
@@ -6505,6 +6511,13 @@ void MacroAssembler::CallCFunctionHelper(
                              IsolateData::fast_c_call_caller_pc_offset()));
         StoreWord(fp, MemOperand(kRootRegister,
                                  IsolateData::fast_c_call_caller_fp_offset()));
+#if DEBUG
+        // Reset Isolate::context field right before the fast C call such that
+        // the GC can visit this field unconditionally. This is necessary
+        // because CEntry sets it to kInvalidContext in debug build only.
+        static_assert(Context::kNoContext == 0);
+        StoreRootRelative(IsolateData::context_offset(), zero_reg);
+#endif
       } else {
         DCHECK_NOT_NULL(isolate());
         li(scratch,
@@ -6513,24 +6526,36 @@ void MacroAssembler::CallCFunctionHelper(
         li(scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
         StoreWord(fp, MemOperand(scratch));
+#if DEBUG
+        // Reset Isolate::context field right before the fast C call such that
+        // the GC can visit this field unconditionally. This is necessary
+        // because CEntry sets it to kInvalidContext in debug build only.
+        static_assert(Context::kNoContext == 0);
+        StoreWord(zero_reg, ExternalReferenceAsOperand(
+                                ExternalReference::context_address(isolate()),
+                                addr_scratch));
+#endif
       }
     }
+  }
 
-    Call(function);
-    if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-      // We don't unset the PC; the FP is the source of truth.
-      if (root_array_available()) {
-        StoreWord(zero_reg,
-                  MemOperand(kRootRegister,
-                             IsolateData::fast_c_call_caller_fp_offset()));
-      } else {
-        DCHECK_NOT_NULL(isolate());
-        UseScratchRegisterScope temps(this);
-        Register scratch = temps.Acquire();
-        li(scratch,
-           ExternalReference::fast_c_call_caller_fp_address(isolate()));
-        StoreWord(zero_reg, MemOperand(scratch));
-      }
+  Call(function);
+  int call_pc_offset = pc_offset();
+  bind(&get_pc);
+  if (return_location) bind(return_location);
+
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    if (root_array_available()) {
+      StoreWord(zero_reg,
+                MemOperand(kRootRegister,
+                           IsolateData::fast_c_call_caller_fp_offset()));
+    } else {
+      DCHECK_NOT_NULL(isolate());
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      StoreWord(zero_reg, MemOperand(scratch));
     }
   }
 
@@ -6542,6 +6567,8 @@ void MacroAssembler::CallCFunctionHelper(
   } else {
     AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
   }
+
+  return call_pc_offset;
 }
 
 #undef BRANCH_ARGS_CHECK

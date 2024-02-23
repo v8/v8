@@ -846,34 +846,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
-      Label after_call;
+      Label return_location;
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if V8_ENABLE_WEBASSEMBLY
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
-        __ LoadAddress(kScratchReg, &after_call, RelocInfo::EXTERNAL_REFERENCE);
+        __ LoadAddress(kScratchReg, &return_location,
+                       RelocInfo::EXTERNAL_REFERENCE);
         __ StoreWord(kScratchReg,
                      MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
+      int pc_offset;
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots);
+        pc_offset = __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       } else {
-        Register func = i.InputOrZeroRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                         set_isolate_data_slots);
+        Register func = i.InputRegister(0);
+        pc_offset = __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots, &return_location);
       }
-      __ bind(&after_call);
-#if V8_ENABLE_WEBASSEMBLY
-      if (isWasmCapiFunction) {
-        RecordSafepoint(instr->reference_map());
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
+      RecordSafepoint(instr->reference_map(), pc_offset);
 
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
@@ -4370,6 +4367,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (returns != 0) {
     // Create space for returns.
     __ SubWord(sp, sp, Operand(returns * kSystemPointerSize));
+  }
+
+  for (int spill_slot : frame()->tagged_slots()) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
+    DCHECK(offset.from_frame_pointer());
+    __ StoreWord(zero_reg, MemOperand(fp, offset.offset()));
   }
 }
 
