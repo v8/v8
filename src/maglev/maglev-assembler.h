@@ -357,9 +357,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Tagged<TaggedIndex> i);
   inline void Move(Register dst, int32_t i);
   inline void Move(Register dst, uint32_t i);
-#if V8_TARGET_ARCH_64_BIT
-  inline void Move(Register dst, size_t i);
-#endif
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);
@@ -506,6 +503,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void CompareInt32AndJumpIf(Register r1, Register r2, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
+  inline void CompareIntPtrAndJumpIf(Register r1, Register r2, Condition cond,
+                                     Label* target,
+                                     Label::Distance distance = Label::kFar);
   inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
@@ -539,13 +539,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                    Label* target,
                                    Label::Distance distance = Label::kFar);
 
-  inline void CompareTypedArrayLengthAndJumpIf(
-      Register r1, Register r2, Condition cond, Label* target,
-      Label::Distance distance = Label::kFar);
-  inline void CompareTypedArrayLengthAndJumpIf(
-      Register r1, int32_t value, Condition cond, Label* target,
-      Label::Distance distance = Label::kFar);
-
   inline void CompareDoubleAndJumpIfZeroOrNaN(
       DoubleRegister reg, Label* target,
       Label::Distance distance = Label::kFar);
@@ -568,7 +561,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void Int32ToDouble(DoubleRegister result, Register src);
   inline void Uint32ToDouble(DoubleRegister result, Register src);
-  inline void TypedArrayLengthToDouble(DoubleRegister result, Register src);
   inline void SmiToDouble(DoubleRegister result, Register smi);
 
   inline void StringLength(Register result, Register string);

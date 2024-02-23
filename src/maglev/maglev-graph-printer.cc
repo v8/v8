@@ -719,7 +719,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kHoleyFloat64:
       os_ << "ʰᶠ";
       break;
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   if (phi->input_count() == 0) {
@@ -891,7 +891,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
           case ValueRepresentation::kHoleyFloat64:
             os_ << "ʰᶠ";
             break;
-          case ValueRepresentation::kTypedArrayLength:
+          case ValueRepresentation::kIntPtr:
             UNREACHABLE();
         }
         os_ << " " << phi->owner().ToString() << " " << phi->result().operand()

@@ -39,7 +39,7 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
       return MachineType::Int32();
     case maglev::ValueRepresentation::kUint32:
       return MachineType::Uint32();
-    case maglev::ValueRepresentation::kTypedArrayLength:
+    case maglev::ValueRepresentation::kIntPtr:
       return MachineType::IntPtr();
     case maglev::ValueRepresentation::kFloat64:
       return MachineType::Float64();
@@ -962,7 +962,7 @@ class GraphBuilder {
       case maglev::ValueRepresentation::kFloat64:
       case maglev::ValueRepresentation::kHoleyFloat64:
         return RegisterRepresentation::Float64();
-      case maglev::ValueRepresentation::kTypedArrayLength:
+      case maglev::ValueRepresentation::kIntPtr:
         return RegisterRepresentation::WordPtr();
     }
   }
