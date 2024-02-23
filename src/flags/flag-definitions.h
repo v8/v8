@@ -669,7 +669,7 @@ DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
 
-DEFINE_BOOL(const_tracking_let, false,
+DEFINE_BOOL(const_tracking_let, true,
             "Use const tracking on top-level `let` variables")
 
 DEFINE_UINT(max_opt, 999,
