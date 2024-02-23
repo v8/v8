@@ -1741,17 +1741,9 @@ class WasmDecoder : public Decoder {
           imm.table_imm.index);
       return false;
     }
-
-    // Check that the dynamic signature for this call is a subtype of the static
-    // type of the table the function is defined in.
-    ValueType immediate_type = ValueType::Ref(imm.sig_imm.index);
-    if (!VALIDATE(IsSubtypeOf(immediate_type, table_type, module_))) {
-      DecodeError(pc,
-                  "call_indirect: Immediate signature #%u is not a subtype of "
-                  "immediate table #%u",
-                  imm.sig_imm.index, imm.table_imm.index);
-      return false;
-    }
+    // The type specified by the immediate does not need to have any static
+    // relation (neither sub nor super) to the type of the table. The type
+    // of the function will be checked at runtime.
 
     imm.sig = module_->signature(imm.sig_imm.index);
     return true;

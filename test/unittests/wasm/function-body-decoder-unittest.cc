@@ -1921,12 +1921,11 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
                                             WASM_I32V_1(42), WASM_ZERO)});
 
   uint8_t wrong_type_index = builder.AddSignature(sigs.i_ii());
-  ExpectFailure(sigs.i_v(),
-                {WASM_CALL_INDIRECT_TABLE(table_index, wrong_type_index,
-                                          WASM_I32V_1(42), WASM_ZERO)},
-                kAppendEnd,
-                "call_indirect: Immediate signature #1 is not a subtype of "
-                "immediate table #0");
+  // Note: this would trap at runtime, but does validate.
+  ExpectValidates(
+      sigs.i_v(),
+      {WASM_CALL_INDIRECT_TABLE(table_index, wrong_type_index, WASM_I32V_1(41),
+                                WASM_I32V_1(42), WASM_ZERO)});
 
   uint8_t non_function_table_index = builder.InitializeTable(kWasmExternRef);
   ExpectFailure(
