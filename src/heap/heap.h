@@ -159,6 +159,11 @@ enum class SkipRoot {
   kReadOnlyBuiltins,
 };
 
+enum class EmbedderStackStateOrigin {
+  kImplicitThroughTask,
+  kExplicitInvocation,
+};
+
 class StrongRootsEntry final {
   explicit StrongRootsEntry(const char* label) : label(label) {}
 
@@ -1106,7 +1111,7 @@ class Heap final {
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
-  const cppgc::EmbedderStackState* overriden_stack_state() const;
+  std::optional<StackState> overridden_stack_state() const;
 
   V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
 
@@ -2281,8 +2286,8 @@ class Heap final {
   EmbedderRootsHandler* embedder_roots_handler_ =
       nullptr;  // Owned by the embedder.
 
-  cppgc::EmbedderStackState embedder_stack_state_ =
-      cppgc::EmbedderStackState::kMayContainHeapPointers;
+  StackState embedder_stack_state_ = StackState::kMayContainHeapPointers;
+  std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
@@ -2687,28 +2692,21 @@ class StrongRootAllocator<Address> : public StrongRootAllocatorBase {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
  public:
-  enum Origin {
-    kImplicitThroughTask,
-    kExplicitInvocation,
-  };
-
-  // Only used for testing where the Origin is always an explicit invocation.
-  static EmbedderStackStateScope ExplicitScopeForTesting(
-      Heap* heap, StackState stack_state);
-
-  EmbedderStackStateScope(Heap* heap, Origin origin, StackState stack_state);
+  EmbedderStackStateScope(Heap* heap, EmbedderStackStateOrigin origin,
+                          StackState stack_state);
   ~EmbedderStackStateScope();
 
  private:
   Heap* const heap_;
   const StackState old_stack_state_;
+  std::optional<EmbedderStackStateOrigin> old_origin_;
 };
 
 class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
  public:
   explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
-      : embedder_scope_(EmbedderStackStateScope::ExplicitScopeForTesting(
-            heap, cppgc::EmbedderStackState::kNoHeapPointers)) {}
+      : embedder_scope_(heap, EmbedderStackStateOrigin::kExplicitInvocation,
+                        StackState::kNoHeapPointers) {}
 
  private:
   EmbedderStackStateScope embedder_scope_;

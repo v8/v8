@@ -30,6 +30,7 @@ class Isolate;
 namespace internal {
 
 class CppMarkingState;
+class EmbedderStackStateScope;
 class MinorGCHeapGrowing;
 
 // A C++ heap implementation used with V8 to implement unified heap.
@@ -176,7 +177,12 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   // cppgc::internal::GarbageCollector interface.
   void CollectGarbage(cppgc::internal::GCConfig) override;
-  const cppgc::EmbedderStackState* override_stack_state() const override;
+
+  std::optional<cppgc::EmbedderStackState> overridden_stack_state()
+      const override;
+  void set_override_stack_state(cppgc::EmbedderStackState state) override;
+  void clear_overridden_stack_state() override;
+
   void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
   size_t epoch() const override;
 
@@ -249,6 +255,10 @@ class V8_EXPORT_PRIVATE CppHeap final
   // Limit for |allocated_size| in bytes to avoid checking for starting a GC
   // on each increment.
   size_t allocated_size_limit_for_check_ = 0;
+
+  std::optional<cppgc::EmbedderStackState> detached_override_stack_state_;
+  std::unique_ptr<v8::internal::EmbedderStackStateScope>
+      override_stack_state_scope_;
 
   friend class MetricRecorderAdapter;
 };

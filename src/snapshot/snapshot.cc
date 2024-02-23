@@ -1082,7 +1082,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
     // point, so that all dead objects are reclaimed. This is required to avoid
     // conservative stack scanning and guarantee deterministic behaviour.
     EmbedderStackStateScope stack_scope(
-        isolate_->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        isolate_->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     isolate_->heap()->CollectAllAvailableGarbage(
         GarbageCollectionReason::kSnapshotCreator);

@@ -178,9 +178,8 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
     // Note that we need to run a garbage collection without stack at this
     // point, so that all dead objects are reclaimed. This is required to avoid
     // conservative stack scanning and guarantee deterministic behaviour.
-    EmbedderStackStateScope stack_scope(
-        i_isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
-        StackState::kNoHeapPointers);
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
     heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
   }
 
@@ -395,9 +394,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
       // point, so that all dead objects are reclaimed. This is required to
       // avoid conservative stack scanning and guarantee deterministic
       // behaviour.
-      EmbedderStackStateScope stack_scope(
-          heap, EmbedderStackStateScope::kExplicitInvocation,
-          StackState::kNoHeapPointers);
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
       heap::InvokeMemoryReducingMajorGCs(heap);
     }
 
@@ -580,9 +577,8 @@ static void SerializeCustomContext(
       // point, so that all dead objects are reclaimed. This is required to
       // avoid conservative stack scanning and guarantee deterministic
       // behaviour.
-      EmbedderStackStateScope stack_scope(
-          i_isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
-          StackState::kNoHeapPointers);
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_isolate->heap());
       heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
     }
 

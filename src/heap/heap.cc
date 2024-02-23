@@ -581,8 +581,7 @@ void Heap::SetGCState(HeapState state) {
 }
 
 bool Heap::IsGCWithStack() const {
-  return embedder_stack_state_ ==
-         cppgc::EmbedderStackState::kMayContainHeapPointers;
+  return embedder_stack_state_ == StackState::kMayContainHeapPointers;
 }
 
 bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
@@ -1728,7 +1727,7 @@ void InvokeExternalCallbacks(Isolate* isolate, Callback callback) {
   // Temporary override any embedder stack state as callbacks may create
   // their own state on the stack and recursively trigger GC.
   EmbedderStackStateScope embedder_scope(
-      isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+      isolate->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
       StackState::kMayContainHeapPointers);
   VMState<EXTERNAL> callback_state(isolate);
 
@@ -5999,9 +5998,9 @@ void Heap::DetachCppHeap() {
   cpp_heap_ = nullptr;
 }
 
-const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
-  const auto* cpp_heap = CppHeap::From(cpp_heap_);
-  return cpp_heap ? cpp_heap->override_stack_state() : nullptr;
+std::optional<StackState> Heap::overridden_stack_state() const {
+  if (!embedder_stack_state_origin_) return {};
+  return embedder_stack_state_;
 }
 
 void Heap::SetStackStart(void* stack_start) {
@@ -7541,25 +7540,23 @@ void Heap::EnsureYoungSweepingCompleted() {
   tracer()->NotifyYoungSweepingCompleted();
 }
 
-EmbedderStackStateScope::EmbedderStackStateScope(Heap* heap, Origin origin,
-                                                 StackState stack_state)
-    : heap_(heap), old_stack_state_(heap_->embedder_stack_state_) {
-  if (origin == kImplicitThroughTask && heap->overriden_stack_state()) {
-    stack_state = *heap->overriden_stack_state();
+EmbedderStackStateScope::EmbedderStackStateScope(
+    Heap* heap, EmbedderStackStateOrigin origin, StackState stack_state)
+    : heap_(heap),
+      old_stack_state_(heap_->embedder_stack_state_),
+      old_origin_(heap->embedder_stack_state_origin_) {
+  // Explicit scopes take precedence over implicit scopes.
+  if (origin == EmbedderStackStateOrigin::kExplicitInvocation ||
+      heap_->embedder_stack_state_origin_ !=
+          EmbedderStackStateOrigin::kExplicitInvocation) {
+    heap_->embedder_stack_state_ = stack_state;
+    heap_->embedder_stack_state_origin_ = origin;
   }
-
-  heap_->embedder_stack_state_ = stack_state;
-}
-
-// static
-EmbedderStackStateScope EmbedderStackStateScope::ExplicitScopeForTesting(
-    Heap* heap, StackState stack_state) {
-  return EmbedderStackStateScope(heap, Origin::kExplicitInvocation,
-                                 stack_state);
 }
 
 EmbedderStackStateScope::~EmbedderStackStateScope() {
   heap_->embedder_stack_state_ = old_stack_state_;
+  heap_->embedder_stack_state_origin_ = old_origin_;
 }
 
 CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(

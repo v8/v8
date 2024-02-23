@@ -163,7 +163,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   USE(object);
   {
     EmbedderStackStateScope stack_scope(
-        &js_heap, EmbedderStackStateScope::kExplicitInvocation,
+        &js_heap, EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();

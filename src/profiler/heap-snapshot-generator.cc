@@ -2978,7 +2978,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
       v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
 
   EmbedderStackStateScope stack_scope(
-      heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
+      heap_, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   // No allocation that could trigger GC from here onwards. We cannot use a

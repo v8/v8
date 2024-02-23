@@ -296,7 +296,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
     // Iterate all roots.
     EmbedderStackStateScope stack_scope(
-        isolate->heap(), EmbedderStackStateScope::kExplicitInvocation,
+        isolate->heap(), EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     heap->IterateRoots(&v, base::EnumSet<SkipRoot>{});
 

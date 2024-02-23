@@ -9622,7 +9622,7 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type,
   base::Optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
     stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),
-                        i::EmbedderStackStateScope::kExplicitInvocation,
+                        i::EmbedderStackStateOrigin::kExplicitInvocation,
                         stack_state);
   }
   RequestGarbageCollectionForTesting(type);

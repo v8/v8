@@ -1435,6 +1435,14 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   }
 
   if (!global_result.IsEmpty()) {
+    // This method is invoked from a microtask, where in general we may have an
+    // non-trivial stack. Emptying the message queue below may trigger the
+    // execution of a stackless GC. We need to override the embedder stack
+    // state, to force scanning the stack, if this happens.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::EmbedderStackStateScope scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kMayContainHeapPointers);
     EmptyMessageQueues(isolate);
   } else {
     DCHECK(try_catch.HasCaught());

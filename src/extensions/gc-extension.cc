@@ -187,8 +187,8 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
   EmbedderStackStateScope stack_scope(
       heap,
       gc_options.execution == ExecutionType::kAsync
-          ? EmbedderStackStateScope::kImplicitThroughTask
-          : EmbedderStackStateScope::kExplicitInvocation,
+          ? EmbedderStackStateOrigin::kImplicitThroughTask
+          : EmbedderStackStateOrigin::kExplicitInvocation,
       gc_options.execution == ExecutionType::kAsync
           ? StackState::kNoHeapPointers
           : StackState::kMayContainHeapPointers);
