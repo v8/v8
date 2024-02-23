@@ -6685,6 +6685,8 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
 
+  compiler::MapRef map() const { return map_; }
+
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

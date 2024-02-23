@@ -521,3 +521,18 @@ assertOptimized(simple_loop);
   assertEquals(45, f("abcdefghijklmno", "abcde" + "fghijklmno"));
   assertUnoptimized(f);
 }
+
+// Testing allocation of objects.
+{
+  function alloc() {
+    return [1, {x : 42.27}, 3, "abc"];
+  }
+
+  %PrepareFunctionForOptimization(alloc);
+  assertEquals([1, {x : 42.27}, 3, "abc"], alloc());
+  %OptimizeMaglevOnNextCall(alloc);
+  assertEquals([1, {x : 42.27}, 3, "abc"], alloc());
+  %OptimizeFunctionOnNextCall(alloc);
+  assertEquals([1, {x : 42.27}, 3, "abc"], alloc());
+  assertOptimized(alloc);
+}

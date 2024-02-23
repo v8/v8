@@ -304,6 +304,20 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::AllocateRaw* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ FinishInitialization(__ Allocate<HeapObject>(
+                     node->size(), node->allocation_type())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::FoldedAllocation* node,
+                                const maglev::ProcessingState& state) {
+    V<HeapObject> alloc = Map(node->raw_allocation());
+    SetMap(node, __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
+                     __ BitcastHeapObjectToWordPtr(alloc), node->offset())));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadTaggedField(Map(node->object_input()), node->offset()));
@@ -397,6 +411,20 @@ class GraphBuilder {
         Map(node->elements_input()),
         __ ChangeInt32ToIntPtr(Map(node->index_input())),
         Map(node->value_input()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreMap* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), __ HeapConstant(node->map().object()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
+             WriteBarrierKind::kMapWriteBarrier, HeapObject::kMapOffset);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFloat64* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Float64(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
     return maglev::ProcessResult::kContinue;
   }
 
