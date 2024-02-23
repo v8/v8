@@ -978,10 +978,16 @@ class WasmGraphBuildingInterface {
       if (try_info->catch_env->state == SsaEnv::kUnreachable) {
         auto [true_cont, false_cont] =
             builder_->BranchExpectTrue(builder_->Int32Constant(1));
+        TFNode* previous_effect = effect();
         builder_->SetControl(false_cont);
+        if (emit_loop_exits()) {
+          ValueVector stack_values;
+          uint32_t depth = decoder->control_depth_of_current_catch();
+          BuildNestedLoopExits(decoder, depth, false, stack_values);
+        }
         Goto(decoder, try_info->catch_env);
         try_info->exception = builder_->Int32Constant(1);
-        builder_->SetControl(true_cont);
+        builder_->SetEffectControl(previous_effect, true_cont);
       }
     }
     return true;
