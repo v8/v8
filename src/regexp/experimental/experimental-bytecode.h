@@ -96,11 +96,14 @@ struct RegExpInstruction {
   enum Opcode : int32_t {
     ACCEPT,
     ASSERTION,
-    CLEAR_REGISTER,
     CONSUME_RANGE,
     FORK,
     JMP,
     SET_REGISTER_TO_CP,
+    SET_QUANTIFIER_TO_CLOCK,
+    FILTER_QUANTIFIER,
+    FILTER_GROUP,
+    FILTER_CHILD,
     BEGIN_LOOP,
     END_LOOP,
     WRITE_LOOKBEHIND_TABLE,
@@ -173,17 +176,38 @@ struct RegExpInstruction {
     return result;
   }
 
-  static RegExpInstruction ClearRegister(int32_t register_index) {
-    RegExpInstruction result;
-    result.opcode = CLEAR_REGISTER;
-    result.payload.register_index = register_index;
-    return result;
-  }
-
   static RegExpInstruction Assertion(RegExpAssertion::Type t) {
     RegExpInstruction result;
     result.opcode = ASSERTION;
     result.payload.assertion_type = t;
+    return result;
+  }
+
+  static RegExpInstruction SetQuantifierToClock(int32_t quantifier_id) {
+    RegExpInstruction result;
+    result.opcode = SET_QUANTIFIER_TO_CLOCK;
+    result.payload.quantifier_id = quantifier_id;
+    return result;
+  }
+
+  static RegExpInstruction FilterQuantifier(int32_t quantifier_id) {
+    RegExpInstruction result;
+    result.opcode = FILTER_QUANTIFIER;
+    result.payload.quantifier_id = quantifier_id;
+    return result;
+  }
+
+  static RegExpInstruction FilterGroup(int32_t group_id) {
+    RegExpInstruction result;
+    result.opcode = FILTER_GROUP;
+    result.payload.group_id = group_id;
+    return result;
+  }
+
+  static RegExpInstruction FilterChild(int32_t pc) {
+    RegExpInstruction result;
+    result.opcode = FILTER_CHILD;
+    result.payload.pc = pc;
     return result;
   }
 
@@ -215,16 +239,29 @@ struct RegExpInstruction {
     return result;
   }
 
+  // Returns whether an instruction is `FILTER_GROUP`, `FILTER_QUANTIFIER` or
+  // `FILTER_CHILD`.
+  static bool IsFilter(const RegExpInstruction& instruction) {
+    return instruction.opcode == RegExpInstruction::Opcode::FILTER_GROUP ||
+           instruction.opcode == RegExpInstruction::Opcode::FILTER_QUANTIFIER ||
+           instruction.opcode == RegExpInstruction::Opcode::FILTER_CHILD;
+  }
+
   Opcode opcode;
   union {
     // Payload of CONSUME_RANGE:
     Uc16Range consume_range;
-    // Payload of FORK and JMP, the next/forked program counter (pc):
+    // Payload of FORK, JMP and FILTER_CHILD, the next/forked program counter
+    // (pc):
     int32_t pc;
     // Payload of SET_REGISTER_TO_CP and CLEAR_REGISTER:
     int32_t register_index;
     // Payload of ASSERTION:
     RegExpAssertion::Type assertion_type;
+    // Payload of SET_QUANTIFIER_TO_CLOCK and FILTER_QUANTIFIER:
+    int32_t quantifier_id;
+    // Payload of FILTER_GROUP:
+    int32_t group_id;
     // Payload of WRITE_LOOKBEHIND_TABLE:
     int32_t looktable_index;
     // Payload of READ_LOOKBEHIND_TABLE:

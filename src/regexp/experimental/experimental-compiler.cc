@@ -275,10 +275,6 @@ class BytecodeAssembler {
     code_.Add(RegExpInstruction::Assertion(t), zone_);
   }
 
-  void ClearRegister(int32_t register_index) {
-    code_.Add(RegExpInstruction::ClearRegister(register_index), zone_);
-  }
-
   void ConsumeRange(base::uc16 from, base::uc16 to) {
     code_.Add(RegExpInstruction::ConsumeRange(from, to), zone_);
   }
@@ -311,6 +307,22 @@ class BytecodeAssembler {
     code_.Add(RegExpInstruction::ReadLookTable(index, is_positive), zone_);
   }
 
+  void SetQuantifierToClock(int32_t quantifier_id) {
+    code_.Add(RegExpInstruction::SetQuantifierToClock(quantifier_id), zone_);
+  }
+
+  void FilterQuantifier(int32_t quantifier_id) {
+    code_.Add(RegExpInstruction::FilterQuantifier(quantifier_id), zone_);
+  }
+
+  void FilterGroup(int32_t group_id) {
+    code_.Add(RegExpInstruction::FilterGroup(group_id), zone_);
+  }
+
+  void FilterChild(Label& target) {
+    LabelledInstrImpl(RegExpInstruction::Opcode::FILTER_CHILD, target);
+  }
+
   void Bind(Label& target) {
     DCHECK_EQ(target.state_, Label::UNBOUND);
 
@@ -319,7 +331,8 @@ class BytecodeAssembler {
     while (target.unbound_patch_list_begin_ != -1) {
       RegExpInstruction& inst = code_[target.unbound_patch_list_begin_];
       DCHECK(inst.opcode == RegExpInstruction::FORK ||
-             inst.opcode == RegExpInstruction::JMP);
+             inst.opcode == RegExpInstruction::JMP ||
+             inst.opcode == RegExpInstruction::FILTER_CHILD);
 
       target.unbound_patch_list_begin_ = inst.payload.pc;
       inst.payload.pc = index;
@@ -355,6 +368,144 @@ class BytecodeAssembler {
   ZoneList<RegExpInstruction> code_;
 };
 
+class FilterGroupsCompileVisitor final : private RegExpVisitor {
+ public:
+  static void CompileFilter(Zone* zone, RegExpTree* tree,
+                            BytecodeAssembler& assembler) {
+    /* To filter out groups that were not matched in the last iteration of a
+     * quantifier, the regexp's AST is compiled using a special sets of
+     * instructions: `FILTER_GROUP`, `FILTER_QUANTIFIER` and `FILTER_CHILD`.
+     * They encode a simplified AST containing only the groups and quantifiers.
+     * Each node is represented as either a `FILTER_GROUP` or a
+     * `FILTER_QUANTIFIER` instruction, containing the index of the respective
+     * group or quantifier, followed by a variable number of `FILTER_CHILD`
+     * instructions each containing the index of their respective node in the
+     * bytecode.
+     *
+     * The regexp's AST is traversed in breadth-first mode, compiling one node
+     * at a time, while saving its children in a queue. */
+
+    FilterGroupsCompileVisitor visitor(assembler, zone);
+
+    tree->Accept(&visitor, nullptr);
+
+    while (!visitor.nodes_.empty()) {
+      auto& entry = visitor.nodes_.front();
+
+      visitor.assembler_.Bind(entry.label);
+      visitor.compile_capture_or_quant_ = true;
+      entry.node->Accept(&visitor, nullptr);
+
+      visitor.nodes_.pop_front();
+    }
+  }
+
+ private:
+  FilterGroupsCompileVisitor(BytecodeAssembler& assembler, Zone* zone)
+      : zone_(zone),
+        assembler_(assembler),
+        nodes_(zone_),
+        compile_capture_or_quant_(false) {}
+
+  void* VisitDisjunction(RegExpDisjunction* node, void*) override {
+    for (RegExpTree* alt : *node->alternatives()) {
+      alt->Accept(this, nullptr);
+    }
+    return nullptr;
+  }
+
+  void* VisitAlternative(RegExpAlternative* node, void*) override {
+    for (RegExpTree* alt : *node->nodes()) {
+      alt->Accept(this, nullptr);
+    }
+    return nullptr;
+  }
+
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitClassSetOperand(RegExpClassSetOperand* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    return nullptr;
+  }
+
+  void* VisitAssertion(RegExpAssertion* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitAtom(RegExpAtom* node, void*) override { return nullptr; }
+
+  void* VisitText(RegExpText* node, void*) override { return nullptr; }
+
+  void* VisitQuantifier(RegExpQuantifier* node, void*) override {
+    if (compile_capture_or_quant_) {
+      assembler_.FilterQuantifier(node->index());
+      compile_capture_or_quant_ = false;
+      node->body()->Accept(this, nullptr);
+    } else {
+      nodes_.emplace_back(node);
+      assembler_.FilterChild(nodes_.back().label);
+    }
+
+    return nullptr;
+  }
+
+  void* VisitCapture(RegExpCapture* node, void*) override {
+    if (compile_capture_or_quant_) {
+      assembler_.FilterGroup(node->index());
+      compile_capture_or_quant_ = false;
+      node->body()->Accept(this, nullptr);
+    } else {
+      nodes_.emplace_back(node);
+      assembler_.FilterChild(nodes_.back().label);
+    }
+
+    return nullptr;
+  }
+
+  void* VisitGroup(RegExpGroup* node, void*) override {
+    node->body()->Accept(this, nullptr);
+    return nullptr;
+  }
+
+  void* VisitLookaround(RegExpLookaround* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitBackReference(RegExpBackReference* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitEmpty(RegExpEmpty* node, void*) override { return nullptr; }
+
+ private:
+  // Entry in the nodes queue. Contains the node to compile and a label to bind
+  // at the start of its bytecode.
+  class BFEntry {
+   public:
+    explicit BFEntry(RegExpTree* node) : label(), node(node) {}
+
+    Label label;
+    RegExpTree* node;
+  };
+
+  Zone* zone_;
+
+  BytecodeAssembler& assembler_;
+  ZoneLinkedList<BFEntry> nodes_;
+
+  // Whether we can compile a capture group or quantifier. This is set to true
+  // after popping an element from the queue, and false after having compiled
+  // one. When false, encountered capture groups and quantifiers are pushed on
+  // the queue.
+  bool compile_capture_or_quant_;
+};
+
 class CompileVisitor : private RegExpVisitor {
  public:
   static ZoneList<RegExpInstruction> Compile(RegExpTree* tree,
@@ -373,6 +524,8 @@ class CompileVisitor : private RegExpVisitor {
     tree->Accept(&compiler, nullptr);
     compiler.assembler_.SetRegisterToCp(1);
     compiler.assembler_.Accept();
+
+    FilterGroupsCompileVisitor::CompileFilter(zone, tree, compiler.assembler_);
 
     // To handle captureless lookbehinds, we run independent automata for each
     // lookbehind in lockstep with the main expression. To do so, we compile
@@ -534,18 +687,6 @@ class CompileVisitor : private RegExpVisitor {
       assembler_.ConsumeRange(c, c);
     }
     return nullptr;
-  }
-
-  void ClearRegisters(Interval indices) {
-    if (indices.is_empty()) return;
-    DCHECK_EQ(indices.from() % 2, 0);
-    DCHECK_EQ(indices.to() % 2, 1);
-    for (int i = indices.from(); i <= indices.to(); i += 2) {
-      // It suffices to clear the register containing the `begin` of a capture
-      // because this indicates that the capture is undefined, regardless of
-      // the value in the `end` register.
-      assembler_.ClearRegister(i);
-    }
   }
 
   // Emit bytecode corresponding to /<emit_body>*/.
@@ -749,9 +890,8 @@ class CompileVisitor : private RegExpVisitor {
     // clear registers in the first node->min() repetitions.
     // Later, and if node->min() == 0, we don't have to clear registers before
     // the first optional repetition.
-    Interval body_registers = node->body()->CaptureRegisters();
     auto emit_body = [&]() {
-      ClearRegisters(body_registers);
+      assembler_.SetQuantifierToClock(node->index());
       node->body()->Accept(this, nullptr);
     };
 

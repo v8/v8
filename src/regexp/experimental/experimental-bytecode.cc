@@ -68,8 +68,17 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
     case RegExpInstruction::SET_REGISTER_TO_CP:
       os << "SET_REGISTER_TO_CP " << inst.payload.register_index;
       break;
-    case RegExpInstruction::CLEAR_REGISTER:
-      os << "CLEAR_REGISTER " << inst.payload.register_index;
+    case RegExpInstruction::SET_QUANTIFIER_TO_CLOCK:
+      os << "SET_QUANTIFIER_TO_CLOCK " << inst.payload.quantifier_id;
+      break;
+    case RegExpInstruction::FILTER_QUANTIFIER:
+      os << "FILTER_QUANTIFIER " << inst.payload.quantifier_id;
+      break;
+    case RegExpInstruction::FILTER_GROUP:
+      os << "FILTER_GROUP " << inst.payload.group_id;
+      break;
+    case RegExpInstruction::FILTER_CHILD:
+      os << "FILTER_CHILD " << inst.payload.pc;
       break;
     case RegExpInstruction::BEGIN_LOOP:
       os << "BEGIN_LOOP";
