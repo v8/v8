@@ -760,7 +760,8 @@ class RepresentationSelector {
     TRACE("--{Verify Phase}--\n");
 
     // Patch pending type overrides.
-    for (auto [constant, uses] : verifier_->machine_uses_of_constants()) {
+    for (const auto& [constant, uses] :
+         verifier_->machine_uses_of_constants()) {
       Node* typed_constant =
           InsertTypeOverrideForVerifier(Type::Machine(), constant);
       for (auto use : uses) {

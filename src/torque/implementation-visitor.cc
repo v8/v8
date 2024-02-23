@@ -4336,14 +4336,14 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
 
   ClassFieldOffsetGenerator g(impl_, impl_, type_, gen_name_,
                               type_->GetSuperClass(), false);
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
   }
   g.Finish();
   impl_ << "\n";
 
-  for (auto f : type_->fields()) {
+  for (const auto& f : type_->fields()) {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string cpp_field_offset =

@@ -2354,7 +2354,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   StoreElementPolymorphicHandlers(&target_maps_and_handlers, store_mode);
-  if (target_maps_and_handlers.size() == 0) {
+  if (target_maps_and_handlers.empty()) {
     Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
     ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   } else if (target_maps_and_handlers.size() == 1) {

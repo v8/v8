@@ -213,7 +213,7 @@ void CodeStubAssembler::FailAssert(
     }
   }
   std::string files_and_lines_text = stream.str();
-  if (files_and_lines_text.size() != 0) {
+  if (!files_and_lines_text.empty()) {
     SNPrintF(chars, "%s%s", message, files_and_lines_text.c_str());
     message = chars.begin();
   }
