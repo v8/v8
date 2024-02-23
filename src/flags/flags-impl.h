@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/flags/flags.h"
 
 namespace v8::internal {
@@ -22,8 +23,10 @@ class V8_EXPORT_PRIVATE FlagHelpers {
 
 struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
-Flag* FindFlagByName(const char* name);
-Flag* FindImplicationFlagByName(const char* name);
+V8_EXPORT_PRIVATE Flag* FindFlagByName(const char* name);
+V8_EXPORT_PRIVATE Flag* FindImplicationFlagByName(const char* name);
+
+V8_EXPORT_PRIVATE base::Vector<const Flag> Flags();
 
 // Helper struct for printing normalized flag names.
 struct FlagName {
