@@ -285,7 +285,7 @@ Flag flags[] = {
 
 constexpr size_t kNumFlags = arraysize(flags);
 
-base::Vector<const Flag> Flags() { return base::ArrayVector(flags); }
+base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
 struct FlagLess {
   bool operator()(const Flag* a, const Flag* b) const {

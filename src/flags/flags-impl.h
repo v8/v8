@@ -26,7 +26,7 @@ Flag* FindFlagByPointer(const void* ptr);
 V8_EXPORT_PRIVATE Flag* FindFlagByName(const char* name);
 V8_EXPORT_PRIVATE Flag* FindImplicationFlagByName(const char* name);
 
-V8_EXPORT_PRIVATE base::Vector<const Flag> Flags();
+V8_EXPORT_PRIVATE base::Vector<Flag> Flags();
 
 // Helper struct for printing normalized flag names.
 struct FlagName {
@@ -230,7 +230,7 @@ struct Flag {
   void ReleaseDynamicAllocations();
 
   // Set a flag back to it's default value.
-  void Reset();
+  V8_EXPORT_PRIVATE void Reset();
 
   void AllowOverwriting() { set_by_ = SetBy::kDefault; }
 };

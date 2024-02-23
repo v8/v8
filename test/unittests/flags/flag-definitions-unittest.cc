@@ -238,6 +238,22 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
 
+// Stress implications after setting a flag. We only set one flag, as multiple
+// might just lead to known flag contradictions.
+void StressFlagImplications(const std::string& s1) {
+  int result = FlagList::SetFlagsFromString(s1.c_str(), s1.length());
+  // Only process implications if a flag was set successfully (which happens
+  // only in a small portion of fuzz runs).
+  if (result == 0) FlagList::EnforceFlagImplications();
+  // Ensure a clean state in each iteration.
+  for (Flag& flag : Flags()) {
+    if (!flag.IsReadOnly()) flag.Reset();
+  }
+}
+
+V8_FUZZ_TEST(FlagDefinitionsFuzzTest, StressFlagImplications)
+    .WithDomains(fuzztest::InRegexp("^--(\\w|\\-){1,50}(=\\w{1,5})?$"));
+
 struct FlagAndName {
   FlagValue<bool>* value;
   const char* name;
