@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
   for (int arg_idx = 1; arg_idx < argc; ++arg_idx) {
     const char* const arg = argv[arg_idx];
     // Ignore first '--' argument.
-    if (!after_dash_dash && strcmp(arg, "--") == 0) {
+    if (!after_dash_dash && arg[0] == '-' && arg[1] == '-' && arg[2] == '\0') {
       after_dash_dash = true;
       continue;
     }
