@@ -2450,7 +2450,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainDate/order-of-operations': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default': [FAIL],
   'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined': [FAIL],
   'intl402/DurationFormat/constructor-options-style-conflict': [FAIL],
   'language/global-code/script-decl-lex-var-declared-via-eval-sloppy': [FAIL],
