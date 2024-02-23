@@ -229,6 +229,19 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
     }
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
+    bool is_shared = false;
+    if (code == kSharedFlagCode) {
+      if (!VALIDATE(enabled.has_shared())) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid heap type 0x%x, enable with --experimental-wasm-shared",
+            kSharedFlagCode);
+        return {HeapType(HeapType::kBottom), length};
+      }
+      code = decoder->read_u8<ValidationTag>(pc + length, "heap type");
+      length++;
+      is_shared = true;
+    }
     switch (code) {
       case kEqRefCode:
       case kI31RefCode:
@@ -240,27 +253,28 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       case kNoFuncCode:
       case kExternRefCode:
       case kFuncRefCode:
-        return {HeapType::from_code(code), length};
+        return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
         if (!VALIDATE(enabled.has_exnref())) {
-          DecodeError<ValidationTag>(decoder, pc,
-                                     "invalid heap type '%s', enable with "
-                                     "--experimental-wasm-exnref",
-                                     HeapType::from_code(code).name().c_str());
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', enable with --experimental-wasm-exnref",
+              HeapType::from_code(code, is_shared).name().c_str());
         }
-        return {HeapType::from_code(code), length};
+        return {HeapType::from_code(code, is_shared), length};
       case kStringRefCode:
       case kStringViewWtf8Code:
       case kStringViewWtf16Code:
       case kStringViewIterCode:
         if (!VALIDATE(enabled.has_stringref())) {
-          DecodeError<ValidationTag>(decoder, pc,
-                                     "invalid heap type '%s', enable with "
-                                     "--experimental-wasm-stringref",
-                                     HeapType::from_code(code).name().c_str());
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', enable with "
+              "--experimental-wasm-stringref",
+              HeapType::from_code(code, is_shared).name().c_str());
         }
-        return {HeapType::from_code(code), length};
+        return {HeapType::from_code(code, is_shared), length};
       default:
         DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                    heap_index);
@@ -303,14 +317,14 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kNoFuncCode:
     case kExternRefCode:
     case kFuncRefCode:
-      return {ValueType::RefNull(HeapType::from_code(code)), 1};
+      return {ValueType::RefNull(HeapType::from_code(code, false)), 1};
     case kNoExnCode:
     case kExnRefCode:
       if (!VALIDATE(enabled.has_exnref())) {
-        DecodeError<ValidationTag>(decoder, pc,
-                                   "invalid value type '%s', enable with "
-                                   "--experimental-wasm-exnref",
-                                   HeapType::from_code(code).name().c_str());
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid value type '%s', enable with --experimental-wasm-exnref",
+            HeapType::from_code(code, false).name().c_str());
         return {kWasmBottom, 0};
       }
       return {code == kExnRefCode ? kWasmExnRef : kWasmNullExnRef, 1};
@@ -319,13 +333,14 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kStringViewWtf16Code:
     case kStringViewIterCode: {
       if (!VALIDATE(enabled.has_stringref())) {
-        DecodeError<ValidationTag>(decoder, pc,
-                                   "invalid value type '%sref', enable with "
-                                   "--experimental-wasm-stringref",
-                                   HeapType::from_code(code).name().c_str());
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid value type '%sref', enable with "
+            "--experimental-wasm-stringref",
+            HeapType::from_code(code, false).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {ValueType::RefNull(HeapType::from_code(code)), 1};
+      return {ValueType::RefNull(HeapType::from_code(code, false)), 1};
     }
     case kI32Code:
       return {kWasmI32, 1};

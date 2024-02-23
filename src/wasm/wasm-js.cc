@@ -1344,6 +1344,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
           "Descriptor property 'element' must be a WebAssembly reference type");
       return;
     }
+    // TODO(14616): Support shared types.
   }
 
   int64_t initial = 0;

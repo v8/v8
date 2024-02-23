@@ -7168,7 +7168,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kF64:
         return BuildChangeFloat64ToNumber(node);
       case wasm::kRef:
-        switch (type.heap_representation()) {
+        switch (type.heap_representation_non_shared()) {
           case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
           case wasm::HeapType::kStruct:
@@ -7189,7 +7189,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             UNREACHABLE();
           case wasm::HeapType::kFunc:
           default:
-            if (type.heap_representation() == wasm::HeapType::kFunc ||
+            if (type.heap_representation_non_shared() ==
+                    wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
               // Typed function. Extract the external function.
               auto done =
@@ -7212,7 +7213,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             }
         }
       case wasm::kRefNull:
-        switch (type.heap_representation()) {
+        switch (type.heap_representation_non_shared()) {
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
           case wasm::HeapType::kExn:
@@ -7235,7 +7236,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           }
           case wasm::HeapType::kFunc:
           default: {
-            if (type == wasm::kWasmFuncRef ||
+            if (type.heap_representation_non_shared() ==
+                    wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
@@ -7325,7 +7327,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     switch (type.kind()) {
       case wasm::kRef:
       case wasm::kRefNull: {
-        switch (type.heap_representation()) {
+        switch (type.heap_representation_non_shared()) {
           // TODO(14034): Add more fast paths?
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
@@ -7345,7 +7347,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               gasm_->Unreachable();
 
               gasm_->Bind(&done);
-              return input;
             }
             return input;
           case wasm::HeapType::kString:

@@ -445,6 +445,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmGlobalImport {
     base::Vector<const char> module;
     base::Vector<const char> name;
+    // TODO(manoskouk): Extend to full value type.
     ValueTypeCode type_code;
     bool mutability;
   };

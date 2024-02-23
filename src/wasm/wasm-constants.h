@@ -38,7 +38,6 @@ enum ValueTypeCode : uint8_t {
   kNoExternCode = 0x72,         // -0x0e
   kNoneCode = 0x71,             // -0x0f
   kFuncRefCode = 0x70,          // -0x10
-  kExnRefCode = 0x69,           // -0x17
   kExternRefCode = 0x6f,        // -0x11
   kAnyRefCode = 0x6e,           // -0x12
   kEqRefCode = 0x6d,            // -0x13
@@ -48,6 +47,7 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExnRefCode = 0x69,           // -0x17
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x62,  // -0x1e

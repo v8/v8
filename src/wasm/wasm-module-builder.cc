@@ -131,6 +131,9 @@ void WasmFunctionBuilder::EmitWithU32V(WasmOpcode opcode, uint32_t immediate) {
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
+  if (type.encoding_needs_shared()) {
+    buffer->write_u8(kSharedFlagCode);
+  }
   if (type.encoding_needs_heap_type()) {
     buffer->write_i32v(type.heap_type().code());
   }

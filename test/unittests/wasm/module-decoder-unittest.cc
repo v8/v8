@@ -3398,6 +3398,31 @@ TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, InvalidSharedType) {
+  // Fails if the feature is not enabled.
+  const uint8_t data[] = {
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), kRefNullCode, kSharedFlagCode,
+                              kAnyRefCode))};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+
+  EXPECT_NOT_OK(
+      result, "invalid heap type 0x65, enable with --experimental-wasm-shared");
+}
+
+TEST_F(WasmModuleVerifyTest, InvalidSharedGlobal) {
+  // Fails if the feature is not enabled.
+  const uint8_t data[] = {
+      SECTION(Global, ENTRY_COUNT(1), kI32Code, 0b11, kExprI32Const, 0)};
+
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+
+  EXPECT_NOT_OK(
+      result,
+      "invalid global flags 0x3 (enable via --experimental-wasm-shared)");
+}
+
 #undef EXPECT_INIT_EXPR
 #undef EXPECT_INIT_EXPR_FAIL
 #undef WASM_INIT_EXPR_I32V_1

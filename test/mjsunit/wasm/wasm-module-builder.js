@@ -159,11 +159,11 @@ let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
 
 let kWasmRefNull = 0x63;
 let kWasmRef = 0x64;
-function wasmRefNullType(heap_type) {
-  return {opcode: kWasmRefNull, heap_type: heap_type};
+function wasmRefNullType(heap_type, is_shared = false) {
+  return {opcode: kWasmRefNull, heap_type: heap_type, is_shared: is_shared};
 }
-function wasmRefType(heap_type) {
-  return {opcode: kWasmRef, heap_type: heap_type};
+function wasmRefType(heap_type, is_shared = false) {
+  return {opcode: kWasmRef, heap_type: heap_type, is_shared: is_shared};
 }
 
 let kExternalFunction = 0;
@@ -1090,7 +1090,7 @@ class Binary {
       this.emit_u8(type >= 0 ? type : type & kLeb128Mask);
     } else {
       this.emit_u8(type.opcode);
-      if ('depth' in type) this.emit_u8(type.depth);
+      if (type.is_shared) this.emit_u8(kWasmSharedTypeForm);
       this.emit_heap_type(type.heap_type);
     }
   }

@@ -22,6 +22,29 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(10, wasm.roundtrip(10));
 })();
 
+(function SharedGlobalAbstractType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_i_i, kNoSuperType, true, false);
+  let struct = builder.addStruct(
+    [makeField(kWasmI32, true)], kNoSuperType, false, true);
+  let global = builder.addGlobal(
+    wasmRefNullType(kWasmAnyRef, true), true, true,
+    [kExprRefNull, kWasmSharedTypeForm, kAnyRefCode]);
+
+  builder.addFunction("roundtrip", sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct,
+              kExprGlobalSet, global.index,
+              kExprGlobalGet, global.index,
+              kGCPrefix, kExprRefCast, struct,
+              kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  assertEquals(10, wasm.roundtrip(10));
+})();
+
 (function SharedGlobalInNonSharedFunction() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

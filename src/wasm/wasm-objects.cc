@@ -316,7 +316,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
 
-  switch (table->type().heap_representation()) {
+  switch (table->type().heap_representation_non_shared()) {
     case wasm::HeapType::kExtern:
     case wasm::HeapType::kString:
     case wasm::HeapType::kStringViewWtf8:
@@ -368,7 +368,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     return entry;
   }
 
-  switch (table->type().heap_representation()) {
+  switch (table->type().heap_representation_non_shared()) {
     case wasm::HeapType::kStringViewWtf8:
     case wasm::HeapType::kStringViewWtf16:
     case wasm::HeapType::kStringViewIter:
@@ -2560,17 +2560,18 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       case HeapType::kStringViewIter:
         *error_message = "stringview_iter has no JS representation";
         return {};
-      default:
+      default: {
+        HeapType::Representation repr =
+            expected_canonical.heap_representation_non_shared();
         bool is_extern_subtype =
-            expected_canonical.heap_representation() == HeapType::kExtern ||
-            expected_canonical.heap_representation() == HeapType::kNoExtern ||
-            expected_canonical.heap_representation() == HeapType::kExn ||
-            expected_canonical.heap_representation() == HeapType::kNoExn;
+            repr == HeapType::kExtern || repr == HeapType::kNoExtern ||
+            repr == HeapType::kExn || repr == HeapType::kNoExn;
         return is_extern_subtype ? value : isolate->factory()->wasm_null();
+      }
     }
   }
 
-  switch (expected_canonical.heap_representation()) {
+  switch (expected_canonical.heap_representation_non_shared()) {
     case HeapType::kFunc: {
       if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
             WasmCapiFunction::IsWasmCapiFunction(*value))) {
