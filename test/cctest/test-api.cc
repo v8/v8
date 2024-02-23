@@ -13980,7 +13980,8 @@ static bool saw_wasm_main = false;
 static void wasm_event_handler(const v8::JitCodeEvent* event) {
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
-      if (FunctionNameIs("main-0-turbofan", event)) {
+      if (FunctionNameIs("main-0-turbofan", event) ||
+          FunctionNameIs("main-0-liftoff", event)) {
         saw_wasm_main = true;
         // Make sure main function has line info.
         auto* entry = jitcode_line_info->Lookup(
@@ -14004,14 +14005,14 @@ static void wasm_event_handler(const v8::JitCodeEvent* event) {
 }
 
 namespace v8::internal::wasm {
-TEST(WasmSetJitCodeEventHandler) {
+WASM_EXEC_TEST(WasmSetJitCodeEventHandler) {
   v8::base::HashMap code;
   instruction_stream_map = &code;
 
   v8::base::HashMap lineinfo;
   jitcode_line_info = &lineinfo;
 
-  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
   i::Isolate* isolate = r.main_isolate();
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -26691,8 +26692,8 @@ TEST(AtomicsWaitCallback) {
 #if V8_ENABLE_WEBASSEMBLY
 namespace v8::internal::wasm {
 
-TEST(WasmI32AtomicWaitCallback) {
-  WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
+WASM_EXEC_TEST(WasmI32AtomicWaitCallback) {
+  WasmRunner<int32_t, int32_t, int32_t, double> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
@@ -26727,8 +26728,8 @@ TEST(WasmI32AtomicWaitCallback) {
   AtomicsWaitCallbackCommon(isolate, CompileRun(init), 4, 4);
 }
 
-TEST(WasmI64AtomicWaitCallback) {
-  WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
+WASM_EXEC_TEST(WasmI64AtomicWaitCallback) {
+  WasmRunner<int32_t, int32_t, double, double> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),

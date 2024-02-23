@@ -5,6 +5,9 @@
 // Flags: --experimental-wasm-imported-strings --experimental-wasm-inlining
 // Flags: --allow-natives-syntax
 
+// We call %WasmTierUpFunction, which requires Turbofan.
+// Flags: --turbofan
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let kRefExtern = wasmRefType(kWasmExternRef);

@@ -357,6 +357,7 @@ WASM_EXEC_TEST(F32x4ConvertI32x4) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_F32x8SConvertI32x8) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -394,6 +395,7 @@ TEST(RunWasmTurbofan_F32x8SConvertI32x8) {
 }
 
 TEST(RunWasmTurbofan_F32x8UConvertI32x8) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -433,6 +435,7 @@ TEST(RunWasmTurbofan_F32x8UConvertI32x8) {
 }
 
 void RunSimd256ConstTest(const std::array<uint8_t, kSimd128Size>& expected) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -488,6 +491,7 @@ TEST(RunWasmTurbofan_S256Const) {
 }
 
 TEST(RunWasmTurbofan_ExtractF128) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int64_t, int32_t, int32_t, int32_t> r(
@@ -1661,6 +1665,7 @@ WASM_EXEC_TEST(I32x4ConvertF32x4) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I32x8UConvertF32x8) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -1736,6 +1741,7 @@ WASM_EXEC_TEST(I32x4ConvertI16x8) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I32x8ConvertI16x8Revec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -1819,6 +1825,7 @@ WASM_EXEC_TEST(I64x2ConvertI32x4) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I64x4ConvertI32x4Revec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -1944,6 +1951,7 @@ WASM_EXEC_TEST(I16x8ExtAddPairwiseI8x16U) {
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 template <typename Narrow, typename Wide>
 void RunExtAddPairwiseRevecTest(WasmOpcode ext_add_pairwise) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -2159,6 +2167,7 @@ TEST(RunWasmTurbofan_S256AndNot) {
 }
 
 TEST(RunWasmTurbofan_S256Select) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(
@@ -2386,6 +2395,7 @@ WASM_EXEC_TEST(I16x8ConvertI8x16) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I16x16ConvertI8x16Revec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -3943,6 +3953,7 @@ WASM_EXEC_TEST(SimdF32x4SetGlobal) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_F32x4AddRevec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -3987,6 +3998,7 @@ TEST(RunWasmTurbofan_F32x4AddRevec) {
 }
 
 TEST(RunWasmTurbofan_LoadStoreExtractRevec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -4024,6 +4036,7 @@ TEST(RunWasmTurbofan_LoadStoreExtractRevec) {
 }
 
 TEST(RunWasmTurbofan_F32x4ShuffleForSplatRevec) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -4075,6 +4088,7 @@ TEST(RunWasmTurbofan_F32x4ShuffleForSplatRevec) {
 }
 
 TEST(RunWasmTurbofan_ShuffleVpshufd) {
+  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
@@ -4297,6 +4311,7 @@ template <typename T>
 void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
                            compiler::IrOpcode::Value revec_opcode,
                            T (*expected_op)(T, T)) {
+  if (!v8_flags.turbofan) return;
   if (!CpuFeatures::IsSupported(AVX2)) return;
 
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
@@ -4385,6 +4400,7 @@ TEST(RunWasmTurbofan_S256Load64Splat) {
 
 template <typename S, typename T>
 void RunLoadExtendRevecTest(WasmOpcode op) {
+  if (!v8_flags.turbofan) return;
   if (!CpuFeatures::IsSupported(AVX2)) return;
 
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
@@ -4470,6 +4486,7 @@ TEST(S128Load32x2S) {
 
 template <typename S, typename T>
 void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
+  if (!v8_flags.turbofan) return;
   static_assert(sizeof(S) < sizeof(T),
                 "load extend should go from smaller to larger type");
   constexpr int lanes_s = 16 / sizeof(S);

@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --no-enable-sse4-1
+// Liftoff falls back to Turbofan in this case, hence Turbofan needs to be
+// enabled.
+// Flags: --turbofan
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

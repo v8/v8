@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --mock-arraybuffer-allocator --allow-natives-syntax
+// Flags: --mock-arraybuffer-allocator --allow-natives-syntax --validate-asm
 
 function Asm(stdlib, foreign, buffer) {
   "use asm";

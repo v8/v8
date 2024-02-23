@@ -547,6 +547,12 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   HandleScope scope(isolate);
+  // Tier-up requires Turbofan.
+  if (!v8_flags.turbofan) {
+    FATAL(
+        "Skip functions that call %%WasmTierUpFunction in --no-turbofan "
+        "variants.");
+  }
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
