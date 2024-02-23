@@ -357,21 +357,38 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     printing_visitor_->PreProcessGraph(graph_);
   }
 
-  auto process_constants = [&](auto& map) {
-    for (const auto& [ref, constant] : map) {
-      constant->SetConstantLocation();
-      USE(ref);
-    }
-  };
-  process_constants(graph_->constants());
-  process_constants(graph_->root());
-  process_constants(graph_->smi());
-  process_constants(graph_->tagged_index());
-  process_constants(graph_->int32());
-  process_constants(graph_->uint32());
-  process_constants(graph_->typed_array_length());
-  process_constants(graph_->float64());
-  process_constants(graph_->external_references());
+  for (const auto& [ref, constant] : graph_->constants()) {
+    constant->SetConstantLocation();
+    USE(ref);
+  }
+  for (const auto& [index, constant] : graph_->root()) {
+    constant->SetConstantLocation();
+    USE(index);
+  }
+  for (const auto& [value, constant] : graph_->smi()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->tagged_index()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->int32()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->uint32()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [value, constant] : graph_->float64()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
+  for (const auto& [address, constant] : graph_->external_references()) {
+    constant->SetConstantLocation();
+    USE(address);
+  }
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;

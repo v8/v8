@@ -222,10 +222,8 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
 
   if (input_reprs.contains(ValueRepresentation::kTagged) ||
       input_reprs.contains(ValueRepresentation::kUint32) ||
-      input_reprs.contains(ValueRepresentation::kTypedArrayLength) ||
       input_reprs.empty()) {
-    TRACE_UNTAGGING(
-        "  => Leaving tagged [tagged, uint32, or typed array length inputs]");
+    TRACE_UNTAGGING("  => Leaving tagged [tagged or uint32 inputs]");
     EnsurePhiInputsTagged(node);
     return default_result;
   }
@@ -351,7 +349,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kUint32:
@@ -365,7 +363,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kFloat64:
@@ -384,7 +382,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
     case ValueRepresentation::kHoleyFloat64:
@@ -404,12 +402,12 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
 
     case ValueRepresentation::kTagged:
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -628,7 +626,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           break;
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kUint32:
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
       }
       phi->change_input(i, untagged);
@@ -745,7 +743,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -847,7 +845,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kUint32:
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -925,7 +923,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 

@@ -184,9 +184,6 @@ function PrintBuffer(buffer) {
 }
 %NeverOptimizeFunction(PrintBuffer);
 
-// Invalidate the array buffer detach protector.
-%ArrayBufferDetach(new ArrayBuffer(10));
-
 (function() {
 for (let shared of [false, true]) {
   for (let length_tracking of [false, true]) {
@@ -196,7 +193,7 @@ for (let shared of [false, true]) {
         const test_case = `Testing: Length_${shared ? 'GSAB' : 'RAB'}_${
             length_tracking ? 'LengthTracking' : 'FixedLength'}${
             with_offset ? 'WithOffset' : ''}_${target.name}`;
-        console.log(test_case);
+        // console.log(test_case);
 
         const byte_length_code = 'return ta.byteLength; // ' + test_case;
         const ByteLength = new Function('ta', byte_length_code);

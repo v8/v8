@@ -619,7 +619,7 @@ class ExceptionHandlerTrampolineBuilder {
       DCHECK(!source->allocation().IsRegister());
 
       switch (source->properties().value_representation()) {
-        case ValueRepresentation::kTypedArrayLength:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
@@ -1267,13 +1267,8 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
                                ValueRepresentation repr) {
     switch (repr) {
-      case ValueRepresentation::kTypedArrayLength:
-#if V8_TARGET_ARCH_64_BIT
-        translation_array_builder_->StoreInt64Register(operand.GetRegister());
-#else
-        translation_array_builder_->StoreInt32Register(operand.GetRegister());
-#endif
-        break;
+      case ValueRepresentation::kIntPtr:
+        UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreRegister(operand.GetRegister());
         break;
@@ -1298,13 +1293,8 @@ class MaglevFrameTranslationBuilder {
                                 ValueRepresentation repr) {
     int stack_slot = DeoptStackSlotFromStackSlot(operand);
     switch (repr) {
-      case ValueRepresentation::kTypedArrayLength:
-#if V8_TARGET_ARCH_64_BIT
-        translation_array_builder_->StoreInt64StackSlot(stack_slot);
-#else
-        translation_array_builder_->StoreInt32StackSlot(stack_slot);
-#endif
-        break;
+      case ValueRepresentation::kIntPtr:
+        UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreStackSlot(stack_slot);
         break;

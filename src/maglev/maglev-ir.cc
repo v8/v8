@@ -431,7 +431,7 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
       return ValueRepresentation::kFloat64;
     case MachineRepresentation::kWord64:
       DCHECK_EQ(kSystemPointerSize, 8);
-      return ValueRepresentation::kTypedArrayLength;
+      return ValueRepresentation::kIntPtr;
     default:
       return ValueRepresentation::kInt32;
   }
@@ -520,7 +520,7 @@ void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
     CASE_REPR(Float64)
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
-    case ValueRepresentation::kTypedArrayLength:
+    case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
 }
@@ -761,10 +761,6 @@ Handle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
-Handle<Object> TypedArrayLengthConstant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumberFromSize<AllocationType::kOld>(value());
-}
-
 Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumber<AllocationType::kOld>(
       value_.get_scalar());
@@ -872,11 +868,6 @@ void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
 
-void TypedArrayLengthConstant::DoLoadToRegister(MaglevAssembler* masm,
-                                                Register reg) {
-  __ Move(reg, value());
-}
-
 void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
                                        DoubleRegister reg) {
   __ Move(reg, value());
@@ -915,12 +906,6 @@ void Int32Constant::GenerateCode(MaglevAssembler* masm,
 void Uint32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Uint32Constant::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {}
-
-void TypedArrayLengthConstant::SetValueLocationConstraints() {
-  DefineAsConstant(this);
-}
-void TypedArrayLengthConstant::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {}
 
 void Float64Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Float64Constant::GenerateCode(MaglevAssembler* masm,
@@ -1575,15 +1560,6 @@ void ChangeUint32ToFloat64::SetValueLocationConstraints() {
 void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   __ Uint32ToDouble(ToDoubleRegister(result()), ToRegister(input()));
-}
-
-void ChangeTypedArrayLengthToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeTypedArrayLengthToFloat64::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  __ TypedArrayLengthToDouble(ToDoubleRegister(result()), ToRegister(input()));
 }
 
 void CheckMaps::SetValueLocationConstraints() {
@@ -2938,7 +2914,7 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register length = ToRegister(length_input());
   // The index must be a zero-extended Uint32 for this to work.
   __ AssertZeroExtended(index);
-  __ CompareTypedArrayLengthAndJumpIf(
+  __ CompareIntPtrAndJumpIf(
       index, length, kUnsignedGreaterThanEqual,
       __ GetDeoptLabel(this, DeoptimizeReason::kOutOfBounds));
 }
@@ -3974,38 +3950,6 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void TypedArrayLengthToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-#ifdef V8_TARGET_ARCH_X64
-  // We emit slightly more efficient code if result is the same as input.
-  DefineSameAsFirst(this);
-#else
-  DefineAsRegister(this);
-#endif
-}
-void TypedArrayLengthToNumber::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register value = ToRegister(input());
-  Register object = ToRegister(result());
-  __ CompareTypedArrayLengthAndJumpIf(
-      value, Smi::kMaxValue, kUnsignedGreaterThan,
-      __ MakeDeferredCode(
-          [](MaglevAssembler* masm, Register object, Register value,
-             ZoneLabelRef done, TypedArrayLengthToNumber* node) {
-            MaglevAssembler::ScratchRegisterScope temps(masm);
-            DoubleRegister double_value =
-                temps.GetDefaultScratchDoubleRegister();
-            __ TypedArrayLengthToDouble(double_value, value);
-            __ AllocateHeapNumber(node->register_snapshot(), object,
-                                  double_value);
-            __ Jump(*done);
-          },
-          object, value, done, this));
-  __ UncheckedSmiTagInt32(object, value);
-  __ bind(*done);
-}
-
 void Float64ToTagged::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -4602,16 +4546,6 @@ void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
-void TruncateTypedArrayLengthToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void TruncateTypedArrayLengthToInt32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  // No code emitted -- as far as the machine is concerned, int32 is uint32.
-  DCHECK_EQ(ToRegister(input()), ToRegister(result()));
-}
-
 void TruncateFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -4677,19 +4611,6 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   Register input_reg = ToRegister(input());
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
   __ CompareInt32AndJumpIf(input_reg, 0, kLessThan, fail);
-}
-
-void CheckedTypedArrayLengthToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedTypedArrayLengthToInt32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register input_reg = ToRegister(input());
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
-  __ CompareTypedArrayLengthAndJumpIf(input_reg, kMaxInt, kUnsignedGreaterThan,
-                                      fail);
-  __ AssertZeroExtended(input_reg);
 }
 
 void UnsafeTruncateUint32ToInt32::SetValueLocationConstraints() {
@@ -6329,11 +6250,6 @@ void Int32Constant::PrintParams(std::ostream& os,
 
 void Uint32Constant::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
-}
-
-void TypedArrayLengthConstant::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
 }
 

@@ -44,11 +44,11 @@ struct RegisterStateFlags {
   const bool is_initialized = false;
   const bool is_merge = false;
 
-  explicit constexpr operator size_t() const {
+  explicit constexpr operator uintptr_t() const {
     return (is_initialized ? 1 << kIsInitializedShift : 0) |
            (is_merge ? 1 << kIsMergeShift : 0);
   }
-  constexpr explicit RegisterStateFlags(size_t state)
+  constexpr explicit RegisterStateFlags(uintptr_t state)
       : is_initialized((state & (1 << kIsInitializedShift)) != 0),
         is_merge((state & (1 << kIsMergeShift)) != 0) {}
   constexpr RegisterStateFlags(bool is_initialized, bool is_merge)
