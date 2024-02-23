@@ -9059,13 +9059,15 @@ base::Optional<FastObject> MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       value = FastField(boilerplate_value);
     }
 
-    DCHECK_LT(index, boilerplate_map.GetInObjectProperties());
+    // The index is derived from the in-sandbox `NumberOfOwnDescriptors` value,
+    // but the access is out-of-sandbox fast_literal fields.
+    SBXCHECK_LT(index, fast_literal.inobject_properties);
     fast_literal.fields[index] = value;
     index++;
   }
 
   // Fill slack at the end of the boilerplate object with filler maps.
-  int const boilerplate_length = boilerplate_map.GetInObjectProperties();
+  int const boilerplate_length = fast_literal.inobject_properties;
   for (; index < boilerplate_length; ++index) {
     DCHECK(!V8_MAP_PACKING_BOOL);
     // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
