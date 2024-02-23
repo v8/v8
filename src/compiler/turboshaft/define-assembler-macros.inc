@@ -37,61 +37,62 @@
 
 // Clang/GCC helpfully warn us about dangling else in nested if statements. This
 // dangling is intentional for the way these macros work, so suppress the
-// warning with Pragmas. Clang and GCC helpfully disagree on where the _Pragma
-// is allowed to be, so they need separate macros.
+// warning with Pragmas. Clang and GCC helpfully disagree on where the warning
+// is (on the if or the else), so they need separate macros.
 #if defined(__clang__)
-#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...)                \
-  _Pragma("GCC diagnostic push") _Pragma(                                 \
-      "GCC diagnostic ignored \"-Wdangling-else\"") else if (__VA_ARGS__) \
-      _Pragma("GCC diagnostic pop")
+#define FORCE_UNROLL_LOOP _Pragma("clang loop unroll(full)")
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE                             \
+  _Pragma("GCC diagnostic push")                                          \
+      _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") else _Pragma( \
+          "GCC diagnostic pop")
 #elif defined(__GNUC__)
-#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...)                   \
-  else _Pragma("GCC diagnostic push")                                        \
+#define FORCE_UNROLL_LOOP
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...)                             \
+  _Pragma("GCC diagnostic push")                                             \
       _Pragma("GCC diagnostic ignored \"-Wdangling-else\"") if (__VA_ARGS__) \
           _Pragma("GCC diagnostic pop")
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
 #else
-#define ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING(...) else if (__VA_ARGS__)
+#define FORCE_UNROLL_LOOP
+#define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
+#define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE else
 #endif
 
 // IF/ELSE macros. These expand to a real C++ if-else, so that we can get
 // similar block syntax behaviour (with an optional `ELSE`). Since C++ will only
 // evaluate one side of the if-else, wrap it in a for loop that executes the
 // if-else twice, once for each side of the branch. Each iteration also emits a
-// goto-end if the corresponding branch target was bound. This for loop also
-// encapsulates the state of the IF, including block pointers.
+// goto-end if the corresponding branch target was bound. An if around the for
+// loop encapsulates the state -- this is outside the for loop to make it easier
+// for the compiler to unroll the two loop iterations.
 #define IF(...)                                                                \
-  for (auto [then_block, else_block, end_block, iteration, explicit_else] =    \
-           std::tuple{Asm().NewBlock(), Asm().NewBlock(), Asm().NewBlock(), 0, \
-                      false};                                                  \
-       iteration < 2 ||                                                        \
-       (!explicit_else && Asm().Bind(else_block) ? Asm().Goto(end_block)       \
-                                                 : (void)0,                    \
-        Asm().Bind(end_block), false);                                         \
-       (Asm().current_block() != nullptr ? Asm().Goto(end_block) : (void)0),   \
-                                                           iteration++)        \
+  SUPPRESSED_DANGLING_ELSE_WARNING_IF(                                         \
+      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state; \
+      true)                                                                    \
+  FORCE_UNROLL_LOOP                                                            \
+  for (int iteration = 0, bound = false;                                       \
+       iteration < 2 || (Asm().ControlFlowHelper_EndIf(&state), false);        \
+       (bound ? Asm().ControlFlowHelper_FinishIfBlock(&state) : (void)0),      \
+           bound = false, iteration++)                                         \
     if (iteration == 0 &&                                                      \
-        (Asm().Branch(::v8::internal::compiler::turboshaft::ConditionWithHint(__VA_ARGS__), then_block, else_block), \
-         true) &&                                                              \
-        Asm().Bind(then_block))
+        (bound = Asm().ControlFlowHelper_BindIf(__VA_ARGS__, &state)))
 
 #define IF_NOT(...)                                                            \
-  for (auto [then_block, else_block, end_block, iteration, explicit_else] =    \
-           std::tuple{Asm().NewBlock(), Asm().NewBlock(), Asm().NewBlock(), 0, \
-                      false};                                                  \
-       iteration < 2 ||                                                        \
-       (!explicit_else && Asm().Bind(else_block) ? Asm().Goto(end_block)       \
-                                                 : (void)0,                    \
-        Asm().Bind(end_block), false);                                         \
-       (Asm().current_block() != nullptr ? Asm().Goto(end_block) : (void)0),   \
-                                                           iteration++)        \
+  SUPPRESSED_DANGLING_ELSE_WARNING_IF(                                         \
+      typename std::decay_t<decltype(Asm())>::ControlFlowHelper_IfState state; \
+      true)                                                                    \
+  FORCE_UNROLL_LOOP                                                            \
+  for (int iteration = 0, bound = false;                                       \
+       iteration < 2 || (Asm().ControlFlowHelper_EndIf(&state), false);        \
+       (bound ? Asm().ControlFlowHelper_FinishIfBlock(&state) : (void)0),      \
+           bound = false, iteration++)                                         \
     if (iteration == 0 &&                                                      \
-        (Asm().Branch(::v8::internal::compiler::turboshaft::ConditionWithHint(__VA_ARGS__), else_block, then_block), \
-         true) &&                                                              \
-        Asm().Bind(then_block))
+        (bound = Asm().ControlFlowHelper_BindIfNot(__VA_ARGS__, &state)))
 
-#define ELSE                                     \
-  ELSE_IF_WITH_SUPPRESSED_DANGLING_ELSE_WARNING( \
-      iteration == 1 && (explicit_else = true) && Asm().Bind(else_block))
+#define ELSE                                 \
+  SUPPRESSED_DANGLING_ELSE_WARNING_ELSE if ( \
+      iteration == 1 && (bound = Asm().ControlFlowHelper_BindElse(&state)))
 
 #define Assert(condition) AssertImpl(condition, #condition, __FILE__, __LINE__)
 
