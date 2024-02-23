@@ -3598,8 +3598,10 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   }
 }
 
-ValueType ref(uint8_t type_index) { return ValueType::Ref(type_index); }
-ValueType refNull(uint8_t type_index) { return ValueType::RefNull(type_index); }
+ValueType ref(uint32_t type_index) { return ValueType::Ref(type_index); }
+ValueType refNull(uint32_t type_index) {
+  return ValueType::RefNull(type_index);
+}
 
 TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
   TestModuleBuilder builder;
@@ -3722,9 +3724,18 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   WASM_FEATURE_SCOPE(exnref);
 
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType eqref_subtypes[] = {
-      kWasmEqRef,  kWasmI31Ref.AsNonNull(), kWasmEqRef.AsNonNull(),
-      kWasmI31Ref, ref(struct_type_index),  refNull(struct_type_index)};
+  ValueType eqref_subtypes[] = {kWasmEqRef,
+                                kWasmI31Ref,
+                                kWasmI31Ref.AsNonNull(),
+                                kWasmEqRef.AsNonNull(),
+                                kWasmStructRef,
+                                kWasmArrayRef,
+                                refNull(HeapType::kEqShared),
+                                refNull(HeapType::kI31Shared),
+                                ref(HeapType::kStructShared),
+                                ref(HeapType::kArrayShared),
+                                ref(struct_type_index),
+                                refNull(struct_type_index)};
   ValueType non_eqref_subtypes[] = {kWasmI32,
                                     kWasmI64,
                                     kWasmF32,
@@ -3734,10 +3745,14 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
                                     kWasmExternRef,
                                     kWasmAnyRef,
                                     kWasmExnRef,
-                                    ValueType::Ref(HeapType::kExtern),
-                                    ValueType::Ref(HeapType::kAny),
-                                    ValueType::Ref(HeapType::kFunc),
-                                    ValueType::Ref(HeapType::kExn)};
+                                    ref(HeapType::kExtern),
+                                    ref(HeapType::kAny),
+                                    ref(HeapType::kFunc),
+                                    ref(HeapType::kExn),
+                                    refNull(HeapType::kExternShared),
+                                    refNull(HeapType::kAnyShared),
+                                    refNull(HeapType::kFuncShared),
+                                    refNull(HeapType::kExnShared)};
 
   for (ValueType type1 : eqref_subtypes) {
     for (ValueType type2 : eqref_subtypes) {
@@ -3753,9 +3768,13 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
       ValueType reps[] = {kWasmI32, type1, type2};
       FunctionSig sig(1, 2, reps);
       ExpectFailure(&sig, {WASM_REF_EQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
-                    kAppendEnd, "expected type eqref, found local.get of type");
+                    kAppendEnd,
+                    "expected either eqref or (ref null shared eq), found "
+                    "local.get of type");
       ExpectFailure(&sig, {WASM_REF_EQ(WASM_LOCAL_GET(1), WASM_LOCAL_GET(0))},
-                    kAppendEnd, "expected type eqref, found local.get of type");
+                    kAppendEnd,
+                    "expected either eqref or (ref null shared eq), found "
+                    "local.get of type");
     }
   }
 }

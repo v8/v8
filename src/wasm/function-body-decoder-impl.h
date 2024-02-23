@@ -2148,6 +2148,7 @@ class WasmDecoder : public Decoder {
       case kExprDrop:
       case kExprSelect:
       case kExprCatchAll:
+      case kExprRefEq:
         return 1;
       case kExprSelectWithType: {
         SelectTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, validate);
@@ -3956,6 +3957,31 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1 + imm.length;
   }
 
+  DECODE(RefEq) {
+    this->detected_->Add(kFeature_gc);
+    Value lhs = Pop();
+    if (!VALIDATE(IsSubtypeOf(lhs.type, kWasmEqRef, this->module_) ||
+                  IsSubtypeOf(lhs.type, ValueType::RefNull(HeapType::kEqShared),
+                              this->module_))) {
+      this->DecodeError(this->pc_,
+                        "ref.eq[0] expected either eqref or (ref null shared "
+                        "eq), found %s of type %s",
+                        SafeOpcodeNameAt(lhs.pc()), lhs.type.name().c_str());
+    }
+    Value rhs = Pop();
+    if (!VALIDATE(IsSubtypeOf(rhs.type, kWasmEqRef, this->module_) ||
+                  IsSubtypeOf(rhs.type, ValueType::RefNull(HeapType::kEqShared),
+                              this->module_))) {
+      this->DecodeError(this->pc_,
+                        "ref.eq[0] expected either eqref or (ref null shared "
+                        "eq), found %s of type %s",
+                        SafeOpcodeNameAt(rhs.pc()), rhs.type.name().c_str());
+    }
+    Value* result = Push(kWasmI32);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(BinOp, kExprRefEq, lhs, rhs, result);
+    return 1;
+  }
+
   DECODE(Numeric) {
     auto [full_opcode, opcode_length] =
         this->template read_prefixed_opcode<ValidationTag>(this->pc_,
@@ -4099,6 +4125,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(RefIsNull);
     DECODE_IMPL_CONST(RefFunc);
     DECODE_IMPL(RefAsNonNull);
+    DECODE_IMPL(RefEq);
     DECODE_IMPL(LocalGet);
     DECODE_IMPL(LocalSet);
     DECODE_IMPL(LocalTee);
@@ -6392,10 +6419,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     interface().OnFirstError(this);
   }
 
+  // There are currently no simple prototype operators.
   int BuildSimplePrototypeOperator(WasmOpcode opcode) {
-    if (opcode == kExprRefEq) {
-      this->detected_->Add(kFeature_gc);
-    }
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     return BuildSimpleOperator(opcode, sig);
   }
