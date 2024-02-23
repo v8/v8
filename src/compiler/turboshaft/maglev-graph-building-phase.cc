@@ -318,6 +318,39 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::StringConcat* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ StringConcat(Map(node->lhs()), Map(node->rhs())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StringEqual* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StringLength* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ StringLength(Map(node->object_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StringAt* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> char_code =
+        __ StringCharCodeAt(Map(node->string_input()),
+                            __ ChangeUint32ToUintPtr(Map(node->index_input())));
+    SetMap(node, __ ConvertCharCodeToString(char_code));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedInternalizedString* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    SetMap(node, __ CheckedInternalizedString(
+                     Map(node->object_input()), frame_state,
+                     node->check_type() == maglev::CheckType::kCheckHeapObject,
+                     node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadTaggedField(Map(node->object_input()), node->offset()));
@@ -509,6 +542,15 @@ class GraphBuilder {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::BranchIfRootConstant* node,
+                                const maglev::ProcessingState& state) {
+    RootIndex root = node->root_index();
+    V<Word32> condition = __ TaggedEqual(
+        Map(node->condition_input()),
+        __ HeapConstant(Handle<HeapObject>::cast(isolate_->root_handle(root))));
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CheckedSmiUntag* node,
                                 const maglev::ProcessingState& state) {
@@ -625,6 +667,19 @@ class GraphBuilder {
 
       SetMap(node, *result);
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LogicalNot* node,
+                                const maglev::ProcessingState& state) {
+    ScopedVariable<Boolean, AssemblerT> result(Asm());
+    IF (__ TaggedEqual(Map(node->value()),
+                       __ HeapConstant(factory_->true_value()))) {
+      result = __ HeapConstant(factory_->false_value());
+    } ELSE {
+      result = __ HeapConstant(factory_->true_value());
+    }
+    SetMap(node, *result);
     return maglev::ProcessResult::kContinue;
   }
 

@@ -73,6 +73,43 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
+  V<InternalizedString> CheckedInternalizedString(
+      V<Tagged> object, OpIndex frame_state, bool check_smi,
+      const FeedbackSource& feedback) {
+    if (check_smi) {
+      __ DeoptimizeIf(__ IsSmi(object), frame_state, DeoptimizeReason::kSmi,
+                      feedback);
+    }
+
+    Label<InternalizedString> done(this);
+    V<Map> map = __ LoadMapField(object);
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+    // Go to the slow path if this is a non-string, or a non-internalised
+    // string.
+    static_assert((kStringTag | kInternalizedTag) == 0);
+    IF (UNLIKELY(__ Word32BitwiseAnd(
+            instance_type, kIsNotStringMask | kIsNotInternalizedMask))) {
+      // Deopt if this isn't a string.
+      __ DeoptimizeIf(__ Word32BitwiseAnd(instance_type, kIsNotStringMask),
+                      frame_state, DeoptimizeReason::kWrongMap, feedback);
+      // Deopt if this isn't a thin string.
+      static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+      __ DeoptimizeIfNot(__ Word32BitwiseAnd(instance_type, kThinStringTagBit),
+                         frame_state, DeoptimizeReason::kWrongMap, feedback);
+      // Load internalized string from thin string.
+      V<InternalizedString> intern_string =
+          __ template LoadField<InternalizedString>(
+              object, AccessBuilder::ForThinStringActual());
+      GOTO(done, intern_string);
+    } ELSE {
+      GOTO(done, V<InternalizedString>::Cast(object));
+    }
+
+    BIND(done, result);
+    return result;
+  }
+
   LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();
   JSHeapBroker* broker_ = PipelineData::Get().broker();
   LocalFactory* factory_ = isolate_->factory();
