@@ -80,9 +80,7 @@ bool IsSupported(CpuOperation op) {
     defined(V8_TARGET_ARCH_S390X)
       return true;
 #else
-      // This architecture is not supported by the Maglev backend, and
-      // IsSupported should thus not be called.
-      UNREACHABLE();
+#error "V8 does not support this architecture."
 #endif
   }
 }
