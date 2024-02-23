@@ -181,7 +181,7 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                                                 AllocationOrigin origin) {
   // We are not supposed to allocate in fast c calls.
   CHECK_IMPLIES(is_main_thread(),
-                v8_flags.allow_allocation_in_fast_c_call ||
+                v8_flags.allow_allocation_in_fast_api_call ||
                     !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result =

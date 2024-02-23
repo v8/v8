@@ -674,6 +674,9 @@ void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
   // stack pointer is known. This means we cannot relocate InstructionStreams
   // for fast c calls.
   DCHECK(!InFastCCall());
+  // Currently we turn off code space compaction fully when performing a GC in a
+  // fast C call.
+  DCHECK(!isolate()->InFastCCall());
 
   Tagged<InstructionStream> istream =
       InstructionStream::unchecked_cast(visited_istream);

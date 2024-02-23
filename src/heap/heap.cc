@@ -1794,7 +1794,7 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   DCHECK(AllowGarbageCollection::IsAllowed());
   // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_c_call,
+  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
 
   const char* collector_reason = nullptr;
@@ -1982,7 +1982,7 @@ void Heap::TryStartIncrementalMarking(
     IncrementalMarkingMemoryReducingSweepingHandling sweeping_handling,
     GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_c_call,
+  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
 
   // Delay incremental marking start while concurrent sweeping still has work.

@@ -24,7 +24,7 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
 
   // We are not supposed to allocate in fast c calls.
   DCHECK_IMPLIES(is_main_thread(),
-                 v8_flags.allow_allocation_in_fast_c_call ||
+                 v8_flags.allow_allocation_in_fast_api_call ||
                      !isolate_heap()->isolate()->InFastCCall());
 
   AllocationResult result;

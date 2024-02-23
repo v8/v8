@@ -28208,7 +28208,7 @@ TEST(FastApiCallWithAllocationAndGC) {
   // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
   i::v8_flags.always_turbofan = false;
-  i::v8_flags.allow_allocation_in_fast_c_call = true;
+  i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();
