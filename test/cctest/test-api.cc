@@ -13980,8 +13980,7 @@ static bool saw_wasm_main = false;
 static void wasm_event_handler(const v8::JitCodeEvent* event) {
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
-      if (FunctionNameIs("main-0-turbofan", event) ||
-          FunctionNameIs("main-0-liftoff", event)) {
+      if (FunctionNameIs("main-0-turbofan", event)) {
         saw_wasm_main = true;
         // Make sure main function has line info.
         auto* entry = jitcode_line_info->Lookup(
@@ -14005,14 +14004,14 @@ static void wasm_event_handler(const v8::JitCodeEvent* event) {
 }
 
 namespace v8::internal::wasm {
-WASM_EXEC_TEST(WasmSetJitCodeEventHandler) {
+TEST(WasmSetJitCodeEventHandler) {
   v8::base::HashMap code;
   instruction_stream_map = &code;
 
   v8::base::HashMap lineinfo;
   jitcode_line_info = &lineinfo;
 
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
   i::Isolate* isolate = r.main_isolate();
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -26692,8 +26691,8 @@ TEST(AtomicsWaitCallback) {
 #if V8_ENABLE_WEBASSEMBLY
 namespace v8::internal::wasm {
 
-WASM_EXEC_TEST(WasmI32AtomicWaitCallback) {
-  WasmRunner<int32_t, int32_t, int32_t, double> r(execution_tier);
+TEST(WasmI32AtomicWaitCallback) {
+  WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
@@ -26728,8 +26727,8 @@ WASM_EXEC_TEST(WasmI32AtomicWaitCallback) {
   AtomicsWaitCallbackCommon(isolate, CompileRun(init), 4, 4);
 }
 
-WASM_EXEC_TEST(WasmI64AtomicWaitCallback) {
-  WasmRunner<int32_t, int32_t, double, double> r(execution_tier);
+TEST(WasmI64AtomicWaitCallback) {
+  WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetMemoryShared();
   r.Build({WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),

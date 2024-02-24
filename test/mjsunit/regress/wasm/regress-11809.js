@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --enable-testing-opcode-in-wasm --nowasm-tier-up
-// Flags: --turbofan --wasm-tier-mask-for-testing=2
+// Flags: --wasm-tier-mask-for-testing=2
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 

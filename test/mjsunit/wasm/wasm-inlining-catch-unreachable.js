@@ -4,9 +4,6 @@
 
 // Flags: --turboshaft-wasm --allow-natives-syntax --experimental-wasm-exnref
 
-// We call %WasmTierUpFunction, which requires Turbofan.
-// Flags: --turbofan
-
 // This test case reproduces an issue found in crbug.com/1508213 where
 // reachability is handled differently for unreachable catch blocks in liftoff
 // and Turboshaft causing Turboshaft to assign wrong feedback slots for calls.

@@ -3722,14 +3722,6 @@ void Pipeline::GenerateCodeForWasmFunction(
     CallDescriptor* call_descriptor,
     ZoneVector<WasmInliningPosition>* inlining_positions,
     wasm::WasmFeatures* detected) {
-  // If Turbofan is globally disabled, we shouldn't compile any Wasm function
-  // with Turbofan.
-  CHECK(v8_flags.turbofan);
-  // Also, in order to reach TurboFan, either tiering is enabled, Liftoff is
-  // disabled, or we explicitly requested tiering per function.
-  CHECK(v8_flags.wasm_dynamic_tiering || v8_flags.wasm_tier_up ||
-        !v8_flags.liftoff || v8_flags.wasm_tier_mask_for_testing);
-
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
   wasm::WasmFeatures enabled = env->enabled_features;
@@ -3930,14 +3922,6 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
     WasmCompilationData& compilation_data, MachineGraph* mcgraph,
     wasm::WasmFeatures* detected, CallDescriptor* call_descriptor) {
-  // If Turbofan is globally disabled, we shouldn't compile any Wasm function
-  // with Turboshaft.
-  CHECK(v8_flags.turbofan);
-  // Also, in order to reach TurboFan / Turboshaft, either tiering is enabled,
-  // Liftoff is disabled, or we explicitly requested tiering per function.
-  CHECK(v8_flags.wasm_dynamic_tiering || v8_flags.wasm_tier_up ||
-        !v8_flags.liftoff || v8_flags.wasm_tier_mask_for_testing);
-
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
   base::TimeTicks start_time;

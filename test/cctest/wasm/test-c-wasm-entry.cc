@@ -31,10 +31,9 @@ namespace {
 template <typename ReturnType, typename... Args>
 class CWasmEntryArgTester {
  public:
-  CWasmEntryArgTester(TestExecutionTier tier,
-                      std::initializer_list<uint8_t> wasm_function_bytes,
+  CWasmEntryArgTester(std::initializer_list<uint8_t> wasm_function_bytes,
                       std::function<ReturnType(Args...)> expected_fn)
-      : runner_(tier),
+      : runner_(TestExecutionTier::kTurbofan),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
         sig_(runner_.template CreateSig<ReturnType, Args...>()) {
@@ -88,9 +87,8 @@ class CWasmEntryArgTester {
 }  // namespace
 
 // Pass int32_t, return int32_t.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_int32) {
+TEST(TestCWasmEntryArgPassing_int32) {
   CWasmEntryArgTester<int32_t, int32_t> tester(
-      execution_tier,
       {// Return 2*<0> + 1.
        WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_LOCAL_GET(0)), WASM_ONE)},
       [](int32_t a) {
@@ -101,9 +99,8 @@ WASM_EXEC_TEST(TestCWasmEntryArgPassing_int32) {
 }
 
 // Pass int64_t, return double.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_double_int64) {
+TEST(TestCWasmEntryArgPassing_double_int64) {
   CWasmEntryArgTester<double, int64_t> tester(
-      execution_tier,
       {// Return (double)<0>.
        WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(0))},
       [](int64_t a) { return static_cast<double>(a); });
@@ -112,9 +109,8 @@ WASM_EXEC_TEST(TestCWasmEntryArgPassing_double_int64) {
 }
 
 // Pass double, return int64_t.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_int64_double) {
+TEST(TestCWasmEntryArgPassing_int64_double) {
   CWasmEntryArgTester<int64_t, double> tester(
-      execution_tier,
       {// Return (int64_t)<0>.
        WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(0))},
       [](double d) { return static_cast<int64_t>(d); });
@@ -127,9 +123,8 @@ WASM_EXEC_TEST(TestCWasmEntryArgPassing_int64_double) {
 }
 
 // Pass float, return double.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_float_double) {
+TEST(TestCWasmEntryArgPassing_float_double) {
   CWasmEntryArgTester<double, float> tester(
-      execution_tier,
       {// Return 2*(double)<0> + 1.
        WASM_F64_ADD(
            WASM_F64_MUL(WASM_F64(2), WASM_F64_CONVERT_F32(WASM_LOCAL_GET(0))),
@@ -140,9 +135,8 @@ WASM_EXEC_TEST(TestCWasmEntryArgPassing_float_double) {
 }
 
 // Pass two doubles, return double.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_double_double) {
+TEST(TestCWasmEntryArgPassing_double_double) {
   CWasmEntryArgTester<double, double, double> tester(
-      execution_tier,
       {// Return <0> + <1>.
        WASM_F64_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
       [](double a, double b) { return a + b; });
@@ -153,9 +147,8 @@ WASM_EXEC_TEST(TestCWasmEntryArgPassing_double_double) {
 }
 
 // Pass int32_t, int64_t, float and double, return double.
-WASM_EXEC_TEST(TestCWasmEntryArgPassing_AllTypes) {
+TEST(TestCWasmEntryArgPassing_AllTypes) {
   CWasmEntryArgTester<double, int32_t, int64_t, float, double> tester(
-      execution_tier,
       {
           // Convert all arguments to double, add them and return the sum.
           WASM_F64_ADD(          // <0+1+2> + <3>

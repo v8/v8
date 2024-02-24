@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --liftoff --no-wasm-tier-up --expose-gc
 // Flags: --no-wasm-dynamic-tiering --no-wasm-lazy-compilation
 // Compile functions 0 and 2 with Turbofan, the rest with Liftoff:
-// Flags: --turbofan --wasm-tier-mask-for-testing=5
+// Flags: --wasm-tier-mask-for-testing=5
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

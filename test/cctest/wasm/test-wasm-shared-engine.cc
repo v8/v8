@@ -275,9 +275,6 @@ TEST(SharedEngineRunThreadedExecution) {
 }
 
 TEST(SharedEngineRunThreadedTierUp) {
-  // The test explicitly compiled with TurboFan; hence skip it if TurboFan is
-  // disabled.
-  if (!v8_flags.turbofan) return;
   SharedModule module;
   {
     SharedEngineIsolate isolate;

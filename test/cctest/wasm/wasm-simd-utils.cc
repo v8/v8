@@ -46,7 +46,6 @@ void RunI8x16UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op,
                            compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -121,7 +120,6 @@ template void RunI8x16BinOpTest<uint8_t>(TestExecutionTier, WasmOpcode,
 template <typename T, typename OpType>
 void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -258,7 +256,6 @@ void RunI16x8UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -332,7 +329,6 @@ template void RunI16x8BinOpTest<uint16_t>(TestExecutionTier, WasmOpcode,
 template <typename T, typename OpType>
 void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
                              compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -427,7 +423,6 @@ void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op,
                                compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   for (int shift = 1; shift <= 8; shift++) {
@@ -524,7 +519,6 @@ void RunI32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op,
                            compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -591,7 +585,6 @@ void RunI32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 template <typename T, typename OpType>
 void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -686,7 +679,6 @@ void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op,
                               compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   for (int shift = 1; shift <= 16; shift++) {
@@ -788,7 +780,6 @@ void RunI64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -876,7 +867,6 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op,
                               compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   for (int shift = 1; shift <= 32; shift++) {
@@ -1020,7 +1010,6 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op,
                            compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -1141,7 +1130,6 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
@@ -1342,7 +1330,6 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op,
                            compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -1447,7 +1434,6 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
                             compiler::IrOpcode::Value revec_opcode) {
-  if (!v8_flags.turbofan) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(

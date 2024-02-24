@@ -211,27 +211,6 @@
 
   # Field representation tracking is disabled in nooptimization mode.
   'test-field-type-tracking/*': [SKIP],
-
-  # Asm.js tests need TurboFan (we have no Liftoff support for asm.js).
-  'test-run-wasm-asmjs/*': [SKIP],
-  # Also skip all explicit TurboFan tests.
-  'test-api/RunWasmTurbofan_*': [SKIP],
-  'test-c-wasm-entry/RunWasmTurbofan_*': [SKIP],
-  'test-gc/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-64/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-atomics/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-atomics64/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-bulk-memory/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-js/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-memory64/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_*': [SKIP],
-  'test-run-wasm-sign-extension/RunWasmTurbofan_*': [SKIP],
-  'test-wasm-breakpoints/RunWasmTurbofan_*': [SKIP],
-  'test-wasm-stack/RunWasmTurbofan_*': [SKIP],
-  'test-wasm-trap-position/RunWasmTurbofan_*': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -521,7 +500,6 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/RunWasm*': [SKIP],
   'test-api/Wasm*': [SKIP],
   'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
@@ -1221,5 +1199,4 @@
   'test-api/Threading8': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'clang_coverage and mode == debug'
-
 ]

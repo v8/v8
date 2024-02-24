@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --enable-testing-opcode-in-wasm
-// This causes a bailout to Turbofan, so Turbofan needs to be enabled.
-// Flags: --turbofan
 
 // Test that tiering up and tiering down works even if functions cannot be
 // compiled with Liftoff.
