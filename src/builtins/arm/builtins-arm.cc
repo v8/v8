@@ -3167,7 +3167,7 @@ class RegisterAllocator {
     while (it != allocated_registers_.end()) {
       if (registerIsAvailable(**it)) {
         **it = no_reg;
-        allocated_registers_.erase(it);
+        it = allocated_registers_.erase(it);
       } else {
         it++;
       }
