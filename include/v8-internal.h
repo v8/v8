@@ -791,6 +791,11 @@ class Internals {
   static const int kJSObjectType = 0x421;
   static const int kFirstJSApiObjectType = 0x422;
   static const int kLastJSApiObjectType = 0x80A;
+  // Defines a range [kFirstEmbedderJSApiObjectType, kJSApiObjectTypesCount]
+  // of JSApiObject instance type values that an embedder can use.
+  static const int kFirstEmbedderJSApiObjectType = 0;
+  static const int kLastEmbedderJSApiObjectType =
+      kLastJSApiObjectType - kFirstJSApiObjectType;
 
   static const int kUndefinedOddballKind = 4;
   static const int kNullOddballKind = 3;

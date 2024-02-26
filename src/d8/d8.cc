@@ -3235,24 +3235,33 @@ void Shell::NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8::Number::New(isolate, 1));
 }
 
-Local<FunctionTemplate> NewDOMFunctionTemplate(Isolate* isolate,
-                                               uint16_t instance_type) {
+enum class JSApiInstanceType : uint16_t {
+  kGenericApiObject = 0,  // FunctionTemplateInfo::kNoJSApiObjectType.
+  kEventTarget,
+  kNode,
+  kElement,
+  kHTMLElement,
+  kHTMLDivElement,
+};
+
+Local<FunctionTemplate> NewDOMFunctionTemplate(
+    Isolate* isolate, JSApiInstanceType instance_type) {
   return FunctionTemplate::New(
       isolate, nullptr, Local<Value>(), Local<Signature>(), 0,
       ConstructorBehavior::kAllow, SideEffectType::kHasSideEffect, nullptr,
-      instance_type);
+      static_cast<uint16_t>(instance_type));
 }
 
 Local<FunctionTemplate> Shell::CreateEventTargetTemplate(Isolate* isolate) {
   Local<FunctionTemplate> event_target =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 1);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kEventTarget);
   return event_target;
 }
 
 Local<FunctionTemplate> Shell::CreateNodeTemplates(
     Isolate* isolate, Local<FunctionTemplate> event_target) {
   Local<FunctionTemplate> node =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 2);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kNode);
   node->Inherit(event_target);
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -3263,23 +3272,23 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
   Local<FunctionTemplate> nodeType = FunctionTemplate::New(
       isolate, NodeTypeCallback, Local<Value>(), signature, 0,
       ConstructorBehavior::kThrow, SideEffectType::kHasSideEffect, nullptr,
-      i::Internals::kFirstJSApiObjectType,
-      i::Internals::kFirstJSApiObjectType + 3,
-      i::Internals::kFirstJSApiObjectType + 5);
+      static_cast<uint16_t>(JSApiInstanceType::kGenericApiObject),
+      static_cast<uint16_t>(JSApiInstanceType::kElement),
+      static_cast<uint16_t>(JSApiInstanceType::kHTMLDivElement));
   nodeType->SetAcceptAnyReceiver(false);
   proto_template->SetAccessorProperty(
       String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
 
   Local<FunctionTemplate> element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 3);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kElement);
   element->Inherit(node);
 
   Local<FunctionTemplate> html_element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 4);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kHTMLElement);
   html_element->Inherit(element);
 
   Local<FunctionTemplate> div_element =
-      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 5);
+      NewDOMFunctionTemplate(isolate, JSApiInstanceType::kHTMLDivElement);
   div_element->Inherit(html_element);
 
   return div_element;

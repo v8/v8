@@ -29437,32 +29437,38 @@ TEST(EmbedderInstanceTypes) {
   i::v8_flags.embedder_instance_types = true;
   Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
   Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
+
+  enum JSApiInstanceType : uint16_t {
+    kGenericApiObject = 0,  // FunctionTemplateInfo::kNoJSApiObjectType.
+    kElement,
+    kHTMLElement,
+    kHTMLDivElement,
+  };
+
   Local<FunctionTemplate> nodeType = v8::FunctionTemplate::New(
       isolate, NodeTypeCallback, Local<Value>(),
       v8::Signature::New(isolate, node), 0, v8::ConstructorBehavior::kThrow,
-      v8::SideEffectType::kHasSideEffect, nullptr,
-      i::Internals::kFirstJSApiObjectType,
-      i::Internals::kFirstJSApiObjectType + 1,
-      i::Internals::kFirstJSApiObjectType + 3);
+      v8::SideEffectType::kHasSideEffect, nullptr, kGenericApiObject, kElement,
+      kHTMLDivElement);
   proto_template->SetAccessorProperty(
       String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
 
   Local<FunctionTemplate> element = FunctionTemplate::New(
       isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, i::Internals::kFirstJSApiObjectType + 1);
+      nullptr, kElement);
   element->Inherit(node);
 
   Local<FunctionTemplate> html_element = FunctionTemplate::New(
       isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, i::Internals::kFirstJSApiObjectType + 2);
+      nullptr, kHTMLElement);
   html_element->Inherit(element);
 
   Local<FunctionTemplate> div_element = FunctionTemplate::New(
       isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, i::Internals::kFirstJSApiObjectType + 3);
+      nullptr, kHTMLDivElement);
   div_element->Inherit(html_element);
 
   CHECK(env->Global()

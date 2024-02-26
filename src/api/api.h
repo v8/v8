@@ -48,15 +48,6 @@ class Script;
 class EphemeronTable;
 }  // namespace debug
 
-// Constants used in the implementation of the API.  The most natural thing
-// would usually be to place these with the classes that use them, but
-// we want to keep them out of v8.h because it is an externally
-// visible file.
-class Consts {
- public:
-  enum TemplateType { FUNCTION_TEMPLATE = 0, OBJECT_TEMPLATE = 1 };
-};
-
 template <typename T>
 inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj);
 

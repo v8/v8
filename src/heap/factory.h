@@ -992,6 +992,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSAtomicsCondition> NewJSAtomicsCondition();
 
+  Handle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
+                                                       bool do_not_cache);
+
+  Handle<ObjectTemplateInfo> NewObjectTemplateInfo(
+      DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache);
+
   Handle<DictionaryTemplateInfo> NewDictionaryTemplateInfo(
       Handle<FixedArray> property_names);
 

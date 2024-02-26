@@ -137,12 +137,17 @@ class FunctionTemplateInfo
 
   // This specifies the permissable range of instance type of objects that can
   // be allowed to be used as receivers with the given template.
-  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_start)
-  DECL_INT16_ACCESSORS(allowed_receiver_instance_type_range_end)
+  DECL_PRIMITIVE_GETTER(allowed_receiver_instance_type_range_start,
+                        InstanceType)
+  DECL_PRIMITIVE_GETTER(allowed_receiver_instance_type_range_end, InstanceType)
+
   // End flag bits ---------------------
 
-  inline int InstanceType() const;
-  inline void SetInstanceType(int instance_type);
+  inline InstanceType GetInstanceType() const;
+  inline void SetInstanceType(int api_instance_type);
+
+  inline void SetAllowedReceiverInstanceTypeRange(int api_instance_type_start,
+                                                  int api_instance_type_end);
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -191,6 +196,14 @@ class FunctionTemplateInfo
   // For ease of use of the BITFIELD macro.
   inline int32_t relaxed_flag() const;
   inline void set_relaxed_flag(int32_t flags);
+
+  // Enforce using SetInstanceType() and SetAllowedReceiverInstanceTypeRange()
+  // instead of raw accessors.
+  using TorqueGeneratedFunctionTemplateInfo<FunctionTemplateInfo,
+                                            TemplateInfo>::set_instance_type;
+  DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_start,
+                        InstanceType)
+  DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_end, InstanceType)
 
   static constexpr int kNoJSApiObjectType = 0;
   static inline Tagged<FunctionTemplateRareData> EnsureFunctionTemplateRareData(

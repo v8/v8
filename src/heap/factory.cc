@@ -3160,7 +3160,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
   Handle<Foreign> evaluation_steps_foreign =
-      NewForeign(reinterpret_cast<i::Address>(evaluation_steps));
+      NewForeign(reinterpret_cast<Address>(evaluation_steps));
 
   Tagged<SyntheticModule> module = Tagged<SyntheticModule>::cast(
       New(synthetic_module_map(), AllocationType::kOld));
@@ -4249,6 +4249,73 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
   return cond;
+}
+
+namespace {
+
+inline void InitializeTemplate(Tagged<TemplateInfo> that, ReadOnlyRoots roots,
+                               bool do_not_cache) {
+  that->set_number_of_properties(0);
+  int serial_number =
+      do_not_cache ? TemplateInfo::kDoNotCache : TemplateInfo::kUncached;
+  that->set_serial_number(serial_number);
+  that->set_property_list(roots.undefined_value(), SKIP_WRITE_BARRIER);
+  that->set_property_accessors(roots.undefined_value(), SKIP_WRITE_BARRIER);
+}
+
+}  // namespace
+
+Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
+    int length, bool do_not_cache) {
+  const int size = FunctionTemplateInfo::SizeFor();
+  Tagged<FunctionTemplateInfo> obj =
+      FunctionTemplateInfo::cast(AllocateRawWithImmortalMap(
+          size, AllocationType::kOld,
+          read_only_roots().function_template_info_map()));
+  {
+    // Disallow GC until all fields of obj have acceptable types.
+    DisallowGarbageCollection no_gc;
+    Tagged<FunctionTemplateInfo> raw = *obj;
+    ReadOnlyRoots roots(isolate());
+    InitializeTemplate(raw, roots, do_not_cache);
+    raw->set_call_code(roots.undefined_value(), kReleaseStore,
+                       SKIP_WRITE_BARRIER);
+    raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_signature(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_rare_data(roots.undefined_value(), kReleaseStore,
+                       SKIP_WRITE_BARRIER);
+    raw->set_shared_function_info(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_cached_property_name(roots.the_hole_value(), SKIP_WRITE_BARRIER);
+
+    raw->set_flag(0, kRelaxedStore);
+    raw->set_undetectable(false);
+    raw->set_needs_access_check(false);
+    raw->set_accept_any_receiver(true);
+
+    raw->set_length(length);
+    raw->SetInstanceType(0);
+  }
+  return handle(obj, isolate());
+}
+
+Handle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
+    DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache) {
+  const int size = ObjectTemplateInfo::SizeFor();
+  Tagged<ObjectTemplateInfo> obj = ObjectTemplateInfo::cast(
+      AllocateRawWithImmortalMap(size, AllocationType::kOld,
+                                 read_only_roots().object_template_info_map()));
+  {
+    // Disallow GC until all fields of obj have acceptable types.
+    DisallowGarbageCollection no_gc;
+    Tagged<ObjectTemplateInfo> raw = *obj;
+    ReadOnlyRoots roots(isolate());
+    InitializeTemplate(raw, roots, do_not_cache);
+    raw->set_constructor(!constructor.is_null()
+                             ? *constructor
+                             : HeapObject::cast(roots.undefined_value()));
+    raw->set_data(0);
+  }
+  return handle(obj, isolate());
 }
 
 Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(

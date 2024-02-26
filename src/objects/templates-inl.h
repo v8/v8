@@ -102,24 +102,52 @@ RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
                GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
 
-int FunctionTemplateInfo::InstanceType() const {
+InstanceType FunctionTemplateInfo::GetInstanceType() const {
   int type = instance_type();
-  DCHECK(type == kNoJSApiObjectType ||
-         (type >= Internals::kFirstJSApiObjectType &&
-          type <= Internals::kLastJSApiObjectType));
-  return type;
+  DCHECK(base::IsInRange(type, Internals::kFirstJSApiObjectType,
+                         Internals::kLastJSApiObjectType));
+  return static_cast<InstanceType>(type);
 }
 
-void FunctionTemplateInfo::SetInstanceType(int instance_type) {
-  if (instance_type == 0) {
-    set_instance_type(kNoJSApiObjectType);
-  } else {
-    DCHECK_GT(instance_type, 0);
-    DCHECK_LT(Internals::kFirstJSApiObjectType + instance_type,
-              Internals::kLastJSApiObjectType);
-    set_instance_type(Internals::kFirstJSApiObjectType + instance_type);
-  }
+void FunctionTemplateInfo::SetInstanceType(int api_instance_type) {
+  // Translate |api_instance_type| value from range
+  // [Internals::kFirstEmbedderJSApiObjectType,
+  //  Internals::kLastEmbedderJSApiObjectType] to range
+  // [Internals::kFirstJSApiObjectType, Internals::kLastJSApiObjectType].
+  DCHECK_LE(Internals::kFirstEmbedderJSApiObjectType, api_instance_type);
+  DCHECK_LE(api_instance_type, Internals::kLastEmbedderJSApiObjectType);
+  // kNoJSApiObjectType must correspond to JS_API_OBJECT_TYPE.
+  static_assert(kNoJSApiObjectType == 0);
+  static_assert(JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
+  set_instance_type(api_instance_type + Internals::kFirstJSApiObjectType);
 }
+
+void FunctionTemplateInfo::SetAllowedReceiverInstanceTypeRange(
+    int api_instance_type_start, int api_instance_type_end) {
+  // Translate |api_instance_type_start| and |api_instance_type_end| values
+  // from range [Internals::kFirstEmbedderJSApiObjectType,
+  //             Internals::kLastEmbedderJSApiObjectType] to range
+  // [Internals::kFirstJSApiObjectType, Internals::kLastJSApiObjectType].
+  DCHECK_LE(Internals::kFirstEmbedderJSApiObjectType, api_instance_type_start);
+  DCHECK_LE(api_instance_type_start, api_instance_type_end);
+  DCHECK_LE(api_instance_type_end, Internals::kLastEmbedderJSApiObjectType);
+  // kNoJSApiObjectType must correspond to JS_API_OBJECT_TYPE.
+  static_assert(kNoJSApiObjectType == 0);
+  static_assert(JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
+  set_allowed_receiver_instance_type_range_start(static_cast<InstanceType>(
+      api_instance_type_start + Internals::kFirstJSApiObjectType));
+  set_allowed_receiver_instance_type_range_end(static_cast<InstanceType>(
+      api_instance_type_end + Internals::kFirstJSApiObjectType));
+}
+
+// Ensure that instance type fields in FunctionTemplateInfo are big enough
+// to fit the whole JSApiObject type range.
+static_assert(
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits::is_valid(
+        LAST_JS_API_OBJECT_TYPE));
+static_assert(
+    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits::is_valid(
+        LAST_JS_API_OBJECT_TYPE));
 
 bool TemplateInfo::should_cache() const {
   return serial_number() != kDoNotCache;

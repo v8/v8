@@ -1133,15 +1133,6 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 // --- T e m p l a t e ---
 
-static void InitializeTemplate(i::Tagged<i::TemplateInfo> that, int type,
-                               bool do_not_cache) {
-  that->set_number_of_properties(0);
-  that->set_tag(type);
-  int serial_number =
-      do_not_cache ? i::TemplateInfo::kDoNotCache : i::TemplateInfo::kUncached;
-  that->set_serial_number(serial_number);
-}
-
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
                    v8::PropertyAttribute attribute) {
   auto templ = Utils::OpenHandle(this);
@@ -1199,34 +1190,6 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
 }
 
 // --- F u n c t i o n   T e m p l a t e ---
-static void InitializeFunctionTemplate(i::Tagged<i::FunctionTemplateInfo> info,
-                                       bool do_not_cache) {
-  InitializeTemplate(info, Consts::FUNCTION_TEMPLATE, do_not_cache);
-  info->set_flag(0, kRelaxedStore);
-}
-
-namespace {
-Local<ObjectTemplate> ObjectTemplateNew(i::Isolate* i_isolate,
-                                        v8::Local<FunctionTemplate> constructor,
-                                        bool do_not_cache) {
-  API_RCS_SCOPE(i_isolate, ObjectTemplate, New);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Struct> struct_obj = i_isolate->factory()->NewStruct(
-      i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
-  auto obj = i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
-  {
-    // Disallow GC until all fields of obj have acceptable types.
-    i::DisallowGarbageCollection no_gc;
-    i::Tagged<i::ObjectTemplateInfo> raw = *obj;
-    InitializeTemplate(raw, Consts::OBJECT_TEMPLATE, do_not_cache);
-    raw->set_data(0);
-    if (!constructor.IsEmpty()) {
-      raw->set_constructor(*Utils::OpenDirectHandle(*constructor));
-    }
-  }
-  return Utils::ToLocal(obj);
-}
-}  // namespace
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   auto self = Utils::OpenHandle(this);
@@ -1236,11 +1199,13 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
                                           i_isolate);
   if (i::IsUndefined(*heap_obj, i_isolate)) {
     // Do not cache prototype objects.
-    Local<ObjectTemplate> result =
-        ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true);
+    constexpr bool do_not_cache = true;
+    i::Handle<i::ObjectTemplateInfo> proto_template =
+        i_isolate->factory()->NewObjectTemplateInfo(
+            i::Handle<i::FunctionTemplateInfo>(), do_not_cache);
     i::FunctionTemplateInfo::SetPrototypeTemplate(i_isolate, self,
-                                                  Utils::OpenHandle(*result));
-    return result;
+                                                  proto_template);
+    return Utils::ToLocal(proto_template);
   }
   return ToApiHandle<ObjectTemplate>(heap_obj, i_isolate);
 }
@@ -1270,48 +1235,35 @@ static void EnsureNotPublished(i::DirectHandle<i::FunctionTemplateInfo> info,
                   "FunctionTemplate already instantiated");
 }
 
-Local<FunctionTemplate> FunctionTemplateNew(
+i::Handle<i::FunctionTemplateInfo> FunctionTemplateNew(
     i::Isolate* i_isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const MemorySpan<const CFunction>& c_function_overloads = {},
-    uint8_t instance_type = 0,
-    uint8_t allowed_receiver_instance_type_range_start = 0,
-    uint8_t allowed_receiver_instance_type_range_end = 0) {
-  i::Handle<i::Struct> struct_obj = i_isolate->factory()->NewStruct(
-      i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
-  auto obj = i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
+    const MemorySpan<const CFunction>& c_function_overloads = {}) {
+  i::Handle<i::FunctionTemplateInfo> obj =
+      i_isolate->factory()->NewFunctionTemplateInfo(length, do_not_cache);
   {
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::FunctionTemplateInfo> raw = *obj;
-    InitializeFunctionTemplate(raw, do_not_cache);
-    raw->set_length(length);
-    raw->set_undetectable(false);
-    raw->set_needs_access_check(false);
-    raw->set_accept_any_receiver(true);
     if (!signature.IsEmpty()) {
       raw->set_signature(*Utils::OpenDirectHandle(*signature));
     }
-    raw->set_cached_property_name(
-        cached_property_name.IsEmpty()
-            ? i::ReadOnlyRoots(i_isolate).the_hole_value()
-            : *Utils::OpenDirectHandle(*cached_property_name));
-    if (behavior == ConstructorBehavior::kThrow)
+    if (!cached_property_name.IsEmpty()) {
+      raw->set_cached_property_name(
+          *Utils::OpenDirectHandle(*cached_property_name));
+    }
+    if (behavior == ConstructorBehavior::kThrow) {
       raw->set_remove_prototype(true);
-    raw->SetInstanceType(instance_type);
-    raw->set_allowed_receiver_instance_type_range_start(
-        allowed_receiver_instance_type_range_start);
-    raw->set_allowed_receiver_instance_type_range_end(
-        allowed_receiver_instance_type_range_end);
+    }
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
                                         c_function_overloads);
   }
-  return Utils::ToLocal(obj);
+  return obj;
 }
 }  // namespace
 
@@ -1345,24 +1297,43 @@ Local<FunctionTemplate> FunctionTemplate::New(
     return Local<FunctionTemplate>();
   }
 
-  if (instance_type != 0) {
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, behavior, false,
+      Local<Private>(), side_effect_type,
+      c_function ? MemorySpan<const CFunction>{c_function, 1}
+                 : MemorySpan<const CFunction>{});
+
+  if (instance_type) {
     if (!Utils::ApiCheck(
-            instance_type >= i::Internals::kFirstJSApiObjectType &&
-                instance_type <= i::Internals::kLastJSApiObjectType,
+            base::IsInRange(static_cast<int>(instance_type),
+                            i::Internals::kFirstEmbedderJSApiObjectType,
+                            i::Internals::kLastEmbedderJSApiObjectType),
             "FunctionTemplate::New",
             "instance_type is outside the range of valid JSApiObject types")) {
       return Local<FunctionTemplate>();
     }
+    templ->SetInstanceType(instance_type);
   }
 
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(
-      i_isolate, callback, data, signature, length, behavior, false,
-      Local<Private>(), side_effect_type,
-      c_function ? MemorySpan<const CFunction>{c_function, 1}
-                 : MemorySpan<const CFunction>{},
-      instance_type, allowed_receiver_instance_type_range_start,
-      allowed_receiver_instance_type_range_end);
+  if (allowed_receiver_instance_type_range_start ||
+      allowed_receiver_instance_type_range_end) {
+    if (!Utils::ApiCheck(i::Internals::kFirstEmbedderJSApiObjectType <=
+                                 allowed_receiver_instance_type_range_start &&
+                             allowed_receiver_instance_type_range_start <=
+                                 allowed_receiver_instance_type_range_end &&
+                             allowed_receiver_instance_type_range_end <=
+                                 i::Internals::kLastEmbedderJSApiObjectType,
+                         "FunctionTemplate::New",
+                         "allowed receiver instance type range is outside the "
+                         "range of valid JSApiObject types")) {
+      return Local<FunctionTemplate>();
+    }
+    templ->SetAllowedReceiverInstanceTypeRange(
+        allowed_receiver_instance_type_range_start,
+        allowed_receiver_instance_type_range_end);
+  }
+  return Utils::ToLocal(templ);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
@@ -1382,9 +1353,10 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
   }
 
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                             behavior, false, Local<Private>(),
-                             side_effect_type, c_function_overloads);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, behavior, false,
+      Local<Private>(), side_effect_type, c_function_overloads);
+  return Utils::ToLocal(templ);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
@@ -1394,9 +1366,10 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                             ConstructorBehavior::kAllow, false, cache_property,
-                             side_effect_type);
+  i::Handle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
+      i_isolate, callback, data, signature, length, ConstructorBehavior::kAllow,
+      false, cache_property, side_effect_type);
+  return Utils::ToLocal(templ);
 }
 
 Local<Signature> Signature::New(Isolate* v8_isolate,
@@ -1493,24 +1466,25 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
 }  // namespace
 
 Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
-  auto handle = Utils::OpenHandle(this, true);
-  if (!Utils::ApiCheck(!handle.is_null(),
+  auto constructor = Utils::OpenHandle(this, true);
+  if (!Utils::ApiCheck(!constructor.is_null(),
                        "v8::FunctionTemplate::InstanceTemplate()",
                        "Reading from empty handle")) {
     return Local<ObjectTemplate>();
   }
-  i::Isolate* i_isolate = handle->GetIsolateChecked();
+  i::Isolate* i_isolate = constructor->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  if (i::IsUndefined(handle->GetInstanceTemplate(), i_isolate)) {
-    Local<ObjectTemplate> templ =
-        ObjectTemplate::New(i_isolate, ToApiHandle<FunctionTemplate>(handle));
-    i::FunctionTemplateInfo::SetInstanceTemplate(i_isolate, handle,
-                                                 Utils::OpenHandle(*templ));
+  auto maybe_templ = constructor->GetInstanceTemplate();
+  if (!i::IsUndefined(maybe_templ, i_isolate)) {
+    return Utils::ToLocal(
+        i::direct_handle(i::ObjectTemplateInfo::cast(maybe_templ), i_isolate),
+        i_isolate);
   }
-  return Utils::ToLocal(i::direct_handle(i::ObjectTemplateInfo::cast(
-                                             handle->GetInstanceTemplate()),
-                                         i_isolate),
-                        i_isolate);
+  constexpr bool do_not_cache = false;
+  i::Handle<i::ObjectTemplateInfo> templ =
+      i_isolate->factory()->NewObjectTemplateInfo(constructor, do_not_cache);
+  i::FunctionTemplateInfo::SetInstanceTemplate(i_isolate, constructor, templ);
+  return Utils::ToLocal(templ);
 }
 
 void FunctionTemplate::SetLength(int length) {
@@ -1557,12 +1531,14 @@ void FunctionTemplate::RemovePrototype() {
 
 Local<ObjectTemplate> ObjectTemplate::New(
     Isolate* v8_isolate, v8::Local<FunctionTemplate> constructor) {
-  return New(reinterpret_cast<i::Isolate*>(v8_isolate), constructor);
-}
-
-Local<ObjectTemplate> ObjectTemplate::New(
-    i::Isolate* i_isolate, v8::Local<FunctionTemplate> constructor) {
-  return ObjectTemplateNew(i_isolate, constructor, false);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, ObjectTemplate, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  constexpr bool do_not_cache = false;
+  i::Handle<i::ObjectTemplateInfo> obj =
+      i_isolate->factory()->NewObjectTemplateInfo(
+          Utils::OpenDirectHandle(*constructor, true), do_not_cache);
+  return Utils::ToLocal(obj);
 }
 
 namespace {
@@ -5454,7 +5430,7 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   auto templ =
       FunctionTemplateNew(i_isolate, callback, data, Local<Signature>(), length,
                           behavior, true, Local<Private>(), side_effect_type);
-  return templ->GetFunction(context);
+  return Utils::ToLocal(templ)->GetFunction(context);
 }
 
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,

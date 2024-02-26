@@ -4,7 +4,6 @@
 
 @abstract
 extern class TemplateInfo extends Struct {
-  tag: Smi;
   serial_number: Smi;
   number_of_properties: Smi;
   property_list: ArrayList|Undefined;
@@ -34,8 +33,8 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   // Allowed receiver ranges are used for instance type checking to check
   // whether the receiver calling the associated JSFunction is a compatible
   // receiver.
-  allowed_receiver_instance_type_range_start: int16: 12 bit;
-  allowed_receiver_instance_type_range_end: int16: 12 bit;
+  allowed_receiver_instance_type_range_start: InstanceType: 12 bit;
+  allowed_receiver_instance_type_range_end: InstanceType: 12 bit;
 }
 
 extern class FunctionTemplateInfo extends TemplateInfo {
@@ -55,14 +54,15 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   @cppReleaseStore
   rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
-  // Internal field to store a flag bitfield.
-  @cppRelaxedLoad @cppRelaxedStore flag: SmiTagged<FunctionTemplateInfoFlags>;
-  // "length" property of the final JSFunction.
-  length: Smi;
   // Either the_hole or a private symbol. Used to cache the result on
   // the receiver under the the cached_property_name when this
   // FunctionTemplateInfo is used as a getter.
   cached_property_name: Object;
+  // TODO(ishell): store the values below as raw data.
+  // Internal field to store a flag bitfield.
+  @cppRelaxedLoad @cppRelaxedStore flag: SmiTagged<FunctionTemplateInfoFlags>;
+  // "length" property of the final JSFunction.
+  length: Smi;
   // This will be set as the instance type of the objects that are created from
   // this FunctionTemplateInfo.
   instance_type: Smi;

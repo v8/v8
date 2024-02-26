@@ -951,8 +951,7 @@ class V8_EXPORT ObjectTemplate : public Template {
 
  private:
   ObjectTemplate();
-  static Local<ObjectTemplate> New(internal::Isolate* isolate,
-                                   Local<FunctionTemplate> constructor);
+
   static void CheckCast(Data* that);
   friend class FunctionTemplate;
 };
