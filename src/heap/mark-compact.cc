@@ -1810,8 +1810,6 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
                               SkipRoot::kConservativeStack,
                               SkipRoot::kReadOnlyBuiltins});
 
-  MarkWaiterQueueNode(isolate);
-
   // Custom marking for top optimized frame.
   CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate);
@@ -1941,8 +1939,6 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     }
   }
 
-  MarkWaiterQueueNode(client);
-
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
@@ -1955,24 +1951,6 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
       &shared_table, shared_space);
   heap->external_string_table_.IterateAll(&external_string_visitor);
 #endif  // V8_ENABLE_SANDBOX
-}
-
-void MarkCompactCollector::MarkWaiterQueueNode(Isolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  DCHECK(IsSharedExternalPointerType(kWaiterQueueNodeTag));
-  // Custom marking for the external pointer table entry used to hold the
-  // isolates' WaiterQueueNode, which is used by JS mutexes and condition
-  // variables.
-  ExternalPointerHandle* handle_location =
-      isolate->GetWaiterQueueNodeExternalPointerHandleLocation();
-  ExternalPointerTable& shared_table = isolate->shared_external_pointer_table();
-  ExternalPointerHandle handle =
-      base::AsAtomic32::Relaxed_Load(handle_location);
-  if (handle) {
-    shared_table.Mark(isolate->shared_external_pointer_space(), handle,
-                      reinterpret_cast<Address>(handle_location));
-  }
-#endif  // V8_COMPRESS_POINTERS
 }
 
 bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {

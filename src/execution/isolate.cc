@@ -6611,22 +6611,6 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   return reinterpret_cast<Address>(&map[name].second);
 }
 
-#ifdef V8_COMPRESS_POINTERS
-ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
-  ExternalPointerHandle handle;
-  if (waiter_queue_node_external_pointer_handle_ !=
-      kNullExternalPointerHandle) {
-    handle = waiter_queue_node_external_pointer_handle_;
-  } else {
-    handle = shared_external_pointer_table().AllocateAndInitializeEntry(
-        shared_external_pointer_space(), kNullAddress, kWaiterQueueNodeTag);
-    waiter_queue_node_external_pointer_handle_ = handle;
-  }
-  DCHECK_NE(0, handle);
-  return handle;
-}
-#endif  // V8_COMPRESS_POINTERS
-
 void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
                                       Handle<ScopeInfo> outer_scope_info,
                                       Handle<StringSet> locals_blocklist) {

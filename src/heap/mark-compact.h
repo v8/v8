@@ -201,10 +201,6 @@ class MarkCompactCollector final {
   void MarkObjectsFromClientHeaps();
   void MarkObjectsFromClientHeap(Isolate* client);
 
-  // Mark the entry in the external pointer table for the given isolates
-  // WaiterQueueNode.
-  void MarkWaiterQueueNode(Isolate* isolate);
-
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
   void UpdatePointersInClientHeap(Isolate* client);

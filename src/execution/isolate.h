@@ -2078,11 +2078,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  ExternalPointerHandle* GetWaiterQueueNodeExternalPointerHandleLocation() {
-    return &waiter_queue_node_external_pointer_handle_;
-  }
-
-  ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
@@ -2669,12 +2664,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores the external pointer table space for the shared external pointer
   // table.
   ExternalPointerTable::Space* shared_external_pointer_space_ = nullptr;
-
-  // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
-  // It is used to wait for JS-exposed mutex or condition variable.
-  ExternalPointerHandle waiter_queue_node_external_pointer_handle_ =
-      kNullExternalPointerHandle;
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.

@@ -4247,8 +4247,9 @@ Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
   Handle<Map> map = read_only_roots().js_atomics_mutex_map_handle();
   Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
-  mutex->set_state(JSAtomicsMutex::kUnlocked);
+  mutex->set_state(JSAtomicsMutex::kUnlockedUncontended);
   mutex->set_owner_thread_id(ThreadId::Invalid().ToInteger());
+  mutex->SetNullWaiterQueueHead();
   return mutex;
 }
 
@@ -4258,6 +4259,7 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
+  cond->SetNullWaiterQueueHead();
   return cond;
 }
 

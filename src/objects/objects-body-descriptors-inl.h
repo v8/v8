@@ -702,6 +702,9 @@ class JSSynchronizationPrimitive::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
+    v->VisitExternalPointer(obj,
+                            obj->RawExternalPointerField(kWaiterQueueHeadOffset,
+                                                         kWaiterQueueNodeTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
