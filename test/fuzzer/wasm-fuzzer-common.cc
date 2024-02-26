@@ -31,7 +31,7 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
-namespace v8::internal::wasm::fuzzer {
+namespace v8::internal::wasm::fuzzing {
 
 constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
   return CompileTimeImports({CompileTimeImport::kJsString,
@@ -953,4 +953,4 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
 }
 
-}  // namespace v8::internal::wasm::fuzzer
+}  // namespace v8::internal::wasm::fuzzing

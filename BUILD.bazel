@@ -2807,6 +2807,8 @@ filegroup(
             "src/wasm/function-body-decoder-impl.h",
             "src/wasm/function-compiler.cc",
             "src/wasm/function-compiler.h",
+            "src/wasm/fuzzing/random-module-generation.cc",
+            "src/wasm/fuzzing/random-module-generation.h",
             "src/wasm/graph-builder-interface.cc",
             "src/wasm/graph-builder-interface.h",
             "src/wasm/inlining-tree.h",
