@@ -7,6 +7,7 @@
 #include "src/api/api-arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -3414,55 +3415,64 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
 
   if (!MigrateDeprecated(isolate, source)) {
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
+    base::Optional<FeedbackNexus> nexus;
     if (IsFeedbackVector(*maybe_vector)) {
       int index = args.tagged_index_value_at(2);
       FeedbackSlot slot = FeedbackVector::ToSlot(index);
-      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
-      if (!IsSmi(*source) && !nexus.IsMegamorphic()) {
-        Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
-                               isolate);
-        FastCloneObjectMode clone_mode =
-            GetCloneModeForMap(source_map, flags, isolate);
-        switch (clone_mode) {
-          case FastCloneObjectMode::kIdenticalMap: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(source_map));
-            // When returning a map the IC miss handler re-starts from the top.
-            return *source_map;
+      nexus.emplace(Handle<FeedbackVector>::cast(maybe_vector), slot);
+    }
+    if (!IsSmi(*source) && (!nexus || !nexus->IsMegamorphic())) {
+      Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(), isolate);
+      FastCloneObjectMode clone_mode =
+          GetCloneModeForMap(source_map, flags, isolate);
+      switch (clone_mode) {
+        case FastCloneObjectMode::kIdenticalMap: {
+          if (nexus) {
+            nexus->ConfigureCloneObject(source_map,
+                                        MaybeObjectHandle(source_map));
           }
-          case FastCloneObjectMode::kEmptyObject: {
-            nexus.ConfigureCloneObject(
-                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
-            RETURN_RESULT_OR_FAILURE(
-                isolate, CloneObjectSlowPath(isolate, source, flags));
-          }
-          case FastCloneObjectMode::kDifferentMap: {
-            Handle<Object> res;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                isolate, res, CloneObjectSlowPath(isolate, source, flags));
-            Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(),
-                                   isolate);
-            if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
-                                                    isolate)) {
-              DCHECK(result_map->OnlyHasSimpleProperties());
-              DCHECK_LE(source_map->GetInObjectProperties() -
-                            source_map->UnusedInObjectProperties(),
-                        result_map->GetInObjectProperties());
-              DCHECK_GE(source_map->GetInObjectProperties(),
-                        result_map->GetInObjectProperties());
-              nexus.ConfigureCloneObject(source_map,
-                                         MaybeObjectHandle(result_map));
-            } else {
-              nexus.ConfigureMegamorphic();
-            }
-            return *res;
-          }
-          case FastCloneObjectMode::kNotSupported: {
-            break;
-          }
+          // When returning a map the IC miss handler re-starts from the top.
+          return *source_map;
         }
-        DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
-        nexus.ConfigureMegamorphic();
+        case FastCloneObjectMode::kEmptyObject: {
+          if (nexus) {
+            nexus->ConfigureCloneObject(
+                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
+          }
+          RETURN_RESULT_OR_FAILURE(isolate,
+                                   CloneObjectSlowPath(isolate, source, flags));
+        }
+        case FastCloneObjectMode::kDifferentMap: {
+          Handle<Object> res;
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+              isolate, res, CloneObjectSlowPath(isolate, source, flags));
+          Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(), isolate);
+          if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
+                                                  isolate)) {
+            DCHECK(result_map->OnlyHasSimpleProperties());
+            DCHECK_LE(source_map->GetInObjectProperties() -
+                          source_map->UnusedInObjectProperties(),
+                      result_map->GetInObjectProperties());
+            DCHECK_GE(source_map->GetInObjectProperties(),
+                      result_map->GetInObjectProperties());
+            if (nexus) {
+              nexus->ConfigureCloneObject(source_map,
+                                          MaybeObjectHandle(result_map));
+            }
+          } else {
+            if (nexus) {
+              nexus->ConfigureMegamorphic();
+            }
+          }
+          return *res;
+        }
+        case FastCloneObjectMode::kNotSupported: {
+          break;
+        }
+      }
+      DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
+      if (nexus) {
+        nexus->ConfigureMegamorphic();
       }
     }
   }

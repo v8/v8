@@ -4983,7 +4983,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   TNode<Map> source_map = LoadReceiverMap(source);
   GotoIf(IsDeprecatedMap(source_map), &miss);
 
-  GotoIf(IsUndefined(maybe_vector), &slow);
+  GotoIf(IsUndefined(maybe_vector), &miss);
 
   TNode<HeapObjectReference> feedback;
   TNode<HeapObjectReference> weak_source_map = MakeWeak(source_map);
