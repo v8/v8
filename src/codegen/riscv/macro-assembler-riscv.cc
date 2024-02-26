@@ -6531,9 +6531,9 @@ int MacroAssembler::CallCFunctionHelper(
         // the GC can visit this field unconditionally. This is necessary
         // because CEntry sets it to kInvalidContext in debug build only.
         static_assert(Context::kNoContext == 0);
-        StoreWord(zero_reg, ExternalReferenceAsOperand(
-                                ExternalReference::context_address(isolate()),
-                                addr_scratch));
+        StoreWord(zero_reg,
+                  ExternalReferenceAsOperand(
+                      ExternalReference::context_address(isolate()), scratch));
 #endif
       }
     }
