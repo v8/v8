@@ -1473,9 +1473,14 @@ DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(liftoff_only, false,
             "disallow TurboFan compilation for WebAssembly (for testing)")
+// Liftoff-only forces Liftoff and disables any tiering.
 DEFINE_IMPLICATION(liftoff_only, liftoff)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_dynamic_tiering)
+// Similar to --liftoff-only, --no-turbofan disables Wasm tiering.
+DEFINE_NEG_NEG_IMPLICATION(turbofan, wasm_tier_up)
+DEFINE_NEG_NEG_IMPLICATION(turbofan, wasm_dynamic_tiering)
+
 DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
@@ -1515,6 +1520,12 @@ DEFINE_BOOL(validate_asm, true,
 // asm.js validation is disabled since it triggers wasm code generation.
 // --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
+// --no-turbofan implies --no-validate-asm, because asm.js code translated to
+// Wasm is not supported by Liftoff, hence we would always need to fall back to
+// Turbofan.
+DEFINE_NEG_NEG_IMPLICATION(turbofan, validate_asm)
+// Also the inverse implication holds: --validate-asm needs Turbofan.
+DEFINE_IMPLICATION(validate_asm, turbofan)
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "print asm.js timing info to the console")
