@@ -1073,6 +1073,13 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   {
     UNREACHABLE();
   }
+
+  // Our type checking (essentially GetMapInstanceType) assumes that a heap
+  // object with itself as map must be a meta map and so must be a MAP_TYPE.
+  // However, this isn't necessarily true in case of heap memory corruption.
+  // This check defends against that. See b/326700497 for more details.
+  SBXCHECK_EQ(object_data->IsMap(), IsMap(*object));
+
   // At this point the entry pointer is not guaranteed to be valid as
   // the refs_ hash hable could be resized by one of the constructors above.
   DCHECK_EQ(object_data, refs_->Lookup(object.address())->value);
