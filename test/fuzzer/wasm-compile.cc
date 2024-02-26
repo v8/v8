@@ -16,8 +16,6 @@
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
-#include "test/common/wasm/flag-utils.h"
-#include "test/common/wasm/test-signatures.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzer {
@@ -3523,8 +3521,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
                       base::Vector<const uint8_t> data,
                       ZoneBuffer* buffer) override {
-    TestSignatures sigs;
-
     WasmModuleBuilder builder(zone);
 
     // Split input data in two parts:
@@ -3688,9 +3684,11 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     // We keep the signature for the first (main) function constant.
-    const bool is_final = true;
+    constexpr bool kIsFinal = true;
+    auto kMainFnSig = FixedSizeSignature<ValueType>::Returns(kWasmI32).Params(
+        kWasmI32, kWasmI32, kWasmI32);
     function_signatures.push_back(
-        builder.ForceAddSignature(sigs.i_iii(), is_final));
+        builder.ForceAddSignature(&kMainFnSig, kIsFinal));
     current_type_index++;
 
     for (; current_type_index < num_types; current_type_index++) {
@@ -3700,7 +3698,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                           : current_type_index;
       FunctionSig* sig = GenerateSig(zone, &module_range, kFunctionSig,
                                      current_rec_group_end + 1);
-      uint32_t signature_index = builder.ForceAddSignature(sig, is_final);
+      uint32_t signature_index = builder.ForceAddSignature(sig, kIsFinal);
       function_signatures.push_back(signature_index);
     }
 
