@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 // Flags: --no-always-turbofan --no-stress-concurrent-inlining
+// Flags: --invocation-count-for-turbofan=3000
 
 // TODO(dmercadier): re-allow optimization of these functions once the
 // maglev-to-turboshaft graph builder supports everything they need.
