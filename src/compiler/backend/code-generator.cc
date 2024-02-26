@@ -742,7 +742,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   bool adjust_stack =
       GetSlotAboveSPBeforeTailCall(instr, &first_unused_stack_slot);
   if (adjust_stack) AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
-  AssembleGaps(instr);
+  if (instr->opcode() == kArchNop && block->successors().empty() &&
+      block->code_end() - block->code_start() == 1) {
+    // When the frame-less dummy end block in Turbofan contains a Phi node,
+    // don't attempt to access spill slots.
+    // TODO(dmercadier): When the switch to Turboshaft is complete, this
+    // will no longer be required.
+  } else {
+    AssembleGaps(instr);
+  }
   if (adjust_stack) AssembleTailCallAfterGap(instr, first_unused_stack_slot);
   DCHECK_IMPLIES(
       block->must_deconstruct_frame(),
