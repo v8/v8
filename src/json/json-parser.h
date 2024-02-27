@@ -185,6 +185,8 @@ class JsonParser final {
       static_cast<base::uc32>(-1);
 
  private:
+  class NamedPropertyIterator;
+
   template <typename T>
   using SmallVector = base::SmallVector<T, 16>;
   struct JsonContinuation {
