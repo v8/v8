@@ -17,8 +17,8 @@ class Zone;
 
 namespace v8::internal::wasm::fuzzing {
 
-// Generate a valid Wasm module based on the give input bytes.
-// Returns en empty buffer on failure, valid module wire bytes otherwise.
+// Generate a valid Wasm module based on the given input bytes.
+// Returns an empty buffer on failure, valid module wire bytes otherwise.
 // The bytes will be allocated in the zone.
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateRandomWasmModule(
     Zone*, base::Vector<const uint8_t> data);

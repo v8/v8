@@ -707,8 +707,7 @@ class WasmGenerator {
     builder_->Emit(kExprReturn);
   }
 
-  // TODO(eholk): make this function constexpr once gcc supports it
-  static uint8_t max_alignment(WasmOpcode memop) {
+  constexpr static uint8_t max_alignment(WasmOpcode memop) {
     switch (memop) {
       case kExprS128LoadMem:
       case kExprS128StoreMem:
