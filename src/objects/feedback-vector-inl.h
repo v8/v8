@@ -95,6 +95,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kInvalid:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
