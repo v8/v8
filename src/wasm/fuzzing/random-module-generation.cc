@@ -164,19 +164,22 @@ enum Generics {
   kAlwaysIncludeAllGenerics,
   kExcludeSomeGenericsWhenTypeIsNonNullable
 };
+enum IncludeS128 { kIncludeS128 = 1, kExcludeS128 = 0 };
 
 ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              uint32_t num_non_nullable_types,
                              NumericTypes include_numeric_types,
                              PackedTypes include_packed_types,
-                             Generics include_generics) {
+                             Generics include_generics,
+                             IncludeS128 include_s128 = kIncludeS128) {
   std::vector<ValueType> types;
   // Non wasm-gc types.
   if (include_numeric_types == kIncludeNumericTypes) {
     // Many "general-purpose" instructions return i32, so give that a higher
     // probability (such as 3x).
-    types.insert(types.end(), {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32,
-                               kWasmF64, kWasmS128});
+    types.insert(types.end(),
+                 {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
+    if (include_s128 == kIncludeS128) types.push_back(kWasmS128);
     if (include_packed_types == kIncludePackedTypes) {
       types.insert(types.end(), {kWasmI8, kWasmI16});
     }
@@ -3366,7 +3369,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         case 0:
         case 1:
         case 2:
-          return WasmInitExpr(range.get<int32_t>());
+          return WasmInitExpr(range.getPseudoRandom<int32_t>());
         default:
           WasmInitExpr::Operator op = choice == 3   ? WasmInitExpr::kI32Add
                                       : choice == 4 ? WasmInitExpr::kI32Sub
@@ -3796,7 +3799,6 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     ValueType type = GetValueType(&module_range, num_types);
     // 1/8 of globals are immutable.
     const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
-
     builder.AddGlobal(type, mutability,
                       GenerateInitExpr(zone, module_range, &builder, type,
                                        struct_types, array_types, 0));
@@ -3871,6 +3873,140 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return {};
     f->Emit(kExprEnd);
     if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+  }
+
+  ZoneBuffer buffer{zone};
+  builder.SetMaxMemorySize(32);
+  builder.WriteTo(&buffer);
+  return base::VectorOf(buffer);
+}
+
+base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
+    Zone* zone, base::Vector<const uint8_t> data, size_t* count) {
+  WasmModuleBuilder builder(zone);
+
+  DataRange module_range(data);
+  std::vector<uint32_t> function_signatures;
+  std::vector<uint32_t> array_types;
+  std::vector<uint32_t> struct_types;
+
+  int num_globals = 1 + module_range.get<uint8_t>() % (kMaxGlobals + 1);
+
+  uint8_t num_functions = num_globals;
+  *count = num_functions;
+
+  // We need at least one struct and one array in order to support
+  // WasmInitExpr for abstract types.
+  uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
+  uint8_t num_arrays = 1 + module_range.get<uint8_t>() % kMaxArrays;
+  uint16_t num_types = num_functions + num_structs + num_arrays;
+
+  uint8_t current_type_index = 0;
+
+  // Add random-generated types.
+  uint8_t last_struct_type = current_type_index + num_structs;
+  for (; current_type_index < last_struct_type; current_type_index++) {
+    uint32_t supertype = kNoSuperType;
+    uint8_t num_fields = module_range.get<uint8_t>() % (kMaxStructFields + 1);
+
+    uint8_t existing_struct_types = current_type_index;
+    if (existing_struct_types > 0 && module_range.get<bool>()) {
+      supertype = module_range.get<uint8_t>() % existing_struct_types;
+      num_fields += builder.GetStructType(supertype)->field_count();
+    }
+    StructType::Builder struct_builder(zone, num_fields);
+
+    // Add all fields from super type.
+    uint32_t field_index = 0;
+    if (supertype != kNoSuperType) {
+      const StructType* parent = builder.GetStructType(supertype);
+      for (; field_index < parent->field_count(); ++field_index) {
+        struct_builder.AddField(parent->field(field_index),
+                                parent->mutability(field_index));
+      }
+    }
+    for (; field_index < num_fields; field_index++) {
+      ValueType type = GetValueTypeHelper(
+          &module_range, current_type_index, current_type_index,
+          kIncludeNumericTypes, kIncludePackedTypes,
+          kExcludeSomeGenericsWhenTypeIsNonNullable);
+
+      bool mutability = module_range.get<bool>();
+      struct_builder.AddField(type, mutability);
+    }
+    StructType* struct_fuz = struct_builder.Build();
+    uint32_t index = builder.AddStructType(struct_fuz, false, supertype);
+    struct_types.push_back(index);
+  }
+
+  for (; current_type_index < num_structs + num_arrays; current_type_index++) {
+    ValueType type = GetValueTypeHelper(
+        &module_range, current_type_index, current_type_index,
+        kIncludeNumericTypes, kIncludePackedTypes,
+        kExcludeSomeGenericsWhenTypeIsNonNullable);
+    uint32_t supertype = kNoSuperType;
+    if (current_type_index > last_struct_type && module_range.get<bool>()) {
+      uint8_t existing_array_types = current_type_index - last_struct_type;
+      supertype = last_struct_type +
+                  (module_range.get<uint8_t>() % existing_array_types);
+      type = builder.GetArrayType(supertype)->element_type();
+    }
+    ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+    uint32_t index = builder.AddArrayType(array_fuz, false, supertype);
+    array_types.push_back(index);
+  }
+
+  // Choose global types and create function signatures.
+  constexpr bool kIsFinal = true;
+  std::vector<ValueType> globals;
+  for (; current_type_index < num_types; current_type_index++) {
+    ValueType return_type = GetValueTypeHelper(
+        &module_range, num_types - num_globals, num_types - num_globals,
+        kIncludeNumericTypes, kExcludePackedTypes, kAlwaysIncludeAllGenerics,
+        kExcludeS128);
+    globals.push_back(return_type);
+    // Create a new function signature for each global. These functions will be
+    // used to compare against the initializer value of the global.
+    FunctionSig::Builder sig_builder(zone, 1, 0);
+    sig_builder.AddReturn(return_type);
+    uint32_t signature_index =
+        builder.ForceAddSignature(sig_builder.Build(), kIsFinal);
+    function_signatures.push_back(signature_index);
+  }
+
+  std::vector<WasmFunctionBuilder*> functions;
+  for (uint8_t i = 0; i < num_functions; i++) {
+    functions.push_back(builder.AddFunction(function_signatures[i]));
+  }
+
+  // Create globals.
+  std::vector<uint8_t> mutable_globals;
+  std::vector<WasmInitExpr> init_exprs;
+  init_exprs.reserve(num_globals);
+  mutable_globals.reserve(num_globals);
+  CHECK_EQ(globals.size(), num_globals);
+  for (int i = 0; i < num_globals; ++i) {
+    ValueType type = globals[i];
+    // 1/8 of globals are immutable.
+    const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
+    WasmInitExpr init_expr = GenerateInitExpr(
+        zone, module_range, &builder, type, struct_types, array_types, 0);
+    init_exprs.push_back(init_expr);
+    auto buffer = zone->AllocateVector<char>(8);
+    size_t len = base::SNPrintF(buffer, "g%i", i);
+    builder.AddExportedGlobal(type, mutability, init_expr,
+                              {buffer.begin(), len});
+    if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
+  }
+
+  // Create functions containing the initializer of each global as its function
+  // body.
+  for (int i = 0; i < num_functions; ++i) {
+    WasmFunctionBuilder* f = functions[i];
+    f->EmitFromInitializerExpression(init_exprs[i]);
+    auto buffer = zone->AllocateVector<char>(8);
+    size_t len = base::SNPrintF(buffer, "f%i", i);
+    builder.AddExport({buffer.begin(), len}, f);
   }
 
   ZoneBuffer buffer{zone};

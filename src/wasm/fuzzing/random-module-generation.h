@@ -23,6 +23,9 @@ namespace v8::internal::wasm::fuzzing {
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateRandomWasmModule(
     Zone*, base::Vector<const uint8_t> data);
 
+V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
+    Zone*, base::Vector<const uint8_t> data, size_t* count);
+
 }  // namespace v8::internal::wasm::fuzzing
 
 #endif  // V8_WASM_FUZZING_RANDOM_MODULE_GENERATION_H_

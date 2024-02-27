@@ -16,6 +16,7 @@ SUB_TESTS = [
     'wasm_async',
     'wasm_code',
     'wasm_compile',
+    'wasm_init_expr',
     'wasm_streaming',
 ]
 
