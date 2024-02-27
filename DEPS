@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:18.20240215.1.1',
+  'fuchsia_version': '18.20240215.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4f4f9722eb27b5161c5108f73f4fc6918963d27c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e0feeb4e38a416ea7eaaceaf8cfddf44514b23a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9eedca5b0651c9c38371f49f30ae5f90beb37b84',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '4dc7721a144450da73f9adc3abcff225c804ff3f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6f4a0d6c8731078f74f3de4fc92748c125da43d6',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cb43b5d82d72ae1fddb56ce9a9092d0438ff0cd9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4df61147ba67316806617f74347f408d2e4ff2f1',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -300,7 +300,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '08b8dfd3a9689085f0b0aa0f3e5912e88e5d4ac6',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a7b3d968a3a923886fea64b424bd770e69dc4ea4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '5b35c9f06c3f8f17b43bd3da9527d6fecdf916c2',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8bad7bd6ec30f94bce82f7cb5b58ecbd6ce02996',
   'third_party/logdog/logdog':
