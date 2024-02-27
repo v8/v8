@@ -275,7 +275,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 // These are operations used in the frontend and are mostly tied to JS
 // semantics.
-#define TURBOSHAFT_JS_OPERATION_LIST(V) V(SpeculativeNumberBinop)
+#define TURBOSHAFT_JS_OPERATION_LIST(V) \
+  V(SpeculativeNumberBinop)             \
+  V(GenericBinop)                       \
+  V(GenericUnop)                        \
+  V(ToNumberOrNumeric)
 
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
@@ -1251,6 +1255,120 @@ V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
     base::Optional<size_t> projection_index = {});
 
+struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
+#define GENERIC_BINOP_LIST(V) \
+  V(Add)                      \
+  V(Multiply)                 \
+  V(Subtract)                 \
+  V(Divide)                   \
+  V(Modulus)                  \
+  V(Exponentiate)             \
+  V(BitwiseAnd)               \
+  V(BitwiseOr)                \
+  V(BitwiseXor)               \
+  V(ShiftLeft)                \
+  V(ShiftRight)               \
+  V(ShiftRightLogical)        \
+  V(Equal)                    \
+  V(StrictEqual)              \
+  V(LessThan)                 \
+  V(LessThanOrEqual)          \
+  V(GreaterThan)              \
+  V(GreaterThanOrEqual)
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(Name) k##Name,
+    GENERIC_BINOP_LIST(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> left() const { return input(0); }
+  V<Object> right() const { return input(1); }
+  OpIndex frame_state() const { return input(2); }
+  V<Context> context() const { return input(3); }
+
+  GenericBinopOp(V<Object> left, V<Object> right, OpIndex frame_state,
+                 V<Context> context, Kind kind)
+      : Base(left, right, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           GenericBinopOp::Kind kind);
+
+struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
+#define GENERIC_UNOP_LIST(V) \
+  V(BitwiseNot)              \
+  V(Negate)                  \
+  V(Increment)               \
+  V(Decrement)
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(Name) k##Name,
+    GENERIC_UNOP_LIST(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+  V<Context> context() const { return Base::input(2); }
+
+  GenericUnopOp(V<Object> input, OpIndex frame_state, V<Context> context,
+                Kind kind)
+      : Base(input, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           GenericUnopOp::Kind kind);
+
+struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
+  Object::Conversion kind;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+  V<Context> context() const { return Base::input(2); }
+
+  ToNumberOrNumericOp(V<Object> input, OpIndex frame_state, V<Context> context,
+                      Object::Conversion kind)
+      : Base(input, frame_state, context), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
+};
+
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -1344,8 +1462,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   WordBinopOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };

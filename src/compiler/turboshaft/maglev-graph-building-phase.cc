@@ -683,12 +683,46 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+// Note that Maglev collects feedback in the generic binops and unops, so that
+// Turbofan has chance to get better feedback. However, once we reach Turbofan,
+// we stop collecting feedback, since we've tried multiple times to keep
+// collecting feedback in Turbofan, but it never seemed worth it. The latest
+// occurence of this was ended by this CL: https://crrev.com/c/4110858.
+#define PROCESS_GENERIC_BINOP(Name)                                            \
+  maglev::ProcessResult Process(maglev::Generic##Name* node,                   \
+                                const maglev::ProcessingState& state) {        \
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());            \
+    SetMap(node,                                                               \
+           __ Generic##Name(Map(node->left_input()), Map(node->right_input()), \
+                            frame_state, native_context()));                   \
+    return maglev::ProcessResult::kContinue;                                   \
+  }
+  GENERIC_BINOP_LIST(PROCESS_GENERIC_BINOP)
+#undef PROCESS_GENERIC_BINOP
+
+#define PROCESS_GENERIC_UNOP(Name)                                         \
+  maglev::ProcessResult Process(maglev::Generic##Name* node,               \
+                                const maglev::ProcessingState& state) {    \
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());        \
+    SetMap(node, __ Generic##Name(Map(node->operand_input()), frame_state, \
+                                  native_context()));                      \
+    return maglev::ProcessResult::kContinue;                               \
+  }
+  GENERIC_UNOP_LIST(PROCESS_GENERIC_UNOP)
+#undef PROCESS_GENERIC_UNOP
+
+  maglev::ProcessResult Process(maglev::ToNumberOrNumeric* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    SetMap(node, __ ToNumberOrNumeric(Map(node->value_input()), frame_state,
+                                      native_context(), node->mode()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ConvertInt32ToNumber(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-
   maglev::ProcessResult Process(maglev::Float64ToTagged* node,
                                 const maglev::ProcessingState& state) {
     // Float64ToTagged's conversion mode is used to control whether integer
@@ -1156,6 +1190,14 @@ class GraphBuilder {
     return idx;
   }
 
+  V<Context> native_context() {
+    if (!native_context_.valid()) {
+      native_context_ =
+          __ HeapConstant(broker_->target_native_context().object());
+    }
+    return native_context_;
+  }
+
   Zone* temp_zone_;
   LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();
   JSHeapBroker* broker_ = PipelineData::Get().broker();
@@ -1165,6 +1207,7 @@ class GraphBuilder {
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
+  V<Context> native_context_ = OpIndex::Invalid();
 };
 
 void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
