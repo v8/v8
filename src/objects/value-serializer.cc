@@ -48,6 +48,29 @@
 namespace v8 {
 namespace internal {
 
+// WARNING: This serialization format MUST remain backward compatible!
+//
+// This format is used by APIs to persist values to disk, e.g. IndexedDB.
+//
+// Backward compatibility means that when the format changes, deserializing
+// valid values in the older format must behave identically as before the
+// change. To maintain compatibility, either a format change does not affect the
+// deserializing behavior of valid values in the older format, or the
+// kLatestVersion constant is bumped.
+//
+// Adding a new tag is backwards compatible because no valid serialized value in
+// older formats would contain the new object tag.
+//
+// On the other hand, changing the format of a particular tag is backwards
+// incompatible and the version must be bumped. For example, a JSArrayBufferView
+// tag prior to version 14 was followed by the sub-tag, the byte offset, and the
+// byte length. Starting with version 14, a JSArrayBufferView tag is followed by
+// the sub-tag, the byte offset, the byte length, and flags. Due the addition of
+// flags, older valid serialized values for JSArrayBufferViews would be
+// misinterpreted by newer deserializers. This requires the version to be bumped
+// and the deserializer to handle both the old and new formats depending on the
+// version.
+
 // Version 9: (imported from Blink)
 // Version 10: one-byte (Latin-1) strings
 // Version 11: properly separate undefined from the hole in arrays
@@ -71,7 +94,7 @@ static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
 namespace {
 // For serializing JSArrayBufferView flags. Instead of serializing /
 // deserializing the flags directly, we serialize them bit by bit. This is for
-// ensuring backwards compatilibity in the case where the representation
+// ensuring backwards compatibility in the case where the representation
 // changes. Note that the ValueSerializer data can be stored on disk.
 using JSArrayBufferViewIsLengthTracking = base::BitField<bool, 0, 1>;
 using JSArrayBufferViewIsBackedByRab =
