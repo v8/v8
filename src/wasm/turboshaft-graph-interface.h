@@ -47,8 +47,8 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
 
 void BuildWasmWrapper(AccountingAllocator* allocator,
-                      compiler::turboshaft::Graph& graph, CodeKind code_kind,
-                      const wasm::FunctionSig* sig, bool is_import,
+                      compiler::turboshaft::Graph& graph,
+                      const wasm::FunctionSig* sig, WrapperCompilationInfo,
                       const WasmModule* module);
 
 // Base class for the decoder graph builder interface and for the wrapper

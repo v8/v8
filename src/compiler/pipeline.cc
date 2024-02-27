@@ -2722,13 +2722,16 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
   PipelineImpl pipeline_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 class WasmTurboshaftWrapperCompilationJob final
     : public turboshaft::TurboshaftCompilationJob {
  public:
-  WasmTurboshaftWrapperCompilationJob(
-      Isolate* isolate, const wasm::FunctionSig* sig, bool is_import,
-      const wasm::WasmModule* module, CodeKind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options)
+  WasmTurboshaftWrapperCompilationJob(Isolate* isolate,
+                                      const wasm::FunctionSig* sig,
+                                      wasm::WrapperCompilationInfo wrapper_info,
+                                      const wasm::WasmModule* module,
+                                      std::unique_ptr<char[]> debug_name,
+                                      const AssemblerOptions& options)
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
@@ -2736,9 +2739,10 @@ class WasmTurboshaftWrapperCompilationJob final
                                  CompilationJob::State::kReadyToExecute),
         zone_(wasm::GetWasmEngine()->allocator(), ZONE_NAME),
         debug_name_(std::move(debug_name)),
-        info_(base::CStrVector(debug_name_.get()), &zone_, kind),
+        info_(base::CStrVector(debug_name_.get()), &zone_,
+              wrapper_info.code_kind),
         sig_(sig),
-        is_import_(is_import),
+        wrapper_info_(wrapper_info),
         module_(module),
         call_descriptor_(Linkage::GetJSCallDescriptor(
             &zone_, false, static_cast<int>(sig->parameter_count()) + 1,
@@ -2747,7 +2751,11 @@ class WasmTurboshaftWrapperCompilationJob final
         data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, options,
               nullptr),
-        pipeline_(&data_) {}
+        pipeline_(&data_) {
+    if (wrapper_info_.code_kind == CodeKind::WASM_TO_JS_FUNCTION && !Is64()) {
+      call_descriptor_ = GetI32WasmCallDescriptor(&zone_, call_descriptor_);
+    }
+  }
 
   WasmTurboshaftWrapperCompilationJob(
       const WasmTurboshaftWrapperCompilationJob&) = delete;
@@ -2765,7 +2773,7 @@ class WasmTurboshaftWrapperCompilationJob final
   std::unique_ptr<char[]> debug_name_;
   OptimizedCompilationInfo info_;
   const wasm::FunctionSig* sig_;
-  bool is_import_;
+  wasm::WrapperCompilationInfo wrapper_info_;
   const wasm::WasmModule* module_;
   CallDescriptor* call_descriptor_;
   ZoneStats zone_stats_;
@@ -2773,7 +2781,6 @@ class WasmTurboshaftWrapperCompilationJob final
   PipelineImpl pipeline_;
 };
 
-#if V8_ENABLE_WEBASSEMBLY
 // static
 std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
     Isolate* isolate, CallDescriptor* call_descriptor,
@@ -2787,11 +2794,11 @@ std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
 // static
 std::unique_ptr<turboshaft::TurboshaftCompilationJob>
 Pipeline::NewWasmTurboshaftWrapperCompilationJob(
-    Isolate* isolate, const wasm::FunctionSig* sig, bool is_import,
-    const wasm::WasmModule* module, CodeKind kind,
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    wasm::WrapperCompilationInfo wrapper_info, const wasm::WasmModule* module,
     std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
   return std::make_unique<WasmTurboshaftWrapperCompilationJob>(
-      isolate, sig, is_import, module, kind, std::move(debug_name), options);
+      isolate, sig, wrapper_info, module, std::move(debug_name), options);
 }
 #endif
 
@@ -2813,8 +2820,8 @@ void TraceWrapperCompilation(const char* compiler,
         << "Begin compiling method " << info->GetDebugName().get() << " using "
         << compiler << std::endl;
   }
-  if (info->trace_turbo_graph() &&
-      data->graph() != nullptr) {  // Simple textual RPO.
+  if (!v8_flags.turboshaft_wasm_wrappers && info->trace_turbo_graph()) {
+    // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << CodeKindToString(info->code_kind())
                    << " graph -- " << std::endl
                    << AsRPO(*data->graph());
@@ -2907,8 +2914,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
 
   AccountingAllocator allocator;
-  BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(),
-                   info_.code_kind(), sig_, is_import_, module_);
+  BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig_,
+                   wrapper_info_, module_);
   CodeTracer* code_tracer = nullptr;
   if (info_.trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -2941,8 +2948,19 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     pipeline_.Run<turboshaft::DebugFeatureLoweringPhase>();
   }
 
-  if (v8_flags.turboshaft_instruction_selection) {
-    // Run Turboshaft instruction selection.
+  data_.BeginPhaseKind("V8.InstructionSelection");
+
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
+    defined(V8_TARGET_ARCH_PPC64)
+  bool use_turboshaft_instruction_selection =
+      v8_flags.turboshaft_wasm_instruction_selection_staged;
+#else
+  bool use_turboshaft_instruction_selection =
+      v8_flags.turboshaft_wasm_instruction_selection_experimental;
+#endif
+
+  if (use_turboshaft_instruction_selection) {
     if (!pipeline_.SelectInstructionsTurboshaft(&linkage)) {
       return CompilationJob::FAILED;
     }
@@ -3567,60 +3585,11 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-// static
-wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
-    CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
-    const char* debug_name, const AssemblerOptions& options,
-    SourcePositionTable* source_positions) {
-  Graph* graph = mcgraph->graph();
-  OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
-                                kind);
-  // Construct a pipeline for scheduling and code generation.
-  wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
-  ZoneStats zone_stats(wasm_engine->allocator());
-  NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
-  PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
-                    source_positions, node_positions, options);
-  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
-  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new TurbofanPipelineStatistics(
-        &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
-  }
 
-  PipelineImpl pipeline(&data);
+namespace {
 
-  if (info.trace_turbo_json() || info.trace_turbo_graph()) {
-    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
-    tracing_scope.stream()
-        << "---------------------------------------------------\n"
-        << "Begin compiling method " << info.GetDebugName().get()
-        << " using TurboFan" << std::endl;
-  }
-
-  if (info.trace_turbo_graph()) {  // Simple textual RPO.
-    StdoutStream{} << "-- wasm stub " << CodeKindToString(kind) << " graph -- "
-                   << std::endl
-                   << AsRPO(*graph);
-  }
-
-  if (info.trace_turbo_json()) {
-    TurboJsonFile json_of(&info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info.GetDebugName().get()
-            << "\", \"source\":\"\",\n\"phases\":[";
-  }
-
-  pipeline.RunPrintAndVerify("V8.WasmNativeStubMachineCode", true);
-
-  pipeline.Run<MemoryOptimizationPhase>();
-  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
-  pipeline.ComputeScheduledGraph();
-
-  Linkage linkage(call_descriptor);
-  CHECK(pipeline.SelectInstructions(&linkage));
-  pipeline.AssembleCode(&linkage);
-
+wasm::WasmCompilationResult WrapperCompilationResult(
+    PipelineImpl& pipeline, CallDescriptor* call_descriptor, CodeKind kind) {
   CodeGenerator* code_generator = pipeline.code_generator();
   wasm::WasmCompilationResult result;
   code_generator->masm()->GetCode(
@@ -3636,9 +3605,13 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
     result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
   }
+  return result;
+}
 
-  DCHECK(result.succeeded());
-
+void TraceFinishWrapperCompilation(OptimizedCompilationInfo& info,
+                                   PipelineData& data,
+                                   const wasm::WasmCompilationResult& result,
+                                   CodeGenerator* code_generator) {
   if (info.trace_turbo_json()) {
     TurboJsonFile json_of(&info, std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
@@ -3665,7 +3638,157 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
         << "Finished compiling method " << info.GetDebugName().get()
         << " using TurboFan" << std::endl;
   }
+}
 
+}  // namespace
+
+// static
+wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
+    CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
+    const char* debug_name, const AssemblerOptions& options,
+    SourcePositionTable* source_positions) {
+  Graph* graph = mcgraph->graph();
+  OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
+                                kind);
+  // Construct a pipeline for scheduling and code generation.
+  wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
+  ZoneStats zone_stats(wasm_engine->allocator());
+  NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
+  PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
+                    source_positions, node_positions, options);
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
+  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
+        &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
+    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
+  }
+  TraceWrapperCompilation("TurboFan", &info, &data);
+
+  PipelineImpl pipeline(&data);
+  pipeline.RunPrintAndVerify("V8.WasmNativeStubMachineCode", true);
+
+  pipeline.Run<MemoryOptimizationPhase>();
+  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+
+  pipeline.ComputeScheduledGraph();
+
+  Linkage linkage(call_descriptor);
+  CHECK(pipeline.SelectInstructions(&linkage));
+  pipeline.AssembleCode(&linkage);
+
+  auto result = WrapperCompilationResult(pipeline, call_descriptor, kind);
+  DCHECK(result.succeeded());
+  TraceFinishWrapperCompilation(info, data, result, pipeline.code_generator());
+  return result;
+}
+
+// static
+wasm::WasmCompilationResult
+Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
+    const wasm::WasmModule* module, const wasm::FunctionSig* sig,
+    wasm::WrapperCompilationInfo wrapper_info, const char* debug_name,
+    const AssemblerOptions& options, SourcePositionTable* source_positions) {
+  wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
+  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  CallDescriptor* call_descriptor =
+      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmImportWrapper);
+  if (!Is64()) {
+    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
+  }
+  Linkage linkage(call_descriptor);
+  OptimizedCompilationInfo info(base::CStrVector(debug_name), &zone,
+                                wrapper_info.code_kind);
+  ZoneStats zone_stats(wasm_engine->allocator());
+  PipelineData data(&zone_stats, &info, nullptr,
+                    wasm::GetWasmEngine()->allocator(), nullptr, nullptr,
+                    nullptr, nullptr, nullptr, nullptr, options, nullptr);
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
+  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
+        &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
+    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
+  }
+  TraceWrapperCompilation("Turboshaft", &info, &data);
+
+  PipelineImpl pipeline(&data);
+
+  {
+    base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
+        pipeline.GetTurboshaftPipelineData(
+            turboshaft::TurboshaftPipelineKind::kWasm));
+    auto& turboshaft_pipeline = turboshaft_scope.value();
+    AccountingAllocator allocator;
+    BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig,
+                     wrapper_info, module);
+    CodeTracer* code_tracer = nullptr;
+    if (info.trace_turbo_graph()) {
+      // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
+      // because it may not yet be initialized then and doing so from the
+      // background thread is not threadsafe.
+      code_tracer = data.GetCodeTracer();
+    }
+    Zone printing_zone(&allocator, ZONE_NAME);
+    turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
+                                     "Graph generation");
+
+    // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
+    // wrappers.
+    // TODO(14108): Do we need value numbering if wasm_opt is turned off?
+    if (v8_flags.wasm_opt) {
+      pipeline.Run<turboshaft::WasmOptimizePhase>();
+    }
+
+    if (!Is64()) {
+      pipeline.Run<turboshaft::Int64LoweringPhase>();
+    }
+
+    // This is more than an optimization currently: We need it to sort blocks to
+    // work around a bug in RecreateSchedulePhase.
+    pipeline.Run<turboshaft::WasmDeadCodeEliminationPhase>();
+
+    if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
+      // This phase has to run very late to allow all previous phases to use
+      // debug features.
+      pipeline.Run<turboshaft::DebugFeatureLoweringPhase>();
+    }
+
+    data.BeginPhaseKind("V8.InstructionSelection");
+
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
+    defined(V8_TARGET_ARCH_PPC64)
+    bool use_turboshaft_instruction_selection =
+        v8_flags.turboshaft_wasm_instruction_selection_staged;
+#else
+    bool use_turboshaft_instruction_selection =
+        v8_flags.turboshaft_wasm_instruction_selection_experimental;
+#endif
+
+    if (use_turboshaft_instruction_selection) {
+      // Run Turboshaft instruction selection.
+      CHECK(pipeline.SelectInstructionsTurboshaft(&linkage));
+      turboshaft_scope.reset();
+      data.DeleteGraphZone();
+      pipeline.AllocateRegisters(linkage.GetIncomingDescriptor(), false);
+    } else {
+      auto [new_graph, new_schedule] =
+          pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+      data.set_graph(new_graph);
+      data.set_schedule(new_schedule);
+      TraceSchedule(data.info(), &data, data.schedule(),
+                    turboshaft::RecreateSchedulePhase::phase_name());
+
+      turboshaft_scope.reset();
+      CHECK(pipeline.SelectInstructions(&linkage));
+    }
+  }
+
+  pipeline.AssembleCode(&linkage);
+
+  auto result = WrapperCompilationResult(pipeline, call_descriptor,
+                                         wrapper_info.code_kind);
+  DCHECK(result.succeeded());
+  TraceFinishWrapperCompilation(info, data, result, pipeline.code_generator());
   return result;
 }
 

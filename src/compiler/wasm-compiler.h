@@ -86,7 +86,8 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              const wasm::FunctionSig*,
                                              Handle<JSReceiver> callable);
 
-// Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
+// Returns an TurbofanCompilationJob or TurboshaftCompilationJob object
+// (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,

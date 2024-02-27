@@ -517,6 +517,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
+  void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
+                            wasm::Suspend suspend, const WasmModule* module) {
+    UNIMPLEMENTED();
+  }
+
   V<Word32> BuildSmiShiftBitsConstant() {
     return __ Word32Constant(kSmiShiftSize + kSmiTagSize);
   }
@@ -846,15 +851,20 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 };
 
 void BuildWasmWrapper(AccountingAllocator* allocator,
-                      compiler::turboshaft::Graph& graph, CodeKind code_kind,
-                      const wasm::FunctionSig* sig, bool is_import,
+                      compiler::turboshaft::Graph& graph,
+                      const wasm::FunctionSig* sig,
+                      WrapperCompilationInfo wrapper_info,
                       const WasmModule* module) {
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(graph, graph, &zone);
   WasmWrapperTSGraphBuilder builder(&zone, assembler, module, sig,
                                     StubCallMode::kCallBuiltinPointer);
-  if (code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
-    builder.BuildJSToWasmWrapper(is_import);
+  if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
+    builder.BuildJSToWasmWrapper(wrapper_info.is_import);
+  } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+    builder.BuildWasmToJSWrapper(wrapper_info.import_info.import_kind,
+                                 wrapper_info.import_info.expected_arity,
+                                 wrapper_info.import_info.suspend, module);
   } else {
     // TODO(thibaudm): Port remaining wrappers.
     UNREACHABLE();
