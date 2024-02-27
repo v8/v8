@@ -478,6 +478,7 @@ void Debug::ThreadInit() {
   thread_local_.break_on_next_function_call_ = false;
   thread_local_.scheduled_break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
+  thread_local_.promise_stack_ = Smi::zero();
 }
 
 char* Debug::ArchiveDebug(char* storage) {
@@ -538,6 +539,8 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
   v->VisitRootPointer(
       Root::kDebug, nullptr,
       FullObjectSlot(&thread_local_data->ignore_step_into_function_));
+  v->VisitRootPointer(Root::kDebug, nullptr,
+                      FullObjectSlot(&thread_local_data->promise_stack_));
 }
 
 void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
