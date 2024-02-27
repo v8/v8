@@ -243,7 +243,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case wasm::HeapType::kI31:
           case wasm::HeapType::kAny: {
             Variable result = __ NewVariable(RegisterRepresentation::Tagged());
-            IF_NOT (__ IsNull(ret, type)) {
+            IF_NOT (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
               __ SetVariable(result, ret);
             } ELSE{
               __ SetVariable(result, LOAD_ROOT(NullValue));
@@ -257,7 +257,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 module_->has_signature(type.ref_index())) {
               Variable result =
                   __ NewVariable(RegisterRepresentation::Tagged());
-              IF (__ IsNull(ret, type)) {
+              IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
                 V<Tagged> maybe_external =
@@ -278,7 +278,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             } else {
               Variable result =
                   __ NewVariable(RegisterRepresentation::Tagged());
-              IF (__ IsNull(ret, type)) {
+              IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
                 __ SetVariable(result, ret);
@@ -324,12 +324,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                            descriptor, OpEffects().CanCallAnything());
 
     if (sig->return_count() == 1) {
-      returns[0] = AnnotateResultIfReference(call, sig->GetReturn(0));
+      returns[0] = call;
     } else if (sig->return_count() > 1) {
       for (uint32_t i = 0; i < sig->return_count(); i++) {
         wasm::ValueType type = sig->GetReturn(i);
-        returns[i] = AnnotateResultIfReference(
-            __ Projection(call, i, RepresentationFor(type)), type);
+        returns[i] = __ Projection(call, i, RepresentationFor(type));
       }
     }
   }
@@ -599,7 +598,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = __ NewBlock();
-      __ GotoIfNot(__ IsNull(input, wasm::kWasmExternRef), not_null);
+      __ GotoIfNot(__ TaggedEqual(input, LOAD_ROOT(NullValue)), not_null);
       __ Goto(done);
       __ Bind(not_null);
     }

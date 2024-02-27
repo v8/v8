@@ -183,12 +183,6 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
   return {target, ref};
 }
 
-OpIndex WasmGraphBuilderBase::AnnotateResultIfReference(OpIndex result,
-                                                        wasm::ValueType type) {
-  return type.is_object_reference() ? __ AnnotateWasmType(result, type)
-                                    : result;
-}
-
 RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
   switch (type.kind()) {
     case kI8:
@@ -6122,7 +6116,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return {final_target, ref};
   }
 
- protected:
+  OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
+    return type.is_object_reference() ? __ AnnotateWasmType(result, type)
+                                      : result;
+  }
+
   void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
                      V<WordPtr> callee, V<HeapObject> ref, const Value args[],
                      Value returns[],
@@ -6196,7 +6194,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
- protected:
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsContext,
                    compiler::turboshaft::detail::index_type_for_t<
@@ -7097,11 +7094,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Only used for "top-level" instantiations, not for inlining.
   std::unique_ptr<InstanceCache> owned_instance_cache_;
 
- protected:
   // The instance cache to use (may be owned or passed in).
   InstanceCache& instance_cache_;
 
- private:
   AssumptionsJournal* assumptions_;
   ZoneVector<WasmInliningPosition>* inlining_positions_;
   uint8_t inlining_id_ = kNoInliningId;

@@ -93,7 +93,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
       V<WordPtr> func_index, V<WasmTrustedInstanceData> trusted_instance_data);
-  OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type);
   RegisterRepresentation RepresentationFor(ValueType type);
 #if V8_ENABLE_SANDBOX
   V<HeapObject> DecodeTrustedPointer(V<Word32> handle, IndirectPointerTag tag);

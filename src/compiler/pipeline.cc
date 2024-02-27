@@ -2920,8 +2920,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                    "Graph generation");
 
-  // Skip the LoopUnrolling and WasmGCOptimize phases for wrappers.
-  pipeline_.Run<turboshaft::WasmLoweringPhase>();
+  // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
+  // wrappers.
   // TODO(14108): Do we need value numbering if wasm_opt is turned off?
   if (v8_flags.wasm_opt) {
     pipeline_.Run<turboshaft::WasmOptimizePhase>();
