@@ -8164,23 +8164,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(sig_)) LowerInt64(wasm::kCalledFromWasm);
   }
 
-  Node* AdaptHandlifiedArgument(Node* node) {
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    // With direct locals, the argument can be passed directly.
-    return node;
-#else
-    // With indirect locals, the argument has to be stored on the stack and the
-    // slot addressed is passed.
-    constexpr int kAlign = alignof(uintptr_t);
-    constexpr int kSize = sizeof(uintptr_t);
-    Node* stack_slot = gasm_->StackSlot(kSize, kAlign);
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 stack_slot, 0, node);
-    return stack_slot;
-#endif
-  }
-
   void BuildJSFastApiCallWrapper(Handle<JSReceiver> callable) {
     // Here 'callable_node' must be equal to 'callable' but we cannot pass a
     // HeapConstant(callable) because WasmCode::Validate() fails with
@@ -8255,11 +8238,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           CHECK(!overloads.is_valid());
 
           if (param_index == 0) {
-            return AdaptHandlifiedArgument(receiver_node);
+            return gasm_->AdaptLocalArgument(receiver_node);
           }
           switch (c_signature->ArgumentInfo(param_index).GetType()) {
             case CTypeInfo::Type::kV8Value:
-              return AdaptHandlifiedArgument(Param(param_index));
+              return gasm_->AdaptLocalArgument(Param(param_index));
             default:
               return Param(param_index);
           }
