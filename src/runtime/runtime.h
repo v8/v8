@@ -687,6 +687,7 @@ namespace internal {
   F(WasmSubstring, 3, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)  \
+  F(CheckIsOnCentralStack, 0, 1)            \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)  \
   F(DeserializeWasmModule, 2, 1)            \
   F(DisallowWasmCodegen, 1, 1)              \
@@ -695,32 +696,32 @@ namespace internal {
   F(GetWasmExceptionTagId, 2, 1)            \
   F(GetWasmExceptionValues, 1, 1)           \
   F(GetWasmRecoveredTrapCount, 0, 1)        \
-  F(HasUnoptimizedWasmToJSWrapper, 1, 1)    \
   F(HasUnoptimizedJSToJSWrapper, 1, 1)      \
+  F(HasUnoptimizedWasmToJSWrapper, 1, 1)    \
   F(IsAsmWasmCode, 1, 1)                    \
   F(IsLiftoffFunction, 1, 1)                \
-  F(IsTurboFanFunction, 1, 1)               \
-  F(IsWasmDebugFunction, 1, 1)              \
-  F(IsUncompiledWasmFunction, 1, 1)         \
   F(IsThreadInWasm, 0, 1)                   \
+  F(IsTurboFanFunction, 1, 1)               \
+  F(IsUncompiledWasmFunction, 1, 1)         \
   F(IsWasmCode, 1, 1)                       \
-  F(IsWasmTrapHandlerEnabled, 0, 1)         \
+  F(IsWasmDebugFunction, 1, 1)              \
   F(IsWasmPartialOOBWriteNoop, 0, 1)        \
+  F(IsWasmTrapHandlerEnabled, 0, 1)         \
   F(SerializeWasmModule, 1, 1)              \
   F(SetWasmCompileControls, 2, 1)           \
-  F(SetWasmInstantiateControls, 0, 1)       \
   F(SetWasmImportedStringsEnabled, 1, 1)    \
+  F(SetWasmInstantiateControls, 0, 1)       \
   F(WasmCompiledExportWrappersCount, 0, 1)  \
-  F(WasmGetNumberOfInstances, 1, 1)         \
-  F(WasmNumCodeSpaces, 1, 1)                \
   F(WasmEnterDebugging, 0, 1)               \
+  F(WasmGenerateRandomModule, -1, 1)        \
+  F(WasmGetNumberOfInstances, 1, 1)         \
   F(WasmLeaveDebugging, 0, 1)               \
+  F(WasmNumCodeSpaces, 1, 1)                \
   F(WasmSwitchToTheCentralStackCount, 0, 1) \
   F(WasmTierUpFunction, 1, 1)               \
   F(WasmTraceEnter, 0, 1)                   \
   F(WasmTraceExit, 1, 1)                    \
-  F(WasmTraceMemory, 1, 1)                  \
-  F(CheckIsOnCentralStack, 0, 1)
+  F(WasmTraceMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
   F(JSFinalizationRegistryRegisterWeakCellWithUnregisterToken, 4, 1) \
