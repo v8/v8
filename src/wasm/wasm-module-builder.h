@@ -425,6 +425,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumTables() { return static_cast<int>(tables_.size()); }
 
+  int NumGlobals() { return static_cast<int>(globals_.size()); }
+
   int NumImportedFunctions() {
     return static_cast<int>(function_imports_.size());
   }
@@ -434,6 +436,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   const FunctionSig* GetTagType(int index) {
     return types_[tags_[index]].function_sig;
+  }
+
+  ValueType GetGlobalType(uint32_t index) const { return globals_[index].type; }
+
+  bool IsMutableGlobal(uint32_t index) const {
+    return globals_[index].mutability;
   }
 
  private:

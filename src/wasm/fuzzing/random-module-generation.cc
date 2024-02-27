@@ -3369,6 +3369,19 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         case 0:
         case 1:
         case 2:
+          if (choice % 2 == 0 && builder->NumGlobals()) {
+            // Search for a matching global to emit a global.get.
+            int num_globals = builder->NumGlobals();
+            int start_index = range.get<uint8_t>() % num_globals;
+            for (int i = 0; i < num_globals; ++i) {
+              int index = (start_index + i) % num_globals;
+              if (builder->GetGlobalType(index) == type &&
+                  !builder->IsMutableGlobal(index)) {
+                return WasmInitExpr::GlobalGet(index);
+              }
+            }
+            // Fall back to constant if no matching global was found.
+          }
           return WasmInitExpr(range.getPseudoRandom<int32_t>());
         default:
           WasmInitExpr::Operator op = choice == 3   ? WasmInitExpr::kI32Add
@@ -3985,10 +3998,12 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   init_exprs.reserve(num_globals);
   mutable_globals.reserve(num_globals);
   CHECK_EQ(globals.size(), num_globals);
+  uint64_t mutabilities = module_range.get<uint64_t>();
   for (int i = 0; i < num_globals; ++i) {
     ValueType type = globals[i];
-    // 1/8 of globals are immutable.
-    const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
+    // 50% of globals are immutable.
+    const bool mutability = mutabilities & 1;
+    mutabilities >>= 1;
     WasmInitExpr init_expr = GenerateInitExpr(
         zone, module_range, &builder, type, struct_types, array_types, 0);
     init_exprs.push_back(init_expr);
