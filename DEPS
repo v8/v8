@@ -73,7 +73,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:5787e994aa4cb6cdb09c2c72ae6f1c6a7f1cf91a',
+  'gn_version': 'git_revision:6253a39dbc436d292e3567faa637c9d3302e1e5f',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -128,9 +128,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e0feeb4e38a416ea7eaaceaf8cfddf44514b23a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8af52f161e98ff042df1fad3bc8e17ff4598d284',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9eedca5b0651c9c38371f49f30ae5f90beb37b84',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '135784cc4b382484949b328e5acc66614d890545',
   'buildtools/linux64': {
     'packages': [
       {
@@ -298,7 +298,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '08b8dfd3a9689085f0b0aa0f3e5912e88e5d4ac6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'aff3a0b23ca52ebd6daae2333e5bb0aa5d6c1847',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '5b35c9f06c3f8f17b43bd3da9527d6fecdf916c2',
   'third_party/libunwind/src':
@@ -340,7 +340,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3787595bbbd3a374613713164db935e8331f5825',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ee25a45e79a534e8cf4546c10b317abc2a902d67',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5a776b13442d6cd33ef8a1c5f40ed43549bd63bd',
   'tools/luci-go': {
       'packages': [
         {
