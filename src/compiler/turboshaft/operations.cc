@@ -158,26 +158,6 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, GenericBinopOp::Kind kind) {
-  switch (kind) {
-#define PRINT_KIND(Name)              \
-  case GenericBinopOp::Kind::k##Name: \
-    return os << #Name;
-    GENERIC_BINOP_LIST(PRINT_KIND)
-#undef PRINT_KIND
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
-  switch (kind) {
-#define PRINT_KIND(Name)             \
-  case GenericUnopOp::Kind::k##Name: \
-    return os << #Name;
-    GENERIC_UNOP_LIST(PRINT_KIND)
-#undef PRINT_KIND
-  }
-}
-
 std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
   switch (kind) {
     case WordUnaryOp::Kind::kReverseBytes:

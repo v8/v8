@@ -3217,7 +3217,6 @@ filegroup(
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
-        "src/compiler/turboshaft/js-generic-lowering-reducer.h",
         "src/compiler/turboshaft/index.h",
         "src/compiler/turboshaft/instruction-selection-phase.cc",
         "src/compiler/turboshaft/instruction-selection-phase.h",

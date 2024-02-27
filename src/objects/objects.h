@@ -126,10 +126,7 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // For a design overview, see https://goo.gl/Ph4CGz.
 class Object : public AllStatic {
  public:
-  enum class Conversion {
-    kToNumber,  // Number = Smi or HeapNumber
-    kToNumeric  // Numeric = Smi or HeapNumber or BigInt
-  };
+  enum class Conversion { kToNumber, kToNumeric };
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
@@ -561,8 +558,6 @@ class Object : public AllStatic {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Tagged<Object> obj);
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           Object::Conversion kind);
 
 struct Brief {
   template <HeapObjectReferenceType kRefType>

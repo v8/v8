@@ -3416,7 +3416,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph.h",
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/instruction-selection-phase.h",
-    "src/compiler/turboshaft/js-generic-lowering-reducer.h",
     "src/compiler/turboshaft/late-escape-analysis-reducer.h",
     "src/compiler/turboshaft/late-load-elimination-reducer.h",
     "src/compiler/turboshaft/layered-hash-map.h",

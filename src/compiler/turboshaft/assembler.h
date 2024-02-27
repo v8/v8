@@ -1108,50 +1108,8 @@ class TurboshaftAssemblerOpInterface
     return Next::ReduceProjection(tuple, index, rep);
   }
 
-  // Methods to be used by the reducers to reducer operations with the whole
-  // reducer stack.
-
-  V<Object> GenericBinop(V<Object> left, V<Object> right, OpIndex frame_state,
-                         OpIndex context, GenericBinopOp::Kind kind) {
-    return ReduceIfReachableGenericBinop(left, right, frame_state, context,
-                                         kind);
-  }
-#define DECL_GENERIC_BINOP(Name)                                  \
-  V<Object> Generic##Name(V<Object> left, V<Object> right,        \
-                          OpIndex frame_state, OpIndex context) { \
-    return GenericBinop(left, right, frame_state, context,        \
-                        GenericBinopOp::Kind::k##Name);           \
-  }
-  GENERIC_BINOP_LIST(DECL_GENERIC_BINOP)
-#undef DECL_GENERIC_BINOP
-
-  V<Object> GenericUnop(V<Object> input, OpIndex frame_state, OpIndex context,
-                        GenericUnopOp::Kind kind) {
-    return ReduceIfReachableGenericUnop(input, frame_state, context, kind);
-  }
-#define DECL_GENERIC_UNOP(Name)                                 \
-  V<Object> Generic##Name(V<Object> input, OpIndex frame_state, \
-                          OpIndex context) {                    \
-    return GenericUnop(input, frame_state, context,             \
-                       GenericUnopOp::Kind::k##Name);           \
-  }
-  GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
-#undef DECL_GENERIC_UNOP
-
-  V<Object> ToNumberOrNumeric(V<Object> input, OpIndex frame_state,
-                              OpIndex context, Object::Conversion kind) {
-    return ReduceIfReachableToNumberOrNumeric(input, frame_state, context,
-                                              kind);
-  }
-  V<Object> ToNumber(V<Object> input, OpIndex frame_state, OpIndex context) {
-    return ToNumberOrNumeric(input, frame_state, context,
-                             Object::Conversion::kToNumber);
-  }
-  V<Object> ToNumeric(V<Object> input, OpIndex frame_state, OpIndex context) {
-    return ToNumberOrNumeric(input, frame_state, context,
-                             Object::Conversion::kToNumeric);
-  }
-
+// Methods to be used by the reducers to reducer operations with the whole
+// reducer stack.
 #define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)               \
   OpIndex name(OpIndex left, OpIndex right, rep_type rep) {                 \
     return ReduceIfReachable##operation(left, right,                        \
@@ -2524,8 +2482,8 @@ class TurboshaftAssemblerOpInterface
     DCHECK(context.valid());
     auto arguments = std::apply(
         [context](auto&&... as) {
-          return base::SmallVector<
-              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+          return base::SmallVector<OpIndex,
+                                   std::tuple_size_v<decltype(args)> + 1>{
               std::forward<decltype(as)>(as)..., context};
         },
         args);
@@ -2662,36 +2620,6 @@ class TurboshaftAssemblerOpInterface
     Callable callable = Builtins::CallableFor(isolate, builtin);
     return Call(HeapConstant(callable.code()), frame_state.value_or_invalid(),
                 arguments, desc, effects);
-  }
-
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                         \
-  V<Object> CallBuiltin_##Name(Isolate* isolate, OpIndex frame_state, \
-                               V<Context> context, V<Object> lhs,     \
-                               V<Object> rhs) {                       \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(         \
-        isolate, frame_state, context, {lhs, rhs});                   \
-  }
-  GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
-#undef DECL_GENERIC_BINOP_BUILTIN_CALL
-
-#define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                          \
-  V<Object> CallBuiltin_##Name(Isolate* isolate, OpIndex frame_state, \
-                               V<Context> context, V<Object> input) { \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(         \
-        isolate, frame_state, context, {input});                      \
-  }
-  GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
-#undef DECL_GENERIC_UNOP_BUILTIN_CALL
-
-  V<Number> CallBuiltin_ToNumber(Isolate* isolate, OpIndex frame_state,
-                                 V<Context> context, V<Object> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumber>(
-        isolate, frame_state, context, {input});
-  }
-  V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate, OpIndex frame_state,
-                                   V<Context> context, V<Object> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumeric>(
-        isolate, frame_state, context, {input});
   }
 
   void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,
