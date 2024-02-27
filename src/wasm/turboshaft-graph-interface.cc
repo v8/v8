@@ -57,7 +57,6 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
-using compiler::turboshaft::Tagged;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
@@ -331,7 +330,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     TSBlock* merge_block = nullptr;
     // for 'if', loops, and 'try'/'try-table' respectively.
     TSBlock* false_or_loop_or_catch_block = nullptr;
-    V<Tagged> exception = OpIndex::Invalid();  // Only for 'try-catch'.
+    V<Object> exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
@@ -1325,7 +1324,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
              compiler::kNoWriteBarrier, Isolate::error_message_param_offset());
   }
 
-  void ThrowDataViewTypeError(FullDecoder* decoder, V<Tagged> dataview,
+  void ThrowDataViewTypeError(FullDecoder* decoder, V<Object> dataview,
                               DataViewOp op_type) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::ThrowDataViewTypeError>(
@@ -1361,7 +1360,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  V<Word32> IsDetached(V<Tagged> dataview) {
+  V<Word32> IsDetached(V<Object> dataview) {
     // TODO(evih): Make the buffer load immutable.
     V<Object> buffer = __ LoadField<Object>(
         dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
@@ -1370,14 +1369,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return __ Word32BitwiseAnd(bit_field, JSArrayBuffer::WasDetachedBit::kMask);
   }
 
-  void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Tagged> dataview,
+  void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
     IF (UNLIKELY(IsDetached(dataview))) {
       ThrowDataViewDetachedError(decoder, op_type);
     }
   }
 
-  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Tagged> dataview,
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
     DCHECK_EQ(op_type, DataViewOp::kByteLength);
     return GetDataViewByteLength(decoder, dataview, __ IntPtrConstant(0),
@@ -1385,7 +1384,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   // Converts a Smi or HeapNumber to an intptr. The input is not validated.
-  V<WordPtr> ChangeTaggedNumberToIntPtr(V<Tagged> tagged) {
+  V<WordPtr> ChangeTaggedNumberToIntPtr(V<Object> tagged) {
     Label<> smi_label(&asm_);
     Label<> heapnumber_label(&asm_);
     Label<WordPtr> done_label(&asm_);
@@ -1427,7 +1426,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Depending on whether the buffer is resizable or growable and the `DataView`
   // is length-tracking or non-length-tracking, getting the byte length has to
   // be handled differently.
-  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Tagged> dataview,
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
                                    V<WordPtr> offset, DataViewOp op_type) {
     Label<WordPtr> done_label(&asm_);
     Label<> rab_ltgsab_label(&asm_);
@@ -1498,7 +1497,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // Case: growable SharedArrayBuffers, LT.
     ELSE {
-      V<Tagged> gsab_length_tagged = CallRuntime(
+      V<Object> gsab_length_tagged = CallRuntime(
           decoder->zone(), Runtime::kGrowableSharedArrayBufferByteLength,
           {buffer}, __ NoContextConstant());
       V<WordPtr> gsab_buffer_byte_length = __ WordPtrSub(
@@ -1514,7 +1513,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return final_view_byte_length;
   }
 
-  V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Tagged> dataview,
+  V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Object> dataview,
                                 V<WordPtr> offset, DataViewOp op_type) {
     V<WordPtr> view_byte_length =
         GetDataViewByteLength(decoder, dataview, offset, op_type);
@@ -1527,7 +1526,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   OpIndex DataViewGetter(FullDecoder* decoder, const Value args[],
                          DataViewOp op_type) {
-    V<Tagged> dataview = args[0].op;
+    V<Object> dataview = args[0].op;
     V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
     V<Word32> is_little_endian =
         (op_type == DataViewOp::kGetInt8 || op_type == DataViewOp::kGetUint8)
@@ -1542,7 +1541,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void DataViewSetter(FullDecoder* decoder, const Value args[],
                       DataViewOp op_type) {
-    V<Tagged> dataview = args[0].op;
+    V<Object> dataview = args[0].op;
     V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
     V<Word32> value = args[2].op;
     V<Word32> is_little_endian =
@@ -1572,12 +1571,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void WellKnown_FastApi(FullDecoder* decoder, const CallFunctionImmediate& imm,
                          const Value args[], Value returns[]) {
     uint32_t func_index = imm.index;
-    V<Tagged> receiver = args[0].op;
+    V<Object> receiver = args[0].op;
     V<FixedArray> imports_array =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), WellKnownImports,
                                       MemoryRepresentation::TaggedPointer());
-    V<Tagged> data = __ LoadFixedArrayElement(imports_array, func_index);
-    V<Tagged> cached_map = __ Load(data, LoadOp::Kind::TaggedBase(),
+    V<Object> data = __ LoadFixedArrayElement(imports_array, func_index);
+    V<Object> cached_map = __ Load(data, LoadOp::Kind::TaggedBase(),
                                    MemoryRepresentation::TaggedPointer(),
                                    WasmFastApiCallData::kCachedMapOffset);
 
@@ -1832,7 +1831,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         break;
       }
       case WKI::kStringLength: {
-        V<Tagged> string = ExternRefToString(args[0]);
+        V<Object> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(
             string, compiler::AccessBuilder::ForStringLength());
         decoder->detected_->Add(kFeature_imported_strings);
@@ -1847,7 +1846,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringSubstring: {
         V<String> string = ExternRefToString(args[0]);
-        V<Tagged> view = __ StringAsWtf16(string);
+        V<Object> view = __ StringAsWtf16(string);
         // TODO(12868): Consider annotating {view}'s type when the typing story
         //              for string views has been settled.
         result = CallBuiltinThroughJumptable<
@@ -2061,7 +2060,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         DataViewSetter(decoder, args, DataViewOp::kSetUint32);
         break;
       case WKI::kDataViewByteLength: {
-        V<Tagged> dataview = args[0].op;
+        V<Object> dataview = args[0].op;
 
         V<WordPtr> view_byte_length =
             GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
@@ -2194,7 +2193,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        V<Tagged> inlined_func_ref =
+        V<Object> inlined_func_ref =
             __ LoadFixedArrayElement(internal_functions, inlined_index);
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
@@ -2283,7 +2282,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        V<Tagged> inlined_func_ref =
+        V<Object> inlined_func_ref =
             __ LoadFixedArrayElement(internal_functions, inlined_index);
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
@@ -2670,15 +2669,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
           __ TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
-      Label<Tagged> if_catch(&asm_);
+      Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
       IF (UNLIKELY(caught_tag_undefined)) {
-        V<Tagged> tag_object = __ Load(
+        V<Object> tag_object = __ Load(
             native_context, LoadOp::Kind::TaggedBase(),
             MemoryRepresentation::TaggedPointer(),
             NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
-        V<Tagged> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
+        V<Object> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
                                    MemoryRepresentation::TaggedPointer(),
                                    WasmTagObject::kTagOffset);
         GOTO_IF(__ TaggedEqual(expected_tag, js_tag), if_catch,
@@ -3118,7 +3117,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_)) {
       // If the entry has map type Tuple2, call WasmFunctionTableGet which will
       // initialize the function table entry.
-      Label<Tagged> end(&asm_);
+      Label<Object> end(&asm_);
       // The entry is a funcref, null or a Tuple2, so it can't be a a smi and it
       // is safe to cast it to an object.
       V<Map> entry_map = __ LoadMapField(V<Object>::Cast(entry));
@@ -3471,7 +3470,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null = NullCheck(input);
+    V<Object> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightArithmeticShiftOutZeros(
           __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
@@ -3486,7 +3485,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null = NullCheck(input);
+    V<Object> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightLogical(
           __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
@@ -3618,13 +3617,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return stub_id == static_cast<int64_t>(Builtin::kWasmArrayNewSegment);
   }
 
-  V<Tagged> StringNewWtf8ArrayImpl(FullDecoder* decoder,
+  V<Object> StringNewWtf8ArrayImpl(FullDecoder* decoder,
                                    const unibrow::Utf8Variant variant,
                                    const Value& array, const Value& start,
                                    const Value& end, ValueType result_type) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
-    V<Tagged> call;
+    V<Object> call;
     if (IsArrayNewSegment(array.op)) {
       // We can only pass 3 untagged parameters to the builtin (on 32-bit
       // platforms). The segment index is easy to tag: if it validated, it must
@@ -3717,7 +3716,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  V<Word32> LoadStringLength(V<Tagged> string) {
+  V<Word32> LoadStringLength(V<Object> string) {
     return __ template LoadField<Word32>(
         string, compiler::AccessBuilder::ForStringLength());
   }
@@ -3865,7 +3864,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<String> string,
                             V<Word32> offset) {
     OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Tagged> base =
+    V<Object> base =
         __ Projection(prepare, 0, RegisterRepresentation::Tagged());
     V<WordPtr> base_offset =
         __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
@@ -3931,7 +3930,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<Word32> StringCodePointAt(FullDecoder* decoder, V<String> string,
                               V<Word32> offset) {
     OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Tagged> base =
+    V<Object> base =
         __ Projection(prepare, 0, RegisterRepresentation::Tagged());
     V<WordPtr> base_offset =
         __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
@@ -4034,14 +4033,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    V<Tagged> string = NullCheck(view);
+    V<Object> string = NullCheck(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterNext>(decoder, {string});
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
+    V<Object> string = NullCheck(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterAdvance>(
         decoder, {string, codepoints.op});
@@ -4049,7 +4048,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
+    V<Object> string = NullCheck(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterRewind>(
         decoder, {string, codepoints.op});
@@ -4057,7 +4056,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
+    V<Object> string = NullCheck(view);
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterSlice>(
         decoder, {string, codepoints.op});
@@ -4522,7 +4521,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   // Perform a null check if the input type is nullable.
-  V<Tagged> NullCheck(const Value& value,
+  V<Object> NullCheck(const Value& value,
                       TrapId trap_id = TrapId::kTrapNullDereference) {
     OpIndex not_null_value = value.op;
     if (value.type.is_nullable()) {
@@ -4545,7 +4544,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // decoder stack.
   void SetupControlFlowEdge(FullDecoder* decoder, TSBlock* block,
                             uint32_t drop_values = 0,
-                            V<Tagged> exception = OpIndex::Invalid(),
+                            V<Object> exception = OpIndex::Invalid(),
                             Merge<Value>* stack_values = nullptr) {
     if (__ current_block() == nullptr) return;
     // It is guaranteed that this element exists.
@@ -5987,7 +5986,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
         V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
-        V<Tagged> weak_rtt = __ Load(
+        V<Object> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
             WeakArrayList::kHeaderSize, kTaggedSizeLog2);
@@ -6479,7 +6478,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return __ Word64BitwiseOr(upper_half, lower_half);
   }
 
-  void UnpackWasmException(FullDecoder* decoder, V<Tagged> exception,
+  void UnpackWasmException(FullDecoder* decoder, V<Object> exception,
                            base::Vector<Value> values) {
     V<FixedArray> exception_values_array = V<FixedArray>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(

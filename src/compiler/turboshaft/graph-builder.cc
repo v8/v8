@@ -726,7 +726,7 @@ OpIndex GraphBuilder::Process(
 #define CHECK_OBJECT_IS_CASE(code, kind, input_assumptions, reason, feedback) \
   case IrOpcode::k##code: {                                                   \
     DCHECK(dominating_frame_state.valid());                                   \
-    V<Tagged> input = Map(node->InputAt(0));                                  \
+    V<Object> input = Map(node->InputAt(0));                                  \
     V<Word32> check =                                                         \
         __ ObjectIs(input, ObjectIsOp::Kind::k##kind,                         \
                     ObjectIsOp::InputAssumptions::k##input_assumptions);      \

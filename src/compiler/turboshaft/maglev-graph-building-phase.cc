@@ -172,7 +172,7 @@ class GraphBuilder {
     ThrowingScope throwing_scope(this, node);
 
     OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
-    V<Tagged> callee = Map(node->closure());
+    V<Object> callee = Map(node->closure());
     base::SmallVector<OpIndex, 16> arguments;
     arguments.push_back(Map(node->receiver()));
     for (int i = 0; i < node->num_args(); i++) {
@@ -743,7 +743,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::HoleyFloat64ToTagged* node,
                                 const maglev::ProcessingState& state) {
-    Label<Tagged> done(this);
+    Label<Object> done(this);
     V<Float64> input = Map(node->input());
     if (node->conversion_mode() ==
         maglev::HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi) {
@@ -1092,7 +1092,7 @@ class GraphBuilder {
   // Branch leads to smaller graphs, which is generally beneficial. Still, once
   // the graph builder is finished, we should evaluate whether Select or Branch
   // is the best choice here.
-  V<Tagged> ConvertWord32ToJSBool(V<Word32> b) {
+  V<Object> ConvertWord32ToJSBool(V<Word32> b) {
     return __ Select(b, __ HeapConstant(factory_->true_value()),
                      __ HeapConstant(factory_->false_value()),
                      RegisterRepresentation::Tagged(), BranchHint::kNone,

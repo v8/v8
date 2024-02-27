@@ -29,7 +29,6 @@ using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::OptionalOpIndex;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::StoreOp;
-using compiler::turboshaft::Tagged;
 using compiler::turboshaft::TSCallDescriptor;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
@@ -88,7 +87,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<WordPtr> thread_in_wasm_flag_address_;
   };
 
-  V<Smi> LoadExportedFunctionIndexAsSmi(V<Tagged> exported_function_data) {
+  V<Smi> LoadExportedFunctionIndexAsSmi(V<Object> exported_function_data) {
     return __ Load(exported_function_data,
                    LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedSigned(),
@@ -171,7 +170,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         Builtin::kWasmFloat64ToNumber, Operator::kNoProperties, value);
   }
 
-  V<Tagged> ToJS(OpIndex ret, ValueType type, V<Context> context) {
+  V<Object> ToJS(OpIndex ret, ValueType type, V<Context> context) {
     switch (type.kind()) {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(ret);
@@ -260,12 +259,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
-                V<Tagged> maybe_external =
+                V<Object> maybe_external =
                     __ Load(ret, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::AnyTagged(),
                             WasmInternalFunction::kExternalOffset);
                 IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
-                  V<Tagged> from_builtin =
+                  V<Object> from_builtin =
                       CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                           Builtin::kWasmInternalFunctionCreateExternal,
                           Operator::kNoProperties, ret, context);
@@ -300,7 +299,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   // Generate a call to the AllocateJSArray builtin.
   V<JSArray> BuildCallAllocateJSArray(V<Number> array_length,
-                                      V<Tagged> context) {
+                                      V<Object> context) {
     // Since we don't check that args will fit in an array,
     // we make sure this is true based on statically known limits.
     static_assert(wasm::kV8MaxWasmFunctionReturns <=
@@ -334,7 +333,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildCallAndReturn(bool is_import, V<Context> js_context,
-                             V<Tagged> function_data,
+                             V<Object> function_data,
                              base::SmallVector<OpIndex, 16> args,
                              bool do_conversion, bool set_in_wasm_flag) {
     const int rets_count = static_cast<int>(sig_->return_count());
@@ -367,7 +366,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        V<Tagged> internal = __ Load(function_data, LoadOp::Kind::TaggedBase(),
+        V<Object> internal = __ Load(function_data, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
                                      WasmFunctionData::kInternalOffset);
 #ifdef V8_ENABLE_SANDBOX
@@ -387,7 +386,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
     }
 
-    V<Tagged> jsval;
+    V<Object> jsval;
     if (sig_->return_count() == 0) {
       jsval = LOAD_ROOT(UndefinedValue);
     } else if (sig_->return_count() == 1) {
@@ -404,7 +403,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                           JSObject::kElementsOffset);
 
       for (int i = 0; i < return_count; ++i) {
-        V<Tagged> value = ToJS(rets[i], sig_->GetReturn(i), js_context);
+        V<Object> value = ToJS(rets[i], sig_->GetReturn(i), js_context);
         __ StoreFixedArrayElement(fixed_array, i, value,
                                   compiler::kFullWriteBarrier);
       }
@@ -432,7 +431,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 JSFunction::kSharedFunctionInfoOffset);
-    V<Tagged> function_data = __ Load(shared, LoadOp::Kind::TaggedBase(),
+    V<Object> function_data = __ Load(shared, LoadOp::Kind::TaggedBase(),
                                       MemoryRepresentation::TaggedPointer(),
                                       SharedFunctionInfo::kFunctionDataOffset);
 
@@ -461,8 +460,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       params[i + 1] = __ Parameter(i + 1, RegisterRepresentation::Tagged());
     }
 
-    Label<Tagged> done(&Asm());
-    V<Tagged> jsval;
+    Label<Object> done(&Asm());
+    V<Object> jsval;
     if (include_fast_path) {
       TSBlock* slow_path = __ NewBlock();
       // Check if the params received on runtime can be actually transformed
@@ -796,7 +795,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 #endif
 
-  V<Map> LoadMap(V<Tagged> object) {
+  V<Map> LoadMap(V<Object> object) {
     // TODO(thibaudm): Handle map packing.
     OpIndex map_word = __ Load(object, LoadOp::Kind::TaggedBase(),
                                MemoryRepresentation::TaggedPointer(), 0);

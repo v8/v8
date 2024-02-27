@@ -1198,7 +1198,7 @@ struct BuiltinCallDescriptor {
       : public Descriptor<WasmFastApiCallTypeCheckAndUpdateIC> {
     static constexpr auto kFunction =
         Builtin::kWasmFastApiCallTypeCheckAndUpdateIC;
-    using arguments_t = std::tuple<V<Tagged>, V<Tagged>>;
+    using arguments_t = std::tuple<V<Object>, V<Object>>;
     using results_t = std::tuple<V<Smi>>;
 
     static constexpr bool kNeedsFrameState = false;

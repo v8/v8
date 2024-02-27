@@ -90,7 +90,7 @@ class WasmLoweringReducer : public Next {
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
 
-  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, OptionalV<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCheck)(V<Object> object, OptionalV<Object> rtt,
                                 WasmTypeCheckConfig config) {
     if (rtt.has_value()) {
       return ReduceWasmTypeCheckRtt(object, rtt, config);
@@ -99,7 +99,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, OptionalV<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCast)(V<Object> object, OptionalV<Object> rtt,
                                WasmTypeCheckConfig config) {
     if (rtt.has_value()) {
       return ReduceWasmTypeCastRtt(object, rtt, config);
@@ -108,8 +108,8 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(AnyConvertExtern)(V<Tagged> object) {
-    Label<Tagged> end_label(&Asm());
+  OpIndex REDUCE(AnyConvertExtern)(V<Object> object) {
+    Label<Object> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
     Label<> int_to_smi_label(&Asm());
@@ -143,7 +143,7 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Tagged> heap_number = __ template WasmCallBuiltinThroughJumptable<
+      V<Object> heap_number = __ template WasmCallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
       GOTO(end_label, heap_number);
     }
@@ -189,8 +189,8 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(ExternConvertAny)(V<Tagged> object) {
-    Label<Tagged> end(&Asm());
+  OpIndex REDUCE(ExternConvertAny)(V<Object> object) {
+    Label<Object> end(&Asm());
     GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
     GOTO(end, Null(wasm::kWasmExternRef));
     BIND(end, result);
@@ -340,12 +340,12 @@ class WasmLoweringReducer : public Next {
     return struct_value;
   }
 
-  OpIndex REDUCE(WasmRefFunc)(V<Tagged> wasm_instance,
+  OpIndex REDUCE(WasmRefFunc)(V<Object> wasm_instance,
                               uint32_t function_index) {
     V<FixedArray> functions =
         LOAD_IMMUTABLE_INSTANCE_FIELD(wasm_instance, WasmInternalFunctions,
                                       MemoryRepresentation::TaggedPointer());
-    V<Tagged> maybe_function =
+    V<Object> maybe_function =
         __ LoadFixedArrayElement(functions, function_index);
 
     Label<WasmInternalFunction> done(&Asm());
@@ -366,7 +366,7 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(StringAsWtf16)(OpIndex string) {
-    Label<Tagged> done(&Asm());
+    Label<Object> done(&Asm());
     V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(string));
     V<Word32> string_representation = __ Word32BitwiseAnd(
         instance_type, __ Word32Constant(kStringRepresentationMask));
@@ -378,10 +378,10 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(StringPrepareForGetCodeUnit)(V<Tagged> original_string) {
-    LoopLabel<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+  OpIndex REDUCE(StringPrepareForGetCodeUnit)(V<Object> original_string) {
+    LoopLabel<Object /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
         dispatch(&Asm());
-    Label<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+    Label<Object /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
         direct_string(&Asm());
 
     // These values will be used to replace the original node's projections.
@@ -394,7 +394,7 @@ class WasmLoweringReducer : public Next {
     // i.e. it is 0 for one-byte strings, 1 for two-byte strings,
     // kCharWidthBailoutSentinel for uncached external strings (for which
     // "string"/"offset" are invalid and unusable).
-    Label<Tagged /*string*/, WordPtr /*offset*/, Word32 /*character width*/>
+    Label<Object /*string*/, WordPtr /*offset*/, Word32 /*character width*/>
         done(&Asm());
 
     V<Word32> original_type =
@@ -424,14 +424,14 @@ class WasmLoweringReducer : public Next {
       V<Word32> new_offset = __ Word32Add(
           offset, __ UntagSmi(__ template LoadField<Smi>(
                       string, AccessBuilder::ForSlicedStringOffset())));
-      V<Tagged> parent = __ template LoadField<Tagged>(
+      V<Object> parent = __ template LoadField<Object>(
           string, AccessBuilder::ForSlicedStringParent());
       V<Word32> parent_type = __ LoadInstanceTypeField(__ LoadMapField(parent));
       GOTO(dispatch, parent, parent_type, new_offset);
 
       // Thin string.
       BIND(thin_string);
-      V<Tagged> actual = __ template LoadField<Tagged>(
+      V<Object> actual = __ template LoadField<Object>(
           string, AccessBuilder::ForThinStringActual());
       V<Word32> actual_type = __ LoadInstanceTypeField(__ LoadMapField(actual));
       // ThinStrings always reference (internalized) direct strings.
@@ -440,7 +440,7 @@ class WasmLoweringReducer : public Next {
       // Flat cons string. (Non-flat cons strings are ruled out by
       // string.as_wtf16.)
       BIND(cons_string);
-      V<Tagged> first = __ template LoadField<Tagged>(
+      V<Object> first = __ template LoadField<Object>(
           string, AccessBuilder::ForConsStringFirst());
       V<Word32> first_type = __ LoadInstanceTypeField(__ LoadMapField(first));
       GOTO(dispatch, first, first_type, offset);
@@ -526,7 +526,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  V<WordPtr> BuildLoadExternalPointerFromObject(V<Tagged> object,
+  V<WordPtr> BuildLoadExternalPointerFromObject(V<Object> object,
                                                 FieldAccess access) {
 #ifdef V8_ENABLE_SANDBOX
     DCHECK_NE(access.external_pointer_tag, kExternalPointerNullTag);
@@ -539,7 +539,7 @@ class WasmLoweringReducer : public Next {
 #endif  // V8_ENABLE_SANDBOX
   }
 
-  OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,
+  OpIndex ReduceWasmTypeCheckAbstract(V<Object> object,
                                       WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
@@ -611,7 +611,7 @@ class WasmLoweringReducer : public Next {
     return final_result;
   }
 
-  OpIndex ReduceWasmTypeCastAbstract(V<Tagged> object,
+  OpIndex ReduceWasmTypeCastAbstract(V<Object> object,
                                      WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
@@ -688,7 +688,7 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, OptionalV<Tagged> rtt,
+  OpIndex ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Object> rtt,
                                 WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
@@ -732,7 +732,7 @@ class WasmLoweringReducer : public Next {
         __ TrapIfNot(is_wasm_obj, OpIndex::Invalid(), TrapId::kTrapIllegalCast);
       }
 
-      V<Tagged> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -748,7 +748,7 @@ class WasmLoweringReducer : public Next {
             OpIndex::Invalid(), TrapId::kTrapIllegalCast);
       }
 
-      V<Tagged> maybe_match =
+      V<Object> maybe_match =
           __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
@@ -762,7 +762,7 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, OptionalV<Tagged> rtt,
+  OpIndex ReduceWasmTypeCheckRtt(V<Object> object, OptionalV<Object> rtt,
                                  WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
@@ -802,7 +802,7 @@ class WasmLoweringReducer : public Next {
         GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
       }
 
-      V<Tagged> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -820,7 +820,7 @@ class WasmLoweringReducer : public Next {
                     end_label, __ Word32Constant(0));
       }
 
-      V<Tagged> maybe_match =
+      V<Object> maybe_match =
           __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
@@ -949,7 +949,7 @@ class WasmLoweringReducer : public Next {
         comparison_value, LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE);
   }
 
-  V<Tagged> LoadWasmTypeInfo(V<Map> map) {
+  V<Object> LoadWasmTypeInfo(V<Map> map) {
     int offset = Map::kConstructorOrBackPointerOrNativeContextOffset;
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedPointer(), offset);

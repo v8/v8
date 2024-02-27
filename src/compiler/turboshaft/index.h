@@ -211,9 +211,6 @@ using Float64 = FloatWithBits<64>;
 using Simd128 = WordWithBits<128>;
 using Simd256 = WordWithBits<256>;
 
-// TODO(nicohartmann@): Replace all uses of `V<Tagged>` by `V<Object>`.
-using Tagged = Object;
-
 struct Compressed : public Any {};
 
 // Traits classes `v_traits<T>` to provide additional T-specific information for

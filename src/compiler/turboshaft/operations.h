@@ -6382,7 +6382,7 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
 
-  WasmTypeCheckOp(V<Tagged> object, OptionalV<Tagged> rtt,
+  WasmTypeCheckOp(V<Object> object, OptionalV<Object> rtt,
                   WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6396,8 +6396,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Tagged> object() const { return Base::input(0); }
-  OptionalV<Tagged> rtt() const {
+  V<Object> object() const { return Base::input(0); }
+  OptionalV<Object> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6417,8 +6417,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCheckOp& New(Graph* graph, V<Tagged> object,
-                              OptionalV<Tagged> rtt,
+  static WasmTypeCheckOp& New(Graph* graph, V<Object> object,
+                              OptionalV<Object> rtt,
                               WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
@@ -6429,7 +6429,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
 
-  WasmTypeCastOp(V<Tagged> object, OptionalV<Tagged> rtt,
+  WasmTypeCastOp(V<Object> object, OptionalV<Object> rtt,
                  WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6443,8 +6443,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Tagged> object() const { return Base::input(0); }
-  OptionalV<Tagged> rtt() const {
+  V<Object> object() const { return Base::input(0); }
+  OptionalV<Object> rtt() const {
     return input_count > 1 ? input(1) : OpIndex::Invalid();
   }
 
@@ -6464,8 +6464,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCastOp& New(Graph* graph, V<Tagged> object,
-                             OptionalV<Tagged> rtt,
+  static WasmTypeCastOp& New(Graph* graph, V<Object> object,
+                             OptionalV<Object> rtt,
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
@@ -6481,7 +6481,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   explicit WasmTypeAnnotationOp(OpIndex value, wasm::ValueType type)
       : Base(value), type(type) {}
 
-  V<Tagged> value() const { return Base::input(0); }
+  V<Object> value() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6507,9 +6507,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
       SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
                            : OpEffects().CanReadMemory().CanAllocate();
 
-  explicit AnyConvertExternOp(V<Tagged> object) : Base(object) {}
+  explicit AnyConvertExternOp(V<Object> object) : Base(object) {}
 
-  V<Tagged> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6528,9 +6528,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
 struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   static constexpr OpEffects effects = OpEffects();
 
-  explicit ExternConvertAnyOp(V<Tagged> object) : Base(object) {}
+  explicit ExternConvertAnyOp(V<Object> object) : Base(object) {}
 
-  V<Tagged> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6802,7 +6802,7 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
   static constexpr OpEffects effects = OpEffects().CanAllocate();
   uint32_t function_index;
 
-  explicit WasmRefFuncOp(V<Tagged> wasm_instance, uint32_t function_index)
+  explicit WasmRefFuncOp(V<Object> wasm_instance, uint32_t function_index)
       : Base(wasm_instance), function_index(function_index) {}
 
   OpIndex instance() const { return Base::input(0); }
@@ -6830,7 +6830,7 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  explicit StringAsWtf16Op(V<Tagged> string) : Base(string) {}
+  explicit StringAsWtf16Op(V<Object> string) : Base(string) {}
 
   OpIndex string() const { return input(0); }
 
@@ -6856,7 +6856,7 @@ struct StringPrepareForGetCodeUnitOp
           // This should not float above a protective null/length check.
           .CanDependOnChecks();
 
-  explicit StringPrepareForGetCodeUnitOp(V<Tagged> string) : Base(string) {}
+  explicit StringPrepareForGetCodeUnitOp(V<Object> string) : Base(string) {}
 
   OpIndex string() const { return input(0); }
 

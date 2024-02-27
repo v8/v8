@@ -1522,10 +1522,18 @@ class TurboshaftAssemblerOpInterface
   DECL_TAGGED_BITCAST(WordPtr, Smi, kSmi)
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
-  DECL_TAGGED_BITCAST(WordPtr, Tagged, kAny)
-  DECL_TAGGED_BITCAST(Tagged, WordPtr, kAny)
 #undef DECL_TAGGED_BITCAST
-  V<WordPtr> BitcastTaggedToWordPtrForTagAndSmiBits(V<Tagged> input) {
+  V<Object> BitcastWordPtrToTagged(V<WordPtr> input) {
+    return TaggedBitcast(input, V<WordPtr>::rep, V<Object>::rep,
+                         TaggedBitcastOp::Kind::kAny);
+  }
+
+  V<WordPtr> BitcastTaggedToWordPtr(V<Object> input) {
+    return TaggedBitcast(input, V<Object>::rep, V<WordPtr>::rep,
+                         TaggedBitcastOp::Kind::kAny);
+  }
+
+  V<WordPtr> BitcastTaggedToWordPtrForTagAndSmiBits(V<Object> input) {
     return TaggedBitcast(input, RegisterRepresentation::Tagged(),
                          RegisterRepresentation::WordPtr(),
                          TaggedBitcastOp::Kind::kTagAndSmiBits);
@@ -1763,7 +1771,7 @@ class TurboshaftAssemblerOpInterface
   }
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
   // Wasm.
-  V<Tagged> CEntryStubConstant(Isolate* isolate, int result_size,
+  V<Object> CEntryStubConstant(Isolate* isolate, int result_size,
                                ArgvMode argv_mode = ArgvMode::kStack,
                                bool builtin_exit_frame = false) {
     if (argv_mode != ArgvMode::kStack) {
@@ -1882,7 +1890,7 @@ class TurboshaftAssemblerOpInterface
     }
   }
 
-  V<Word32> IsSmi(V<Tagged> object) {
+  V<Word32> IsSmi(V<Object> object) {
     if constexpr (COMPRESS_POINTERS_BOOL) {
       return Word32Equal(Word32BitwiseAnd(V<Word32>::Cast(object), kSmiTagMask),
                          kSmiTag);
@@ -2107,12 +2115,12 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_ENABLE_SANDBOX
   }
 
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
+  V<Object> LoadFixedArrayElement(V<FixedArray> array, int index) {
     return Load(array, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(),
                 FixedArray::OffsetOfElementAt(index));
   }
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
+  V<Object> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
     return Load(array, index, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(),
                 FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
@@ -2228,13 +2236,13 @@ class TurboshaftAssemblerOpInterface
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
-  V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
+  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
                        Word32Constant(instance_type));
   }
 
-  template <typename Type = Tagged,
-            typename = std::enable_if_t<is_subtype_v<Type, Tagged>>>
+  template <typename Type = Object,
+            typename = std::enable_if_t<is_subtype_v<Type, Object>>>
   V<Type> LoadTaggedField(V<Object> object, int field_offset) {
     return Load(object, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(), field_offset);
@@ -2288,7 +2296,7 @@ class TurboshaftAssemblerOpInterface
           maybe_initializing_or_transitioning);
   }
 
-  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
+  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Object> value,
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
@@ -2296,7 +2304,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
-                              V<Tagged> value,
+                              V<Object> value,
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
@@ -2863,7 +2871,7 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<typename RuntimeCallDescriptor::StackGuardWithGap>(
         isolate, context, {gap});
   }
-  V<Tagged> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
+  V<Object> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
                                          V<String> string, V<Number> index) {
     return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
         isolate, context, {string, index});
@@ -2876,7 +2884,7 @@ class TurboshaftAssemblerOpInterface
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
-  V<Tagged> CallRuntime_TerminateExecution(Isolate* isolate,
+  V<Object> CallRuntime_TerminateExecution(Isolate* isolate,
                                            OpIndex frame_state,
                                            V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
@@ -3080,28 +3088,28 @@ class TurboshaftAssemblerOpInterface
     return Asm().Call(callee, frame_state, arguments, ts_call_descriptor);
   }
 
-  V<Tagged> NewConsString(V<Word32> length, V<Tagged> first, V<Tagged> second) {
+  V<Object> NewConsString(V<Word32> length, V<Object> first, V<Object> second) {
     return ReduceIfReachableNewConsString(length, first, second);
   }
-  V<Tagged> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
+  V<Object> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
                      AllocationType allocation_type) {
     return ReduceIfReachableNewArray(length, kind, allocation_type);
   }
-  V<Tagged> NewDoubleArray(V<WordPtr> length, AllocationType allocation_type) {
+  V<Object> NewDoubleArray(V<WordPtr> length, AllocationType allocation_type) {
     return NewArray(length, NewArrayOp::Kind::kDouble, allocation_type);
   }
 
-  V<Tagged> DoubleArrayMinMax(V<Tagged> array, DoubleArrayMinMaxOp::Kind kind) {
+  V<Object> DoubleArrayMinMax(V<Object> array, DoubleArrayMinMaxOp::Kind kind) {
     return ReduceIfReachableDoubleArrayMinMax(array, kind);
   }
-  V<Tagged> DoubleArrayMin(V<Tagged> array) {
+  V<Object> DoubleArrayMin(V<Object> array) {
     return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMin);
   }
-  V<Tagged> DoubleArrayMax(V<Tagged> array) {
+  V<Object> DoubleArrayMax(V<Object> array) {
     return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMax);
   }
 
-  V<Any> LoadFieldByIndex(V<Tagged> object, V<Word32> index) {
+  V<Any> LoadFieldByIndex(V<Object> object, V<Word32> index) {
     return ReduceIfReachableLoadFieldByIndex(object, index);
   }
 
@@ -3142,12 +3150,12 @@ class TurboshaftAssemblerOpInterface
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
 
-  V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,
+  V<Object> BigIntBinop(V<Object> left, V<Object> right, OpIndex frame_state,
                         BigIntBinopOp::Kind kind) {
     return ReduceIfReachableBigIntBinop(left, right, frame_state, kind);
   }
 #define BIGINT_BINOP(kind)                                \
-  V<Tagged> BigInt##kind(V<Tagged> left, V<Tagged> right, \
+  V<Object> BigInt##kind(V<Object> left, V<Object> right, \
                          OpIndex frame_state) {           \
     return BigIntBinop(left, right, frame_state,          \
                        BigIntBinopOp::Kind::k##kind);     \
@@ -3164,25 +3172,25 @@ class TurboshaftAssemblerOpInterface
   BIGINT_BINOP(ShiftRightArithmetic)
 #undef BIGINT_BINOP
 
-  V<Boolean> BigIntComparison(V<Tagged> left, V<Tagged> right,
+  V<Boolean> BigIntComparison(V<Object> left, V<Object> right,
                               BigIntComparisonOp::Kind kind) {
     return ReduceIfReachableBigIntComparison(left, right, kind);
   }
-  V<Boolean> BigIntEqual(V<Tagged> left, V<Tagged> right) {
+  V<Boolean> BigIntEqual(V<Object> left, V<Object> right) {
     return BigIntComparison(left, right, BigIntComparisonOp::Kind::kEqual);
   }
-  V<Boolean> BigIntLessThan(V<Tagged> left, V<Tagged> right) {
+  V<Boolean> BigIntLessThan(V<Object> left, V<Object> right) {
     return BigIntComparison(left, right, BigIntComparisonOp::Kind::kLessThan);
   }
-  V<Boolean> BigIntLessThanOrEqual(V<Tagged> left, V<Tagged> right) {
+  V<Boolean> BigIntLessThanOrEqual(V<Object> left, V<Object> right) {
     return BigIntComparison(left, right,
                             BigIntComparisonOp::Kind::kLessThanOrEqual);
   }
 
-  V<Tagged> BigIntUnary(V<Tagged> input, BigIntUnaryOp::Kind kind) {
+  V<Object> BigIntUnary(V<Object> input, BigIntUnaryOp::Kind kind) {
     return ReduceIfReachableBigIntUnary(input, kind);
   }
-  V<Tagged> BigIntNegate(V<Tagged> input) {
+  V<Object> BigIntNegate(V<Object> input) {
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
@@ -3427,11 +3435,11 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableNull(type);
   }
 
-  V<Word32> IsNull(V<Tagged> input, wasm::ValueType type) {
+  V<Word32> IsNull(V<Object> input, wasm::ValueType type) {
     return ReduceIfReachableIsNull(input, type);
   }
 
-  V<Tagged> AssertNotNull(V<Tagged> object, wasm::ValueType type,
+  V<Object> AssertNotNull(V<Object> object, wasm::ValueType type,
                           TrapId trap_id) {
     return ReduceIfReachableAssertNotNull(object, type, trap_id);
   }
@@ -3440,21 +3448,21 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableRttCanon(rtts, type_index);
   }
 
-  V<Word32> WasmTypeCheck(V<Tagged> object, OptionalV<Map> rtt,
+  V<Word32> WasmTypeCheck(V<Object> object, OptionalV<Map> rtt,
                           WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
-  V<Tagged> WasmTypeCast(V<Tagged> object, OptionalV<Map> rtt,
+  V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
-  V<Tagged> AnyConvertExtern(V<Tagged> input) {
+  V<Object> AnyConvertExtern(V<Object> input) {
     return ReduceIfReachableAnyConvertExtern(input);
   }
 
-  V<Tagged> ExternConvertAny(V<Tagged> input) {
+  V<Object> ExternConvertAny(V<Object> input) {
     return ReduceIfReachableExternConvertAny(input);
   }
 
@@ -3500,15 +3508,15 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type);
   }
 
-  V<Tagged> WasmRefFunc(V<Tagged> wasm_instance, uint32_t function_index) {
+  V<Object> WasmRefFunc(V<Object> wasm_instance, uint32_t function_index) {
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }
 
-  V<Tagged> StringAsWtf16(V<Tagged> string) {
+  V<Object> StringAsWtf16(V<Object> string) {
     return ReduceIfReachableStringAsWtf16(string);
   }
 
-  V<Tagged> StringPrepareForGetCodeUnit(V<Tagged> string) {
+  V<Object> StringPrepareForGetCodeUnit(V<Object> string) {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
@@ -3591,7 +3599,7 @@ class TurboshaftAssemblerOpInterface
                      RegisterRepresentation::Tagged());
   }
 
-  V<Tagged> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
+  V<Object> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
                                            int index) {
     return LoadProtectedPointerField(
         array, ProtectedFixedArray::OffsetOfElementAt(index));

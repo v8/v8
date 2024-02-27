@@ -28,7 +28,7 @@ class MaglevEarlyLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(MaglevEarlyLowering)
 
-  void CheckInstanceType(V<Tagged> input, OpIndex frame_state,
+  void CheckInstanceType(V<Object> input, OpIndex frame_state,
                          const FeedbackSource& feedback,
                          InstanceType first_instance_type,
                          InstanceType last_instance_type, bool check_smi) {
@@ -74,7 +74,7 @@ class MaglevEarlyLoweringReducer : public Next {
   }
 
   V<InternalizedString> CheckedInternalizedString(
-      V<Tagged> object, OpIndex frame_state, bool check_smi,
+      V<Object> object, OpIndex frame_state, bool check_smi,
       const FeedbackSource& feedback) {
     if (check_smi) {
       __ DeoptimizeIf(__ IsSmi(object), frame_state, DeoptimizeReason::kSmi,
