@@ -2091,4 +2091,10 @@
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
+##############################################################################
+['official_build', {
+  # Random Wasm module generation is not available on official builds.
+  'wasm/generate-random-module': [FAIL],
+}],  # 'official_build'
+
 ]
