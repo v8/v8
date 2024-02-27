@@ -1206,18 +1206,19 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       isolate_, elements_kind, named_length, feedback,
       JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
 
+  Handle<String> failed_property_add_key;
   int i;
   for (i = 0; i < length; i++) {
     const JsonProperty& property = property_stack[start + i];
     if (property.string.is_index()) continue;
 
+    Handle<String> property_key;
     if (!js_data_object_builder.TryAddFastPropertyForValue(
             [&](Handle<String> expected_key) {
-              // TODO(leszeks): This string is dropped on failure and re-created
-              // in the slow path -- maybe cache it somewhere.
-              return MakeString(property.string, expected_key);
+              return property_key = MakeString(property.string, expected_key);
             },
             [&]() { return property.value; })) {
+      failed_property_add_key = property_key;
       break;
     }
   }
@@ -1234,7 +1235,12 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     HandleScope scope(isolate_);
     const JsonProperty& property = property_stack[start + i];
     if (property.string.is_index()) continue;
-    Handle<String> key = MakeString(property.string);
+    Handle<String> key;
+    if (!failed_property_add_key.is_null()) {
+      key = std::exchange(failed_property_add_key, {});
+    } else {
+      key = MakeString(property.string);
+    }
 #ifdef DEBUG
     uint32_t index;
     DCHECK(!key->AsArrayIndex(&index));
