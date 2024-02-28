@@ -687,9 +687,11 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
-  // Skip this runtime function in official builds to save binary size.
+// The GenerateRandomWasmModule function is only implemented in non-official
+// builds (to save binary size). Hence also skip the runtime function in
+// official builds.
 #ifndef OFFICIAL_BUILD
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
   HandleScope scope{isolate};
   Zone temporary_zone{isolate->allocator(), "WasmGenerateRandomModule"};
   constexpr size_t kMaxInputBytes = 512;
@@ -746,9 +748,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
         thrower.error_msg());
   }
   return *maybe_module_object.ToHandleChecked();
-#else
-  return ReadOnlyRoots(isolate).undefined_value();
-#endif  // DEBUG
 }
+#endif  // OFFICIAL_BUILD
 
 }  // namespace v8::internal

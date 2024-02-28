@@ -5718,7 +5718,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/constant-expression.cc",
       "src/wasm/function-body-decoder.cc",
       "src/wasm/function-compiler.cc",
-      "src/wasm/fuzzing/random-module-generation.cc",
       "src/wasm/graph-builder-interface.cc",
       "src/wasm/jump-table-assembler.cc",
       "src/wasm/local-decl-encoder.cc",
@@ -5753,6 +5752,12 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/well-known-imports.cc",
       "src/wasm/wrappers.cc",
     ]
+    if (!is_official_build) {
+      sources += [
+        ### gcmole(all) ###
+        "src/wasm/fuzzing/random-module-generation.cc",
+      ]
+    }
   }
 
   if (v8_enable_third_party_heap) {

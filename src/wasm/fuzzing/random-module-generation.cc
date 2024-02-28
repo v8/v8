@@ -14,6 +14,13 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
+// This whole compilation unit should only be included in non-official builds to
+// reduce binary size (it's a testing-only implementation which lives in src/ so
+// that the GenerateRandomWasmModule runtime function can use it).
+#ifdef OFFICIAL_BUILD
+#error Exclude this compilation unit in official builds.
+#endif
+
 namespace v8::internal::wasm::fuzzing {
 
 namespace {
@@ -3527,8 +3534,6 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
 }
 }  // namespace
 
-// TODO(14637): Replace this by an empty implementation in release builds to
-// reduce binary size.
 base::Vector<uint8_t> GenerateRandomWasmModule(
     Zone* zone, base::Vector<const uint8_t> data) {
   WasmModuleBuilder builder(zone);
