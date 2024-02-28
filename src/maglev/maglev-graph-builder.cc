@@ -74,9 +74,10 @@ bool IsSupported(CpuOperation op) {
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
 #elif defined(V8_TARGET_ARCH_ARM)
       return CpuFeatures::IsSupported(ARMv8);
-#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) || \
-    defined(V8_TARGET_ARCH_RISCV32)
+#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) ||   \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
       return true;
 #else
 #error "V8 does not support this architecture."
