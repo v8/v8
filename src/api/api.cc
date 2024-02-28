@@ -1870,15 +1870,17 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
-  i::Handle<i::CallHandlerInfo> obj =
-      i_isolate->factory()->NewCallHandlerInfo();
-  obj->set_owner_template(*Utils::OpenDirectHandle(this));
-  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-  }
-  obj->set_data(*Utils::OpenDirectHandle(*data));
-  i::FunctionTemplateInfo::SetInstanceCallHandler(i_isolate, cons, obj);
+  DCHECK_NOT_NULL(callback);
+
+  // This template is just a container for callback and data values and thus
+  // it's not supposed to be instantiated. Don't cache it.
+  constexpr bool do_not_cache = true;
+  constexpr int length = 0;
+  i::Handle<i::FunctionTemplateInfo> templ =
+      i_isolate->factory()->NewFunctionTemplateInfo(length, do_not_cache);
+  templ->set_is_object_template_call_handler(true);
+  Utils::ToLocal(templ)->SetCallHandler(callback, data);
+  i::FunctionTemplateInfo::SetInstanceCallHandler(i_isolate, cons, templ);
 }
 
 int ObjectTemplate::InternalFieldCount() const {

@@ -25,7 +25,8 @@ namespace internal {
 
 #include "torque-generated/src/objects/templates-tq.inc"
 
-class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
+class TemplateInfo
+    : public TorqueGeneratedTemplateInfo<TemplateInfo, HeapObject> {
  public:
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -102,7 +103,7 @@ class FunctionTemplateInfo
   // upon first instantiation if it's Undefined.
   DECL_RARE_ACCESSORS(instance_template, InstanceTemplate, HeapObject)
 
-  // Either a CallHandlerInfo or Undefined. If an instance_call_handler is
+  // Either a FunctionTemplateInfo or Undefined. If an instance_call_handler is
   // provided the instances created from the associated JSFunction are marked as
   // callable.
   DECL_RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject)
@@ -112,11 +113,17 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
 
+  DECL_RELAXED_UINT32_ACCESSORS(flag)
+
   // Begin flag bits ---------------------
+
+  // This FunctionTemplateInfo is just a storage for callback function and
+  // callback data for a callable ObjectTemplate object.
+  DECL_BOOLEAN_ACCESSORS(is_object_template_call_handler)
+
   DECL_BOOLEAN_ACCESSORS(undetectable)
 
-  // If set, object instances created by this function
-  // requires access check.
+  // If set, object instances created by this function requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
 
   DECL_BOOLEAN_ACCESSORS(read_only_prototype)
@@ -190,7 +197,7 @@ class FunctionTemplateInfo
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
 
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
 
  private:
   // For ease of use of the BITFIELD macro.

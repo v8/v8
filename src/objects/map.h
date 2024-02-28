@@ -54,6 +54,7 @@ enum InstanceType : uint16_t;
   V(ExternalString)                    \
   V(FeedbackCell)                      \
   V(FreeSpace)                         \
+  V(FunctionTemplateInfo)              \
   V(Hole)                              \
   V(JSApiObject)                       \
   V(JSArrayBuffer)                     \

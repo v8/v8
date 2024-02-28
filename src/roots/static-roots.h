@@ -148,54 +148,54 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kCallableTaskMap = 0xf6d;
   static constexpr Tagged_t kCallbackTaskMap = 0xf95;
   static constexpr Tagged_t kPromiseResolveThenableJobTaskMap = 0xfbd;
-  static constexpr Tagged_t kFunctionTemplateInfoMap = 0xfe5;
-  static constexpr Tagged_t kObjectTemplateInfoMap = 0x100d;
-  static constexpr Tagged_t kAccessCheckInfoMap = 0x1035;
-  static constexpr Tagged_t kAccessorPairMap = 0x105d;
-  static constexpr Tagged_t kAliasedArgumentsEntryMap = 0x1085;
-  static constexpr Tagged_t kAllocationMementoMap = 0x10ad;
-  static constexpr Tagged_t kArrayBoilerplateDescriptionMap = 0x10d5;
-  static constexpr Tagged_t kAsmWasmDataMap = 0x10fd;
-  static constexpr Tagged_t kAsyncGeneratorRequestMap = 0x1125;
-  static constexpr Tagged_t kBreakPointMap = 0x114d;
-  static constexpr Tagged_t kBreakPointInfoMap = 0x1175;
-  static constexpr Tagged_t kBytecodeWrapperMap = 0x119d;
-  static constexpr Tagged_t kClassBoilerplateMap = 0x11c5;
-  static constexpr Tagged_t kClassPositionsMap = 0x11ed;
-  static constexpr Tagged_t kCodeWrapperMap = 0x1215;
-  static constexpr Tagged_t kDebugInfoMap = 0x123d;
-  static constexpr Tagged_t kErrorStackDataMap = 0x1265;
-  static constexpr Tagged_t kFunctionTemplateRareDataMap = 0x128d;
-  static constexpr Tagged_t kInterceptorInfoMap = 0x12b5;
-  static constexpr Tagged_t kModuleRequestMap = 0x12dd;
-  static constexpr Tagged_t kPromiseCapabilityMap = 0x1305;
-  static constexpr Tagged_t kPromiseOnStackMap = 0x132d;
-  static constexpr Tagged_t kPromiseReactionMap = 0x1355;
-  static constexpr Tagged_t kPropertyDescriptorObjectMap = 0x137d;
-  static constexpr Tagged_t kPrototypeInfoMap = 0x13a5;
-  static constexpr Tagged_t kRegExpBoilerplateDescriptionMap = 0x13cd;
-  static constexpr Tagged_t kScriptMap = 0x13f5;
-  static constexpr Tagged_t kScriptOrModuleMap = 0x141d;
-  static constexpr Tagged_t kSourceTextModuleInfoEntryMap = 0x1445;
-  static constexpr Tagged_t kStackFrameInfoMap = 0x146d;
-  static constexpr Tagged_t kTemplateObjectDescriptionMap = 0x1495;
-  static constexpr Tagged_t kTuple2Map = 0x14bd;
-  static constexpr Tagged_t kWasmExceptionTagMap = 0x14e5;
-  static constexpr Tagged_t kAllocationSiteWithWeakNextMap = 0x150d;
-  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap = 0x1535;
-  static constexpr Tagged_t kLoadHandler1Map = 0x155d;
-  static constexpr Tagged_t kLoadHandler2Map = 0x1585;
-  static constexpr Tagged_t kLoadHandler3Map = 0x15ad;
-  static constexpr Tagged_t kStoreHandler0Map = 0x15d5;
-  static constexpr Tagged_t kStoreHandler1Map = 0x15fd;
-  static constexpr Tagged_t kStoreHandler2Map = 0x1625;
-  static constexpr Tagged_t kStoreHandler3Map = 0x164d;
-  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x1675;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x169d;
+  static constexpr Tagged_t kAccessCheckInfoMap = 0xfe5;
+  static constexpr Tagged_t kAccessorPairMap = 0x100d;
+  static constexpr Tagged_t kAliasedArgumentsEntryMap = 0x1035;
+  static constexpr Tagged_t kAllocationMementoMap = 0x105d;
+  static constexpr Tagged_t kArrayBoilerplateDescriptionMap = 0x1085;
+  static constexpr Tagged_t kAsmWasmDataMap = 0x10ad;
+  static constexpr Tagged_t kAsyncGeneratorRequestMap = 0x10d5;
+  static constexpr Tagged_t kBreakPointMap = 0x10fd;
+  static constexpr Tagged_t kBreakPointInfoMap = 0x1125;
+  static constexpr Tagged_t kBytecodeWrapperMap = 0x114d;
+  static constexpr Tagged_t kClassBoilerplateMap = 0x1175;
+  static constexpr Tagged_t kClassPositionsMap = 0x119d;
+  static constexpr Tagged_t kCodeWrapperMap = 0x11c5;
+  static constexpr Tagged_t kDebugInfoMap = 0x11ed;
+  static constexpr Tagged_t kErrorStackDataMap = 0x1215;
+  static constexpr Tagged_t kFunctionTemplateRareDataMap = 0x123d;
+  static constexpr Tagged_t kInterceptorInfoMap = 0x1265;
+  static constexpr Tagged_t kModuleRequestMap = 0x128d;
+  static constexpr Tagged_t kPromiseCapabilityMap = 0x12b5;
+  static constexpr Tagged_t kPromiseOnStackMap = 0x12dd;
+  static constexpr Tagged_t kPromiseReactionMap = 0x1305;
+  static constexpr Tagged_t kPropertyDescriptorObjectMap = 0x132d;
+  static constexpr Tagged_t kPrototypeInfoMap = 0x1355;
+  static constexpr Tagged_t kRegExpBoilerplateDescriptionMap = 0x137d;
+  static constexpr Tagged_t kScriptMap = 0x13a5;
+  static constexpr Tagged_t kScriptOrModuleMap = 0x13cd;
+  static constexpr Tagged_t kSourceTextModuleInfoEntryMap = 0x13f5;
+  static constexpr Tagged_t kStackFrameInfoMap = 0x141d;
+  static constexpr Tagged_t kTemplateObjectDescriptionMap = 0x1445;
+  static constexpr Tagged_t kTuple2Map = 0x146d;
+  static constexpr Tagged_t kWasmExceptionTagMap = 0x1495;
+  static constexpr Tagged_t kAllocationSiteWithWeakNextMap = 0x14bd;
+  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap = 0x14e5;
+  static constexpr Tagged_t kLoadHandler1Map = 0x150d;
+  static constexpr Tagged_t kLoadHandler2Map = 0x1535;
+  static constexpr Tagged_t kLoadHandler3Map = 0x155d;
+  static constexpr Tagged_t kStoreHandler0Map = 0x1585;
+  static constexpr Tagged_t kStoreHandler1Map = 0x15ad;
+  static constexpr Tagged_t kStoreHandler2Map = 0x15d5;
+  static constexpr Tagged_t kStoreHandler3Map = 0x15fd;
+  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x1625;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x164d;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataWithJobMap =
-      0x16c5;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x16ed;
-  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x1715;
+      0x1675;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x169d;
+  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x16c5;
+  static constexpr Tagged_t kFunctionTemplateInfoMap = 0x16ed;
+  static constexpr Tagged_t kObjectTemplateInfoMap = 0x1715;
   static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x173d;
   static constexpr Tagged_t kTurbofanUnionTypeMap = 0x1765;
   static constexpr Tagged_t kTurbofanRangeTypeMap = 0x178d;
@@ -1464,8 +1464,6 @@ static constexpr std::array<Tagged_t, 760> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kCallableTaskMap,
     StaticReadOnlyRoot::kCallbackTaskMap,
     StaticReadOnlyRoot::kPromiseResolveThenableJobTaskMap,
-    StaticReadOnlyRoot::kFunctionTemplateInfoMap,
-    StaticReadOnlyRoot::kObjectTemplateInfoMap,
     StaticReadOnlyRoot::kAccessCheckInfoMap,
     StaticReadOnlyRoot::kAccessorPairMap,
     StaticReadOnlyRoot::kAliasedArgumentsEntryMap,
@@ -1507,6 +1505,8 @@ static constexpr std::array<Tagged_t, 760> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataWithJobMap,
     StaticReadOnlyRoot::kUncompiledDataWithPreparseDataAndJobMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
+    StaticReadOnlyRoot::kFunctionTemplateInfoMap,
+    StaticReadOnlyRoot::kObjectTemplateInfoMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
     StaticReadOnlyRoot::kTurbofanUnionTypeMap,
     StaticReadOnlyRoot::kTurbofanRangeTypeMap,

@@ -28,6 +28,9 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
 NEVER_READ_ONLY_SPACE_IMPL(DictionaryTemplateInfo)
 NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
 
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
+               is_object_template_call_handler,
+               IsObjectTemplateCallHandlerBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
                UndetectableBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
@@ -49,6 +52,9 @@ BIT_FIELD_ACCESSORS(
     FunctionTemplateInfo, relaxed_flag,
     allowed_receiver_instance_type_range_end,
     FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits)
+
+RELAXED_UINT32_ACCESSORS(FunctionTemplateInfo, flag,
+                         FunctionTemplateInfo::kFlagOffset)
 
 int32_t FunctionTemplateInfo::relaxed_flag() const {
   return flag(kRelaxedLoad);
@@ -119,7 +125,8 @@ void FunctionTemplateInfo::SetInstanceType(int api_instance_type) {
   // kNoJSApiObjectType must correspond to JS_API_OBJECT_TYPE.
   static_assert(kNoJSApiObjectType == 0);
   static_assert(JS_API_OBJECT_TYPE == Internals::kFirstJSApiObjectType);
-  set_instance_type(api_instance_type + Internals::kFirstJSApiObjectType);
+  set_instance_type(static_cast<InstanceType>(
+      api_instance_type + Internals::kFirstJSApiObjectType));
 }
 
 void FunctionTemplateInfo::SetAllowedReceiverInstanceTypeRange(

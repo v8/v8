@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-extern class TemplateInfo extends Struct {
+extern class TemplateInfo extends HeapObject {
   serial_number: Smi;
   number_of_properties: Smi;
   property_list: ArrayList|Undefined;
@@ -18,12 +18,15 @@ extern class FunctionTemplateRareData extends Struct {
   named_property_handler: InterceptorInfo|Undefined;
   indexed_property_handler: InterceptorInfo|Undefined;
   instance_template: ObjectTemplateInfo|Undefined;
-  instance_call_handler: CallHandlerInfo|Undefined;
+  instance_call_handler: FunctionTemplateInfo|Undefined;
   access_check_info: AccessCheckInfo|Undefined;
   c_function_overloads: FixedArray;
 }
 
-bitfield struct FunctionTemplateInfoFlags extends uint31 {
+bitfield struct FunctionTemplateInfoFlags extends uint32 {
+  // True in case this FunctionTemplateInfo object is used as a call handler
+  // for callable ObjectTemplateInfo.
+  is_object_template_call_handler: bool: 1 bit;
   undetectable: bool: 1 bit;
   needs_access_check: bool: 1 bit;
   read_only_prototype: bool: 1 bit;
@@ -37,6 +40,7 @@ bitfield struct FunctionTemplateInfoFlags extends uint31 {
   allowed_receiver_instance_type_range_end: InstanceType: 12 bit;
 }
 
+@generateUniqueMap
 extern class FunctionTemplateInfo extends TemplateInfo {
   // Handler invoked when calling an instance of this FunctionTemplateInfo.
   // Either CallHandlerInfo or Undefined.
@@ -58,14 +62,13 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // the receiver under the the cached_property_name when this
   // FunctionTemplateInfo is used as a getter.
   cached_property_name: Object;
-  // TODO(ishell): store the values below as raw data.
   // Internal field to store a flag bitfield.
-  @cppRelaxedLoad @cppRelaxedStore flag: SmiTagged<FunctionTemplateInfoFlags>;
+  flag: FunctionTemplateInfoFlags;
   // "length" property of the final JSFunction.
-  length: Smi;
+  length: int16;
   // This will be set as the instance type of the objects that are created from
   // this FunctionTemplateInfo.
-  instance_type: Smi;
+  instance_type: InstanceType;
 }
 
 bitfield struct ObjectTemplateInfoFlags extends uint31 {
@@ -74,6 +77,7 @@ bitfield struct ObjectTemplateInfoFlags extends uint31 {
   embedder_field_count: int32: 28 bit;
 }
 
+@generateUniqueMap
 extern class ObjectTemplateInfo extends TemplateInfo {
   constructor: FunctionTemplateInfo|Undefined;
   data: SmiTagged<ObjectTemplateInfoFlags>;

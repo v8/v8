@@ -236,6 +236,11 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   Tagged<Object> handler =
       constructor->shared()->api_func_data()->GetInstanceCallHandler();
   DCHECK(!IsUndefined(handler, isolate));
+  Tagged<FunctionTemplateInfo> templ = FunctionTemplateInfo::cast(handler);
+  DCHECK(templ->is_object_template_call_handler());
+  // TODO(chromium:326505377): inline CallHandlerInfo into FunctionTemplateInfo.
+  handler = templ->call_code(kAcquireLoad);
+  DCHECK(!IsUndefined(handler, isolate));
   Tagged<CallHandlerInfo> call_data = CallHandlerInfo::cast(handler);
 
   // Get the data for the call and perform the callback.

@@ -717,9 +717,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     GotoIfNot(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
                   LoadMapBitField(receiver_map)),
               &receiver_done);
-    TNode<Int32T> function_template_info_flags =
-        LoadAndUntagToWord32ObjectField(function_template_info,
-                                        FunctionTemplateInfo::kFlagOffset);
+    TNode<Uint32T> function_template_info_flags = LoadObjectField<Uint32T>(
+        function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
                function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);

@@ -112,7 +112,6 @@ namespace internal {
   V(CallHandlerInfo)                            \
   V(Callable)                                   \
   V(Cell)                                       \
-  V(DictionaryTemplateInfo)                     \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
   V(Constructor)                                \
@@ -123,6 +122,7 @@ namespace internal {
   V(DeoptimizationData)                         \
   V(DependentCode)                              \
   V(DescriptorArray)                            \
+  V(DictionaryTemplateInfo)                     \
   V(EmbedderDataArray)                          \
   V(EphemeronHashTable)                         \
   V(ExternalOneByteString)                      \
@@ -131,6 +131,7 @@ namespace internal {
   V(FeedbackCell)                               \
   V(FeedbackMetadata)                           \
   V(FeedbackVector)                             \
+  V(FunctionTemplateInfo)                       \
   V(Filler)                                     \
   V(FixedArrayBase)                             \
   V(FixedArrayExact)                            \
@@ -227,6 +228,7 @@ namespace internal {
   V(NumberWrapper)                              \
   V(ObjectHashSet)                              \
   V(ObjectHashTable)                            \
+  V(ObjectTemplateInfo)                         \
   V(ObjectTwoHashTable)                         \
   V(Oddball)                                    \
   V(Hole)                                       \

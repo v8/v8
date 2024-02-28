@@ -1383,6 +1383,10 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(AccessorInfo);
     case CALL_HANDLER_INFO_TYPE:
       return CALL_APPLY(CallHandlerInfo);
+    case FUNCTION_TEMPLATE_INFO_TYPE:
+      return CALL_APPLY(FunctionTemplateInfo);
+    case OBJECT_TEMPLATE_INFO_TYPE:
+      return CALL_APPLY(ObjectTemplateInfo);
     case LOAD_HANDLER_TYPE:
       return CALL_APPLY(LoadHandler);
     case STORE_HANDLER_TYPE:
@@ -1515,6 +1519,20 @@ class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(AccessorInfo::kSetterOffset,
                                           kAccessorInfoSetterTag));
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
+class FunctionTemplateInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, HeapObject::kHeaderSize,
+                    FunctionTemplateInfo::kEndOfStrongFieldsOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

@@ -56,6 +56,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/globals.h"
 #include "src/compiler/globals.h"
 #include "src/execution/execution.h"
 #include "src/execution/futex-emulation.h"
@@ -12720,8 +12721,13 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
       v8::Utils::OpenDirectHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+
+  i::Tagged<i::FunctionTemplateInfo> handler =
+      i::FunctionTemplateInfo::cast(cons->GetInstanceCallHandler());
+  CHECK(handler->is_object_template_call_handler());
   i::Tagged<i::CallHandlerInfo> handler_info =
-      i::CallHandlerInfo::cast(cons->GetInstanceCallHandler());
+      i::CallHandlerInfo::cast(handler->call_code(v8::kAcquireLoad));
+
   CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
   handler_info->set_map(
       i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());

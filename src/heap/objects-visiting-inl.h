@@ -62,6 +62,7 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   V(FeedbackVector)                       \
   V(FixedArray)                           \
   V(FixedDoubleArray)                     \
+  V(FunctionTemplateInfo)                 \
   V(InstructionStream)                    \
   V(PreparseData)                         \
   V(PropertyArray)                        \

@@ -176,8 +176,14 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case ACCESSOR_INFO_TYPE:
       return kVisitAccessorInfo;
 
+    case FUNCTION_TEMPLATE_INFO_TYPE:
+      return kVisitFunctionTemplateInfo;
+
     case CALL_HANDLER_INFO_TYPE:
       return kVisitCallHandlerInfo;
+
+    case OBJECT_TEMPLATE_INFO_TYPE:
+      return kVisitStruct;
 
     case JS_PROXY_TYPE:
       return kVisitStruct;
@@ -349,6 +355,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+      // TODO(ishell): given that the following objects have custom visitors
+      // don't define them as Structs.
       if (instance_type == PROMISE_ON_STACK_TYPE) {
         return kVisitPromiseOnStack;
       }
