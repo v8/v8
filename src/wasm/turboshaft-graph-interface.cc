@@ -1602,15 +1602,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     GOTO(if_equal_maps);
 
     BIND(if_equal_maps);
-    OpIndex receiver_handle;
-    {
-      constexpr int kAlign = alignof(uintptr_t);
-      constexpr int kSize = sizeof(uintptr_t);
-      receiver_handle = __ StackSlot(kSize, kAlign);
-      __ Store(receiver_handle, __ BitcastTaggedToWordPtr(receiver),
-               StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-               compiler::kNoWriteBarrier);
-    }
+    OpIndex receiver_handle = __ AdaptLocalArgument(receiver);
     OpIndex options_object;
     {
       const int kAlign = alignof(v8::FastApiCallbackOptions);
@@ -1662,13 +1654,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     for (size_t i = 1; i < param_count; ++i) {
       if (sig->GetParam(i).is_reference()) {
-        constexpr int kAlign = alignof(uintptr_t);
-        constexpr int kSize = sizeof(uintptr_t);
-        OpIndex fake_handle = __ StackSlot(kSize, kAlign);
-        __ Store(fake_handle, __ BitcastTaggedToWordPtr(args[i].op),
-                 StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-                 compiler::kNoWriteBarrier);
-        inputs[i] = fake_handle;
+        inputs[i] = __ AdaptLocalArgument(args[i].op);
       } else {
         inputs[i] = args[i].op;
       }
