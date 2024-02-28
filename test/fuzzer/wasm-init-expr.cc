@@ -118,7 +118,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
            module_object->native_module()->module()->num_declared_functions);
 
   for (size_t i = 0; i < expression_count; ++i) {
-    char buffer[8];
+    char buffer[22];
     snprintf(buffer, sizeof buffer, "f%zu", i);
     // Execute corresponding function.
     auto function = Handle<WasmExportedFunction>::cast(
