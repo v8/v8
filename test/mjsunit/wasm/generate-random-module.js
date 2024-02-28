@@ -3,6 +3,10 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
+// Also enable all features that are used in the randomly generated module. This
+// should stay in sync with `EnableExperimentalWasmFeatures` in
+// `wasm-fuzzer-common.cc`.
+// Flags: --wasm-staging
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);

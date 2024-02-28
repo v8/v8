@@ -825,6 +825,8 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // Enable non-staged experimental features that we also want to fuzz.
       // <currently none>
+      // Note: If you add something here, you will also have to add the
+      // respective flag(s) to the mjsunit/wasm/generate-random-module test.
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
