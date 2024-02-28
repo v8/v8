@@ -2062,7 +2062,13 @@ TEST(GetHeapValueForDeletedObject) {
     CHECK(heap_profiler->FindObjectById(prop->GetId())->IsObject());
   }
   CompileRun("delete a.p;");
-  CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
+  {
+    // Exclude the stack during object finding, so that conservative stack
+    // scanning may not accidentally mark the object as reachable.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(env->GetIsolate())->heap();
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    CHECK(heap_profiler->FindObjectById(prop->GetId()).IsEmpty());
+  }
 }
 
 static int StringCmp(const char* ref, i::Tagged<i::String> act) {

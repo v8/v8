@@ -6917,6 +6917,12 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 
   {
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
+
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning and the heap
+    // limit may be reached.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
     OutOfMemoryState state;
     state.heap = heap;
     state.oom_triggered = false;
