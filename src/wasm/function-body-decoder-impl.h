@@ -3962,7 +3962,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value lhs = Pop();
     if (!VALIDATE(IsSubtypeOf(lhs.type, kWasmEqRef, this->module_) ||
                   IsSubtypeOf(lhs.type, ValueType::RefNull(HeapType::kEqShared),
-                              this->module_))) {
+                              this->module_) ||
+                  control_.back().unreachable())) {
       this->DecodeError(this->pc_,
                         "ref.eq[0] expected either eqref or (ref null shared "
                         "eq), found %s of type %s",
@@ -3971,7 +3972,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value rhs = Pop();
     if (!VALIDATE(IsSubtypeOf(rhs.type, kWasmEqRef, this->module_) ||
                   IsSubtypeOf(rhs.type, ValueType::RefNull(HeapType::kEqShared),
-                              this->module_))) {
+                              this->module_) ||
+                  control_.back().unreachable())) {
       this->DecodeError(this->pc_,
                         "ref.eq[0] expected either eqref or (ref null shared "
                         "eq), found %s of type %s",

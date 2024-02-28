@@ -3350,7 +3350,6 @@ WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
   }
 }
 
-// TODO(manoskouk): Add global.get.
 WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                               WasmModuleBuilder* builder, ValueType type,
                               const std::vector<uint32_t>& structs,
