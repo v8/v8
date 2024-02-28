@@ -33,6 +33,11 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
   void clear_overridden_stack_state() final {
     collector_->clear_overridden_stack_state();
   }
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() final {
+    return v8::base::nullopt;
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   class GCTask final : public cppgc::Task {
@@ -157,6 +162,12 @@ void GCInvoker::set_override_stack_state(EmbedderStackState state) {
 void GCInvoker::clear_overridden_stack_state() {
   impl_->clear_overridden_stack_state();
 }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+v8::base::Optional<int> GCInvoker::UpdateAllocationTimeout() {
+  return impl_->UpdateAllocationTimeout();
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace internal
 }  // namespace cppgc

@@ -84,6 +84,9 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
                 platform_->GetForegroundTaskRunner());
   CHECK_IMPLIES(options.sweeping_support != HeapBase::SweepingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  object_allocator().UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 }
 
 Heap::~Heap() {

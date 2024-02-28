@@ -511,6 +511,9 @@ struct HeapTestWithRandomGCInterval : RandomGCIntervalTestSetter, HeapTest {};
 }  // namespace
 
 TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
+  if (v8_flags.stress_incremental_marking) return;
+  if (v8_flags.stress_concurrent_allocation) return;
+
   auto* allocator = heap()->allocator();
 
   // Invoke major GC to cause the timeout to be updated.

@@ -47,6 +47,12 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   }
   void clear_overridden_stack_state() final { override_stack_state_.reset(); }
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() final {
+    return v8::base::nullopt;
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
   void EnableGenerationalGC();
 
   void DisableHeapGrowingForTesting();

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "include/cppgc/common.h"
+#include "src/base/optional.h"
 #include "src/heap/cppgc/heap-config.h"
 
 namespace cppgc {
@@ -31,6 +32,10 @@ class GarbageCollector {
   // These virtual methods are also present in class HeapBase.
   virtual void set_override_stack_state(EmbedderStackState state) = 0;
   virtual void clear_overridden_stack_state() = 0;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  virtual v8::base::Optional<int> UpdateAllocationTimeout() = 0;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 }  // namespace internal
