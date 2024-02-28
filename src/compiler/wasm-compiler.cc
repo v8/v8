@@ -7794,9 +7794,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
     // Trap if there is any JS frame on the stack.
     Node* has_js_frames = gasm_->Load(
-        MachineType::Int32(), suspender,
+        MachineType::TaggedSigned(), suspender,
         wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kHasJsFramesOffset));
-    Node* cond = gasm_->Word32Equal(Int32Constant(0), has_js_frames);
+    Node* cond = gasm_->TaggedEqual(gasm_->SmiConstant(0), has_js_frames);
     auto suspend = gasm_->MakeLabel();
     gasm_->GotoIf(cond, &suspend);
     // {ThrowWasmError} expects to be called from wasm code, so set the
