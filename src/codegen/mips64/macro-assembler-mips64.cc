@@ -4437,7 +4437,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
     case BuiltinCallJumpMode::kForMksnapshot: {
       Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
-      CallCodeObject(temp);
+      CallCodeObject(temp, kJSEntrypointTag);
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
@@ -4477,7 +4477,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin) {
     case BuiltinCallJumpMode::kForMksnapshot: {
       Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
-      JumpCodeObject(temp);
+      JumpCodeObject(temp, kJSEntrypointTag);
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
@@ -6227,39 +6227,41 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
 }
 
 void MacroAssembler::LoadCodeInstructionStart(
-    Register destination, Register code_data_container_object) {
+    Register destination, Register code_data_container_object,
+    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   Ld(destination, FieldMemOperand(code_data_container_object,
                                   Code::kInstructionStartOffset));
 }
 
-void MacroAssembler::CallCodeObject(Register code_data_container_object) {
+void MacroAssembler::CallCodeObject(Register code_data_container_object,
+                                    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   LoadCodeInstructionStart(code_data_container_object,
-                           code_data_container_object);
+                           code_data_container_object, tag);
   Call(code_data_container_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_data_container_object,
-                                    JumpMode jump_mode) {
+                                    CodeEntrypointTag tag, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeInstructionStart(code_data_container_object,
-                           code_data_container_object);
+                           code_data_container_object, tag);
   Jump(code_data_container_object);
 }
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   Register code = kJavaScriptCallCodeStartRegister;
   Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(code);
+  CallCodeObject(code, kJSEntrypointTag);
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
   Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(code, jump_mode);
+  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
 }
 
 namespace {
@@ -6300,7 +6302,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeInstructionStart(a2, optimized_code_entry);
+  __ LoadCodeInstructionStart(a2, optimized_code_entry, kJSEntrypointTag);
   __ Jump(a2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -6367,7 +6369,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  LoadCodeInstructionStart(a2, v0);
+  LoadCodeInstructionStart(a2, v0, kJSEntrypointTag);
   Jump(a2);
 }
 
