@@ -2776,6 +2776,14 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
   }
 }
 
+void MacroAssembler::LoadLabelRelative(Register dest, Label* target) {
+  ASM_CODE_COMMENT(this);
+  // pcaddi could handle 22-bit pc offset.
+  int32_t offset = branch_offset_helper(target, OffsetSize::kOffset20);
+  DCHECK(is_int22(offset));
+  pcaddi(dest, offset >> 2);
+}
+
 void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   ASM_CODE_COMMENT(this);
@@ -4424,41 +4432,49 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   PrepareCallCFunction(num_reg_arguments, 0, scratch);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t7, function);
-  CallCFunctionHelper(t7, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  return CallCFunctionHelper(t7, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   ASM_CODE_COMMENT(this);
-  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
-                      set_isolate_data_slots);
+  return CallCFunctionHelper(function, num_reg_arguments, num_double_arguments,
+                             set_isolate_data_slots, return_location);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunctionHelper(
+int MacroAssembler::CallCFunctionHelper(
     Register function, int num_reg_arguments, int num_double_arguments,
-    SetIsolateDataSlots set_isolate_data_slots) {
+    SetIsolateDataSlots set_isolate_data_slots, Label* return_location) {
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
+
+  Label get_pc;
+
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -4502,7 +4518,7 @@ void MacroAssembler::CallCFunctionHelper(
       Register scratch = t2;
       DCHECK(!AreAliased(pc_scratch, scratch, function));
 
-      pcaddi(pc_scratch, 1);
+      LoadLabelRelative(pc_scratch, &get_pc);
 
       // See x64 code for reasoning about how to address the isolate data
       // fields.
@@ -4512,6 +4528,13 @@ void MacroAssembler::CallCFunctionHelper(
                         IsolateData::fast_c_call_caller_pc_offset()));
         St_d(fp, MemOperand(kRootRegister,
                             IsolateData::fast_c_call_caller_fp_offset()));
+#if DEBUG
+        // Reset Isolate::context field right before the fast C call such that
+        // the GC can visit this field unconditionally. This is necessary
+        // because CEntry sets it to kInvalidContext in debug build only.
+        static_assert(Context::kNoContext == 0);
+        StoreRootRelative(IsolateData::context_offset(), zero_reg);
+#endif
       } else {
         DCHECK_NOT_NULL(isolate());
         li(scratch,
@@ -4520,10 +4543,22 @@ void MacroAssembler::CallCFunctionHelper(
         li(scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
         St_d(fp, MemOperand(scratch, 0));
+#if DEBUG
+        // Reset Isolate::context field right before the fast C call such that
+        // the GC can visit this field unconditionally. This is necessary
+        // because CEntry sets it to kInvalidContext in debug build only.
+        static_assert(Context::kNoContext == 0);
+        St_d(zero_reg,
+             ExternalReferenceAsOperand(
+                 ExternalReference::context_address(isolate()), pc_scratch));
+#endif
       }
     }
 
     Call(function);
+    int call_pc_offset = pc_offset();
+    bind(&get_pc);
+    if (return_location) bind(return_location);
 
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
       // We don't unset the PC; the FP is the source of truth.
@@ -4549,6 +4584,8 @@ void MacroAssembler::CallCFunctionHelper(
     }
 
     set_pc_for_safepoint();
+
+    return call_pc_offset;
   }
 }
 
