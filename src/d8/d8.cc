@@ -4250,6 +4250,14 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         context->Global()->Get(context, callback_name).ToLocalChecked();
     if (!callback->IsFunction()) return;
 
+    // Running the message loop below may trigger the execution of a stackless
+    // GC. We need to override the embedder stack state, to force scanning the
+    // stack, if this happens.
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
+    i::EmbedderStackStateScope stack_scanning_scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        v8::StackState::kMayContainHeapPointers);
+
     v8::TryCatch try_catch(isolate_);
     try_catch.SetVerbose(true);
     is_paused = true;
