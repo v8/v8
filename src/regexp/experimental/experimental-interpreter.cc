@@ -86,131 +86,6 @@ base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
   return content.ToUC16Vector();
 }
 
-class FilterGroups {
- public:
-  static base::Vector<int> Filter(
-      int pc, base::Vector<int> registers,
-      base::Vector<uint64_t> quantifiers_clocks,
-      base::Vector<uint64_t> capture_clocks,
-      base::Vector<int> filtered_registers,
-      base::Vector<const RegExpInstruction> bytecode, Zone* zone) {
-    /* Capture groups that were not traversed in the last iteration of a
-     * quantifier need to be discarded. In order to determine which groups need
-     * to be discarded, the interpreter maintains a clock, an internal count of
-     * bytecode instructions executed. Whenever it reaches a quantifier or
-     * captures a part of the string, it records the current clock. After a
-     * match is found, the interpreter filters out capture groups that were
-     * defined in any other iteration than the last. To do so, it compares the
-     * last clock value of the group with the last clock value of its parent
-     * quantifier/group, keeping only groups that were defined after the parent
-     * quantifier/group last iteration. The structure of the bytecode used is
-     * explained in `FilterGroupsCompileVisitor` (experimental-compiler.cc). */
-
-    return FilterGroups(pc, bytecode, zone)
-        .Run(registers, quantifiers_clocks, capture_clocks, filtered_registers);
-  }
-
- private:
-  FilterGroups(int pc, base::Vector<const RegExpInstruction> bytecode,
-               Zone* zone)
-      : pc_(pc),
-        max_clock_(0),
-        pc_stack_(zone),
-        max_clock_stack_(zone),
-        bytecode_(bytecode) {}
-
-  /* Goes back to the parent node, restoring pc_ and max_clock_. If already at
-   * the root of the tree, completes the filtering process. */
-  void Up() {
-    if (pc_stack_.size() > 0) {
-      pc_ = pc_stack_.top();
-      max_clock_ = max_clock_stack_.top();
-      pc_stack_.pop();
-      max_clock_stack_.pop();
-    }
-  }
-
-  /* Increments pc_. When at the end of a node, goes back to the parent node. */
-  void IncrementPC() {
-    ++pc_;
-    if (pc_ == bytecode_.length() ||
-        bytecode_[pc_].opcode != RegExpInstruction::FILTER_CHILD) {
-      Up();
-    }
-  }
-
-  base::Vector<int> Run(base::Vector<int> registers_,
-                        base::Vector<uint64_t> quantifiers_clocks_,
-                        base::Vector<uint64_t> capture_clocks_,
-                        base::Vector<int> filtered_registers_) {
-    pc_stack_.push(pc_);
-    max_clock_stack_.push(max_clock_);
-
-    while (!pc_stack_.empty()) {
-      auto instr = bytecode_[pc_];
-      switch (instr.opcode) {
-        case RegExpInstruction::FILTER_CHILD:
-          // Enter the child's node.
-          pc_stack_.push(pc_ + 1);
-          max_clock_stack_.push(max_clock_);
-          pc_ = instr.payload.pc;
-          break;
-
-        case RegExpInstruction::FILTER_GROUP: {
-          int group_id = instr.payload.group_id;
-
-          // Checks whether the captured group should be saved or discarded.
-          int register_id = 2 * group_id;
-          if (capture_clocks_[register_id] >= max_clock_) {
-            filtered_registers_[register_id] = registers_[register_id];
-            filtered_registers_[register_id + 1] = registers_[register_id + 1];
-            IncrementPC();
-          } else {
-            // If the node should be discarded, all its children should be too.
-            // By going back to the parent, we don't visit the children, and
-            // therefore don't copy their registers.
-            Up();
-          }
-          break;
-        }
-
-        case RegExpInstruction::FILTER_QUANTIFIER: {
-          int quantifier_id = instr.payload.quantifier_id;
-
-          // Checks whether the quantifier should be saved or discarded.
-          if (quantifiers_clocks_[quantifier_id] >= max_clock_) {
-            max_clock_ = quantifiers_clocks_[quantifier_id];
-            IncrementPC();
-          } else {
-            // If the node should be discarded, all its children should be too.
-            // By going back to the parent, we don't visit the children, and
-            // therefore don't copy their registers.
-            Up();
-          }
-          break;
-        }
-
-        default:
-          UNREACHABLE();
-      }
-    }
-
-    return filtered_registers_;
-  }
-
-  int pc_;
-
-  // The last clock encountered (either from a quantifier or a capture group).
-  // Any groups whose clock is less then max_clock_ needs to be discarded.
-  uint64_t max_clock_;
-
-  // Stores pc_ and max_clock_ when the interpreter enters a node.
-  ZoneStack<int> pc_stack_;
-  ZoneStack<uint64_t> max_clock_stack_;
-
-  base::Vector<const RegExpInstruction> bytecode_;
-};
-
 template <class Character>
 class NfaInterpreter {
   // Executes a bytecode program in breadth-first mode, without backtracking.
@@ -269,22 +144,17 @@ class NfaInterpreter {
         bytecode_object_(bytecode),
         bytecode_(ToInstructionVector(bytecode, no_gc_)),
         register_count_per_match_(register_count_per_match),
-        quantifier_count_(0),
         input_object_(input),
         input_(ToCharacterVector<Character>(input, no_gc_)),
         input_index_(input_index),
-        clock(0),
         pc_last_input_index_(
             zone->AllocateArray<LastInputIndex>(bytecode->length()),
             bytecode->length()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),
         register_array_allocator_(zone),
-        quantifier_array_allocator_(zone),
-        capture_clock_array_allocator_(zone),
-        best_match_thread_(base::nullopt),
+        best_match_registers_(base::nullopt),
         lookbehind_pc_(0, zone),
-        filter_groups_pc_(base::nullopt),
         lookbehind_table_(0, zone),
         zone_(zone) {
     DCHECK(!bytecode_.empty());
@@ -297,31 +167,11 @@ class NfaInterpreter {
     // iterate over the last instruction, since it cannot be followed by a
     // lookbehind's bytecode.
     for (int i = 0; i < bytecode_.length() - 1; ++i) {
-      // The first `FILTER_*` instruction encountered is the start of the
-      // `FILTER_*` section.
-      if (!filter_groups_pc_.has_value() &&
-          RegExpInstruction::IsFilter(bytecode_[i])) {
-        filter_groups_pc_ = i;
-      }
-
-      // The first instruction to follow the `FILTER_*` section or the `ACCEPT`
-      // instruction is the start of the lookbehind of index 0.
-      if ((RegExpInstruction::IsFilter(bytecode_[i]) ||
-           bytecode_[i].opcode == RegExpInstruction::ACCEPT) &&
-          !RegExpInstruction::IsFilter(bytecode_[i + 1])) {
+      if ((bytecode_[i].opcode == RegExpInstruction::Opcode::ACCEPT ||
+           bytecode_[i].opcode ==
+               RegExpInstruction::Opcode::WRITE_LOOKBEHIND_TABLE)) {
         lookbehind_pc_.Add(i + 1, zone_);
         lookbehind_table_.Add(false, zone_);
-      }
-
-      if (bytecode_[i].opcode ==
-          RegExpInstruction::Opcode::WRITE_LOOKBEHIND_TABLE) {
-        lookbehind_pc_.Add(i + 1, zone_);
-        lookbehind_table_.Add(false, zone_);
-      }
-
-      if (bytecode_[i].opcode == RegExpInstruction::SET_QUANTIFIER_TO_CLOCK) {
-        quantifier_count_ =
-            std::max(quantifier_count_, bytecode_[i].payload.quantifier_id + 1);
       }
     }
 
@@ -344,7 +194,7 @@ class NfaInterpreter {
 
       if (!FoundMatch()) break;
 
-      base::Vector<int> registers = GetFilteredRegisters(*best_match_thread_);
+      base::Vector<int> registers = *best_match_registers_;
       output_registers =
           std::copy(registers.begin(), registers.end(), output_registers);
 
@@ -383,13 +233,9 @@ class NfaInterpreter {
     enum class ConsumedCharacter { DidConsume, DidNotConsume };
 
     InterpreterThread(int pc, int* register_array_begin,
-                      uint64_t* quantifier_clock_array_begin,
-                      uint64_t* capture_clock_array_begin,
                       ConsumedCharacter consumed_since_last_quantifier)
         : pc(pc),
           register_array_begin(register_array_begin),
-          quantifier_clock_array_begin(quantifier_clock_array_begin),
-          captures_clock_array_begin(capture_clock_array_begin),
           consumed_since_last_quantifier(consumed_since_last_quantifier) {}
 
     // This thread's program counter, i.e. the index within `bytecode_` of the
@@ -399,18 +245,11 @@ class NfaInterpreter {
     // `register_count_per_match_`.  Should be deallocated with
     // `register_array_allocator_`.
     int* register_array_begin;
-
-    // Pointer to an array containing the clock when the register was last
-    // saved, which is always size `register_count_per_match_`.  Should be
-    // deallocated with, respectively, `quantifier_array_allocator_` and
-    // `capture_clock_array_allocator_`.
-    uint64_t* quantifier_clock_array_begin;
-    uint64_t* captures_clock_array_begin;
-
     // Describe whether the thread consumed a character since it last entered a
     // quantifier. Since quantifier iterations that match the empty string are
     // not allowed, we need to distinguish threads that are allowed to exit a
     // quantifier iteration from those that are not.
+
     ConsumedCharacter consumed_since_last_quantifier;
   };
 
@@ -486,7 +325,7 @@ class NfaInterpreter {
   }
 
   // Find the next match and return the corresponding capture registers and
-  // write its capture registers to `best_match_thread_`.  The search starts
+  // write its capture registers to `best_match_registers_`.  The search starts
   // at the current `input_index_`.  Returns RegExp::kInternalRegExpSuccess if
   // execution could finish regularly (with or without a match) and an error
   // code due to interrupt otherwise.
@@ -519,9 +358,9 @@ class NfaInterpreter {
     }
     active_threads_.DropAndClear();
 
-    if (best_match_thread_.has_value()) {
-      DestroyThread(*best_match_thread_);
-      best_match_thread_ = base::nullopt;
+    if (best_match_registers_.has_value()) {
+      FreeRegisterArray(best_match_registers_->begin());
+      best_match_registers_ = base::nullopt;
     }
 
     // The lookbehind threads need to be executed before the thread of their
@@ -531,14 +370,12 @@ class NfaInterpreter {
     // bytecode is located at PC 0, and is executed with the lowest priority.
     active_threads_.Add(
         InterpreterThread(0, NewRegisterArray(kUndefinedRegisterValue),
-                          NewQuantifierClockArray(0), NewCaptureClockArray(0),
                           InterpreterThread::ConsumedCharacter::DidConsume),
         zone_);
 
     for (int i : lookbehind_pc_) {
       active_threads_.Add(
           InterpreterThread(i, NewRegisterArray(kUndefinedRegisterValue),
-                            NewQuantifierClockArray(0), NewCaptureClockArray(0),
                             InterpreterThread::ConsumedCharacter::DidConsume),
           zone_);
     }
@@ -584,14 +421,6 @@ class NfaInterpreter {
   // - If `t` executes ACCEPT, set `best_match` according to `t.match_begin` and
   //   the current input index. All remaining `active_threads_` are discarded.
   void RunActiveThread(InterpreterThread t) {
-    ++clock;
-
-    // Since the clock is a `uint64_t`, it is almost guaranteed
-    // not to overflow. An `uint64_t` being at least 64 bits, it
-    // would take at least a hundred years to overflow if the clock was
-    // incremented at each cycle of a 3 GHz processor.
-    DCHECK_GT(clock, 0);
-
     while (true) {
       if (IsPcProcessed(t.pc, t.consumed_since_last_quantifier)) return;
       MarkPcProcessed(t.pc, t.consumed_since_last_quantifier);
@@ -613,35 +442,12 @@ class NfaInterpreter {
         case RegExpInstruction::FORK: {
           InterpreterThread fork(inst.payload.pc,
                                  NewRegisterArrayUninitialized(),
-                                 NewQuantifierClockArrayUninitialized(),
-                                 NewCaptureClockArrayUninitialized(),
                                  t.consumed_since_last_quantifier);
-
           base::Vector<int> fork_registers = GetRegisterArray(fork);
           base::Vector<int> t_registers = GetRegisterArray(t);
           DCHECK_EQ(fork_registers.length(), t_registers.length());
           std::copy(t_registers.begin(), t_registers.end(),
                     fork_registers.begin());
-
-          base::Vector<uint64_t> fork_quantifier_clocks =
-              GetQuantifierClockArray(fork);
-          base::Vector<uint64_t> t_fork_quantifier_clocks =
-              GetQuantifierClockArray(t);
-          DCHECK_EQ(fork_quantifier_clocks.length(),
-                    t_fork_quantifier_clocks.length());
-          std::copy(t_fork_quantifier_clocks.begin(),
-                    t_fork_quantifier_clocks.end(),
-                    fork_quantifier_clocks.begin());
-
-          base::Vector<uint64_t> fork_capture_clocks =
-              GetCaptureClockArray(fork);
-          base::Vector<uint64_t> t_fork_capture_clocks =
-              GetCaptureClockArray(t);
-          DCHECK_EQ(fork_capture_clocks.length(),
-                    t_fork_capture_clocks.length());
-          std::copy(t_fork_capture_clocks.begin(), t_fork_capture_clocks.end(),
-                    fork_capture_clocks.begin());
-
           active_threads_.Add(fork, zone_);
 
           ++t.pc;
@@ -651,29 +457,25 @@ class NfaInterpreter {
           t.pc = inst.payload.pc;
           break;
         case RegExpInstruction::ACCEPT:
-          if (best_match_thread_.has_value()) {
-            DestroyThread(*best_match_thread_);
+          if (best_match_registers_.has_value()) {
+            FreeRegisterArray(best_match_registers_->begin());
           }
-          best_match_thread_ = t;
+          best_match_registers_ = GetRegisterArray(t);
 
           for (InterpreterThread s : active_threads_) {
-            DestroyThread(s);
+            FreeRegisterArray(s.register_array_begin);
           }
           active_threads_.DropAndClear();
           return;
         case RegExpInstruction::SET_REGISTER_TO_CP:
           GetRegisterArray(t)[inst.payload.register_index] = input_index_;
-          GetCaptureClockArray(t)[inst.payload.register_index] = clock;
           ++t.pc;
           break;
-        case RegExpInstruction::SET_QUANTIFIER_TO_CLOCK:
-          GetQuantifierClockArray(t)[inst.payload.quantifier_id] = clock;
+        case RegExpInstruction::CLEAR_REGISTER:
+          GetRegisterArray(t)[inst.payload.register_index] =
+              kUndefinedRegisterValue;
           ++t.pc;
           break;
-        case RegExpInstruction::FILTER_QUANTIFIER:
-        case RegExpInstruction::FILTER_GROUP:
-        case RegExpInstruction::FILTER_CHILD:
-          UNREACHABLE();
         case RegExpInstruction::BEGIN_LOOP:
           t.consumed_since_last_quantifier =
               InterpreterThread::ConsumedCharacter::DidNotConsume;
@@ -749,19 +551,10 @@ class NfaInterpreter {
     blocked_threads_.DropAndClear();
   }
 
-  bool FoundMatch() const { return best_match_thread_.has_value(); }
+  bool FoundMatch() const { return best_match_registers_.has_value(); }
 
   base::Vector<int> GetRegisterArray(InterpreterThread t) {
     return base::Vector<int>(t.register_array_begin, register_count_per_match_);
-  }
-
-  base::Vector<uint64_t> GetQuantifierClockArray(InterpreterThread t) {
-    return base::Vector<uint64_t>(t.quantifier_clock_array_begin,
-                                  quantifier_count_);
-  }
-  base::Vector<uint64_t> GetCaptureClockArray(InterpreterThread t) {
-    return base::Vector<uint64_t>(t.captures_clock_array_begin,
-                                  register_count_per_match_);
   }
 
   int* NewRegisterArrayUninitialized() {
@@ -780,60 +573,8 @@ class NfaInterpreter {
                                          register_count_per_match_);
   }
 
-  uint64_t* NewQuantifierClockArrayUninitialized() {
-    return quantifier_array_allocator_.allocate(quantifier_count_);
-  }
-
-  uint64_t* NewQuantifierClockArray(uint64_t fill_value) {
-    uint64_t* array_begin = NewQuantifierClockArrayUninitialized();
-    uint64_t* array_end = array_begin + quantifier_count_;
-    std::fill(array_begin, array_end, fill_value);
-    return array_begin;
-  }
-
-  void FreeQuantifierClockArray(uint64_t* quantifier_clock_array_begin) {
-    quantifier_array_allocator_.deallocate(quantifier_clock_array_begin,
-                                           quantifier_count_);
-  }
-
-  uint64_t* NewCaptureClockArrayUninitialized() {
-    return capture_clock_array_allocator_.allocate(register_count_per_match_);
-  }
-
-  uint64_t* NewCaptureClockArray(int fill_value) {
-    uint64_t* array_begin = NewCaptureClockArrayUninitialized();
-    uint64_t* array_end = array_begin + register_count_per_match_;
-    std::fill(array_begin, array_end, fill_value);
-    return array_begin;
-  }
-
-  void FreeCaptureClockArray(uint64_t* register_array_begin) {
-    capture_clock_array_allocator_.deallocate(register_array_begin,
-                                              register_count_per_match_);
-  }
-
-  base::Vector<int> GetFilteredRegisters(InterpreterThread t) {
-    base::Vector<int> registers = GetRegisterArray(t);
-
-    if (filter_groups_pc_.has_value()) {
-      base::Vector<int> filtered_registers(
-          NewRegisterArray(kUndefinedRegisterValue), register_count_per_match_);
-
-      filtered_registers[0] = registers[0];
-      filtered_registers[1] = registers[1];
-
-      return FilterGroups::Filter(
-          *filter_groups_pc_, registers, GetQuantifierClockArray(t),
-          GetCaptureClockArray(t), filtered_registers, bytecode_, zone_);
-    } else {
-      return registers;
-    }
-  }
-
   void DestroyThread(InterpreterThread t) {
     FreeRegisterArray(t.register_array_begin);
-    FreeQuantifierClockArray(t.quantifier_clock_array_begin);
-    FreeCaptureClockArray(t.captures_clock_array_begin);
   }
 
   // It is redundant to have two threads t, t0 execute at the same PC and
@@ -895,15 +636,9 @@ class NfaInterpreter {
   // Number of registers used per thread.
   const int register_count_per_match_;
 
-  // Number of quantifiers in the regexp.
-  int quantifier_count_;
-
   Tagged<String> input_object_;
   base::Vector<const Character> input_;
   int input_index_;
-
-  // Global clock counting the total of executed instructions.
-  uint64_t clock;
 
   // Stores the last input index at which a thread was activated for a given pc.
   // Two values are stored, depending on the value
@@ -938,23 +673,16 @@ class NfaInterpreter {
   // RecyclingZoneAllocator maintains a linked list through freed allocations
   // for reuse if possible.
   RecyclingZoneAllocator<int> register_array_allocator_;
-  RecyclingZoneAllocator<uint64_t> quantifier_array_allocator_;
-  RecyclingZoneAllocator<uint64_t> capture_clock_array_allocator_;
 
   // The register array of the best match found so far during the current
   // search.  If several threads ACCEPTed, then this will be the register array
   // of the accepting thread with highest priority.  Should be deallocated with
   // `register_array_allocator_`.
-  base::Optional<InterpreterThread> best_match_thread_;
+  base::Optional<base::Vector<int>> best_match_registers_;
 
   // Starting PC of each of the lookbehinds in the bytecode. Computed during the
   // NFA instantiation (see the constructor).
   ZoneList<int> lookbehind_pc_;
-
-  // PC of the first FILTER_* instruction. Computed during the NFA instantiation
-  // (see the constructor). May be empty if their are no such instructions (in
-  // the case where there are no capture groups or quantifiers).
-  base::Optional<int> filter_groups_pc_;
 
   // Truth table for the lookbehinds. lookbehind_table_[k] indicates whether the
   // lookbehind of index k did complete a match on the current position.
