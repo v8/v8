@@ -2408,6 +2408,21 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableStackSlot(size, alignment, is_tagged);
   }
 
+  V<WordPtr> AdaptLocalArgument(V<Object> argument) {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // With direct locals, the argument can be passed directly.
+    return BitcastTaggedToWordPtr(argument);
+#else
+    // With indirect locals, the argument has to be stored on the stack and the
+    // slot address is passed.
+    V<WordPtr> stack_slot =
+        StackSlot(sizeof(uintptr_t), alignof(uintptr_t), true);
+    StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
+                 MemoryRepresentation::UintPtr());
+    return stack_slot;
+#endif
+  }
+
   OpIndex LoadRootRegister() { return ReduceIfReachableLoadRootRegister(); }
 
   OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
