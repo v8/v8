@@ -79,12 +79,12 @@ macro NewPromiseFulfillReactionJobTask(
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
     return new PromiseFulfillReactionJobTask{
       map: PromiseFulfillReactionJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          GetContinuationPreservedEmbedderData(),
       argument,
       context: handlerContext,
       handler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData()
+      promise_or_capability: promiseOrCapability
     };
   }
 
@@ -107,12 +107,12 @@ macro NewPromiseRejectReactionJobTask(
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
     return new PromiseRejectReactionJobTask{
       map: PromiseRejectReactionJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          GetContinuationPreservedEmbedderData(),
       argument,
       context: handlerContext,
       handler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData()
+      promise_or_capability: promiseOrCapability
     };
   }
 
@@ -302,12 +302,12 @@ macro NewPromiseReaction(
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
+      continuation_preserved_embedder_data:
+          GetContinuationPreservedEmbedderData(),
       next: next,
       reject_handler: rejectHandler,
       fulfill_handler: fulfillHandler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data:
-          GetContinuationPreservedEmbedderData()
+      promise_or_capability: promiseOrCapability
     };
   }
 
@@ -343,13 +343,27 @@ macro NewPromiseResolveThenableJobTask(
   // 1. Let job be a new Job abstract closure with no parameters that
   //    captures promiseToResolve, thenable, and then...
   // 5. Return { [[Job]]: job, [[Realm]]: thenRealm }.
-  return new PromiseResolveThenableJobTask{
-    map: PromiseResolveThenableJobTaskMapConstant(),
-    context: nativeContext,
-    promise_to_resolve: promiseToResolve,
-    thenable,
-    then
-  };
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseResolveThenableJobTask{
+      map: PromiseResolveThenableJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          GetContinuationPreservedEmbedderData(),
+      context: nativeContext,
+      promise_to_resolve: promiseToResolve,
+      thenable,
+      then
+    };
+  }
+
+  @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseResolveThenableJobTask{
+      map: PromiseResolveThenableJobTaskMapConstant(),
+      context: nativeContext,
+      promise_to_resolve: promiseToResolve,
+      thenable,
+      then
+    };
+  }
 }
 
 struct InvokeThenOneArgFunctor {

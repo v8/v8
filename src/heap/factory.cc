@@ -1553,6 +1553,11 @@ Handle<CallableTask> Factory::NewCallableTask(DirectHandle<JSReceiver> callable,
   DisallowGarbageCollection no_gc;
   microtask->set_callable(*callable, SKIP_WRITE_BARRIER);
   microtask->set_context(*context, SKIP_WRITE_BARRIER);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  microtask->set_continuation_preserved_embedder_data(
+      isolate()->isolate_data()->continuation_preserved_embedder_data(),
+      SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   return handle(microtask, isolate());
 }
 
@@ -1563,6 +1568,11 @@ Handle<CallbackTask> Factory::NewCallbackTask(DirectHandle<Foreign> callback,
   DisallowGarbageCollection no_gc;
   microtask->set_callback(*callback, SKIP_WRITE_BARRIER);
   microtask->set_data(*data, SKIP_WRITE_BARRIER);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  microtask->set_continuation_preserved_embedder_data(
+      isolate()->isolate_data()->continuation_preserved_embedder_data(),
+      SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   return handle(microtask, isolate());
 }
 
@@ -1578,6 +1588,11 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   microtask->set_thenable(*thenable, SKIP_WRITE_BARRIER);
   microtask->set_then(*then, SKIP_WRITE_BARRIER);
   microtask->set_context(*context, SKIP_WRITE_BARRIER);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  microtask->set_continuation_preserved_embedder_data(
+      isolate()->isolate_data()->continuation_preserved_embedder_data(),
+      SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   return handle(microtask, isolate());
 }
 
