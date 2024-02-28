@@ -13,10 +13,11 @@ namespace v8::internal::wasm {
 
 inline CompilationEnv CompilationEnv::ForModule(
     const NativeModule* native_module) {
-  return CompilationEnv(
-      native_module->module(), native_module->enabled_features(),
-      native_module->compilation_state()->dynamic_tiering(),
-      native_module->fast_api_targets(), native_module->fast_api_sigs());
+  return CompilationEnv(native_module->module(),
+                        native_module->enabled_features(),
+                        native_module->compilation_state()->dynamic_tiering(),
+                        native_module->fast_api_targets(),
+                        native_module->fast_api_return_is_bool());
 }
 
 constexpr CompilationEnv CompilationEnv::NoModuleAllFeatures() {

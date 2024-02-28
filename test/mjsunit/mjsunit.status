@@ -741,9 +741,6 @@
 ##############################################################################
 ['tsan == True', {
 
-  # TODO(ahaas): Flaky.
-  'wasm/fast-api-calls-with-wellknown-imports': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],

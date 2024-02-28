@@ -438,7 +438,9 @@ WellKnownImport CheckForWellKnownImport(
     isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
                                                               c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    native_module->set_fast_api_sig(func_index, func_data->GetCSignature(0));
+    native_module->set_fast_api_return_is_bool(
+        func_index, func_data->GetCSignature(0)->ReturnInfo().GetType() ==
+                        CTypeInfo::Type::kBool);
 
     Handle<HeapObject> js_signature(sfi->api_func_data()->signature(), isolate);
     Handle<WasmFastApiCallData> fast_api_call_data =

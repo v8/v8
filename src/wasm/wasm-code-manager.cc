@@ -838,8 +838,8 @@ NativeModule::NativeModule(WasmFeatures enabled,
       module_(std::move(module)),
       fast_api_targets_(
           new std::atomic<Address>[module_->num_imported_functions]()),
-      fast_api_sigs_(
-          new const CFunctionInfo*[module_->num_imported_functions]()) {
+      fast_api_return_is_bool_(
+          new std::atomic<bool>[module_->num_imported_functions]()) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.

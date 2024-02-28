@@ -62,7 +62,7 @@ struct CompilationEnv {
 
   const std::atomic<Address>* fast_api_targets;
 
-  const v8::CFunctionInfo** fast_api_sigs;
+  std::atomic<bool>* fast_api_return_is_bool;
 
   // Create a {CompilationEnv} object for compilation. The caller has to ensure
   // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
@@ -76,12 +76,12 @@ struct CompilationEnv {
                            WasmFeatures enabled_features,
                            DynamicTiering dynamic_tiering,
                            std::atomic<Address>* fast_api_targets,
-                           const CFunctionInfo** fast_api_sigs)
+                           std::atomic<bool>* fast_api_return_is_bool)
       : module(module),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering),
         fast_api_targets(fast_api_targets),
-        fast_api_sigs(fast_api_sigs) {}
+        fast_api_return_is_bool(fast_api_return_is_bool) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)

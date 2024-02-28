@@ -779,11 +779,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return fast_api_targets_.get();
   }
 
-  void set_fast_api_sig(int index, const CFunctionInfo* sig) {
-    fast_api_sigs_[index] = sig;
+  void set_fast_api_return_is_bool(int index, bool return_is_bool) {
+    fast_api_return_is_bool_[index] = return_is_bool;
   }
 
-  const CFunctionInfo** fast_api_sigs() const { return fast_api_sigs_.get(); }
+  std::atomic<bool>* fast_api_return_is_bool() const {
+    return fast_api_return_is_bool_.get();
+  }
 
  private:
   friend class WasmCode;
@@ -977,7 +979,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<bool> log_code_{false};
 
   std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
-  std::unique_ptr<const v8::CFunctionInfo*[]> fast_api_sigs_;
+  std::unique_ptr<std::atomic<bool>[]> fast_api_return_is_bool_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

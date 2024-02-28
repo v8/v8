@@ -1676,9 +1676,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
 
-    const CFunctionInfo* c_sig = env_->fast_api_sigs[func_index];
-
-    if (c_sig->ReturnInfo().GetType() == CTypeInfo::Type::kBool) {
+    if (env_->fast_api_return_is_bool[func_index]) {
       ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
                                   WordRepresentation::Word32());
     }
