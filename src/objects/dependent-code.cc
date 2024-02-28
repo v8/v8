@@ -92,8 +92,9 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   return entries;
 }
 
+template <typename Function>
 void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
-                                      const IterateAndCompactFn& fn) {
+                                      const Function& fn) {
   DisallowGarbageCollection no_gc;
 
   int len = length();
