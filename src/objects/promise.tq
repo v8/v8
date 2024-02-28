@@ -30,11 +30,6 @@ const kPromiseReactionIsolateContinuationPreservedEmbedderDataOffset:
     constexpr int31
     generates 'PromiseReaction::kIsolateContinuationPreservedEmbedderDataOffset'
     ;
-// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-const kPromiseReactionContextContinuationPreservedEmbedderDataOffset:
-    constexpr int31
-    generates 'PromiseReaction::kContextContinuationPreservedEmbedderDataOffset'
-    ;
 
 extern class PromiseReaction extends Struct {
   next: PromiseReaction|Zero;
@@ -44,9 +39,7 @@ extern class PromiseReaction extends Struct {
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-  isolate_continuation_preserved_embedder_data: Object|Undefined;
-  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-  context_continuation_preserved_embedder_data: Object|Undefined;
+  continuation_preserved_embedder_data: Object|Undefined;
 }
 
 // PromiseReactionJobTask constants
@@ -61,11 +54,6 @@ const kPromiseReactionJobTaskIsolateContinuationPreservedEmbedderDataOffset:
     constexpr int31
     generates 'PromiseReactionJobTask::kIsolateContinuationPreservedEmbedderDataOffset'
     ;
-// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-const kPromiseReactionJobTaskContextContinuationPreservedEmbedderDataOffset:
-    constexpr int31
-    generates 'PromiseReactionJobTask::kContextContinuationPreservedEmbedderDataOffset'
-    ;
 
 @abstract
 extern class PromiseReactionJobTask extends Microtask {
@@ -76,9 +64,7 @@ extern class PromiseReactionJobTask extends Microtask {
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-  isolate_continuation_preserved_embedder_data: Object|Undefined;
-  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
-  context_continuation_preserved_embedder_data: Object|Undefined;
+  continuation_preserved_embedder_data: Object|Undefined;
 }
 
 extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}

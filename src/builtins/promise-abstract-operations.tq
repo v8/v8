@@ -450,13 +450,11 @@ transitioning macro PerformPromiseThenImpl(
     // PromiseReaction holding both the onFulfilled and onRejected callbacks.
     // Once the {promise} is resolved we decide on the concrete handler to
     // push onto the microtask queue.
-    const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
     const promiseReactions =
         UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
 
     const reaction = NewPromiseReaction(
-        handlerContext, promiseReactions, resultPromiseOrCapability,
-        onFulfilled, onRejected);
+        promiseReactions, resultPromiseOrCapability, onFulfilled, onRejected);
     promise.reactions_or_result = reaction;
   } else {
     const reactionsOrResult = promise.reactions_or_result;

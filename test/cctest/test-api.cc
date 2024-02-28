@@ -30179,16 +30179,6 @@ void GetIsolatePreservedContinuationData(
       info.GetIsolate()->GetContinuationPreservedEmbedderData());
 }
 
-void GetContextPreservedContinuationData(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  START_ALLOW_USE_DEPRECATED();
-  info.GetReturnValue().Set(info.GetIsolate()
-                                ->GetCurrentContext()
-                                ->GetContinuationPreservedEmbedderData());
-  END_ALLOW_USE_DEPRECATED();
-}
-
 TEST(ContinuationPreservedEmbedderData) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -30198,9 +30188,6 @@ TEST(ContinuationPreservedEmbedderData) {
       v8::Promise::Resolver::New(context.local()).ToLocalChecked();
 
   isolate->SetContinuationPreservedEmbedderData(v8_str("foo"));
-  START_ALLOW_USE_DEPRECATED();
-  context->SetContinuationPreservedEmbedderData(v8_str("bar"));
-  END_ALLOW_USE_DEPRECATED();
 
   v8::Local<v8::Function> get_isolate_preserved_data =
       v8::Function::New(context.local(), GetIsolatePreservedContinuationData,
@@ -30211,23 +30198,10 @@ TEST(ContinuationPreservedEmbedderData) {
           ->Then(context.local(), get_isolate_preserved_data)
           .ToLocalChecked();
 
-  v8::Local<v8::Function> get_context_preserved_data =
-      v8::Function::New(context.local(), GetContextPreservedContinuationData,
-                        v8_str("get_context_preserved_data"))
-          .ToLocalChecked();
-  Local<v8::Promise> p2 =
-      resolver->GetPromise()
-          ->Then(context.local(), get_context_preserved_data)
-          .ToLocalChecked();
-
   isolate->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
-  START_ALLOW_USE_DEPRECATED();
-  context->SetContinuationPreservedEmbedderData(v8::Undefined(isolate));
-  END_ALLOW_USE_DEPRECATED();
 
   resolver->Resolve(context.local(), v8::Undefined(isolate)).FromJust();
   isolate->PerformMicrotaskCheckpoint();
 
   CHECK(v8_str("foo")->SameValue(p1->Result()));
-  CHECK(v8_str("bar")->SameValue(p2->Result()));
 }

@@ -5032,18 +5032,11 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           static_cast<int>(
               PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-      static_assert(static_cast<int>(
-                        PromiseReaction::
-                            kIsolateContinuationPreservedEmbedderDataOffset) ==
-                    static_cast<int>(
-                        PromiseFulfillReactionJobTask::
-                            kIsolateContinuationPreservedEmbedderDataOffset));
-      static_assert(static_cast<int>(
-                        PromiseReaction::
-                            kContextContinuationPreservedEmbedderDataOffset) ==
-                    static_cast<int>(
-                        PromiseFulfillReactionJobTask::
-                            kContextContinuationPreservedEmbedderDataOffset));
+      static_assert(
+          static_cast<int>(
+              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
+          static_cast<int>(PromiseFulfillReactionJobTask::
+                               kContinuationPreservedEmbedderDataOffset));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     } else {
       DisallowGarbageCollection no_gc;
@@ -5060,18 +5053,11 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           static_cast<int>(
               PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-      static_assert(static_cast<int>(
-                        PromiseReaction::
-                            kIsolateContinuationPreservedEmbedderDataOffset) ==
-                    static_cast<int>(
-                        PromiseRejectReactionJobTask::
-                            kIsolateContinuationPreservedEmbedderDataOffset));
-      static_assert(static_cast<int>(
-                        PromiseReaction::
-                            kContextContinuationPreservedEmbedderDataOffset) ==
-                    static_cast<int>(
-                        PromiseRejectReactionJobTask::
-                            kContextContinuationPreservedEmbedderDataOffset));
+      static_assert(
+          static_cast<int>(
+              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
+          static_cast<int>(PromiseRejectReactionJobTask::
+                               kContinuationPreservedEmbedderDataOffset));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     }
 

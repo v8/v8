@@ -329,22 +329,6 @@ class V8_EXPORT Context : public Data {
   void SetAbortScriptExecution(AbortScriptExecutionCallback callback);
 
   /**
-   * Returns the value that was set or restored by
-   * SetContinuationPreservedEmbedderData(), if any.
-   */
-  V8_DEPRECATE_SOON(
-      "Use v8::Isolate::GetContinuationPreservedEmbedderData instead")
-  Local<Value> GetContinuationPreservedEmbedderData() const;
-
-  /**
-   * Sets a value that will be stored on continuations and reset while the
-   * continuation runs.
-   */
-  V8_DEPRECATE_SOON(
-      "Use v8::Isolate::SetContinuationPreservedEmbedderData instead")
-  void SetContinuationPreservedEmbedderData(Local<Value> context);
-
-  /**
    * Set or clear hooks to be invoked for promise lifecycle operations.
    * To clear a hook, set it to an empty v8::Function. Each function will
    * receive the observed promise as the first argument. If a chaining
