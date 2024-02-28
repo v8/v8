@@ -245,6 +245,7 @@ bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
   }
   switch (op0.opcode) {
     CASE(Simd128Unary)
+    CASE(Simd128Binop)
     default:
       return true;
   }
@@ -369,6 +370,23 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         }
       }
 #undef UNARY_CASE
+    }
+    case Opcode::kSimd128Binop: {
+#define BINOP_CASE(op_128, not_used) case Simd128BinopOp::Kind::k##op_128:
+      switch (op0.Cast<Simd128BinopOp>().kind) {
+        SIMD256_BINOP_SIMPLE_OP(BINOP_CASE) {
+          TRACE("Added a vector of BinOp\n");
+          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                                 recursion_depth);
+          return pnode;
+        }
+        default: {
+          TRACE("Unsupported Simd128BinopOp: %s\n",
+                GetSimdOpcodeName(op0).c_str());
+          return nullptr;
+        }
+      }
+#undef BINOP_CASE
     }
 
     default:

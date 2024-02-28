@@ -36,20 +36,95 @@ namespace v8::internal::compiler::turboshaft {
   V(I32x4UConvertF32x4, I32x8UConvertF32x8)                \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8)
 
-namespace {
-
-Simd256UnaryOp::Kind GetSimd256UnaryKind(Simd128UnaryOp::Kind simd128_kind) {
-  switch (simd128_kind) {
-#define UNOP_KIND_MAPPING(from, to)   \
-  case Simd128UnaryOp::Kind::k##from: \
-    return Simd256UnaryOp::Kind::k##to;
-    SIMD256_UNARY_OP(UNOP_KIND_MAPPING)
-#undef UNOP_KIND_MAPPING
-    default:
-      UNIMPLEMENTED();
-  }
-}
-}  // namespace
+#define SIMD256_BINOP_SIMPLE_OP(V)                 \
+  V(I8x16Eq, I8x32Eq)                              \
+  V(I8x16Ne, I8x32Ne)                              \
+  V(I8x16GtS, I8x32GtS)                            \
+  V(I8x16GtU, I8x32GtU)                            \
+  V(I8x16GeS, I8x32GeS)                            \
+  V(I8x16GeU, I8x32GeU)                            \
+  V(I16x8Eq, I16x16Eq)                             \
+  V(I16x8Ne, I16x16Ne)                             \
+  V(I16x8GtS, I16x16GtS)                           \
+  V(I16x8GtU, I16x16GtU)                           \
+  V(I16x8GeS, I16x16GeS)                           \
+  V(I16x8GeU, I16x16GeU)                           \
+  V(I32x4Eq, I32x8Eq)                              \
+  V(I32x4Ne, I32x8Ne)                              \
+  V(I32x4GtS, I32x8GtS)                            \
+  V(I32x4GtU, I32x8GtU)                            \
+  V(I32x4GeS, I32x8GeS)                            \
+  V(I32x4GeU, I32x8GeU)                            \
+  V(F32x4Eq, F32x8Eq)                              \
+  V(F32x4Ne, F32x8Ne)                              \
+  V(F32x4Lt, F32x8Lt)                              \
+  V(F32x4Le, F32x8Le)                              \
+  V(F64x2Eq, F64x4Eq)                              \
+  V(F64x2Ne, F64x4Ne)                              \
+  V(F64x2Lt, F64x4Lt)                              \
+  V(F64x2Le, F64x4Le)                              \
+  V(S128And, S256And)                              \
+  V(S128AndNot, S256AndNot)                        \
+  V(S128Or, S256Or)                                \
+  V(S128Xor, S256Xor)                              \
+  V(I8x16SConvertI16x8, I8x32SConvertI16x16)       \
+  V(I8x16UConvertI16x8, I8x32UConvertI16x16)       \
+  V(I8x16Add, I8x32Add)                            \
+  V(I8x16AddSatS, I8x32AddSatS)                    \
+  V(I8x16AddSatU, I8x32AddSatU)                    \
+  V(I8x16Sub, I8x32Sub)                            \
+  V(I8x16SubSatS, I8x32SubSatS)                    \
+  V(I8x16SubSatU, I8x32SubSatU)                    \
+  V(I8x16MinS, I8x32MinS)                          \
+  V(I8x16MinU, I8x32MinU)                          \
+  V(I8x16MaxS, I8x32MaxS)                          \
+  V(I8x16MaxU, I8x32MaxU)                          \
+  V(I8x16RoundingAverageU, I8x32RoundingAverageU)  \
+  V(I16x8SConvertI32x4, I16x16SConvertI32x8)       \
+  V(I16x8UConvertI32x4, I16x16UConvertI32x8)       \
+  V(I16x8Add, I16x16Add)                           \
+  V(I16x8AddSatS, I16x16AddSatS)                   \
+  V(I16x8AddSatU, I16x16AddSatU)                   \
+  V(I16x8Sub, I16x16Sub)                           \
+  V(I16x8SubSatS, I16x16SubSatS)                   \
+  V(I16x8SubSatU, I16x16SubSatU)                   \
+  V(I16x8Mul, I16x16Mul)                           \
+  V(I16x8MinS, I16x16MinS)                         \
+  V(I16x8MinU, I16x16MinU)                         \
+  V(I16x8MaxS, I16x16MaxS)                         \
+  V(I16x8MaxU, I16x16MaxU)                         \
+  V(I16x8RoundingAverageU, I16x16RoundingAverageU) \
+  V(I32x4Add, I32x8Add)                            \
+  V(I32x4Sub, I32x8Sub)                            \
+  V(I32x4Mul, I32x8Mul)                            \
+  V(I32x4MinS, I32x8MinS)                          \
+  V(I32x4MinU, I32x8MinU)                          \
+  V(I32x4MaxS, I32x8MaxS)                          \
+  V(I32x4MaxU, I32x8MaxU)                          \
+  V(I32x4DotI16x8S, I32x8DotI16x16S)               \
+  V(I64x2Add, I64x4Add)                            \
+  V(I64x2Sub, I64x4Sub)                            \
+  V(I64x2Mul, I64x4Mul)                            \
+  V(I64x2Eq, I64x4Eq)                              \
+  V(I64x2Ne, I64x4Ne)                              \
+  V(I64x2GtS, I64x4GtS)                            \
+  V(I64x2GeS, I64x4GeS)                            \
+  V(F32x4Add, F32x8Add)                            \
+  V(F32x4Sub, F32x8Sub)                            \
+  V(F32x4Mul, F32x8Mul)                            \
+  V(F32x4Div, F32x8Div)                            \
+  V(F32x4Min, F32x8Min)                            \
+  V(F32x4Max, F32x8Max)                            \
+  V(F32x4Pmin, F32x8Pmin)                          \
+  V(F32x4Pmax, F32x8Pmax)                          \
+  V(F64x2Add, F64x4Add)                            \
+  V(F64x2Sub, F64x4Sub)                            \
+  V(F64x2Mul, F64x4Mul)                            \
+  V(F64x2Div, F64x4Div)                            \
+  V(F64x2Min, F64x4Min)                            \
+  V(F64x2Max, F64x4Max)                            \
+  V(F64x2Pmin, F64x4Pmin)                          \
+  V(F64x2Pmax, F64x4Pmax)
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -92,7 +167,7 @@ class NodeGroup {
 // are mutually independent.
 class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  PackNode(const NodeGroup& node_group)
+  explicit PackNode(const NodeGroup& node_group)
       : nodes_(node_group), revectorized_node_() {}
   NodeGroup Nodes() const { return nodes_; }
   bool IsSame(const NodeGroup& node_group) const {
@@ -308,7 +383,48 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Unary(ig_index, unary);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Binop)(OpIndex ig_index,
+                                           const Simd128BinopOp& op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (og_index.valid()) return OpIndex::Invalid();
+      auto left = analyzer_.GetReduced(op.left());
+      auto right = analyzer_.GetReduced(op.right());
+      og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+      pnode->SetRevectorizedNode(og_index);
+      return OpIndex::Invalid();
+    }
+
+    return Next::ReduceInputGraphSimd128Binop(ig_index, op);
+  }
+
  private:
+  static Simd256UnaryOp::Kind GetSimd256UnaryKind(
+      Simd128UnaryOp::Kind simd128_kind) {
+    switch (simd128_kind) {
+#define UNOP_KIND_MAPPING(from, to)   \
+  case Simd128UnaryOp::Kind::k##from: \
+    return Simd256UnaryOp::Kind::k##to;
+      SIMD256_UNARY_OP(UNOP_KIND_MAPPING)
+#undef UNOP_KIND_MAPPING
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
+  static Simd256BinopOp::Kind GetSimd256BinOpKind(Simd128BinopOp::Kind kind) {
+    switch (kind) {
+#define BINOP_KIND_MAPPING(from, to)  \
+  case Simd128BinopOp::Kind::k##from: \
+    return Simd256BinopOp::Kind::k##to;
+      SIMD256_BINOP_SIMPLE_OP(BINOP_KIND_MAPPING)
+#undef BINOP_KIND_MAPPING
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
   WasmRevecAnalyzer analyzer_ = *PipelineData::Get().wasm_revec_analyzer();
 };

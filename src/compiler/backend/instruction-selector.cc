@@ -5401,6 +5401,17 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_256_UNARY
       }
     }
+    case Opcode::kSimd256Binop: {
+      const Simd256BinopOp& binop = op.Cast<Simd256BinopOp>();
+      MarkAsSimd256(node);
+      switch (binop.kind) {
+#define VISIT_SIMD_BINOP(kind)        \
+  case Simd256BinopOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_BINARY_OPCODE(VISIT_SIMD_BINOP)
+#undef VISIT_SIMD_BINOP
+      }
+    }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
     case Opcode::kLoadStackPointer:

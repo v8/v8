@@ -3659,6 +3659,11 @@ class TurboshaftAssemblerOpInterface
   V<Simd256> Simd256Unary(V<Simd256> input, Simd256UnaryOp::Kind kind) {
     return ReduceIfReachableSimd256Unary(input, kind);
   }
+
+  V<Simd256> Simd256Binop(V<Simd256> left, V<Simd256> right,
+                          Simd256BinopOp::Kind kind) {
+    return ReduceIfReachableSimd256Binop(left, right, kind);
+  }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   V<WasmTrustedInstanceData> WasmInstanceParameter() {

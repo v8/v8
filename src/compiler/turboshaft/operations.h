@@ -136,7 +136,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #if V8_ENABLE_WASM_SIMD256_REVEC
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
   V(Simd256Extract128Lane)                   \
-  V(Simd256Unary)
+  V(Simd256Unary)                            \
+  V(Simd256Binop)
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -7769,6 +7770,134 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
+
+#define FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V) \
+  V(I8x32Eq)                                    \
+  V(I8x32Ne)                                    \
+  V(I8x32GtS)                                   \
+  V(I8x32GtU)                                   \
+  V(I8x32GeS)                                   \
+  V(I8x32GeU)                                   \
+  V(I16x16Eq)                                   \
+  V(I16x16Ne)                                   \
+  V(I16x16GtS)                                  \
+  V(I16x16GtU)                                  \
+  V(I16x16GeS)                                  \
+  V(I16x16GeU)                                  \
+  V(I32x8Eq)                                    \
+  V(I32x8Ne)                                    \
+  V(I32x8GtS)                                   \
+  V(I32x8GtU)                                   \
+  V(I32x8GeS)                                   \
+  V(I32x8GeU)                                   \
+  V(F32x8Eq)                                    \
+  V(F32x8Ne)                                    \
+  V(F32x8Lt)                                    \
+  V(F32x8Le)                                    \
+  V(F64x4Eq)                                    \
+  V(F64x4Ne)                                    \
+  V(F64x4Lt)                                    \
+  V(F64x4Le)                                    \
+  V(S256And)                                    \
+  V(S256AndNot)                                 \
+  V(S256Or)                                     \
+  V(S256Xor)                                    \
+  V(I8x32SConvertI16x16)                        \
+  V(I8x32UConvertI16x16)                        \
+  V(I8x32Add)                                   \
+  V(I8x32AddSatS)                               \
+  V(I8x32AddSatU)                               \
+  V(I8x32Sub)                                   \
+  V(I8x32SubSatS)                               \
+  V(I8x32SubSatU)                               \
+  V(I8x32MinS)                                  \
+  V(I8x32MinU)                                  \
+  V(I8x32MaxS)                                  \
+  V(I8x32MaxU)                                  \
+  V(I8x32RoundingAverageU)                      \
+  V(I16x16SConvertI32x8)                        \
+  V(I16x16UConvertI32x8)                        \
+  V(I16x16Add)                                  \
+  V(I16x16AddSatS)                              \
+  V(I16x16AddSatU)                              \
+  V(I16x16Sub)                                  \
+  V(I16x16SubSatS)                              \
+  V(I16x16SubSatU)                              \
+  V(I16x16Mul)                                  \
+  V(I16x16MinS)                                 \
+  V(I16x16MinU)                                 \
+  V(I16x16MaxS)                                 \
+  V(I16x16MaxU)                                 \
+  V(I16x16RoundingAverageU)                     \
+  V(I32x8Add)                                   \
+  V(I32x8Sub)                                   \
+  V(I32x8Mul)                                   \
+  V(I32x8MinS)                                  \
+  V(I32x8MinU)                                  \
+  V(I32x8MaxS)                                  \
+  V(I32x8MaxU)                                  \
+  V(I32x8DotI16x16S)                            \
+  V(I64x4Add)                                   \
+  V(I64x4Sub)                                   \
+  V(I64x4Mul)                                   \
+  V(I64x4Eq)                                    \
+  V(I64x4Ne)                                    \
+  V(I64x4GtS)                                   \
+  V(I64x4GeS)                                   \
+  V(F32x8Add)                                   \
+  V(F32x8Sub)                                   \
+  V(F32x8Mul)                                   \
+  V(F32x8Div)                                   \
+  V(F32x8Min)                                   \
+  V(F32x8Max)                                   \
+  V(F32x8Pmin)                                  \
+  V(F32x8Pmax)                                  \
+  V(F64x4Add)                                   \
+  V(F64x4Sub)                                   \
+  V(F64x4Mul)                                   \
+  V(F64x4Div)                                   \
+  V(F64x4Min)                                   \
+  V(F64x4Max)                                   \
+  V(F64x4Pmin)                                  \
+  V(F64x4Pmax)
+
+#define FOREACH_SIMD_256_BINARY_OPCODE(V) \
+  FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V)
+
+struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_BINARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256BinopOp(OpIndex left, OpIndex right, Kind kind)
+      : Base(left, right), kind(kind) {}
+
+  OpIndex left() const { return input(0); }
+  OpIndex right() const { return input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+
+std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind);
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
