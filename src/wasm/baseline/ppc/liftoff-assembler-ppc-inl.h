@@ -464,12 +464,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   // NOTE: to_condition(kZero) is the equality condition (eq)
   // This line verifies the masked address is equal to dst_addr,
   // not that it is zero!
-  CheckPageFlag(dst_addr, ip,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask,
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
   JumpIfSmi(src, &exit);
-  CheckPageFlag(src, ip, MutablePageMetadata::kPointersToHereAreInterestingMask,
-                eq, &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
   mov(ip, Operand(offset_imm));
   add(ip, ip, dst_addr);
   if (offset_reg != no_reg) {

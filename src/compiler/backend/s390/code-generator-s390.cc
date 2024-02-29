@@ -214,7 +214,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
     __ CheckPageFlag(value_, scratch0_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     if (offset_ == no_reg) {
       __ AddS64(scratch1_, object_, Operand(offset_immediate_));
@@ -1456,8 +1456,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
       __ bind(ool->exit());
       break;
     }
