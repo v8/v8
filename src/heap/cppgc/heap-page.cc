@@ -63,14 +63,14 @@ void BasePage::Destroy(BasePage* page,
         ->DecrementDiscardedMemory(page->discarded_memory());
   }
   if (page->is_large()) {
-    LargePageMetadata::Destroy(LargePageMetadata::From(page));
+    LargePage::Destroy(LargePage::From(page));
   } else {
     NormalPage::Destroy(NormalPage::From(page), free_memory_handling);
   }
 }
 
 Address BasePage::PayloadStart() {
-  return is_large() ? LargePageMetadata::From(this)->PayloadStart()
+  return is_large() ? LargePage::From(this)->PayloadStart()
                     : NormalPage::From(this)->PayloadStart();
 }
 
@@ -79,7 +79,7 @@ ConstAddress BasePage::PayloadStart() const {
 }
 
 Address BasePage::PayloadEnd() {
-  return is_large() ? LargePageMetadata::From(this)->PayloadEnd()
+  return is_large() ? LargePage::From(this)->PayloadEnd()
                     : NormalPage::From(this)->PayloadEnd();
 }
 
@@ -88,14 +88,14 @@ ConstAddress BasePage::PayloadEnd() const {
 }
 
 size_t BasePage::AllocatedSize() const {
-  return is_large() ? LargePageMetadata::PageHeaderSize() +
-                          LargePageMetadata::From(this)->PayloadSize()
+  return is_large() ? LargePage::PageHeaderSize() +
+                          LargePage::From(this)->PayloadSize()
                     : NormalPage::From(this)->PayloadSize() +
                           RoundUp(sizeof(NormalPage), kAllocationGranularity);
 }
 
 size_t BasePage::AllocatedBytesAtLastGC() const {
-  return is_large() ? LargePageMetadata::From(this)->AllocatedBytesAtLastGC()
+  return is_large() ? LargePage::From(this)->AllocatedBytesAtLastGC()
                     : NormalPage::From(this)->AllocatedBytesAtLastGC();
 }
 
@@ -108,7 +108,7 @@ HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
 const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
     const void* address) const {
   if (is_large()) {
-    if (!LargePageMetadata::From(this)->PayloadContains(
+    if (!LargePage::From(this)->PayloadContains(
             static_cast<ConstAddress>(address)))
       return nullptr;
   } else {
@@ -248,21 +248,19 @@ size_t NormalPage::PayloadSize() {
   return kPageSize - 2 * kGuardPageSize - header_size;
 }
 
-LargePageMetadata::LargePageMetadata(HeapBase& heap, BaseSpace& space,
-                                     size_t size)
+LargePage::LargePage(HeapBase& heap, BaseSpace& space, size_t size)
     : BasePage(heap, space, PageType::kLarge), payload_size_(size) {}
 
-LargePageMetadata::~LargePageMetadata() = default;
+LargePage::~LargePage() = default;
 
 // static
-size_t LargePageMetadata::AllocationSize(size_t payload_size) {
+size_t LargePage::AllocationSize(size_t payload_size) {
   return PageHeaderSize() + payload_size;
 }
 
 // static
-LargePageMetadata* LargePageMetadata::TryCreate(PageBackend& page_backend,
-                                                LargePageSpace& space,
-                                                size_t size) {
+LargePage* LargePage::TryCreate(PageBackend& page_backend,
+                                LargePageSpace& space, size_t size) {
   // Ensure that the API-provided alignment guarantees does not violate the
   // internally guaranteed alignment of large page allocations.
   static_assert(kGuaranteedObjectAlignment <=
@@ -277,14 +275,14 @@ LargePageMetadata* LargePageMetadata::TryCreate(PageBackend& page_backend,
   void* memory = page_backend.TryAllocateLargePageMemory(allocation_size);
   if (!memory) return nullptr;
 
-  LargePageMetadata* page = new (memory) LargePageMetadata(*heap, space, size);
+  LargePage* page = new (memory) LargePage(*heap, space, size);
   page->SynchronizedStore();
   page->heap().stats_collector()->NotifyAllocatedMemory(allocation_size);
   return page;
 }
 
 // static
-void LargePageMetadata::Destroy(LargePageMetadata* page) {
+void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
   HeapBase& heap = page->heap();
   const size_t payload_size = page->PayloadSize();
@@ -298,34 +296,32 @@ void LargePageMetadata::Destroy(LargePageMetadata* page) {
     DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   }
 #endif  // DEBUG
-  page->~LargePageMetadata();
+  page->~LargePage();
   PageBackend* backend = heap.page_backend();
   heap.stats_collector()->NotifyFreedMemory(AllocationSize(payload_size));
   backend->FreeLargePageMemory(reinterpret_cast<Address>(page));
 }
 
-HeapObjectHeader* LargePageMetadata::ObjectHeader() {
+HeapObjectHeader* LargePage::ObjectHeader() {
   return reinterpret_cast<HeapObjectHeader*>(PayloadStart());
 }
 
-const HeapObjectHeader* LargePageMetadata::ObjectHeader() const {
+const HeapObjectHeader* LargePage::ObjectHeader() const {
   return reinterpret_cast<const HeapObjectHeader*>(PayloadStart());
 }
 
-Address LargePageMetadata::PayloadStart() {
+Address LargePage::PayloadStart() {
   return reinterpret_cast<Address>(this) + PageHeaderSize();
 }
 
-ConstAddress LargePageMetadata::PayloadStart() const {
-  return const_cast<LargePageMetadata*>(this)->PayloadStart();
+ConstAddress LargePage::PayloadStart() const {
+  return const_cast<LargePage*>(this)->PayloadStart();
 }
 
-Address LargePageMetadata::PayloadEnd() {
-  return PayloadStart() + PayloadSize();
-}
+Address LargePage::PayloadEnd() { return PayloadStart() + PayloadSize(); }
 
-ConstAddress LargePageMetadata::PayloadEnd() const {
-  return const_cast<LargePageMetadata*>(this)->PayloadEnd();
+ConstAddress LargePage::PayloadEnd() const {
+  return const_cast<LargePage*>(this)->PayloadEnd();
 }
 
 }  // namespace internal

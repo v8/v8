@@ -39,7 +39,7 @@ class HeapVisitor {
 
   void Traverse(BasePage& page) {
     if (page.is_large()) {
-      auto* large_page = LargePageMetadata::From(&page);
+      auto* large_page = LargePage::From(&page);
       if (VisitLargePageImpl(*large_page)) return;
       VisitHeapObjectHeaderImpl(*large_page->ObjectHeader());
     } else {
@@ -58,7 +58,7 @@ class HeapVisitor {
   bool VisitNormalPageSpace(NormalPageSpace&) { return false; }
   bool VisitLargePageSpace(LargePageSpace&) { return false; }
   bool VisitNormalPage(NormalPage&) { return false; }
-  bool VisitLargePage(LargePageMetadata&) { return false; }
+  bool VisitLargePage(LargePage&) { return false; }
   bool VisitHeapObjectHeader(HeapObjectHeader&) { return false; }
 
  private:
@@ -74,7 +74,7 @@ class HeapVisitor {
   bool VisitNormalPageImpl(NormalPage& page) {
     return ToDerived().VisitNormalPage(page);
   }
-  bool VisitLargePageImpl(LargePageMetadata& page) {
+  bool VisitLargePageImpl(LargePage& page) {
     return ToDerived().VisitLargePage(page);
   }
   bool VisitHeapObjectHeaderImpl(HeapObjectHeader& header) {

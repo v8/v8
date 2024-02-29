@@ -37,13 +37,13 @@ class AgeTableTest : public testing::TestSupportingAllocationOnly {
     return page;
   }
 
-  LargePageMetadata* AllocateLargePage() {
+  LargePage* AllocateLargePage() {
     constexpr size_t kObjectSize = 2 * kLargeObjectSizeThreshold;
     RawHeap& heap = Heap::From(GetHeap())->raw_heap();
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePageMetadata::TryCreate(
-        *Heap::From(GetHeap())->page_backend(), *space, kObjectSize);
+    auto* page = LargePage::TryCreate(*Heap::From(GetHeap())->page_backend(),
+                                      *space, kObjectSize);
     CHECK_NOT_NULL(page);
     allocated_pages_.push_back({page, DestroyPage});
     return page;

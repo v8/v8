@@ -57,8 +57,8 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
   if (base_page->is_large()) {  // Large object.
     base_page->space().RemovePage(base_page);
     base_page->heap().stats_collector()->NotifyExplicitFree(
-        LargePageMetadata::From(base_page)->PayloadSize());
-    LargePageMetadata::Destroy(LargePageMetadata::From(base_page));
+        LargePage::From(base_page)->PayloadSize());
+    LargePage::Destroy(LargePage::From(base_page));
   } else {  // Regular object.
     const size_t header_size = header.AllocatedSize();
     auto* normal_page = NormalPage::From(base_page);

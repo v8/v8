@@ -174,8 +174,7 @@ TEST_F(PageTest, HeapObjectHeaderOnLargePageIndexing) {
   using Type = GCed<kObjectSize>;
   auto* gced = MakeGarbageCollected<Type>(GetAllocationHandle());
 
-  const auto* page =
-      static_cast<LargePageMetadata*>(BasePage::FromPayload(gced));
+  const auto* page = static_cast<LargePage*>(BasePage::FromPayload(gced));
   const size_t expected_payload_size =
       RoundUp(sizeof(Type) + sizeof(HeapObjectHeader), kAllocationGranularity);
   EXPECT_EQ(expected_payload_size, page->PayloadSize());
@@ -215,8 +214,7 @@ TEST_F(PageTest, LargePageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<LargePageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kLarge));
-  auto* page =
-      LargePageMetadata::TryCreate(GetPageBackend(), *space, kObjectSize);
+  auto* page = LargePage::TryCreate(GetPageBackend(), *space, kObjectSize);
   EXPECT_NE(nullptr, page);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
@@ -225,7 +223,7 @@ TEST_F(PageTest, LargePageCreationDestruction) {
 
   space->RemovePage(page);
   EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
-  LargePageMetadata::Destroy(page);
+  LargePage::Destroy(page);
   EXPECT_EQ(nullptr, backend->Lookup(page->PayloadStart()));
 }
 
@@ -244,15 +242,15 @@ TEST_F(PageTest, UnsweptPageDestruction) {
   {
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePageMetadata::TryCreate(GetPageBackend(), *space,
-                                              2 * kLargeObjectSizeThreshold);
+    auto* page = LargePage::TryCreate(GetPageBackend(), *space,
+                                      2 * kLargeObjectSizeThreshold);
     EXPECT_NE(nullptr, page);
     space->AddPage(page);
-    EXPECT_DEATH_IF_SUPPORTED(LargePageMetadata::Destroy(page), "");
+    EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");
     // Detach page and really destroy page in the parent process so that sweeper
     // doesn't consider it.
     space->RemovePage(page);
-    LargePageMetadata::Destroy(page);
+    LargePage::Destroy(page);
   }
 }
 #endif

@@ -83,8 +83,7 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace& space,
 void* TryAllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
                              StatsCollector& stats_collector, size_t size,
                              GCInfoIndex gcinfo) {
-  LargePageMetadata* page =
-      LargePageMetadata::TryCreate(page_backend, space, size);
+  LargePage* page = LargePage::TryCreate(page_backend, space, size);
   if (!page) return nullptr;
 
   space.AddPage(page);
@@ -293,7 +292,7 @@ void ObjectAllocator::MarkAllPagesAsYoung() {
       return true;
     }
 
-    bool VisitLargePage(LargePageMetadata& page) {
+    bool VisitLargePage(LargePage& page) {
       MarkRangeAsYoung(page, page.PayloadStart(), page.PayloadEnd());
       return true;
     }

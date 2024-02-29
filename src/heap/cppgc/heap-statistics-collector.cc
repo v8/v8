@@ -148,12 +148,12 @@ bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
   return false;
 }
 
-bool HeapStatisticsCollector::VisitLargePage(LargePageMetadata& page) {
+bool HeapStatisticsCollector::VisitLargePage(LargePage& page) {
   DCHECK_NOT_NULL(current_space_stats_);
   FinalizePage(current_space_stats_, &current_page_stats_);
 
   const size_t object_size = page.PayloadSize();
-  const size_t allocated_size = LargePageMetadata::AllocationSize(object_size);
+  const size_t allocated_size = LargePage::AllocationSize(object_size);
   current_page_stats_ = InitializePage(current_space_stats_);
   current_page_stats_->committed_size_bytes = allocated_size;
   current_page_stats_->resident_size_bytes = allocated_size;
@@ -169,7 +169,7 @@ bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader& header) {
   // object size.
   const size_t allocated_object_size =
       header.IsLargeObject()
-          ? LargePageMetadata::From(
+          ? LargePage::From(
                 BasePage::FromPayload(const_cast<HeapObjectHeader*>(&header)))
                 ->PayloadSize()
           : header.AllocatedSize();

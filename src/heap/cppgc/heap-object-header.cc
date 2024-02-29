@@ -27,7 +27,7 @@ void HeapObjectHeader::Finalize() {
 #ifdef V8_USE_ADDRESS_SANITIZER
   const size_t size =
       IsLargeObject()
-          ? LargePageMetadata::From(BasePage::FromPayload(this))->ObjectSize()
+          ? LargePage::From(BasePage::FromPayload(this))->ObjectSize()
           : ObjectSize();
   ASAN_UNPOISON_MEMORY_REGION(ObjectStart(), size);
 #endif  // V8_USE_ADDRESS_SANITIZER

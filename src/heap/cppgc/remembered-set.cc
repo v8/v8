@@ -166,7 +166,7 @@ class CompressedSlotVisitor : HeapVisitor<CompressedSlotVisitor> {
     return true;
   }
 
-  bool VisitLargePage(LargePageMetadata& page) {
+  bool VisitLargePage(LargePage& page) {
     current_page_ = &page;
     VisitSlotSet(page.slot_set());
     return true;
@@ -194,7 +194,7 @@ class SlotRemover : HeapVisitor<SlotRemover> {
     return true;
   }
 
-  bool VisitLargePage(LargePageMetadata& page) {
+  bool VisitLargePage(LargePage& page) {
     page.ResetSlotSet();
     return true;
   }
