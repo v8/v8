@@ -64,7 +64,8 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     // needed for two reasons:
     // 1. We have the invariant that IsTrustedObject(obj) implies
     //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
-    //    IS_TRUSTED flag on the host chunk. As InstructionStream objects are
+    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
+    //   objects are
     //    trusted, their host chunks must also be marked as such.
     // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
     //    remembered set. However, that will only be used if both the host
@@ -110,36 +111,36 @@ size_t MutablePageMetadata::CommittedPhysicalMemory() const {
 
 void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   if (marking_mode == MarkingMode::kMajorMarking) {
-    SetFlag(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING);
-    SetFlag(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+    SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else if (owner_identity() == SHARED_SPACE ||
              owner_identity() == SHARED_LO_SPACE) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
-    SetFlag(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING);
+    SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-    ClearFlag(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+    ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
-    ClearFlag(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING);
-    SetFlag(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING);
+    ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     if (marking_mode == MarkingMode::kMinorMarking) {
-      SetFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+      SetFlag(MemoryChunk::INCREMENTAL_MARKING);
     } else {
-      ClearFlags(MutablePageMetadata::INCREMENTAL_MARKING);
+      ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
     }
   }
 }
 
 void MutablePageMetadata::SetYoungGenerationPageFlags(
     MarkingMode marking_mode) {
-  SetFlag(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING);
+  SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
   if (marking_mode != MarkingMode::kNoMarking) {
-    SetFlag(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
-    ClearFlag(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+    ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   }
 }
 // -----------------------------------------------------------------------------

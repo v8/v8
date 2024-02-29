@@ -319,12 +319,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     InYoungGeneration(value, &generational_barrier, &shared_barrier);
 
     BIND(&generational_barrier);
-    CSA_DCHECK(this, IsPageFlagSet(
-                         value, MutablePageMetadata::kIsInYoungGenerationMask));
+    CSA_DCHECK(this,
+               IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
     GenerationalBarrierSlow(slot, next, fp_mode);
 
     BIND(&shared_barrier);
-    CSA_DCHECK(this, IsPageFlagSet(value, MutablePageMetadata::kInSharedHeap));
+    CSA_DCHECK(this, IsPageFlagSet(value, MemoryChunk::kInSharedHeap));
     SharedBarrierSlow(slot, next, fp_mode);
   }
 
@@ -396,7 +396,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
                          Label* false_label) {
     TNode<BoolT> object_is_young =
-        IsPageFlagSet(object, MutablePageMetadata::kIsInYoungGenerationMask);
+        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
 
     Branch(object_is_young, true_label, false_label);
   }
@@ -404,7 +404,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
                     Label* false_label) {
     TNode<BoolT> object_is_young =
-        IsPageFlagSet(object, MutablePageMetadata::kInSharedHeap);
+        IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
 
     Branch(object_is_young, true_label, false_label);
   }
@@ -463,16 +463,14 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
     // 2) OnEvacuationCandidate(value) &&
     //    !SkipEvacuationCandidateRecording(value)
-    GotoIfNot(
-        IsPageFlagSet(value, MutablePageMetadata::kEvacuationCandidateMask),
-        false_label);
+    GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
+              false_label);
 
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       Branch(
-          IsPageFlagSet(object,
-                        MutablePageMetadata::kSkipEvacuationSlotsRecordingMask),
+          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
           false_label, true_label);
     }
   }
@@ -497,8 +495,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // isolates). Now first check whether incremental marking is activated for
     // that particular object's space. Incrementally marking might only be
     // enabled for either local or shared objects on client isolates.
-    GotoIfNot(IsPageFlagSet(object, MutablePageMetadata::kIncrementalMarking),
-              &next);
+    GotoIfNot(IsPageFlagSet(object, MemoryChunk::kIncrementalMarking), &next);
 
     // We now know that incremental marking is enabled for the given object.
     // Decide whether to run the shared or local incremental marking barrier.

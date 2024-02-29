@@ -319,8 +319,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     __ CheckPageFlag(value_, scratch0_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask,
-                     zero, exit());
+                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                     exit());
     __ lea(scratch1_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -986,7 +986,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;

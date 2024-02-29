@@ -400,8 +400,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
 
     __ CheckPageFlag(value_, scratch0_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask,
-                     zero, exit());
+                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                     exit());
 
     __ leaq(scratch1_, operand_);
 
@@ -1723,7 +1723,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1748,7 +1748,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);
       __ CheckPageFlag(object, scratch0,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;

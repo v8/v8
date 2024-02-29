@@ -140,7 +140,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // always allocated in the old space.
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                      !MutablePageMetadata::FromHeapObject(target)->IsFlagSet(
-                         MutablePageMetadata::IS_EXECUTABLE));
+                         MemoryChunk::IS_EXECUTABLE));
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold

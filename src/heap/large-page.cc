@@ -36,7 +36,7 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
     FATAL("Code page is too large.");
   }
 
-  SetFlag(MutablePageMetadata::LARGE_PAGE);
+  SetFlag(MemoryChunk::LARGE_PAGE);
   list_node().Initialize();
 }
 
@@ -51,7 +51,7 @@ LargePageMetadata* LargePageMetadata::Initialize(Heap* heap,
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
 
-  chunk->SetFlag(MutablePageMetadata::LARGE_PAGE);
+  chunk->SetFlag(MemoryChunk::LARGE_PAGE);
   chunk->list_node().Initialize();
   return LargePageMetadata::cast(chunk);
 }

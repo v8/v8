@@ -372,7 +372,7 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
   PageMetadata* page = nullptr;
   while ((page = sweeper_->GetSweepingPageSafe(identity)) != nullptr) {
     ParallelSweepPage(page, identity, sweeping_mode);
-    if (!page->IsFlagSet(PageMetadata::NEVER_ALLOCATE_ON_PAGE)) {
+    if (!page->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
       found_usable_pages = true;
 #if DEBUG
     } else {
@@ -384,7 +384,7 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
       DCHECK(std::all_of(sweeping_list.begin(), sweeping_list.end(),
                          [](const PageMetadata* p) {
                            return p->IsFlagSet(
-                               PageMetadata::NEVER_ALLOCATE_ON_PAGE);
+                               MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
                          }));
 #endif  // DEBUG
     }
@@ -636,9 +636,9 @@ namespace {
 V8_INLINE bool ComparePagesForSweepingOrder(const PageMetadata* a,
                                             const PageMetadata* b) {
   // Prioritize pages that can be allocated on.
-  if (a->IsFlagSet(PageMetadata::NEVER_ALLOCATE_ON_PAGE) !=
-      b->IsFlagSet(PageMetadata::NEVER_ALLOCATE_ON_PAGE))
-    return a->IsFlagSet(PageMetadata::NEVER_ALLOCATE_ON_PAGE);
+  if (a->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE) !=
+      b->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE))
+    return a->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   // We sort in descending order of live bytes, i.e., ascending order of
   // free bytes, because GetSweepingPageSafe returns pages in reverse order.
   return a->live_bytes() > b->live_bytes();
@@ -1337,7 +1337,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
 
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
-  page->ClearFlag(PageMetadata::NEVER_ALLOCATE_ON_PAGE);
+  page->ClearFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);

@@ -6185,8 +6185,8 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   MutablePageMetadata* chunk =
       MutablePageMetadata::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
-  CHECK(chunk->IsFlagSet(MutablePageMetadata::LARGE_PAGE));
-  CHECK(chunk->IsFlagSet(MutablePageMetadata::TO_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -6215,8 +6215,8 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   MutablePageMetadata* chunk =
       MutablePageMetadata::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
-  CHECK(chunk->IsFlagSet(MutablePageMetadata::LARGE_PAGE));
-  CHECK(chunk->IsFlagSet(MutablePageMetadata::TO_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -6247,7 +6247,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
       MutablePageMetadata* chunk =
           MutablePageMetadata::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
-      CHECK(chunk->IsFlagSet(MutablePageMetadata::TO_PAGE));
+      CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
 

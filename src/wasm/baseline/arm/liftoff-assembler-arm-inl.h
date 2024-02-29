@@ -883,12 +883,10 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   // The write barrier.
   Label exit;
-  CheckPageFlag(dst_addr,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, kZero,
-                &exit);
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
   JumpIfSmi(src, &exit);
-  CheckPageFlag(src, MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
   CallRecordWriteStubSaveRegisters(
       dst_addr,
       actual_offset_reg == no_reg ? Operand(offset_imm)

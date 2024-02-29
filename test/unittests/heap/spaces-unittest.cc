@@ -114,13 +114,13 @@ TEST_F(SpacesTest, WriteBarrierIsMarking) {
   memset(&memory, 0, kSizeOfMemoryChunk);
   MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
   MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  EXPECT_FALSE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
   EXPECT_FALSE(slim_chunk->IsMarking());
-  chunk->SetFlag(MutablePageMetadata::INCREMENTAL_MARKING);
-  EXPECT_TRUE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
+  chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
   EXPECT_TRUE(slim_chunk->IsMarking());
-  chunk->ClearFlag(MutablePageMetadata::INCREMENTAL_MARKING);
-  EXPECT_FALSE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
+  chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
   EXPECT_FALSE(slim_chunk->IsMarking());
 }
 
@@ -132,10 +132,10 @@ TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
   MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MutablePageMetadata::TO_PAGE);
+  chunk->SetFlag(MemoryChunk::TO_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
   EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MutablePageMetadata::TO_PAGE);
+  chunk->ClearFlag(MemoryChunk::TO_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
@@ -148,10 +148,10 @@ TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
   MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MutablePageMetadata::FROM_PAGE);
+  chunk->SetFlag(MemoryChunk::FROM_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
   EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MutablePageMetadata::FROM_PAGE);
+  chunk->ClearFlag(MemoryChunk::FROM_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }

@@ -51,11 +51,11 @@ void MarkCompactCollector::RecordSlot(MutablePageMetadata* source_page,
   MemoryChunkMetadata* target_page =
       MemoryChunkMetadata::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate()) {
-    if (target_page->IsFlagSet(MutablePageMetadata::IS_EXECUTABLE)) {
+    if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
-    } else if (source_page->IsFlagSet(MutablePageMetadata::IS_TRUSTED) &&
-               target_page->IsFlagSet(MutablePageMetadata::IS_TRUSTED)) {
+    } else if (source_page->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+               target_page->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
       RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
           source_page, slot.address());
     } else if (V8_LIKELY(!target_page->InWritableSharedSpace()) ||

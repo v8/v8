@@ -66,7 +66,7 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->ClearFlags(PageMetadata::kAllFlagsMask);
+  old_page->ClearFlags(MemoryChunk::kAllFlagsMask);
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page);
   return new_page;

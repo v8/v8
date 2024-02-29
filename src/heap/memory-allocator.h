@@ -377,7 +377,7 @@ class MemoryAllocator {
 #ifdef DEBUG
   void RegisterExecutableMemoryChunk(MutablePageMetadata* chunk) {
     base::MutexGuard guard(&executable_memory_mutex_);
-    DCHECK(chunk->IsFlagSet(MutablePageMetadata::IS_EXECUTABLE));
+    DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
     DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.insert(chunk);
   }

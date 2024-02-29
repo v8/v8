@@ -353,7 +353,7 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
                                                  AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   result->set_prototype_users(Smi::zero());
-  result->set_registry_slot(PrototypeInfo::UNREGISTERED);
+  result->set_registry_slot(MemoryChunk::UNREGISTERED);
   result->set_bit_field(0);
   result->set_module_namespace(*undefined_value(), SKIP_WRITE_BARRIER);
   return handle(result, isolate());

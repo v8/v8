@@ -3005,7 +3005,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
       // The new map isn't registered with its prototype yet; reflect this fact
       // in the PrototypeInfo it just inherited from the old map.
       PrototypeInfo::cast(new_map->prototype_info())
-          ->set_registry_slot(PrototypeInfo::UNREGISTERED);
+          ->set_registry_slot(MemoryChunk::UNREGISTERED);
     }
     JSObject::LazyRegisterPrototypeUser(new_map, isolate);
   }
@@ -4917,7 +4917,7 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
       Map::GetOrCreatePrototypeInfo(user, isolate);
   for (PrototypeIterator iter(isolate, user); !iter.IsAtEnd(); iter.Advance()) {
     // Walk up the prototype chain as far as links haven't been registered yet.
-    if (current_user_info->registry_slot() != PrototypeInfo::UNREGISTERED) {
+    if (current_user_info->registry_slot() != MemoryChunk::UNREGISTERED) {
       break;
     }
     Handle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
@@ -4978,7 +4978,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   Handle<PrototypeInfo> user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
-  if (slot == PrototypeInfo::UNREGISTERED) return false;
+  if (slot == MemoryChunk::UNREGISTERED) return false;
   DCHECK(prototype->map()->is_prototype_map());
   Tagged<Object> maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.

@@ -529,12 +529,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
-                &done, Label::kNear);
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
+                Label::kNear);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
-                &done, Label::kNear);
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
+                Label::kNear);
   RecordComment("CheckPageFlag]");
 
   CallRecordWriteStub(object, slot_address, fp_mode);

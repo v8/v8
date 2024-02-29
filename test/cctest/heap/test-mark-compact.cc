@@ -205,7 +205,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   PageMetadata* page = PageMetadata::FromHeapObject(*handles.front());
 
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
-  page->SetFlag(MutablePageMetadata::PINNED);
+  page->SetFlag(MemoryChunk::PINNED);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -215,7 +215,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
     CHECK_EQ(page, PageMetadata::FromHeapObject(*object));
   }
 
-  page->ClearFlag(MutablePageMetadata::PINNED);
+  page->ClearFlag(MemoryChunk::PINNED);
 
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);

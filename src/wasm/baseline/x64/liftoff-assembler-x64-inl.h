@@ -485,12 +485,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   // use it as scratch register here.
   Label exit;
   CheckPageFlag(dst_addr, kScratchRegister,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
-                &exit, Label::kNear);
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
+                Label::kNear);
   JumpIfSmi(src, &exit, Label::kNear);
   CheckPageFlag(src, kScratchRegister,
-                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
-                &exit, Label::kNear);
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
+                Label::kNear);
   leaq(kScratchRegister, dst_op);
 
   CallRecordWriteStubSaveRegisters(dst_addr, kScratchRegister,

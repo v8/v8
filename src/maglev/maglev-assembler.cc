@@ -458,10 +458,9 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
           if (value != object && !register_snapshot.live_registers.has(value)) {
             scratch = value;
           }
-          __ CheckPageFlag(
-              value, scratch,
-              MutablePageMetadata::kPointersToHereAreInterestingMask, kEqual,
-              *done);
+          __ CheckPageFlag(value, scratch,
+                           MemoryChunk::kPointersToHereAreInterestingMask,
+                           kEqual, *done);
         }
 
         Register stub_object_reg = WriteBarrierDescriptor::ObjectRegister();
@@ -511,8 +510,8 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
   MaglevAssembler::ScratchRegisterScope temp(this);
   Register scratch = temp.GetDefaultScratchRegister();
   CheckPageFlag(object, scratch,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask,
-                kNotEqual, deferred_write_barrier);
+                MemoryChunk::kPointersFromHereAreInterestingMask, kNotEqual,
+                deferred_write_barrier);
   bind(*done);
 }
 

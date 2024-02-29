@@ -499,12 +499,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   Label exit;
   CheckPageFlag(dst_addr, scratch,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
-                &exit, Label::kNear);
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
+                Label::kNear);
   JumpIfSmi(src, &exit, Label::kNear);
-  CheckPageFlag(src, scratch,
-                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
-                &exit, Label::kNear);
+  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
+                zero, &exit, Label::kNear);
   lea(scratch, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);

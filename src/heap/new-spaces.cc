@@ -31,8 +31,7 @@ namespace internal {
 
 PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* chunk) {
   bool in_to_space = (id() != kFromSpace);
-  chunk->SetFlag(in_to_space ? MutablePageMetadata::TO_PAGE
-                             : MutablePageMetadata::FROM_PAGE);
+  chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   PageMetadata* page = static_cast<PageMetadata*>(chunk);
   page->SetYoungGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
@@ -76,7 +75,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
-      current_page->ClearFlags(PageMetadata::kIsInYoungGenerationMask);
+      current_page->ClearFlags(MemoryChunk::kIsInYoungGenerationMask);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool,
                                        current_page);
       current_page = next_current;
@@ -241,12 +240,12 @@ void SemiSpace::FixPagesFlags(PageMetadata::MainThreadFlags flags,
     page->set_owner(this);
     page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
-      page->ClearFlag(MutablePageMetadata::FROM_PAGE);
-      page->SetFlag(MutablePageMetadata::TO_PAGE);
-      page->ClearFlag(MutablePageMetadata::NEW_SPACE_BELOW_AGE_MARK);
+      page->ClearFlag(MemoryChunk::FROM_PAGE);
+      page->SetFlag(MemoryChunk::TO_PAGE);
+      page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     } else {
-      page->SetFlag(MutablePageMetadata::FROM_PAGE);
-      page->ClearFlag(MutablePageMetadata::TO_PAGE);
+      page->SetFlag(MemoryChunk::FROM_PAGE);
+      page->ClearFlag(MemoryChunk::TO_PAGE);
     }
     DCHECK(page->InYoungGeneration());
   }
@@ -324,7 +323,7 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->committed_physical_memory_, to->committed_physical_memory_);
 
   to->FixPagesFlags(saved_to_space_flags, PageMetadata::kCopyOnFlipFlagsMask);
-  from->FixPagesFlags(PageMetadata::NO_FLAGS, PageMetadata::NO_FLAGS);
+  from->FixPagesFlags(MemoryChunk::NO_FLAGS, MemoryChunk::NO_FLAGS);
 }
 
 void SemiSpace::IncrementCommittedPhysicalMemory(size_t increment_value) {
@@ -360,7 +359,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(age_mark_page->owner(), this);
   // Mark all pages up to the one containing mark.
   for (PageMetadata* p : *this) {
-    p->SetFlag(MutablePageMetadata::NEW_SPACE_BELOW_AGE_MARK);
+    p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     if (p == age_mark_page) break;
   }
 }
@@ -386,22 +385,20 @@ void SemiSpace::VerifyPageMetadata() const {
   for (const PageMetadata* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
-    CHECK(page->IsFlagSet(is_from_space ? MutablePageMetadata::FROM_PAGE
-                                        : MutablePageMetadata::TO_PAGE));
-    CHECK(!page->IsFlagSet(is_from_space ? MutablePageMetadata::TO_PAGE
-                                         : MutablePageMetadata::FROM_PAGE));
-    CHECK(
-        page->IsFlagSet(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING));
+    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::FROM_PAGE
+                                        : MemoryChunk::TO_PAGE));
+    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
+                                         : MemoryChunk::FROM_PAGE));
+    CHECK(page->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
       // on from-space pages, so it might be out of sync with the marking state.
       if (page->heap()->incremental_marking()->IsMarking()) {
         DCHECK(page->heap()->incremental_marking()->IsMajorMarking());
-        CHECK(page->IsFlagSet(
-            MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING));
+        CHECK(page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       } else {
-        CHECK(!page->IsFlagSet(
-            MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING));
+        CHECK(
+            !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
     }
     ForAll<ExternalBackingStoreType>(
@@ -456,7 +453,7 @@ NewSpace::NewSpace(Heap* heap)
     : SpaceWithLinearArea(heap, NEW_SPACE, nullptr) {}
 
 void NewSpace::PromotePageToOldSpace(PageMetadata* page) {
-  DCHECK(!page->IsFlagSet(PageMetadata::PAGE_NEW_OLD_PROMOTION));
+  DCHECK(!page->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
   DCHECK(page->InYoungGeneration());
   RemovePage(page);
   PageMetadata* new_page = PageMetadata::ConvertNewToOld(page);
@@ -691,7 +688,7 @@ void SemiSpaceNewSpace::MakeUnusedPagesInToSpaceIterable() {
 bool SemiSpaceNewSpace::ShouldBePromoted(Address address) const {
   PageMetadata* page = PageMetadata::FromAddress(address);
   Address current_age_mark = age_mark();
-  return page->IsFlagSet(MutablePageMetadata::NEW_SPACE_BELOW_AGE_MARK) &&
+  return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(current_age_mark) || address < current_age_mark);
 }
 
@@ -870,7 +867,7 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  page->SetFlags(PageMetadata::TO_PAGE);
+  page->SetFlags(MemoryChunk::TO_PAGE);
   page->SetYoungGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
   page->ClearLiveness();

@@ -3595,12 +3595,11 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
 void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<IntPtrT> offset,
                                                TNode<Object> value) {
-  CSA_DCHECK(
-      this,
-      WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
-                           IntPtrConstant(
-                               MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
-                   IntPtrConstant(0)));
+  CSA_DCHECK(this,
+             WordNotEqual(
+                 WordAnd(LoadBasicMemoryChunkFlags(object),
+                         IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
+                 IntPtrConstant(0)));
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -5063,12 +5062,12 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
-    CSA_DCHECK(this,
-               WordNotEqual(
-                   WordAnd(page_flags,
-                           IntPtrConstant(
-                               MutablePageMetadata::kIsInYoungGenerationMask)),
-                   IntPtrConstant(0)));
+    CSA_DCHECK(
+        this,
+        WordNotEqual(
+            WordAnd(page_flags,
+                    IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
+            IntPtrConstant(0)));
 #endif
 #endif
 
@@ -5465,13 +5464,12 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
   TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
       Load(MachineType::IntPtr(), object_page_header,
            IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
-  Branch(WordEqual(
-             WordAnd(
-                 page_flags,
-                 IntPtrConstant(
-                     MutablePageMetadata::kPointersFromHereAreInterestingMask)),
-             IntPtrConstant(0)),
-         &finished, interesting);
+  Branch(
+      WordEqual(WordAnd(page_flags,
+                        IntPtrConstant(
+                            MemoryChunk::kPointersFromHereAreInterestingMask)),
+                IntPtrConstant(0)),
+      &finished, interesting);
   BIND(&finished);
 }
 
@@ -12832,12 +12830,11 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
-    GotoIf(
-        WordEqual(WordAnd(page_flags,
-                          IntPtrConstant(
-                              MutablePageMetadata::kIsInYoungGenerationMask)),
-                  IntPtrConstant(0)),
-        &no_memento_found);
+    GotoIf(WordEqual(
+               WordAnd(page_flags,
+                       IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
+               IntPtrConstant(0)),
+           &no_memento_found);
     // TODO(v8:11799): Support allocation memento for a large object by
     // allocating additional word for the memento after the large object.
     GotoIf(WordNotEqual(
@@ -17718,11 +17715,10 @@ void CodeStubAssembler::SharedValueBarrier(
   // trivially shared.
   CSA_DCHECK(this, BoolConstant(ReadOnlyHeap::IsReadOnlySpaceShared()));
   TNode<IntPtrT> page_flags = LoadBasicMemoryChunkFlags(CAST(value));
-  GotoIf(
-      WordNotEqual(WordAnd(page_flags,
-                           IntPtrConstant(MemoryChunkMetadata::READ_ONLY_HEAP)),
-                   IntPtrConstant(0)),
-      &skip_barrier);
+  GotoIf(WordNotEqual(
+             WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),
+             IntPtrConstant(0)),
+         &skip_barrier);
 
   // Fast path: Check if the HeapObject is already shared.
   TNode<Uint16T> value_instance_type =
@@ -17737,8 +17733,7 @@ void CodeStubAssembler::SharedValueBarrier(
   {
     Branch(WordNotEqual(
                WordAnd(page_flags,
-                       IntPtrConstant(
-                           MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
+                       IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
                IntPtrConstant(0)),
            &skip_barrier, &slow);
   }
@@ -17757,10 +17752,9 @@ void CodeStubAssembler::SharedValueBarrier(
     CSA_DCHECK(
         this,
         WordNotEqual(
-            WordAnd(
-                LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
-                IntPtrConstant(MemoryChunkMetadata::READ_ONLY_HEAP |
-                               MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
+            WordAnd(LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
+                    IntPtrConstant(MemoryChunk::READ_ONLY_HEAP |
+                                   MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
             IntPtrConstant(0)));
     Goto(&done);
   }

@@ -25,9 +25,9 @@ class PageMetadata : public MutablePageMetadata {
  public:
   // Page flags copied from from-space to to-space when flipping semispaces.
   static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
-      MainThreadFlags(MutablePageMetadata::POINTERS_TO_HERE_ARE_INTERESTING) |
-      MainThreadFlags(MutablePageMetadata::POINTERS_FROM_HERE_ARE_INTERESTING) |
-      MainThreadFlags(MutablePageMetadata::INCREMENTAL_MARKING);
+      MainThreadFlags(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
+      MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
 
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
                Address area_end, VirtualMemory reservation,

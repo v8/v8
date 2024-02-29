@@ -330,8 +330,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
-    __ CheckPageFlag(value_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -1085,8 +1084,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ Bind(ool->exit());
       break;
@@ -1110,8 +1108,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ Bind(ool->exit());
       break;
@@ -1138,8 +1135,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           &unwinding_info_writer_, tag);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreIndirectPointerField(value, MemOperand(object, offset));
-      __ CheckPageFlag(object,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ Bind(ool->exit());
       break;

@@ -24,7 +24,7 @@ void PretenuringHandler::UpdateAllocationSite(
   MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
   DCHECK_IMPLIES(chunk->IsToPage(), v8_flags.minor_ms);
   DCHECK_IMPLIES(!v8_flags.minor_ms && !chunk->InYoungGeneration(),
-                 chunk->IsFlagSet(MutablePageMetadata::PAGE_NEW_OLD_PROMOTION));
+                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
   if (!v8_flags.allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map->instance_type())) {
@@ -74,7 +74,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 
   // Bail out if the memento is below the age mark, which can happen when
   // mementos survived because a page got moved within new space.
-  if (object_page->IsFlagSet(PageMetadata::NEW_SPACE_BELOW_AGE_MARK)) {
+  if (object_page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
     Address age_mark =
         reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
     if (!object_page->Contains(age_mark)) {
