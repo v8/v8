@@ -7,7 +7,7 @@
 
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -382,11 +382,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
-  CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
+  CheckPageFlag(dst_addr, r1,
+                MutablePageMetadata::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
   JumpIfSmi(src, &exit);
-  CheckPageFlag(src, r1, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, r1, MutablePageMetadata::kPointersToHereAreInterestingMask,
+                eq, &exit);
   lay(r1, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);

@@ -12,7 +12,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/flags/flags.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/baseline/parallel-move.h"
@@ -485,12 +485,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   // use it as scratch register here.
   Label exit;
   CheckPageFlag(dst_addr, kScratchRegister,
-                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
-                Label::kNear);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
+                &exit, Label::kNear);
   JumpIfSmi(src, &exit, Label::kNear);
   CheckPageFlag(src, kScratchRegister,
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
-                Label::kNear);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
+                &exit, Label::kNear);
   leaq(kScratchRegister, dst_op);
 
   CallRecordWriteStubSaveRegisters(dst_addr, kScratchRegister,

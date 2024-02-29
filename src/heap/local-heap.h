@@ -26,7 +26,7 @@ namespace internal {
 class Heap;
 class LocalHandles;
 class MarkingBarrier;
-class MemoryChunk;
+class MutablePageMetadata;
 class Safepoint;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to

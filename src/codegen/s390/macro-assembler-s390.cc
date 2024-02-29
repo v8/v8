@@ -20,7 +20,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/smi.h"
@@ -1088,10 +1088,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                &done);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
+                &done);
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {

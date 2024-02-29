@@ -97,7 +97,7 @@ void StartupDeserializer::LogNewMapEvents() {
 void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
-  for (Page* p : *isolate()->heap()->code_space()) {
+  for (PageMetadata* p : *isolate()->heap()->code_space()) {
     FlushInstructionCache(p->area_start(), p->area_end() - p->area_start());
   }
 }

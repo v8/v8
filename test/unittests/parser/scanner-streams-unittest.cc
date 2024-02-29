@@ -791,8 +791,8 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
   InvokeMajorGC();
-  i::Page::FromHeapObject(*two_byte_string)
-      ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  i::PageMetadata::FromHeapObject(*two_byte_string)
+      ->SetFlag(i::MutablePageMetadata::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   InvokeMajorGC();
   // GC moved the string.
   CHECK_NE(raw, *two_byte_string);
@@ -835,8 +835,8 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
   InvokeMajorGC();
-  i::Page::FromHeapObject(*two_byte_string)
-      ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  i::PageMetadata::FromHeapObject(*two_byte_string)
+      ->SetFlag(i::MutablePageMetadata::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   InvokeMajorGC();
   // GC moved the string and buffer was updated to the correct location.
   CHECK_NE(raw, *two_byte_string);

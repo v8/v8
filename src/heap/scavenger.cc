@@ -15,9 +15,9 @@
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set-inl.h"
@@ -46,7 +46,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     MapWord map_word = host->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       // Surviving new large objects have forwarding pointers in the map word.
-      DCHECK(MemoryChunk::FromHeapObject(host)->InNewLargeObjectSpace());
+      DCHECK(
+          MutablePageMetadata::FromHeapObject(host)->InNewLargeObjectSpace());
       return;
     }
     HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
@@ -122,7 +123,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(IsHeapObject(target));
-        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+        MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(host);
 
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
@@ -138,18 +139,18 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // Code objects, the only object that can contain code pointers, are
       // always allocated in the old space.
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                     !MemoryChunk::FromHeapObject(target)->IsFlagSet(
-                         MemoryChunk::IS_EXECUTABLE));
+                     !MutablePageMetadata::FromHeapObject(target)->IsFlagSet(
+                         MutablePageMetadata::IS_EXECUTABLE));
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          MemoryChunk::FromHeapObject(host), slot.address());
+          MutablePageMetadata::FromHeapObject(host), slot.address());
     }
 
     if (InWritableSharedSpace(target)) {
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+      MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                                slot.address());
     }
@@ -183,7 +184,8 @@ bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
 ScavengerCollector::JobTask::JobTask(
     ScavengerCollector* outer,
     std::vector<std::unique_ptr<Scavenger>>* scavengers,
-    std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> memory_chunks,
+    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
+        memory_chunks,
     Scavenger::CopiedList* copied_list,
     Scavenger::PromotionList* promotion_list)
     : outer_(outer),
@@ -344,9 +346,10 @@ void ScavengerCollector::CollectGarbage() {
                         &promotion_list, &ephemeron_table_list, i));
     }
 
-    std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> memory_chunks;
+    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
+        memory_chunks;
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [&memory_chunks](MemoryChunk* chunk) {
+        heap_, [&memory_chunks](MutablePageMetadata* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
@@ -455,7 +458,7 @@ void ScavengerCollector::CollectGarbage() {
   if (v8_flags.concurrent_marking) {
     // Ensure that concurrent marker does not track pages that are
     // going to be unmapped.
-    for (Page* p :
+    for (PageMetadata* p :
          PageRange(semi_space_new_space->from_space().first_page(), nullptr)) {
       heap_->concurrent_marking()->ClearMemoryChunkData(p);
     }
@@ -477,7 +480,7 @@ void ScavengerCollector::CollectGarbage() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
     Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
-    MemoryChunk* chunk;
+    MutablePageMetadata* chunk;
     while (empty_chunks_local.Pop(&chunk)) {
       // Since sweeping was already restarted only check chunks that already got
       // swept.
@@ -491,7 +494,7 @@ void ScavengerCollector::CollectGarbage() {
 
 #ifdef DEBUG
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [](MemoryChunk* chunk) {
+        heap_, [](MutablePageMetadata* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
@@ -570,9 +573,10 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     if (is_compacting && marking_state->IsMarked(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          MemoryChunk::FromHeapObject(object), object->map_slot().address());
+          MutablePageMetadata::FromHeapObject(object),
+          object->map_slot().address());
     }
-    LargePage* page = LargePage::FromHeapObject(object);
+    LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
   surviving_new_large_objects_.clear();
@@ -599,7 +603,7 @@ int ScavengerCollector::NumberOfScavengeTasks() {
   int tasks = std::max(
       1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));
   if (!heap_->CanPromoteYoungAndExpandOldGeneration(
-          static_cast<size_t>(tasks * Page::kPageSize))) {
+          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
   }
@@ -668,7 +672,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
   target->IterateFast(map, size, &visitor);
 
   if (IsJSArrayBufferMap(map)) {
-    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
+    DCHECK(!MemoryChunkMetadata::FromHeapObject(target)->IsLargePage());
     JSArrayBuffer::cast(target)->YoungMarkExtensionPromoted();
   }
 }
@@ -680,7 +684,7 @@ void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
   indices.first->second.insert(index);
 }
 
-void Scavenger::ScavengePage(MemoryChunk* page) {
+void Scavenger::ScavengePage(MutablePageMetadata* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
@@ -866,8 +870,9 @@ void Scavenger::Finalize() {
   ephemeron_table_list_local_.Publish();
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {
-    DCHECK_IMPLIES(!MemoryChunk::FromHeapObject(it->first)->IsLargePage(),
-                   !Heap::InYoungGeneration(it->first));
+    DCHECK_IMPLIES(
+        !MutablePageMetadata::FromHeapObject(it->first)->IsLargePage(),
+        !Heap::InYoungGeneration(it->first));
     heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
         it->first, std::move(it->second));
   }
@@ -883,7 +888,7 @@ void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
 }
 
 template <typename TSlot>
-void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
+void Scavenger::CheckOldToNewSlotForSharedUntyped(MutablePageMetadata* chunk,
                                                   TSlot slot) {
   Tagged<MaybeObject> object = *slot;
   Tagged<HeapObject> heap_object;
@@ -896,7 +901,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
 }
 
 void Scavenger::CheckOldToNewSlotForSharedTyped(
-    MemoryChunk* chunk, SlotType slot_type, Address slot_address,
+    MutablePageMetadata* chunk, SlotType slot_type, Address slot_address,
     Tagged<MaybeObject> new_target) {
   Tagged<HeapObject> heap_object;
 

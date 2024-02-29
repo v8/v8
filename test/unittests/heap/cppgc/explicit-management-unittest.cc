@@ -92,7 +92,7 @@ TEST_F(ExplicitManagementTest, FreeLargeObject) {
   auto& heap = page->heap();
   ASSERT_TRUE(page->is_large());
   ConstAddress needle = reinterpret_cast<ConstAddress>(o);
-  const size_t size = LargePage::From(page)->PayloadSize();
+  const size_t size = LargePageMetadata::From(page)->PayloadSize();
   EXPECT_TRUE(heap.page_backend()->Lookup(needle));
   const size_t allocated_size_before = AllocatedObjectSize();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);

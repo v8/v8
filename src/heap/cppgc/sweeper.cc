@@ -628,14 +628,14 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     return true;
   }
 
-  bool VisitLargePage(LargePage& page) {
+  bool VisitLargePage(LargePageMetadata& page) {
     HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header, sticky_bits_);
       page.space().AddPage(&page);
     } else {
       header->Finalize();
-      LargePage::Destroy(&page);
+      LargePageMetadata::Destroy(&page);
     }
     return true;
   }
@@ -700,7 +700,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
     return true;
   }
 
-  bool VisitLargePage(LargePage& page) {
+  bool VisitLargePage(LargePageMetadata& page) {
     HeapObjectHeader* header = page.ObjectHeader();
     if (header->IsMarked()) {
       StickyUnmark(header, sticky_bits_);

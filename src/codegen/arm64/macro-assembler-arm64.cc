@@ -19,7 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -3509,7 +3509,7 @@ void MacroAssembler::CheckPageFlag(const Register& object, int mask,
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  And(scratch, object, ~MemoryChunkHeader::GetAlignmentMaskForAssembler());
+  And(scratch, object, ~MemoryChunk::GetAlignmentMaskForAssembler());
   Ldr(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   if (cc == ne) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
@@ -3936,10 +3936,11 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &done);
+  CheckPageFlag(value, MutablePageMetadata::kPointersToHereAreInterestingMask,
+                eq, &done);
 
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+  CheckPageFlag(object,
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
                 &done);
 
   // Record the actual write.

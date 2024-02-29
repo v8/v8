@@ -17,8 +17,8 @@
 #include "src/heap/marking-barrier-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -42,7 +42,7 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
@@ -85,7 +85,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!InWritableSharedSpace(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
 
   MarkValue(host, value);
 
@@ -105,7 +105,7 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!InWritableSharedSpace(host));
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
@@ -120,7 +120,7 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array->map()));
-  DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
+  DCHECK(MutablePageMetadata::FromHeapObject(descriptor_array)->IsMarking());
 
   // Only major GC uses custom liveness.
   if (is_minor() || IsStrongDescriptorArray(descriptor_array)) {
@@ -178,25 +178,25 @@ void MarkingBarrier::RecordRelocSlot(Tagged<InstructionStream> host,
 
 namespace {
 void ActivateSpace(PagedSpace* space, MarkingMode marking_mode) {
-  for (Page* p : *space) {
+  for (PageMetadata* p : *space) {
     p->SetOldGenerationPageFlags(marking_mode);
   }
 }
 
 void ActivateSpace(NewSpace* space, MarkingMode marking_mode) {
-  for (Page* p : *space) {
+  for (PageMetadata* p : *space) {
     p->SetYoungGenerationPageFlags(marking_mode);
   }
 }
 
 void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
   ActivateSpace(heap->old_space(), marking_mode);
-  for (LargePage* p : *heap->lo_space()) {
+  for (LargePageMetadata* p : *heap->lo_space()) {
     p->SetOldGenerationPageFlags(marking_mode);
   }
 
   ActivateSpace(heap->new_space(), marking_mode);
-  for (LargePage* p : *heap->new_lo_space()) {
+  for (LargePageMetadata* p : *heap->new_lo_space()) {
     p->SetYoungGenerationPageFlags(marking_mode);
     DCHECK(p->IsLargePage());
   }
@@ -206,7 +206,7 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
         "Modification of InstructionStream page header flags requires write "
         "access");
     ActivateSpace(heap->code_space(), marking_mode);
-    for (LargePage* p : *heap->code_lo_space()) {
+    for (LargePageMetadata* p : *heap->code_lo_space()) {
       p->SetOldGenerationPageFlags(marking_mode);
     }
   }
@@ -216,38 +216,38 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
       ActivateSpace(heap->shared_space(), MarkingMode::kMajorMarking);
     }
     if (heap->shared_lo_space()) {
-      for (LargePage* p : *heap->shared_lo_space()) {
+      for (LargePageMetadata* p : *heap->shared_lo_space()) {
         p->SetOldGenerationPageFlags(MarkingMode::kMajorMarking);
       }
     }
   }
 
   ActivateSpace(heap->trusted_space(), marking_mode);
-  for (LargePage* p : *heap->trusted_lo_space()) {
+  for (LargePageMetadata* p : *heap->trusted_lo_space()) {
     p->SetOldGenerationPageFlags(marking_mode);
   }
 }
 
 void DeactivateSpace(PagedSpace* space) {
-  for (Page* p : *space) {
+  for (PageMetadata* p : *space) {
     p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 
 void DeactivateSpace(NewSpace* space) {
-  for (Page* p : *space) {
+  for (PageMetadata* p : *space) {
     p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 
 void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
   DeactivateSpace(heap->old_space());
-  for (LargePage* p : *heap->lo_space()) {
+  for (LargePageMetadata* p : *heap->lo_space()) {
     p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 
   DeactivateSpace(heap->new_space());
-  for (LargePage* p : *heap->new_lo_space()) {
+  for (LargePageMetadata* p : *heap->new_lo_space()) {
     p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
     DCHECK(p->IsLargePage());
   }
@@ -257,7 +257,7 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
         "Modification of InstructionStream page header flags requires write "
         "access");
     DeactivateSpace(heap->code_space());
-    for (LargePage* p : *heap->code_lo_space()) {
+    for (LargePageMetadata* p : *heap->code_lo_space()) {
       p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
     }
   }
@@ -267,14 +267,14 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
       DeactivateSpace(heap->shared_space());
     }
     if (heap->shared_lo_space()) {
-      for (LargePage* p : *heap->shared_lo_space()) {
+      for (LargePageMetadata* p : *heap->shared_lo_space()) {
         p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
       }
     }
   }
 
   DeactivateSpace(heap->trusted_space());
-  for (LargePage* p : *heap->trusted_lo_space()) {
+  for (LargePageMetadata* p : *heap->trusted_lo_space()) {
     p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
@@ -414,7 +414,7 @@ void MarkingBarrier::PublishIfNeeded() {
   if (is_activated_) {
     current_worklist_->Publish();
     for (auto& it : typed_slots_map_) {
-      MemoryChunk* memory_chunk = it.first;
+      MutablePageMetadata* memory_chunk = it.first;
       // Access to TypeSlots need to be protected, since LocalHeaps might
       // publish code in the background thread.
       base::MutexGuard guard(memory_chunk->mutex());

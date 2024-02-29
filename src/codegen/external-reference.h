@@ -16,7 +16,7 @@ class CFunctionInfo;
 namespace internal {
 
 class Isolate;
-class Page;
+class PageMetadata;
 class SCTableReference;
 class StatsCounter;
 

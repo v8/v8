@@ -35,10 +35,10 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/logging/counters.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
@@ -529,12 +529,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
-                Label::kNear);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
+                &done, Label::kNear);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
-                Label::kNear);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
+                &done, Label::kNear);
   RecordComment("CheckPageFlag]");
 
   CallRecordWriteStub(object, slot_address, fp_mode);
@@ -2207,7 +2207,7 @@ void MacroAssembler::LoadLabelAddress(Register dst, Label* lbl) {
 void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
                                                  Register header) {
   constexpr intptr_t alignment_mask =
-      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+      MemoryChunk::GetAlignmentMaskForAssembler();
   if (header == object) {
     and_(header, Immediate(~alignment_mask));
   } else {

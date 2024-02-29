@@ -228,13 +228,13 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
-class V8_EXPORT_PRIVATE LargePage final : public BasePage {
+class V8_EXPORT_PRIVATE LargePageMetadata final : public BasePage {
  public:
   static constexpr size_t PageHeaderSize() {
     // Header should be un-aligned to `kAllocationGranularity` so that adding a
     // `HeapObjectHeader` gets the user object aligned to
     // `kGuaranteedObjectAlignment`.
-    return RoundUp<kGuaranteedObjectAlignment>(sizeof(LargePage) +
+    return RoundUp<kGuaranteedObjectAlignment>(sizeof(LargePageMetadata) +
                                                sizeof(HeapObjectHeader)) -
            sizeof(HeapObjectHeader);
   }
@@ -242,16 +242,16 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   // Returns the allocation size required for a payload of size |size|.
   static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
-  static LargePage* TryCreate(PageBackend&, LargePageSpace&, size_t);
+  static LargePageMetadata* TryCreate(PageBackend&, LargePageSpace&, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
-  static void Destroy(LargePage*);
+  static void Destroy(LargePageMetadata*);
 
-  static LargePage* From(BasePage* page) {
+  static LargePageMetadata* From(BasePage* page) {
     DCHECK(page->is_large());
-    return static_cast<LargePage*>(page);
+    return static_cast<LargePageMetadata*>(page);
   }
-  static const LargePage* From(const BasePage* page) {
+  static const LargePageMetadata* From(const BasePage* page) {
     return From(const_cast<BasePage*>(page));
   }
 
@@ -279,8 +279,8 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   static constexpr size_t kGuaranteedObjectAlignment =
       2 * kAllocationGranularity;
 
-  LargePage(HeapBase& heap, BaseSpace& space, size_t);
-  ~LargePage();
+  LargePageMetadata(HeapBase& heap, BaseSpace& space, size_t);
+  ~LargePageMetadata();
 
   size_t payload_size_;
 };
@@ -299,7 +299,7 @@ template <AccessMode mode = AccessMode::kNonAtomic>
 const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
                                                          const void* address) {
   if (page->is_large()) {
-    return LargePage::From(page)->ObjectHeader();
+    return LargePageMetadata::From(page)->ObjectHeader();
   }
   const PlatformAwareObjectStartBitmap& bitmap =
       NormalPage::From(page)->object_start_bitmap();

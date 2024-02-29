@@ -19,7 +19,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -281,10 +281,12 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                &done);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
+                &done);
 
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
@@ -6171,8 +6173,7 @@ void MacroAssembler::CallCFunctionHelper(
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
   ASM_CODE_COMMENT(this);
-  And(scratch, object,
-      Operand(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+  And(scratch, object, Operand(~MemoryChunk::GetAlignmentMaskForAssembler()));
   Ld(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));

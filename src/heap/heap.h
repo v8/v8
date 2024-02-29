@@ -81,7 +81,7 @@ class Impl;
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
-class BasicMemoryChunk;
+class MemoryChunkMetadata;
 class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -105,7 +105,7 @@ class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryBalancer;
-class MemoryChunk;
+class MutablePageMetadata;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkSweepCollector;
@@ -113,7 +113,7 @@ class NativeContext;
 class NopRwxMemoryWriteScope;
 class ObjectIterator;
 class ObjectStats;
-class Page;
+class PageMetadata;
 class PagedSpace;
 class PagedNewSpace;
 class ReadOnlyHeap;
@@ -420,7 +420,8 @@ class Heap final {
   void NotifyBootstrapComplete();
 
   void NotifyOldGenerationExpansion(LocalHeap* local_heap,
-                                    AllocationSpace space, MemoryChunk* chunk);
+                                    AllocationSpace space,
+                                    MutablePageMetadata* chunk);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -1012,7 +1013,8 @@ class Heap final {
 
   void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
-  static int InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot);
+  static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+                                             Address slot);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
@@ -1757,7 +1759,7 @@ class Heap final {
 
   // Range write barrier implementation.
   template <int kModeMask, typename TSlot>
-  V8_INLINE void WriteBarrierForRangeImpl(MemoryChunk* source_page,
+  V8_INLINE void WriteBarrierForRangeImpl(MutablePageMetadata* source_page,
                                           Tagged<HeapObject> object,
                                           TSlot start_slot, TSlot end_slot);
 
@@ -2421,7 +2423,7 @@ class Heap final {
   friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;
-  friend class Page;
+  friend class PageMetadata;
   friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
@@ -2568,7 +2570,8 @@ class CodePageMemoryModificationScopeForDebugging {
   // access the page header. Hence, use the VirtualMemory for tracking instead.
   explicit CodePageMemoryModificationScopeForDebugging(
       Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
-  explicit CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk);
+  explicit CodePageMemoryModificationScopeForDebugging(
+      MemoryChunkMetadata* chunk);
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:

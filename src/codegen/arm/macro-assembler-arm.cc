@@ -22,7 +22,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -863,9 +863,10 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &done);
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+  CheckPageFlag(value, MutablePageMetadata::kPointersToHereAreInterestingMask,
+                eq, &done);
+  CheckPageFlag(object,
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
                 &done);
 
   // Record the actual write.

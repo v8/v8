@@ -17,7 +17,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -537,14 +537,14 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.Acquire();
     CheckPageFlag(value,
                   temp,  // Used as scratch.
-                  MemoryChunk::kPointersToHereAreInterestingMask,
+                  MutablePageMetadata::kPointersToHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
 
     CheckPageFlag(object,
                   temp,  // Used as scratch.
-                  MemoryChunk::kPointersFromHereAreInterestingMask,
+                  MutablePageMetadata::kPointersFromHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
@@ -6575,8 +6575,7 @@ int MacroAssembler::CallCFunctionHelper(
 
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
-  And(scratch, object,
-      Operand(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+  And(scratch, object, Operand(~MemoryChunk::GetAlignmentMaskForAssembler()));
   LoadWord(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MEMORY_CHUNK_INL_H_
-#define V8_HEAP_MEMORY_CHUNK_INL_H_
+#ifndef V8_HEAP_MUTABLE_PAGE_INL_H_
+#define V8_HEAP_MUTABLE_PAGE_INL_H_
 
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces-inl.h"
 
 namespace v8 {
 namespace internal {
 
-void MemoryChunk::IncrementExternalBackingStoreBytes(
+void MutablePageMetadata::IncrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
 #ifndef V8_ENABLE_THIRD_PARTY_HEAP
   base::CheckedIncrement(&external_backing_store_bytes_[static_cast<int>(type)],
@@ -20,7 +20,7 @@ void MemoryChunk::IncrementExternalBackingStoreBytes(
 #endif
 }
 
-void MemoryChunk::DecrementExternalBackingStoreBytes(
+void MutablePageMetadata::DecrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
 #ifndef V8_ENABLE_THIRD_PARTY_HEAP
   base::CheckedDecrement(&external_backing_store_bytes_[static_cast<int>(type)],
@@ -29,10 +29,9 @@ void MemoryChunk::DecrementExternalBackingStoreBytes(
 #endif
 }
 
-void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                MemoryChunk* from,
-                                                MemoryChunk* to,
-                                                size_t amount) {
+void MutablePageMetadata::MoveExternalBackingStoreBytes(
+    ExternalBackingStoreType type, MutablePageMetadata* from,
+    MutablePageMetadata* to, size_t amount) {
   DCHECK_NOT_NULL(from->owner());
   DCHECK_NOT_NULL(to->owner());
   base::CheckedDecrement(
@@ -43,7 +42,7 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                        amount);
 }
 
-AllocationSpace MemoryChunk::owner_identity() const {
+AllocationSpace MutablePageMetadata::owner_identity() const {
   if (InReadOnlySpace()) return RO_SPACE;
   return owner()->identity();
 }
@@ -51,4 +50,4 @@ AllocationSpace MemoryChunk::owner_identity() const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_MEMORY_CHUNK_INL_H_
+#endif  // V8_HEAP_MUTABLE_PAGE_INL_H_

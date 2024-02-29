@@ -379,7 +379,7 @@ PoolTestMixin<TMixin>::~PoolTestMixin() {
 // See v8:5945.
 TEST_F(PoolTest, UnmapOnTeardown) {
   if (v8_flags.enable_third_party_heap) return;
-  Page* page =
+  PageMetadata* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);

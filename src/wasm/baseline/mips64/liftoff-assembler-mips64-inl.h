@@ -6,7 +6,7 @@
 #define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_INL_H_
 
 #include "src/codegen/machine-type.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -586,10 +586,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   Label exit;
   CheckPageFlag(dst_addr, scratch,
-                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, kZero,
+                &exit);
   JumpIfSmi(src, &exit);
-  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
-                eq, &exit);
+  CheckPageFlag(src, scratch,
+                MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                &exit);
   Daddu(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);

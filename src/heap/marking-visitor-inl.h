@@ -57,14 +57,15 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
   // TODO(chromium:1495151): Remove after diagnosing.
-  if (V8_UNLIKELY(!BasicMemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
-                  IsFreeSpaceOrFiller(
-                      heap_object, ObjectVisitorWithCageBases::cage_base()))) {
+  if (V8_UNLIKELY(
+          !MemoryChunkMetadata::FromHeapObject(heap_object)->IsMarking() &&
+          IsFreeSpaceOrFiller(heap_object,
+                              ObjectVisitorWithCageBases::cage_base()))) {
     heap_->isolate()->PushStackTraceAndDie(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(BasicMemoryChunk::FromHeapObject(heap_object)
+        reinterpret_cast<void*>(MemoryChunkMetadata::FromHeapObject(heap_object)
                                     ->owner()
                                     ->identity()));
   }
@@ -397,7 +398,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.
-  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
+  MemoryChunkMetadata::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
 #endif
   if (!IsCode(maybe_code)) return false;
   Tagged<Code> code = Code::cast(maybe_code);
@@ -454,7 +455,7 @@ template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object) {
   ProgressBar& progress_bar =
-      MemoryChunk::FromHeapObject(object)->ProgressBar();
+      MutablePageMetadata::FromHeapObject(object)->ProgressBar();
   return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
              : VisitFixedArrayRegularly(map, object);

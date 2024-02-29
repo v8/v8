@@ -13913,9 +13913,11 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
                                      .ToLocalChecked())));
 
       i::PagedSpace* foo_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::Page::FromHeapObject(foo->abstract_code(i_isolate))->owner());
+          i::PageMetadata::FromHeapObject(foo->abstract_code(i_isolate))
+              ->owner());
       i::PagedSpace* bar_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::Page::FromHeapObject(bar->abstract_code(i_isolate))->owner());
+          i::PageMetadata::FromHeapObject(bar->abstract_code(i_isolate))
+              ->owner());
 
       CHECK_EQ(foo_owning_space, bar_owning_space);
       i::heap::SimulateFullSpace(foo_owning_space);

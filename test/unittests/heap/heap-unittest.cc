@@ -15,7 +15,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
@@ -207,7 +207,7 @@ TEST_F(HeapTest, HeapLayout) {
 
   IsolateSafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
-  while (MemoryChunk* chunk = iter.next()) {
+  while (MutablePageMetadata* chunk = iter.next()) {
     Address address = chunk->address();
     size_t size = chunk->area_end() - address;
     AllocationSpace owner_id = chunk->owner_identity();
@@ -245,7 +245,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    Page* page = *it++;
+    PageMetadata* page = *it++;
     if (page->allocated_bytes() == 0) {
       paged_new_space->ReleasePage(page);
     } else {
@@ -259,7 +259,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     }
   }
   paged_new_space->FinishShrinking();
-  for (Page* page : *paged_new_space) {
+  for (PageMetadata* page : *paged_new_space) {
     // We reset the number of live bytes to zero, as is expected after a GC.
     page->SetLiveBytes(0);
   }
@@ -403,7 +403,7 @@ namespace {
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MemoryChunk::FromHeapObject(obj);
+  auto chunk = MutablePageMetadata::FromHeapObject(obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -479,7 +479,7 @@ TEST_F(HeapTest, Regress978156) {
   heap->RightTrimArray(*last, last->length() - 1, last->length());
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
-      MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
+      MutablePageMetadata::FromHeapObject(*last)->area_end() - kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
   CHECK(IsFiller(filler));
   // 5. Start incremental marking.

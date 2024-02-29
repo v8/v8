@@ -18,8 +18,8 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
-#include "src/heap/heap-inl.h"  // For MemoryChunk. TODO(jkummerow): Drop.
-#include "src/heap/memory-chunk.h"
+#include "src/heap/heap-inl.h"  // For MutablePageMetadata. TODO(jkummerow): Drop.
+#include "src/heap/mutable-page.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -3597,10 +3597,10 @@ void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<Object> value) {
   CSA_DCHECK(
       this,
-      WordNotEqual(
-          WordAnd(LoadBasicMemoryChunkFlags(object),
-                  IntPtrConstant(BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-          IntPtrConstant(0)));
+      WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
+                           IntPtrConstant(
+                               MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
+                   IntPtrConstant(0)));
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -5060,15 +5060,15 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 #ifndef V8_ENABLE_SINGLE_GENERATION
 #ifdef DEBUG
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
-    TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
+    TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
-    CSA_DCHECK(
-        this,
-        WordNotEqual(
-            WordAnd(page_flags,
-                    IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
-            IntPtrConstant(0)));
+    CSA_DCHECK(this,
+               WordNotEqual(
+                   WordAnd(page_flags,
+                           IntPtrConstant(
+                               MutablePageMetadata::kIsInYoungGenerationMask)),
+                   IntPtrConstant(0)));
 #endif
 #endif
 
@@ -5461,16 +5461,17 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
     TNode<Object> object, Label* interesting) {
   Label finished(this);
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
+  TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
   TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
       Load(MachineType::IntPtr(), object_page_header,
            IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
-  Branch(
-      WordEqual(WordAnd(page_flags,
-                        IntPtrConstant(
-                            MemoryChunk::kPointersFromHereAreInterestingMask)),
-                IntPtrConstant(0)),
-      &finished, interesting);
+  Branch(WordEqual(
+             WordAnd(
+                 page_flags,
+                 IntPtrConstant(
+                     MutablePageMetadata::kPointersFromHereAreInterestingMask)),
+             IntPtrConstant(0)),
+         &finished, interesting);
   BIND(&finished);
 }
 
@@ -7867,7 +7868,7 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
 TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
     TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> page_header = PageHeaderFromAddress(object_word);
+  TNode<IntPtrT> page_header = MemoryChunkFromAddress(object_word);
   return UncheckedCast<IntPtrT>(
       Load(MachineType::Pointer(), page_header,
            IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
@@ -12827,31 +12828,33 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   // TODO(v8:11641): Skip TrapAllocationMemento when allocation-site
   // tracking is disabled.
-  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
+  TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
         object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
-    GotoIf(WordEqual(
-               WordAnd(page_flags,
-                       IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
-               IntPtrConstant(0)),
-           &no_memento_found);
+    GotoIf(
+        WordEqual(WordAnd(page_flags,
+                          IntPtrConstant(
+                              MutablePageMetadata::kIsInYoungGenerationMask)),
+                  IntPtrConstant(0)),
+        &no_memento_found);
     // TODO(v8:11799): Support allocation memento for a large object by
     // allocating additional word for the memento after the large object.
-    GotoIf(WordNotEqual(WordAnd(page_flags,
-                                IntPtrConstant(MemoryChunk::kIsLargePageMask)),
-                        IntPtrConstant(0)),
+    GotoIf(WordNotEqual(
+               WordAnd(page_flags,
+                       IntPtrConstant(MutablePageMetadata::kIsLargePageMask)),
+               IntPtrConstant(0)),
            &no_memento_found);
   }
 
   TNode<IntPtrT> memento_last_word = IntPtrAdd(
       object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
   TNode<IntPtrT> memento_last_word_page_header =
-      PageHeaderFromAddress(memento_last_word);
+      MemoryChunkFromAddress(memento_last_word);
 
   TNode<IntPtrT> new_space_top = Load<IntPtrT>(new_space_top_address);
   TNode<IntPtrT> new_space_top_page_header =
-      PageHeaderFromAddress(new_space_top);
+      MemoryChunkFromAddress(new_space_top);
 
   // If the object is in new space, we need to check whether respective
   // potential memento object is on the same page as the current top.
@@ -12886,22 +12889,23 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Comment("] TrapAllocationMemento");
 }
 
-TNode<IntPtrT> CodeStubAssembler::PageHeaderFromAddress(
+TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
     TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-  return WordAnd(
-      address,
-      IntPtrConstant(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+  return WordAnd(address,
+                 IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
-TNode<IntPtrT> CodeStubAssembler::PageFromPageHeader(TNode<IntPtrT> address) {
+TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
+    TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
   return address;
 }
 
-TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
+TNode<IntPtrT> CodeStubAssembler::PageMetadataFromAddress(
+    TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-  return PageFromPageHeader(PageHeaderFromAddress(address));
+  return PageMetadataFromMemoryChunk(MemoryChunkFromAddress(address));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
@@ -17714,10 +17718,11 @@ void CodeStubAssembler::SharedValueBarrier(
   // trivially shared.
   CSA_DCHECK(this, BoolConstant(ReadOnlyHeap::IsReadOnlySpaceShared()));
   TNode<IntPtrT> page_flags = LoadBasicMemoryChunkFlags(CAST(value));
-  GotoIf(WordNotEqual(WordAnd(page_flags,
-                              IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP)),
-                      IntPtrConstant(0)),
-         &skip_barrier);
+  GotoIf(
+      WordNotEqual(WordAnd(page_flags,
+                           IntPtrConstant(MemoryChunkMetadata::READ_ONLY_HEAP)),
+                   IntPtrConstant(0)),
+      &skip_barrier);
 
   // Fast path: Check if the HeapObject is already shared.
   TNode<Uint16T> value_instance_type =
@@ -17730,12 +17735,12 @@ void CodeStubAssembler::SharedValueBarrier(
 
   BIND(&check_in_shared_heap);
   {
-    Branch(
-        WordNotEqual(
-            WordAnd(page_flags,
-                    IntPtrConstant(BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-            IntPtrConstant(0)),
-        &skip_barrier, &slow);
+    Branch(WordNotEqual(
+               WordAnd(page_flags,
+                       IntPtrConstant(
+                           MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
+               IntPtrConstant(0)),
+           &skip_barrier, &slow);
   }
 
   // Slow path: Call out to runtime to share primitives and to throw on
@@ -17752,9 +17757,10 @@ void CodeStubAssembler::SharedValueBarrier(
     CSA_DCHECK(
         this,
         WordNotEqual(
-            WordAnd(LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
-                    IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP |
-                                   BasicMemoryChunk::IN_WRITABLE_SHARED_SPACE)),
+            WordAnd(
+                LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
+                IntPtrConstant(MemoryChunkMetadata::READ_ONLY_HEAP |
+                               MemoryChunkMetadata::IN_WRITABLE_SHARED_SPACE)),
             IntPtrConstant(0)));
     Goto(&done);
   }

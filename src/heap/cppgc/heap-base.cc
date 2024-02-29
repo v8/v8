@@ -88,7 +88,7 @@ class AgeTableResetter final : protected HeapVisitor<AgeTableResetter> {
   }
 
   bool VisitNormalPage(NormalPage& page) { return VisitPage(page); }
-  bool VisitLargePage(LargePage& page) { return VisitPage(page); }
+  bool VisitLargePage(LargePageMetadata& page) { return VisitPage(page); }
 
  private:
   AgeTable& age_table_;

@@ -120,7 +120,7 @@ class RememberedSetExtractor : HeapVisitor<RememberedSetExtractor> {
     return true;
   }
 
-  bool VisitLargePage(LargePage& page) {
+  bool VisitLargePage(LargePageMetadata& page) {
     VisitPage(page);
     return true;
   }

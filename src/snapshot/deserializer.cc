@@ -972,7 +972,7 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
   uint32_t chunk_offset = source_.GetUint30();
 
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
-  ReadOnlyPage* page = read_only_space->pages()[chunk_index];
+  ReadOnlyPageMetadata* page = read_only_space->pages()[chunk_index];
   Address address = page->OffsetToAddress(chunk_offset);
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(address);
 

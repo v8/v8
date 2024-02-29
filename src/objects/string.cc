@@ -13,7 +13,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/instance-type.h"
@@ -714,7 +714,7 @@ bool String::LooksValid() {
   // RO_SPACE objects should always be valid.
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return true;
   if (ReadOnlyHeap::Contains(this)) return true;
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(this);
+  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(this);
   if (chunk->heap() == nullptr) return false;
   return chunk->heap()->Contains(this);
 }

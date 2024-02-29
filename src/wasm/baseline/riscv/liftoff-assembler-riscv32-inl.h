@@ -5,7 +5,7 @@
 #ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV32_INL_H_
 #define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV32_INL_H_
 
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -272,10 +272,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   Label exit;
   CheckPageFlag(dst_addr, kScratchReg,
-                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, kZero,
+                &exit);
   JumpIfSmi(src, &exit);
   CheckPageFlag(src, kScratchReg,
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                &exit);
   AddWord(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);

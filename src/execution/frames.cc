@@ -1371,7 +1371,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
-          CHECK(BasicMemoryChunk::FromHeapObject(forwarded)
+          CHECK(MemoryChunkMetadata::FromHeapObject(forwarded)
                     ->InNewLargeObjectSpace());
         } else {
           Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);

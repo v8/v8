@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
@@ -20,8 +20,8 @@ using RootsTest = TestWithIsolate;
 namespace {
 AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
   DCHECK(IsHeapObject(object));
-  BasicMemoryChunk* chunk =
-      BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
+  MemoryChunkMetadata* chunk =
+      MemoryChunkMetadata::FromHeapObject(HeapObject::cast(object));
   if (chunk->InReadOnlySpace()) return RO_SPACE;
   return chunk->owner()->identity();
 }

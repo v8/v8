@@ -11,7 +11,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
@@ -137,7 +137,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
-    TNode<IntPtrT> header = PageHeaderFromAddress(object);
+    TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
              IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
@@ -155,7 +155,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
-    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<IntPtrT> page = PageMetadataFromAddress(object);
     TNode<IntPtrT> bitmap = IntPtrAdd(
         page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
 
@@ -165,10 +165,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       int shift = MarkingBitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
                   MarkingBitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(
-          r0, IntPtrConstant(
-                  (MemoryChunkHeader::GetAlignmentMaskForAssembler() >> shift) &
-                  ~(MarkingBitmap::kBytesPerCell - 1)));
+      r0 = WordAnd(r0,
+                   IntPtrConstant(
+                       (MemoryChunk::GetAlignmentMaskForAssembler() >> shift) &
+                       ~(MarkingBitmap::kBytesPerCell - 1)));
       *cell = IntPtrAdd(bitmap, Signed(r0));
     }
     {
@@ -187,8 +187,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InsertIntoRememberedSet(TNode<IntPtrT> object, TNode<IntPtrT> slot,
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
-    TNode<IntPtrT> page_header = PageHeaderFromAddress(object);
-    TNode<IntPtrT> page = PageFromPageHeader(page_header);
+    TNode<IntPtrT> page_header = MemoryChunkFromAddress(object);
+    TNode<IntPtrT> page = PageMetadataFromMemoryChunk(page_header);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
@@ -218,7 +218,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
     TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), page,
-             IntPtrConstant(MemoryChunk::kOldToNewSlotSetOffset)));
+             IntPtrConstant(MutablePageMetadata::kOldToNewSlotSetOffset)));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }
@@ -319,12 +319,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     InYoungGeneration(value, &generational_barrier, &shared_barrier);
 
     BIND(&generational_barrier);
-    CSA_DCHECK(this,
-               IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
+    CSA_DCHECK(this, IsPageFlagSet(
+                         value, MutablePageMetadata::kIsInYoungGenerationMask));
     GenerationalBarrierSlow(slot, next, fp_mode);
 
     BIND(&shared_barrier);
-    CSA_DCHECK(this, IsPageFlagSet(value, MemoryChunk::kInSharedHeap));
+    CSA_DCHECK(this, IsPageFlagSet(value, MutablePageMetadata::kInSharedHeap));
     SharedBarrierSlow(slot, next, fp_mode);
   }
 
@@ -396,7 +396,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
                          Label* false_label) {
     TNode<BoolT> object_is_young =
-        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
+        IsPageFlagSet(object, MutablePageMetadata::kIsInYoungGenerationMask);
 
     Branch(object_is_young, true_label, false_label);
   }
@@ -404,7 +404,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
                     Label* false_label) {
     TNode<BoolT> object_is_young =
-        IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
+        IsPageFlagSet(object, MutablePageMetadata::kInSharedHeap);
 
     Branch(object_is_young, true_label, false_label);
   }
@@ -463,14 +463,16 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
     // 2) OnEvacuationCandidate(value) &&
     //    !SkipEvacuationCandidateRecording(value)
-    GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
-              false_label);
+    GotoIfNot(
+        IsPageFlagSet(value, MutablePageMetadata::kEvacuationCandidateMask),
+        false_label);
 
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       Branch(
-          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
+          IsPageFlagSet(object,
+                        MutablePageMetadata::kSkipEvacuationSlotsRecordingMask),
           false_label, true_label);
     }
   }
@@ -495,7 +497,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // isolates). Now first check whether incremental marking is activated for
     // that particular object's space. Incrementally marking might only be
     // enabled for either local or shared objects on client isolates.
-    GotoIfNot(IsPageFlagSet(object, MemoryChunk::kIncrementalMarking), &next);
+    GotoIfNot(IsPageFlagSet(object, MutablePageMetadata::kIncrementalMarking),
+              &next);
 
     // We now know that incremental marking is enabled for the given object.
     // Decide whether to run the shared or local incremental marking barrier.

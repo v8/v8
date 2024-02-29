@@ -4180,8 +4180,8 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(
-                  i::Page::FromHeapObject(isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
+                  isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
@@ -4236,8 +4236,8 @@ TEST(ContextFilterMovedNativeContext) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(
-                  i::Page::FromHeapObject(isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
+                  isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =

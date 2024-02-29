@@ -13,7 +13,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -175,7 +175,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_,
+                     MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
                      exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -917,9 +918,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (mode > RecordWriteMode::kValueIsPointer) {
           __ JumpIfSmi(value, ool->exit());
         }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
+        __ CheckPageFlag(
+            object, MutablePageMetadata::kPointersFromHereAreInterestingMask,
+            ne, ool->entry());
         __ bind(ool->exit());
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
@@ -931,9 +932,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (mode > RecordWriteMode::kValueIsIndirectPointer) {
           __ JumpIfSmi(value, ool->exit());
         }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
+        __ CheckPageFlag(
+            object, MutablePageMetadata::kPointersFromHereAreInterestingMask,
+            ne, ool->entry());
         __ bind(ool->exit());
       }
       break;
@@ -956,7 +957,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+      __ CheckPageFlag(object,
+                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;
@@ -978,9 +980,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ StoreIndirectPointerField(value,
                                      MemOperand(object, i.InputInt32(1)));
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
+        __ CheckPageFlag(
+            object, MutablePageMetadata::kPointersFromHereAreInterestingMask,
+            ne, ool->entry());
         __ bind(ool->exit());
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
@@ -990,9 +992,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ StoreIndirectPointerField(value,
                                      MemOperand(object, i.InputRegister(1)));
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
+        __ CheckPageFlag(
+            object, MutablePageMetadata::kPointersFromHereAreInterestingMask,
+            ne, ool->entry());
         __ bind(ool->exit());
       }
       break;

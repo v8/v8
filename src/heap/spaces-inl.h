@@ -13,7 +13,7 @@
 #include "src/heap/large-page.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator-inl.h"
-#include "src/heap/memory-chunk-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
@@ -59,14 +59,14 @@ void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
       &(to->external_backing_store_bytes_[static_cast<int>(type)]), amount);
 }
 
-PageRange::PageRange(Page* page) : PageRange(page, page->next_page()) {}
-ConstPageRange::ConstPageRange(const Page* page)
+PageRange::PageRange(PageMetadata* page) : PageRange(page, page->next_page()) {}
+ConstPageRange::ConstPageRange(const PageMetadata* page)
     : ConstPageRange(page, page->next_page()) {}
 
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
     : heap_(heap), state_(kOldSpace), iterator_(heap->old_space()->begin()) {}
 
-MemoryChunk* OldGenerationMemoryChunkIterator::next() {
+MutablePageMetadata* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpace: {
       PageIterator& iterator = std::get<PageIterator>(iterator_);
@@ -126,8 +126,8 @@ bool MemoryChunkIterator::HasNext() {
   return false;
 }
 
-MemoryChunk* MemoryChunkIterator::Next() {
-  MemoryChunk* chunk = current_chunk_;
+MutablePageMetadata* MemoryChunkIterator::Next() {
+  MutablePageMetadata* chunk = current_chunk_;
   current_chunk_ = chunk->list_node().next();
   return chunk;
 }

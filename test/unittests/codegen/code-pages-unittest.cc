@@ -276,7 +276,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -394,7 +394,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -473,7 +473,7 @@ TEST_F(CodePagesTest, Sorted) {
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 

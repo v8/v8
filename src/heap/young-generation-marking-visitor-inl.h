@@ -7,8 +7,8 @@
 
 #include "src/common/globals.h"
 #include "src/heap/marking-worklist-inl.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
@@ -190,7 +190,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   }
 
 #ifdef THREAD_SANITIZER
-  BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+  MemoryChunkMetadata::FromHeapObject(heap_object)->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
 
   if (!Heap::InYoungGeneration(heap_object)) {
@@ -213,7 +213,8 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     const int visited_size = Parent::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          MutablePageMetadata::cast(
+              MemoryChunkMetadata::FromHeapObject(heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     return true;
@@ -272,10 +273,10 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 V8_INLINE void
 YoungGenerationMarkingVisitor<marking_mode>::IncrementLiveBytesCached(
-    MemoryChunk* chunk, intptr_t by) {
+    MutablePageMetadata* chunk, intptr_t by) {
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(by, kObjectAlignment8GbHeap));
-  const size_t hash = base::hash<MemoryChunk*>()(chunk) & kEntriesMask;
+  const size_t hash = base::hash<MutablePageMetadata*>()(chunk) & kEntriesMask;
   auto& entry = live_bytes_data_[hash];
   if (entry.first && entry.first != chunk) {
     entry.first->IncrementLiveBytesAtomically(entry.second);

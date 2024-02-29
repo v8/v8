@@ -8,7 +8,7 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
-#include "src/heap/memory-chunk-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
@@ -864,7 +864,7 @@ SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
     return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =
-        MemoryChunk::FromHeapObject(object)->owner_identity();
+        MutablePageMetadata::FromHeapObject(object)->owner_identity();
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);
@@ -1351,11 +1351,11 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
+  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   DCHECK(!read_only_space->writable());
-  for (ReadOnlyPage* page : read_only_space->pages()) {
+  for (ReadOnlyPageMetadata* page : read_only_space->pages()) {
     if (chunk == page) break;
     ++chunk_index;
   }

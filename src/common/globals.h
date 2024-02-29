@@ -985,7 +985,7 @@ using MaybeObjectDirectHandle = MaybeObjectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
 template <typename T>
 class MaybeWeak;
-class MemoryChunk;
+class MutablePageMetadata;
 class MessageLocation;
 class ModuleScope;
 class Name;

@@ -7,10 +7,10 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"
 #include "src/objects/instance-type-inl.h"
 
@@ -149,7 +149,7 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 
 // static
 MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
-  Address page_address = MemoryChunk::FromAddress(address)->address();
+  Address page_address = MutablePageMetadata::FromAddress(address)->address();
   return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
 }
 
@@ -164,18 +164,18 @@ MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
 // static
 constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::AddressToIndex(
     Address address) {
-  return MemoryChunkHeader::AddressToOffset(address) >> kTaggedSizeLog2;
+  return MemoryChunk::AddressToOffset(address) >> kTaggedSizeLog2;
 }
 
 // static
 constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
     Address address) {
-  if (MemoryChunkHeader::IsAligned(address)) return kLength;
+  if (MemoryChunk::IsAligned(address)) return kLength;
   return AddressToIndex(address);
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
+inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
                                                       Address maybe_inner_ptr) {
   DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();
@@ -265,7 +265,7 @@ MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
 
 LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
 
-LiveObjectRange::iterator::iterator(const Page* page)
+LiveObjectRange::iterator::iterator(const PageMetadata* page)
     : page_(page),
       cells_(page->marking_bitmap()->cells()),
       cage_base_(page->heap()->isolate()),
@@ -309,7 +309,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     // well as other objects.
     Address next_object = current_object_.address() + current_size_;
     current_object_ = HeapObject();
-    if (MemoryChunkHeader::IsAligned(next_object)) {
+    if (MemoryChunk::IsAligned(next_object)) {
       return false;
     }
     // Area end may not be exactly aligned to kAlignment. We don't need to bail

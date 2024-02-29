@@ -321,11 +321,11 @@ void BasicMarkingState::ProcessEphemeron(const void* key, const void* value,
 }
 
 void BasicMarkingState::AccountMarkedBytes(const HeapObjectHeader& header) {
-  AccountMarkedBytes(
-      header.IsLargeObject<AccessMode::kAtomic>()
-          ? reinterpret_cast<const LargePage*>(BasePage::FromPayload(&header))
-                ->PayloadSize()
-          : header.AllocatedSize<AccessMode::kAtomic>());
+  AccountMarkedBytes(header.IsLargeObject<AccessMode::kAtomic>()
+                         ? reinterpret_cast<const LargePageMetadata*>(
+                               BasePage::FromPayload(&header))
+                               ->PayloadSize()
+                         : header.AllocatedSize<AccessMode::kAtomic>());
 }
 
 void BasicMarkingState::AccountMarkedBytes(size_t marked_bytes) {

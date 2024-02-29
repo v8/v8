@@ -13,7 +13,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces-inl.h"
 #include "test/unittests/test-utils.h"
 
@@ -59,7 +59,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   MainAllocator allocator(heap, compaction_space, MainAllocator::kInGC);
   EXPECT_TRUE(compaction_space != nullptr);
 
-  for (Page* p : *old_space) {
+  for (PageMetadata* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
     // compaction spaces.
     old_space->UnlinkFreeListCategories(p);
@@ -94,71 +94,71 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 }
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
-  constexpr Address address1 = Page::kPageSize;
+  constexpr Address address1 = PageMetadata::kPageSize;
   Tagged<HeapObject> object1 =
       HeapObject::unchecked_cast(Tagged<Object>(address1));
-  BasicMemoryChunk* chunk1 = BasicMemoryChunk::FromHeapObject(object1);
-  MemoryChunkHeader* slim_chunk1 = MemoryChunkHeader::FromHeapObject(object1);
+  MemoryChunkMetadata* chunk1 = MemoryChunkMetadata::FromHeapObject(object1);
+  MemoryChunk* slim_chunk1 = MemoryChunk::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
-  constexpr Address address2 = 2 * Page::kPageSize - 1;
+  constexpr Address address2 = 2 * PageMetadata::kPageSize - 1;
   Tagged<HeapObject> object2 =
       HeapObject::unchecked_cast(Tagged<Object>(address2));
-  BasicMemoryChunk* chunk2 = BasicMemoryChunk::FromHeapObject(object2);
-  MemoryChunkHeader* slim_chunk2 = MemoryChunkHeader::FromHeapObject(object2);
+  MemoryChunkMetadata* chunk2 = MemoryChunkMetadata::FromHeapObject(object2);
+  MemoryChunk* slim_chunk2 = MemoryChunk::FromHeapObject(object2);
   EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
 }
 
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
-  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
+  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
   EXPECT_FALSE(slim_chunk->IsMarking());
-  chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-  EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  chunk->SetFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+  EXPECT_TRUE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
   EXPECT_TRUE(slim_chunk->IsMarking());
-  chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  chunk->ClearFlag(MutablePageMetadata::INCREMENTAL_MARKING);
+  EXPECT_FALSE(chunk->IsFlagSet(MutablePageMetadata::INCREMENTAL_MARKING));
   EXPECT_FALSE(slim_chunk->IsMarking());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
+  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
+  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MemoryChunk::TO_PAGE);
+  chunk->SetFlag(MutablePageMetadata::TO_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
   EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MemoryChunk::TO_PAGE);
+  chunk->ClearFlag(MutablePageMetadata::TO_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
+  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
+  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MemoryChunk::FROM_PAGE);
+  chunk->SetFlag(MutablePageMetadata::FROM_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
   EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MemoryChunk::FROM_PAGE);
+  chunk->ClearFlag(MutablePageMetadata::FROM_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {
   CodeRangeAddressHint hint;
-  const size_t base_alignment = MemoryChunk::kPageSize;
+  const size_t base_alignment = MutablePageMetadata::kPageSize;
   // Create code ranges.
   Address code_range1 = hint.GetAddressHint(100, base_alignment);
   CHECK(IsAligned(code_range1, base_alignment));

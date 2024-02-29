@@ -1850,7 +1850,8 @@ TEST(NativeSnapshotObjectIdMoving) {
     auto local = v8::Local<v8::String>::New(isolate, wrapper);
     i::Handle<i::String> internal = i::Handle<i::String>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
-    i::heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*internal));
+    i::heap::ForceEvacuationCandidate(
+        i::PageMetadata::FromHeapObject(*internal));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
 

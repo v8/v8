@@ -24,7 +24,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 
@@ -400,8 +400,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
 
     __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
-                     exit());
+                     MutablePageMetadata::kPointersToHereAreInterestingMask,
+                     zero, exit());
 
     __ leaq(scratch1_, operand_);
 
@@ -1723,7 +1723,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1748,7 +1748,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);
       __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;

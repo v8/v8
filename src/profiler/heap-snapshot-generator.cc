@@ -132,12 +132,12 @@ class HeapEntryVerifier {
     // Read-only objects can't ever retain normal read-write objects, so these
     // are fine to skip.
     for (Tagged<HeapObject> obj : reference_summary_.strong_references()) {
-      if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+      if (!MemoryChunkMetadata::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
     }
     for (Tagged<HeapObject> obj : reference_summary_.weak_references()) {
-      if (!BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+      if (!MemoryChunkMetadata::FromHeapObject(obj)->InReadOnlySpace()) {
         CHECK_NE(checked_objects_.find(obj), checked_objects_.end());
       }
     }
@@ -158,7 +158,7 @@ class HeapEntryVerifier {
           level == 0 ? reference_summary_.strong_references()
                      : indirect_strong_references_[level - 1];
       for (Tagged<HeapObject> obj : previous) {
-        if (BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+        if (MemoryChunkMetadata::FromHeapObject(obj)->InReadOnlySpace()) {
           // Marking visitors don't expect to visit objects in read-only space,
           // and will fail DCHECKs if they are used on those objects. Read-only
           // objects can never retain anything outside read-only space, so
@@ -264,7 +264,7 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
   }
   Tagged<HeapObject> from_obj = HeapObject::cast(Tagged<Object>(from_address));
   Tagged<HeapObject> to_obj = HeapObject::cast(Tagged<Object>(to_address));
-  if (BasicMemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
+  if (MemoryChunkMetadata::FromHeapObject(to_obj)->InReadOnlySpace()) {
     // We can't verify pointers into read-only space, because marking visitors
     // might not mark those. For example, every Map has a pointer to the
     // MetaMap, but marking visitors don't bother with following that link.
@@ -1040,7 +1040,7 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
   // Maps in read-only space are for internal V8 data, not user-defined object
   // shapes.
   if ((InstanceTypeChecker::IsMap(type) &&
-       !BasicMemoryChunk::FromHeapObject(object)->InReadOnlySpace()) ||
+       !MemoryChunkMetadata::FromHeapObject(object)->InReadOnlySpace()) ||
       InstanceTypeChecker::IsDescriptorArray(type) ||
       InstanceTypeChecker::IsTransitionArray(type) ||
       InstanceTypeChecker::IsPrototypeInfo(type) ||
@@ -2307,7 +2307,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     // never retain read-write objects, so there is no risk in skipping
     // verification for them.
     if (v8_flags.heap_snapshot_verify &&
-        !BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
+        !MemoryChunkMetadata::FromHeapObject(obj)->InReadOnlySpace()) {
       verifier = std::make_unique<HeapEntryVerifier>(generator, obj);
     }
 #endif

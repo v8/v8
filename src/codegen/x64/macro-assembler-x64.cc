@@ -25,7 +25,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/instance-type-inl.h"
@@ -867,13 +867,13 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
-                Label::kNear);
+                MutablePageMetadata::kPointersToHereAreInterestingMask, zero,
+                &done, Label::kNear);
 
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
-                Label::kNear);
+                MutablePageMetadata::kPointersFromHereAreInterestingMask, zero,
+                &done, Label::kNear);
 
   if (slot.contains_direct_pointer()) {
     CallRecordWriteStub(object, slot_address, fp_mode,
@@ -4022,7 +4022,7 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
 void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
                                                  Register header) {
   constexpr intptr_t alignment_mask =
-      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+      MemoryChunk::GetAlignmentMaskForAssembler();
   if (header == object) {
     andq(header, Immediate(~alignment_mask));
   } else {

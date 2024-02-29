@@ -207,7 +207,7 @@ static void SandboxIsWritableImpl(
     return;
   }
 
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
+  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(obj);
   bool is_writable = chunk->IsWritable();
   info.GetReturnValue().Set(is_writable);
 }

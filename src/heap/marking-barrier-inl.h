@@ -19,7 +19,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
                            Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
 
   MarkValue(host, value);
 
@@ -40,7 +40,7 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
   // isolate (= main isolate) also shared objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // Check whether incremental marking is enabled for that object's space.
-    if (!MemoryChunk::FromHeapObject(host)->IsMarking()) {
+    if (!MutablePageMetadata::FromHeapObject(host)->IsMarking()) {
       return;
     }
 
@@ -100,8 +100,8 @@ inline void MarkingBarrier::MarkRange(Tagged<HeapObject> host, TSlot start,
                                       TSlot end) {
   auto* isolate = heap_->isolate();
   const bool record_slots =
-      IsCompacting(host) &&
-      !MemoryChunk::FromHeapObject(host)->ShouldSkipEvacuationSlotRecording();
+      IsCompacting(host) && !MutablePageMetadata::FromHeapObject(host)
+                                 ->ShouldSkipEvacuationSlotRecording();
   for (TSlot slot = start; slot < end; ++slot) {
     typename TSlot::TObject object = slot.Relaxed_Load();
     Tagged<HeapObject> heap_object;

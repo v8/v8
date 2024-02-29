@@ -9,7 +9,7 @@
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
@@ -84,7 +84,7 @@ void Scavenger::PageMemoryFence(Tagged<MaybeObject> object) {
   // with  page initialization.
   Tagged<HeapObject> heap_object;
   if (object.GetHeapObject(&heap_object)) {
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    MemoryChunkMetadata::FromHeapObject(heap_object)->SynchronizedHeapLoad();
   }
 #endif
 }
@@ -224,10 +224,10 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
                                   int object_size, ObjectFields object_fields) {
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
-  if (V8_UNLIKELY(
-          BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
+  if (V8_UNLIKELY(MemoryChunkMetadata::FromHeapObject(object)
+                      ->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
-              MemoryChunk::FromHeapObject(object)->owner_identity());
+              MutablePageMetadata::FromHeapObject(object)->owner_identity());
     if (object->release_compare_and_swap_map_word_forwarded(
             MapWord::FromMap(map), object)) {
       surviving_new_large_objects_.insert({object, map});

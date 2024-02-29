@@ -36,7 +36,8 @@ template <typename THeapObjectSlot>
 void MarkCompactCollector::RecordSlot(Tagged<HeapObject> object,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
+  MutablePageMetadata* source_page =
+      MutablePageMetadata::FromHeapObject(object);
   if (!source_page->ShouldSkipEvacuationSlotRecording()) {
     RecordSlot(source_page, slot, target);
   }
@@ -44,16 +45,17 @@ void MarkCompactCollector::RecordSlot(Tagged<HeapObject> object,
 
 // static
 template <typename THeapObjectSlot>
-void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
+void MarkCompactCollector::RecordSlot(MutablePageMetadata* source_page,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
+  MemoryChunkMetadata* target_page =
+      MemoryChunkMetadata::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate()) {
-    if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    if (target_page->IsFlagSet(MutablePageMetadata::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
-    } else if (source_page->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-               target_page->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+    } else if (source_page->IsFlagSet(MutablePageMetadata::IS_TRUSTED) &&
+               target_page->IsFlagSet(MutablePageMetadata::IS_TRUSTED)) {
       RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
           source_page, slot.address());
     } else if (V8_LIKELY(!target_page->InWritableSharedSpace()) ||

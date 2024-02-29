@@ -23,7 +23,7 @@ class HeapStatisticsCollector : private HeapVisitor<HeapStatisticsCollector> {
   bool VisitNormalPageSpace(NormalPageSpace&);
   bool VisitLargePageSpace(LargePageSpace&);
   bool VisitNormalPage(NormalPage&);
-  bool VisitLargePage(LargePage&);
+  bool VisitLargePage(LargePageMetadata&);
   bool VisitHeapObjectHeader(HeapObjectHeader&);
 
   HeapStatistics* current_stats_;

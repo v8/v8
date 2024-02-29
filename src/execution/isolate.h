@@ -2020,8 +2020,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // before such a mode change to ensure that this cannot happen.
   void CollectSourcePositionsForAllBytecodeArrays();
 
-  void AddCodeMemoryChunk(MemoryChunk* chunk);
-  void RemoveCodeMemoryChunk(MemoryChunk* chunk);
+  void AddCodeMemoryChunk(MutablePageMetadata* chunk);
+  void RemoveCodeMemoryChunk(MutablePageMetadata* chunk);
   void AddCodeRange(Address begin, size_t length_in_bytes);
 
   bool RequiresCodeRange() const;

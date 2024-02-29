@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_BASIC_MEMORY_CHUNK_H_
-#define V8_HEAP_BASIC_MEMORY_CHUNK_H_
+#ifndef V8_HEAP_MEMORY_CHUNK_METADATA_H_
+#define V8_HEAP_MEMORY_CHUNK_METADATA_H_
 
 #include <type_traits>
 #include <unordered_map>
@@ -14,7 +14,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-header.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
@@ -24,24 +24,24 @@ namespace internal {
 
 class BaseSpace;
 
-class BasicMemoryChunk : public MemoryChunkHeader {
+class MemoryChunkMetadata : public MemoryChunk {
  public:
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromAddress(Address a) {
+  static MemoryChunkMetadata* FromAddress(Address a) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
+    return reinterpret_cast<MemoryChunkMetadata*>(BaseAddress(a));
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromHeapObject(Tagged<HeapObject> o) {
+  static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
+    return reinterpret_cast<MemoryChunkMetadata*>(BaseAddress(o.ptr()));
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromHeapObject(const HeapObjectLayout* o) {
+  static MemoryChunkMetadata* FromHeapObject(const HeapObjectLayout* o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<BasicMemoryChunk*>(
+    return reinterpret_cast<MemoryChunkMetadata*>(
         BaseAddress(reinterpret_cast<Address>(o)));
   }
 
@@ -49,8 +49,9 @@ class BasicMemoryChunk : public MemoryChunkHeader {
     if (mark == kNullAddress) return;
     // Need to subtract one from the mark because when a chunk is full the
     // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(mark - 1);
+    // to another chunk. See the comment to
+    // PageMetadata::FromAllocationAreaAddress.
+    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(mark - 1);
     intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
     intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
     while ((new_mark > old_mark) &&
@@ -59,7 +60,7 @@ class BasicMemoryChunk : public MemoryChunkHeader {
     }
   }
 
-  BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+  MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                    Address area_start, Address area_end,
                    VirtualMemory reservation);
 
@@ -136,8 +137,8 @@ class BasicMemoryChunk : public MemoryChunkHeader {
 
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MemoryChunk::Initialize for the corresponding
-  // release store.
+  // mark-bit initialization. See MutablePageMetadata::Initialize for the
+  // corresponding release store.
   void SynchronizedHeapLoad() const;
 #endif
 
@@ -176,7 +177,7 @@ class BasicMemoryChunk : public MemoryChunkHeader {
   friend class PagedSpace;
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
+DEFINE_OPERATORS_FOR_FLAGS(MemoryChunkMetadata::MainThreadFlags)
 
 }  // namespace internal
 
@@ -184,13 +185,13 @@ namespace base {
 
 // Define special hash function for chunk pointers, to be used with std data
 // structures, e.g.
-// std::unordered_set<BasicMemoryChunk*, base::hash<BasicMemoryChunk*>
+// std::unordered_set<MemoryChunkMetadata*, base::hash<MemoryChunkMetadata*>
 // This hash function discards the trailing zero bits (chunk alignment).
 // Notice that, when pointer compression is enabled, it also discards the
 // cage base.
 template <>
-struct hash<const i::BasicMemoryChunk*> {
-  V8_INLINE size_t operator()(const i::BasicMemoryChunk* chunk) const {
+struct hash<const i::MemoryChunkMetadata*> {
+  V8_INLINE size_t operator()(const i::MemoryChunkMetadata* chunk) const {
     return static_cast<v8::internal::Tagged_t>(
                reinterpret_cast<uintptr_t>(chunk)) >>
            kPageSizeBits;
@@ -198,13 +199,13 @@ struct hash<const i::BasicMemoryChunk*> {
 };
 
 template <>
-struct hash<i::BasicMemoryChunk*> {
-  V8_INLINE size_t operator()(i::BasicMemoryChunk* chunk) const {
-    return hash<const i::BasicMemoryChunk*>()(chunk);
+struct hash<i::MemoryChunkMetadata*> {
+  V8_INLINE size_t operator()(i::MemoryChunkMetadata* chunk) const {
+    return hash<const i::MemoryChunkMetadata*>()(chunk);
   }
 };
 
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_HEAP_BASIC_MEMORY_CHUNK_H_
+#endif  // V8_HEAP_MEMORY_CHUNK_METADATA_H_

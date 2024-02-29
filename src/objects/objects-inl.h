@@ -252,7 +252,7 @@ bool InAnySharedSpace(Tagged<HeapObject> obj) {
 }
 
 bool InWritableSharedSpace(Tagged<HeapObject> obj) {
-  return BasicMemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
+  return MemoryChunkMetadata::FromHeapObject(obj)->InWritableSharedSpace();
 }
 
 bool InReadOnlySpace(Tagged<HeapObject> obj) {
@@ -1588,7 +1588,7 @@ Relocatable::~Relocatable() {
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(Address object) {
-  return MemoryChunkHeader::AddressToOffset(object);
+  return MemoryChunk::AddressToOffset(object);
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,

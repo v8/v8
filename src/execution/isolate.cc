@@ -6468,7 +6468,7 @@ void Isolate::AddCodeMemoryRange(MemoryRange range) {
 }
 
 // |chunk| is either a Page or an executable LargePage.
-void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
+void Isolate::AddCodeMemoryChunk(MutablePageMetadata* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
 #if defined(V8_TARGET_ARCH_ARM)
@@ -6553,7 +6553,7 @@ LocalHeap* Isolate::CurrentLocalHeap() {
 }
 
 // |chunk| is either a Page or an executable LargePage.
-void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
+void Isolate::RemoveCodeMemoryChunk(MutablePageMetadata* chunk) {
   // We only keep track of individual code pages/allocations if we are on arm32,
   // because on x64 and arm64 we have a code range which makes this unnecessary.
 #if defined(V8_TARGET_ARCH_ARM)
