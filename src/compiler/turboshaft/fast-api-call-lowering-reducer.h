@@ -234,7 +234,7 @@ class FastApiCallLoweringReducer : public Next {
               return __ AdaptLocalArgument(argument);
             }
             case CTypeInfo::Type::kFloat32: {
-              return __ TruncateFloat64ToFloat32(argument);
+              return __ ChangeFloat64ToFloat32(argument);
             }
             case CTypeInfo::Type::kPointer: {
               // Check that the value is a HeapObject.

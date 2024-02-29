@@ -5100,7 +5100,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         return result;
       }
       case kExprF32ConvertF64:
-        return __ TruncateFloat64ToFloat32(arg);
+        return __ ChangeFloat64ToFloat32(arg);
       case kExprF64ConvertF32:
         return __ ChangeFloat32ToFloat64(arg);
       case kExprF32ReinterpretI32:
