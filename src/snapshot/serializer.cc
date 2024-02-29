@@ -1149,7 +1149,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         // TODO(v8:12547): JSSynchronizationPrimitives should also be sanitized
         // to always be serialized in an unlocked state.
         InstanceTypeChecker::IsJSSynchronizationPrimitive(instance_type) ||
-        // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
+        // See ContextSerializer::SerializeObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host)->GetEmbedderFieldCount() > 0));
   }
