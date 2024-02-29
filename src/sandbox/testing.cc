@@ -384,7 +384,9 @@ void PrintToStderr(const char* output) {
   USE(return_val);
 }
 
-void FilterCrash(const char* reason) {
+[[noreturn]] void FilterCrash(const char* reason) {
+  // NOTE: This code MUST be async-signal safe.
+  // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
   _exit(-1);
 }
@@ -602,7 +604,7 @@ void InstallCrashFilter() {
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
-  action.sa_flags = SA_RESETHAND | SA_SIGINFO | SA_ONSTACK;
+  action.sa_flags = SA_SIGINFO | SA_ONSTACK;
   action.sa_sigaction = &CrashFilter;
   sigemptyset(&action.sa_mask);
 
