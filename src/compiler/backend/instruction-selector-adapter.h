@@ -47,7 +47,6 @@ struct TurbofanAdapter {
   using inputs_t = Node::Inputs;
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
-  static_assert(std::is_same_v<NodeId, id_t>);
   using source_position_table_t = SourcePositionTable;
 
   explicit TurbofanAdapter(Schedule*) {}

@@ -462,12 +462,12 @@ int InstructionSelectorT<Adapter>::GetVirtualRegister(node_t node) {
 }
 
 template <typename Adapter>
-const std::map<typename Adapter::id_t, int>
+const std::map<NodeId, int>
 InstructionSelectorT<Adapter>::GetVirtualRegistersForTesting() const {
-  std::map<typename Adapter::id_t, int> virtual_registers;
+  std::map<NodeId, int> virtual_registers;
   for (size_t n = 0; n < virtual_registers_.size(); ++n) {
     if (virtual_registers_[n] != InstructionOperand::kInvalidVirtualRegister) {
-      typename Adapter::id_t const id = static_cast<typename Adapter::id_t>(n);
+      NodeId const id = static_cast<NodeId>(n);
       virtual_registers.insert(std::make_pair(id, virtual_registers_[n]));
     }
   }
