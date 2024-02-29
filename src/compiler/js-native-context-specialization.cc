@@ -3958,6 +3958,11 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // it unclear what the best approach is here.
   DCHECK_EQ(map.UnusedPropertyFields(), 0);
   int length = map.NextFreePropertyIndex() - map.GetInObjectProperties();
+  // Under normal circumstances, NextFreePropertyIndex() will always be larger
+  // than GetInObjectProperties(). However, an attacker able to corrupt heap
+  // memory can break this invariant, in which case we'll get confused here,
+  // potentially causing a sandbox violation. This CHECK defends against that.
+  SBXCHECK_GE(length, 0);
   int new_length = length + JSObject::kFieldsAdded;
   // Collect the field values from the {properties}.
   ZoneVector<Node*> values(zone());
