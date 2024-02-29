@@ -15,6 +15,7 @@
 #include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/flag-utils.h"
@@ -185,11 +186,25 @@ void FuzzIt(base::Vector<const uint8_t> data) {
       }
       case ValueKind::kRef:
       case ValueKind::kRefNull: {
-        // For reference types we can't do much for now.
+        // For reference types the expectations are more limited.
+        // Any struct.new would create a new object, so reference equality
+        // comparisons will not work.
         Handle<Object> global_val = global->GetRef();
         CHECK_EQ(IsUndefined(*global_val), IsUndefined(*function_result));
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));
+        if (!IsNullOrWasmNull(*global_val) &&
+            IsSubtypeOf(global->type(), kWasmFuncRef,
+                        module_object->module())) {
+          // For any function the global should be an internal function whose
+          // external function equals the call result. (The call goes through JS
+          // conversions while the global is accessed directly.)
+          CHECK(IsWasmInternalFunction(*global_val));
+          CHECK(WasmExportedFunction::IsWasmExportedFunction(*function_result));
+          CHECK(*WasmInternalFunction::GetOrCreateExternal(
+                    Handle<WasmInternalFunction>::cast(global_val)) ==
+                *function_result);
+        }
         break;
       }
       default:
