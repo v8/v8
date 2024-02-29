@@ -106,6 +106,12 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   // either an instance object or a WasmApiFunctionRef.
   V<HeapObject> LoadTrustedDataFromMaybeInstanceObject(
       V<HeapObject> maybe_instance_object);
+  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
+                std::initializer_list<OpIndex> args);
+  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
+                OpIndex arg) {
+    return CallC(sig, ref, {arg});
+  }
 
   Assembler& Asm() { return asm_; }
 

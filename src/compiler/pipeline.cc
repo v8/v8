@@ -2744,16 +2744,22 @@ class WasmTurboshaftWrapperCompilationJob final
         sig_(sig),
         wrapper_info_(wrapper_info),
         module_(module),
-        call_descriptor_(Linkage::GetJSCallDescriptor(
-            &zone_, false, static_cast<int>(sig->parameter_count()) + 1,
-            CallDescriptor::kNoFlags)),
         zone_stats_(zone_.allocator()),
         data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, options,
               nullptr),
         pipeline_(&data_) {
-    if (wrapper_info_.code_kind == CodeKind::WASM_TO_JS_FUNCTION && !Is64()) {
-      call_descriptor_ = GetI32WasmCallDescriptor(&zone_, call_descriptor_);
+    if (wrapper_info_.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+      call_descriptor_ = compiler::GetWasmCallDescriptor(
+          &zone_, sig, WasmCallKind::kWasmImportWrapper);
+      if (!Is64()) {
+        call_descriptor_ = GetI32WasmCallDescriptor(&zone_, call_descriptor_);
+      }
+    } else {
+      DCHECK_EQ(wrapper_info_.code_kind, CodeKind::JS_TO_WASM_FUNCTION);
+      call_descriptor_ = Linkage::GetJSCallDescriptor(
+          &zone_, false, static_cast<int>(sig->parameter_count()) + 1,
+          CallDescriptor::kNoFlags);
     }
   }
 
@@ -2775,7 +2781,7 @@ class WasmTurboshaftWrapperCompilationJob final
   const wasm::FunctionSig* sig_;
   wasm::WrapperCompilationInfo wrapper_info_;
   const wasm::WasmModule* module_;
-  CallDescriptor* call_descriptor_;
+  CallDescriptor* call_descriptor_;  // Incoming call descriptor.
   ZoneStats zone_stats_;
   PipelineData data_;
   PipelineImpl pipeline_;
@@ -2961,10 +2967,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 #endif
 
   if (use_turboshaft_instruction_selection) {
-    if (!pipeline_.SelectInstructionsTurboshaft(&linkage)) {
-      return CompilationJob::FAILED;
-    }
-
+    CHECK(pipeline_.SelectInstructionsTurboshaft(&linkage));
     turboshaft_scope.reset();
     data_.DeleteGraphZone();
     pipeline_.AllocateRegisters(linkage.GetIncomingDescriptor(), false);

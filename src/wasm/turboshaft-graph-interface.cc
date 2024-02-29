@@ -299,6 +299,21 @@ void WasmGraphBuilderBase::BuildModifyThreadInWasmFlag(Zone* zone,
                                     new_value);
 }
 
+// TODO(14108): Annotate C functions as not having side effects where
+// appropriate.
+OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
+                                    ExternalReference ref,
+                                    std::initializer_list<OpIndex> args) {
+  DCHECK_LE(sig->return_count(), 1);
+  DCHECK_EQ(sig->parameter_count(), args.size());
+  const CallDescriptor* call_descriptor =
+      compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
+  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+      call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
+  return __ Call(__ ExternalConstant(ref), OpIndex::Invalid(),
+                 base::VectorOf(args), ts_call_descriptor);
+}
+
 class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   class BlockPhis;
@@ -6306,25 +6321,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MaybeSetPositionToParent(call, check_for_exception);
 
     return call;
-  }
-
-  // TODO(14108): Annotate C functions as not having side effects where
-  // appropriate.
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                std::initializer_list<OpIndex> args) {
-    DCHECK_LE(sig->return_count(), 1);
-    DCHECK_EQ(sig->parameter_count(), args.size());
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-    return __ Call(__ ExternalConstant(ref), OpIndex::Invalid(),
-                   base::VectorOf(args), ts_call_descriptor);
-  }
-
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                OpIndex arg) {
-    return CallC(sig, ref, {arg});
   }
 
   OpIndex CallCStackSlotToInt32(OpIndex arg, ExternalReference ref,

@@ -35,6 +35,22 @@ using compiler::turboshaft::Variable;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::WordPtr;
 
+namespace {
+const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
+                                                 StubCallMode stub_mode) {
+  CallInterfaceDescriptor interface_descriptor =
+      Builtins::CallInterfaceDescriptorFor(name);
+  CallDescriptor* call_desc = compiler::Linkage::GetStubCallDescriptor(
+      zone,                                           // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      compiler::Operator::kNoProperties,              // properties
+      stub_mode);                                     // stub call mode
+  return TSCallDescriptor::Create(call_desc, compiler::CanThrow::kNo, zone);
+}
+}  // namespace
+
 class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
  public:
   WasmWrapperTSGraphBuilder(Zone* zone, Assembler& assembler,
@@ -157,7 +173,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           Builtin::kWasmInt32ToHeapNumber, Operator::kNoProperties, value);
       __ SetVariable(result, call);
     }
-    return __ GetVariable(result);
+    OpIndex merge = __ GetVariable(result);
+    __ SetVariable(result, OpIndex::Invalid());
+    return merge;
   }
 
   V<Number> BuildChangeFloat32ToNumber(V<Float32> value) {
@@ -220,7 +238,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                         Builtin::kWasmInternalFunctionCreateExternal,
                         Operator::kNoProperties, ret, context));
               }
-              return __ GetVariable(maybe_external);
+              OpIndex merge = __ GetVariable(maybe_external);
+              __ SetVariable(maybe_external, OpIndex::Invalid());
+              return merge;
             } else {
               return ret;
             }
@@ -247,7 +267,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             } ELSE{
               __ SetVariable(result, LOAD_ROOT(NullValue));
             }
-            return __ GetVariable(result);
+            OpIndex merge = __ GetVariable(result);
+            __ SetVariable(result, OpIndex::Invalid());
+            return merge;
           }
           case wasm::HeapType::kFunc:
           default: {
@@ -273,7 +295,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                   __ SetVariable(result, maybe_external);
                 }
               }
-              return __ GetVariable(result);
+              OpIndex merge = __ GetVariable(result);
+              __ SetVariable(result, OpIndex::Invalid());
+              return merge;
             } else {
               Variable result =
                   __ NewVariable(RegisterRepresentation::Tagged());
@@ -282,7 +306,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               } ELSE{
                 __ SetVariable(result, ret);
               }
-              return __ GetVariable(result);
+              OpIndex merge = __ GetVariable(result);
+              __ SetVariable(result, OpIndex::Invalid());
+              return merge;
             }
           }
         }
@@ -447,9 +473,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
 
-    // // Check whether the signature of the function allows for a fast
-    // // transformation (if any params exist that need transformation).
-    // // Create a fast transformation path, only if it does.
+    // Check whether the signature of the function allows for a fast
+    // transformation (if any params exist that need transformation).
+    // Create a fast transformation path, only if it does.
     bool include_fast_path =
         do_conversion && wasm_param_count > 0 && QualifiesForFastTransform();
 
@@ -517,9 +543,133 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
-  void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
+  void BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend, const WasmModule* module) {
-    UNIMPLEMENTED();
+    int wasm_count = static_cast<int>(sig_->parameter_count());
+
+    __ Bind(__ NewBlock());
+
+    V<HeapObject> ref = __ Parameter(0, RegisterRepresentation::Tagged());
+    V<Context> native_context = __ Load(
+        ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
+        WasmApiFunctionRef::kNativeContextOffset);
+
+    // For runtime type errors, the import uses the {WasmToJsWrapperInvalidSig}
+    // builtin instead of the generic wrapper, so it does not tier up and we
+    // don't need to handle this case here.
+    DCHECK_NE(kind, wasm::ImportCallKind::kRuntimeTypeError);
+
+    V<Undefined> undefined_node = LOAD_ROOT(UndefinedValue);
+    V<HeapObject> suspender =
+        suspend ? __ Parameter(1, RegisterRepresentation::Tagged())
+                : OpIndex::Invalid();
+    int pushed_count = std::max(expected_arity, wasm_count - suspend);
+    // 4 extra arguments: receiver, new target, arg count and context.
+    base::SmallVector<OpIndex, 16> args(pushed_count + 4);
+    // Position of the first wasm argument in the JS arguments.
+    int pos = kind == ImportCallKind::kUseCallBuiltin ? 3 : 1;
+    // If {suspend} is true, {wasm_count} includes the suspender argument, which
+    // is dropped in {AddArgumentNodes}.
+    pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
+                           native_context, suspend);
+    for (int i = wasm_count - suspend; i < expected_arity; ++i) {
+      args[pos++] = undefined_node;
+    }
+
+    V<JSFunction> callable_node = __ Load(ref, LoadOp::Kind::TaggedBase(),
+                                          MemoryRepresentation::TaggedPointer(),
+                                          WasmApiFunctionRef::kCallableOffset);
+    BuildModifyThreadInWasmFlag(__ phase_zone(), false);
+    OpIndex call = OpIndex::Invalid();
+    switch (kind) {
+      // =======================================================================
+      // === JS Functions ======================================================
+      // =======================================================================
+      case wasm::ImportCallKind::kJSFunctionArityMatch:
+        DCHECK_EQ(expected_arity, wasm_count - suspend);
+        V8_FALLTHROUGH;
+      case wasm::ImportCallKind::kJSFunctionArityMismatch: {
+        auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
+            __ graph_zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
+        const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+            call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
+
+        // Determine receiver at runtime.
+        args[0] =
+            BuildReceiverNode(callable_node, native_context, undefined_node);
+        DCHECK_EQ(pos, pushed_count + 1);
+        args[pos++] = undefined_node;  // new target
+        args[pos++] = __ Word32Constant(
+            JSParameterCount(wasm_count - suspend));  // argument count
+        args[pos++] = LoadContextFromJSFunction(callable_node);
+        call = BuildCallOnCentralStack(callable_node, args, ts_call_descriptor,
+                                       callable_node);
+        break;
+      }
+      // =======================================================================
+      // === General case of unknown callable ==================================
+      // =======================================================================
+      case wasm::ImportCallKind::kUseCallBuiltin: {
+        DCHECK_EQ(expected_arity, wasm_count - suspend);
+        OpIndex target = GetBuiltinPointerTarget(Builtin::kCall_ReceiverIsAny);
+        args[0] = callable_node;
+        args[1] = __ Word32Constant(
+            JSParameterCount(wasm_count - suspend));  // argument count
+        args[2] = undefined_node;                     // receiver
+
+        auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
+            __ graph_zone(), CallTrampolineDescriptor{},
+            wasm_count + 1 - suspend, CallDescriptor::kNoFlags,
+            Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+        const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+            call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
+
+        // The native_context is sufficient here, because all kind of callables
+        // which depend on the context provide their own context. The context
+        // here is only needed if the target is a constructor to throw a
+        // TypeError, if the target is a native function, or if the target is a
+        // callable JSObject, which can only be constructed by the runtime.
+        args[pos++] = native_context;
+        call = BuildCallOnCentralStack(target, args, ts_call_descriptor,
+                                       callable_node);
+        break;
+      }
+      default:
+        UNIMPLEMENTED();
+    }
+    DCHECK(call.valid());
+
+    // For asm.js the error location can differ depending on whether an
+    // exception was thrown in imported JS code or an exception was thrown in
+    // the ToNumber builtin that converts the result of the JS code a
+    // WebAssembly value. The source position allows asm.js to determine the
+    // correct error location. Source position 1 encodes the call to ToNumber,
+    // source position 0 encodes the call to the imported JS code.
+    __ output_graph().source_positions()[call] = SourcePosition(0);
+
+    if (suspend) {
+      call = BuildSuspend(call, suspender, ref);
+    }
+
+    // Convert the return value(s) back.
+    if (sig_->return_count() <= 1) {
+      OpIndex val =
+          sig_->return_count() == 0
+              ? __ Word32Constant(0)
+              : FromJS(call, native_context, sig_->GetReturn(), module);
+      BuildModifyThreadInWasmFlag(__ phase_zone(), true);
+      __ Return(val);
+    } else {
+      V<FixedArray> fixed_array =
+          BuildMultiReturnFixedArrayFromIterable(call, native_context);
+      base::SmallVector<OpIndex, 8> wasm_values(sig_->return_count());
+      for (unsigned i = 0; i < sig_->return_count(); ++i) {
+        wasm_values[i] = FromJS(__ LoadFixedArrayElement(fixed_array, i),
+                                native_context, sig_->GetReturn(i), module);
+      }
+      BuildModifyThreadInWasmFlag(__ phase_zone(), true);
+      __ Return(__ Word32Constant(0), base::VectorOf(wasm_values));
+    }
   }
 
   V<Word32> BuildSmiShiftBitsConstant() {
@@ -565,7 +715,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           __ SetVariable(result,
                          __ ChangeFloat64ToFloat32(HeapNumberToFloat64(input)));
         }
-        return __ GetVariable(result);
+        OpIndex merge = __ GetVariable(result);
+        __ SetVariable(result, OpIndex::Invalid());
+        return merge;
       }
       case wasm::kF64: {
         Variable result = __ NewVariable(RegisterRepresentation::Float64());
@@ -574,7 +726,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         } ELSE{
           __ SetVariable(result, HeapNumberToFloat64(input));
         }
-        return __ GetVariable(result);
+        OpIndex merge = __ GetVariable(result);
+        __ SetVariable(result, OpIndex::Invalid());
+        return merge;
       }
       case wasm::kRef:
       case wasm::kRefNull:
@@ -618,7 +772,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 js_context);
     __ Unreachable();
     __ Bind(done);
-    return __ GetVariable(result);
+    OpIndex merge = __ GetVariable(result);
+    __ SetVariable(result, OpIndex::Invalid());
+    return merge;
   }
 
   V<Float64> BuildChangeTaggedToFloat64(
@@ -659,7 +815,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // source position of the call to JavaScript in the wasm-to-js wrapper.
       __ output_graph().source_positions()[call] = SourcePosition(1);
     }
-    return __ GetVariable(result);
+    OpIndex merge = __ GetVariable(result);
+    __ SetVariable(result, OpIndex::Invalid());
+    return merge;
   }
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
@@ -691,7 +849,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex FromJS(OpIndex input, OpIndex context, ValueType type,
-                 const WasmModule* module, OptionalOpIndex frame_state) {
+                 const WasmModule* module, OptionalOpIndex frame_state = {}) {
     switch (type.kind()) {
       case wasm::kRef:
       case wasm::kRefNull: {
@@ -842,6 +1000,211 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kVoid:
         UNREACHABLE();
     }
+  }
+
+  // Must be called in the first block to emit the Parameter ops.
+  int AddArgumentNodes(base::Vector<OpIndex> args, int pos, int param_count,
+                       const wasm::FunctionSig* sig, V<Context> context,
+                       wasm::Suspend suspend) {
+    // Convert wasm numbers to JS values.
+    // Drop the instance node, and possibly the suspender node.
+    // Emit the Parameters first so that they are in the first block, and
+    // convert them in a separate loop.
+    for (int i = 0; i < param_count - suspend; ++i) {
+      RegisterRepresentation rep =
+          RepresentationFor(sig->GetParam(i + suspend));
+      args[pos + i] = __ Parameter(i + suspend + 1, rep);
+    }
+    for (int i = 0; i < param_count - suspend; ++i) {
+      args[pos + i] = ToJS(args[pos + i], sig->GetParam(i + suspend), context);
+    }
+    return pos + param_count - suspend;
+  }
+
+  OpIndex LoadSharedFunctionInfo(V<JSFunction> js_function) {
+    return __ Load(js_function, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::TaggedPointer(),
+                   JSFunction::kSharedFunctionInfoOffset);
+  }
+
+  OpIndex BuildReceiverNode(OpIndex callable_node, OpIndex native_context,
+                            V<Undefined> undefined_node) {
+    // Check function strict bit.
+    V<SharedFunctionInfo> shared_function_info =
+        LoadSharedFunctionInfo(callable_node);
+    OpIndex flags = __ Load(shared_function_info, LoadOp::Kind::TaggedBase(),
+                            MemoryRepresentation::Int32(),
+                            SharedFunctionInfo::kFlagsOffset);
+    OpIndex strict_check = __ Word32BitwiseAnd(
+        flags, __ Word32Constant(SharedFunctionInfo::IsNativeBit::kMask |
+                                 SharedFunctionInfo::IsStrictBit::kMask));
+
+    // Load global receiver if sloppy else use undefined.
+    Variable strict_d = __ NewVariable(RegisterRepresentation::Tagged());
+    IF (strict_check) {
+      __ SetVariable(strict_d, undefined_node);
+    } ELSE {
+      __ SetVariable(strict_d,
+                     __ LoadFixedArrayElement(native_context,
+                                              Context::GLOBAL_PROXY_INDEX));
+    }
+    OpIndex result = __ GetVariable(strict_d);
+    __ SetVariable(strict_d, OpIndex::Invalid());
+    return result;
+  }
+
+  V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {
+    return __ Load(js_function, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::TaggedPointer(),
+                   JSFunction::kContextOffset);
+  }
+
+  OpIndex BuildSwitchToTheCentralStack(OpIndex callable_node) {
+    V<WordPtr> stack_limit_slot = __ WordPtrAdd(
+        __ FramePointer(),
+        __ UintPtrConstant(
+            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
+
+    MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer(),
+                          MachineType::Pointer()};
+    MachineSignature sig(1, 2, reps);
+
+    OpIndex central_stack_sp = CallC(
+        &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
+        {__ BitcastHeapObjectToWordPtr(callable_node), stack_limit_slot});
+    OpIndex old_sp = __ LoadStackPointer();
+    // Temporarily disallow sp-relative offsets.
+    __ SetStackPointer(central_stack_sp, wasm::kEnterFPRelativeOnlyScope);
+    __ Store(__ FramePointer(), central_stack_sp, StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+             WasmImportWrapperFrameConstants::kCentralStackSPOffset);
+    return old_sp;
+  }
+
+  void BuildSwitchBackFromCentralStack(OpIndex old_sp, OpIndex receiver) {
+    OpIndex stack_limit = __ WordPtrAdd(
+        __ FramePointer(),
+        __ UintPtrConstant(
+            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
+
+    MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
+    MachineSignature sig(0, 2, reps);
+    CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
+          {__ BitcastHeapObjectToWordPtr(receiver), stack_limit});
+    __ Store(__ FramePointer(), __ IntPtrConstant(0),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+             compiler::kNoWriteBarrier,
+             WasmImportWrapperFrameConstants::kCentralStackSPOffset);
+    __ SetStackPointer(old_sp, wasm::kLeaveFPRelativeOnlyScope);
+  }
+
+  OpIndex BuildCallOnCentralStack(OpIndex target,
+                                  base::SmallVector<OpIndex, 16> args,
+                                  const TSCallDescriptor* call_descriptor,
+                                  OpIndex receiver) {
+    // If the current stack is a secondary stack, switch, perform the call and
+    // switch back. Otherwise, just do the call.
+    // Return the Phi of the calls in the two branches.
+    OpIndex isolate_root = __ LoadRootRegister();
+    OpIndex is_on_central_stack_flag = __ Load(
+        isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+        IsolateData::is_on_central_stack_flag_offset());
+    Variable result_var = __ NewVariable(RegisterRepresentation::Tagged());
+    IF (is_on_central_stack_flag) {
+      __ SetVariable(result_var,
+                     __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
+                             call_descriptor));
+    } ELSE {
+      OpIndex old_sp = BuildSwitchToTheCentralStack(receiver);
+      __ SetVariable(result_var,
+                     __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
+                             call_descriptor));
+      BuildSwitchBackFromCentralStack(old_sp, receiver);
+    }
+
+    OpIndex result = __ GetVariable(result_var);
+    __ SetVariable(result_var, OpIndex::Invalid());
+    return result;
+  }
+
+  OpIndex BuildSuspend(OpIndex value, V<Object> suspender,
+                       V<Object> api_function_ref) {
+    V<Context> native_context =
+        __ Load(api_function_ref, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(),
+                WasmApiFunctionRef::kNativeContextOffset);
+    OpIndex active_suspender = LOAD_ROOT(ActiveSuspender);
+
+    // If value is a promise, suspend to the js-to-wasm prompt, and resume later
+    // with the promise's resolved value.
+    Variable result = __ NewVariable(RegisterRepresentation::Tagged());
+    __ SetVariable(result, value);
+    IF_NOT (__ IsSmi(value)) {
+      IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
+        IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {
+          CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
+                      native_context);
+          __ Unreachable();
+        }
+        IF_NOT (__ TaggedEqual(suspender, active_suspender)) {
+          CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
+                      native_context);
+          __ Unreachable();
+        }
+        // Trap if there is any JS frame on the stack.
+        OpIndex has_js_frames =
+            __ Load(suspender, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::Int32(),
+                    WasmSuspenderObject::kHasJsFramesOffset);
+        IF (has_js_frames) {
+          // {ThrowWasmError} expects to be called from wasm code, so set the
+          // thread-in-wasm flag now.
+          // Usually we set this flag later so that it stays off while we
+          // convert the return values. This is a special case, it is safe to
+          // set it now because the error will unwind this frame.
+          BuildModifyThreadInWasmFlag(__ phase_zone(), true);
+          V<Smi> error = __ SmiConstant(Smi::FromInt(
+              static_cast<int32_t>(MessageTemplate::kWasmTrapSuspendJSFrames)));
+          CallRuntime(__ phase_zone(), Runtime::kThrowWasmError, {error},
+                      native_context);
+          __ Unreachable();
+        }
+        V<Object> on_fulfilled = __ Load(suspender, LoadOp::Kind::TaggedBase(),
+                                         MemoryRepresentation::TaggedPointer(),
+                                         WasmSuspenderObject::kResumeOffset);
+        V<Object> on_rejected = __ Load(suspender, LoadOp::Kind::TaggedBase(),
+                                        MemoryRepresentation::TaggedPointer(),
+                                        WasmSuspenderObject::kRejectOffset);
+
+        OpIndex promise_then =
+            GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
+        auto* then_call_desc = GetBuiltinCallDescriptor(
+            Builtin::kPerformPromiseThen, __ graph_zone(),
+            StubCallMode::kCallBuiltinPointer);
+        base::SmallVector<OpIndex, 16> args{value, on_fulfilled, on_rejected,
+                                            LOAD_ROOT(UndefinedValue),
+                                            native_context};
+        BuildCallOnCentralStack(promise_then, args, then_call_desc, suspender);
+
+        OpIndex suspend = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
+        auto* suspend_call_descriptor = GetBuiltinCallDescriptor(
+            Builtin::kWasmSuspend, __ graph_zone(), stub_mode_);
+        OpIndex resolved =
+            __ Call(suspend, {suspender}, suspend_call_descriptor);
+        __ SetVariable(result, resolved);
+      }
+    }
+    OpIndex merge = __ GetVariable(result);
+    __ SetVariable(result, OpIndex::Invalid());
+    return merge;
+  }
+
+  V<FixedArray> BuildMultiReturnFixedArrayFromIterable(OpIndex iterable,
+                                                       V<Context> context) {
+    V<Smi> length = __ SmiConstant(Smi::FromIntptr(sig_->return_count()));
+    return CallBuiltin<IterableToFixedArrayForWasmDescriptor>(
+        Builtin::kIterableToFixedArrayForWasm, Operator::kEliminatable,
+        iterable, length, context);
   }
 
  private:
