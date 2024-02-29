@@ -4830,6 +4830,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
   i::Tagged<i::FunctionTemplateInfo> tmpl_info =
       *Utils::OpenDirectHandle(*tmpl);
+  if (!IsJSObject(iter.GetCurrent())) return Local<Object>();
   while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
     iter.Advance();
     if (iter.IsAtEnd()) return Local<Object>();

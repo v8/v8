@@ -1652,6 +1652,17 @@ THREADED_TEST(FindInstanceInPrototypeChain) {
             .FromJust());
 }
 
+THREADED_TEST(FindInstanceInPrototypeChainWithProxy) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::Object> proxy =
+      CompileRun("var proxy = new Proxy({}, {}); proxy").As<Object>();
+  CHECK(proxy->FindInstanceInPrototypeChain(function_template).IsEmpty());
+}
 
 THREADED_TEST(TinyInteger) {
   LocalContext env;
