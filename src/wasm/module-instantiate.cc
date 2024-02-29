@@ -102,13 +102,11 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   // We have to use the variable size sentinel because the instance size
   // stored directly in a Map is capped at 255 pointer sizes.
   const int map_instance_size = kVariableSizeSentinel;
-  const int real_instance_size = WasmStruct::Size(type);
   const InstanceType instance_type = WASM_STRUCT_TYPE;
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size,
-      instance, struct_index);
+      reinterpret_cast<Address>(type), opt_rtt_parent, instance, struct_index);
   Handle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, map_instance_size, elements_kind,
       inobject_properties);
@@ -116,6 +114,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0);
   map->set_is_extensible(false);
+  const int real_instance_size = WasmStruct::Size(type);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
   return map;
 }
@@ -126,13 +125,10 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
-  // Wasm Arrays don't have a static instance size.
-  const int cached_instance_size = 0;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
-      instance, array_index);
+      reinterpret_cast<Address>(type), opt_rtt_parent, instance, array_index);
   Handle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, instance_size, elements_kind,
       inobject_properties);

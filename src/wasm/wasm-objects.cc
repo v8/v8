@@ -2304,15 +2304,15 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
 
 Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   const int inobject_properties = 0;
-  const int instance_size =
-      Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
-          ->instance_size();
   const InstanceType instance_type = WASM_INTERNAL_FUNCTION_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   constexpr uint32_t kNoIndex = ~0u;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, instance_size, Handle<WasmInstanceObject>(),
-      kNoIndex);
+      kNullAddress, opt_rtt_parent, Handle<WasmInstanceObject>(), kNoIndex);
+  const int instance_size = WasmInternalFunction::kSize;
+  DCHECK_EQ(instance_size,
+            Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
+                ->instance_size());
   Handle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);

@@ -1610,7 +1610,7 @@ Handle<Foreign> Factory::NewForeign(Address addr,
 
 #if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
-    Address type_address, Handle<Map> opt_parent, int instance_size_bytes,
+    Address type_address, Handle<Map> opt_parent,
     DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
