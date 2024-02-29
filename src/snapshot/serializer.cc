@@ -1144,6 +1144,11 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsExternalString(instance_type) ||
         // See ObjectSerializer::SanitizeNativeContextScope.
         InstanceTypeChecker::IsNativeContext(instance_type) ||
+        // Serialization of external pointers stored in
+        // JSSynchronizationPrimitive is not supported.
+        // TODO(v8:12547): JSSynchronizationPrimitives should also be sanitized
+        // to always be serialized in an unlocked state.
+        InstanceTypeChecker::IsJSSynchronizationPrimitive(instance_type) ||
         // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host)->GetEmbedderFieldCount() > 0));
