@@ -1347,12 +1347,22 @@ void FastReturnValueCallback<void>(
   CheckReturnValue(info, address_of(FastReturnValueCallback<void>));
   switch (fast_return_value_void) {
     case kNullReturnValue:
+      // Ensure that setting return value to empty handle does not break
+      // static roots optimization.
+      info.GetReturnValue().Set(v8::Local<v8::Value>{});
       info.GetReturnValue().SetNull();
       break;
-    case kUndefinedReturnValue:
+    case kUndefinedReturnValue: {
+      // Ensure that setting return value to Smi handle does not break
+      // static roots optimization.
+      info.GetReturnValue().Set(v8::Integer::New(info.GetIsolate(), 153));
       info.GetReturnValue().SetUndefined();
       break;
+    }
     case kEmptyStringReturnValue:
+      // Ensure that setting return value to Smi does not break
+      // static roots optimization.
+      info.GetReturnValue().Set(142);
       info.GetReturnValue().SetEmptyString();
       break;
   }
