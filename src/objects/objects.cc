@@ -1827,6 +1827,15 @@ std::ostream& operator<<(std::ostream& os, Tagged<Object> obj) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, Object::Conversion kind) {
+  switch (kind) {
+    case Object::Conversion::kToNumber:
+      return os << "ToNumber";
+    case Object::Conversion::kToNumeric:
+      return os << "ToNumeric";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   Tagged<MaybeObject> maybe_object(v.value);
   Tagged<Smi> smi;

@@ -1778,7 +1778,11 @@
   'regress/regress-1424415': [SKIP],
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
-  'regress/wasm/regress-v8-14471': [SKIP]
+  'regress/wasm/regress-v8-14471': [SKIP],
+
+  # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
+  # supported by the Maglev->Turboshaft graph builder.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }], # single_generation
 
 ################################################################################
