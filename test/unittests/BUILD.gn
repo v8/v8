@@ -670,7 +670,10 @@ v8_source_set("v8_unittests_sources") {
       "execution/pointer-auth-arm64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
+      sources += [
+        "compiler/arm64/instruction-selector-arm64-unittest.cc",
+        "compiler/arm64/turboshaft-instruction-selector-arm64-unittest.cc",
+      ]
     }
     if (v8_enable_webassembly && current_cpu == "arm64") {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
