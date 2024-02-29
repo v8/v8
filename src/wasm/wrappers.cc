@@ -524,7 +524,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         // simplified-lowering and we need to add here a conversion from Float64
         // to Float32.
         if (sig_->GetParam(i).kind() == wasm::kF32) {
-          wasm_param = __ TruncateFloat64ToFloat32(wasm_param);
+          wasm_param = __ ChangeFloat64ToFloat32(wasm_param);
         }
         args[i + 1] = wasm_param;
       }
@@ -712,8 +712,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         IF (__ IsSmi(input)) {
           __ SetVariable(result, __ ChangeInt32ToFloat32(__ UntagSmi(input)));
         } ELSE {
-          __ SetVariable(
-              result, __ TruncateFloat64ToFloat32(HeapNumberToFloat64(input)));
+          __ SetVariable(result,
+                         __ ChangeFloat64ToFloat32(HeapNumberToFloat64(input)));
         }
         OpIndex merge = __ GetVariable(result);
         __ SetVariable(result, OpIndex::Invalid());
@@ -899,7 +899,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         }
       }
       case wasm::kF32:
-        return __ TruncateFloat64ToFloat32(
+        return __ ChangeFloat64ToFloat32(
             BuildChangeTaggedToFloat64(input, context, frame_state));
 
       case wasm::kF64:
