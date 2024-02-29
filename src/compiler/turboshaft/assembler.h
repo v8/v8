@@ -1420,6 +1420,15 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_MULTI_REP_BINOP
 #undef DECL_SINGLE_REP_BINOP_NO_KIND
 
+  OpIndex FloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
+                     FloatRepresentation rep) {
+    return ReduceIfReachableFloatUnary(input, kind, rep);
+  }
+  V<Float64> Float64Unary(V<Float64> input, FloatUnaryOp::Kind kind) {
+    return ReduceIfReachableFloatUnary(input, kind,
+                                       FloatRepresentation::Float64());
+  }
+
 #define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)                \
   OpIndex name(OpIndex input, rep_type rep) {                                \
     return ReduceIfReachable##operation(input, operation##Op::Kind::k##kind, \

@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reglist.h"
@@ -2966,13 +2967,37 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+#define IEEE_754_UNARY_LIST(V) \
+  V(MathAcos, acos, Acos)      \
+  V(MathAcosh, acosh, Acosh)   \
+  V(MathAsin, asin, Asin)      \
+  V(MathAsinh, asinh, Asinh)   \
+  V(MathAtan, atan, Atan)      \
+  V(MathAtanh, atanh, Atanh)   \
+  V(MathCbrt, cbrt, Cbrt)      \
+  V(MathCos, cos, Cos)         \
+  V(MathCosh, cosh, Cosh)      \
+  V(MathExp, exp, Exp)         \
+  V(MathExpm1, expm1, Expm1)   \
+  V(MathLog, log, Log)         \
+  V(MathLog1p, log1p, Log1p)   \
+  V(MathLog10, log10, Log10)   \
+  V(MathLog2, log2, Log2)      \
+  V(MathSin, sin, Sin)         \
+  V(MathSinh, sinh, Sinh)      \
+  V(MathTan, tan, Tan)         \
+  V(MathTanh, tanh, Tanh)
 class Float64Ieee754Unary
     : public FixedInputValueNodeT<1, Float64Ieee754Unary> {
   using Base = FixedInputValueNodeT<1, Float64Ieee754Unary>;
 
  public:
-  explicit Float64Ieee754Unary(uint64_t bitfield,
-                               ExternalReference ieee_function)
+  enum class Ieee754Function : uint8_t {
+#define DECL_ENUM(MathName, ExtName, EnumName) k##EnumName,
+    IEEE_754_UNARY_LIST(DECL_ENUM)
+#undef DECL_ENUM
+  };
+  explicit Float64Ieee754Unary(uint64_t bitfield, Ieee754Function ieee_function)
       : Base(bitfield), ieee_function_(ieee_function) {}
 
   static constexpr OpProperties kProperties =
@@ -2989,8 +3014,11 @@ class Float64Ieee754Unary
 
   auto options() const { return std::tuple{ieee_function_}; }
 
+  Ieee754Function ieee_function() const { return ieee_function_; }
+  ExternalReference ieee_function_ref() const;
+
  private:
-  ExternalReference ieee_function_;
+  Ieee754Function ieee_function_;
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {

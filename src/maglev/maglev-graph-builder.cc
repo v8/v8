@@ -7111,29 +7111,8 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
   return AddNewNode<Float64Exponentiate>({left, right});
 }
 
-#define MAP_MATH_UNARY_TO_IEEE_754(V) \
-  V(MathAcos, acos)                   \
-  V(MathAcosh, acosh)                 \
-  V(MathAsin, asin)                   \
-  V(MathAsinh, asinh)                 \
-  V(MathAtan, atan)                   \
-  V(MathAtanh, atanh)                 \
-  V(MathCbrt, cbrt)                   \
-  V(MathCos, cos)                     \
-  V(MathCosh, cosh)                   \
-  V(MathExp, exp)                     \
-  V(MathExpm1, expm1)                 \
-  V(MathLog, log)                     \
-  V(MathLog1p, log1p)                 \
-  V(MathLog10, log10)                 \
-  V(MathLog2, log2)                   \
-  V(MathSin, sin)                     \
-  V(MathSinh, sinh)                   \
-  V(MathTan, tan)                     \
-  V(MathTanh, tanh)
-
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(Name, IeeeOp)                \
-  ReduceResult MaglevGraphBuilder::TryReduce##Name(                  \
+#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName) \
+  ReduceResult MaglevGraphBuilder::TryReduce##MathName(              \
       compiler::JSFunctionRef target, CallArguments& args) {         \
     if (args.count() < 1) {                                          \
       return GetRootConstant(RootIndex::kNanValue);                  \
@@ -7141,13 +7120,11 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     ValueNode* value =                                               \
         GetFloat64ForToNumber(args[0], ToNumberHint::kAssumeNumber); \
     return AddNewNode<Float64Ieee754Unary>(                          \
-        {value}, ExternalReference::ieee754_##IeeeOp##_function());  \
+        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName); \
   }
 
-MAP_MATH_UNARY_TO_IEEE_754(MATH_UNARY_IEEE_BUILTIN_REDUCER)
-
+IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
 #undef MATH_UNARY_IEEE_BUILTIN_REDUCER
-#undef MAP_MATH_UNARY_TO_IEEE_754
 
 ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
@@ -7172,7 +7149,7 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
               << Builtins::name(shared.builtin_id()) << std::endl;
   }
   switch (shared.builtin_id()) {
-#define CASE(Name)       \
+#define CASE(Name, ...)  \
   case Builtin::k##Name: \
     return TryReduce##Name(target, args);
     MAGLEV_REDUCED_BUILTIN(CASE)

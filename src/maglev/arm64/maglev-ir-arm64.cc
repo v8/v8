@@ -601,7 +601,7 @@ void Float64Ieee754Unary::SetValueLocationConstraints() {
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ CallCFunction(ieee_function_, 1);
+  __ CallCFunction(ieee_function_ref(), 1);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

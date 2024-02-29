@@ -594,6 +594,16 @@ class GraphBuilder {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::Int32DecrementWithOverflow* node,
+                                const maglev::ProcessingState& state) {
+    // Turboshaft doesn't have a dedicated Decrement operation; we use a regular
+    // addition instead.
+    SetMap(node, __ Word32SignedSubDeoptOnOverflow(
+                     Map(node->value_input()), 1,
+                     BuildFrameState(node->eager_deopt_info()),
+                     node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
 
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)               \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,      \
@@ -670,16 +680,18 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::LogicalNot* node,
+  maglev::ProcessResult Process(maglev::Float64Ieee754Unary* node,
                                 const maglev::ProcessingState& state) {
-    ScopedVariable<Boolean, AssemblerT> result(Asm());
-    IF (__ TaggedEqual(Map(node->value()),
-                       __ HeapConstant(factory_->true_value()))) {
-      result = __ HeapConstant(factory_->false_value());
-    } ELSE {
-      result = __ HeapConstant(factory_->true_value());
+    FloatUnaryOp::Kind kind;
+    switch (node->ieee_function()) {
+#define CASE(MathName, ExpName, EnumName)                         \
+  case maglev::Float64Ieee754Unary::Ieee754Function::k##EnumName: \
+    kind = FloatUnaryOp::Kind::k##EnumName;                       \
+    break;
+      IEEE_754_UNARY_LIST(CASE)
+#undef CASE
     }
-    SetMap(node, *result);
+    SetMap(node, __ Float64Unary(Map(node->input()), kind));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -716,6 +728,42 @@ class GraphBuilder {
     OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
     SetMap(node, __ ToNumberOrNumeric(Map(node->value_input()), frame_state,
                                       native_context(), node->mode()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LogicalNot* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = __ TaggedEqual(
+        Map(node->value()), __ HeapConstant(factory_->true_value()));
+    SetMap(node, ConvertWord32ToJSBool(condition, /*flip*/ true));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ToBooleanLogicalNot* node,
+                                const maglev::ProcessingState& state) {
+    TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumption =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
+            : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
+    V<Word32> condition = __ TruncateJSPrimitiveToUntagged(
+        Map(node->value()), TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+        assumption);
+    SetMap(node, ConvertWord32ToJSBool(condition, /*flip*/ true));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Int32ToBoolean* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, ConvertWord32ToJSBool(Map(node->value()), node->flip()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Float64ToBoolean* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition = __ Float64Equal(Map(node->value()), 0.0);
+    // {condition} is 0 if the input is truthy, and false otherwise (because we
+    // compared "== 0" rather than "!= 0"), so we need to negate `flip` in the
+    // call to ConvertWord32ToJSBool.
+    SetMap(node, ConvertWord32ToJSBool(condition, !node->flip()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
@@ -824,6 +872,11 @@ class GraphBuilder {
                Map(node->input()), BuildFrameState(node->eager_deopt_info()),
                CheckForMinusZeroMode::kCheckForMinusZero,
                node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::HoleyFloat64ToMaybeNanFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Float64SilenceNaN(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1092,11 +1145,12 @@ class GraphBuilder {
   // Branch leads to smaller graphs, which is generally beneficial. Still, once
   // the graph builder is finished, we should evaluate whether Select or Branch
   // is the best choice here.
-  V<Object> ConvertWord32ToJSBool(V<Word32> b) {
-    return __ Select(b, __ HeapConstant(factory_->true_value()),
-                     __ HeapConstant(factory_->false_value()),
-                     RegisterRepresentation::Tagged(), BranchHint::kNone,
-                     SelectOp::Implementation::kBranch);
+  V<Object> ConvertWord32ToJSBool(V<Word32> b, bool flip = false) {
+    V<Boolean> true_idx = __ HeapConstant(factory_->true_value());
+    V<Boolean> false_idx = __ HeapConstant(factory_->false_value());
+    if (flip) std::swap(true_idx, false_idx);
+    return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
+                     BranchHint::kNone, SelectOp::Implementation::kBranch);
   }
 
   class ThrowingScope {

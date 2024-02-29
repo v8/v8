@@ -660,7 +660,7 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   FrameScope scope(masm, StackFrame::MANUAL);
   __ PrepareCallCFunction(0, 1);
   __ MovToFloatParameter(value);
-  __ CallCFunction(ieee_function_, 0, 1);
+  __ CallCFunction(ieee_function_ref(), 0, 1);
   __ MovFromFloatResult(out);
 }
 

@@ -1758,27 +1758,6 @@ class MaglevGraphBuilder {
                                      ExternalArrayType type,
                                      Function&& getValue);
 
-#define MATH_UNARY_IEEE_BUILTIN(V) \
-  V(MathAcos)                      \
-  V(MathAcosh)                     \
-  V(MathAsin)                      \
-  V(MathAsinh)                     \
-  V(MathAtan)                      \
-  V(MathAtanh)                     \
-  V(MathCbrt)                      \
-  V(MathCos)                       \
-  V(MathCosh)                      \
-  V(MathExp)                       \
-  V(MathExpm1)                     \
-  V(MathLog)                       \
-  V(MathLog1p)                     \
-  V(MathLog10)                     \
-  V(MathLog2)                      \
-  V(MathSin)                       \
-  V(MathSinh)                      \
-  V(MathTan)                       \
-  V(MathTanh)
-
 #define MAGLEV_REDUCED_BUILTIN(V)  \
   V(ArrayForEach)                  \
   V(ArrayIsArray)                  \
@@ -1804,9 +1783,9 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharCodeAt)     \
   V(StringPrototypeCodePointAt)    \
   V(StringPrototypeLocaleCompare)  \
-  MATH_UNARY_IEEE_BUILTIN(V)
+  IEEE_754_UNARY_LIST(V)
 
-#define DEFINE_BUILTIN_REDUCER(Name)                           \
+#define DEFINE_BUILTIN_REDUCER(Name, ...)                      \
   ReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
                                CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)

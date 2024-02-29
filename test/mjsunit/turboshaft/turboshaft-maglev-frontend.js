@@ -16,8 +16,10 @@ function math_smi(x, y) {
   let a = x * y;
   a = a + 152;
   a = a / x;
+  a++;
   a = a - y;
   a = a % 5;
+  a--;
   return a;
 }
 %PrepareFunctionForOptimization(math_smi);
@@ -666,4 +668,58 @@ assertOptimized(simple_loop);
   assertEquals(expected_4, f([], 1, [], 1));
   assertEquals(expected_5, f({}, 1, {}, 1));
   assertOptimized(f);
+}
+
+// Testing ToBoolean and LogicalNot on various datatypes.
+{
+  function f(x, y) {
+    let a = x * 2;
+    let b = a * 2.27;
+    return [!a, !y, !b];
+  }
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals([false, false, false], f(4, 3));
+  assertEquals([true, true, true], f(0, 0));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals([false, false, false], f(4, 3));
+  assertEquals([true, true, true], f(0, 0));
+  assertOptimized(f);
+}
+
+// Testing Float64 Ieee754 unary functions.
+{
+  function f(x) {
+    let x1 = Math.abs(x);
+    let x2 = Math.acos(x);
+    let x3 = Math.acosh(x);
+    let x4 = Math.asin(x);
+    let x5 = Math.asinh(x);
+    let x6 = Math.atan(x);
+    let x7 = Math.atanh(x);
+    let x8 = Math.cbrt(x);
+    let x9 = Math.cos(x);
+    let x10 = Math.cosh(x);
+    let x11 = Math.exp(x);
+    let x12 = Math.expm1(x);
+    let x13 = Math.log(x);
+    let x14 = Math.log1p(x);
+    let x15 = Math.log10(x);
+    let x16 = Math.log2(x);
+    let x17 = Math.sin(x);
+    let x18 = Math.sinh(x);
+    let x19 = Math.tan(x);
+    let x20 = Math.tanh(x);
+
+    return [x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11,
+            x12, x13, x14, x15, x16, x17, x18, x19, x20];
+  }
+
+  %PrepareFunctionForOptimization(f);
+  let expected_1 = f(0.758);
+  let expected_2 = f(2);
+
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(expected_1, f(0.758));
+  assertEquals(expected_2, f(2));
 }
