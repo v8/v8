@@ -1888,7 +1888,8 @@ DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 8)
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   enum class Kind : uint8_t {
-    // convert between different floating-point types
+    // convert between different floating-point types. Note that the
+    // Float64->Float32 conversion is truncating.
     kFloatConversion,
     // overflow guaranteed to result in the minimal integer
     kSignedFloatTruncateOverflowToMin,

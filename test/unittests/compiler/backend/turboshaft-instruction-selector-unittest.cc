@@ -30,8 +30,6 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
     TurboshaftInstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
-  PipelineData* data = &PipelineData::Get();
-
   if (v8_flags.trace_turbo) {
     StdoutStream{} << "=== Graph before instruction selection ===" << std::endl
                    << output_graph();
@@ -51,8 +49,6 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
   PropagateDeferred(graph);
 
   // Initialize an instruction sequence.
-  data->InitializeInstructionSequence(call_descriptor());
-
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), graph);
   InstructionSequence sequence(test_->isolate(), test_->zone(),
