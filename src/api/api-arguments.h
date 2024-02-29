@@ -209,7 +209,7 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline Handle<Object> Call(Tagged<CallHandlerInfo> handler);
+  inline Handle<Object> Call(Tagged<FunctionTemplateInfo> function);
 
  private:
   inline Tagged<JSReceiver> holder() const;

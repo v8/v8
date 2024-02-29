@@ -179,9 +179,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case FUNCTION_TEMPLATE_INFO_TYPE:
       return kVisitFunctionTemplateInfo;
 
-    case CALL_HANDLER_INFO_TYPE:
-      return kVisitCallHandlerInfo;
-
     case OBJECT_TEMPLATE_INFO_TYPE:
       return kVisitStruct;
 

@@ -35,7 +35,6 @@ class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
-class CallHandlerInfo;
 class CallSiteInfo;
 class Expression;
 class EmbedderDataArray;
@@ -47,6 +46,7 @@ class DeoptimizationLiteralArray;
 class DictionaryTemplateInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
+class FunctionTemplateInfo;
 class Isolate;
 class JSArrayBufferView;
 class JSDataView;
@@ -976,8 +976,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSPromise> NewJSPromiseWithoutHook();
   Handle<JSPromise> NewJSPromise();
-
-  Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
 
   Tagged<HeapObject> NewForTest(DirectHandle<Map> map,
                                 AllocationType allocation) {

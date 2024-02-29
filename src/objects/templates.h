@@ -121,6 +121,8 @@ class FunctionTemplateInfo
   // callback data for a callable ObjectTemplate object.
   DECL_BOOLEAN_ACCESSORS(is_object_template_call_handler)
 
+  DECL_BOOLEAN_ACCESSORS(has_side_effects)
+
   DECL_BOOLEAN_ACCESSORS(undetectable)
 
   // If set, object instances created by this function requires access check.
@@ -197,9 +199,31 @@ class FunctionTemplateInfo
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
 
+  // This is a wrapper around |maybe_redirected_callback| accessor which
+  // returns/accepts C function and converts the value from and to redirected
+  // pointer.
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(callback, Address)
+  inline void init_callback_redirection(i::IsolateForSandbox isolate);
+  inline void remove_callback_redirection(i::IsolateForSandbox isolate);
+
+  template <class IsolateT>
+  inline bool has_callback(IsolateT* isolate) const;
+
+  DECL_PRINTER(FunctionTemplateInfo)
+
   class BodyDescriptor;
 
  private:
+  // When simulator is enabled the field stores the "redirected" address of the
+  // C function (the one that's callabled from simulated compiled code), in
+  // this case the original address of the C function has to be taken from the
+  // redirection.
+  // For native builds the field contains the address of the C function.
+  // This field is initialized implicitly via respective |callback|-related
+  // methods.
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(
+      maybe_redirected_callback, Address)
+
   // For ease of use of the BITFIELD macro.
   inline int32_t relaxed_flag() const;
   inline void set_relaxed_flag(int32_t flags);

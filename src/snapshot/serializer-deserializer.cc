@@ -75,9 +75,9 @@ void SerializerDeserializer::RestoreExternalReferenceRedirector(
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info) {
+    Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info) {
   DisallowGarbageCollection no_gc;
-  call_handler_info->init_callback_redirection(isolate);
+  function_template_info->init_callback_redirection(isolate);
 }
 
 }  // namespace internal

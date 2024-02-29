@@ -11,7 +11,6 @@
 namespace v8 {
 namespace internal {
 
-class CallHandlerInfo;
 class Isolate;
 
 // The Serializer/Deserializer class is a common superclass for Serializer and
@@ -34,7 +33,7 @@ class SerializerDeserializer : public RootVisitor {
   void RestoreExternalReferenceRedirector(Isolate* isolate,
                                           Tagged<AccessorInfo> accessor_info);
   void RestoreExternalReferenceRedirector(
-      Isolate* isolate, Tagged<CallHandlerInfo> call_handler_info);
+      Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info);
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \

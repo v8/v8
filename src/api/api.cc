@@ -1166,26 +1166,28 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
                                    v8::Local<FunctionTemplate> getter,
                                    v8::Local<FunctionTemplate> setter,
                                    v8::PropertyAttribute attribute) {
-  Utils::ApiCheck(
-      getter.IsEmpty() ||
-          !IsUndefined(
-              Utils::OpenDirectHandle(*getter)->call_code(kAcquireLoad)),
-      "v8::Template::SetAccessorProperty", "Getter must have a call handler");
-  Utils::ApiCheck(
-      setter.IsEmpty() ||
-          !IsUndefined(
-              Utils::OpenDirectHandle(*setter)->call_code(kAcquireLoad)),
-      "v8::Template::SetAccessorProperty", "Setter must have a call handler");
-
   auto templ = Utils::OpenHandle(this);
   auto i_isolate = templ->GetIsolateChecked();
+  i::Handle<i::FunctionTemplateInfo> i_getter;
+  if (!getter.IsEmpty()) {
+    i_getter = Utils::OpenHandle(*getter);
+    Utils::ApiCheck(i_getter->has_callback(i_isolate),
+                    "v8::Template::SetAccessorProperty",
+                    "Getter must have a call handler");
+  }
+  i::Handle<i::FunctionTemplateInfo> i_setter;
+  if (!setter.IsEmpty()) {
+    i_setter = Utils::OpenHandle(*setter);
+    Utils::ApiCheck(i_setter->has_callback(i_isolate),
+                    "v8::Template::SetAccessorProperty",
+                    "Setter must have a call handler");
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(!name.IsEmpty());
   DCHECK(!getter.IsEmpty() || !setter.IsEmpty());
   i::HandleScope scope(i_isolate);
   i::ApiNatives::AddAccessorProperty(
-      i_isolate, templ, Utils::OpenHandle(*name),
-      Utils::OpenHandle(*getter, true), Utils::OpenHandle(*setter, true),
+      i_isolate, templ, Utils::OpenHandle(*name), i_getter, i_setter,
       static_cast<i::PropertyAttributes>(attribute));
 }
 
@@ -1392,14 +1394,15 @@ void FunctionTemplate::SetCallHandler(
   i::Isolate* i_isolate = info->GetIsolateChecked();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
-      side_effect_type == SideEffectType::kHasNoSideEffect);
-  obj->set_owner_template(*info);
-  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
+  info->set_has_side_effects(side_effect_type !=
+                             SideEffectType::kHasNoSideEffect);
+  info->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  obj->set_data(*Utils::OpenDirectHandle(*data));
+  // "Release" callback and callback data fields.
+  info->set_callback_data(*Utils::OpenDirectHandle(*data), kReleaseStore);
+
   if (!c_function_overloads.empty()) {
     // Stores the data for a sequence of CFunction overloads into a single
     // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
@@ -1423,7 +1426,6 @@ void FunctionTemplate::SetCallHandler(
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,
                                                    function_overloads);
   }
-  info->set_call_code(*obj, kReleaseStore);
 }
 
 namespace {
@@ -5458,15 +5460,12 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   if (should_set_has_no_side_effect) {
     CHECK(IsJSFunction(*self) &&
           i::JSFunction::cast(*self)->shared()->IsApiFunction());
-    i::Tagged<i::Object> obj =
-        i::JSFunction::cast(*self)->shared()->api_func_data()->call_code(
-            kAcquireLoad);
-    if (i::IsCallHandlerInfo(obj)) {
-      i::Tagged<i::CallHandlerInfo> handler_info =
-          i::CallHandlerInfo::cast(obj);
-      if (handler_info->IsSideEffectCallHandlerInfo()) {
+    i::Tagged<i::FunctionTemplateInfo> func_data =
+        i::JSFunction::cast(*self)->shared()->api_func_data();
+    if (func_data->has_callback(i_isolate)) {
+      if (func_data->has_side_effects()) {
         i_isolate->debug()->IgnoreSideEffectsOnNextCallTo(
-            handle(handler_info, i_isolate));
+            handle(func_data, i_isolate));
       }
     }
   }
@@ -11633,10 +11632,8 @@ inline void InvokeFunctionCallback(
         ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
         Tagged<FunctionTemplateInfo> fti =
             FunctionTemplateInfo::cast(frame->target());
-        Tagged<CallHandlerInfo> call_handler_info =
-            CallHandlerInfo::cast(fti->call_code(kAcquireLoad));
         if (!i_isolate->debug()->PerformSideEffectCheckForCallback(
-                handle(call_handler_info, i_isolate))) {
+                handle(fti, i_isolate))) {
           // Failed side effect check.
           return;
         }

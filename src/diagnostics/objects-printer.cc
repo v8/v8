@@ -981,6 +981,44 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
+void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
+  TorqueGeneratedFunctionTemplateInfo<
+      FunctionTemplateInfo, TemplateInfo>::FunctionTemplateInfoPrint(os);
+
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << " - callback: " << reinterpret_cast<void*>(callback(isolate));
+    if (USE_SIMULATOR_BOOL) {
+      os << "\n - maybe_redirected_callback: "
+         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
+    }
+  } else {
+    os << "\n - callback: " << kUnavailableString;
+    os << "\n - maybe_redirected_callback: " << kUnavailableString;
+  }
+
+  os << "\n --- flags: ";
+  if (is_object_template_call_handler()) {
+    os << "\n - is_object_template_call_handler";
+  }
+  if (has_side_effects()) os << "\n - has_side_effects";
+
+  if (undetectable()) os << "\n - undetectable";
+  if (needs_access_check()) os << "\n - needs_access_check";
+  if (read_only_prototype()) os << "\n - read_only_prototype";
+  if (remove_prototype()) os << "\n - remove_prototype";
+  if (accept_any_receiver()) os << "\n - accept_any_receiver";
+  if (published()) os << "\n - published";
+
+  if (allowed_receiver_instance_type_range_start() ||
+      allowed_receiver_instance_type_range_end()) {
+    os << "\n - allowed_receiver_instance_type_range: ["
+       << allowed_receiver_instance_type_range_start() << ", "
+       << allowed_receiver_instance_type_range_end() << "]";
+  }
+  os << '\n';
+}
+
 namespace {
 void PrintContextWithHeader(std::ostream& os, Tagged<Context> context,
                             const char* type) {
@@ -2557,26 +2595,6 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
   os << "\n";
 }
 
-void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
-  PrintHeader(os, "CallHandlerInfo");
-  Isolate* isolate;
-  if (GetIsolateFromHeapObject(*this, &isolate)) {
-    os << "\n - callback: " << reinterpret_cast<void*>(callback(isolate));
-    if (USE_SIMULATOR_BOOL) {
-      os << "\n - maybe_redirected_callback: "
-         << reinterpret_cast<void*>(maybe_redirected_callback(isolate));
-    }
-  } else {
-    os << "\n - callback: " << kUnavailableString;
-    os << "\n - maybe_redirected_callback: " << kUnavailableString;
-  }
-  os << "\n - data: " << Brief(data());
-  os << "\n - side_effect_free: "
-     << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
-  os << "\n - owner_template: " << Brief(owner_template());
-  os << "\n";
-}
-
 void AllocationSite::AllocationSitePrint(std::ostream& os) {
   PrintHeader(os, "AllocationSite");
   if (this->HasWeakNext()) os << "\n - weak_next: " << Brief(weak_next());
@@ -3262,20 +3280,21 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
-    case CALL_HANDLER_INFO_TYPE: {
-      Tagged<CallHandlerInfo> info = CallHandlerInfo::cast(*this);
-      os << "<CallHandlerInfo ";
+    case FUNCTION_TEMPLATE_INFO_TYPE: {
+      Tagged<FunctionTemplateInfo> info = FunctionTemplateInfo::cast(*this);
+      os << "<FunctionTemplateInfo ";
       Isolate* isolate;
       if (GetIsolateFromHeapObject(*this, &isolate)) {
         os << "callback= " << reinterpret_cast<void*>(info->callback(isolate));
       } else {
         os << "callback= " << kUnavailableString;
       }
-      os << ", data= " << Brief(info->data());
-      if (info->IsSideEffectFreeCallHandlerInfo()) {
-        os << ", side_effect_free= true>";
+      os << ", data= " << Brief(info->callback_data(kAcquireLoad));
+      os << ", has_side_effects= ";
+      if (info->has_side_effects()) {
+        os << "true>";
       } else {
-        os << ", side_effect_free= false>";
+        os << "false>";
       }
       break;
     }

@@ -85,15 +85,15 @@ inline Tagged<JSReceiver> FunctionCallbackArguments::holder() const {
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
 Handle<Object> FunctionCallbackArguments::Call(
-    Tagged<CallHandlerInfo> handler) {
+    Tagged<FunctionTemplateInfo> function) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
-      reinterpret_cast<v8::FunctionCallback>(handler->callback(isolate));
+      reinterpret_cast<v8::FunctionCallback>(function->callback(isolate));
   Handle<Object> receiver_check_unsupported;
   if (isolate->should_check_side_effects() &&
       !isolate->debug()->PerformSideEffectCheckForCallback(
-          handle(handler, isolate))) {
+          handle(function, isolate))) {
     return {};
   }
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));

@@ -342,7 +342,8 @@ CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
   return rcx;
 }
 // static
-constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+constexpr Register
+CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return rbx;
 }
 // static

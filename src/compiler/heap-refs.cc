@@ -1597,11 +1597,16 @@ StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {
 
 int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
 
-OptionalCallHandlerInfoRef FunctionTemplateInfoRef::call_code(
+Address FunctionTemplateInfoRef::callback(JSHeapBroker* broker) const {
+  return object()->callback(broker->isolate());
+}
+
+OptionalObjectRef FunctionTemplateInfoRef::callback_data(
     JSHeapBroker* broker) const {
-  Tagged<HeapObject> call_code = object()->call_code(kAcquireLoad);
-  if (i::IsUndefined(call_code)) return base::nullopt;
-  return TryMakeRef(broker, CallHandlerInfo::cast(call_code));
+  ObjectRef data =
+      MakeRefAssumeMemoryFence(broker, object()->callback_data(kAcquireLoad));
+  if (data.IsTheHole()) return {};
+  return data;
 }
 
 bool FunctionTemplateInfoRef::is_signature_undefined(
@@ -1645,10 +1650,6 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
   }
   return HolderLookupResult(CallOptimization::kHolderFound,
                             prototype.AsJSObject());
-}
-
-ObjectRef CallHandlerInfoRef::data(JSHeapBroker* broker) const {
-  return MakeRefAssumeMemoryFence(broker, object()->data());
 }
 
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
@@ -1792,10 +1793,6 @@ int MapRef::GetInObjectProperties() const {
 
 bool StringRef::IsExternalString() const {
   return i::IsExternalString(*object());
-}
-
-Address CallHandlerInfoRef::callback(JSHeapBroker* broker) const {
-  return object()->callback(broker->isolate());
 }
 
 ZoneVector<Address> FunctionTemplateInfoRef::c_functions(

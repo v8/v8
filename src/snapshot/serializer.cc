@@ -1120,7 +1120,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
-      InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
+      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate());

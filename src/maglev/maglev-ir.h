@@ -7993,13 +7993,11 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // Inputs must be initialized manually.
   CallKnownApiFunction(uint64_t bitfield, Mode mode,
                        compiler::FunctionTemplateInfoRef function_template_info,
-                       compiler::CallHandlerInfoRef call_handler_info,
                        compiler::ObjectRef data,
                        compiler::OptionalJSObjectRef api_holder,
                        ValueNode* context, ValueNode* receiver)
       : Base(bitfield | ModeField::encode(mode)),
         function_template_info_(function_template_info),
-        call_handler_info_(call_handler_info),
         data_(data),
         api_holder_(api_holder) {
     set_input(kContextIndex, context);
@@ -8029,9 +8027,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   compiler::FunctionTemplateInfoRef function_template_info() const {
     return function_template_info_;
   }
-  compiler::CallHandlerInfoRef call_handler_info() const {
-    return call_handler_info_;
-  }
   compiler::ObjectRef data() const { return data_; }
 
   bool inline_builtin() const { return mode() == kNoProfilingInlined; }
@@ -8052,7 +8047,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
                                               const ProcessingState& state);
 
   const compiler::FunctionTemplateInfoRef function_template_info_;
-  const compiler::CallHandlerInfoRef call_handler_info_;
   const compiler::ObjectRef data_;
   const compiler::OptionalJSObjectRef api_holder_;
 };

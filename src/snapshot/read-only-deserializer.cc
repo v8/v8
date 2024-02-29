@@ -207,7 +207,7 @@ class ObjectPostProcessor final {
   }
 #define POST_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                 \
-  V(CallHandlerInfo)              \
+  V(FunctionTemplateInfo)         \
   V(Code)                         \
   V(SharedFunctionInfo)
 
@@ -267,10 +267,10 @@ class ObjectPostProcessor final {
         AccessorInfo::kMaybeRedirectedGetterOffset, kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
   }
-  void PostProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
+  void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(o->RawExternalPointerField(
-        CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-        kCallHandlerInfoCallbackTag));
+        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+        kFunctionTemplateInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
   void PostProcessCode(Tagged<Code> o) {

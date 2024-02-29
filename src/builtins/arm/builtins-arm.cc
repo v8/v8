@@ -4285,7 +4285,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -4354,7 +4355,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // kData.
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ ldr(scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
+      __ ldr(
+          scratch2,
+          FieldMemOperand(callback, FunctionTemplateInfo::kCallbackDataOffset));
       __ str(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
@@ -4407,13 +4410,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ ldr(scratch,
-           FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
-    __ str(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+    __ str(callback, MemOperand(sp, 0 * kSystemPointerSize));
 
     __ ldr(api_function_address,
-           FieldMemOperand(callback,
-                           CallHandlerInfo::kMaybeRedirectedCallbackOffset));
+           FieldMemOperand(
+               callback, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
   } else {

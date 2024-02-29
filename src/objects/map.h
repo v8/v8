@@ -40,7 +40,6 @@ enum InstanceType : uint16_t;
   V(AccessorInfo)                      \
   V(AllocationSite)                    \
   V(BytecodeWrapper)                   \
-  V(CallHandlerInfo)                   \
   V(CallSiteInfo)                      \
   V(Cell)                              \
   V(CodeWrapper)                       \

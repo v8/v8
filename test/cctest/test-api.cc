@@ -395,7 +395,7 @@ THREADED_TEST(Regress1188563) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  // Set up some data for CallHandlerInfo.
+  // Set up some data for function template.
   v8::Local<v8::FunctionTemplate> data_constructor_templ =
       v8::FunctionTemplate::New(isolate);
   v8::Local<Function> data_constructor =
@@ -12720,17 +12720,13 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   // Side-effect-free version is not supported.
   i::Tagged<i::FunctionTemplateInfo> cons = i::FunctionTemplateInfo::cast(
       v8::Utils::OpenDirectHandle(*templ)->constructor());
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
 
   i::Tagged<i::FunctionTemplateInfo> handler =
       i::FunctionTemplateInfo::cast(cons->GetInstanceCallHandler());
   CHECK(handler->is_object_template_call_handler());
-  i::Tagged<i::CallHandlerInfo> handler_info =
-      i::CallHandlerInfo::cast(handler->call_code(v8::kAcquireLoad));
+  CHECK(handler->has_side_effects());
 
-  CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
-  handler_info->set_map(
-      i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());
+  handler->set_has_side_effects(false);
   CHECK(v8::debug::EvaluateGlobal(
             isolate, v8_str("obj()"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)

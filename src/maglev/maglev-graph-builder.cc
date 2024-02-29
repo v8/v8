@@ -7265,16 +7265,14 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  compiler::OptionalCallHandlerInfoRef maybe_call_handler_info =
-      api_callback.call_code(broker());
-  if (!maybe_call_handler_info.has_value()) {
-    // TODO(ishell): distinguish TryMakeRef-related failure from empty function
-    // case and generate "return undefined" for the latter.
+  compiler::OptionalObjectRef maybe_callback_data =
+      api_callback.callback_data(broker());
+  if (!maybe_callback_data.has_value()) {
+    // TODO(ishell): consider generating "return undefined" for empty function
+    // instead of failing.
     return ReduceResult::Fail();
   }
-  compiler::CallHandlerInfoRef call_handler_info =
-      maybe_call_handler_info.value();
-  compiler::ObjectRef data = call_handler_info.data(broker());
+  compiler::ObjectRef callback_data = maybe_callback_data.value();
 
   size_t input_count = args.count() + CallKnownApiFunction::kFixedInputCount;
   ValueNode* receiver;
@@ -7299,8 +7297,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      mode, api_callback, call_handler_info, data, api_holder, GetContext(),
-      receiver);
+      mode, api_callback, callback_data, api_holder, GetContext(), receiver);
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(

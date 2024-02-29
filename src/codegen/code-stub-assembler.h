@@ -33,6 +33,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/tagged.h"
+#include "src/objects/templates.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
 
@@ -1261,11 +1262,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                          kForeignForeignAddressTag);
   }
 
-  TNode<RawPtrT> LoadCallHandlerInfoJsCallbackPtr(
-      TNode<CallHandlerInfo> object) {
+  TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
+      TNode<FunctionTemplateInfo> object) {
     return LoadExternalPointerFromObject(
-        object, CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-        kCallHandlerInfoCallbackTag);
+        object, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+        kFunctionTemplateInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {

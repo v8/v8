@@ -425,7 +425,7 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 /* it is the Embedder's responsibility to ensure type safety (against */   \
 /* substitution) and lifetime validity of these objects. */                \
   V(kExternalObjectValueTag,                    TAG(13)) \
-  V(kCallHandlerInfoCallbackTag,                TAG(14)) \
+  V(kFunctionTemplateInfoCallbackTag,           TAG(14)) \
   V(kAccessorInfoGetterTag,                     TAG(15)) \
   V(kAccessorInfoSetterTag,                     TAG(16)) \
   V(kWasmInternalFunctionCallTargetTag,         TAG(17)) \
@@ -478,7 +478,7 @@ V8_INLINE static constexpr bool IsSharedExternalPointerType(
 V8_INLINE static constexpr bool IsMaybeReadOnlyExternalPointerType(
     ExternalPointerTag tag) {
   return tag == kAccessorInfoGetterTag || tag == kAccessorInfoSetterTag ||
-         tag == kCallHandlerInfoCallbackTag;
+         tag == kFunctionTemplateInfoCallbackTag;
 }
 
 // Sanity checks.

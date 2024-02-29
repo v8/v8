@@ -421,7 +421,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                   ExitPoint* exit_point);
 
   void HandleLoadAccessor(const LazyLoadICParameters* p,
-                          TNode<CallHandlerInfo> call_handler_info,
+                          TNode<FunctionTemplateInfo> function_template_info,
                           TNode<Word32T> handler_word,
                           TNode<DataHandler> handler,
                           TNode<Uint32T> handler_kind, ExitPoint* exit_point);

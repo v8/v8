@@ -4368,7 +4368,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
       topmost_script_having_context = CallApiCallbackGenericDescriptor::
           TopmostScriptHavingContextRegister();
-      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      callback =
+          CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
@@ -4427,8 +4428,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ Push(kScratchRegister);  // kNewTarget
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ PushTaggedField(FieldOperand(callback, CallHandlerInfo::kDataOffset),
-                         scratch2);
+      __ PushTaggedField(
+          FieldOperand(callback, FunctionTemplateInfo::kCallbackDataOffset),
+          scratch2);
       break;
 
     case CallApiCallbackMode::kOptimizedNoProfiling:
@@ -4474,16 +4476,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // Target parameter.
     static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
                   2 * kSystemPointerSize);
-    __ PushTaggedField(
-        FieldOperand(callback, CallHandlerInfo::kOwnerTemplateOffset),
-        scratch2);
+    __ Push(callback);
 
     __ PushReturnAddressFrom(scratch);
 
     __ LoadExternalPointerField(
         api_function_address,
-        FieldOperand(callback, CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        kCallHandlerInfoCallbackTag, kScratchRegister);
+        FieldOperand(callback,
+                     FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
+        kFunctionTemplateInfoCallbackTag, kScratchRegister);
 
     __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT,
                       api_function_address);

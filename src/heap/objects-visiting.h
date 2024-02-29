@@ -25,7 +25,6 @@ namespace internal {
   V(AllocationSite)                    \
   V(BigInt)                            \
   V(BytecodeWrapper)                   \
-  V(CallHandlerInfo)                   \
   V(CallSiteInfo)                      \
   V(Cell)                              \
   V(CodeWrapper)                       \

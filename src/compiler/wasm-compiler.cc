@@ -8217,12 +8217,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* function_template_info = gasm_->Load(
         MachineType::TaggedPointer(), shared_function_info,
         wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset));
-    Node* call_code = gasm_->Load(
-        MachineType::TaggedPointer(), function_template_info,
-        wasm::ObjectAccess::ToTagged(FunctionTemplateInfo::kCallCodeOffset));
     Node* api_data_argument =
-        gasm_->Load(MachineType::TaggedPointer(), call_code,
-                    wasm::ObjectAccess::ToTagged(CallHandlerInfo::kDataOffset));
+        gasm_->Load(MachineType::TaggedPointer(), function_template_info,
+                    wasm::ObjectAccess::ToTagged(
+                        FunctionTemplateInfo::kCallbackDataOffset));
 
     FastApiCallFunctionVector fast_api_call_function_vector(mcgraph()->zone());
     fast_api_call_function_vector.push_back({c_address, c_signature});

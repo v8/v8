@@ -116,7 +116,6 @@ class Committee final {
 #define PROMO_CANDIDATE_TYPE_LIST(V) \
   V(AccessCheckInfo)                 \
   V(AccessorInfo)                    \
-  V(CallHandlerInfo)                 \
   V(Code)                            \
   V(CodeWrapper)                     \
   V(InterceptorInfo)                 \
@@ -149,7 +148,6 @@ class Committee final {
 
   DEF_PROMO_CANDIDATE(AccessCheckInfo)
   DEF_PROMO_CANDIDATE(AccessorInfo)
-  DEF_PROMO_CANDIDATE(CallHandlerInfo)
   static bool IsPromoCandidateCode(Isolate* isolate, Tagged<Code> o) {
     return Builtins::kCodeObjectsAreInROSpace && o->is_builtin();
   }

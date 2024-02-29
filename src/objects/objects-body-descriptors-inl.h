@@ -1381,8 +1381,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
 #undef MAKE_STRUCT_CASE
     case ACCESSOR_INFO_TYPE:
       return CALL_APPLY(AccessorInfo);
-    case CALL_HANDLER_INFO_TYPE:
-      return CALL_APPLY(CallHandlerInfo);
     case FUNCTION_TEMPLATE_INFO_TYPE:
       return CALL_APPLY(FunctionTemplateInfo);
     case OBJECT_TEMPLATE_INFO_TYPE:
@@ -1533,27 +1531,10 @@ class FunctionTemplateInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize,
                     FunctionTemplateInfo::kEndOfStrongFieldsOffset, v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
-  }
-};
-
-class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static_assert(CallHandlerInfo::kEndOfStrongFieldsOffset ==
-                CallHandlerInfo::kMaybeRedirectedCallbackOffset);
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    CallHandlerInfo::kEndOfStrongFieldsOffset, v);
-    v->VisitExternalPointer(obj,
-                            obj->RawExternalPointerField(
-                                CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-                                kCallHandlerInfoCallbackTag));
+    v->VisitExternalPointer(
+        obj, obj->RawExternalPointerField(
+                 FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+                 kFunctionTemplateInfoCallbackTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

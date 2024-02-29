@@ -23,7 +23,6 @@ class CFunctionInfo;
 namespace internal {
 
 class BytecodeArray;
-class CallHandlerInfo;
 class FixedDoubleArray;
 class FunctionTemplateInfo;
 class HeapNumber;
@@ -124,7 +123,6 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(ArrayBoilerplateDescription)                               \
   BACKGROUND_SERIALIZED(BigInt)                                               \
   NEVER_SERIALIZED(BytecodeArray)                                             \
-  NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
   NEVER_SERIALIZED(Code)                                                      \
   NEVER_SERIALIZED(Context)                                                   \
@@ -786,16 +784,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 };
 
-class CallHandlerInfoRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(CallHandlerInfo, HeapObjectRef)
-
-  Handle<CallHandlerInfo> object() const;
-
-  Address callback(JSHeapBroker* broker) const;
-  ObjectRef data(JSHeapBroker* broker) const;
-};
-
 class AccessorInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(AccessorInfo, HeapObjectRef)
@@ -919,7 +907,11 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   int16_t allowed_receiver_instance_type_range_start() const;
   int16_t allowed_receiver_instance_type_range_end() const;
 
-  OptionalCallHandlerInfoRef call_code(JSHeapBroker* broker) const;
+  // Function pointer and a data value that should be passed to the callback.
+  // The |callback_data| must be read before the |callback|.
+  Address callback(JSHeapBroker* broker) const;
+  OptionalObjectRef callback_data(JSHeapBroker* broker) const;
+
   ZoneVector<Address> c_functions(JSHeapBroker* broker) const;
   ZoneVector<const CFunctionInfo*> c_signatures(JSHeapBroker* broker) const;
   HolderLookupResult LookupHolderOfExpectedType(JSHeapBroker* broker,

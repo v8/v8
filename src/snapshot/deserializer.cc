@@ -569,9 +569,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(Handle<AccessorInfo>::cast(obj));
 #endif
-  } else if (InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
+  } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
 #ifdef USE_SIMULATOR
-    call_handler_infos_.push_back(Handle<CallHandlerInfo>::cast(obj));
+    function_template_infos_.push_back(Handle<FunctionTemplateInfo>::cast(obj));
 #endif
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(ExternalString::cast(raw_obj),

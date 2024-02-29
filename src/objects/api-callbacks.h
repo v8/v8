@@ -116,39 +116,6 @@ class InterceptorInfo
   TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
 };
 
-class CallHandlerInfo
-    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, HeapObject> {
- public:
-  inline bool IsSideEffectFreeCallHandlerInfo() const;
-  inline bool IsSideEffectCallHandlerInfo() const;
-
-  // Dispatched behavior.
-  DECL_PRINTER(CallHandlerInfo)
-  DECL_VERIFIER(CallHandlerInfo)
-
-  // This is a wrapper around |maybe_redirected_callback| accessor which
-  // returns/accepts C function and converts the value from and to redirected
-  // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(callback, Address)
-  inline void init_callback_redirection(i::IsolateForSandbox isolate);
-  inline void remove_callback_redirection(i::IsolateForSandbox isolate);
-
-  class BodyDescriptor;
-
- private:
-  // When simulator is enabled the field stores the "redirected" address of the
-  // C function (the one that's callabled from simulated compiled code), in
-  // this case the original address of the C function has to be taken from the
-  // redirection.
-  // For native builds the field contains the address of the C function.
-  // This field is initialized implicitly via respective |callback|-related
-  // methods.
-  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(
-      maybe_redirected_callback, Address)
-
-  TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
-};
-
 }  // namespace internal
 }  // namespace v8
 

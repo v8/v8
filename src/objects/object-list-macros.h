@@ -109,7 +109,6 @@ namespace internal {
   V(Boolean)                                    \
   V(BooleanWrapper)                             \
   V(ExternalPointerArray)                       \
-  V(CallHandlerInfo)                            \
   V(Callable)                                   \
   V(Cell)                                       \
   V(CompilationCacheTable)                      \

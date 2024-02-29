@@ -49,7 +49,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
     for (Handle<AccessorInfo> info : accessor_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
-    for (Handle<CallHandlerInfo> info : call_handler_infos()) {
+    for (Handle<FunctionTemplateInfo> info : function_template_infos()) {
       RestoreExternalReferenceRedirector(isolate(), *info);
     }
 

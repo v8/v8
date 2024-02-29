@@ -31,6 +31,8 @@ NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
                is_object_template_call_handler,
                IsObjectTemplateCallHandlerBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, has_side_effects,
+               HasSideEffectsBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
                UndetectableBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
@@ -61,6 +63,55 @@ int32_t FunctionTemplateInfo::relaxed_flag() const {
 }
 void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
   return set_flag(flags, kRelaxedStore);
+}
+
+Address FunctionTemplateInfo::callback(i::IsolateForSandbox isolate) const {
+  Address result = maybe_redirected_callback(isolate);
+  if (!USE_SIMULATOR_BOOL) return result;
+  if (result == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(result);
+}
+
+void FunctionTemplateInfo::init_callback(i::IsolateForSandbox isolate,
+                                         Address initial_value) {
+  init_maybe_redirected_callback(isolate, initial_value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
+  }
+}
+
+void FunctionTemplateInfo::set_callback(i::IsolateForSandbox isolate,
+                                        Address value) {
+  set_maybe_redirected_callback(isolate, value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
+  }
+}
+
+void FunctionTemplateInfo::init_callback_redirection(
+    i::IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = maybe_redirected_callback(isolate);
+  if (value == kNullAddress) return;
+  value =
+      ExternalReference::Redirect(value, ExternalReference::DIRECT_API_CALL);
+  set_maybe_redirected_callback(isolate, value);
+}
+
+void FunctionTemplateInfo::remove_callback_redirection(
+    i::IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = callback(isolate);
+  set_maybe_redirected_callback(isolate, value);
+}
+
+EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(
+    FunctionTemplateInfo, maybe_redirected_callback, Address,
+    kMaybeRedirectedCallbackOffset, kFunctionTemplateInfoCallbackTag)
+
+template <class IsolateT>
+bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {
+  return !IsTheHole(callback_data(kAcquireLoad), isolate);
 }
 
 // static

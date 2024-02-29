@@ -2594,10 +2594,8 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
     // API function.
     Handle<FunctionTemplateInfo> fun_data =
         handle(shared->api_func_data(), isolate_);
-    Tagged<Object> raw_call_data = fun_data->call_code(kAcquireLoad);
-    if (!IsUndefined(raw_call_data, isolate_)) {
-      Tagged<CallHandlerInfo> call_data = CallHandlerInfo::cast(raw_call_data);
-      Address entry_point = call_data->callback(isolate_);
+    if (fun_data->has_callback(isolate_)) {
+      Address entry_point = fun_data->callback(isolate_);
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif

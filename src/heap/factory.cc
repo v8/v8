@@ -4158,18 +4158,6 @@ Handle<JSPromise> Factory::NewJSPromise() {
   return promise;
 }
 
-Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
-  Handle<Map> map = has_no_side_effect
-                        ? side_effect_free_call_handler_info_map()
-                        : side_effect_call_handler_info_map();
-  Tagged<CallHandlerInfo> info =
-      Tagged<CallHandlerInfo>::cast(New(map, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-  info->set_data(*undefined_value(), SKIP_WRITE_BARRIER);
-  info->init_callback(isolate(), kNullAddress);
-  return handle(info, isolate());
-}
-
 bool Factory::CanAllocateInReadOnlySpace() {
   return allocator()->CanAllocateInReadOnlySpace();
 }
@@ -4290,8 +4278,6 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     Tagged<FunctionTemplateInfo> raw = *obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplate(raw, roots, do_not_cache);
-    raw->set_call_code(roots.undefined_value(), kReleaseStore,
-                       SKIP_WRITE_BARRIER);
     raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_signature(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_rare_data(roots.undefined_value(), kReleaseStore,
@@ -4306,6 +4292,9 @@ Handle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
 
     raw->set_length(length);
     raw->SetInstanceType(0);
+    raw->init_callback(isolate(), kNullAddress);
+    raw->set_callback_data(roots.the_hole_value(), kReleaseStore,
+                           SKIP_WRITE_BARRIER);
   }
   return handle(obj, isolate());
 }

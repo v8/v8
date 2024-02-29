@@ -2291,13 +2291,6 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
   // TODO(ishell): check handler integrity
 }
 
-void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
-  CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
-        map() ==
-            ReadOnlyRoots(isolate).side_effect_free_call_handler_info_map());
-}
-
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite(*this));
   CHECK(IsDependentCode(dependent_code()));

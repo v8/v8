@@ -267,7 +267,8 @@ void AccessorAssembler::HandleLoadCallbackProperty(
 }
 
 void AccessorAssembler::HandleLoadAccessor(
-    const LazyLoadICParameters* p, TNode<CallHandlerInfo> call_handler_info,
+    const LazyLoadICParameters* p,
+    TNode<FunctionTemplateInfo> function_template_info,
     TNode<Word32T> handler_word, TNode<DataHandler> handler,
     TNode<Uint32T> handler_kind, ExitPoint* exit_point) {
   Comment("api_getter");
@@ -298,7 +299,7 @@ void AccessorAssembler::HandleLoadAccessor(
     TNode<Int32T> argc = Int32Constant(0);
     TNode<Context> caller_context = p->context();
     exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
-                                   argc, caller_context, call_handler_info,
+                                   argc, caller_context, function_template_info,
                                    api_holder.value(), p->receiver()));
   }
 }
@@ -1912,7 +1913,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     {
       Comment("api_setter");
       CSA_DCHECK(this, TaggedIsNotSmi(handler));
-      TNode<CallHandlerInfo> call_handler_info = CAST(holder);
+      TNode<FunctionTemplateInfo> function_template_info = CAST(holder);
 
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
@@ -1942,7 +1943,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         TNode<Int32T> argc = Int32Constant(1);
         TNode<Context> caller_context = p->context();
         Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
-                           caller_context, call_handler_info,
+                           caller_context, function_template_info,
                            api_holder.value(), p->receiver(), p->value()));
       }
     }

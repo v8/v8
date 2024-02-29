@@ -316,7 +316,8 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
   return eax;
 }
 // static
-constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+constexpr Register
+CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return edx;
 }
 // static

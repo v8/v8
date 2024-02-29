@@ -48,7 +48,6 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
   V(BytecodeArray)                        \
   V(BytecodeWrapper)                      \
   V(ByteArray)                            \
-  V(CallHandlerInfo)                      \
   V(Cell)                                 \
   V(Code)                                 \
   V(CodeWrapper)                          \

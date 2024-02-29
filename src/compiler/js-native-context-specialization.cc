@@ -2785,13 +2785,13 @@ Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* api_holder, Node* frame_state, Node* value,
     Node** effect, Node** control,
     FunctionTemplateInfoRef function_template_info) {
-  if (!function_template_info.call_code(broker()).has_value()) {
+  compiler::OptionalObjectRef maybe_callback_data =
+      function_template_info.callback_data(broker());
+  if (!maybe_callback_data.has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
     return nullptr;
   }
-  CallHandlerInfoRef call_handler_info =
-      *function_template_info.call_code(broker());
 
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
@@ -2808,9 +2808,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
           1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState);
 
-  Node* data =
-      jsgraph()->ConstantNoHole(call_handler_info.data(broker()), broker());
-  ApiFunction function(call_handler_info.callback(broker()));
+  Node* data = jsgraph()->ConstantNoHole(maybe_callback_data.value(), broker());
+  ApiFunction function(function_template_info.callback(broker()));
   Node* function_reference =
       graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
           &function, ExternalReference::DIRECT_API_CALL)));

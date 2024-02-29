@@ -23,7 +23,7 @@ class ObjectPreProcessor final {
 
 #define PRE_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                \
-  V(CallHandlerInfo)             \
+  V(FunctionTemplateInfo)        \
   V(Code)
 
   void PreProcessIfNeeded(Tagged<HeapObject> o) {
@@ -68,11 +68,11 @@ class ObjectPreProcessor final {
     EncodeExternalPointerSlot(o->RawExternalPointerField(
         AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
   }
-  void PreProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
+  void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(
         o->RawExternalPointerField(
-            CallHandlerInfo::kMaybeRedirectedCallbackOffset,
-            kCallHandlerInfoCallbackTag),
+            FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
+            kFunctionTemplateInfoCallbackTag),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
   void PreProcessCode(Tagged<Code> o) {

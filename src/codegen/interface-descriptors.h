@@ -1978,19 +1978,19 @@ class CallApiCallbackGenericDescriptor
     : public StaticCallInterfaceDescriptor<CallApiCallbackGenericDescriptor> {
  public:
   DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kTopmostScriptHavingContext,
-                            kCallHandlerInfo, kHolder)
+                            kFunctionTemplateInfo, kHolder)
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
   DEFINE_PARAMETER_TYPES(
       MachineType::Int32(),      // kActualArgumentsCount
       MachineType::AnyTagged(),  // kTopmostScriptHavingContext
-      MachineType::AnyTagged(),  // kCallHandlerInfo
+      MachineType::AnyTagged(),  // kFunctionTemplateInfo
       MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(CallApiCallbackGenericDescriptor)
 
   static constexpr inline Register ActualArgumentsCountRegister();
   static constexpr inline Register TopmostScriptHavingContextRegister();
-  static constexpr inline Register CallHandlerInfoRegister();
+  static constexpr inline Register FunctionTemplateInfoRegister();
   static constexpr inline Register HolderRegister();
 
   static constexpr inline auto registers();
