@@ -2091,13 +2091,20 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
   DCHECK(has_frame());
 
   Label get_pc;
+  UseScratchRegisterScope temps(this);
+  // We're doing a C call, which means non-parameter caller-saved registers
+  // (x8-x17) will be clobbered and so are available to use as scratches.
+  // In the worst-case scenario, we'll need 2 scratch registers. We pick 3
+  // registers minus the `function` register, in case `function` aliases with
+  // any of the registers.
+  temps.Include(CPURegList(64, {x8, x9, x10, function}));
+  temps.Exclude(function);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
-    Register pc_scratch = x4;
-    Register addr_scratch = x5;
-    Push(pc_scratch, addr_scratch);
+    UseScratchRegisterScope temps(this);
+    Register pc_scratch = temps.AcquireX();
 
     Adr(pc_scratch, &get_pc);
 
@@ -2116,6 +2123,7 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
       StoreRootRelative(IsolateData::context_offset(), xzr);
 #endif
     } else {
+      Register addr_scratch = temps.AcquireX();
       DCHECK_NOT_NULL(isolate());
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_pc_address(isolate()));
@@ -2133,8 +2141,6 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
               ExternalReference::context_address(isolate()), addr_scratch));
 #endif
     }
-
-    Pop(addr_scratch, pc_scratch);
   }
 
   // Call directly. The function called cannot cause a GC, or allow preemption,
@@ -2151,12 +2157,11 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
                           IsolateData::fast_c_call_caller_fp_offset()));
     } else {
       DCHECK_NOT_NULL(isolate());
-      Register addr_scratch = x5;
-      Push(addr_scratch, xzr);
+      UseScratchRegisterScope temps(this);
+      Register addr_scratch = temps.AcquireX();
       Mov(addr_scratch,
           ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Str(xzr, MemOperand(addr_scratch));
-      Pop(xzr, addr_scratch);
     }
   }
 
