@@ -335,7 +335,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'not build_with_chromium',
+    'condition': 'not build_with_chromium and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3787595bbbd3a374613713164db935e8331f5825',
