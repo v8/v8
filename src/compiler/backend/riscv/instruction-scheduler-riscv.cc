@@ -55,7 +55,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTruncUlS:
     case kRiscvLoadDecodeSandboxedPointer:
     case kRiscvStoreEncodeSandboxedPointer:
-    case kRiscvStoreIndirectPointer:
     case kRiscvCmp32:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:

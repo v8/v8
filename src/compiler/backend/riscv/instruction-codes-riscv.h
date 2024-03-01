@@ -92,7 +92,6 @@ namespace compiler {
   V(RiscvWord64AtomicExchangeUint64)                 \
   V(RiscvLoadDecodeSandboxedPointer)                 \
   V(RiscvStoreEncodeSandboxedPointer)                \
-  V(RiscvStoreIndirectPointer)                       \
   V(RiscvAtomicLoadDecompressTaggedSigned)           \
   V(RiscvAtomicLoadDecompressTagged)                 \
   V(RiscvAtomicStoreCompressTagged)                  \

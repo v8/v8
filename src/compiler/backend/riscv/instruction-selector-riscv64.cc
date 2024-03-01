@@ -479,8 +479,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
   // TODO(riscv): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       V8_LIKELY(!v8_flags.disable_write_barriers)) {
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
-    InstructionOperand inputs[4];
+    DCHECK(CanBeTaggedPointer(rep));
+    InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     inputs[input_count++] = g.UseUniqueRegister(index);
@@ -489,16 +489,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code;
-    if (rep == MachineRepresentation::kIndirectPointer) {
-      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-      // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
-      node_t tag = store_view.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate(tag);
-    } else {
-      code = kArchStoreWithWriteBarrier;
-    }
+    InstructionCode code = kArchStoreWithWriteBarrier;
     code |= RecordWriteModeField::encode(record_write_mode);
     if (store_view.is_store_trap_on_null()) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
@@ -547,11 +538,9 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kSandboxedPointer:
         code = kRiscvStoreEncodeSandboxedPointer;
         break;
-      case MachineRepresentation::kIndirectPointer:
-        code = kRiscvStoreIndirectPointer;
-        break;
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }

@@ -232,6 +232,20 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  LoadFullPointer(dst, src_addr, offset);
+}
+
+#ifdef V8_ENABLE_SANDBOX
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
+                                           int offset, ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
+                           kRootRegister);
+}
+#endif
 
 void LiftoffAssembler::SpillInstanceData(Register instance) {
   StoreWord(instance, liftoff::GetInstanceDataOperand());
