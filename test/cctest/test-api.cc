@@ -13239,19 +13239,22 @@ int ApiTestFuzzer::GetNextFuzzer() {
 
 void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
-  if (NextThread()) {
-    // Exit the isolate from this thread.
-    CcTest::i_isolate()->Exit();
-    {
-      // Now the new thread can start.
-      v8::Unlocker unlocker(CcTest::isolate());
-      // Wait till someone starts us again.
-      gate_.Wait();
-    }
-    // Enter the isolate from this thread again.
-    CcTest::i_isolate()->Enter();
-    // And we're off.
-  }
+  if (!NextThread()) return;
+  // Mark the stack of this background thread for conservative stack scanning.
+  CcTest::i_isolate()->heap()->stack().SetMarkerForBackgroundThreadAndCallback(
+      i::ThreadId::Current().ToInteger(), [this]() {
+        // Exit the isolate from this thread.
+        CcTest::i_isolate()->Exit();
+        {
+          // Now the new thread can start.
+          v8::Unlocker unlocker(CcTest::isolate());
+          // Wait till someone starts us again.
+          gate_.Wait();
+        }
+        // Enter the isolate from this thread again.
+        CcTest::i_isolate()->Enter();
+        // And we're off.
+      });
 }
 
 void ApiTestFuzzer::TearDown() {

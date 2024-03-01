@@ -580,8 +580,12 @@ void Heap::SetGCState(HeapState state) {
   gc_state_.store(state, std::memory_order_relaxed);
 }
 
-bool Heap::IsGCWithStack() const {
+bool Heap::IsGCWithMainThreadStack() const {
   return embedder_stack_state_ == StackState::kMayContainHeapPointers;
+}
+
+bool Heap::IsGCWithStack() const {
+  return IsGCWithMainThreadStack() || stack().HasBackgroundStacks();
 }
 
 bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
@@ -4902,7 +4906,10 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, v);
-  stack().IteratePointersUntilMarker(&stack_visitor);
+  if (IsGCWithMainThreadStack()) {
+    stack().IteratePointersUntilMarker(&stack_visitor);
+  }
+  stack().IterateBackgroundStacks(&stack_visitor);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
@@ -6016,6 +6023,11 @@ void Heap::SetStackStart(void* stack_start) {
 }
 
 ::heap::base::Stack& Heap::stack() {
+  CHECK_NOT_NULL(main_thread_local_heap_);
+  return main_thread_local_heap_->stack_;
+}
+
+const ::heap::base::Stack& Heap::stack() const {
   CHECK_NOT_NULL(main_thread_local_heap_);
   return main_thread_local_heap_->stack_;
 }

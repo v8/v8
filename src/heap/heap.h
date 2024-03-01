@@ -569,8 +569,10 @@ class Heap final {
     return pause_allocation_observers_depth_ == 0;
   }
 
+  bool IsGCWithMainThreadStack() const;
+
+  // This method is only safe to use in a safepoint.
   bool IsGCWithStack() const;
-  V8_EXPORT_PRIVATE void ForceSharedGCWithEmptyStackForTesting();
 
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 
@@ -1119,6 +1121,7 @@ class Heap final {
 
   // Stack information of the main thread.
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
+  V8_EXPORT_PRIVATE const ::heap::base::Stack& stack() const;
 
   // ===========================================================================
   // Embedder roots optimizations. =============================================
