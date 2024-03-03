@@ -151,6 +151,7 @@ class RegisteredExtension {
   V(Int16Array, JSTypedArray)                   \
   V(Uint32Array, JSTypedArray)                  \
   V(Int32Array, JSTypedArray)                   \
+  V(Float16Array, JSTypedArray)                 \
   V(Float32Array, JSTypedArray)                 \
   V(Float64Array, JSTypedArray)                 \
   V(DataView, JSDataViewOrRabGsabDataView)      \

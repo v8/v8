@@ -102,6 +102,10 @@ struct ExternalPointerT : UntaggedT {
 };
 #endif
 
+struct Float16T : Word32T {
+  static constexpr MachineType kMachineType = MachineType::Uint16();
+};
+
 struct Float32T : UntaggedT {
   static const MachineRepresentation kMachineRepresentation =
       MachineRepresentation::kFloat32;

@@ -1214,6 +1214,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                               MachineType::Uint32(), kNoWriteBarrier};
       return access;
     }
+    case kExternalFloat16Array: {
+      // TODO(v8:14012): support machine logic
+      UNIMPLEMENTED();
+    }
     case kExternalFloat32Array: {
       ElementAccess access = {taggedness, header_size, Type::Number(),
                               MachineType::Float32(), kNoWriteBarrier};

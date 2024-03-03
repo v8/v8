@@ -4215,7 +4215,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate_, fun,                          \
                                      Context::TYPE##_ARRAY_FUN_INDEX);       \
   }
-    TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
+    TYPED_ARRAYS_BASE(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
   }
 
@@ -5725,6 +5725,33 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   InstallError(isolate(), global, factory->SuppressedError_string(),
                Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
                Builtin::kSuppressedErrorConstructor, 3);
+}
+
+void Genesis::InitializeGlobal_js_float16array() {
+  if (!v8_flags.js_float16array) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSObject> math = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
+
+  SimpleInstallFunction(isolate_, math, "f16round", Builtin::kMathF16round, 1,
+                        true);
+
+  Handle<JSObject> dataview_prototype(
+      JSObject::cast(native_context()->data_view_fun()->instance_prototype()),
+      isolate());
+
+  SimpleInstallFunction(isolate_, dataview_prototype, "getFloat16",
+                        Builtin::kDataViewPrototypeGetFloat16, 1, false);
+  SimpleInstallFunction(isolate_, dataview_prototype, "setFloat16",
+                        Builtin::kDataViewPrototypeSetFloat16, 2, false);
+
+  Handle<JSFunction> fun = InstallTypedArray(
+      "Float16Array", FLOAT16_ELEMENTS, FLOAT16_TYPED_ARRAY_CONSTRUCTOR_TYPE,
+      Context::RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX);
+
+  InstallWithIntrinsicDefaultProto(isolate_, fun,
+                                   Context::FLOAT16_ARRAY_FUN_INDEX);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {

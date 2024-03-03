@@ -50,6 +50,8 @@ class DataViewLoweringReducer : public Next {
       case kExternalBigInt64Array:
       case kExternalBigUint64Array:
         return __ Word64ReverseBytes(value);
+      case kExternalFloat16Array:
+        UNIMPLEMENTED();
     }
   }
 

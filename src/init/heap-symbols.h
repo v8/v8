@@ -266,6 +266,7 @@
   V(_, fields_string, "fields")                                               \
   V(_, FinalizationRegistry_string, "FinalizationRegistry")                   \
   V(_, flags_string, "flags")                                                 \
+  V(_, Float16Array_string, "Float16Array")                                   \
   V(_, Float32Array_string, "Float32Array")                                   \
   V(_, Float64Array_string, "Float64Array")                                   \
   V(_, fractionalSecondDigits_string, "fractionalSecondDigits")               \

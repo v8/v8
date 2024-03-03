@@ -37,6 +37,7 @@
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
+#include "third_party/v8/codegen/fp16-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1297,6 +1298,11 @@ TNode<Object> CodeStubAssembler::GetCoverageInfo(
   return CAST(CallCFunction(f, MachineType::AnyTagged(),
                             std::make_pair(MachineType::Pointer(), isolate_ptr),
                             std::make_pair(MachineType::TaggedPointer(), sfi)));
+}
+
+TNode<Float16T> CodeStubAssembler::TruncateFloat64ToFloat16(
+    TNode<Float64T> value) {
+  return TruncateFloat32ToFloat16(TruncateFloat64ToFloat32(value));
 }
 
 TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(TNode<WordT> value) {
@@ -3005,6 +3011,9 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
       return ChangeUint32ToTagged(Load<Uint32T>(data_pointer, offset));
     case INT32_ELEMENTS:
       return ChangeInt32ToTagged(Load<Int32T>(data_pointer, offset));
+    case FLOAT16_ELEMENTS:
+      return AllocateHeapNumberWithValue(
+          ChangeFloat16ToFloat64(Load<Float16T>(data_pointer, offset)));
     case FLOAT32_ELEMENTS:
       return AllocateHeapNumberWithValue(
           ChangeFloat32ToFloat64(Load<Float32T>(data_pointer, offset)));
@@ -6379,7 +6388,6 @@ TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
   TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
 
   Label if_int32(this);
-
   GotoIfNot(Float64Equal(value, value64), not_smi);
   GotoIfNot(Word32Equal(value32, Int32Constant(0)), &if_int32);
   Branch(Int32LessThan(UncheckedCast<Int32T>(Float64ExtractHighWord32(value)),
@@ -6397,6 +6405,25 @@ TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
     GotoIf(overflow, not_smi);
     return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
   }
+}
+
+TNode<Uint32T> CodeStubAssembler::BitcastFloat16ToUint32(
+    TNode<Float16T> value) {
+  return ReinterpretCast<Uint32T>(value);
+}
+
+TNode<Float16T> CodeStubAssembler::BitcastUint32ToFloat16(
+    TNode<Uint32T> value) {
+  return ReinterpretCast<Float16T>(value);
+}
+
+TNode<Float16T> CodeStubAssembler::RoundInt32ToFloat16(TNode<Int32T> value) {
+  return TruncateFloat32ToFloat16(RoundInt32ToFloat32(value));
+}
+
+TNode<Float64T> CodeStubAssembler::ChangeFloat16ToFloat64(
+    TNode<Float16T> value) {
+  return ChangeFloat32ToFloat64(ChangeFloat16ToFloat32(value));
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
@@ -11969,6 +11996,7 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
       return MachineRepresentation::kWord8;
     case UINT16_ELEMENTS:
     case INT16_ELEMENTS:
+    case FLOAT16_ELEMENTS:
       return MachineRepresentation::kWord16;
     case UINT32_ELEMENTS:
     case INT32_ELEMENTS:
@@ -12085,7 +12113,8 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
   static_assert(std::is_same<TArray, RawPtrT>::value ||
                     std::is_same<TArray, FixedArrayBase>::value,
                 "Only RawPtrT or FixedArrayBase elements are allowed");
-  static_assert(std::is_same<TValue, Int32T>::value ||
+  static_assert(std::is_same<TValue, Float16T>::value ||
+                    std::is_same<TValue, Int32T>::value ||
                     std::is_same<TValue, Float32T>::value ||
                     std::is_same<TValue, Float64T>::value ||
                     std::is_same<TValue, Object>::value,
@@ -12135,7 +12164,8 @@ void CodeStubAssembler::StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
                     std::is_same<TIndex, UintPtrT>::value,
                 "Only Smi, IntPtrT or UintPtrT indices are allowed");
   static_assert(
-      std::is_same<TValue, Int32T>::value ||
+      std::is_same<TValue, Float16T>::value ||
+          std::is_same<TValue, Int32T>::value ||
           std::is_same<TValue, Word32T>::value ||
           std::is_same<TValue, Float32T>::value ||
           std::is_same<TValue, Float64T>::value ||
@@ -12162,6 +12192,8 @@ template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(TNode<RawPtrT>,
                                                                 ElementsKind,
                                                                 TNode<UintPtrT>,
                                                                 TNode<BigInt>);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement(
+    TNode<RawPtrT>, ElementsKind, TNode<UintPtrT>, TNode<Float16T>);
 
 TNode<Uint8T> CodeStubAssembler::Int32ToUint8Clamped(
     TNode<Int32T> int32_value) {
@@ -12235,6 +12267,8 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
         LoadObjectField<Float64T>(heap_object, offsetof(HeapNumber, value_));
     if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
       var_result = Float64ToUint8Clamped(value);
+    } else if (elements_kind == FLOAT16_ELEMENTS) {
+      var_result = ReinterpretCast<Word32T>(TruncateFloat64ToFloat16(value));
     } else {
       var_result = TruncateFloat64ToWord32(value);
     }
@@ -12246,9 +12280,59 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
     TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
     if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
       var_result = Int32ToUint8Clamped(value);
+    } else if (elements_kind == FLOAT16_ELEMENTS) {
+      var_result = ReinterpretCast<Word32T>(RoundInt32ToFloat16(value));
     } else {
       var_result = value;
     }
+    Goto(&done);
+  }
+
+  BIND(&convert);
+  {
+    var_input = CallBuiltin(Builtin::kNonNumberToNumber, context, input);
+    Goto(&loop);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+template <>
+TNode<Float16T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float16T>(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
+  CHECK_EQ(elements_kind, FLOAT16_ELEMENTS);
+
+  TVARIABLE(Float16T, var_result);
+  TVARIABLE(Object, var_input, input);
+  Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
+      convert(this), loop(this, &var_input);
+  Goto(&loop);
+  BIND(&loop);
+  GotoIf(TaggedIsSmi(var_input.value()), &if_smi);
+  // We can handle both HeapNumber and Oddball here, since Oddball has the
+  // same layout as the HeapNumber for the HeapNumber::value field. This
+  // way we can also properly optimize stores of oddballs to typed arrays.
+  TNode<HeapObject> heap_object = CAST(var_input.value());
+  GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
+                                    offsetof(Oddball, to_number_raw_));
+  Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
+         &convert);
+
+  BIND(&if_heapnumber_or_oddball);
+  {
+    TNode<Float64T> value =
+        LoadObjectField<Float64T>(heap_object, offsetof(HeapNumber, value_));
+    var_result = TruncateFloat64ToFloat16(value);
+    Goto(&done);
+  }
+
+  BIND(&if_smi);
+  {
+    TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
+    var_result = RoundInt32ToFloat16(value);
     Goto(&done);
   }
 
@@ -12438,6 +12522,26 @@ void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
 template <>
 void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
     TNode<Object> value, ElementsKind elements_kind,
+    TNode<Float16T> converted_value, TVariable<Object>* maybe_converted_value) {
+  Label dont_allocate_heap_number(this), end(this);
+  GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
+  GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
+  {
+    *maybe_converted_value =
+        AllocateHeapNumberWithValue(ChangeFloat16ToFloat64(converted_value));
+    Goto(&end);
+  }
+  BIND(&dont_allocate_heap_number);
+  {
+    *maybe_converted_value = value;
+    Goto(&end);
+  }
+  BIND(&end);
+}
+
+template <>
+void CodeStubAssembler::EmitElementStoreTypedArrayUpdateValue(
+    TNode<Object> value, ElementsKind elements_kind,
     TNode<Float32T> converted_value, TVariable<Object>* maybe_converted_value) {
   Label dont_allocate_heap_number(this), end(this);
   GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
@@ -12614,6 +12718,12 @@ void CodeStubAssembler::EmitElementStore(
         EmitElementStoreTypedArray<BigInt>(typed_array, intptr_key, value,
                                            elements_kind, store_mode, bailout,
                                            context, maybe_converted_value);
+        break;
+      case FLOAT16_ELEMENTS:
+      case RAB_GSAB_FLOAT16_ELEMENTS:
+        EmitElementStoreTypedArray<Float16T>(typed_array, intptr_key, value,
+                                             elements_kind, store_mode, bailout,
+                                             context, maybe_converted_value);
         break;
       default:
         UNREACHABLE();
@@ -15956,14 +16066,14 @@ TNode<IntPtrT> CodeStubAssembler::RabGsabElementsKindToElementByteSize(
   int32_t elements_kinds[] = {
       RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
       RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
-      RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_UINT32_ELEMENTS,
-      RAB_GSAB_INT32_ELEMENTS,    RAB_GSAB_FLOAT32_ELEMENTS,
-      RAB_GSAB_FLOAT64_ELEMENTS,  RAB_GSAB_BIGINT64_ELEMENTS,
-      RAB_GSAB_BIGUINT64_ELEMENTS};
+      RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_FLOAT16_ELEMENTS,
+      RAB_GSAB_UINT32_ELEMENTS,   RAB_GSAB_INT32_ELEMENTS,
+      RAB_GSAB_FLOAT32_ELEMENTS,  RAB_GSAB_FLOAT64_ELEMENTS,
+      RAB_GSAB_BIGINT64_ELEMENTS, RAB_GSAB_BIGUINT64_ELEMENTS};
   Label* elements_kind_labels[] = {&elements_8,  &elements_8,  &elements_8,
-                                   &elements_16, &elements_16, &elements_32,
-                                   &elements_32, &elements_32, &elements_64,
-                                   &elements_64, &elements_64};
+                                   &elements_16, &elements_16, &elements_16,
+                                   &elements_32, &elements_32, &elements_32,
+                                   &elements_64, &elements_64, &elements_64};
   const size_t kTypedElementsKindCount =
       LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
       FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;

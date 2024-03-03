@@ -7334,7 +7334,7 @@ Node* EffectControlLinearizer::BuildReverseBytes(ExternalArrayType type,
         return result;
       }
     }
-
+    case kExternalFloat16Array:
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       UNREACHABLE();

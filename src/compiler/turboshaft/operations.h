@@ -5374,6 +5374,8 @@ inline constexpr RegisterRepresentation RegisterRepresentationForArrayType(
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       return RegisterRepresentation::Word64();
+    case kExternalFloat16Array:
+      UNIMPLEMENTED();
   }
 }
 

@@ -542,6 +542,7 @@ namespace internal {
   F(HasFastProperties, 1, 1)                  \
   F(HasFixedBigInt64Elements, 1, 1)           \
   F(HasFixedBigUint64Elements, 1, 1)          \
+  F(HasFixedFloat16Elements, 1, 1)            \
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
   F(HasFixedInt16Elements, 1, 1)              \

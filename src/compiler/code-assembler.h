@@ -241,6 +241,9 @@ class CodeAssemblerParameterizedLabel;
 
 #define CODE_ASSEMBLER_BINARY_OP_LIST(V)                                \
   CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V)                              \
+  V(Float32Sub, Float32T, Float32T, Float32T)                           \
+  V(Float32Add, Float32T, Float32T, Float32T)                           \
+  V(Float32Mul, Float32T, Float32T, Float32T)                           \
   V(Float64Add, Float64T, Float64T, Float64T)                           \
   V(Float64Sub, Float64T, Float64T, Float64T)                           \
   V(Float64Mul, Float64T, Float64T, Float64T)                           \
@@ -307,6 +310,7 @@ class CodeAssemblerParameterizedLabel;
 TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V)                        \
+  V(Float32Abs, Float32T, Float32T)                            \
   V(Float64Abs, Float64T, Float64T)                            \
   V(Float64Acos, Float64T, Float64T)                           \
   V(Float64Acosh, Float64T, Float64T)                          \

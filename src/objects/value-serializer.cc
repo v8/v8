@@ -252,6 +252,7 @@ enum class ArrayBufferViewTag : uint8_t {
   kUint16Array = 'W',
   kInt32Array = 'd',
   kUint32Array = 'D',
+  kFloat16Array = 'h',
   kFloat32Array = 'f',
   kFloat64Array = 'F',
   kBigInt64Array = 'q',
@@ -2345,7 +2346,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
                                                  DONT_ENUM)
             .is_null()) {
       return MaybeHandle<JSObject>();
-    };
+    }
     READ_NEXT_ERROR_TAG();
   }
 

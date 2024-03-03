@@ -2387,7 +2387,7 @@ void AccessorAssembler::EmitElementLoad(
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
         int16_elements(this), uint32_elements(this), int32_elements(this),
         float32_elements(this), float64_elements(this), bigint64_elements(this),
-        biguint64_elements(this);
+        biguint64_elements(this), float16_elements(this);
     static_assert(LAST_ELEMENTS_KIND ==
                   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
@@ -2441,17 +2441,18 @@ void AccessorAssembler::EmitElementLoad(
           } else {
             data_ptr = LoadJSTypedArrayDataPtr(array);
             Label* elements_kind_labels[] = {
-                &uint8_elements,    &uint8_elements,    &int8_elements,
-                &uint16_elements,   &int16_elements,    &uint32_elements,
-                &int32_elements,    &float32_elements,  &float64_elements,
-                &bigint64_elements, &biguint64_elements};
+                &uint8_elements,    &uint8_elements,     &int8_elements,
+                &uint16_elements,   &int16_elements,     &uint32_elements,
+                &int32_elements,    &float32_elements,   &float64_elements,
+                &bigint64_elements, &biguint64_elements, &float16_elements,
+            };
             int32_t elements_kinds[] = {
-                RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
-                RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_UINT32_ELEMENTS,
-                RAB_GSAB_INT32_ELEMENTS,    RAB_GSAB_FLOAT32_ELEMENTS,
-                RAB_GSAB_FLOAT64_ELEMENTS,  RAB_GSAB_BIGINT64_ELEMENTS,
-                RAB_GSAB_BIGUINT64_ELEMENTS};
+                RAB_GSAB_UINT8_ELEMENTS,     RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+                RAB_GSAB_INT8_ELEMENTS,      RAB_GSAB_UINT16_ELEMENTS,
+                RAB_GSAB_INT16_ELEMENTS,     RAB_GSAB_UINT32_ELEMENTS,
+                RAB_GSAB_INT32_ELEMENTS,     RAB_GSAB_FLOAT32_ELEMENTS,
+                RAB_GSAB_FLOAT64_ELEMENTS,   RAB_GSAB_BIGINT64_ELEMENTS,
+                RAB_GSAB_BIGUINT64_ELEMENTS, RAB_GSAB_FLOAT16_ELEMENTS};
             const size_t kTypedElementsKindCount =
                 LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                 FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
@@ -2478,15 +2479,15 @@ void AccessorAssembler::EmitElementLoad(
           data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
 
           Label* elements_kind_labels[] = {
-              &uint8_elements,    &uint8_elements,    &int8_elements,
-              &uint16_elements,   &int16_elements,    &uint32_elements,
-              &int32_elements,    &float32_elements,  &float64_elements,
-              &bigint64_elements, &biguint64_elements};
+              &uint8_elements,    &uint8_elements,     &int8_elements,
+              &uint16_elements,   &int16_elements,     &uint32_elements,
+              &int32_elements,    &float32_elements,   &float64_elements,
+              &bigint64_elements, &biguint64_elements, &float16_elements};
           int32_t elements_kinds[] = {
               UINT8_ELEMENTS,    UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
               UINT16_ELEMENTS,   INT16_ELEMENTS,         UINT32_ELEMENTS,
               INT32_ELEMENTS,    FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS,
-              BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS};
+              BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS,     FLOAT16_ELEMENTS};
           const size_t kTypedElementsKindCount =
               LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
               FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
@@ -2536,6 +2537,14 @@ void AccessorAssembler::EmitElementLoad(
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
           TNode<Int32T> element = Load<Int32T>(data_ptr.value(), index);
           exit_point->Return(ChangeInt32ToTagged(element));
+        }
+        BIND(&float16_elements);
+        {
+          Comment("FLOAT16_ELEMENTS");
+          TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
+          TNode<Float16T> raw_element = Load<Float16T>(data_ptr.value(), index);
+          *var_double_value = ChangeFloat16ToFloat64(raw_element);
+          Goto(rebox_double);
         }
         BIND(&float32_elements);
         {

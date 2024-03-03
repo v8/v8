@@ -3485,6 +3485,7 @@ filegroup(
         "src/builtins/setup-builtins-internal.cc",
         "src/builtins/torque-csa-header-includes.h",
         "src/codegen/code-stub-assembler.cc",
+        "third_party/v8/codegen/fp16-inl.h",
         "src/codegen/code-stub-assembler-inl.h",
         "src/codegen/code-stub-assembler.h",
         "src/heap/setup-heap-internal.cc",
@@ -3682,6 +3683,18 @@ filegroup(
         "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.asm"],
         "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
+)
+
+v8_library(
+  name = "lib_fp16",
+  srcs = glob(["third_party/fp16/src/include/fp16.h"]),
+  hdrs = glob([
+    "third_party/fp16/src/include/fp16/fp16.h",
+    "third_party/fp16/src/include/fp16/bitcasts.h",
+  ]),
+  includes = [
+    "third_party/fp16/src/include",
+  ],
 )
 
 filegroup(
@@ -4173,6 +4186,7 @@ v8_library(
         ":noicu/generated_torque_definitions",
     ],
     deps = [
+        ":lib_fp16",
         ":v8_libbase",
         "//external:base_trace_event_common",
         "//external:absl_btree",

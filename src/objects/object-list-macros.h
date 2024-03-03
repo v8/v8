@@ -423,6 +423,7 @@ namespace internal {
   V(Int16TypedArrayConstructor)              \
   V(Uint32TypedArrayConstructor)             \
   V(Int32TypedArrayConstructor)              \
+  V(Float16TypedArrayConstructor)            \
   V(Float32TypedArrayConstructor)            \
   V(Float64TypedArrayConstructor)            \
   V(Uint8ClampedTypedArrayConstructor)       \

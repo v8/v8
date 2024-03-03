@@ -80,7 +80,8 @@ namespace internal {
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
-  V(ArrayLengthChanged, "the array length changed")
+  V(ArrayLengthChanged, "the array length changed")                            \
+  V(Float16NotYetSupported, "float16 is not supported as machine operation")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

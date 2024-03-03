@@ -97,6 +97,8 @@ MachineRepresentation MachineRepresentationFromArrayType(
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       return MachineRepresentation::kWord64;
+    case kExternalFloat16Array:
+      UNIMPLEMENTED();
   }
   UNREACHABLE();
 }
