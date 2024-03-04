@@ -2047,6 +2047,10 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
   auto suspender = Handle<WasmSuspenderObject>::cast(
       isolate->factory()->NewJSObject(suspender_cons));
+  // Fields are pre-initialized to undefined, but undefined is not a valid value
+  // for has_js_frames (Smi), state (Smi) and promise (JSPromise). Ensure
+  // that they are initialized before the allocation below.
+  suspender->set_has_js_frames(0);
   suspender->set_promise(*promise);
   suspender->set_state(kInactive);
   // Instantiate the callable object which resumes this Suspender. This will be
@@ -2067,7 +2071,6 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
       Factory::JSFunctionBuilder{isolate, reject_sfi, context}.Build();
   suspender->set_resume(*resume);
   suspender->set_reject(*reject);
-  suspender->set_has_js_frames(0);
   return suspender;
 }
 
