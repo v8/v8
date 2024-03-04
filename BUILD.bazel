@@ -3687,11 +3687,11 @@ filegroup(
 
 v8_library(
   name = "lib_fp16",
-  srcs = glob(["third_party/fp16/src/include/fp16.h"]),
-  hdrs = glob([
+  srcs = ["third_party/fp16/src/include/fp16.h"],
+  hdrs = [
     "third_party/fp16/src/include/fp16/fp16.h",
     "third_party/fp16/src/include/fp16/bitcasts.h",
-  ]),
+  ],
   includes = [
     "third_party/fp16/src/include",
   ],
@@ -4243,11 +4243,11 @@ alias(
 
 v8_library(
     name = "v8_vtune",
-    srcs = glob([
+    srcs = [
         "src/third_party/vtune/v8-vtune.h",
         "src/third_party/vtune/vtune-jit.cc",
         "src/third_party/vtune/vtune-jit.h",
-    ]),
+    ],
     copts = ["-I"],
     deps = [
         ":core_lib_noicu",
