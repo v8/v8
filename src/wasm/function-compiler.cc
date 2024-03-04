@@ -172,8 +172,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       result.for_debugging = for_debugging_;
       break;
     }
-    default:
-      UNREACHABLE();
   }
 
   DCHECK(result.succeeded());
