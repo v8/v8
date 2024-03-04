@@ -1503,10 +1503,9 @@ void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
            MB) &&
       new_space()->Size() >= MinorMSConcurrentMarkingTrigger(this) &&
       ShouldUseBackgroundThreads()) {
-    TryStartIncrementalMarking(
-        GCFlag::kNoFlags, GarbageCollectionReason::kTask, kNoGCCallbackFlags,
-        IncrementalMarkingMemoryReducingSweepingHandling::kFinalize,
-        GarbageCollector::MINOR_MARK_SWEEPER);
+    StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
+                            kNoGCCallbackFlags,
+                            GarbageCollector::MINOR_MARK_SWEEPER);
     // Schedule a task for finalizing the GC if needed.
     ScheduleMinorGCTaskIfNeeded();
   }
@@ -1691,10 +1690,9 @@ void Heap::ReportExternalMemoryPressure() {
   }
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanBeStarted()) {
-      TryStartIncrementalMarking(
-          GCFlagsForIncrementalMarking(),
-          GarbageCollectionReason::kExternalMemoryPressure,
-          kGCCallbackFlagsForExternalMemory);
+      StartIncrementalMarking(GCFlagsForIncrementalMarking(),
+                              GarbageCollectionReason::kExternalMemoryPressure,
+                              kGCCallbackFlagsForExternalMemory);
     } else {
       CollectAllGarbage(i::GCFlag::kNoFlags,
                         GarbageCollectionReason::kExternalMemoryPressure,
@@ -1992,11 +1990,10 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
   return ++contexts_disposed_;
 }
 
-void Heap::TryStartIncrementalMarking(
-    GCFlags gc_flags, GarbageCollectionReason gc_reason,
-    GCCallbackFlags gc_callback_flags,
-    IncrementalMarkingMemoryReducingSweepingHandling sweeping_handling,
-    GarbageCollector collector) {
+void Heap::StartIncrementalMarking(GCFlags gc_flags,
+                                   GarbageCollectionReason gc_reason,
+                                   GCCallbackFlags gc_callback_flags,
+                                   GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
@@ -2005,16 +2002,6 @@ void Heap::TryStartIncrementalMarking(
   // This helps avoid large CompleteSweep blocks on the main thread when major
   // incremental marking should be scheduled following a minor GC.
   if (sweeper()->AreMinorSweeperTasksRunning()) return;
-
-  // Finalizing sweeping for memory reducing GCs is expensive and may cause
-  // hangs. If we can afford to postpone incremental marking start (e.g. on soft
-  // limit), we wait for sweeping to finish concurrently first.
-  if (sweeping_handling ==
-      IncrementalMarkingMemoryReducingSweepingHandling::kWait) {
-    if (sweeper()->IsMemoryReducingMajorSweeping() &&
-        sweeper()->AreMajorSweeperTasksRunning())
-      return;
-  }
 
   if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
     // Do not start incremental marking while invoking GC callbacks.
@@ -2132,7 +2119,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
-          TryStartIncrementalMarking(
+          StartIncrementalMarking(
               gc_flags,
               OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
                   ? GarbageCollectionReason::kAllocationLimit
@@ -4225,8 +4212,8 @@ void Heap::CheckMemoryPressure() {
   } else if (memory_pressure_level == MemoryPressureLevel::kModerate) {
     if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
       TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
-      TryStartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                 GarbageCollectionReason::kMemoryPressure);
+      StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                              GarbageCollectionReason::kMemoryPressure);
     }
   }
 }
@@ -4260,8 +4247,8 @@ void Heap::CollectGarbageOnMemoryPressure() {
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
-        TryStartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                   GarbageCollectionReason::kMemoryPressure);
+        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                                GarbageCollectionReason::kMemoryPressure);
       }
     }
   }

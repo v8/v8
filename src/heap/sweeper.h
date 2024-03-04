@@ -166,11 +166,6 @@ class Sweeper {
 
   uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
 
-  bool IsMemoryReducingMajorSweeping() const {
-    return major_sweeping_in_progress() &&
-           major_sweeping_state_.should_reduce_memory();
-  }
-
 #if DEBUG
   // Can only be called on the main thread when no tasks are running.
   bool HasUnsweptPagesForMajorSweeping() const;

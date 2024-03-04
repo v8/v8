@@ -309,8 +309,8 @@ void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
     Heap* heap = isolate_->heap();
     if (v8_flags.incremental_marking) {
       if (heap->incremental_marking()->IsStopped()) {
-        heap->TryStartIncrementalMarking(
-            GCFlag::kNoFlags, GarbageCollectionReason::kMeasureMemory);
+        heap->StartIncrementalMarking(GCFlag::kNoFlags,
+                                      GarbageCollectionReason::kMeasureMemory);
       } else {
         if (execution == v8::MeasureMemoryExecution::kEager) {
           heap->FinalizeIncrementalMarkingAtomically(

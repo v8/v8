@@ -2664,8 +2664,8 @@ TEST(InstanceOfStubWriteBarrier) {
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->TryStartIncrementalMarking(
-      i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                          i::GarbageCollectionReason::kTesting);
 
   i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -2713,8 +2713,8 @@ HEAP_TEST(GCFlags) {
 
   IncrementalMarking* marking = heap->incremental_marking();
   marking->Stop();
-  heap->TryStartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                   GarbageCollectionReason::kTesting);
+  heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                                GarbageCollectionReason::kTesting);
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
   if (!v8_flags.separate_gc_phases) {
@@ -2745,8 +2745,8 @@ HEAP_TEST(Regress845060) {
   CHECK(Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 
   // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
-  heap->TryStartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
-                                   GarbageCollectionReason::kTesting);
+  heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
+                                GarbageCollectionReason::kTesting);
 
   // Run the test (which allocates results) until the original string was
   // promoted to old space. Unmapping of from_space causes accesses to any
@@ -2764,8 +2764,8 @@ TEST(IdleNotificationFinishMarking) {
   heap::SimulateFullSpace(CcTest::heap()->old_space());
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->TryStartIncrementalMarking(
-      i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                          i::GarbageCollectionReason::kTesting);
 
   CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count);
 
@@ -4191,7 +4191,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
       "f(10 * 1024 * 1024);");
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    CcTest::heap()->TryStartIncrementalMarking(
+    CcTest::heap()->StartIncrementalMarking(
         i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -5224,8 +5224,8 @@ TEST(Regress388880) {
   // that would cause crash.
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  CcTest::heap()->TryStartIncrementalMarking(
-      i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
+  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                          i::GarbageCollectionReason::kTesting);
   CHECK(marking->IsMarking());
 
   // Now everything is set up for crashing in JSObject::MigrateFastToFast()
@@ -5251,7 +5251,7 @@ TEST(Regress3631) {
       "}"
       "weak_map");
   if (marking->IsStopped()) {
-    CcTest::heap()->TryStartIncrementalMarking(
+    CcTest::heap()->StartIncrementalMarking(
         i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
   // Incrementally mark the backing store.
@@ -5893,8 +5893,8 @@ TEST(Regress598319) {
   // Start incremental marking.
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
-                                     i::GarbageCollectionReason::kTesting);
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
 
@@ -6006,8 +6006,8 @@ TEST(Regress615489) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
-                                     i::GarbageCollectionReason::kTesting);
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
   CHECK(marking->black_allocation());
@@ -6106,8 +6106,8 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->TryStartIncrementalMarking(i::GCFlag::kNoFlags,
-                                     i::GarbageCollectionReason::kTesting);
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
   CHECK(marking->black_allocation());

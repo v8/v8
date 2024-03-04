@@ -113,17 +113,16 @@ void IncrementalMarkingJob::Task::RunInternal() {
   if (incremental_marking->IsStopped()) {
     if (heap->IncrementalMarkingLimitReached() !=
         Heap::IncrementalMarkingLimit::kNoLimit) {
-      heap->TryStartIncrementalMarking(
-          heap->GCFlagsForIncrementalMarking(), GarbageCollectionReason::kTask,
-          kGCCallbackScheduleIdleGarbageCollection,
-          Heap::IncrementalMarkingMemoryReducingSweepingHandling::kWait);
+      heap->StartIncrementalMarking(heap->GCFlagsForIncrementalMarking(),
+                                    GarbageCollectionReason::kTask,
+                                    kGCCallbackScheduleIdleGarbageCollection);
     } else if (v8_flags.minor_ms && v8_flags.concurrent_minor_ms_marking) {
       heap->StartMinorMSIncrementalMarkingIfNeeded();
     }
   }
 
-  // Clear this flag after TryStartIncrementalMarking() call to avoid scheduling
-  // a new task when starting incremental marking from a task.
+  // Clear this flag after StartIncrementalMarking() call to avoid scheduling a
+  // new task when starting incremental marking from a task.
   {
     base::MutexGuard guard(&job_->mutex_);
     if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
