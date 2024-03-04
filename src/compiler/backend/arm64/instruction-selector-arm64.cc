@@ -7489,6 +7489,8 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
       DCHECK_GT(4, index);
       Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(4), g.UseImmediate(index % 4));
+    } else if (wasm::SimdShuffle::TryMatch32x4Reverse(shuffle32x4)) {
+      Emit(kArm64S32x4Reverse, g.DefineAsRegister(node), g.UseRegister(input0));
     } else if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
       // Bypass normal shuffle code generation in this case.
       // EmitIdentity

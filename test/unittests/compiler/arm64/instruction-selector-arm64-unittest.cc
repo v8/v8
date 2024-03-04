@@ -2600,6 +2600,34 @@ TEST_P(InstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   }
 }
 
+TEST_F(InstructionSelectorTest, ReverseShuffle32x4Test) {
+  const MachineType type = MachineType::Simd128();
+  {
+    const uint8_t shuffle[] = {12, 13, 14, 15, 8, 9, 10, 11,
+                               4,  5,  6,  7,  0, 1, 2,  3};
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle), m.Parameter(0),
+                       m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S32x4Reverse, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    const uint8_t shuffle[] = {28, 29, 30, 31, 24, 25, 26, 27,
+                               20, 21, 22, 23, 16, 17, 18, 19};
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.AddNode(m.machine()->I8x16Shuffle(shuffle), m.Parameter(0),
+                       m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S32x4Reverse, s[0]->arch_opcode());
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSimdF64x2MulWithDupTest,
                          ::testing::ValuesIn(kSIMDF64x2MulDuplInstructions));

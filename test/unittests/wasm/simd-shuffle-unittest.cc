@@ -42,6 +42,9 @@ class SimdShuffleTest : public ::testing::Test {
                                   uint8_t* shuffle32x4) {
     return SimdShuffle::TryMatch32x4Shuffle(&shuffle[0], shuffle32x4);
   }
+  static bool TryMatch32x4Reverse(const uint8_t* shuffle32x4) {
+    return SimdShuffle::TryMatch32x4Reverse(shuffle32x4);
+  }
   static bool TryMatch16x8Shuffle(const Shuffle& shuffle,
                                   uint8_t* shuffle16x8) {
     return SimdShuffle::TryMatch16x8Shuffle(&shuffle[0], shuffle16x8);
@@ -217,6 +220,35 @@ TEST_F(SimdShuffleTest, TryMatch32x4Shuffle) {
   EXPECT_FALSE(TryMatch32x4Shuffle(
       {{13, 14, 15, 12, 8, 9, 10, 11, 4, 5, 6, 7, 16, 17, 18, 19}},
       shuffle32x4));
+}
+
+TEST_F(SimdShuffleTest, TryMatch32x4Reverse) {
+  uint8_t shuffle32x4[4];
+  // low
+  EXPECT_TRUE(TryMatch32x4Shuffle(
+      {{12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3}}, shuffle32x4));
+  EXPECT_EQ(3, shuffle32x4[0]);
+  EXPECT_EQ(2, shuffle32x4[1]);
+  EXPECT_EQ(1, shuffle32x4[2]);
+  EXPECT_EQ(0, shuffle32x4[3]);
+  EXPECT_TRUE(TryMatch32x4Reverse(shuffle32x4));
+
+  // high
+  Shuffle high_rev = {28, 29, 30, 31, 24, 25, 26, 27,
+                      20, 21, 22, 23, 16, 17, 18, 19};
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_rev, shuffle32x4));
+  EXPECT_EQ(7, shuffle32x4[0]);
+  EXPECT_EQ(6, shuffle32x4[1]);
+  EXPECT_EQ(5, shuffle32x4[2]);
+  EXPECT_EQ(4, shuffle32x4[3]);
+
+  bool needs_swap = false;
+  bool is_swizzle = false;
+  CanonicalizeShuffle(false, &high_rev, &needs_swap, &is_swizzle);
+  EXPECT_TRUE(needs_swap);
+  EXPECT_TRUE(is_swizzle);
+  EXPECT_TRUE(TryMatch32x4Shuffle(high_rev, shuffle32x4));
+  EXPECT_TRUE(TryMatch32x4Reverse(shuffle32x4));
 }
 
 TEST_F(SimdShuffleTest, TryMatch16x8Shuffle) {

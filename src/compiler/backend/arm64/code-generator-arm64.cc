@@ -2974,6 +2974,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArm64S32x4Reverse: {
+      Simd128Register dst = i.OutputSimd128Register().V16B(),
+                      src = i.InputSimd128Register(0).V16B();
+      __ Rev64(dst.V4S(), src.V4S());
+      __ Ext(dst.V16B(), dst.V16B(), dst.V16B(), 8);
+      break;
+    }
       SIMD_UNOP_CASE(kArm64S32x2Reverse, Rev64, 4S);
       SIMD_UNOP_CASE(kArm64S16x4Reverse, Rev64, 8H);
       SIMD_UNOP_CASE(kArm64S16x2Reverse, Rev32, 8H);

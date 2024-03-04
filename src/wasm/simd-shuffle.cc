@@ -38,6 +38,11 @@ bool SimdShuffle::TryMatch32x4Rotate(const uint8_t* shuffle,
   return true;
 }
 
+bool SimdShuffle::TryMatch32x4Reverse(const uint8_t* shuffle32x4) {
+  return shuffle32x4[0] == 3 && shuffle32x4[1] == 2 && shuffle32x4[2] == 1 &&
+         shuffle32x4[3] == 0;
+}
+
 bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
                                       uint8_t* shuffle32x4) {
   for (int i = 0; i < 4; ++i) {

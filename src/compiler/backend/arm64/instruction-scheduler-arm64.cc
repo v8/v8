@@ -266,6 +266,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S8x16Concat:
     case kArm64I8x16Swizzle:
     case kArm64I8x16Shuffle:
+    case kArm64S32x4Reverse:
     case kArm64S32x2Reverse:
     case kArm64S16x4Reverse:
     case kArm64S16x2Reverse:
