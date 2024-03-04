@@ -975,7 +975,10 @@ bool SharedFunctionInfo::HasBuiltinId() const {
 Builtin SharedFunctionInfo::builtin_id() const {
   DCHECK(HasBuiltinId());
   int id = Smi::ToInt(function_data(kAcquireLoad));
-  DCHECK(Builtins::IsBuiltinId(id));
+  // The builtin id is read from the heap and so must be assumed to be
+  // untrusted in the sandbox attacker model. As it is considered trusted by
+  // e.g. `GetCode` (when fetching the code for this SFI), we validate it here.
+  SBXCHECK(Builtins::IsBuiltinId(id));
   return Builtins::FromInt(id);
 }
 
