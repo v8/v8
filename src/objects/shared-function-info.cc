@@ -244,19 +244,23 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_flags(other->flags(kRelaxedLoad), kRelaxedStore);
   set_function_literal_id(other->function_literal_id());
   set_unique_id(other->unique_id());
+  set_age(0);
 
 #if DEBUG
-  // Copy age just for the following memcmp-check.
-  set_age(other->age());
-
-  // This should now be byte-for-byte identical to the input.
+  // This should now be byte-for-byte identical to the input except for the age
+  // field (could be reset concurrently). Compare content before age field now:
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
                    reinterpret_cast<void*>(other.address()),
-                   SharedFunctionInfo::kSize),
+                   SharedFunctionInfo::kAgeOffset),
+            0);
+  // Compare content after age field.
+  constexpr Address kPastAgeOffset =
+      SharedFunctionInfo::kAgeOffset + SharedFunctionInfo::kAgeSize;
+  DCHECK_EQ(memcmp(reinterpret_cast<void*>(address() + kPastAgeOffset),
+                   reinterpret_cast<void*>(other.address() + kPastAgeOffset),
+                   SharedFunctionInfo::kSize - kPastAgeOffset),
             0);
 #endif
-
-  set_age(0);
 }
 
 bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
