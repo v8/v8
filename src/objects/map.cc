@@ -936,7 +936,7 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
                                                        prototype);
 }
 
-static bool ContainsMap(MapHandles const& maps, Tagged<Map> map) {
+static bool ContainsMap(MapHandlesSpan maps, Tagged<Map> map) {
   DCHECK(!map.is_null());
   for (Handle<Map> current : maps) {
     if (!current.is_null() && *current == map) return true;
@@ -944,8 +944,7 @@ static bool ContainsMap(MapHandles const& maps, Tagged<Map> map) {
   return false;
 }
 
-static bool HasElementsKind(MapHandles const& maps,
-                            ElementsKind elements_kind) {
+static bool HasElementsKind(MapHandlesSpan maps, ElementsKind elements_kind) {
   for (Handle<Map> current : maps) {
     if (!current.is_null() && current->elements_kind() == elements_kind)
       return true;
@@ -954,7 +953,7 @@ static bool HasElementsKind(MapHandles const& maps,
 }
 
 Tagged<Map> Map::FindElementsKindTransitionedMap(Isolate* isolate,
-                                                 MapHandles const& candidates,
+                                                 MapHandlesSpan candidates,
                                                  ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
 
