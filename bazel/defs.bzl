@@ -313,10 +313,7 @@ def v8_library(
 # split the set of outputs by using OutputGroupInfo, that way we do not need to
 # run the torque generator twice.
 def _torque_files_impl(ctx):
-    if ctx.workspace_name == "v8":
-        v8root = "."
-    else:
-        v8root = "external/v8"
+    v8root = "."
 
     # Arguments
     args = []
