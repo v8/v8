@@ -812,13 +812,18 @@ MaybeHandle<Object> StoreLookupSlot(
   }
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
+    auto holder_context = Handle<Context>::cast(holder);
     if (flag == kNeedsInitialization &&
-        IsTheHole(Handle<Context>::cast(holder)->get(index), isolate)) {
+        IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);
     }
     if ((attributes & READ_ONLY) == 0) {
+      if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
+        Context::UpdateConstTrackingLetSideData(holder_context, index, value,
+                                                isolate);
+      }
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(
