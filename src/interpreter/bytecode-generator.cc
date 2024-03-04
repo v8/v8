@@ -4172,7 +4172,6 @@ void BytecodeGenerator::BuildVariableAssignment(
     LookupHoistingMode lookup_hoisting_mode) {
   VariableMode mode = variable->mode();
   RegisterAllocationScope assignment_register_scope(this);
-  BytecodeLabel end_label;
   switch (variable->location()) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
