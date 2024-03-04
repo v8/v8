@@ -59,6 +59,141 @@ Handle<Object> GetExport(Isolate* isolate, Handle<WasmInstanceObject> instance,
   return desc.value();
 }
 
+void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
+                     const WasmModule& module) {
+  DisallowGarbageCollection no_gc;
+  // Stack of elements to be checked.
+  std::vector<std::pair<WasmValue, WasmValue>> cmp = {{lhs, rhs}};
+  using TaggedT = decltype(Tagged<Object>().ptr());
+  // Map of lhs objects we have already seen to their rhs object on the first
+  // visit. This is needed to ensure a reasonable runtime for the check.
+  // Example:
+  //   (array.new $myArray 10 (array.new_default $myArray 10))
+  // This creates a nested array where each outer array element is the same
+  // inner array. Without memorizing the inner array, we'd end up performing
+  // 100+ comparisons.
+  std::unordered_map<TaggedT, TaggedT> lhs_map;
+  auto SeenAlready = [&lhs_map](Tagged<Object> lhs, Tagged<Object> rhs) {
+    auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
+    if (inserted) return false;
+    CHECK_EQ(iter->second, rhs.ptr());
+    return true;
+  };
+
+  auto CheckArray = [&cmp, &SeenAlready](Tagged<Object> lhs,
+                                         Tagged<Object> rhs) {
+    if (SeenAlready(lhs, rhs)) return;
+    CHECK(IsWasmArray(lhs));
+    CHECK(IsWasmArray(rhs));
+    Tagged<WasmArray> lhs_array = WasmArray::cast(lhs);
+    Tagged<WasmArray> rhs_array = WasmArray::cast(rhs);
+    CHECK_EQ(lhs_array->map(), rhs_array->map());
+    CHECK_EQ(lhs_array->length(), rhs_array->length());
+    cmp.reserve(cmp.size() + lhs_array->length());
+    for (uint32_t i = 0; i < lhs_array->length(); ++i) {
+      cmp.emplace_back(lhs_array->GetElement(i), rhs_array->GetElement(i));
+    }
+  };
+
+  auto CheckStruct = [&cmp, &SeenAlready](Tagged<Object> lhs,
+                                          Tagged<Object> rhs) {
+    if (SeenAlready(lhs, rhs)) return;
+    CHECK(IsWasmStruct(lhs));
+    CHECK(IsWasmStruct(rhs));
+    Tagged<WasmStruct> lhs_struct = WasmStruct::cast(lhs);
+    Tagged<WasmStruct> rhs_struct = WasmStruct::cast(rhs);
+    CHECK_EQ(lhs_struct->map(), rhs_struct->map());
+    uint32_t field_count = lhs_struct->type()->field_count();
+    for (uint32_t i = 0; i < field_count; ++i) {
+      cmp.emplace_back(lhs_struct->GetFieldValue(i),
+                       rhs_struct->GetFieldValue(i));
+    }
+  };
+
+  // Compare the function result with the global value.
+  while (!cmp.empty()) {
+    const auto& [lhs, rhs] = cmp.back();
+    cmp.pop_back();
+    CHECK_EQ(lhs.type(), rhs.type());
+    switch (lhs.type().kind()) {
+      case ValueKind::kF32:
+        CHECK_FLOAT_EQ(lhs.to_f32(), rhs.to_f32());
+        break;
+      case ValueKind::kF64:
+        CHECK_FLOAT_EQ(lhs.to_f64(), rhs.to_f64());
+        break;
+      case ValueKind::kI8:
+        CHECK_EQ(lhs.to_i8(), rhs.to_i8());
+        break;
+      case ValueKind::kI16:
+        CHECK_EQ(lhs.to_i16(), rhs.to_i16());
+        break;
+      case ValueKind::kI32:
+        CHECK_EQ(lhs.to_i32(), rhs.to_i32());
+        break;
+      case ValueKind::kI64:
+        CHECK_EQ(lhs.to_i64(), rhs.to_i64());
+        break;
+      case ValueKind::kS128:
+        CHECK_EQ(lhs.to_s128(), lhs.to_s128());
+        break;
+      case ValueKind::kRef:
+      case ValueKind::kRefNull: {
+        Tagged<Object> lhs_ref = *lhs.to_ref();
+        Tagged<Object> rhs_ref = *rhs.to_ref();
+        CHECK_EQ(IsNull(lhs_ref), IsNull(rhs_ref));
+        CHECK_EQ(IsWasmNull(lhs_ref), IsWasmNull(rhs_ref));
+        switch (lhs.type().heap_representation_non_shared()) {
+          case HeapType::kFunc:
+          case HeapType::kI31:
+            CHECK_EQ(lhs_ref, rhs_ref);
+            break;
+          case HeapType::kNoFunc:
+          case HeapType::kNone:
+          case HeapType::kNoExn:
+            CHECK(IsWasmNull(lhs_ref));
+            CHECK(IsWasmNull(rhs_ref));
+            break;
+          case HeapType::kNoExtern:
+            CHECK(IsNull(lhs_ref));
+            CHECK(IsNull(rhs_ref));
+            break;
+          case HeapType::kExtern:
+          case HeapType::kAny:
+          case HeapType::kEq:
+          case HeapType::kArray:
+          case HeapType::kStruct:
+            if (IsNullOrWasmNull(lhs_ref)) break;
+            if (IsWasmStruct(lhs_ref)) {
+              CheckStruct(lhs_ref, rhs_ref);
+            } else if (IsWasmArray(lhs_ref)) {
+              CheckArray(lhs_ref, rhs_ref);
+            } else if (IsSmi(lhs_ref)) {
+              CHECK_EQ(lhs_ref, rhs_ref);
+            }
+            break;
+          default:
+            CHECK(lhs.type().heap_type().is_index());
+            if (IsWasmNull(lhs_ref)) break;
+            uint32_t type_index = lhs.type().ref_index();
+            if (module.has_signature(type_index)) {
+              CHECK_EQ(lhs_ref, rhs_ref);
+            } else if (module.has_struct(type_index)) {
+              CheckStruct(lhs_ref, rhs_ref);
+            } else if (module.has_array(type_index)) {
+              CheckArray(lhs_ref, rhs_ref);
+            } else {
+              UNIMPLEMENTED();
+            }
+        }
+        break;
+      }
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+}
+
 void FuzzIt(base::Vector<const uint8_t> data) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -132,7 +267,6 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     snprintf(buffer, sizeof buffer, "g%zu", i);
     auto global =
         Handle<WasmGlobalObject>::cast(GetExport(i_isolate, instance, buffer));
-    // Compare the function result with the global value.
     switch (global->type().kind()) {
       case ValueKind::kF32: {
         float global_val = global->GetF32();
@@ -193,17 +327,27 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         CHECK_EQ(IsUndefined(*global_val), IsUndefined(*function_result));
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));
-        if (!IsNullOrWasmNull(*global_val) &&
-            IsSubtypeOf(global->type(), kWasmFuncRef,
-                        module_object->module())) {
-          // For any function the global should be an internal function whose
-          // external function equals the call result. (The call goes through JS
-          // conversions while the global is accessed directly.)
-          CHECK(IsWasmInternalFunction(*global_val));
-          CHECK(WasmExportedFunction::IsWasmExportedFunction(*function_result));
-          CHECK(*WasmInternalFunction::GetOrCreateExternal(
-                    Handle<WasmInternalFunction>::cast(global_val)) ==
-                *function_result);
+        if (!IsNullOrWasmNull(*global_val)) {
+          if (IsSubtypeOf(global->type(), kWasmFuncRef,
+                          module_object->module())) {
+            // For any function the global should be an internal function
+            // whose external function equals the call result. (The call goes
+            // through JS conversions while the global is accessed directly.)
+            CHECK(IsWasmInternalFunction(*global_val));
+            CHECK(
+                WasmExportedFunction::IsWasmExportedFunction(*function_result));
+            CHECK(*WasmInternalFunction::GetOrCreateExternal(
+                      Handle<WasmInternalFunction>::cast(global_val)) ==
+                  *function_result);
+          } else {
+            // On arrays and structs, perform a deep comparison.
+            DisallowGarbageCollection no_gc;
+            WasmValue global_value =
+                instance->trusted_data(i_isolate)->GetGlobalValue(
+                    i_isolate, instance->module()->globals[i]);
+            WasmValue func_value(function_result, global_value.type());
+            CheckEquivalent(global_value, func_value, *module_object->module());
+          }
         }
         break;
       }
