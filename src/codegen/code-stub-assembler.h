@@ -2785,7 +2785,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ChangeInt32ToTaggedNoOverflow(TNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(TNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
-  TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
+  TNode<Uint32T> ChangeNonNegativeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
 
   TNode<Int32T> ChangeTaggedNonSmiToInt32(TNode<Context> context,

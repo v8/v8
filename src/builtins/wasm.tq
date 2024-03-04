@@ -83,6 +83,13 @@ extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
+macro NumberToInt32(input: Number): int32 {
+  return Convert<int32>(input);
+}
+macro NumberToUint32(input: Number): uint32 {
+  return Unsigned(Convert<int32>(input));
+}
+
 namespace wasm {
 const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
@@ -975,11 +982,11 @@ builtin WasmStringConst(index: uint32): String {
 }
 builtin WasmStringMeasureUtf8(string: String): int32 {
   const result = runtime::WasmStringMeasureUtf8(LoadContextFromFrame(), string);
-  return Signed(ChangeNumberToUint32(result));
+  return NumberToInt32(result);
 }
 builtin WasmStringMeasureWtf8(string: String): int32 {
   const result = runtime::WasmStringMeasureWtf8(LoadContextFromFrame(), string);
-  return Signed(ChangeNumberToUint32(result));
+  return NumberToInt32(result);
 }
 builtin WasmStringEncodeWtf8(
     string: String, offset: uint32, memory: Smi, utf8Variant: Smi): uint32 {
@@ -987,7 +994,7 @@ builtin WasmStringEncodeWtf8(
   const result = runtime::WasmStringEncodeWtf8(
       LoadContextFromInstanceData(trustedData), trustedData, memory,
       utf8Variant, string, WasmUint32ToNumber(offset));
-  return ChangeNumberToUint32(result);
+  return NumberToUint32(result);
 }
 builtin WasmStringEncodeWtf8Array(
     string: String, array: WasmArray, start: uint32, utf8Variant: Smi): uint32 {
@@ -995,7 +1002,7 @@ builtin WasmStringEncodeWtf8Array(
   const result = runtime::WasmStringEncodeWtf8Array(
       LoadContextFromInstanceData(trustedData), utf8Variant, string, array,
       WasmUint32ToNumber(start));
-  return ChangeNumberToUint32(result);
+  return NumberToUint32(result);
 }
 builtin WasmStringToUtf8Array(string: String): WasmArray {
   return runtime::WasmStringToUtf8Array(LoadContextFromFrame(), string);
@@ -1093,7 +1100,7 @@ builtin WasmStringEqual(a: String, b: String): int32 {
 builtin WasmStringIsUSVSequence(str: String): int32 {
   if (IsOneByteStringInstanceType(str.instanceType)) return 1;
   const length = runtime::WasmStringMeasureUtf8(LoadContextFromFrame(), str);
-  if (Signed(ChangeNumberToUint32(length)) < 0) return 0;
+  if (NumberToInt32(length) < 0) return 0;
   return 1;
 }
 

@@ -1298,7 +1298,6 @@ extern macro IntPtrRoundUpToPowerOfTwo32(intptr): intptr;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro RoundInt32ToFloat32(int32): float32;
 extern macro ChangeNumberToFloat64(Number): float64;
-extern macro ChangeNumberToUint32(Number): uint32;
 extern macro ChangeTaggedNonSmiToInt32(
     implicit context: Context)(HeapObject): int32;
 extern macro ChangeFloat16ToFloat64(float16): float64;

@@ -6600,7 +6600,9 @@ TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
   return CAST(var_value.value());
 }
 
-TNode<Uint32T> CodeStubAssembler::ChangeNumberToUint32(TNode<Number> value) {
+// This has platform-specific and ill-defined behavior for negative inputs.
+TNode<Uint32T> CodeStubAssembler::ChangeNonNegativeNumberToUint32(
+    TNode<Number> value) {
   TVARIABLE(Uint32T, var_result);
   Label if_smi(this), if_heapnumber(this, Label::kDeferred), done(this);
   Branch(TaggedIsSmi(value), &if_smi, &if_heapnumber);
