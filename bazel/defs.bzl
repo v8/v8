@@ -477,9 +477,6 @@ _v8_mksnapshot = rule(
             cfg = "exec",
         ),
         "target_os": attr.string(mandatory = True),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
     },
