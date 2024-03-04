@@ -739,7 +739,7 @@ class WasmGraphBuildingInterface {
   TFNode* ExternRefToString(FullDecoder* decoder, const Value value,
                             bool null_succeeds = false) {
     wasm::ValueType target_type =
-        null_succeeds ? kWasmStringRef : kWasmRefString;
+        null_succeeds ? kWasmRefNullExternString : kWasmRefExternString;
     WasmTypeCheckConfig config{value.type, target_type};
     TFNode* string =
         builder_->RefCastAbstract(value.node, config, decoder->position());
@@ -768,7 +768,7 @@ class WasmGraphBuildingInterface {
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringTest: {
-        WasmTypeCheckConfig config{args[0].type, kWasmRefString};
+        WasmTypeCheckConfig config{args[0].type, kWasmRefExternString};
         result = builder_->RefTestAbstract(args[0].node, config);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
@@ -777,7 +777,7 @@ class WasmGraphBuildingInterface {
         TFNode* string = ExternRefToString(decoder, args[0]);
         TFNode* view = builder_->StringAsWtf16(
             string, compiler::kWithoutNullCheck, decoder->position());
-        builder_->SetType(view, kWasmRefString);
+        builder_->SetType(view, kWasmRefExternString);
         result = builder_->StringViewWtf16GetCodeUnit(
             view, compiler::kWithoutNullCheck, args[1].node,
             decoder->position());
@@ -788,7 +788,7 @@ class WasmGraphBuildingInterface {
         TFNode* string = ExternRefToString(decoder, args[0]);
         TFNode* view = builder_->StringAsWtf16(
             string, compiler::kWithoutNullCheck, decoder->position());
-        builder_->SetType(view, kWasmRefString);
+        builder_->SetType(view, kWasmRefExternString);
         result = builder_->StringCodePointAt(view, compiler::kWithoutNullCheck,
                                              args[1].node, decoder->position());
         decoder->detected_->Add(kFeature_imported_strings);
@@ -809,7 +809,7 @@ class WasmGraphBuildingInterface {
         result = builder_->StringConcat(
             head_string, compiler::kWithoutNullCheck, tail_string,
             compiler::kWithoutNullCheck, decoder->position());
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -826,19 +826,19 @@ class WasmGraphBuildingInterface {
       }
       case WKI::kStringFromCharCode:
         result = builder_->StringFromCharCode(args[0].node);
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringFromCodePoint:
         result = builder_->StringFromCodePoint(args[0].node);
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringFromWtf16Array:
         result = builder_->StringNewWtf16Array(
             args[0].node, NullCheckFor(args[0].type), args[1].node,
             args[2].node, decoder->position());
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringFromUtf8Array:
@@ -846,7 +846,7 @@ class WasmGraphBuildingInterface {
             unibrow::Utf8Variant::kLossyUtf8, args[0].node,
             NullCheckFor(args[0].type), args[1].node, args[2].node,
             decoder->position());
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringIntoUtf8Array: {
@@ -876,11 +876,11 @@ class WasmGraphBuildingInterface {
         TFNode* string = ExternRefToString(decoder, args[0]);
         TFNode* view = builder_->StringAsWtf16(
             string, compiler::kWithoutNullCheck, decoder->position());
-        builder_->SetType(view, kWasmRefString);
+        builder_->SetType(view, kWasmRefExternString);
         result = builder_->StringViewWtf16Slice(
             view, compiler::kWithoutNullCheck, args[1].node, args[2].node,
             decoder->position());
-        builder_->SetType(result, kWasmRefString);
+        builder_->SetType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }

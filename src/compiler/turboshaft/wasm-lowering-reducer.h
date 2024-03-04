@@ -597,7 +597,8 @@ class WasmLoweringReducer : public Next {
         result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
         break;
       }
-      if (to_rep == wasm::HeapType::kString) {
+      if (to_rep == wasm::HeapType::kString ||
+          to_rep == wasm::HeapType::kExternString) {
         V<Word32> instance_type =
             __ LoadInstanceTypeField(__ LoadMapField(object));
         result = __ Uint32LessThan(instance_type,
@@ -673,7 +674,8 @@ class WasmLoweringReducer : public Next {
                      OpIndex::Invalid(), TrapId::kTrapIllegalCast);
         break;
       }
-      if (to_rep == wasm::HeapType::kString) {
+      if (to_rep == wasm::HeapType::kString ||
+          to_rep == wasm::HeapType::kExternString) {
         V<Word32> instance_type =
             __ LoadInstanceTypeField(__ LoadMapField(object));
         __ TrapIfNot(__ Uint32LessThan(instance_type,

@@ -6960,15 +6960,13 @@ Node* WasmGraphBuilder::SetType(Node* node, wasm::ValueType type) {
     // The exception is imported strings support, which may special-case
     // values that are officially externref-typed as being known to be strings.
 #if DEBUG
-    static constexpr wasm::ValueType kRefString =
-        wasm::ValueType::Ref(wasm::HeapType::kString);
     static constexpr wasm::ValueType kRefExtern =
         wasm::ValueType::Ref(wasm::HeapType::kExtern);
-    DCHECK(
-        (compiler::NodeProperties::GetType(node).AsWasm().type == type) ||
-        (enabled_features_.has_imported_strings() &&
-         compiler::NodeProperties::GetType(node).AsWasm().type == kRefString &&
-         (type == wasm::kWasmExternRef || type == kRefExtern)));
+    DCHECK((compiler::NodeProperties::GetType(node).AsWasm().type == type) ||
+           (enabled_features_.has_imported_strings() &&
+            compiler::NodeProperties::GetType(node).AsWasm().type ==
+                wasm::kWasmRefExternString &&
+            (type == wasm::kWasmExternRef || type == kRefExtern)));
 #endif
   }
   return node;

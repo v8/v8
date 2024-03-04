@@ -136,7 +136,9 @@ class WasmGCTypeReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && type != wasm::kWasmBottom) {
+    if (type != wasm::ValueType() && !type.is_uninhabited()) {
+      DCHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
+                                       cast_op.config.to.heap_type(), module_));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_, module_)) {
@@ -154,8 +156,7 @@ class WasmGCTypeReducer : public Next {
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
                                    cast_op.config.to.heap_type(), module_,
-                                   module_) &&
-          !wasm::IsImplicitInternalization(type, cast_op.config.to, module_)) {
+                                   module_)) {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
@@ -190,7 +191,9 @@ class WasmGCTypeReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && type != wasm::kWasmBottom) {
+    if (type != wasm::ValueType() && !type.is_uninhabited()) {
+      DCHECK(wasm::IsSameTypeHierarchy(
+          type.heap_type(), type_check.config.to.heap_type(), module_));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
                                 type_check.config.to.heap_type(), module_,
@@ -208,9 +211,7 @@ class WasmGCTypeReducer : public Next {
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
                                    type_check.config.to.heap_type(), module_,
-                                   module_) &&
-          !wasm::IsImplicitInternalization(type, type_check.config.to,
-                                           module_)) {
+                                   module_)) {
         if (to_nullable && type.is_nullable()) {
           return __ IsNull(__ MapToNewGraph(type_check.object()), type);
         } else {

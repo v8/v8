@@ -1047,14 +1047,14 @@ class TurboshaftGraphBuildingInterface {
   }
 
   V<Word32> IsExternRefString(const Value value) {
-    compiler::WasmTypeCheckConfig config{value.type, kWasmRefString};
+    compiler::WasmTypeCheckConfig config{value.type, kWasmRefExternString};
     V<Map> rtt = OpIndex::Invalid();
     return __ WasmTypeCheck(value.op, rtt, config);
   }
 
   V<String> ExternRefToString(const Value value, bool null_succeeds = false) {
     wasm::ValueType target_type =
-        null_succeeds ? kWasmStringRef : kWasmRefString;
+        null_succeeds ? kWasmRefNullExternString : kWasmRefExternString;
     compiler::WasmTypeCheckConfig config{value.type, target_type};
     V<Map> rtt = OpIndex::Invalid();
     return V<String>::Cast(__ WasmTypeCast(value.op, rtt, config));
@@ -1064,7 +1064,7 @@ class TurboshaftGraphBuildingInterface {
     if (__ generating_unreachable_operations()) return false;
     const WasmTypeCastOp* cast =
         __ output_graph().Get(value.op).TryCast<WasmTypeCastOp>();
-    return cast && cast->config.to == kWasmRefString;
+    return cast && cast->config.to == kWasmRefExternString;
   }
 
   V<Word32> GetStringIndexOf(FullDecoder* decoder, V<String> string,
@@ -1134,7 +1134,7 @@ class TurboshaftGraphBuildingInterface {
         BuiltinCallDescriptor::StringToLowerCaseIntl>(
         decoder, __ NoContextConstant(), {string});
     BuildModifyThreadInWasmFlag(decoder, true);
-    return __ AnnotateWasmType(result, kWasmRefString);
+    return result;
   }
 #endif
 
@@ -1381,6 +1381,19 @@ class TurboshaftGraphBuildingInterface {
                             GetExternalArrayType(op_type));
   }
 
+  // Adds a wasm type annotation to the graph and replaces any extern type with
+  // the extern string type.
+  V<String> AnnotateAsString(OpIndex value, wasm::ValueType type) {
+    DCHECK(type.is_reference_to(HeapType::kString) ||
+           type.is_reference_to(HeapType::kExternString) ||
+           type.is_reference_to(HeapType::kExtern));
+    if (type.is_reference_to(HeapType::kExtern)) {
+      type =
+          ValueType::RefMaybeNull(HeapType::kExternString, type.nullability());
+    }
+    return __ AnnotateWasmType(value, type);
+  }
+
   bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
                              const Value args[], Value returns[]) {
     if (!decoder->module_) return false;  // Only needed for tests.
@@ -1439,7 +1452,7 @@ class TurboshaftGraphBuildingInterface {
             BuiltinCallDescriptor::StringAdd_CheckNone>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -1458,7 +1471,7 @@ class TurboshaftGraphBuildingInterface {
         V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder, {capped});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -1467,7 +1480,7 @@ class TurboshaftGraphBuildingInterface {
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
                                                             {args[0].op});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringFromWtf16Array:
@@ -1475,13 +1488,13 @@ class TurboshaftGraphBuildingInterface {
             BuiltinCallDescriptor::WasmStringNewWtf16Array>(
             decoder,
             {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op, args[2].op});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringFromUtf8Array:
-        result =
-            StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kLossyUtf8,
-                                   args[0], args[1], args[2]);
+        result = StringNewWtf8ArrayImpl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
+            args[2], kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       case WKI::kStringIntoUtf8Array: {
@@ -1514,7 +1527,7 @@ class TurboshaftGraphBuildingInterface {
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
             decoder, {V<String>::Cast(view), args[1].op, args[2].op});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -1533,7 +1546,7 @@ class TurboshaftGraphBuildingInterface {
         BuildModifyThreadInWasmFlag(decoder, false);
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmFloat64ToString>(decoder, {args[0].op});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = AnnotateAsString(result, returns[0].type);
         BuildModifyThreadInWasmFlag(decoder, true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
@@ -1545,7 +1558,7 @@ class TurboshaftGraphBuildingInterface {
         result =
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
                 decoder, {args[0].op, args[1].op});
-        result = __ AnnotateWasmType(result, kWasmRefString);
+        result = AnnotateAsString(result, returns[0].type);
         BuildModifyThreadInWasmFlag(decoder, true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
@@ -1555,7 +1568,7 @@ class TurboshaftGraphBuildingInterface {
       case WKI::kParseFloat: {
         if (args[0].type.is_nullable()) {
           Label<Float64> done(&asm_);
-          GOTO_IF(__ IsNull(args[0].op, wasm::kWasmStringRef), done,
+          GOTO_IF(__ IsNull(args[0].op, args[0].type), done,
                   __ Float64Constant(std::numeric_limits<double>::quiet_NaN()));
 
           BuildModifyThreadInWasmFlag(decoder, false);
@@ -1582,7 +1595,7 @@ class TurboshaftGraphBuildingInterface {
 
         // If string is null, throw.
         if (args[0].type.is_nullable()) {
-          IF (__ IsNull(string, wasm::kWasmStringRef)) {
+          IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
                 BuiltinCallDescriptor::ThrowIndexOfCalledOnNull>(decoder, {});
             __ Unreachable();
@@ -1593,8 +1606,8 @@ class TurboshaftGraphBuildingInterface {
         // If search is null, replace it with "null".
         if (args[1].type.is_nullable()) {
           Label<String> search_done_label(&asm_);
-          GOTO_IF_NOT(__ IsNull(search, wasm::kWasmStringRef),
-                      search_done_label, search);
+          GOTO_IF_NOT(__ IsNull(search, args[1].type), search_done_label,
+                      search);
           GOTO(search_done_label, LOAD_ROOT(null_string));
           BIND(search_done_label, search_value);
           search = search_value;
@@ -1626,7 +1639,7 @@ class TurboshaftGraphBuildingInterface {
 #if V8_INTL_SUPPORT
         V<String> string = args[0].op;
         if (args[0].type.is_nullable()) {
-          IF (__ IsNull(string, wasm::kWasmStringRef)) {
+          IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
                 BuiltinCallDescriptor::ThrowToLowerCaseCalledOnNull>(decoder,
                                                                      {});
@@ -1635,6 +1648,7 @@ class TurboshaftGraphBuildingInterface {
           END_IF
         }
         result = CallStringToLowercase(decoder, string);
+        __ AnnotateWasmType(result, kWasmRefString);
         decoder->detected_->Add(kFeature_stringref);
         break;
 #else
@@ -1651,6 +1665,7 @@ class TurboshaftGraphBuildingInterface {
         }
         V<String> string = args[0].op;
         result = CallStringToLowercase(decoder, string);
+        __ AnnotateWasmType(result, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
 #else
@@ -3239,7 +3254,7 @@ class TurboshaftGraphBuildingInterface {
   V<Tagged> StringNewWtf8ArrayImpl(FullDecoder* decoder,
                                    const unibrow::Utf8Variant variant,
                                    const Value& array, const Value& start,
-                                   const Value& end) {
+                                   const Value& end, ValueType result_type) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
     V<Tagged> call;
@@ -3271,16 +3286,20 @@ class TurboshaftGraphBuildingInterface {
           {start.op, end.op, V<WasmArray>::Cast(NullCheck(array)),
            __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
     }
-    bool null_on_invalid = variant == unibrow::Utf8Variant::kUtf8NoTrap;
-    return __ AnnotateWasmType(
-        call, null_on_invalid ? kWasmStringRef : kWasmRefString);
+    DCHECK_IMPLIES(variant == unibrow::Utf8Variant::kUtf8NoTrap,
+                   result_type.is_nullable());
+    // The builtin returns a WasmNull for kUtf8NoTrap, so nullable values in
+    // combination with extern strings are not supported.
+    DCHECK_NE(result_type, wasm::kWasmExternRef);
+    return AnnotateAsString(call, result_type);
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
                           const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    result->op = StringNewWtf8ArrayImpl(decoder, variant, array, start, end);
+    result->op = StringNewWtf8ArrayImpl(decoder, variant, array, start, end,
+                                        result->type);
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
