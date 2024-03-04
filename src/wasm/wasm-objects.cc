@@ -1170,12 +1170,12 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   Handle<FixedAddressArray> memory_bases_and_sizes =
       FixedAddressArray::New(isolate, 2 * num_memories);
 
-  // TODO(clemensb): Should we have singleton empty dispatch table and
-  // TrustedFixedArray in the trusted space?
+  // TODO(clemensb): Should we have singleton empty dispatch table in the
+  // trusted space?
   Handle<WasmDispatchTable> empty_dispatch_table =
       isolate->factory()->NewWasmDispatchTable(0);
   Handle<ProtectedFixedArray> empty_protected_fixed_array =
-      isolate->factory()->NewProtectedFixedArray(0);
+      isolate->factory()->empty_protected_fixed_array();
 
   // Now allocate the WasmTrustedInstanceData.
   // During this step, no more allocations should happen because the instance is

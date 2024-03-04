@@ -1550,9 +1550,9 @@ void Heap::CreateInitialMutableObjects() {
   // TODO(saelo): these would ideally be read-only and shared, but we currently
   // don't have a trusted RO space.
   {
-    set_empty_trusted_byte_array(*factory->NewTrustedByteArray(0));
-    set_empty_trusted_fixed_array(*factory->NewTrustedFixedArray(0));
-    set_empty_protected_fixed_array(*factory->NewProtectedFixedArray(0));
+    set_empty_trusted_byte_array(*TrustedByteArray::New(isolate_, 0));
+    set_empty_trusted_fixed_array(*TrustedFixedArray::New(isolate_, 0));
+    set_empty_protected_fixed_array(*ProtectedFixedArray::New(isolate_, 0));
   }
 }
 

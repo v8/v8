@@ -174,12 +174,16 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 
 template <typename Impl>
 Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
+  // TODO(saelo): Move this check to TrustedFixedArray::New once we have a RO
+  // trusted space.
+  if (length == 0) return empty_trusted_fixed_array();
   return TrustedFixedArray::New(isolate(), length);
 }
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
     int length) {
+  if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length);
 }
 
@@ -275,6 +279,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 
 template <typename Impl>
 Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(int length) {
+  if (length == 0) return empty_trusted_byte_array();
   return TrustedByteArray::New(isolate(), length);
 }
 
