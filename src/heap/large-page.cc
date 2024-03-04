@@ -36,24 +36,25 @@ LargePageMetadata::LargePageMetadata(Heap* heap, BaseSpace* space,
     FATAL("Code page is too large.");
   }
 
-  SetFlag(MemoryChunk::LARGE_PAGE);
+  Chunk()->SetFlag(MemoryChunk::LARGE_PAGE);
   list_node().Initialize();
 }
 
 LargePageMetadata* LargePageMetadata::Initialize(Heap* heap,
-                                                 MutablePageMetadata* chunk,
+                                                 MutablePageMetadata* metadata,
                                                  Executability executable) {
-  if (executable && chunk->size() > LargePageMetadata::kMaxCodePageSize) {
+  if (executable && metadata->size() > LargePageMetadata::kMaxCodePageSize) {
     static_assert(LargePageMetadata::kMaxCodePageSize <=
                   TypedSlotSet::kMaxOffset);
     FATAL("Code page is too large.");
   }
 
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(metadata->area_start(),
+                                      metadata->area_size());
 
-  chunk->SetFlag(MemoryChunk::LARGE_PAGE);
-  chunk->list_node().Initialize();
-  return LargePageMetadata::cast(chunk);
+  metadata->Chunk()->SetFlag(MemoryChunk::LARGE_PAGE);
+  metadata->list_node().Initialize();
+  return LargePageMetadata::cast(metadata);
 }
 
 void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {

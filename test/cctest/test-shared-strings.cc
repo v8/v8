@@ -914,20 +914,20 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
     Handle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
-    MutablePageMetadata* old_object_chunk =
-        MutablePageMetadata::FromHeapObject(*old_object);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
     Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(MutablePageMetadata::FromHeapObject(*one_byte_seq)
-              ->InYoungGeneration());
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(
+            MutablePageMetadata::cast(old_object_chunk->Metadata())),
+        slot.address()));
 
     for (int i = 0; i < 2; i++) {
       heap::InvokeMinorGC(heap);
@@ -939,8 +939,9 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 
@@ -967,20 +968,19 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     Handle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
-    MutablePageMetadata* old_object_chunk =
-        MutablePageMetadata::FromHeapObject(*old_object);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
     Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(MutablePageMetadata::FromHeapObject(*one_byte_seq)
-              ->InYoungGeneration());
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
 
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -992,8 +992,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 
@@ -1023,15 +1024,13 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
     Handle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
-    MutablePageMetadata* old_object_chunk =
-        MutablePageMetadata::FromHeapObject(*old_object);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
     Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(MutablePageMetadata::FromHeapObject(*one_byte_seq)
-              ->InYoungGeneration());
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
     std::vector<Handle<FixedArray>> handles;
     // Fill the page and do a full GC. Page promotion should kick in and promote
@@ -1039,14 +1038,14 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     heap::FillCurrentPage(heap->new_space(), &handles);
     heap::InvokeMajorGC(heap);
     // Make sure 'one_byte_seq' is in old space.
-    CHECK(!MutablePageMetadata::FromHeapObject(*one_byte_seq)
-               ->InYoungGeneration());
+    CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
     CHECK(heap->Contains(*one_byte_seq));
 
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(
-        !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+    CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
 
     heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
@@ -1059,8 +1058,9 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
-    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
-                                                 slot.address()));
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MutablePageMetadata::cast(old_object_chunk->Metadata()),
+        slot.address()));
   }
 }
 

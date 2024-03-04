@@ -179,13 +179,14 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() const {
 }
 
 void OldLargeObjectSpace::PromoteNewLargeObject(LargePageMetadata* page) {
+  MemoryChunk* chunk = page->Chunk();
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-  DCHECK(page->IsLargePage());
-  DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
-  DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
+  DCHECK(chunk->IsLargePage());
+  DCHECK(chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
+  DCHECK(!chunk->IsFlagSet(MemoryChunk::TO_PAGE));
   PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
-  page->ClearFlag(MemoryChunk::FROM_PAGE);
+  chunk->ClearFlag(MemoryChunk::FROM_PAGE);
   AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
 }
 
@@ -225,7 +226,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
-  DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
+  DCHECK_EQ(page->Chunk()->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
 
   const size_t used_committed_size =
@@ -376,15 +377,16 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
   capacity_ = std::max(capacity_, SizeOfObjects());
 
   Tagged<HeapObject> result = page->GetObject();
+  MemoryChunk* chunk = page->Chunk();
   page->SetYoungGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
-  page->SetFlag(MemoryChunk::TO_PAGE);
+  chunk->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
   }
   page->InitializationMemoryFence();
-  DCHECK(page->IsLargePage());
+  DCHECK(chunk->IsLargePage());
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   AdvanceAndInvokeAllocationObservers(result.address(),
                                       static_cast<size_t>(object_size));
@@ -396,8 +398,9 @@ size_t NewLargeObjectSpace::Available() const {
 }
 
 void NewLargeObjectSpace::Flip() {
-  for (LargePageMetadata* chunk = first_page(); chunk != nullptr;
-       chunk = chunk->next_page()) {
+  for (LargePageMetadata* page = first_page(); page != nullptr;
+       page = page->next_page()) {
+    MemoryChunk* chunk = page->Chunk();
     chunk->SetFlag(MemoryChunk::FROM_PAGE);
     chunk->ClearFlag(MemoryChunk::TO_PAGE);
   }

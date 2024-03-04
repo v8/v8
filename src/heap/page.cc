@@ -18,9 +18,6 @@ namespace internal {
 static_assert(kClearedWeakHeapObjectLower32 > 0);
 static_assert(kClearedWeakHeapObjectLower32 < PageMetadata::kHeaderSize);
 
-// static
-constexpr PageMetadata::MainThreadFlags PageMetadata::kCopyOnFlipFlagsMask;
-
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
                            VirtualMemory reservation, Executability executable)
@@ -62,11 +59,12 @@ void PageMetadata::ReleaseFreeListCategories() {
 
 PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   DCHECK(old_page);
-  DCHECK(old_page->InNewSpace());
+  MemoryChunk* chunk = old_page->Chunk();
+  DCHECK(chunk->InNewSpace());
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->ClearFlags(MemoryChunk::kAllFlagsMask);
+  chunk->ClearFlags(MemoryChunk::kAllFlagsMask);
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page);
   return new_page;
@@ -80,10 +78,11 @@ size_t PageMetadata::AvailableInFreeList() {
 }
 
 void PageMetadata::MarkNeverAllocateForTesting() {
+  MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
-  SetFlag(NEVER_ALLOCATE_ON_PAGE);
-  SetFlag(NEVER_EVACUATE);
+  DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
+  chunk->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  chunk->SetFlag(MemoryChunk::NEVER_EVACUATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 

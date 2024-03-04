@@ -43,7 +43,8 @@ void MutablePageMetadata::MoveExternalBackingStoreBytes(
 }
 
 AllocationSpace MutablePageMetadata::owner_identity() const {
-  if (InReadOnlySpace()) return RO_SPACE;
+  DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
+  if (!owner()) return RO_SPACE;
   return owner()->identity();
 }
 

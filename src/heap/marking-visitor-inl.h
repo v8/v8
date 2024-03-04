@@ -57,10 +57,9 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
   // TODO(chromium:1495151): Remove after diagnosing.
-  if (V8_UNLIKELY(
-          !MemoryChunkMetadata::FromHeapObject(heap_object)->IsMarking() &&
-          IsFreeSpaceOrFiller(heap_object,
-                              ObjectVisitorWithCageBases::cage_base()))) {
+  if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
+                  IsFreeSpaceOrFiller(
+                      heap_object, ObjectVisitorWithCageBases::cage_base()))) {
     heap_->isolate()->PushStackTraceAndDie(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),

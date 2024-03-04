@@ -205,7 +205,7 @@ inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
   }
 
   // Protected pointers are only used within trusted space.
-  DCHECK(!MutablePageMetadata::FromHeapObject(value)->IsYoungOrSharedChunk());
+  DCHECK(!MemoryChunk::FromHeapObject(value)->IsYoungOrSharedChunk());
 
   WriteBarrier::Marking(host, slot, value);
 }
@@ -372,9 +372,9 @@ void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
 void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
                                                          size_t argc,
                                                          void** values) {
-  auto* memory_chunk = MutablePageMetadata::FromHeapObject(host);
+  auto* memory_chunk = MemoryChunk::FromHeapObject(host);
   if (V8_LIKELY(memory_chunk->InYoungGeneration())) return;
-  auto* cpp_heap = memory_chunk->heap()->cpp_heap();
+  auto* cpp_heap = memory_chunk->GetHeap()->cpp_heap();
   if (!cpp_heap) return;
   for (size_t i = 0; i < argc; ++i) {
     if (!values[i]) continue;
@@ -387,8 +387,7 @@ void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
-  if (MemoryChunkMetadata::FromHeapObject(host)->InYoungGeneration())
-    return false;
+  if (MemoryChunk::FromHeapObject(host)->InYoungGeneration()) return false;
   if (IsSmi(value)) return false;
   if (value.IsCleared()) return false;
   Tagged<HeapObject> target = value.GetHeapObject();
@@ -398,7 +397,7 @@ bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {
-  if (MemoryChunkMetadata::FromHeapObject(host)->InYoungGeneration())
+  if (MemoryChunk::FromAddress(host->address())->InYoungGeneration())
     return false;
   if (IsSmi(value)) return false;
   if (value.IsCleared()) return false;

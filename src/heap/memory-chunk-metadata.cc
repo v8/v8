@@ -15,26 +15,6 @@
 namespace v8 {
 namespace internal {
 
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags MemoryChunk::kAllFlagsMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags
-    MemoryChunk::kPointersToHereAreInterestingMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags
-    MemoryChunk::kPointersFromHereAreInterestingMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags
-    MemoryChunk::kEvacuationCandidateMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags
-    MemoryChunk::kIsInYoungGenerationMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags MemoryChunk::kIsLargePageMask;
-// static
-constexpr MemoryChunkMetadata::MainThreadFlags
-    MemoryChunk::kSkipEvacuationSlotsRecordingMask;
-
 MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
                                    size_t chunk_size, Address area_start,
                                    Address area_end, VirtualMemory reservation)
@@ -60,7 +40,7 @@ void MemoryChunkMetadata::SynchronizedHeapLoad() const {
   CHECK(reinterpret_cast<Heap*>(
             base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&(
                 const_cast<MemoryChunkMetadata*>(this)->heap_)))) != nullptr ||
-        IsFlagSet(READ_ONLY_HEAP));
+        Chunk()->IsFlagSet(MemoryChunk::READ_ONLY_HEAP));
 }
 #endif
 
@@ -69,7 +49,8 @@ class BasicMemoryChunkValidator {
   static_assert(MemoryChunkLayout::kSizeOffset ==
                 offsetof(MemoryChunkMetadata, size_));
   static_assert(MemoryChunkLayout::kFlagsOffset ==
-                offsetof(MemoryChunkMetadata, main_thread_flags_));
+                offsetof(MemoryChunk, main_thread_flags_));
+  static_assert(offsetof(MemoryChunkMetadata, chunk_) == 0);
   static_assert(MemoryChunkLayout::kHeapOffset ==
                 offsetof(MemoryChunkMetadata, heap_));
   static_assert(offsetof(MemoryChunkMetadata, size_) ==

@@ -21,19 +21,20 @@ void PageMetadata::ForAllFreeListCategories(Callback callback) {
 }
 
 void PageMetadata::MarkEvacuationCandidate() {
-  DCHECK(!IsFlagSet(NEVER_EVACUATE));
+  DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  SetFlag(EVACUATION_CANDIDATE);
+  Chunk()->SetFlag(MemoryChunk::EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
 void PageMetadata::ClearEvacuationCandidate() {
-  if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
+  MemoryChunk* chunk = Chunk();
+  if (!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
     DCHECK_NULL(slot_set<OLD_TO_OLD>());
     DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
-  ClearFlag(EVACUATION_CANDIDATE);
+  chunk->ClearFlag(MemoryChunk::EVACUATION_CANDIDATE);
   InitializeFreeListCategories();
 }
 

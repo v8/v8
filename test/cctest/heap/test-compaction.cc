@@ -26,8 +26,8 @@ void CheckInvariantsOfAbortedPage(PageMetadata* page) {
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
   CHECK(page->marking_bitmap()->IsClean());
-  CHECK(!page->IsEvacuationCandidate());
-  CHECK(!page->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+  CHECK(!page->Chunk()->IsEvacuationCandidate());
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
 }
 
 void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
@@ -72,7 +72,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
           AllocationType::kOld);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlag(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
@@ -144,7 +144,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
           AllocationType::kOld, object_size);
       PageMetadata* to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlag(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
@@ -235,7 +235,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
               AllocationType::kOld, object_size);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlag(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
@@ -340,7 +340,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       CHECK_GE(compaction_page_handles.front()->length(), 2);
       to_be_aborted_page =
           PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->SetFlag(
+      to_be_aborted_page->Chunk()->SetFlag(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
 
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {

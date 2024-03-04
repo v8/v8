@@ -277,7 +277,7 @@ bool ReadOnlyHeap::Contains(Address address) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(address);
   } else {
-    return MemoryChunkMetadata::FromAddress(address)->InReadOnlySpace();
+    return MemoryChunk::FromAddress(address)->InReadOnlySpace();
   }
 }
 
@@ -286,7 +286,7 @@ bool ReadOnlyHeap::Contains(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
-    return MemoryChunkMetadata::FromHeapObject(object)->InReadOnlySpace();
+    return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
   }
 }
 

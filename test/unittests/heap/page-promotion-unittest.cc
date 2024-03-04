@@ -22,7 +22,7 @@ PageMetadata* FindPageInNewSpace(
   for (auto rit = handles.rbegin(); rit != handles.rend(); ++rit) {
     // One deref gets the Handle, the second deref gets the FixedArray.
     PageMetadata* candidate = PageMetadata::FromHeapObject(**rit);
-    if (candidate->InNewSpace() &&
+    if (candidate->Chunk()->InNewSpace() &&
         candidate->heap()->new_space()->IsPromotionCandidate(candidate))
       return candidate;
   }

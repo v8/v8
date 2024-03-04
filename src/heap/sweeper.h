@@ -84,7 +84,7 @@ class Sweeper {
                            SweepingMode sweeping_mode);
 
     void ParallelIterateAndSweepPromotedPages();
-    void ParallelIterateAndSweepPromotedPage(MutablePageMetadata* chunk);
+    void ParallelIterateAndSweepPromotedPage(MutablePageMetadata* page);
 
     Sweeper* const sweeper_;
 

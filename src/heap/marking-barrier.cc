@@ -42,7 +42,7 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
@@ -85,7 +85,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!InWritableSharedSpace(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   MarkValue(host, value);
 
@@ -105,7 +105,7 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!InWritableSharedSpace(host));
-  DCHECK(MutablePageMetadata::FromHeapObject(host)->IsMarking());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
@@ -120,7 +120,7 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array->map()));
-  DCHECK(MutablePageMetadata::FromHeapObject(descriptor_array)->IsMarking());
+  DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
   // Only major GC uses custom liveness.
   if (is_minor() || IsStrongDescriptorArray(descriptor_array)) {
@@ -198,7 +198,7 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
   ActivateSpace(heap->new_space(), marking_mode);
   for (LargePageMetadata* p : *heap->new_lo_space()) {
     p->SetYoungGenerationPageFlags(marking_mode);
-    DCHECK(p->IsLargePage());
+    DCHECK(p->Chunk()->IsLargePage());
   }
 
   {
@@ -249,7 +249,7 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
   DeactivateSpace(heap->new_space());
   for (LargePageMetadata* p : *heap->new_lo_space()) {
     p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
-    DCHECK(p->IsLargePage());
+    DCHECK(p->Chunk()->IsLargePage());
   }
 
   {

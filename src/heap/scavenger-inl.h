@@ -224,8 +224,8 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
                                   int object_size, ObjectFields object_fields) {
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
-  if (V8_UNLIKELY(MemoryChunkMetadata::FromHeapObject(object)
-                      ->InNewLargeObjectSpace())) {
+  if (V8_UNLIKELY(
+          MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MutablePageMetadata::FromHeapObject(object)->owner_identity());
     if (object->release_compare_and_swap_map_word_forwarded(

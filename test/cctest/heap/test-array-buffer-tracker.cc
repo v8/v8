@@ -290,7 +290,7 @@ TEST(ArrayBuffer_LivePromotion) {
     raw_ab = JSArrayBuffer::cast(root->get(0));
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     // Prohibit page from being released.
-    PageMetadata::FromHeapObject(raw_ab)->MarkNeverEvacuate();
+    MemoryChunk::FromHeapObject(raw_ab)->MarkNeverEvacuate();
     heap::InvokeMajorGC(heap);
     CHECK(!heap->array_buffer_sweeper()->sweeping_in_progress());
     CHECK(IsTracked(heap, raw_ab));
@@ -319,7 +319,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
-      PageMetadata::FromHeapObject(*buf)->MarkNeverEvacuate();
+      MemoryChunk::FromHeapObject(*buf)->MarkNeverEvacuate();
     }
     std::vector<Handle<FixedArray>> handles;
     // Make the whole page transition from new->old, getting the buffers

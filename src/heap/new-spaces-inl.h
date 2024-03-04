@@ -22,7 +22,7 @@ namespace internal {
 // SemiSpace
 
 bool SemiSpace::Contains(Tagged<HeapObject> o) const {
-  MemoryChunkMetadata* memory_chunk = MemoryChunkMetadata::FromHeapObject(o);
+  MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
   if (memory_chunk->IsLargePage()) return false;
   return id_ == kToSpace ? memory_chunk->IsToPage()
                          : memory_chunk->IsFromPage();
@@ -53,7 +53,7 @@ bool NewSpace::Contains(Tagged<Object> o) const {
 }
 
 bool NewSpace::Contains(Tagged<HeapObject> o) const {
-  return MemoryChunkMetadata::FromHeapObject(o)->InNewSpace();
+  return MemoryChunk::FromHeapObject(o)->InNewSpace();
 }
 
 // -----------------------------------------------------------------------------

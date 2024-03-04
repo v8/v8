@@ -65,14 +65,14 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return cast(MemoryChunkMetadata::FromHeapObject(o));
   }
 
-  static MutablePageMetadata* cast(MemoryChunkMetadata* chunk) {
-    SLOW_DCHECK(!chunk || !chunk->InReadOnlySpace());
-    return static_cast<MutablePageMetadata*>(chunk);
+  static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
+    SLOW_DCHECK(!metadata || !metadata->Chunk()->InReadOnlySpace());
+    return static_cast<MutablePageMetadata*>(metadata);
   }
 
-  static const MutablePageMetadata* cast(const MemoryChunkMetadata* chunk) {
-    SLOW_DCHECK(!chunk->InReadOnlySpace());
-    return static_cast<const MutablePageMetadata*>(chunk);
+  static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
+    SLOW_DCHECK(!metadata->Chunk()->InReadOnlySpace());
+    return static_cast<const MutablePageMetadata*>(metadata);
   }
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
@@ -231,12 +231,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   }
 
   MarkingBitmap* marking_bitmap() {
-    DCHECK(!InReadOnlySpace());
+    DCHECK(!Chunk()->InReadOnlySpace());
     return &marking_bitmap_;
   }
 
   const MarkingBitmap* marking_bitmap() const {
-    DCHECK(!InReadOnlySpace());
+    DCHECK(!Chunk()->InReadOnlySpace());
     return &marking_bitmap_;
   }
 

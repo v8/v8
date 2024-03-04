@@ -23,12 +23,6 @@ class Heap;
 //   PageMetadata* p = PageMetadata::FromAllocationAreaAddress(address);
 class PageMetadata : public MutablePageMetadata {
  public:
-  // Page flags copied from from-space to to-space when flipping semispaces.
-  static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
-      MainThreadFlags(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
-      MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
-
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
                Address area_end, VirtualMemory reservation,
                Executability executable);
@@ -46,13 +40,13 @@ class PageMetadata : public MutablePageMetadata {
     return FromAddress(o.ptr());
   }
 
-  static PageMetadata* cast(MemoryChunkMetadata* chunk) {
-    return cast(MutablePageMetadata::cast(chunk));
+  static PageMetadata* cast(MemoryChunkMetadata* metadata) {
+    return cast(MutablePageMetadata::cast(metadata));
   }
 
-  static PageMetadata* cast(MutablePageMetadata* chunk) {
-    DCHECK_IMPLIES(chunk, !chunk->IsLargePage());
-    return static_cast<PageMetadata*>(chunk);
+  static PageMetadata* cast(MutablePageMetadata* metadata) {
+    DCHECK_IMPLIES(metadata, !metadata->Chunk()->IsLargePage());
+    return static_cast<PageMetadata*>(metadata);
   }
 
   // Returns the page containing the address provided. The address can

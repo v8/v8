@@ -12949,10 +12949,9 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
            &no_memento_found);
     // TODO(v8:11799): Support allocation memento for a large object by
     // allocating additional word for the memento after the large object.
-    GotoIf(WordNotEqual(
-               WordAnd(page_flags,
-                       IntPtrConstant(MutablePageMetadata::kIsLargePageMask)),
-               IntPtrConstant(0)),
+    GotoIf(WordNotEqual(WordAnd(page_flags,
+                                IntPtrConstant(MemoryChunk::kIsLargePageMask)),
+                        IntPtrConstant(0)),
            &no_memento_found);
   }
 

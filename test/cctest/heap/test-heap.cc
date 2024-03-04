@@ -6182,9 +6182,9 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
+  CHECK_EQ(NEW_LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -6195,8 +6195,9 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 
   // After the first young generation GC array_small will be in the old
   // generation large object space.
-  chunk = MutablePageMetadata::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner_identity());
+  chunk = MemoryChunk::FromHeapObject(*array_small);
+  CHECK_EQ(LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6212,9 +6213,9 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
 
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
+  CHECK_EQ(NEW_LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -6225,8 +6226,9 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
 
   // After the first full GC array_small will be in the old generation
   // large object space.
-  chunk = MutablePageMetadata::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner_identity());
+  chunk = MemoryChunk::FromHeapObject(*array_small);
+  CHECK_EQ(LO_SPACE,
+           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6244,9 +6246,9 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     HandleScope new_scope(isolate);
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
-      MutablePageMetadata* chunk =
-          MutablePageMetadata::FromHeapObject(*array_small);
-      CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
+      CHECK_EQ(NEW_LO_SPACE,
+               MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
       CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
@@ -6268,21 +6270,28 @@ TEST(UncommitUnusedLargeObjectMemory) {
 
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(*array);
-  CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
-                chunk->owner_identity() == LO_SPACE);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
+  CHECK_IMPLIES(
+      !v8_flags.enable_third_party_heap,
+      MutablePageMetadata::cast(chunk->Metadata())->owner_identity() ==
+          LO_SPACE);
 
   intptr_t size_before = array->Size();
-  size_t committed_memory_before = chunk->CommittedPhysicalMemory();
+  size_t committed_memory_before =
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory();
 
   array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);
-  CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
+  CHECK(
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory() <
+      committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
-  CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
+  CHECK_EQ(
+      shrinked_size,
+      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory());
 }
 
 template <RememberedSetType direction>
@@ -7006,7 +7015,7 @@ TEST(Regress8617) {
   heap::ForceEvacuationCandidate(ec_page);
   // Step 4. Start incremental marking.
   heap::SimulateIncrementalMarking(heap, false);
-  CHECK(ec_page->IsEvacuationCandidate());
+  CHECK(ec_page->Chunk()->IsEvacuationCandidate());
   // Step 5. Install a new descriptor array on the map of the object.
   // This runs the marking barrier for the descriptor array.
   // In the bad case it sets the number of marked descriptors but does not

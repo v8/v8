@@ -252,7 +252,7 @@ bool InAnySharedSpace(Tagged<HeapObject> obj) {
 }
 
 bool InWritableSharedSpace(Tagged<HeapObject> obj) {
-  return MemoryChunkMetadata::FromHeapObject(obj)->InWritableSharedSpace();
+  return MemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
 }
 
 bool InReadOnlySpace(Tagged<HeapObject> obj) {

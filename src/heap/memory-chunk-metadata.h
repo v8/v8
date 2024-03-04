@@ -24,25 +24,24 @@ namespace internal {
 
 class BaseSpace;
 
-class MemoryChunkMetadata : public MemoryChunk {
+class MemoryChunkMetadata {
  public:
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunkMetadata* FromAddress(Address a) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunkMetadata*>(BaseAddress(a));
+    return MemoryChunk::FromAddress(a)->Metadata();
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunkMetadata*>(BaseAddress(o.ptr()));
+    return FromAddress(o.ptr());
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunkMetadata* FromHeapObject(const HeapObjectLayout* o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunkMetadata*>(
-        BaseAddress(reinterpret_cast<Address>(o)));
+    return FromAddress(reinterpret_cast<Address>(o));
   }
 
   static inline void UpdateHighWaterMark(Address mark) {
@@ -98,7 +97,7 @@ class MemoryChunkMetadata : public MemoryChunk {
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
     // been sealed and can be written to.
-    return !InReadOnlySpace() || heap_ != nullptr;
+    return !Chunk()->InReadOnlySpace() || heap_ != nullptr;
   }
 
   bool Contains(Address addr) const {
@@ -142,7 +141,12 @@ class MemoryChunkMetadata : public MemoryChunk {
   void SynchronizedHeapLoad() const;
 #endif
 
+  MemoryChunk* Chunk() { return &chunk_; }
+  const MemoryChunk* Chunk() const { return &chunk_; }
+
  protected:
+  MemoryChunk chunk_;
+
   // Overall size of the chunk, including the header and guards.
   size_t size_;
 
@@ -176,8 +180,6 @@ class MemoryChunkMetadata : public MemoryChunk {
   friend class MemoryAllocator;
   friend class PagedSpace;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(MemoryChunkMetadata::MainThreadFlags)
 
 }  // namespace internal
 

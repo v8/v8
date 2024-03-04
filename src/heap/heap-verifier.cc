@@ -363,17 +363,19 @@ void HeapVerification::VerifySpace(BaseSpace* space) {
   current_space_identity_.reset();
 }
 
-void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk) {
+void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
+  const MemoryChunk* chunk = chunk_metadata->Chunk();
+
   CHECK(!current_chunk_.has_value());
   CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   if (V8_SHARED_RO_HEAP_BOOL && chunk->InReadOnlySpace()) {
-    CHECK_NULL(chunk->owner());
+    CHECK_NULL(chunk_metadata->owner());
   } else {
-    CHECK_EQ(chunk->heap(), heap());
-    CHECK_EQ(chunk->owner()->identity(), current_space_identity());
+    CHECK_EQ(chunk_metadata->heap(), heap());
+    CHECK_EQ(chunk_metadata->owner()->identity(), current_space_identity());
   }
-  current_chunk_ = chunk;
+  current_chunk_ = chunk_metadata;
 }
 
 void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {

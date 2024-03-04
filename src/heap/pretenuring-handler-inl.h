@@ -21,7 +21,7 @@ void PretenuringHandler::UpdateAllocationSite(
     PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   DCHECK_IMPLIES(chunk->IsToPage(), v8_flags.minor_ms);
   DCHECK_IMPLIES(!v8_flags.minor_ms && !chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
@@ -55,7 +55,8 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     return AllocationMemento();
   }
 
-  PageMetadata* object_page = PageMetadata::FromAddress(object_address);
+  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
+  PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
   // If the page is being swept, treat it as if the memento was already swept
   // and bail out.
   if (mode != FindMementoMode::kForGC && !object_page->SweepingDone())
@@ -74,7 +75,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 
   // Bail out if the memento is below the age mark, which can happen when
   // mementos survived because a page got moved within new space.
-  if (object_page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
+  if (object_chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
     Address age_mark =
         reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
     if (!object_page->Contains(age_mark)) {

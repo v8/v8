@@ -54,9 +54,9 @@ class MemoryAllocator {
     void Add(MutablePageMetadata* chunk) {
       DCHECK_NOT_NULL(chunk);
       DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
-      DCHECK(!chunk->IsLargePage());
-      DCHECK(!chunk->IsTrusted());
-      DCHECK_NE(chunk->executable(), EXECUTABLE);
+      DCHECK(!chunk->Chunk()->IsLargePage());
+      DCHECK(!chunk->Chunk()->IsTrusted());
+      DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
       chunk->ReleaseAllAllocatedMemory();
       base::MutexGuard guard(&mutex_);
       pooled_chunks_.push_back(chunk);
@@ -377,7 +377,7 @@ class MemoryAllocator {
 #ifdef DEBUG
   void RegisterExecutableMemoryChunk(MutablePageMetadata* chunk) {
     base::MutexGuard guard(&executable_memory_mutex_);
-    DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+    DCHECK(chunk->Chunk()->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
     DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.insert(chunk);
   }

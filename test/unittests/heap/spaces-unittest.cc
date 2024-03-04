@@ -112,48 +112,39 @@ TEST_F(SpacesTest, WriteBarrierIsMarking) {
   const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
-  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(slim_chunk->IsMarking());
+  EXPECT_FALSE(chunk->IsMarking());
   chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_TRUE(slim_chunk->IsMarking());
+  EXPECT_TRUE(chunk->IsMarking());
   chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(slim_chunk->IsMarking());
+  EXPECT_FALSE(chunk->IsMarking());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
   const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
-  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
   chunk->SetFlag(MemoryChunk::TO_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
-  EXPECT_TRUE(slim_chunk->InYoungGeneration());
   chunk->ClearFlag(MemoryChunk::TO_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
   const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
-  MutablePageMetadata* chunk = reinterpret_cast<MutablePageMetadata*>(&memory);
-  MemoryChunk* slim_chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
   chunk->SetFlag(MemoryChunk::FROM_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
-  EXPECT_TRUE(slim_chunk->InYoungGeneration());
   chunk->ClearFlag(MemoryChunk::FROM_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {

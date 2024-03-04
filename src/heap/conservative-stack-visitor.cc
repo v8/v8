@@ -33,29 +33,30 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
 Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
-  const MemoryChunkMetadata* chunk =
+  const MemoryChunkMetadata* chunk_metadata =
       allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
-  if (chunk == nullptr) return kNullAddress;
-  DCHECK(chunk->Contains(maybe_inner_ptr));
+  if (chunk_metadata == nullptr) return kNullAddress;
+  DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
   // If it is contained in a large page, we want to mark the only object on it.
+  const MemoryChunk* chunk = chunk_metadata->Chunk();
   if (chunk->IsLargePage()) {
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.
     Tagged<HeapObject> obj(
-        static_cast<const LargePageMetadata*>(chunk)->GetObject());
-    PtrComprCageBase cage_base{chunk->heap()->isolate()};
+        static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
+    PtrComprCageBase cage_base{chunk_metadata->heap()->isolate()};
     return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
   }
   // Otherwise, we have a pointer inside a normal page.
-  const PageMetadata* page = static_cast<const PageMetadata*>(chunk);
+  const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
   // If it is not in the young generation and we're only interested in young
   // generation pointers, we must ignore it.
   if (Heap::IsYoungGenerationCollector(collector_) &&
-      !page->InYoungGeneration())
+      !chunk->InYoungGeneration())
     return kNullAddress;
   // If it is in the young generation "from" semispace, it is not used and we
   // must ignore it, as its markbits may not be clean.
-  if (page->IsFromPage()) return kNullAddress;
+  if (chunk->IsFromPage()) return kNullAddress;
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);

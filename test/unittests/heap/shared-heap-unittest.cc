@@ -111,8 +111,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
                     AllocationType::kSharedOld);
-            CHECK(MutablePageMetadata::FromHeapObject(*fixed_array)
-                      ->IsLargePage());
+            CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
           }
 
           InvokeMajorGC(i_client_isolate);

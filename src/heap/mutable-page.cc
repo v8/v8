@@ -56,9 +56,9 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
       shared_mutex_(new base::SharedMutex()),
       page_protection_change_mutex_(new base::Mutex()) {
   DCHECK_NE(space->identity(), RO_SPACE);
-
+  MemoryChunk* chunk = Chunk();
   if (executable == EXECUTABLE) {
-    SetFlag(IS_EXECUTABLE);
+    chunk->SetFlag(MemoryChunk::IS_EXECUTABLE);
     // Executable chunks are also trusted as they contain machine code and live
     // outside the sandbox (when it is enabled). While mostly symbolic, this is
     // needed for two reasons:
@@ -70,7 +70,7 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
     //    remembered set. However, that will only be used if both the host
     //    and the value chunk are marked as IS_TRUSTED.
-    SetFlag(IS_TRUSTED);
+    chunk->SetFlag(MemoryChunk::IS_TRUSTED);
   }
 
   if (page_size == PageSize::kRegular) {
@@ -86,13 +86,13 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
   // All pages of a shared heap need to be marked with this flag.
   if (owner()->identity() == SHARED_SPACE ||
       owner()->identity() == SHARED_LO_SPACE) {
-    SetFlag(IN_WRITABLE_SHARED_SPACE);
+    chunk->SetFlag(MemoryChunk::IN_WRITABLE_SHARED_SPACE);
   }
 
   // All pages belonging to a trusted space need to be marked with this flag.
   if (space->identity() == TRUSTED_SPACE ||
       space->identity() == TRUSTED_LO_SPACE) {
-    SetFlag(IS_TRUSTED);
+    chunk->SetFlag(MemoryChunk::IS_TRUSTED);
   }
 
 #ifdef DEBUG
@@ -101,46 +101,49 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
 
   // "Trusted" chunks should never be located inside the sandbox as they
   // couldn't be trusted in that case.
-  DCHECK_IMPLIES(IsFlagSet(IS_TRUSTED), !InsideSandbox(address()));
+  DCHECK_IMPLIES(chunk->IsFlagSet(MemoryChunk::IS_TRUSTED),
+                 !InsideSandbox(address()));
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
-  if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
+  if (!base::OS::HasLazyCommits() || Chunk()->IsLargePage()) return size();
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
 void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  MemoryChunk* chunk = Chunk();
   if (marking_mode == MarkingMode::kMajorMarking) {
-    SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else if (owner_identity() == SHARED_SPACE ||
              owner_identity() == SHARED_LO_SPACE) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
-    SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-    ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
-    ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     if (marking_mode == MarkingMode::kMinorMarking) {
-      SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+      chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
     } else {
-      ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
+      chunk->ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
     }
   }
 }
 
 void MutablePageMetadata::SetYoungGenerationPageFlags(
     MarkingMode marking_mode) {
-  SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+  MemoryChunk* chunk = Chunk();
+  chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
   if (marking_mode != MarkingMode::kNoMarking) {
-    SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
-    ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   }
 }
 // -----------------------------------------------------------------------------
@@ -177,7 +180,7 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);
 
-  if (!IsLargePage()) {
+  if (!Chunk()->IsLargePage()) {
     PageMetadata* page = static_cast<PageMetadata*>(this);
     page->ReleaseFreeListCategories();
   }

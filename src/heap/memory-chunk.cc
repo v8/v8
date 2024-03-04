@@ -10,6 +10,27 @@
 namespace v8 {
 namespace internal {
 
+// static
+constexpr MemoryChunk::MainThreadFlags MemoryChunk::kAllFlagsMask;
+// static
+constexpr MemoryChunk::MainThreadFlags
+    MemoryChunk::kPointersToHereAreInterestingMask;
+// static
+constexpr MemoryChunk::MainThreadFlags
+    MemoryChunk::kPointersFromHereAreInterestingMask;
+// static
+constexpr MemoryChunk::MainThreadFlags MemoryChunk::kEvacuationCandidateMask;
+// static
+constexpr MemoryChunk::MainThreadFlags MemoryChunk::kIsInYoungGenerationMask;
+// static
+constexpr MemoryChunk::MainThreadFlags MemoryChunk::kIsLargePageMask;
+// static
+constexpr MemoryChunk::MainThreadFlags
+    MemoryChunk::kSkipEvacuationSlotsRecordingMask;
+
+// static
+constexpr MemoryChunk::MainThreadFlags MemoryChunk::kCopyOnFlipFlagsMask;
+
 #ifdef THREAD_SANITIZER
 
 bool MemoryChunk::InReadOnlySpace() const {

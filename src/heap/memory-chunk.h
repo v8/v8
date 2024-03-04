@@ -16,7 +16,7 @@ class MemoryChunkMetadata;
 template <typename T>
 class Tagged;
 
-class V8_EXPORT_PRIVATE MemoryChunk {
+class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
   MemoryChunk() = default;
 
@@ -115,6 +115,12 @@ class V8_EXPORT_PRIVATE MemoryChunk {
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
+
+  // Page flags copied from from-space to to-space when flipping semispaces.
+  static constexpr MainThreadFlags kCopyOnFlipFlagsMask =
+      MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
+      MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
+      MainThreadFlags(INCREMENTAL_MARKING);
 
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
@@ -253,9 +259,7 @@ class V8_EXPORT_PRIVATE MemoryChunk {
     return static_cast<uint32_t>(address) & kAlignmentMask;
   }
 
-  // TODO(sroettger): make this private when we don't inherit from this class
-  // anymore.
- protected:
+ private:
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_{NO_FLAGS};
@@ -263,7 +267,11 @@ class V8_EXPORT_PRIVATE MemoryChunk {
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
   static constexpr intptr_t kAlignmentMask = kAlignment - 1;
+
+  friend class BasicMemoryChunkValidator;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)
 
 }  // namespace internal
 }  // namespace v8

@@ -118,7 +118,7 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
     other->RemovePage(p);
     AddPage(p);
     DCHECK_IMPLIES(
-        !p->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE),
+        !p->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
 
     // TODO(leszeks): Here we should allocation step, but:
@@ -214,9 +214,9 @@ void PagedSpaceBase::AddPageImpl(PageMetadata* page) {
   CHECK(page->SweepingDone());
   page->set_owner(this);
   DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->IsFlagSet(MemoryChunk::TO_PAGE));
+                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
   DCHECK_IMPLIES(identity() != NEW_SPACE,
-                 !page->IsFlagSet(MemoryChunk::TO_PAGE));
+                 !page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
   memory_chunk_list_.PushBack(page);
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
@@ -237,7 +237,7 @@ size_t PagedSpaceBase::AddPage(PageMetadata* page) {
 void PagedSpaceBase::RemovePage(PageMetadata* page) {
   CHECK(page->SweepingDone());
   DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->IsFlagSet(MemoryChunk::TO_PAGE));
+                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
   memory_chunk_list_.Remove(page);
   UnlinkFreeListCategories(page);
   // Pages are only removed from new space when they are promoted to old space
@@ -285,7 +285,7 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
   ResetFreeList();
   for (PageMetadata* page : *this) {
-    DCHECK(page->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
     ShrinkPageToHighWaterMark(page);
   }
 }
@@ -348,7 +348,7 @@ void PagedSpaceBase::ReleasePageImpl(PageMetadata* page,
   DCHECK_EQ(page->owner(), this);
 
   DCHECK_IMPLIES(identity() == NEW_SPACE,
-                 page->IsFlagSet(MemoryChunk::TO_PAGE));
+                 page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
 
   memory_chunk_list().Remove(page);
 
@@ -542,7 +542,7 @@ size_t PagedSpaceBase::RelinkFreeListCategories(PageMetadata* page) {
   });
   free_list()->increase_wasted_bytes(page->wasted_memory());
 
-  DCHECK_IMPLIES(!page->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE),
+  DCHECK_IMPLIES(!page->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE),
                  page->AvailableInFreeList() ==
                      page->AvailableInFreeListFromAllocatedBytes());
   return added;
@@ -573,7 +573,7 @@ void PagedSpaceBase::RefillFreeList() {
   for (PageMetadata* p : heap()->sweeper()->GetAllSweptPagesSafe(this)) {
     // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
     // entries here to make them unavailable for allocations.
-    if (p->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
+    if (p->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
       DropFreeListCategories(p, free_list());
     }
 
@@ -605,7 +605,7 @@ void CompactionSpace::RefillFreeList() {
          (p = sweeper->GetSweptPageSafe(this))) {
     // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
     // entries here to make them unavailable for allocations.
-    if (p->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
+    if (p->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
       DropFreeListCategories(p, free_list());
     }
 

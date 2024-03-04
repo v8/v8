@@ -302,7 +302,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
   DCHECK(reservation->IsReserved());
   chunk->set_size(chunk->size() - bytes_to_free);
   chunk->set_area_end(new_area_end);
-  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (chunk->Chunk()->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
@@ -336,7 +336,7 @@ void MemoryAllocator::UnregisterSharedBasicMemoryChunk(
 
 void MemoryAllocator::UnregisterBasicMemoryChunk(MemoryChunkMetadata* chunk,
                                                  Executability executable) {
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
+  DCHECK(!chunk->Chunk()->IsFlagSet(MemoryChunk::UNREGISTERED));
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
@@ -357,20 +357,20 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(MemoryChunkMetadata* chunk,
     ThreadIsolation::UnregisterJitPage(executable_page_start,
                                        aligned_area_size);
   }
-  chunk->SetFlag(MemoryChunk::UNREGISTERED);
+  chunk->Chunk()->SetFlag(MemoryChunk::UNREGISTERED);
 }
 
 void MemoryAllocator::UnregisterMemoryChunk(MutablePageMetadata* chunk) {
-  UnregisterBasicMemoryChunk(chunk, chunk->executable());
+  UnregisterBasicMemoryChunk(chunk, chunk->Chunk()->executable());
 }
 
 void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPageMetadata* page) {
-  DCHECK(!page->executable());
+  DCHECK(!page->Chunk()->executable());
   UnregisterBasicMemoryChunk(page, NOT_EXECUTABLE);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
+  DCHECK(!chunk->Chunk()->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
 
   UnregisterSharedBasicMemoryChunk(chunk);
@@ -388,16 +388,19 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
   }
 }
 
-void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk) {
+void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
+  MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
-  LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  UnregisterMemoryChunk(chunk);
-  isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
-                                         chunk->IsEvacuationCandidate());
+  LOG(isolate_, DeleteEvent("MemoryChunk", chunk_metadata));
+  UnregisterMemoryChunk(chunk_metadata);
+  isolate_->heap()->RememberUnmappedPage(
+      reinterpret_cast<Address>(chunk_metadata),
+      chunk->IsEvacuationCandidate());
   chunk->SetFlag(MemoryChunk::PRE_FREED);
 }
 
-void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk) {
+void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
+  MemoryChunk* chunk = chunk_metadata->Chunk();
   base::Optional<CodePageHeaderModificationScope> rwx_write_scope;
   if (chunk->executable() == EXECUTABLE) {
     rwx_write_scope.emplace(
@@ -408,37 +411,38 @@ void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk) {
   DCHECK(chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   DCHECK(!chunk->InReadOnlySpace());
-  chunk->ReleaseAllAllocatedMemory();
+  chunk_metadata->ReleaseAllAllocatedMemory();
 
-  VirtualMemory* reservation = chunk->reserved_memory();
+  VirtualMemory* reservation = chunk_metadata->reserved_memory();
   DCHECK(reservation->IsReserved());
   reservation->Free();
 }
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
-                           MutablePageMetadata* chunk) {
+                           MutablePageMetadata* chunk_metadata) {
+  MemoryChunk* chunk = chunk_metadata->Chunk();
   if (chunk->IsLargePage()) {
-    RecordLargePageDestroyed(*LargePageMetadata::cast(chunk));
+    RecordLargePageDestroyed(*LargePageMetadata::cast(chunk_metadata));
   } else {
-    RecordNormalPageDestroyed(*PageMetadata::cast(chunk));
+    RecordNormalPageDestroyed(*PageMetadata::cast(chunk_metadata));
   }
   switch (mode) {
     case FreeMode::kImmediately:
-      PreFreeMemory(chunk);
-      PerformFreeMemory(chunk);
+      PreFreeMemory(chunk_metadata);
+      PerformFreeMemory(chunk_metadata);
       break;
     case FreeMode::kPostpone:
-      PreFreeMemory(chunk);
+      PreFreeMemory(chunk_metadata);
       // Record page to be freed later.
-      queued_pages_to_be_freed_.push_back(chunk);
+      queued_pages_to_be_freed_.push_back(chunk_metadata);
       break;
     case FreeMode::kPool:
-      DCHECK_EQ(chunk->size(),
+      DCHECK_EQ(chunk_metadata->size(),
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
-      PreFreeMemory(chunk);
+      PreFreeMemory(chunk_metadata);
       // The chunks added to this queue will be cached until memory reducing GC.
-      pool()->Add(chunk);
+      pool()->Add(chunk_metadata);
       break;
   }
 }
@@ -466,7 +470,7 @@ PageMetadata* MemoryAllocator::AllocatePage(
       chunk_info->area_end, std::move(chunk_info->reservation), executable);
 
 #ifdef DEBUG
-  if (page->executable()) RegisterExecutableMemoryChunk(page);
+  if (page->Chunk()->executable()) RegisterExecutableMemoryChunk(page);
 #endif  // DEBUG
 
   space->InitializePage(page);
@@ -506,7 +510,7 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(
       chunk_info->area_end, std::move(chunk_info->reservation), executable);
 
 #ifdef DEBUG
-  if (page->executable()) RegisterExecutableMemoryChunk(page);
+  if (page->Chunk()->executable()) RegisterExecutableMemoryChunk(page);
 #endif  // DEBUG
 
   RecordLargePageCreated(*page);

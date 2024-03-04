@@ -1755,7 +1755,7 @@ class Heap final {
 
   // Range write barrier implementation.
   template <int kModeMask, typename TSlot>
-  V8_INLINE void WriteBarrierForRangeImpl(MutablePageMetadata* source_page,
+  V8_INLINE void WriteBarrierForRangeImpl(MemoryChunk* source_page,
                                           Tagged<HeapObject> object,
                                           TSlot start_slot, TSlot end_slot);
 

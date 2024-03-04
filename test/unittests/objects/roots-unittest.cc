@@ -20,10 +20,9 @@ using RootsTest = TestWithIsolate;
 namespace {
 AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
   DCHECK(IsHeapObject(object));
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromHeapObject(HeapObject::cast(object));
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(HeapObject::cast(object));
   if (chunk->InReadOnlySpace()) return RO_SPACE;
-  return chunk->owner()->identity();
+  return chunk->Metadata()->owner()->identity();
 }
 }  // namespace
 

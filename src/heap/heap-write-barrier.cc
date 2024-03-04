@@ -203,10 +203,9 @@ int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
 
 #ifdef ENABLE_SLOW_DCHECKS
 bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* basic_chunk =
-      MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   // All objects in readonly space are immortal and immovable.
-  return basic_chunk->InReadOnlySpace();
+  return chunk->InReadOnlySpace();
 }
 #endif
 

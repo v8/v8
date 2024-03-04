@@ -323,7 +323,7 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
                           std::move(reservation)) {
   allocated_bytes_ = 0;
-  SetFlags(MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP);
+  Chunk()->SetFlags(MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP);
 }
 
 void ReadOnlyPageMetadata::MakeHeaderRelocatable() {
@@ -680,9 +680,9 @@ void ReadOnlySpace::ShrinkPages() {
   MemoryChunkMetadata::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
-  for (ReadOnlyPageMetadata* chunk : pages_) {
-    DCHECK(chunk->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
-    size_t unused = chunk->ShrinkToHighWaterMark();
+  for (ReadOnlyPageMetadata* page : pages_) {
+    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    size_t unused = page->ShrinkToHighWaterMark();
     capacity_ -= unused;
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
     AccountUncommitted(unused);

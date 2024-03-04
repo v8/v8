@@ -2579,17 +2579,17 @@ void Heap::CompleteSweepingYoung() {
 void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   if (!sweeping_in_progress()) return;
 
-  MemoryChunkMetadata* basic_chunk =
-      MemoryChunkMetadata::FromHeapObject(object);
-  if (basic_chunk->InReadOnlySpace()) return;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  if (chunk->InReadOnlySpace()) return;
 
-  MutablePageMetadata* chunk = MutablePageMetadata::cast(basic_chunk);
-  if (chunk->SweepingDone()) return;
+  MutablePageMetadata* mutable_page =
+      MutablePageMetadata::cast(chunk->Metadata());
+  if (mutable_page->SweepingDone()) return;
 
   // SweepingDone() is always true for large pages.
   DCHECK(!chunk->IsLargePage());
 
-  PageMetadata* page = PageMetadata::cast(chunk);
+  PageMetadata* page = PageMetadata::cast(mutable_page);
   sweeper()->EnsurePageIsSwept(page);
 }
 
@@ -2892,7 +2892,7 @@ void Heap::ExternalStringTable::VerifyYoung() {
     Tagged<String> obj =
         Tagged<String>::cast(Tagged<Object>(young_strings_[i]));
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
-    DCHECK(mc->InYoungGeneration());
+    DCHECK(mc->Chunk()->InYoungGeneration());
     DCHECK(heap_->InYoungGeneration(obj));
     DCHECK(!IsTheHole(obj, heap_->isolate()));
     DCHECK(IsExternalString(obj));
@@ -2916,7 +2916,7 @@ void Heap::ExternalStringTable::Verify() {
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Tagged<String>::cast(Tagged<Object>(old_strings_[i]));
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
-    DCHECK(!mc->InYoungGeneration());
+    DCHECK(!mc->Chunk()->InYoungGeneration());
     DCHECK(!heap_->InYoungGeneration(obj));
     DCHECK(!IsTheHole(obj, heap_->isolate()));
     DCHECK(IsExternalString(obj));
@@ -3321,11 +3321,12 @@ void CreateFillerObjectAtImpl(const WritableFreeSpace& free_space, Heap* heap,
 
 #ifdef DEBUG
 void VerifyNoNeedToClearSlots(Address start, Address end) {
-  MemoryChunkMetadata* basic_chunk = MemoryChunkMetadata::FromAddress(start);
-  if (basic_chunk->InReadOnlySpace()) return;
-  MutablePageMetadata* chunk = static_cast<MutablePageMetadata*>(basic_chunk);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(start);
+  if (chunk->InReadOnlySpace()) return;
   if (chunk->InYoungGeneration()) return;
-  BaseSpace* space = chunk->owner();
+  MutablePageMetadata* mutable_page =
+      MutablePageMetadata::cast(chunk->Metadata());
+  BaseSpace* space = mutable_page->owner();
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
 #else
@@ -3346,7 +3347,7 @@ void Heap::CreateFillerObjectAtBackground(const WritableFreeSpace& free_space) {
 void Heap::CreateFillerObjectAt(Address addr, int size,
                                 ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return;
-  if (MemoryChunkMetadata::FromAddress(addr)->executable()) {
+  if (MemoryChunk::FromAddress(addr)->executable()) {
     WritableJitPage jit_page(addr, size);
     WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
     CreateFillerObjectAtRaw(free_space, clear_memory_mode,
@@ -3413,15 +3414,15 @@ bool Heap::IsImmovable(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
     return third_party_heap::Heap::IsImmovable(object);
 
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
-  return chunk->NeverEvacuate() || IsLargeObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  return chunk->NeverEvacuate() || chunk->IsLargePage();
 }
 
 bool Heap::IsLargeObject(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
     return third_party_heap::Heap::InLargeObjectSpace(object.address()) ||
            third_party_heap::Heap::InSpace(object.address(), CODE_LO_SPACE);
-  return MemoryChunkMetadata::FromHeapObject(object)->IsLargePage();
+  return MemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -3467,7 +3468,7 @@ namespace {
 bool MayContainRecordedSlots(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   // New space object do not have recorded slots.
-  if (MemoryChunkMetadata::FromHeapObject(object)->InYoungGeneration()) {
+  if (MemoryChunk::FromHeapObject(object)->InYoungGeneration()) {
     return false;
   }
   // Allowlist objects that definitely do not have pointers.
@@ -5915,7 +5916,7 @@ void Heap::NotifyDeserializationComplete() {
 #ifdef DEBUG
     // All pages right after bootstrapping must be marked as never-evacuate.
     for (PageMetadata* p : *s) {
-      DCHECK(p->NeverEvacuate());
+      DCHECK(p->Chunk()->NeverEvacuate());
     }
 #endif  // DEBUG
   }
@@ -5946,14 +5947,14 @@ void Heap::NotifyBootstrapComplete() {
 
 void Heap::NotifyOldGenerationExpansion(LocalHeap* local_heap,
                                         AllocationSpace space,
-                                        MutablePageMetadata* chunk) {
+                                        MutablePageMetadata* chunk_metadata) {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
-    DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
-    chunk->MarkNeverEvacuate();
+    DCHECK_NE(NEW_SPACE, chunk_metadata->owner()->identity());
+    chunk_metadata->Chunk()->MarkNeverEvacuate();
   }
   if (IsAnyCodeSpace(space)) {
-    isolate()->AddCodeMemoryChunk(chunk);
+    isolate()->AddCodeMemoryChunk(chunk_metadata);
   }
 
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
@@ -6373,8 +6374,9 @@ void Heap::CheckHandleCount() {
 void Heap::ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   DCHECK(!IsLargeObject(object));
-  PageMetadata* page = PageMetadata::FromAddress(slot.address());
-  if (!page->InYoungGeneration()) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(slot.address());
+  if (!chunk->InYoungGeneration()) {
+    PageMetadata* page = PageMetadata::cast(chunk->Metadata());
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
     // We only need to remove that slot when sweeping is still in progress.
@@ -6416,9 +6418,10 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  PageMetadata* page = PageMetadata::FromAddress(start);
-  DCHECK(!page->IsLargePage());
-  if (!page->InYoungGeneration()) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(start);
+  DCHECK(!chunk->IsLargePage());
+  if (!chunk->InYoungGeneration()) {
+    PageMetadata* page = PageMetadata::cast(chunk->Metadata());
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||
@@ -7123,7 +7126,7 @@ base::Optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(
 void Heap::CombinedGenerationalAndSharedBarrierSlow(Tagged<HeapObject> object,
                                                     Address slot,
                                                     Tagged<HeapObject> value) {
-  MutablePageMetadata* value_chunk = MutablePageMetadata::FromHeapObject(value);
+  MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
 
   if (value_chunk->InYoungGeneration()) {
     Heap::GenerationalBarrierSlow(object, slot, value);
@@ -7137,7 +7140,7 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(Tagged<HeapObject> object,
 
 void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  MutablePageMetadata* value_chunk = MutablePageMetadata::FromHeapObject(value);
+  MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
 
   if (value_chunk->InYoungGeneration()) {
     MutablePageMetadata* table_chunk =
@@ -7163,9 +7166,10 @@ void Heap::GenerationalBarrierSlow(Tagged<HeapObject> object, Address slot,
 }
 
 void Heap::SharedHeapBarrierSlow(Tagged<HeapObject> object, Address slot) {
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   DCHECK(!chunk->InWritableSharedSpace());
-  RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, slot);
+  RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+      MutablePageMetadata::cast(chunk->Metadata()), slot);
 }
 
 void Heap::RecordEphemeronKeyWrite(Tagged<EphemeronHashTable> table,
@@ -7190,7 +7194,7 @@ enum RangeWriteBarrierMode {
 };
 
 template <int kModeMask, typename TSlot>
-void Heap::WriteBarrierForRangeImpl(MutablePageMetadata* source_page,
+void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_chunk,
                                     Tagged<HeapObject> object, TSlot start_slot,
                                     TSlot end_slot) {
   // At least one of generational or marking write barrier should be requested.
@@ -7210,6 +7214,8 @@ void Heap::WriteBarrierForRangeImpl(MutablePageMetadata* source_page,
   }
 
   MarkCompactCollector* collector = this->mark_compact_collector();
+  MutablePageMetadata* source_page =
+      MutablePageMetadata::cast(source_chunk->Metadata());
 
   for (TSlot slot = start_slot; slot < end_slot; ++slot) {
     // If we *only* need the generational or shared WB, we can skip objects
@@ -7271,18 +7277,17 @@ template <typename TSlot>
 void Heap::WriteBarrierForRange(Tagged<HeapObject> object, TSlot start_slot,
                                 TSlot end_slot) {
   if (v8_flags.disable_write_barriers) return;
-  MutablePageMetadata* source_page =
-      MutablePageMetadata::FromHeapObject(object);
+  MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(object);
   base::Flags<RangeWriteBarrierMode> mode;
 
-  if (!source_page->InYoungGeneration() &&
-      !source_page->InWritableSharedSpace()) {
+  if (!source_chunk->InYoungGeneration() &&
+      !source_chunk->InWritableSharedSpace()) {
     mode |= kDoGenerationalOrShared;
   }
 
   if (incremental_marking()->IsMarking()) {
     mode |= kDoMarking;
-    if (!source_page->ShouldSkipEvacuationSlotRecording()) {
+    if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;
     }
   }
@@ -7295,26 +7300,26 @@ void Heap::WriteBarrierForRange(Tagged<HeapObject> object, TSlot start_slot,
     // Generational only.
     case kDoGenerationalOrShared:
       return WriteBarrierForRangeImpl<kDoGenerationalOrShared>(
-          source_page, object, start_slot, end_slot);
+          source_chunk, object, start_slot, end_slot);
     // Marking, no evacuation slot recording.
     case kDoMarking:
-      return WriteBarrierForRangeImpl<kDoMarking>(source_page, object,
+      return WriteBarrierForRangeImpl<kDoMarking>(source_chunk, object,
                                                   start_slot, end_slot);
     // Marking with evacuation slot recording.
     case kDoMarking | kDoEvacuationSlotRecording:
       return WriteBarrierForRangeImpl<kDoMarking | kDoEvacuationSlotRecording>(
-          source_page, object, start_slot, end_slot);
+          source_chunk, object, start_slot, end_slot);
 
     // Generational and marking, no evacuation slot recording.
     case kDoGenerationalOrShared | kDoMarking:
       return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking>(
-          source_page, object, start_slot, end_slot);
+          source_chunk, object, start_slot, end_slot);
 
     // Generational and marking with evacuation slot recording.
     case kDoGenerationalOrShared | kDoMarking | kDoEvacuationSlotRecording:
       return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking |
                                       kDoEvacuationSlotRecording>(
-          source_page, object, start_slot, end_slot);
+          source_chunk, object, start_slot, end_slot);
 
     default:
       UNREACHABLE();
@@ -7337,40 +7342,36 @@ bool Heap::PageFlagsAreConsistent(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return true;
   }
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
-  MemoryChunk* slim_chunk = MemoryChunk::FromHeapObject(object);
+  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
   // Slim chunk flags consistency.
-  CHECK_EQ(chunk->InYoungGeneration(), slim_chunk->InYoungGeneration());
   CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
-           slim_chunk->IsMarking());
+           chunk->IsMarking());
 
-  AllocationSpace identity = chunk->owner()->identity();
+  AllocationSpace identity = metadata->owner()->identity();
 
   // Generation consistency.
   CHECK_EQ(identity == NEW_SPACE || identity == NEW_LO_SPACE,
-           slim_chunk->InYoungGeneration());
-  // Read-only consistency.
-  CHECK_EQ(chunk->InReadOnlySpace(), slim_chunk->InReadOnlySpace());
+           chunk->InYoungGeneration());
 
   // Marking consistency.
-  if (chunk->IsWritable()) {
+  if (metadata->IsWritable()) {
     // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
     // find a heap. The exception is when the ReadOnlySpace is writeable, during
     // bootstrapping, so explicitly allow this case.
     Heap* heap = Heap::FromWritableHeapObject(object);
-    if (slim_chunk->InWritableSharedSpace()) {
+    if (chunk->InWritableSharedSpace()) {
       // The marking bit is not set for chunks in shared spaces during MinorMS
       // concurrent marking.
-      CHECK_EQ(slim_chunk->IsMarking(),
+      CHECK_EQ(chunk->IsMarking(),
                heap->incremental_marking()->IsMajorMarking());
     } else {
-      CHECK_EQ(slim_chunk->IsMarking(),
-               heap->incremental_marking()->IsMarking());
+      CHECK_EQ(chunk->IsMarking(), heap->incremental_marking()->IsMarking());
     }
   } else {
     // Non-writable RO_SPACE must never have marking flag set.
-    CHECK(!slim_chunk->IsMarking());
+    CHECK(!chunk->IsMarking());
   }
   return true;
 }

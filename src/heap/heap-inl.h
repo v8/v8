@@ -289,8 +289,7 @@ bool Heap::InYoungGeneration(Tagged<MaybeObject> object) {
 // static
 bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
-  bool result =
-      MemoryChunkMetadata::FromHeapObject(heap_object)->InYoungGeneration();
+  bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
 #ifdef DEBUG
   // If in the young generation, then check we're either not in the middle of
   // GC or the object is in to-space.
@@ -318,7 +317,7 @@ bool Heap::InFromPage(Tagged<MaybeObject> object) {
 
 // static
 bool Heap::InFromPage(Tagged<HeapObject> heap_object) {
-  return MemoryChunkMetadata::FromHeapObject(heap_object)->IsFromPage();
+  return MemoryChunk::FromHeapObject(heap_object)->IsFromPage();
 }
 
 // static
@@ -335,7 +334,7 @@ bool Heap::InToPage(Tagged<MaybeObject> object) {
 
 // static
 bool Heap::InToPage(Tagged<HeapObject> heap_object) {
-  return MemoryChunkMetadata::FromHeapObject(heap_object)->IsToPage();
+  return MemoryChunk::FromHeapObject(heap_object)->IsToPage();
 }
 
 bool Heap::InOldSpace(Tagged<Object> object) {
@@ -373,10 +372,10 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
     return tp_heap_->IsPendingAllocation(object);
   }
 
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) return false;
 
-  BaseSpace* base_space = chunk->owner();
+  BaseSpace* base_space = chunk->Metadata()->owner();
   Address addr = object.address();
 
   switch (base_space->identity()) {

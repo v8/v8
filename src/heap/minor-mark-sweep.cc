@@ -786,7 +786,7 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
                     intptr_t wasted_bytes) {
   DCHECK(v8_flags.page_promotion);
   Heap* heap = p->heap();
-  DCHECK(!p->NeverEvacuate());
+  DCHECK(!p->Chunk()->NeverEvacuate());
   const bool should_move_page =
       ((live_bytes + wasted_bytes) > NewSpacePageEvacuationThreshold() ||
        (p->AllocatedLabSize() == 0)) &&
@@ -806,7 +806,7 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
     // Don't allocate on old pages so that recently allocated objects on the
     // page get a chance to die young. The page will be force promoted on the
     // next GC because `AllocatedLabSize` will be 0.
-    p->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+    p->Chunk()->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   }
   return should_move_page;
 }
@@ -873,6 +873,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
 
   for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
     LargePageMetadata* current = *it;
+    MemoryChunk* chunk = current->Chunk();
     it++;
     Tagged<HeapObject> object = current->GetObject();
     if (!non_atomic_marking_state_->IsMarked(object)) {
@@ -882,8 +883,8 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
                                       current);
       continue;
     }
-    current->ClearFlag(MemoryChunk::TO_PAGE);
-    current->SetFlag(MemoryChunk::FROM_PAGE);
+    chunk->ClearFlag(MemoryChunk::TO_PAGE);
+    chunk->SetFlag(MemoryChunk::FROM_PAGE);
     current->ProgressBar().ResetIfEnabled();
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;

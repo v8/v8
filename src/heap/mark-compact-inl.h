@@ -36,10 +36,10 @@ template <typename THeapObjectSlot>
 void MarkCompactCollector::RecordSlot(Tagged<HeapObject> object,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  MutablePageMetadata* source_page =
-      MutablePageMetadata::FromHeapObject(object);
+  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   if (!source_page->ShouldSkipEvacuationSlotRecording()) {
-    RecordSlot(source_page, slot, target);
+    RecordSlot(MutablePageMetadata::cast(source_page->Metadata()), slot,
+               target);
   }
 }
 
@@ -48,26 +48,25 @@ template <typename THeapObjectSlot>
 void MarkCompactCollector::RecordSlot(MutablePageMetadata* source_page,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> target) {
-  MemoryChunkMetadata* target_page =
-      MemoryChunkMetadata::FromHeapObject(target);
+  MemoryChunk* target_page = MemoryChunk::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate()) {
     if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
-    } else if (source_page->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
+    } else if (source_page->Chunk()->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
                target_page->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
       RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
           source_page, slot.address());
     } else if (V8_LIKELY(!target_page->InWritableSharedSpace()) ||
                source_page->heap()->isolate()->is_shared_space_isolate()) {
-      DCHECK_EQ(source_page->heap(), target_page->heap());
+      DCHECK_EQ(source_page->heap(), target_page->GetHeap());
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
                                                             slot.address());
     } else {
       // DCHECK here that we only don't record in case of local->shared
       // references in a client GC.
       DCHECK(!source_page->heap()->isolate()->is_shared_space_isolate());
-      DCHECK(target_page->heap()->isolate()->is_shared_space_isolate());
+      DCHECK(target_page->GetHeap()->isolate()->is_shared_space_isolate());
       DCHECK(target_page->InWritableSharedSpace());
     }
   }

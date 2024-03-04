@@ -32,7 +32,7 @@ Tagged<FreeSpace> FreeListCategory::PickNodeFromList(size_t minimum_size,
                                                      size_t* node_size) {
   Tagged<FreeSpace> node = top();
   DCHECK(!node.is_null());
-  DCHECK(PageMetadata::FromHeapObject(node)->CanAllocate());
+  DCHECK(MemoryChunk::FromHeapObject(node)->CanAllocate());
   if (static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
     return FreeSpace();
@@ -48,7 +48,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
   Tagged<FreeSpace> prev_non_evac_node;
   for (Tagged<FreeSpace> cur_node = top(); !cur_node.is_null();
        cur_node = cur_node->next()) {
-    DCHECK(PageMetadata::FromHeapObject(cur_node)->CanAllocate());
+    DCHECK(MemoryChunk::FromHeapObject(cur_node)->CanAllocate());
     size_t size = cur_node->size(kRelaxedLoad);
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
@@ -57,8 +57,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
         set_top(cur_node->next());
       }
       if (!prev_non_evac_node.is_null()) {
-        if (MemoryChunkMetadata::FromHeapObject(prev_non_evac_node)
-                ->executable()) {
+        if (MemoryChunk::FromHeapObject(prev_non_evac_node)->executable()) {
           WritableJitPage jit_page(prev_non_evac_node->address(),
                                    prev_non_evac_node->Size());
           WritableFreeSpace free_space = jit_page.FreeRange(

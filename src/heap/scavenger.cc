@@ -46,8 +46,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     MapWord map_word = host->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       // Surviving new large objects have forwarding pointers in the map word.
-      DCHECK(
-          MutablePageMetadata::FromHeapObject(host)->InNewLargeObjectSpace());
+      DCHECK(MemoryChunk::FromHeapObject(host)->InNewLargeObjectSpace());
       return;
     }
     HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
@@ -139,7 +138,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // Code objects, the only object that can contain code pointers, are
       // always allocated in the old space.
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                     !MutablePageMetadata::FromHeapObject(target)->IsFlagSet(
+                     !MemoryChunk::FromHeapObject(target)->IsFlagSet(
                          MemoryChunk::IS_EXECUTABLE));
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
@@ -672,7 +671,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
   target->IterateFast(map, size, &visitor);
 
   if (IsJSArrayBufferMap(map)) {
-    DCHECK(!MemoryChunkMetadata::FromHeapObject(target)->IsLargePage());
+    DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
     JSArrayBuffer::cast(target)->YoungMarkExtensionPromoted();
   }
 }
@@ -702,7 +701,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
         &empty_chunks_local_);
   }
 
-  if (page->executable()) {
+  if (page->Chunk()->executable()) {
     std::vector<std::tuple<Tagged<HeapObject>, SlotType, Address>> slot_updates;
 
     // The code running write access to executable memory poses CFI attack
@@ -870,9 +869,8 @@ void Scavenger::Finalize() {
   ephemeron_table_list_local_.Publish();
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {
-    DCHECK_IMPLIES(
-        !MutablePageMetadata::FromHeapObject(it->first)->IsLargePage(),
-        !Heap::InYoungGeneration(it->first));
+    DCHECK_IMPLIES(!MemoryChunk::FromHeapObject(it->first)->IsLargePage(),
+                   !Heap::InYoungGeneration(it->first));
     heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
         it->first, std::move(it->second));
   }

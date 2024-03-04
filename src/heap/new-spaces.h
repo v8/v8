@@ -182,8 +182,8 @@ class SemiSpace final : public Space {
   void RewindPages(int num_pages);
 
   // Copies the flags into the masked positions on all pages in the space.
-  void FixPagesFlags(PageMetadata::MainThreadFlags flags,
-                     PageMetadata::MainThreadFlags mask);
+  void FixPagesFlags(MemoryChunk::MainThreadFlags flags,
+                     MemoryChunk::MainThreadFlags mask);
 
   void IncrementCommittedPhysicalMemory(size_t increment_value);
   void DecrementCommittedPhysicalMemory(size_t decrement_value);

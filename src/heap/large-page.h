@@ -17,13 +17,13 @@ class LargePageMetadata : public MutablePageMetadata {
   // already imposes on x64 and ia32 architectures.
   static constexpr int kMaxCodePageSize = 512 * MB;
 
-  static LargePageMetadata* cast(MutablePageMetadata* chunk) {
-    DCHECK_IMPLIES(chunk, chunk->IsLargePage());
-    return static_cast<LargePageMetadata*>(chunk);
+  static LargePageMetadata* cast(MutablePageMetadata* metadata) {
+    DCHECK_IMPLIES(metadata, metadata->Chunk()->IsLargePage());
+    return static_cast<LargePageMetadata*>(metadata);
   }
 
-  static LargePageMetadata* cast(MemoryChunkMetadata* chunk) {
-    return cast(MutablePageMetadata::cast(chunk));
+  static LargePageMetadata* cast(MemoryChunkMetadata* metadata) {
+    return cast(MutablePageMetadata::cast(metadata));
   }
 
   static LargePageMetadata* FromHeapObject(Tagged<HeapObject> o) {
