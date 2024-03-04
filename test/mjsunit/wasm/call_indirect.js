@@ -18,7 +18,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
     let table = builder.addTable(kWasmFuncRef, 10, 10);
 
-    builder.addActiveElementSegment(table, wasmI32Const(0), [callee]);
+    builder.addActiveElementSegment(table.index, wasmI32Const(0), [callee]);
 
     let left = -2;
     let right = 3;

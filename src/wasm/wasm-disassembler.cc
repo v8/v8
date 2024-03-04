@@ -223,7 +223,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   if (first_instruction_offset) *first_instruction_offset = pc_offset();
 
   // Main loop.
-  while (pc_ < end_) {
+  while (pc_ < end_ && ok()) {
     WasmOpcode opcode = GetOpcode();
     current_opcode_ = opcode;  // Some immediates need to know this.
 
@@ -1141,9 +1141,10 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
+    bool shared = module_->types[func->sig_index].is_shared;
     WasmFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
-    FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
+    FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
                                wire_bytes_, names_);
     uint32_t first_instruction_offset;
@@ -1261,8 +1262,8 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmFeatures detected;
-      FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
-                                 end, ref.offset(), wire_bytes_, names_);
+      FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
+                                 start, end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }

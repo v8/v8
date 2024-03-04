@@ -485,6 +485,10 @@ class ModuleDecoderImpl : public Decoder {
         }
         break;
       case kCompilationHintsSectionCode:
+        // TODO(jkummerow): We're missing tracing support for well-known
+        // custom sections. This confuses `wami --full-hexdump` e.g.
+        // for the modules created by
+        // mjsunit/wasm/compilation-hints-streaming-compilation.js.
         if (enabled_features_.has_compilation_hints()) {
           DecodeCompilationHintsSection();
         } else {
@@ -785,6 +789,7 @@ class ModuleDecoderImpl : public Decoder {
           import->index = mem_index;
           module_->memories.emplace_back();
           WasmMemory* external_memory = &module_->memories.back();
+          external_memory->imported = true;
           external_memory->index = mem_index;
 
           consume_memory_flags(&external_memory->is_shared,
@@ -1954,13 +1959,18 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   std::pair<bool, bool> consume_global_flags() {
-    uint8_t flags = consume_u8("global flags", tracer_);
+    uint8_t flags = consume_u8("global flags");
     if (flags & ~0b11) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, false};
     }
     bool mutability = flags & 0b1;
     bool shared = flags & 0b10;
+    if (tracer_) {
+      tracer_->Bytes(pc_, 1);  // The flags byte.
+      if (shared) tracer_->Description(" shared");
+      tracer_->Description(mutability ? " mutable" : " immutable");
+    }
     if (shared && !v8_flags.experimental_wasm_shared) {
       errorf(
           pc() - 1,

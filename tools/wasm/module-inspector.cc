@@ -217,11 +217,12 @@ class InstructionStatistics {
 class ExtendedFunctionDis : public FunctionBodyDisassembler {
  public:
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
-                      WasmFeatures* detected, const FunctionSig* sig,
-                      const uint8_t* start, const uint8_t* end, uint32_t offset,
+                      bool shared, WasmFeatures* detected,
+                      const FunctionSig* sig, const uint8_t* start,
+                      const uint8_t* end, uint32_t offset,
                       const ModuleWireBytes wire_bytes, NamesProvider* names)
-      : FunctionBodyDisassembler(zone, module, func_index, detected, sig, start,
-                                 end, offset, wire_bytes, names) {}
+      : FunctionBodyDisassembler(zone, module, func_index, shared, detected,
+                                 sig, start, end, offset, wire_bytes, names) {}
 
   void HexDump(MultiLineStringBuilder& out, FunctionHeader include_header) {
     out_ = &out;
@@ -261,7 +262,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     }
 
     // Main loop.
-    while (pc_ < end_) {
+    while (pc_ < end_ && ok()) {
       WasmOpcode opcode = GetOpcode();
       current_opcode_ = opcode;  // Some immediates need to know this.
       StringBuilder immediates;
@@ -297,7 +298,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
   }
 
   void HexdumpConstantExpression(MultiLineStringBuilder& out) {
-    while (pc_ < end_) {
+    while (pc_ < end_ && ok()) {
       WasmOpcode opcode = GetOpcode();
       current_opcode_ = opcode;  // Some immediates need to know this.
       StringBuilder immediates;
@@ -332,7 +333,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     if (failed()) return;
     stats.RecordLocals(num_locals(), locals_length);
     consume_bytes(locals_length);
-    while (pc_ < end_) {
+    while (pc_ < end_ && ok()) {
       WasmOpcode opcode = GetOpcode();
       if (opcode == kExprI32Const) {
         ImmI32Immediate imm(this, pc_ + 1, Decoder::kNoValidation);
@@ -396,6 +397,7 @@ class HexDumpModuleDis : public ITracer {
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);
+    if (out_.length() > 0) out_.NextLine(static_cast<uint32_t>(total_bytes_));
     out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {
@@ -418,7 +420,7 @@ class HexDumpModuleDis : public ITracer {
       total_bytes_ += count;
       return;
     }
-    if (line_bytes_ == 0) out_ << "  ";
+    if (line_bytes_ == 0 && count > 0) out_ << "  ";
     PrintHexBytes(out_, count, start);
     line_bytes_ += count;
     total_bytes_ += count;
@@ -572,7 +574,7 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = decoder_->pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, 0, &detected, &sig, start, end,
+    ExtendedFunctionDis d(&zone_, module, 0, false, &detected, &sig, start, end,
                           offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
@@ -585,7 +587,8 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, func->func_index, &detected,
+    bool shared = module->types[func->sig_index].is_shared;
+    ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
     total_bytes_ += func->code.length();
@@ -912,9 +915,10 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
+      bool shared = module()->types[func->sig_index].is_shared;
       WasmFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
-      ExtendedFunctionDis d(&zone, module(), i, &detected, func->sig,
+      ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
                             code.begin(), code.end(), func->code.offset(),
                             wire_bytes_, names());
       d.CollectInstructionStats(stats);
@@ -947,12 +951,13 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
+    bool shared = module()->types[func->sig_index].is_shared;
     WasmFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
-    ExtendedFunctionDis d(&zone, module(), func_index, &detected, func->sig,
-                          code.begin(), code.end(), func->code.offset(),
-                          wire_bytes_, names());
+    ExtendedFunctionDis d(&zone, module(), func_index, shared, &detected,
+                          func->sig, code.begin(), code.end(),
+                          func->code.offset(), wire_bytes_, names());
     sb.set_current_line_bytecode_offset(func->code.offset());
     if (mode == OutputMode::kWat) {
       d.DecodeAsWat(sb, {0, 1});

@@ -9,8 +9,6 @@
 #ifndef V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 #define V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 
-#include <iomanip>
-
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
@@ -83,15 +81,13 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
   enum FunctionHeader : bool { kSkipHeader = false, kPrintHeader = true };
 
   FunctionBodyDisassembler(Zone* zone, const WasmModule* module,
-                           uint32_t func_index, WasmFeatures* detected,
-                           const FunctionSig* sig, const uint8_t* start,
-                           const uint8_t* end, uint32_t offset,
-                           const ModuleWireBytes wire_bytes,
+                           uint32_t func_index, bool shared,
+                           WasmFeatures* detected, const FunctionSig* sig,
+                           const uint8_t* start, const uint8_t* end,
+                           uint32_t offset, const ModuleWireBytes wire_bytes,
                            NamesProvider* names)
-      : WasmDecoder<ValidationTag>(
-            zone, module, WasmFeatures::All(), detected, sig,
-            module->types[module->functions[func_index].sig_index].is_shared,
-            start, end, offset),
+      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
+                                   sig, shared, start, end, offset),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         names_(names) {}
