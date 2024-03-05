@@ -276,6 +276,21 @@ class OperationMatcher {
                           rep);
   }
 
+  bool MatchBitwiseAndWithConstant(OpIndex matched, OpIndex* value,
+                                   uint64_t* constant,
+                                   WordRepresentation rep) const {
+    OpIndex left, right;
+    if (!MatchBitwiseAnd(matched, &left, &right, rep)) return false;
+    if (MatchIntegralWordConstant(right, rep, constant)) {
+      *value = left;
+      return true;
+    } else if (MatchIntegralWordConstant(left, rep, constant)) {
+      *value = right;
+      return true;
+    }
+    return false;
+  }
+
   bool MatchEqual(OpIndex matched, OpIndex* left, OpIndex* right,
                   WordRepresentation rep) const {
     const ComparisonOp* op = TryCast<ComparisonOp>(matched);
