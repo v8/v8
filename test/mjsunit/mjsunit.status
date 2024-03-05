@@ -1973,6 +1973,9 @@
   'compiler/test-literal-map-migration': [FAIL],
   'regress/regress-4121': [FAIL],
   'regress/regress-trap-allocation-memento': [FAIL],
+
+  # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds
