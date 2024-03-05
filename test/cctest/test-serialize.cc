@@ -3465,7 +3465,7 @@ static void NamedPropertyGetterForSerialization(
 }
 
 static void AccessorForSerialization(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(2017));

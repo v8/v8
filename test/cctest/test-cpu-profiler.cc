@@ -990,13 +990,13 @@ class TestApiCallbacks {
   explicit TestApiCallbacks(int min_duration_ms)
       : min_duration_ms_(min_duration_ms), is_warming_up_(false) {}
 
-  static void Getter(v8::Local<v8::String> name,
+  static void Getter(v8::Local<v8::Name> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->Wait();
   }
 
-  static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
+  static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
                      const v8::PropertyCallbackInfo<void>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->Wait();

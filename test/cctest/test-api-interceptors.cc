@@ -35,14 +35,13 @@ void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
 
-void Return239Callback(Local<String> name,
+void Return239Callback(Local<Name> name,
                        const v8::PropertyCallbackInfo<Value>& info) {
   ApiTestFuzzer::Fuzz();
   CheckReturnValue(info, FUNCTION_ADDR(Return239Callback));
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(v8_num(239));
 }
-
 
 void EmptyInterceptorGetter(Local<Name> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {}
@@ -70,23 +69,26 @@ void EmptyInterceptorDefinerWithSideEffect(
   }
 }
 
-void SimpleAccessorGetter(Local<String> name,
+void SimpleAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Object> self = info.This().As<Object>();
+  Local<String> name_str = name.As<String>();
   info.GetReturnValue().Set(
-      self->Get(info.GetIsolate()->GetCurrentContext(),
-                String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
+      self->Get(
+              info.GetIsolate()->GetCurrentContext(),
+              String::Concat(info.GetIsolate(), v8_str("accessor_"), name_str))
           .ToLocalChecked());
 }
 
-void SimpleAccessorSetter(Local<String> name, Local<Value> value,
+void SimpleAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   Local<Object> self = info.This().As<Object>();
+  Local<String> name_str = name.As<String>();
   self->Set(info.GetIsolate()->GetCurrentContext(),
-            String::Concat(info.GetIsolate(), v8_str("accessor_"), name), value)
+            String::Concat(info.GetIsolate(), v8_str("accessor_"), name_str),
+            value)
       .FromJust();
 }
-
 
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -189,12 +191,6 @@ void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
   Local<Object> self = info.This().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   info.GetReturnValue().Set(value);
-}
-
-void AddAccessor(Local<FunctionTemplate> templ, Local<String> name,
-                 v8::AccessorGetterCallback getter,
-                 v8::AccessorSetterCallback setter) {
-  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
 }
 
 void AddAccessor(Local<FunctionTemplate> templ, Local<Name> name,
@@ -1144,15 +1140,13 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
       42 * 10);
 }
 
-
-static void SetOnThis(Local<String> name, Local<Value> value,
+static void SetOnThis(Local<Name> name, Local<Value> value,
                       const v8::PropertyCallbackInfo<void>& info) {
   info.This()
       .As<Object>()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
-
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   v8::Isolate* isolate = CcTest::isolate();

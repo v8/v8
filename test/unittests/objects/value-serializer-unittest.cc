@@ -65,14 +65,14 @@ class ValueSerializerTest : public TestWithIsolate {
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+        [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
               info.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+        [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
           CHECK(i::ValidateCallbackInfo(info));
           info.GetReturnValue().Set(
               info.Holder()->GetInternalField(1).As<v8::Value>());

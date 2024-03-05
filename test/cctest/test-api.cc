@@ -1138,16 +1138,14 @@ static void construct_callback(
   info.GetReturnValue().Set(info.This());
 }
 
-
-static void Return239Callback(
-    Local<String> name, const v8::PropertyCallbackInfo<Value>& info) {
+static void Return239Callback(Local<Name> name,
+                              const v8::PropertyCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   CheckReturnValue(info, FUNCTION_ADDR(Return239Callback));
   info.GetReturnValue().Set(v8_str("bad value"));
   info.GetReturnValue().Set(v8_num(239));
 }
-
 
 template<typename Handler>
 static void TestFunctionTemplateInitializer(Handler handler,
@@ -2103,13 +2101,12 @@ static void DummyCallHandler(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_num(13.4));
 }
 
-static void GetM(Local<String> name,
+static void GetM(Local<Name> name,
                  const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(876));
 }
-
 
 THREADED_TEST(GlobalPrototype) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -2209,14 +2206,14 @@ THREADED_TEST(IntegerValue) {
   CHECK_EQ(0, CompileRun("undefined")->IntegerValue(env.local()).FromJust());
 }
 
-static void GetNirk(Local<String> name,
+static void GetNirk(Local<Name> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(900));
 }
 
-static void GetRino(Local<String> name,
+static void GetRino(Local<Name> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
@@ -2540,13 +2537,12 @@ static void GetFlabby(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_num(17.2));
 }
 
-static void GetKnurd(Local<String> property,
+static void GetKnurd(Local<Name> property,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(15.2));
 }
-
 
 THREADED_TEST(DescriptorInheritance) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -6961,9 +6957,9 @@ THREADED_TEST(NoAccessors) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetNativeDataProperty(v8_str("x"),
-                               static_cast<v8::AccessorGetterCallback>(nullptr),
-                               nullptr, v8_str("donut"));
+  templ->SetNativeDataProperty(
+      v8_str("x"), static_cast<v8::AccessorNameGetterCallback>(nullptr),
+      nullptr, v8_str("donut"));
   LocalContext context;
   CHECK(context->Global()
             ->Set(context.local(), v8_str("obj"),
@@ -9049,17 +9045,14 @@ THREADED_TEST(ExceptionCreateMessageLength) {
   CHECK_LT(1000, try_catch.Message()->Get()->Length());
 }
 
-
-static void YGetter(Local<String> name,
+static void YGetter(Local<Name> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(10));
 }
 
-
-static void YSetter(Local<String> name,
-                    Local<Value> value,
+static void YSetter(Local<Name> name, Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Local<Object> this_obj = info.This().As<Object>();
@@ -9068,7 +9061,6 @@ static void YSetter(Local<String> name,
     this_obj->Delete(context, name).FromJust();
   CHECK(this_obj->Set(context, name, value).FromJust());
 }
-
 
 THREADED_TEST(DeleteAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -9903,19 +9895,15 @@ static bool AccessBlocker(Local<v8::Context> accessing_context,
          allowed_access;
 }
 
-static void UnreachableGetter(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+static void UnreachableGetter(Local<Name> name,
+                              const v8::PropertyCallbackInfo<v8::Value>& info) {
   UNREACHABLE();  // This function should not be called..
 }
 
-
-static void UnreachableSetter(Local<String>,
-                              Local<Value>,
+static void UnreachableSetter(Local<Name>, Local<Value>,
                               const v8::PropertyCallbackInfo<void>&) {
   UNREACHABLE();  // This function should not be called.
 }
-
 
 static void UnreachableFunction(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -10614,14 +10602,14 @@ static int shadow_y;
 static int shadow_y_setter_call_count;
 static int shadow_y_getter_call_count;
 
-static void ShadowYSetter(Local<String>, Local<Value>,
+static void ShadowYSetter(Local<Name>, Local<Value>,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   shadow_y_setter_call_count++;
   shadow_y = 42;
 }
 
-static void ShadowYGetter(Local<String> name,
+static void ShadowYGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
@@ -11855,7 +11843,7 @@ static Local<Value> DoDirectGetter() {
 }
 
 static void DirectGetterCallback(
-    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CheckReturnValue(info, FUNCTION_ADDR(DirectGetterCallback));
   info.GetReturnValue().Set(DoDirectGetter());
@@ -11890,7 +11878,7 @@ THREADED_PROFILED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
 }
 
 void ThrowingDirectGetterCallback(
-    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetIsolate()->ThrowException(v8_str("g"));
 }
@@ -11983,14 +11971,13 @@ THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
                    .FromJust());
 }
 
-static void ThrowingGetter(Local<String> name,
+static void ThrowingGetter(Local<Name> name,
                            const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetIsolate()->ThrowException(Local<Value>());
   info.GetReturnValue().SetUndefined();
 }
-
 
 THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
   LocalContext context;
@@ -12193,22 +12180,19 @@ THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
   }
 }
 
-
-static void ParentGetter(Local<String> name,
+static void ParentGetter(Local<Name> name,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(1));
 }
 
-
-static void ChildGetter(Local<String> name,
+static void ChildGetter(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(42));
 }
-
 
 THREADED_TEST(Overriding) {
   LocalContext context;
@@ -17730,18 +17714,15 @@ THREADED_TEST(FunctionProtoToString) {
 }
 
 static void GetterWhichReturns42(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   info.GetReturnValue().Set(v8_num(42));
 }
 
-
 static void SetterWhichSetsYOnThisTo23(
-    Local<String> name,
-    Local<Value> value,
+    Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.This())));
@@ -17751,7 +17732,6 @@ static void SetterWhichSetsYOnThisTo23(
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
 }
-
 
 void FooGetInterceptor(Local<Name> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -19226,8 +19206,7 @@ void HasOwnPropertyNamedPropertyQuery2(
 }
 
 void HasOwnPropertyAccessorGetter(
-    Local<String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_str("yes"));
 }
@@ -21311,8 +21290,7 @@ class RequestInterruptTestWithNativeAccessor
 
  private:
   static void ShouldContinueNativeGetter(
-      Local<String> property,
-      const v8::PropertyCallbackInfo<v8::Value>& info) {
+      Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
@@ -21717,13 +21695,11 @@ TEST(EscapableHandleScope) {
   }
 }
 
-
 static void SetterWhichExpectsThisAndHolderToDiffer(
-    Local<String>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+    Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(info.Holder() != info.This());
 }
-
 
 TEST(Regress239669) {
   LocalContext context;
@@ -25899,14 +25875,14 @@ void CheckContexts(v8::Isolate* isolate) {
                                ->Value());
 }
 
-void ContextCheckGetter(Local<String> name,
+void ContextCheckGetter(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CheckContexts(info.GetIsolate());
   info.GetReturnValue().Set(true);
 }
 
-void ContextCheckSetter(Local<String> name, Local<Value>,
+void ContextCheckSetter(Local<Name> name, Local<Value>,
                         const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CheckContexts(info.GetIsolate());
@@ -30122,13 +30098,13 @@ TEST(DeepFreezeFreezesExternalObjectData) {
 }
 
 namespace {
-void handle_property(Local<String> name,
+void handle_property(Local<Name> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(900));
 }
 
-void handle_property_2(Local<String> name,
+void handle_property_2(Local<Name> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(902));
@@ -30162,7 +30138,7 @@ TEST(DeepFreezeInstantiatesAccessors) {
 }
 
 namespace {
-void handle_object_property(v8::Local<v8::String> property,
+void handle_object_property(v8::Local<v8::Name> property,
                             const v8::PropertyCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(909));

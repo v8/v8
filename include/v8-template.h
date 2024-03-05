@@ -94,6 +94,7 @@ class V8_EXPORT Template : public Data {
       PropertyAttribute attribute, AccessControl settings,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  V8_DEPRECATE_SOON("Use SetNativeDataProperty with Local<Name> instead")
   void SetNativeDataProperty(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
@@ -611,7 +612,8 @@ enum class PropertyHandlerFlags {
    */
   kNone = 0,
 
-  /** Will not call into interceptor for properties on the receiver or prototype
+  /**
+   * Will not call into interceptor for properties on the receiver or prototype
    * chain, i.e., only call into interceptor for properties that do not exist.
    * Currently only valid for named interceptors.
    */
@@ -804,6 +806,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
+  V8_DEPRECATE_SOON("Use SetAccessor with Local<Name> instead")
   void SetAccessor(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,

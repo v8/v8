@@ -441,13 +441,13 @@ void IndexedSetterThrowsException(uint32_t index, Local<Value> value,
       String::NewFromUtf8(info.GetIsolate(), "exception").ToLocalChecked());
 }
 
-void GetCrossContextInt(Local<String> property,
+void GetCrossContextInt(Local<Name> property,
                         const PropertyCallbackInfo<Value>& info) {
   CHECK(!g_expect_interceptor_call);
   info.GetReturnValue().Set(g_cross_context_int);
 }
 
-void SetCrossContextInt(Local<String> property, Local<Value> value,
+void SetCrossContextInt(Local<Name> property, Local<Value> value,
                         const PropertyCallbackInfo<void>& info) {
   CHECK(!g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();

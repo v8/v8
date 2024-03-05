@@ -2193,7 +2193,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 // Realm.shared is an accessor for a single shared value across realms.
-void Shell::RealmSharedGet(Local<String> property,
+void Shell::RealmSharedGet(Local<Name> property,
                            const PropertyCallbackInfo<Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -2202,7 +2202,7 @@ void Shell::RealmSharedGet(Local<String> property,
   info.GetReturnValue().Set(data->realm_shared_);
 }
 
-void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
+void Shell::RealmSharedSet(Local<Name> property, Local<Value> value,
                            const PropertyCallbackInfo<void>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
