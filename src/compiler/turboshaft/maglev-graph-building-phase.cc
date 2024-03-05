@@ -10,6 +10,7 @@
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
@@ -21,6 +22,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/heap-object.h"
@@ -1288,10 +1290,22 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
                                     : broker->isolate()->AsLocalIsolate();
   maglev::Graph* maglev_graph =
       maglev::Graph::New(temp_zone, data.info()->is_osr());
+  if (v8_flags.trace_turbo_graph) {
+    compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
+  }
   maglev::MaglevGraphBuilder maglev_graph_builder(
       local_isolate, compilation_info->toplevel_compilation_unit(),
       maglev_graph);
   maglev_graph_builder.Build();
+
+  if (v8_flags.trace_turbo_graph) {
+    CodeTracer* code_tracer = data.GetCodeTracer();
+    CodeTracer::StreamScope tracing_scope(code_tracer);
+    tracing_scope.stream()
+        << "\n----- Maglev graph after MaglevGraphBuilding -----" << std::endl;
+    maglev::PrintGraph(tracing_scope.stream(), compilation_info.get(),
+                       maglev_graph);
+  }
 
   maglev::GraphProcessor<GraphBuilder, true> builder(
       data.graph(), temp_zone, compilation_info->toplevel_compilation_unit());
