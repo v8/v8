@@ -1949,10 +1949,9 @@ void Heap::CollectGarbage(AllocationSpace space,
         static_cast<size_t>(v8_flags.heap_snapshot_on_gc) == ms_count_) {
       isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
     }
-  } else if (collector == GarbageCollector::SCAVENGER) {
-    DCHECK(!v8_flags.minor_ms);
+  } else {
     // Start incremental marking for the next cycle. We do this only for
-    // scavenger to avoid a loop where mark-compact causes another mark-compact.
+    // minor GCs to avoid a loop where mark-compact causes another mark-compact.
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -1997,11 +1996,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
-
-  // Delay incremental marking start while concurrent sweeping still has work.
-  // This helps avoid large CompleteSweep blocks on the main thread when major
-  // incremental marking should be scheduled following a minor GC.
-  if (sweeper()->AreMinorSweeperTasksRunning()) return;
 
   if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
     // Do not start incremental marking while invoking GC callbacks.

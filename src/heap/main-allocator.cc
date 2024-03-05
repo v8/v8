@@ -622,7 +622,7 @@ void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
 bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
                                                  AllocationAlignment alignment,
                                                  AllocationOrigin origin) {
-  if (!allocator_->in_gc()) {
+  if ((allocator_->identity() != NEW_SPACE) && !allocator_->in_gc()) {
     // Start incremental marking before the actual allocation, this allows the
     // allocation function to mark the object black when incremental marking is
     // running.
