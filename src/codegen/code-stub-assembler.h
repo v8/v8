@@ -1257,8 +1257,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                        CodeEntrypointTag tag);
 #endif
 
-  TNode<TrustedObject> LoadProtectedPointerFromObject(
-      TNode<TrustedObject> object, int offset);
+  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
+                                          TNode<IntPtrT> offset) {
+    return CAST(LoadProtectedPointerFromObject(
+        object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
+  }
+  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
+                                          int offset) {
+    return CAST(LoadProtectedPointerFromObject(
+        object, IntPtrConstant(offset - kHeapObjectTag)));
+  }
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,

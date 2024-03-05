@@ -174,6 +174,20 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return load;
   }
 
+  Node* LoadProtectedPointerFromObject(Node* base, Node* offset) {
+#if V8_ENABLE_SANDBOX
+    static_assert(COMPRESS_POINTERS_BOOL);
+    Node* tagged = LoadFromObject(MachineType::Int32(), base, offset);
+    Node* trusted_cage_base =
+        LoadImmutable(MachineType::Pointer(), LoadRootRegister(),
+                      IntPtrConstant(IsolateData::trusted_cage_base_offset()));
+    return BitcastWordToTagged(
+        WordOr(trusted_cage_base, ChangeUint32ToUint64(tagged)));
+#else
+    return LoadFromObject(MachineType::AnyTagged(), base, offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
     return Store(rep, base, IntPtrConstant(0), value, write_barrier);

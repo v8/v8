@@ -1956,20 +1956,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
 }
 #endif  // V8_ENABLE_SANDBOX
 
-TNode<TrustedObject> CodeStubAssembler::LoadProtectedPointerFromObject(
-    TNode<TrustedObject> object, int offset) {
-#ifdef V8_ENABLE_SANDBOX
-  TNode<RawPtrT> trusted_cage_base = LoadPointerFromRootRegister(
-      IntPtrConstant(IsolateData::trusted_cage_base_offset()));
-  TNode<UintPtrT> offset_from_cage_base =
-      ChangeUint32ToWord(LoadObjectField<Uint32T>(object, offset));
-  TNode<UintPtrT> pointer =
-      UncheckedCast<UintPtrT>(WordOr(trusted_cage_base, offset_from_cage_base));
-  return UncheckedCast<TrustedObject>(BitcastWordToTagged(pointer));
-#else
-  return LoadObjectField<TrustedObject>(object, offset);
-#endif
-}
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
@@ -3501,8 +3487,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
         this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
-    TNode<HeapObject> baseline_data = LoadProtectedPointerFromObject(
-        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
+    TNode<HeapObject> baseline_data = CAST(LoadProtectedPointerField(
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset));
     var_result = baseline_data;
   }
   Goto(&check_for_interpreter_data);
@@ -3510,7 +3496,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerFromObject(
+  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerField(
       CAST(var_result.value()), InterpreterData::kBytecodeArrayOffset));
   var_result = bytecode_array;
   Goto(&done);
@@ -16520,7 +16506,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   CSA_DCHECK(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   {
-    TNode<Code> trampoline = CAST(LoadProtectedPointerFromObject(
+    TNode<Code> trampoline = CAST(LoadProtectedPointerField(
         CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
     sfi_code = trampoline;
   }
