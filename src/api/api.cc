@@ -2214,10 +2214,6 @@ std::vector<int> Script::GetProducedCompileHints() const {
       CHECK(IsSmi(item));
       result.push_back(i::Smi::ToInt(item));
     }
-    // Clear the data; the embedder can still request more data later, but it'll
-    // have to keep track of the original data itself.
-    script->set_compiled_lazy_function_positions(
-        i::ReadOnlyRoots(i_isolate).undefined_value());
   }
   return result;
 }
