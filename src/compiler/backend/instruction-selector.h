@@ -552,7 +552,7 @@ class InstructionSelectorT final : public Adapter {
   int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
 
   int GetVirtualRegister(node_t node);
-  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
+  const std::map<id_t, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
