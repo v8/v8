@@ -1,4 +1,9 @@
-def _v8_disable_pointer_compression(settings, attr):
+"""
+Exposes the rule v8_binary_non_pointer_compression, which forces a label
+to be compiled without pointer compression.
+"""
+
+def _v8_disable_pointer_compression():
     return {
         "//:v8_enable_pointer_compression": "False",
     }

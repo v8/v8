@@ -411,7 +411,7 @@ def _v8_target_cpu_transition_impl(settings,
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return
+            return {}
 
     # Auto-detect target architecture based on the --cpu flag.
     mapping = {
