@@ -3292,7 +3292,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             push_count, push_count != 1 ? "s" : "", target->br_merge()->arity);
         return 0;
       }
-      if (!VALIDATE(TypeCheckBranch<true>(target))) return 0;
+      if (!VALIDATE(
+              (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
+                  target)))) {
+        return 0;
+      }
       stack_.shrink_to(stack_size);
       DCHECK_LT(i, try_table_imm.table_count);
       try_block->catch_cases[i] = catch_case;
@@ -3324,7 +3328,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value ref_object = Pop();
     Control* c = control_at(imm.depth);
-    if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
+                c)))) {
+      return 0;
+    }
     switch (ref_object.type.kind()) {
       case kBottom:
         // We are in a polymorphic stack. Leave the stack as it is.
@@ -3368,7 +3376,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // non-null value on the stack, so we push it temporarily.
     Value* value_on_branch = Push(ref_object.type.AsNonNull());
     Control* c = control_at(imm.depth);
-    if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
+                c)))) {
+      return 0;
+    }
     switch (ref_object.type.kind()) {
       case kBottom:
         // We are in unreachable code. Do nothing.
@@ -3586,7 +3598,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
-    if (!VALIDATE(TypeCheckBranch<false>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kNo, RewriteStackTypes::kNo>(
+                c)))) {
+      return 0;
+    }
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       CALL_INTERFACE(BrOrRet, imm.depth);
       c->br_merge()->reached = true;
@@ -3600,7 +3616,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value cond = Pop(kWasmI32);
     Control* c = control_at(imm.depth);
-    if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
+                c)))) {
+      return 0;
+    }
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       CALL_INTERFACE(BrIf, cond, imm.depth);
       c->br_merge()->reached = true;
@@ -3643,7 +3663,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               arity);
           return 0;
         }
-        if (!VALIDATE(TypeCheckBranch<false>(control_at(target)))) return 0;
+        if (!VALIDATE(
+                (TypeCheckBranch<PushBranchValues::kNo, RewriteStackTypes::kNo>(
+                    control_at(target))))) {
+          return 0;
+        }
       }
     }
 
@@ -5342,7 +5366,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
     Value* value_on_branch = Push(target_type);
-    if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
+                c)))) {
+      return 0;
+    }
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       // This logic ensures that code generation can assume that functions
       // can only be cast to function types, and data objects to data types.
@@ -5456,7 +5484,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Push(flags.res_is_null ? source_type.AsNonNull() : source_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
 
-    if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
+    if (!VALIDATE(
+            (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
+                c)))) {
+      return 0;
+    }
 
     Value result_on_fallthrough = CreateValue(target_type);
     if (opcode != kExprBrOnCastFailGeneric) {
@@ -6259,6 +6291,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     kInitExprMerge
   };
 
+  enum class PushBranchValues : bool {
+    kNo = false,
+    kYes = true,
+  };
+  enum class RewriteStackTypes : bool {
+    kNo = false,
+    kYes = true,
+  };
+
   // - If the current code is reachable, check if the current stack values are
   //   compatible with {merge} based on their number and types. If
   //   {strict_count}, check that #(stack elements) == {merge->arity}, otherwise
@@ -6271,8 +6312,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   //   stack). TODO(manoskouk): We expect the unreachable-code behavior to
   //   change, either due to relaxation of dead code verification, or the
   //   introduction of subtyping.
-  template <StackElementsCountMode strict_count, bool push_branch_values,
-            MergeType merge_type>
+  template <StackElementsCountMode strict_count,
+            PushBranchValues push_branch_values, MergeType merge_type,
+            RewriteStackTypes rewrite_types>
   V8_INLINE bool TypeCheckStackAgainstMerge(Merge<Value>* merge) {
     uint32_t arity = merge->arity;
     uint32_t actual = stack_.size() - control_.back().stack_depth;
@@ -6284,12 +6326,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (stack_.back().type == merge->vals.first.type) return true;
     }
     return TypeCheckStackAgainstMerge_Slow<strict_count, push_branch_values,
-                                           merge_type>(merge);
+                                           merge_type, rewrite_types>(merge);
   }
 
   // Slow path for {TypeCheckStackAgainstMerge}.
-  template <StackElementsCountMode strict_count, bool push_branch_values,
-            MergeType merge_type>
+  template <StackElementsCountMode strict_count,
+            PushBranchValues push_branch_values, MergeType merge_type,
+            RewriteStackTypes rewrite_types>
   V8_PRESERVE_MOST V8_NOINLINE bool TypeCheckStackAgainstMerge_Slow(
       Merge<Value>* merge) {
     constexpr const char* merge_description =
@@ -6319,6 +6362,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                             val.type.name().c_str());
           return false;
         }
+        if constexpr (static_cast<bool>(rewrite_types)) {
+          // Upcast type on the stack to the target type of the label.
+          val.type = old.type;
+        }
       }
       return true;
     }
@@ -6332,7 +6379,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     for (int i = arity - 1, depth = 0; i >= 0; --i, ++depth) {
       Peek(depth, i, (*merge)[i].type);
     }
-    if constexpr (push_branch_values) {
+    if constexpr (static_cast<bool>(push_branch_values)) {
       uint32_t inserted_value_count =
           static_cast<uint32_t>(EnsureStackArguments(arity));
       if (inserted_value_count > 0) {
@@ -6353,8 +6400,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   template <StackElementsCountMode strict_count, MergeType merge_type>
   bool DoReturn() {
-    if (!VALIDATE((TypeCheckStackAgainstMerge<strict_count, false, merge_type>(
-            &control_.front().end_merge)))) {
+    if (!VALIDATE(
+            (TypeCheckStackAgainstMerge<strict_count, PushBranchValues::kNo,
+                                        merge_type, RewriteStackTypes::kNo>(
+                &control_.front().end_merge)))) {
       return false;
     }
     DCHECK_IMPLIES(current_code_reachable_and_ok_,
@@ -6396,7 +6445,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   bool TypeCheckFallThru() {
-    return TypeCheckStackAgainstMerge<kStrictCounting, true, kFallthroughMerge>(
+    return TypeCheckStackAgainstMerge<kStrictCounting, PushBranchValues::kYes,
+                                      kFallthroughMerge,
+                                      RewriteStackTypes::kNo>(
         &control_.back().end_merge);
   }
 
@@ -6407,10 +6458,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // push back to the stack values based on the type of {c} (this is needed for
   // conditional branches due to their typing rules, and fallthroughs so that
   // the outer control finds enough values on the stack).
-  template <bool push_branch_values>
+  template <PushBranchValues push_branch_values,
+            RewriteStackTypes rewrite_types>
   bool TypeCheckBranch(Control* c) {
     return TypeCheckStackAgainstMerge<kNonStrictCounting, push_branch_values,
-                                      kBranchMerge>(c->br_merge());
+                                      kBranchMerge, rewrite_types>(
+        c->br_merge());
   }
 
   void onFirstError() override {

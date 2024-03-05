@@ -26,13 +26,6 @@
   # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
-  # https://crbug.com/v8/14643
-  'proposals/gc/br_on_null': [FAIL],
-  'proposals/gc/br_on_non_null': [FAIL],
-  'proposals/gc/br_on_cast_fail': [FAIL],
-  'proposals/gc/br_on_cast': [FAIL],
-  'proposals/gc/br_if': [FAIL],
-
   'proposals/gc/imports': [FAIL],
   'proposals/extended-const/imports': [FAIL],
   'proposals/js-types/imports': [FAIL],
