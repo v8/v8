@@ -2597,10 +2597,11 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
 }
 
 void V8HeapExplorer::TagObject(Tagged<Object> obj, const char* tag,
-                               base::Optional<HeapEntry::Type> type) {
+                               base::Optional<HeapEntry::Type> type,
+                               bool overwrite_existing_name) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
-    if (entry->name()[0] == '\0') {
+    if (overwrite_existing_name || entry->name()[0] == '\0') {
       entry->set_name(tag);
     }
     if (type.has_value()) {
@@ -2617,6 +2618,13 @@ void V8HeapExplorer::RecursivelyTagConstantPool(Tagged<Object> obj,
   if (IsFixedArrayExact(obj, isolate())) {
     Tagged<FixedArray> arr = FixedArray::cast(obj);
     TagObject(arr, tag, type);
+    if (recursion_limit <= 0) return;
+    for (int i = 0; i < arr->length(); ++i) {
+      RecursivelyTagConstantPool(arr->get(i), tag, type, recursion_limit);
+    }
+  } else if (IsTrustedFixedArray(obj, isolate())) {
+    Tagged<TrustedFixedArray> arr = TrustedFixedArray::cast(obj);
+    TagObject(arr, tag, type, /*overwrite_existing_name=*/true);
     if (recursion_limit <= 0) return;
     for (int i = 0; i < arr->length(); ++i) {
       RecursivelyTagConstantPool(arr->get(i), tag, type, recursion_limit);
