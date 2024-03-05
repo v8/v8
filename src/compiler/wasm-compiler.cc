@@ -6200,10 +6200,11 @@ Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
                 position);
     Node* segment_offset_smi = gasm_->BuildChangeInt32ToSmi(segment_offset);
     Node* segment_length = NodeProperties::GetValueInput(array, 3);
+    Node* variant_smi = gasm_->SmiConstant(static_cast<int32_t>(variant));
     return gasm_->CallBuiltin(Builtin::kWasmStringFromDataSegment,
                               Operator::Operator::kNoDeopt | Operator::kNoThrow,
                               segment_length, start, end, segment_index_smi,
-                              segment_offset_smi);
+                              segment_offset_smi, variant_smi);
   }
 
   // Regular path if the shortcut wasn't taken.

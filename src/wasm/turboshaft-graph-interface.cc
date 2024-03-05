@@ -39,6 +39,7 @@ using compiler::Operator;
 using compiler::TrapId;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
+using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using compiler::turboshaft::Graph;
@@ -58,6 +59,7 @@ using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Variable;
+using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::BuiltinCallDescriptor;
@@ -3602,18 +3604,30 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   // TODO(jkummerow): This check would be more elegant if we made
   // {ArrayNewSegment} a high-level node that's lowered later.
-  bool IsArrayNewSegment(V<Object> array) {
+  // Returns the call on success, nullptr otherwise (like `TryCast`).
+  const CallOp* IsArrayNewSegment(V<Object> array) {
     DCHECK_IMPLIES(!array.valid(), __ generating_unreachable_operations());
-    if (__ generating_unreachable_operations()) return false;
+    if (__ generating_unreachable_operations()) return nullptr;
+    if (const WasmTypeAnnotationOp* annotation =
+            __ output_graph().Get(array).TryCast<WasmTypeAnnotationOp>()) {
+      array = annotation->value();
+    }
+    if (const DidntThrowOp* didnt_throw =
+            __ output_graph().Get(array).TryCast<DidntThrowOp>()) {
+      array = didnt_throw->throwing_operation();
+    }
     const CallOp* call = __ output_graph().Get(array).TryCast<CallOp>();
-    if (call == nullptr) return false;
-    int64_t stub_id{};
+    if (call == nullptr) return nullptr;
+    uint64_t stub_id{};
     if (!OperationMatcher(__ output_graph())
              .MatchWasmStubCallConstant(call->callee(), &stub_id)) {
-      return false;
+      return nullptr;
     }
-    DCHECK_LT(stub_id, static_cast<int64_t>(Builtin::kFirstBytecodeHandler));
-    return stub_id == static_cast<int64_t>(Builtin::kWasmArrayNewSegment);
+    DCHECK_LT(stub_id, static_cast<uint64_t>(Builtin::kFirstBytecodeHandler));
+    if (stub_id == static_cast<uint64_t>(Builtin::kWasmArrayNewSegment)) {
+      return call;
+    }
+    return nullptr;
   }
 
   V<Object> StringNewWtf8ArrayImpl(FullDecoder* decoder,
@@ -3623,26 +3637,28 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
     V<Object> call;
-    if (IsArrayNewSegment(array.op)) {
+    if (const CallOp* array_new = IsArrayNewSegment(array.op)) {
       // We can only pass 3 untagged parameters to the builtin (on 32-bit
       // platforms). The segment index is easy to tag: if it validated, it must
       // be in Smi range.
-      const Operation& array_new = __ output_graph().Get(array.op);
-      OpIndex segment_index = array_new.input(1);
+      OpIndex segment_index = array_new->input(1);
       int32_t index_val;
       OperationMatcher(__ output_graph())
           .MatchIntegralWord32Constant(segment_index, &index_val);
       V<Smi> index_smi = __ SmiConstant(Smi::FromInt(index_val));
       // Arbitrary choice for the second tagged parameter: the segment offset.
-      OpIndex segment_offset = array_new.input(2);
+      OpIndex segment_offset = array_new->input(2);
       __ TrapIfNot(
           __ Uint32LessThan(segment_offset, __ Word32Constant(Smi::kMaxValue)),
           OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
       V<Smi> offset_smi = __ TagSmi(segment_offset);
-      OpIndex segment_length = array_new.input(3);
+      OpIndex segment_length = array_new->input(3);
+      V<Smi> variant_smi =
+          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
       call = CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmStringFromDataSegment>(
-          decoder, {segment_length, start.op, end.op, index_smi, offset_smi});
+          decoder, {segment_length, start.op, end.op, index_smi, offset_smi,
+                    variant_smi});
     } else {
       // Regular path if the shortcut wasn't taken.
       call = CallBuiltinThroughJumptable<

@@ -668,7 +668,7 @@ namespace internal {
   F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)    \
-  F(WasmStringNewSegmentWtf8, 4, 1)           \
+  F(WasmStringNewSegmentWtf8, 5, 1)           \
   F(WasmStringNewWtf8, 5, 1)                  \
   F(WasmStringNewWtf8Array, 4, 1)             \
   F(WasmStringNewWtf16, 4, 1)                 \

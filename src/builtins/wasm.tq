@@ -46,7 +46,7 @@ extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
-    Context, WasmTrustedInstanceData, Smi, Smi, Smi): String;
+    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String;
 extern runtime WasmArrayInitSegment(
     Context, WasmTrustedInstanceData, Smi, WasmArray, Smi, Smi, Smi): JSAny;
 extern runtime WasmStringNewWtf8(
@@ -943,7 +943,7 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
 // Torque's type checker for tail calls.
 builtin WasmStringFromDataSegment(
     segmentLength: uint32, arrayStart: uint32, arrayEnd: uint32,
-    segmentIndex: Smi, segmentOffset: Smi): JSAny {
+    segmentIndex: Smi, segmentOffset: Smi, variant: Smi): JSAny {
   const trustedData = LoadInstanceDataFromFrame();
   try {
     const segmentOffsetU: uint32 = Unsigned(SmiToInt32(segmentOffset));
@@ -959,7 +959,7 @@ builtin WasmStringFromDataSegment(
     const smiLength = Convert<PositiveSmi>(arrayLength) otherwise SegmentOOB;
     tail runtime::WasmStringNewSegmentWtf8(
         LoadContextFromInstanceData(trustedData), trustedData, segmentIndex,
-        smiOffset, smiLength);
+        smiOffset, smiLength, variant);
   } label SegmentOOB deferred {
     tail ThrowWasmTrapElementSegmentOutOfBounds();
   } label ArrayOutOfBounds deferred {

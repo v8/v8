@@ -901,7 +901,7 @@ struct BuiltinCallDescriptor {
       : public Descriptor<WasmStringFromDataSegment> {
     static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
     using arguments_t =
-        std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>>;
+        std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
     using results_t = std::tuple<V<Object>>;
 
     static constexpr bool kNeedsFrameState = false;
