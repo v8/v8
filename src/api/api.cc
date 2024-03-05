@@ -2453,16 +2453,6 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 
 Local<Module> Module::CreateSyntheticModule(
     Isolate* v8_isolate, Local<String> module_name,
-    const std::vector<Local<String>>& export_names,
-    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
-  return CreateSyntheticModule(
-      v8_isolate, module_name,
-      MemorySpan<const Local<String>>(export_names.begin(), export_names.end()),
-      evaluation_steps);
-}
-
-Local<Module> Module::CreateSyntheticModule(
-    Isolate* v8_isolate, Local<String> module_name,
     const MemorySpan<const Local<String>>& export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -2499,33 +2489,6 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
                       .IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
-}
-
-std::vector<std::tuple<Local<Module>, Local<Message>>>
-Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
-  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  auto self = Utils::OpenDirectHandle(this);
-  Utils::ApiCheck(i::IsSourceTextModule(*self),
-                  "v8::Module::GetStalledTopLevelAwaitMessage",
-                  "v8::Module::GetStalledTopLevelAwaitMessage must only be "
-                  "called on a SourceTextModule");
-  std::vector<
-      std::tuple<i::Handle<i::SourceTextModule>, i::Handle<i::JSMessageObject>>>
-      stalled_awaits = i::DirectHandle<i::SourceTextModule>::cast(self)
-                           ->GetStalledTopLevelAwaitMessages(i_isolate);
-
-  std::vector<std::tuple<Local<Module>, Local<Message>>> result;
-  size_t stalled_awaits_count = stalled_awaits.size();
-  if (stalled_awaits_count == 0) {
-    return result;
-  }
-  result.reserve(stalled_awaits_count);
-  for (size_t i = 0; i < stalled_awaits_count; ++i) {
-    auto [module, message] = stalled_awaits[i];
-    result.push_back(std::make_tuple(ToApiHandle<Module>(module),
-                                     ToApiHandle<Message>(message)));
-  }
-  return result;
 }
 
 std::pair<LocalVector<Module>, LocalVector<Message>>
