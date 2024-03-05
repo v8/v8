@@ -1176,7 +1176,7 @@ class FormatConverter {
   std::vector<uint8_t> raw_bytes_;
   ModuleWireBytes wire_bytes_{{}};
   std::shared_ptr<WasmModule> module_;
-  std::unique_ptr<ITracer> offsets_provider_;
+  std::unique_ptr<OffsetsProvider> offsets_provider_;
   std::unique_ptr<NamesProvider> names_provider_;
 };
 
