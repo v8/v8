@@ -2034,22 +2034,8 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   VerifyCountersAfterSweeping();
 #endif
 
-  std::vector<Isolate*> paused_clients;
-
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [collector, &paused_clients](Isolate* client) {
-          if (v8_flags.concurrent_marking &&
-              client->heap()->concurrent_marking()->Pause()) {
-            paused_clients.push_back(client);
-          }
-
-          if (collector == GarbageCollector::MARK_COMPACTOR) {
-            Sweeper* const client_sweeper = client->heap()->sweeper();
-            client_sweeper->ContributeAndWaitForPromotedPagesIteration();
-          }
-        });
-  }
+  std::vector<Isolate*> paused_clients =
+      PauseConcurrentThreadsInClients(collector);
 
   // Now that sweeping is completed, we can start the next full GC cycle.
   tracer()->StartCycle(collector, gc_reason, nullptr,
