@@ -112,7 +112,7 @@ void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
 
   // Compare the function result with the global value.
   while (!cmp.empty()) {
-    const auto& [lhs, rhs] = cmp.back();
+    const auto [lhs, rhs] = cmp.back();
     cmp.pop_back();
     CHECK_EQ(lhs.type(), rhs.type());
     switch (lhs.type().kind()) {
