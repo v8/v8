@@ -174,6 +174,17 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     case kVisitorIdCount:
       UNREACHABLE();
   }
+  // TODO(chromium:327992715): Remove once we have some clarity why execution
+  // can reach this point.
+  {
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(object, &isolate)) {
+      isolate->PushParamsAndDie(
+          reinterpret_cast<void*>(object.ptr()),
+          reinterpret_cast<void*>(map.ptr()),
+          reinterpret_cast<void*>(static_cast<intptr_t>(map->visitor_id())));
+    }
+  }
   UNREACHABLE();
   // Make the compiler happy.
   return ResultType();
