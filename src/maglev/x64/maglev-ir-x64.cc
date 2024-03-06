@@ -26,21 +26,15 @@ namespace maglev {
 // Nodes
 // ---
 
-void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block());
-  if (offset() == 0) {
-    DefineSameAsFirst(this);
-  } else {
-    DefineAsRegister(this);
-  }
+void FoldedAllocation::SetValueLocationConstraints() {
+  UseRegister(raw_allocation());
+  DefineAsRegister(this);
 }
 
-void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  if (offset() != 0) {
-    __ leaq(ToRegister(result()),
-            Operand(ToRegister(allocation_block()), offset()));
-  }
+void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  __ leaq(ToRegister(result()),
+          Operand(ToRegister(raw_allocation()), offset()));
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

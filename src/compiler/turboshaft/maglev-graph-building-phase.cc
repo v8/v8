@@ -304,25 +304,15 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::AllocationBlock* node,
+  maglev::ProcessResult Process(maglev::AllocateRaw* node,
                                 const maglev::ProcessingState& state) {
-    if (!node->is_used()) return maglev::ProcessResult::kRemove;
-    int size = 0;
-    for (auto alloc : node->allocation_list()) {
-      if (alloc->HasEscaped()) {
-        alloc->set_offset(size);
-        size += alloc->size();
-      }
-    }
-    node->set_size(size);
-    SetMap(node, __ FinishInitialization(
-                     __ Allocate<HeapObject>(size, node->allocation_type())));
+    SetMap(node, __ FinishInitialization(__ Allocate<HeapObject>(
+                     node->size(), node->allocation_type())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::InlinedAllocation* node,
+  maglev::ProcessResult Process(maglev::FoldedAllocation* node,
                                 const maglev::ProcessingState& state) {
-    if (!node->HasEscaped()) return maglev::ProcessResult::kRemove;
-    V<HeapObject> alloc = Map(node->allocation_block());
+    V<HeapObject> alloc = Map(node->raw_allocation());
     SetMap(node, __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                      __ BitcastHeapObjectToWordPtr(alloc), node->offset())));
     return maglev::ProcessResult::kContinue;
