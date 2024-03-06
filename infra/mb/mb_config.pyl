@@ -117,6 +117,7 @@
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - builder': 'release_arm64',
+      'V8 Linux64 - arm64 - no pointer compression - builder': 'release_arm64_no_pointer_compression',
       'V8 Linux64 - arm64 - debug builder': 'debug_arm64',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
@@ -259,6 +260,7 @@
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
       'v8_linux64_arm64_compile_dbg': 'debug_arm64_trybot',
       'v8_linux64_arm64_compile_rel': 'release_arm64_trybot',
+      'v8_linux64_native_arm64_no_pointer_compression_compile_rel': 'release_arm64_no_pointer_compression_trybot',
       'v8_linux64_arm64_no_pointer_compression_compile_rel':
           'release_simulate_arm64_no_pointer_compression',
       'v8_linux64_asan_centipede_compile_dbg': 'debug_x64_asan_centipede',
@@ -510,10 +512,14 @@
       'release_bot', 'arm', 'hard_float'],
     'release_arm64': [
       'release_bot', 'arm64'],
+    'release_arm64_no_pointer_compression': [
+      'release_bot', 'arm64', 'v8_disable_pointer_compression'],
     'release_arm64_trybot': [
       'release_trybot', 'arm64'],
     'release_arm64_hard_float': [
       'release_bot', 'arm64', 'hard_float'],
+    'release_arm64_no_pointer_compression_trybot': [
+      'release_trybot', 'arm64', 'v8_disable_pointer_compression'],
     'release_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs'],
