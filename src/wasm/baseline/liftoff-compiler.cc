@@ -4065,7 +4065,7 @@ class LiftoffCompiler {
     __ PushRegister(kS128, dst);
   }
 
-  template <typename EmitFn>
+  template <ValueKind result_lane_kind, typename EmitFn>
   void EmitSimdFmaOp(EmitFn emit_fn) {
     LiftoffRegList pinned;
     LiftoffRegister src3 = pinned.set(__ PopToRegister(pinned));
@@ -4074,6 +4074,10 @@ class LiftoffCompiler {
     RegClass dst_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
+    if (V8_UNLIKELY(nondeterminism_)) {
+      LiftoffRegList pinned{dst};
+      CheckS128Nan(dst, pinned, result_lane_kind);
+    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4587,13 +4591,13 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(
             &LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero);
       case wasm::kExprF32x4Qfma:
-        return EmitSimdFmaOp(&LiftoffAssembler::emit_f32x4_qfma);
+        return EmitSimdFmaOp<kF32>(&LiftoffAssembler::emit_f32x4_qfma);
       case wasm::kExprF32x4Qfms:
-        return EmitSimdFmaOp(&LiftoffAssembler::emit_f32x4_qfms);
+        return EmitSimdFmaOp<kF32>(&LiftoffAssembler::emit_f32x4_qfms);
       case wasm::kExprF64x2Qfma:
-        return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfma);
+        return EmitSimdFmaOp<kF64>(&LiftoffAssembler::emit_f64x2_qfma);
       case wasm::kExprF64x2Qfms:
-        return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfms);
+        return EmitSimdFmaOp<kF64>(&LiftoffAssembler::emit_f64x2_qfms);
       case wasm::kExprI16x8RelaxedLaneSelect:
       case wasm::kExprI8x16RelaxedLaneSelect:
         // There is no special hardware instruction for 16-bit wide lanes on
