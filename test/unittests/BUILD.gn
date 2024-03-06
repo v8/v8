@@ -803,7 +803,7 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     deps += [
-      "//third_party/abseil-cpp:absl_full",
+      "//third_party/abseil-cpp/absl/flags:parse",
       "//third_party/fuzztest:fuzztest",
     ]
   }
