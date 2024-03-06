@@ -55,6 +55,63 @@ static constexpr RegisterRepresentation RegisterRepresentationFromMachineType(
   }
 }
 
+#define BINOP_LIST(V)           \
+  V(Word32BitwiseAnd)           \
+  V(Word64BitwiseAnd)           \
+  V(Word32BitwiseOr)            \
+  V(Word64BitwiseOr)            \
+  V(Word32BitwiseXor)           \
+  V(Word64BitwiseXor)           \
+  V(Word32Add)                  \
+  V(Word64Add)                  \
+  V(Word32Sub)                  \
+  V(Word64Sub)                  \
+  V(Word32Mul)                  \
+  V(Word64Mul)                  \
+  V(Int32Div)                   \
+  V(Int64Div)                   \
+  V(Int32Mod)                   \
+  V(Int64Mod)                   \
+  V(Uint32Div)                  \
+  V(Uint64Div)                  \
+  V(Uint32Mod)                  \
+  V(Uint64Mod)                  \
+  V(Word32ShiftLeft)            \
+  V(Word64ShiftLeft)            \
+  V(Word32ShiftRightLogical)    \
+  V(Word64ShiftRightLogical)    \
+  V(Word32ShiftRightArithmetic) \
+  V(Word64ShiftRightArithmetic) \
+  V(Word32RotateRight)          \
+  V(Word64RotateRight)          \
+  V(Int32AddCheckOverflow)      \
+  V(Int64AddCheckOverflow)      \
+  V(Int32SubCheckOverflow)      \
+  V(Int64SubCheckOverflow)      \
+  V(Word32Equal)                \
+  V(Int32LessThan)              \
+  V(Int32LessThanOrEqual)       \
+  V(Uint32LessThan)             \
+  V(Uint32LessThanOrEqual)
+
+#define UNOP_LIST(V)          \
+  V(ChangeFloat32ToFloat64)   \
+  V(TruncateFloat64ToFloat32) \
+  V(ChangeInt32ToInt64)       \
+  V(ChangeUint32ToUint64)     \
+  V(TruncateWord64ToWord32)   \
+  V(ChangeInt32ToFloat64)     \
+  V(ChangeUint32ToFloat64)    \
+  V(ReversibleFloat64ToInt32) \
+  V(ReversibleFloat64ToUint32)
+
+#define DECL(Op) k##Op,
+
+enum class TSBinop { BINOP_LIST(DECL) };
+enum class TSUnop { UNOP_LIST(DECL) };
+
+#undef DECL
+
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
   TurboshaftInstructionSelectorTest();
@@ -187,9 +244,30 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
     CallDescriptor* call_descriptor() { return call_descriptor_; }
 
+    OpIndex Emit(TSUnop op, OpIndex input) {
+      switch (op) {
+#define CASE(Op)      \
+  case TSUnop::k##Op: \
+    return Op(input);
+        UNOP_LIST(CASE)
+#undef CASE
+      }
+    }
+
+    OpIndex Emit(TSBinop op, OpIndex left, OpIndex right) {
+      switch (op) {
+#define CASE(Op)       \
+  case TSBinop::k##Op: \
+    return Op(left, right);
+        BINOP_LIST(CASE)
+#undef CASE
+      }
+    }
+
     // Some helpers to have the same interface as the Turbofan instruction
     // selector test had.
-    V<Word32> Int32Constant(int c) { return Word32Constant(c); }
+    V<Word32> Int32Constant(int32_t c) { return Word32Constant(c); }
+    V<Word64> Int64Constant(int64_t c) { return Word64Constant(c); }
     using Assembler::Parameter;
     OpIndex Parameter(int index) {
       return Parameter(index, RegisterRepresentationFromMachineType(
@@ -203,6 +281,23 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return Phi({inputs...},
                  RegisterRepresentation::FromMachineRepresentation(rep));
     }
+    using Assembler::Load;
+    OpIndex Load(MachineType type, OpIndex base, OpIndex index) {
+      MemoryRepresentation mem_rep =
+          MemoryRepresentation::FromMachineType(type);
+      return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep,
+                  mem_rep.ToRegisterRepresentation());
+    }
+    using Assembler::Projection;
+    OpIndex Projection(OpIndex input, int index) {
+      const Operation& input_op = output_graph().Get(input);
+      if (const TupleOp* tuple = input_op.TryCast<TupleOp>()) {
+        DCHECK_LT(index, tuple->input_count);
+        return tuple->input(index);
+      }
+      DCHECK_LT(index, input_op.outputs_rep().size());
+      return Projection(input, index, input_op.outputs_rep()[index]);
+    }
 
    private:
     template <typename... ParamT>
@@ -215,6 +310,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     }
 
     void Init() {
+      // We reset the graph since the StreamBuilder is meant to create a new
+      // fresh graph.
+      test_->graph().Reset();
+
       // We bind a block right at the start so that test can start emitting
       // operations without always needing to bind a block first.
       Block* start_block = NewBlock();
