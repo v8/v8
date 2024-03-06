@@ -126,6 +126,16 @@ namespace v8::internal::compiler::turboshaft {
   V(F64x2Pmin, F64x4Pmin)                          \
   V(F64x2Pmax, F64x4Pmax)
 
+#define SIMD256_SHIFT_OP(V) \
+  V(I16x8Shl, I16x16Shl)    \
+  V(I16x8ShrS, I16x16ShrS)  \
+  V(I16x8ShrU, I16x16ShrU)  \
+  V(I32x4Shl, I32x8Shl)     \
+  V(I32x4ShrS, I32x8ShrS)   \
+  V(I32x4ShrU, I32x8ShrU)   \
+  V(I64x2Shl, I64x4Shl)     \
+  V(I64x2ShrU, I64x4ShrU)
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 class NodeGroup {
@@ -215,6 +225,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool IsSideEffectFree(OpIndex first, OpIndex second);
   bool CanBePacked(const NodeGroup& node_group);
+  bool IsEqual(const OpIndex node0, const OpIndex node1);
 
   Graph& graph() const { return graph_; }
   Zone* zone() const { return phase_zone_; }
@@ -388,15 +399,37 @@ class WasmRevecReducer : public Next {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
       OpIndex og_index = pnode->RevectorizedNode();
       // Skip revectorized node.
-      if (og_index.valid()) return OpIndex::Invalid();
-      auto left = analyzer_.GetReduced(op.left());
-      auto right = analyzer_.GetReduced(op.right());
-      og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
-      pnode->SetRevectorizedNode(og_index);
-      return OpIndex::Invalid();
+      if (!og_index.valid()) {
+        auto left = analyzer_.GetReduced(op.left());
+        auto right = analyzer_.GetReduced(op.right());
+        og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
     }
 
+    // no_change
     return Next::ReduceInputGraphSimd128Binop(ig_index, op);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Shift)(OpIndex ig_index,
+                                           const Simd128ShiftOp& op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        V<Simd256> input = analyzer_.GetReduced(op.input());
+        DCHECK(input.valid());
+        V<Word32> shift = __ MapToNewGraph(op.shift());
+        og_index =
+            __ Simd256Shift(input, shift, GetSimd256ShiftOpKind(op.kind));
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    // no_change
+    return Next::ReduceInputGraphSimd128Shift(ig_index, op);
   }
 
  private:
@@ -420,6 +453,18 @@ class WasmRevecReducer : public Next {
     return Simd256BinopOp::Kind::k##to;
       SIMD256_BINOP_SIMPLE_OP(BINOP_KIND_MAPPING)
 #undef BINOP_KIND_MAPPING
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
+  static Simd256ShiftOp::Kind GetSimd256ShiftOpKind(Simd128ShiftOp::Kind kind) {
+    switch (kind) {
+#define SHIFT_KIND_MAPPING(from, to)  \
+  case Simd128ShiftOp::Kind::k##from: \
+    return Simd256ShiftOp::Kind::k##to;
+      SIMD256_SHIFT_OP(SHIFT_KIND_MAPPING)
+#undef SHIFT_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }

@@ -1662,6 +1662,16 @@ std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind) {
   }
 #undef PRINT_KIND
 }
+
+std::ostream& operator<<(std::ostream& os, Simd256ShiftOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd256ShiftOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_SHIFT_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {

@@ -137,7 +137,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
   V(Simd256Extract128Lane)                   \
   V(Simd256Unary)                            \
-  V(Simd256Binop)
+  V(Simd256Binop)                            \
+  V(Simd256Shift)
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -7901,6 +7902,50 @@ struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
 };
 
 std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind);
+
+#define FOREACH_SIMD_256_SHIFT_OPCODE(V) \
+  V(I16x16Shl)                           \
+  V(I16x16ShrS)                          \
+  V(I16x16ShrU)                          \
+  V(I32x8Shl)                            \
+  V(I32x8ShrS)                           \
+  V(I32x8ShrU)                           \
+  V(I64x4Shl)                            \
+  V(I64x4ShrU)
+
+struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_SHIFT_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Word32()>();
+  }
+
+  Simd256ShiftOp(V<Simd256> input, V<Word32> shift, Kind kind)
+      : Base(input, shift), kind(kind) {}
+
+  V<Simd256> input() const { return Base::input(0); }
+  V<Word32> shift() const { return Base::input(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd256ShiftOp::Kind kind);
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

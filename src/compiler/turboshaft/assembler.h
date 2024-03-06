@@ -3664,6 +3664,11 @@ class TurboshaftAssemblerOpInterface
                           Simd256BinopOp::Kind kind) {
     return ReduceIfReachableSimd256Binop(left, right, kind);
   }
+
+  V<Simd256> Simd256Shift(V<Simd256> input, V<Word32> shift,
+                          Simd256ShiftOp::Kind kind) {
+    return ReduceIfReachableSimd256Shift(input, shift, kind);
+  }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   V<WasmTrustedInstanceData> WasmInstanceParameter() {

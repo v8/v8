@@ -246,6 +246,7 @@ bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
   switch (op0.opcode) {
     CASE(Simd128Unary)
     CASE(Simd128Binop)
+    CASE(Simd128Shift)
     default:
       return true;
   }
@@ -287,6 +288,16 @@ bool SLPTree::CanBePacked(const NodeGroup& node_group) {
     return false;
   }
   return true;
+}
+
+bool SLPTree::IsEqual(const OpIndex node0, const OpIndex node1) {
+  if (node0 == node1) return true;
+  if (const ConstantOp* const0 = graph_.Get(node0).TryCast<ConstantOp>()) {
+    if (const ConstantOp* const1 = graph_.Get(node1).TryCast<ConstantOp>()) {
+      return *const0 == *const1;
+    }
+  }
+  return false;
 }
 
 PackNode* SLPTree::BuildTree(const NodeGroup& roots) {
@@ -387,6 +398,35 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         }
       }
 #undef BINOP_CASE
+    }
+    case Opcode::kSimd128Shift: {
+      Simd128ShiftOp& shift_op0 = op0.Cast<Simd128ShiftOp>();
+      Simd128ShiftOp& shift_op1 = op1.Cast<Simd128ShiftOp>();
+      if (IsEqual(shift_op0.shift(), shift_op1.shift())) {
+        switch (op0.Cast<Simd128ShiftOp>().kind) {
+#define SHIFT_CASE(op_128, not_used) case Simd128ShiftOp::Kind::k##op_128:
+          SIMD256_SHIFT_OP(SHIFT_CASE) {
+            TRACE("Added a vector of Shift op.\n");
+            // We've already checked that the "shift by" input of both shifts is
+            // the same, and we'll only pack the 1st input of the shifts
+            // together anyways (since on both Simd128 and Simd256, the "shift
+            // by" input of shifts is a Word32). Thus we only need to check the
+            // 1st input of the shift when recursing.
+            constexpr int kShiftValueInCount = 1;
+            PackNode* pnode = NewPackNodeAndRecurs(
+                node_group, 0, kShiftValueInCount, recursion_depth);
+            return pnode;
+          }
+#undef SHIFT_CASE
+          default: {
+            TRACE("Unsupported Simd128ShiftOp: %s\n",
+                  GetSimdOpcodeName(op0).c_str());
+            return nullptr;
+          }
+        }
+      }
+      TRACE("Failed due to SimdShiftOp kind or shift scalar is different!\n");
+      return nullptr;
     }
 
     default:

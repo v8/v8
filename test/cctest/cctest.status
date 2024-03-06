@@ -1083,14 +1083,6 @@
   'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Const': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Select': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ShrS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I16x16ShrU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ShrU': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I32x8ShrS': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4Shl': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_I64x4ShrU': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load8Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load16Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load32Splat': [SKIP],
@@ -1102,7 +1094,6 @@
   'test-run-wasm-simd/S128Load16x4U': [SKIP],
   'test-run-wasm-simd/S128Load32x2S': [SKIP],
   'test-run-wasm-simd/S128Load32x2U': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_ExtractF128': [SKIP],
 }],  # variant == turboshaft or variant == future
 
 ##############################################################################
