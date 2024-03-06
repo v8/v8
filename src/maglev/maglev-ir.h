@@ -140,7 +140,7 @@ class MergePointInterpreterFrameState;
 
 #define VALUE_NODE_LIST(V)                          \
   V(Identity)                                       \
-  V(AllocationBlock)                                \
+  V(AllocateRaw)                                    \
   V(Call)                                           \
   V(CallBuiltin)                                    \
   V(CallCPPBuiltin)                                 \
@@ -167,7 +167,7 @@ class MergePointInterpreterFrameState;
   V(CreateRegExpLiteral)                            \
   V(DeleteProperty)                                 \
   V(EnsureWritableFastElements)                     \
-  V(InlinedAllocation)                              \
+  V(FoldedAllocation)                               \
   V(ForInPrepare)                                   \
   V(ForInNext)                                      \
   V(GeneratorRestoreRegister)                       \
@@ -860,101 +860,6 @@ class BasicBlockRef {
 #ifdef DEBUG
   enum { kBlockPointer, kRefList } state_;
 #endif  // DEBUG
-};
-
-struct FastField;
-
-// Encoding of a fast allocation site object's element fixed array.
-struct FastFixedArray {
-  FastFixedArray() : type(kEmpty) {}
-  explicit FastFixedArray(compiler::ObjectRef cow_value)
-      : type(kCoW), cow_value(cow_value) {}
-  explicit FastFixedArray(int id, int length, Zone* zone)
-      : type(kTagged),
-        id(id),
-        length(length),
-        values(zone->AllocateArray<FastField>(length)) {}
-  explicit FastFixedArray(int id, int length, Zone* zone, double)
-      : type(kDouble),
-        id(id),
-        length(length),
-        double_values(zone->AllocateArray<Float64>(length)) {}
-
-  enum { kEmpty, kCoW, kTagged, kDouble } type;
-
-  int id = -1;  // Only for kTagged and kDouble.
-  union {
-    compiler::ObjectRef cow_value;
-    struct {
-      int length;
-      union {
-        FastField* values;
-        Float64* double_values;
-      };
-    };
-  };
-};
-
-// Encoding of a fast allocation site boilerplate object.
-struct FastObject {
-  FastObject(int id, compiler::MapRef map, Zone* zone, FastFixedArray elements)
-      : id(id),
-        map(map),
-        inobject_properties(map.GetInObjectProperties()),
-        instance_size(map.instance_size()),
-        fields(zone->AllocateArray<FastField>(inobject_properties)),
-        elements(elements) {
-    DCHECK(!map.is_dictionary_map());
-    DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  }
-  FastObject(int id, compiler::JSFunctionRef constructor, Zone* zone,
-             compiler::JSHeapBroker* broker);
-
-  void ClearFields();
-
-  int id;
-  compiler::MapRef map;
-  int inobject_properties;
-  int instance_size;
-  FastField* fields;
-  FastFixedArray elements;
-  compiler::OptionalObjectRef js_array_length;
-};
-
-// Encoding of a fast allocation site literal value.
-struct FastField {
-  FastField() : type(kUninitialized) {}
-  explicit FastField(FastObject object) : type(kObject), object(object) {}
-  explicit FastField(Float64 mutable_double_value)
-      : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
-  explicit FastField(compiler::ObjectRef constant_value)
-      : type(kConstant), constant_value(constant_value) {}
-
-  enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
-
-  bool IsInitialized();
-
-  union {
-    char uninitialized_marker;
-    FastObject object;
-    Float64 mutable_double_value;
-    compiler::ObjectRef constant_value;
-  };
-};
-
-// Either a fast object, a number or a fast fixed array.
-struct DeoptObject {
-  explicit DeoptObject(FastObject object) : type(kObject), object(object) {}
-  explicit DeoptObject(FastFixedArray fixed_array)
-      : type(kFixedArray), fixed_array(fixed_array) {}
-  explicit DeoptObject(Float64 number) : type(kNumber), number(number) {}
-
-  enum { kObject, kNumber, kFixedArray } type;
-  union {
-    FastObject object;
-    FastFixedArray fixed_array;
-    Float64 number;
-  };
 };
 
 class OpProperties {
@@ -1759,11 +1664,6 @@ class NodeBase : public ZoneObject {
   template <class T>
   constexpr T* TryCast() {
     return Is<T>() ? static_cast<T*>(this) : nullptr;
-  }
-
-  template <class T>
-  constexpr const T* TryCast() const {
-    return Is<T>() ? static_cast<const T*>(this) : nullptr;
   }
 
   constexpr bool has_inputs() const { return input_count() > 0; }
@@ -4890,81 +4790,13 @@ class CreateShallowObjectLiteral
   const int flags_;
 };
 
-class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
-  using Base = FixedInputValueNodeT<1, InlinedAllocation>;
+class AllocateRaw : public FixedInputValueNodeT<0, AllocateRaw> {
+  using Base = FixedInputValueNodeT<0, AllocateRaw>;
 
  public:
-  using List = base::ThreadedList<InlinedAllocation>;
-
-  explicit InlinedAllocation(uint64_t bitfield, int size, DeoptObject value)
-      : Base(bitfield), size_(size), value_(value) {}
-
-  Input& allocation_block() { return input(0); }
-
-  static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
-
-  int size() const { return size_; }
-  const DeoptObject& value() const { return value_; }
-  DeoptObject& value() { return value_; }
-
-  int offset() const {
-    DCHECK_NE(offset_, -1);
-    return offset_;
-  }
-  void set_offset(int offset) { offset_ = offset; }
-
-  int non_escaping_use_count() const { return non_escaping_use_count_; }
-  void AddNonEscapingUses(int n = 1) { non_escaping_use_count_ += n; }
-  void RemoveNonEscapingUse() { non_escaping_use_count_--; }
-  void ForceEscape() { non_escaping_use_count_ = 0; }
-
-  const InlinedAllocation* dependency() const { return dependency_; }
-  void DependOn(InlinedAllocation* dep) {
-    // TODO(victorgomes): Current the escape analysis only works with
-    // initializing stores, we can only have single one directional dependency.
-    DCHECK_NULL(dependency_);
-    dependency_ = dep;
-    non_escaping_use_count_++;
-  }
-
-  bool HasEscaped() const {
-    if (dependency_ && dependency_->HasEscaped()) return true;
-    bool escaped = use_count_ > non_escaping_use_count_;
-    if (escaped && dependency_) {
-      // We are escaping, force dependency to escape as well.
-      dependency_->ForceEscape();
-    }
-    return escaped;
-  }
-
- private:
-  int size_;
-  DeoptObject value_;
-  int non_escaping_use_count_ = 0;
-  int offset_ = -1;  // Set by AllocationBlock.
-  InlinedAllocation* dependency_ = nullptr;
-
-  InlinedAllocation* next_ = nullptr;
-  InlinedAllocation** next() { return &next_; }
-
-  friend List;
-  friend base::ThreadedListTraits<InlinedAllocation>;
-};
-
-class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
-  using Base = FixedInputValueNodeT<0, AllocationBlock>;
-
- public:
-  explicit AllocationBlock(uint64_t bitfield, AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
+  explicit AllocateRaw(uint64_t bitfield, AllocationType allocation_type,
+                       int size)
+      : Base(bitfield), allocation_type_(allocation_type), size_(size) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
                                               OpProperties::DeferredCall() |
@@ -4977,19 +4809,41 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
 
   AllocationType allocation_type() const { return allocation_type_; }
   int size() const { return size_; }
-  void set_size(int size) { size_ = size; }
 
-  InlinedAllocation::List& allocation_list() { return allocation_list_; }
-
-  void Add(InlinedAllocation* alloc) {
-    allocation_list_.Add(alloc);
-    size_ += alloc->size();
+  // Allow increasing the size for allocation folding.
+  void extend(int size) {
+    DCHECK_GT(size, 0);
+    size_ += size;
   }
 
  private:
   AllocationType allocation_type_;
-  int size_ = 0;
-  InlinedAllocation::List allocation_list_;
+  int size_;
+};
+
+class FoldedAllocation : public FixedInputValueNodeT<1, FoldedAllocation> {
+  using Base = FixedInputValueNodeT<1, FoldedAllocation>;
+
+ public:
+  explicit FoldedAllocation(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  Input& raw_allocation() { return input(0); }
+
+  static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+
+  int offset() const { return offset_; }
+
+ private:
+  int offset_;
 };
 
 class CreateFunctionContext

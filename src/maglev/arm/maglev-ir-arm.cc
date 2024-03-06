@@ -136,21 +136,14 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
   __ bind(&done);
 }
 
-void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block());
-  if (offset() == 0) {
-    DefineSameAsFirst(this);
-  } else {
-    DefineAsRegister(this);
-  }
+void FoldedAllocation::SetValueLocationConstraints() {
+  UseRegister(raw_allocation());
+  DefineAsRegister(this);
 }
 
-void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  if (offset() != 0) {
-    __ add(ToRegister(result()), ToRegister(allocation_block()),
-           Operand(offset()));
-  }
+void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  __ add(ToRegister(result()), ToRegister(raw_allocation()), Operand(offset()));
 }
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
