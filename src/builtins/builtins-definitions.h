@@ -162,9 +162,9 @@ namespace internal {
   ASM(JSConstructEntry, JSEntry)                                               \
   ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
   /* Call a JSValue. */                                                        \
-  ASM(JSEntryTrampoline, JSTrampoline)                                         \
+  ASM(JSEntryTrampoline, JSEntry)                                              \
   /* Construct a JSValue. */                                                   \
-  ASM(JSConstructEntryTrampoline, JSTrampoline)                                \
+  ASM(JSConstructEntryTrampoline, JSEntry)                                     \
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* String helpers */                                                         \
