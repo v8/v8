@@ -9,6 +9,8 @@
 #include "src/compiler/backend/riscv/instruction-selector-riscv.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 
 namespace v8 {
 namespace internal {
@@ -1062,115 +1064,210 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
 }
 
 // Shared routine for word comparisons against zero.
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWordCompareZero(
-    node_t user, node_t value, FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    // Try to combine with comparisons against 0 by simply inverting the branch.
-    while (CanCover(user, value)) {
-      if (value->opcode() == IrOpcode::kWord32Equal) {
-        Int32BinopMatcher m(value);
-        if (!m.right().Is(0)) break;
-        user = value;
-        value = m.left().node();
-      } else if (value->opcode() == IrOpcode::kWord64Equal) {
-        Int64BinopMatcher m(value);
-        if (!m.right().Is(0)) break;
-        user = value;
-        value = m.left().node();
-      } else {
-        break;
-      }
-
-      cont->Negate();
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
+    node_t user, node_t value, FlagsContinuationT<TurbofanAdapter>* cont) {
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (CanCover(user, value)) {
+    if (value->opcode() == IrOpcode::kWord32Equal) {
+      Int32BinopMatcher m(value);
+      if (!m.right().Is(0)) break;
+      user = value;
+      value = m.left().node();
+    } else if (value->opcode() == IrOpcode::kWord64Equal) {
+      Int64BinopMatcher m(value);
+      if (!m.right().Is(0)) break;
+      user = value;
+      value = m.left().node();
+    } else {
+      break;
     }
 
-    if (CanCover(user, value)) {
-      switch (value->opcode()) {
-        case IrOpcode::kWord32Equal:
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitWordCompare(this, value, cont);
-        case IrOpcode::kInt32LessThan:
-          cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-          return VisitWordCompare(this, value, cont);
-        case IrOpcode::kInt32LessThanOrEqual:
-          cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-          return VisitWordCompare(this, value, cont);
-        case IrOpcode::kUint32LessThan:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-          return VisitWordCompare(this, value, cont);
-        case IrOpcode::kUint32LessThanOrEqual:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-          return VisitWordCompare(this, value, cont);
-        case IrOpcode::kFloat32Equal:
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitFloat32Compare(this, value, cont);
-        case IrOpcode::kFloat32LessThan:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-          return VisitFloat32Compare(this, value, cont);
-        case IrOpcode::kFloat32LessThanOrEqual:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-          return VisitFloat32Compare(this, value, cont);
-        case IrOpcode::kFloat64Equal:
-          cont->OverwriteAndNegateIfEqual(kEqual);
-          return VisitFloat64Compare(this, value, cont);
-        case IrOpcode::kFloat64LessThan:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-          return VisitFloat64Compare(this, value, cont);
-        case IrOpcode::kFloat64LessThanOrEqual:
-          cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-          return VisitFloat64Compare(this, value, cont);
-        case IrOpcode::kProjection:
-          // Check if this is the overflow output projection of an
-          // <Operation>WithOverflow node.
-          if (ProjectionIndexOf(value->op()) == 1u) {
-            // We cannot combine the <Operation>WithOverflow with this branch
-            // unless the 0th projection (the use of the actual value of the
-            // <Operation> is either nullptr, which means there's no use of the
-            // actual value, or was already defined, which means it is scheduled
-            // *AFTER* this branch).
-            Node* const node = value->InputAt(0);
-            Node* const result = NodeProperties::FindProjection(node, 0);
-            if (result == nullptr || IsDefined(result)) {
-              switch (node->opcode()) {
-                case IrOpcode::kInt32AddWithOverflow:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop<Adapter, Int32BinopMatcher>(
-                      this, node, kRiscvAddOvf, cont);
-                case IrOpcode::kInt32SubWithOverflow:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop<Adapter, Int32BinopMatcher>(
-                      this, node, kRiscvSubOvf, cont);
-                case IrOpcode::kInt32MulWithOverflow:
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitBinop<Adapter, Int32BinopMatcher>(
-                      this, node, kRiscvMulOvf32, cont);
-                case IrOpcode::kInt64AddWithOverflow:
-                case IrOpcode::kInt64SubWithOverflow:
-                  TRACE_UNIMPL();
-                  break;
-                default:
-                  break;
-              }
+    cont->Negate();
+  }
+
+  if (CanCover(user, value)) {
+    switch (value->opcode()) {
+      case IrOpcode::kWord32Equal:
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitWordCompare(this, value, cont);
+      case IrOpcode::kInt32LessThan:
+        cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+        return VisitWordCompare(this, value, cont);
+      case IrOpcode::kInt32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+        return VisitWordCompare(this, value, cont);
+      case IrOpcode::kUint32LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitWordCompare(this, value, cont);
+      case IrOpcode::kUint32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWordCompare(this, value, cont);
+      case IrOpcode::kFloat32Equal:
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitFloat32Compare(this, value, cont);
+      case IrOpcode::kFloat32LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitFloat32Compare(this, value, cont);
+      case IrOpcode::kFloat32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitFloat32Compare(this, value, cont);
+      case IrOpcode::kFloat64Equal:
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitFloat64Compare(this, value, cont);
+      case IrOpcode::kFloat64LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitFloat64Compare(this, value, cont);
+      case IrOpcode::kFloat64LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitFloat64Compare(this, value, cont);
+      case IrOpcode::kProjection:
+        // Check if this is the overflow output projection of an
+        // <Operation>WithOverflow node.
+        if (ProjectionIndexOf(value->op()) == 1u) {
+          // We cannot combine the <Operation>WithOverflow with this branch
+          // unless the 0th projection (the use of the actual value of the
+          // <Operation> is either nullptr, which means there's no use of the
+          // actual value, or was already defined, which means it is scheduled
+          // *AFTER* this branch).
+          Node* const node = value->InputAt(0);
+          Node* const result = NodeProperties::FindProjection(node, 0);
+          if (result == nullptr || IsDefined(result)) {
+            switch (node->opcode()) {
+              case IrOpcode::kInt32AddWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop<TurbofanAdapter, Int32BinopMatcher>(
+                    this, node, kRiscvAddOvf, cont);
+              case IrOpcode::kInt32SubWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop<TurbofanAdapter, Int32BinopMatcher>(
+                    this, node, kRiscvSubOvf, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop<TurbofanAdapter, Int32BinopMatcher>(
+                    this, node, kRiscvMulOvf32, cont);
+              case IrOpcode::kInt64AddWithOverflow:
+              case IrOpcode::kInt64SubWithOverflow:
+                TRACE_UNIMPL();
+                break;
+              default:
+                break;
             }
           }
-          break;
-        case IrOpcode::kWord32And:
-          return VisitWordCompare(this, value, kRiscvTst32, cont, true);
-        case IrOpcode::kStackPointerGreaterThan:
-          cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
-          return VisitStackPointerGreaterThan(value, cont);
+        }
+        break;
+      case IrOpcode::kWord32And:
+        return VisitWordCompare(this, value, kRiscvTst32, cont, true);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
+      default:
+        break;
+    }
+  }
+
+  // Continuation could not be combined with a compare, emit compare against
+  // 0.
+  EmitWordCompareZero(this, value, cont);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
+    node_t user, node_t value, FlagsContinuation* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (const ComparisonOp* equal =
+             this->TryCast<Opmask::kWord32Equal>(value)) {
+    if (!CanCover(user, value)) break;
+    if (!MatchIntegralZero(equal->right())) break;
+
+    user = value;
+    value = equal->left();
+    cont->Negate();
+  }
+
+  const Operation& value_op = Get(value);
+  if (CanCover(user, value)) {
+    if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
+      switch (comparison->rep.value()) {
+        case RegisterRepresentation::Word32():
+          cont->OverwriteAndNegateIfEqual(
+              GetComparisonFlagCondition(*comparison));
+          return VisitWordCompare(this, value, cont);
+        case RegisterRepresentation::Float32():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat32Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat32Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
+        case RegisterRepresentation::Float64():
+          switch (comparison->kind) {
+            case ComparisonOp::Kind::kEqual:
+              cont->OverwriteAndNegateIfEqual(kEqual);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThan:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThan);
+              return VisitFloat64Compare(this, value, cont);
+            case ComparisonOp::Kind::kSignedLessThanOrEqual:
+              cont->OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
+              return VisitFloat64Compare(this, value, cont);
+            default:
+              UNREACHABLE();
+          }
         default:
           break;
       }
+    } else if (const ProjectionOp* projection =
+                   value_op.TryCast<ProjectionOp>()) {
+      // Check if this is the overflow output projection of an
+      // <Operation>WithOverflow node.
+      if (projection->index == 1u) {
+        // We cannot combine the <Operation>WithOverflow with this branch
+        // unless the 0th projection (the use of the actual value of the
+        // <Operation> is either nullptr, which means there's no use of the
+        // actual value, or was already defined, which means it is scheduled
+        // *AFTER* this branch).
+        OpIndex node = projection->input();
+        OpIndex result = FindProjection(node, 0);
+        if (!result.valid() || IsDefined(result)) {
+          if (const OverflowCheckedBinopOp* binop =
+                  TryCast<OverflowCheckedBinopOp>(node)) {
+            const bool is64 = binop->rep == WordRepresentation::Word64();
+            if (is64) {
+              TRACE_UNIMPL();
+            } else {
+              switch (binop->kind) {
+                case OverflowCheckedBinopOp::Kind::kSignedAdd:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop<TurboshaftAdapter, Int32BinopMatcher>(
+                      this, node, kRiscvAddOvf, cont);
+                case OverflowCheckedBinopOp::Kind::kSignedSub:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop<TurboshaftAdapter, Int32BinopMatcher>(
+                      this, node, kRiscvSubOvf, cont);
+                case OverflowCheckedBinopOp::Kind::kSignedMul:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop<TurboshaftAdapter, Int32BinopMatcher>(
+                      this, node, kRiscvMulOvf32, cont);
+              }
+            }
+          }
+        }
+      }
     }
-
-    // Continuation could not be combined with a compare, emit compare against
-    // 0.
-    EmitWordCompareZero(this, value, cont);
   }
+
+  // Continuation could not be combined with a compare, emit compare against
+  // 0.
+  EmitWordCompareZero(this, value, cont);
 }
 
 template <typename Adapter>

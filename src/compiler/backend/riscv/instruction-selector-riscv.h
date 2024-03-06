@@ -1035,11 +1035,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitRR(this, kArchTruncateDoubleToI, node);
-  }
+  VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
 template <typename Adapter>

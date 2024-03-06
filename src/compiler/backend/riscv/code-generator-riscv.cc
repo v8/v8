@@ -189,8 +189,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 #endif
-    __ CheckPageFlag(value_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -997,8 +996,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;

@@ -661,13 +661,12 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 
   {
     UseScratchRegisterScope temps(this);
-    CheckPageFlag(value, MutablePageMetadata::kPointersToHereAreInterestingMask,
+    CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
 
-    CheckPageFlag(object,
-                  MutablePageMetadata::kPointersFromHereAreInterestingMask,
+    CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
