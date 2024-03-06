@@ -347,6 +347,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     TSBlock* merge_block = nullptr;
     // for 'if', loops, and 'try'/'try-table' respectively.
     TSBlock* false_or_loop_or_catch_block = nullptr;
+    BitVector* assigned = nullptr;             // Only for loops.
     V<Object> exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
     template <typename... Args>
@@ -579,7 +580,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     TSBlock* loop = __ NewLoopHeader();
     __ Goto(loop);
     __ Bind(loop);
+
+    bool can_be_innermost = false;  // unused
+    BitVector* assigned = WasmDecoder<ValidationTag>::AnalyzeLoopAssignment(
+        decoder, decoder->pc(), decoder->num_locals(), decoder->zone(),
+        &can_be_innermost);
+    block->assigned = assigned;
+
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
+      if (!assigned->Contains(i)) continue;
       OpIndex phi = __ PendingLoopPhi(
           ssa_env_[i], RepresentationFor(decoder->local_type(i)));
       ssa_env_[i] = phi;
@@ -591,12 +600,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                       RepresentationFor(stack_base[i].type));
       block->start_merge[i].op = phi;
     }
-    uint32_t cached_values = instance_cache_.num_mutable_fields();
-    for (uint32_t i = 0; i < cached_values; i++) {
-      OpIndex phi = __ PendingLoopPhi(
-          instance_cache_.mutable_field_value(i),
-          RepresentationFor(instance_cache_.mutable_field_type(i)));
-      instance_cache_.set_mutable_field_value(i, phi);
+    if (assigned->Contains(decoder->num_locals())) {
+      uint32_t cached_values = instance_cache_.num_mutable_fields();
+      for (uint32_t i = 0; i < cached_values; i++) {
+        OpIndex phi = __ PendingLoopPhi(
+            instance_cache_.mutable_field_value(i),
+            RepresentationFor(instance_cache_.mutable_field_type(i)));
+        instance_cache_.set_mutable_field_value(i, phi);
+      }
     }
 
     StackCheck(StackCheckOp::CheckKind::kLoopCheck);
@@ -750,8 +761,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           auto to = __ output_graph()
                         .operations(*block->false_or_loop_or_catch_block)
                         .begin();
-          size_t num_phis = ssa_env_.size() + block->br_merge()->arity +
-                            instance_cache_.num_mutable_fields();
+          bool contains_instance_cache =
+              block->assigned->Contains(decoder->num_locals());
+          size_t num_phis =
+              block->assigned->Count() - (contains_instance_cache ? 1 : 0) +
+              block->br_merge()->arity +
+              (contains_instance_cache ? instance_cache_.num_mutable_fields()
+                                       : 0);
           for (uint32_t i = 0; i < num_phis; ++i, ++to) {
             // TODO(manoskouk): Add `->` operator to the iterator.
             PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
@@ -770,11 +786,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           auto to = __ output_graph()
                         .operations(*block->false_or_loop_or_catch_block)
                         .begin();
-          for (uint32_t i = 0; i < ssa_env_.size(); ++i, ++to) {
+          for (auto it = block->assigned->begin(); it != block->assigned->end();
+               ++it, ++to) {
+            // The last bit represents the instance cache.
+            if (*it == static_cast<int>(ssa_env_.size())) break;
             PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
             OpIndex replaced = __ output_graph().Index(*to);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced, base::VectorOf({pending_phi.first(), ssa_env_[i]}),
+                replaced, base::VectorOf({pending_phi.first(), ssa_env_[*it]}),
                 pending_phi.rep);
           }
           for (uint32_t i = 0; i < block->br_merge()->arity; ++i, ++to) {
@@ -786,15 +805,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                     {pending_phi.first(), (*block->br_merge())[i].op}),
                 pending_phi.rep);
           }
-          for (uint32_t i = 0; i < instance_cache_.num_mutable_fields();
-               ++i, ++to) {
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
-            OpIndex replaced = __ output_graph().Index(*to);
-            __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced,
-                base::VectorOf({pending_phi.first(),
-                                instance_cache_.mutable_field_value(i)}),
-                pending_phi.rep);
+          if (block->assigned->Contains(decoder->num_locals())) {
+            for (uint32_t i = 0; i < instance_cache_.num_mutable_fields();
+                 ++i, ++to) {
+              PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+              OpIndex replaced = __ output_graph().Index(*to);
+              __ output_graph().Replace<compiler::turboshaft::PhiOp>(
+                  replaced,
+                  base::VectorOf({pending_phi.first(),
+                                  instance_cache_.mutable_field_value(i)}),
+                  pending_phi.rep);
+            }
           }
         }
         BindBlockAndGeneratePhis(decoder, post_loop, nullptr);
