@@ -193,17 +193,18 @@ namespace base {
 // cage base.
 template <>
 struct hash<const i::MemoryChunkMetadata*> {
-  V8_INLINE size_t operator()(const i::MemoryChunkMetadata* chunk) const {
+  V8_INLINE size_t
+  operator()(const i::MemoryChunkMetadata* chunk_metadata) const {
     return static_cast<v8::internal::Tagged_t>(
-               reinterpret_cast<uintptr_t>(chunk)) >>
+               reinterpret_cast<uintptr_t>(chunk_metadata->Chunk())) >>
            kPageSizeBits;
   }
 };
 
 template <>
 struct hash<i::MemoryChunkMetadata*> {
-  V8_INLINE size_t operator()(i::MemoryChunkMetadata* chunk) const {
-    return hash<const i::MemoryChunkMetadata*>()(chunk);
+  V8_INLINE size_t operator()(i::MemoryChunkMetadata* chunk_metadata) const {
+    return hash<const i::MemoryChunkMetadata*>()(chunk_metadata);
   }
 };
 
