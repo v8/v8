@@ -1456,15 +1456,13 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
           isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig));
     }
   }
-  WasmTrustedInstanceData::SetWasmInternalFunction(trusted_instance_data,
-                                                   function_index, result);
+  trusted_instance_data->SetWasmInternalFunction(function_index, *result);
   return result;
 }
 
 void WasmTrustedInstanceData::SetWasmInternalFunction(
-    Handle<WasmTrustedInstanceData> trusted_instance_data, int index,
-    Handle<WasmInternalFunction> val) {
-  trusted_instance_data->wasm_internal_functions()->set(index, *val);
+    int index, Tagged<WasmInternalFunction> val) {
+  wasm_internal_functions()->set(index, val);
 }
 
 // static
@@ -2473,21 +2471,10 @@ Tagged<PodArray<wasm::ValueType>> WasmCapiFunction::GetSerializedSignature()
 
 bool WasmExternalFunction::IsWasmExternalFunction(Tagged<Object> object) {
   return WasmExportedFunction::IsWasmExportedFunction(object) ||
-         WasmJSFunction::IsWasmJSFunction(object);
+         WasmJSFunction::IsWasmJSFunction(object) ||
+         WasmCapiFunction::IsWasmCapiFunction(object);
 }
 
-// static
-MaybeHandle<WasmInternalFunction> WasmInternalFunction::FromExternal(
-    Handle<Object> external, Isolate* isolate) {
-  if (WasmExportedFunction::IsWasmExportedFunction(*external) ||
-      WasmJSFunction::IsWasmJSFunction(*external) ||
-      WasmCapiFunction::IsWasmCapiFunction(*external)) {
-    Tagged<WasmFunctionData> data =
-        Handle<JSFunction>::cast(external)->shared()->wasm_function_data();
-    return handle(data->internal(), isolate);
-  }
-  return MaybeHandle<WasmInternalFunction>();
-}
 
 Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
   Handle<WasmExceptionTag> result =
@@ -2687,7 +2674,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
               "expected type";
           return {};
         }
-        return WasmInternalFunction::FromExternal(value, isolate);
+        return handle(WasmExternalFunction::cast(*value)->internal(), isolate);
       } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
         if (!WasmJSFunction::cast(*value)->MatchesSignature(
                 expected_canonical.ref_index())) {
@@ -2696,7 +2683,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
               "expected type";
           return {};
         }
-        return WasmInternalFunction::FromExternal(value, isolate);
+        return handle(WasmExternalFunction::cast(*value)->internal(), isolate);
       } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
         if (!WasmCapiFunction::cast(*value)->MatchesSignature(
                 expected_canonical.ref_index())) {
@@ -2705,7 +2692,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
               "type";
           return {};
         }
-        return WasmInternalFunction::FromExternal(value, isolate);
+        return handle(WasmExternalFunction::cast(*value)->internal(), isolate);
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         auto wasm_obj = Handle<WasmObject>::cast(value);
         Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();

@@ -1749,11 +1749,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   // is resolved to preserve its identity. This handles exported functions as
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-    WasmTrustedInstanceData::SetWasmInternalFunction(
-        trusted_instance_data, func_index,
-        WasmInternalFunction::FromExternal(
-            Handle<WasmExternalFunction>::cast(value), isolate_)
-            .ToHandleChecked());
+    trusted_instance_data->SetWasmInternalFunction(
+        func_index, WasmExternalFunction::cast(*value)->internal());
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
@@ -2503,11 +2500,8 @@ void InstanceBuilder::ProcessExports(
     if (import.kind == kExternalFunction) {
       Handle<Object> value = sanitized_imports_[index].value;
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-        WasmTrustedInstanceData::SetWasmInternalFunction(
-            trusted_instance_data, import.index,
-            WasmInternalFunction::FromExternal(
-                Handle<WasmExternalFunction>::cast(value), isolate_)
-                .ToHandleChecked());
+        trusted_instance_data->SetWasmInternalFunction(
+            import.index, WasmExternalFunction::cast(*value)->internal());
       }
     } else if (import.kind == kExternalGlobal) {
       Handle<Object> value = sanitized_imports_[index].value;

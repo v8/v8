@@ -554,9 +554,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
       int function_index);
 
-  static void SetWasmInternalFunction(
-      Handle<WasmTrustedInstanceData> trusted_instance_data, int index,
-      Handle<WasmInternalFunction> val);
+  void SetWasmInternalFunction(int index, Tagged<WasmInternalFunction> val);
 
   // Imports a constructed {WasmJSFunction} into the indirect function table of
   // this instance. Note that this might trigger wrapper compilation, since a
@@ -825,10 +823,12 @@ class WasmCapiFunction : public JSFunction {
 // class just dispatches to the following concrete classes:
 //  - {WasmExportedFunction}: A proper Wasm function exported from a module.
 //  - {WasmJSFunction}: A function constructed via WebAssembly.Function in JS.
-// // TODO(wasm): Potentially {WasmCapiFunction} will be added here as well.
+//  - {WasmCapiFunction}: A function constructed via the C/C++ API.
 class WasmExternalFunction : public JSFunction {
  public:
   static bool IsWasmExternalFunction(Tagged<Object> object);
+
+  inline Tagged<WasmInternalFunction> internal() const;
 
   DECL_CAST(WasmExternalFunction)
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
@@ -907,11 +907,6 @@ class WasmInternalFunction
     : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
                                                  HeapObject> {
  public:
-  // Returns a handle to the corresponding WasmInternalFunction if {external} is
-  // a WasmExternalFunction, or an empty handle otherwise.
-  static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
-                                                        Isolate* isolate);
-
   V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
       Handle<WasmInternalFunction> internal);
 

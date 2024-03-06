@@ -407,6 +407,10 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExternalFunction)
 
+Tagged<WasmInternalFunction> WasmExternalFunction::internal() const {
+  return shared()->wasm_function_data()->internal();
+}
+
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
                            kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
