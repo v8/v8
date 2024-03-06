@@ -139,6 +139,15 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_native_arm64_no_pointer_compression_compile_rel",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"target_arch": "arm", "target_bits": 64},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+try_builder(
     name = "v8_linux64_verify_builtins_rel",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
