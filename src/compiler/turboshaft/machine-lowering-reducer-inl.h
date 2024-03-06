@@ -442,8 +442,42 @@ class MachineLoweringReducer : public Next {
                                 (kIsNotStringMask | kIsNotInternalizedMask)),
             kInternalizedTag);
       }
-    }
+      case ObjectIsOp::Kind::kStringOrStringWrapper: {
+        Label<Word32> done(this);
 
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 0);
+        }
+
+        // Load instance type from map.
+        V<Map> map = __ LoadMapField(input);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+        GOTO_IF(__ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE), done,
+                1);
+        GOTO_IF_NOT(__ Word32Equal(instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
+                    done, 0);
+
+        V<Word32> bitfield2 = __ template LoadField<Word32>(
+            map, AccessBuilder::ForMapBitField2());
+
+        V<Word32> elements_kind =
+            __ Word32BitwiseAnd(bitfield2, Map::Bits2::ElementsKindBits::kMask);
+
+        GOTO_IF(__ Word32Equal(FAST_STRING_WRAPPER_ELEMENTS
+                                   << Map::Bits2::ElementsKindBits::kShift,
+                               elements_kind),
+                done, 1);
+
+        V<Word32> check =
+            __ Word32Equal(SLOW_STRING_WRAPPER_ELEMENTS, elements_kind);
+        GOTO(done, check);
+
+        BIND(done, result);
+        return result;
+      }
+    }
     UNREACHABLE();
   }
 
