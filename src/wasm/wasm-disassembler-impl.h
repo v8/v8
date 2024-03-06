@@ -106,8 +106,8 @@ class OffsetsProvider : public ITracer {
   // when the {WasmModule} already exists.
   // The alternative is to pass an {OffsetsProvider} as a tracer to the initial
   // decoding of the wire bytes, letting it record offsets on the fly.
-  void CollectOffsets(const WasmModule* module,
-                      base::Vector<const uint8_t> wire_bytes);
+  V8_EXPORT_PRIVATE void CollectOffsets(const WasmModule* module,
+                                        base::Vector<const uint8_t> wire_bytes);
 
   void TypeOffset(uint32_t offset) override { type_offsets_.push_back(offset); }
 

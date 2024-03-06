@@ -14,6 +14,7 @@
 #include "src/wasm/string-builder-multiline.h"
 #include "src/wasm/wasm-disassembler-impl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "tools/wasm/mjsunit-module-disassembler-impl.h"
 
 #if V8_OS_POSIX
 #include <unistd.h>
@@ -55,6 +56,9 @@ int PrintHelp(char** argv) {
       << " --full-hexdump\n"
       << "     Print full module in annotated hex format\n"
 
+      << " --mjsunit\n"
+      << "     Print full module in mjsunit/wasm-module-builder.js syntax\n"
+
       << " --strip\n"
       << "     Dump the module, in binary format, without its Name"
       << " section (requires using -o as well)\n"
@@ -74,7 +78,6 @@ namespace internal {
 namespace wasm {
 
 enum class OutputMode { kWat, kHexDump };
-static constexpr char kHexChars[] = "0123456789abcdef";
 
 char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const uint8_t* start) {
   for (uint32_t i = 0; i < num_bytes; i++) {
@@ -1000,6 +1003,20 @@ class FormatConverter {
     sb.WriteTo(out_, print_offsets_);
   }
 
+  void Mjsunit() {
+    DCHECK_NE(status_, kNotReady);
+    DCHECK_IMPLIES(status_ == kIoInitialized,
+                   module() == nullptr && names() == nullptr);
+    MultiLineStringBuilder sb;
+    MjsunitModuleDis md(sb, module(), names(), wire_bytes_, &allocator_);
+    md.PrintModule();
+    // Printing offsets into mjsunit test cases is not (yet?) supported:
+    // the MultiLineStringBuilder doesn't know how to emit them in a
+    // JS-compatible way, so the MjsunitModuleDis doesn't even collect them.
+    bool offsets = false;
+    sb.WriteTo(out_, offsets);
+  }
+
  private:
   static constexpr int kModuleHeaderSize = 8;
 
@@ -1204,6 +1221,7 @@ enum class Action {
   kFunctionStats,
   kFullWat,
   kFullHexdump,
+  kMjsunit,
   kSingleWat,
   kSingleHexdump,
   kStrip,
@@ -1267,6 +1285,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kFullWat;
     } else if (strcmp(argv[i], "--full-hexdump") == 0) {
       options->action = Action::kFullHexdump;
+    } else if (strcmp(argv[i], "--mjsunit") == 0) {
+      options->action = Action::kMjsunit;
     } else if (strcmp(argv[i], "--single-wat") == 0) {
       options->action = Action::kSingleWat;
       if (i == argc - 1 || !ParseInt(argv[++i], &options->func_index)) {
@@ -1379,6 +1399,9 @@ int main(int argc, char** argv) {
       break;
     case Action::kFullHexdump:
       fc.HexdumpForModule();
+      break;
+    case Action::kMjsunit:
+      fc.Mjsunit();
       break;
     case Action::kStrip:
       fc.Strip();
