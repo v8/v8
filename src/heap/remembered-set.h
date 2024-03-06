@@ -27,14 +27,11 @@ class RememberedSetOperations {
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
   template <AccessMode access_mode>
-  static void Insert(SlotSet* slot_set, MutablePageMetadata* chunk,
-                     Address slot_addr) {
-    DCHECK(chunk->Contains(slot_addr));
-    uintptr_t offset = slot_addr - chunk->address();
+  static void Insert(SlotSet* slot_set, size_t slot_offset) {
     slot_set->Insert<access_mode == v8::internal::AccessMode::ATOMIC
                          ? v8::internal::SlotSet::AccessMode::ATOMIC
                          : v8::internal::SlotSet::AccessMode::NON_ATOMIC>(
-        offset);
+        slot_offset);
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
@@ -95,13 +92,12 @@ class RememberedSet : public AllStatic {
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
   template <AccessMode access_mode>
-  static void Insert(MutablePageMetadata* chunk, Address slot_addr) {
-    DCHECK(chunk->Contains(slot_addr));
-    SlotSet* slot_set = chunk->slot_set<type, access_mode>();
+  static void Insert(MutablePageMetadata* page, size_t slot_offset) {
+    SlotSet* slot_set = page->slot_set<type, access_mode>();
     if (slot_set == nullptr) {
-      slot_set = chunk->AllocateSlotSet(type);
+      slot_set = page->AllocateSlotSet(type);
     }
-    RememberedSetOperations::Insert<access_mode>(slot_set, chunk, slot_addr);
+    RememberedSetOperations::Insert<access_mode>(slot_set, slot_offset);
   }
 
   // Given a page and a slot set, this function merges the slot set to the set

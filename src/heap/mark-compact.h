@@ -100,7 +100,7 @@ class MarkCompactCollector final {
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
   template <typename THeapObjectSlot>
-  V8_INLINE static void RecordSlot(MutablePageMetadata* source_page,
+  V8_INLINE static void RecordSlot(MemoryChunk* source_chunk,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
 

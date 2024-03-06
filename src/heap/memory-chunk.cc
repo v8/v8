@@ -52,6 +52,11 @@ bool MemoryChunk::IsTrusted() const {
   return is_trusted;
 }
 
+size_t MemoryChunk::Offset(Address address) {
+  DCHECK(Metadata()->Contains(address));
+  return address - reinterpret_cast<Address>(this);
+}
+
 #endif  // DEBUG
 
 Heap* MemoryChunk::GetHeap() { return Metadata()->heap(); }

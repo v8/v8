@@ -437,15 +437,15 @@ namespace {
 class PromotedPageRecordMigratedSlotVisitor final
     : public NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor> {
  public:
-  explicit PromotedPageRecordMigratedSlotVisitor(
-      MutablePageMetadata* host_chunk)
+  explicit PromotedPageRecordMigratedSlotVisitor(MutablePageMetadata* host_page)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(
-            host_chunk->heap()->isolate()),
-        host_chunk_(host_chunk),
+            host_page->heap()->isolate()),
+        host_chunk_(host_page->Chunk()),
+        host_page_(host_page),
         ephemeron_remembered_set_(
-            host_chunk->heap()->ephemeron_remembered_set()) {
-    DCHECK(host_chunk->owner_identity() == OLD_SPACE ||
-           host_chunk->owner_identity() == LO_SPACE);
+            host_page->heap()->ephemeron_remembered_set()) {
+    DCHECK(host_page->owner_identity() == OLD_SPACE ||
+           host_page->owner_identity() == LO_SPACE);
   }
 
   void Process(Tagged<HeapObject> object) {
@@ -538,7 +538,7 @@ class PromotedPageRecordMigratedSlotVisitor final
     DCHECK(!InWritableSharedSpace(host));
     DCHECK(!Heap::InYoungGeneration(host));
     DCHECK(!MutablePageMetadata::FromHeapObject(host)->SweepingDone());
-    DCHECK_EQ(MutablePageMetadata::FromHeapObject(host), host_chunk_);
+    DCHECK_EQ(MutablePageMetadata::FromHeapObject(host), host_page_);
   }
 
   template <typename TObject>
@@ -553,10 +553,10 @@ class PromotedPageRecordMigratedSlotVisitor final
 #endif  // THREAD_SANITIZER
     if (value_chunk->InYoungGeneration()) {
       RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
-          host_chunk_, slot);
+          host_page_, host_chunk_->Offset(slot));
     } else if (value_chunk->InWritableSharedSpace()) {
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(host_chunk_,
-                                                               slot);
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+          host_page_, host_chunk_->Offset(slot));
     }
   }
 
@@ -571,7 +571,8 @@ class PromotedPageRecordMigratedSlotVisitor final
     }
   }
 
-  MutablePageMetadata* const host_chunk_;
+  MemoryChunk* const host_chunk_;
+  MutablePageMetadata* const host_page_;
   EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 

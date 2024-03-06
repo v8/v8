@@ -1016,7 +1016,7 @@ class Heap final {
   void ClearRecordedSlot(Tagged<HeapObject> object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
-                                             Address slot);
+                                             size_t slot_offset);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);

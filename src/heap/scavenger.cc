@@ -122,12 +122,14 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(IsHeapObject(target));
-        MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(host);
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+        MutablePageMetadata* page =
+            MutablePageMetadata::cast(chunk->Metadata());
 
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
-                                                              slot.address());
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
+            page, chunk->Offset(slot.address()));
       }
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     } else if (record_slots_ &&
@@ -144,14 +146,17 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          MutablePageMetadata::FromHeapObject(host), slot.address());
+          page, chunk->Offset(slot.address()));
     }
 
     if (InWritableSharedSpace(target)) {
-      MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(host);
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
-                                                               slot.address());
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+          page, chunk->Offset(slot.address()));
     }
   }
 
@@ -571,9 +576,10 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
 
     if (is_compacting && marking_state->IsMarked(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          MutablePageMetadata::FromHeapObject(object),
-          object->map_slot().address());
+          page, chunk->Offset(object->map_slot().address()));
     }
     LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
@@ -686,22 +692,24 @@ void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
 void Scavenger::ScavengePage(MutablePageMetadata* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
+  MemoryChunk* chunk = page->Chunk();
+
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
     RememberedSet<OLD_TO_NEW>::IterateAndTrackEmptyBuckets(
         page,
-        [this, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
+        [this, chunk, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-            CheckOldToNewSlotForSharedUntyped(page, slot);
+            CheckOldToNewSlotForSharedUntyped(chunk, page, slot);
           }
           return result;
         },
         &empty_chunks_local_);
   }
 
-  if (page->Chunk()->executable()) {
+  if (chunk->executable()) {
     std::vector<std::tuple<Tagged<HeapObject>, SlotType, Address>> slot_updates;
 
     // The code running write access to executable memory poses CFI attack
@@ -709,7 +717,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
     // two rounds. First we iterate the slots and scavenge objects and in the
     // second round with write access, we only perform the pointer updates.
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        page, [this, page, record_old_to_shared_slots, &slot_updates](
+        page, [this, chunk, page, record_old_to_shared_slots, &slot_updates](
                   SlotType slot_type, Address slot_address) {
           Tagged<HeapObject> old_target =
               UpdateTypedSlotHelper::GetTargetObject(heap_, slot_type,
@@ -718,8 +726,8 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
           FullMaybeObjectSlot slot(&new_target);
           SlotCallbackResult result = CheckAndScavengeObject(heap(), slot);
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-            CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address,
-                                            *slot);
+            CheckOldToNewSlotForSharedTyped(chunk, page, slot_type,
+                                            slot_address, *slot);
           }
           if (new_target != old_target) {
             slot_updates.emplace_back(new_target, slot_type, slot_address);
@@ -750,12 +758,12 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
   if (page->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::ATOMIC>() != nullptr) {
     RememberedSet<OLD_TO_NEW_BACKGROUND>::IterateAndTrackEmptyBuckets(
         page,
-        [this, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
+        [this, chunk, page, record_old_to_shared_slots](MaybeObjectSlot slot) {
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-            CheckOldToNewSlotForSharedUntyped(page, slot);
+            CheckOldToNewSlotForSharedUntyped(chunk, page, slot);
           }
           return result;
         },
@@ -886,30 +894,31 @@ void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
 }
 
 template <typename TSlot>
-void Scavenger::CheckOldToNewSlotForSharedUntyped(MutablePageMetadata* chunk,
+void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
+                                                  MutablePageMetadata* page,
                                                   TSlot slot) {
   Tagged<MaybeObject> object = *slot;
   Tagged<HeapObject> heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
       InWritableSharedSpace(heap_object)) {
-    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
-                                                             slot.address());
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+        page, chunk->Offset(slot.address()));
   }
 }
 
 void Scavenger::CheckOldToNewSlotForSharedTyped(
-    MutablePageMetadata* chunk, SlotType slot_type, Address slot_address,
-    Tagged<MaybeObject> new_target) {
+    MemoryChunk* chunk, MutablePageMetadata* page, SlotType slot_type,
+    Address slot_address, Tagged<MaybeObject> new_target) {
   Tagged<HeapObject> heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&
       InWritableSharedSpace(heap_object)) {
-    const uintptr_t offset = slot_address - chunk->address();
+    const uintptr_t offset = chunk->Offset(slot_address);
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
 
-    base::MutexGuard guard(chunk->mutex());
-    RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
+    base::MutexGuard guard(page->mutex());
+    RememberedSet<OLD_TO_SHARED>::InsertTyped(page, slot_type,
                                               static_cast<uint32_t>(offset));
   }
 }

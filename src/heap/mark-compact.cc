@@ -1060,10 +1060,12 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     Tagged<HeapObject> heap_object = HeapObject::cast(object);
     if (!InWritableSharedSpace(heap_object)) return;
     DCHECK(InWritableSharedSpace(heap_object));
-    MutablePageMetadata* host_chunk = MutablePageMetadata::FromHeapObject(host);
-    DCHECK(host_chunk->Chunk()->InYoungGeneration());
+    MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+    MutablePageMetadata* host_page =
+        MutablePageMetadata::cast(host_chunk->Metadata());
+    DCHECK(host_chunk->InYoungGeneration());
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-        host_chunk, slot.address());
+        host_page, host_chunk->Offset(slot.address()));
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
   }
 
@@ -1322,14 +1324,14 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
         DCHECK_IMPLIES(value_chunk->IsToPage(),
                        v8_flags.minor_ms || value_chunk->IsLargePage());
         DCHECK(host_metadata->SweepingDone());
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(host_metadata,
-                                                                  slot);
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+            host_metadata, host_chunk->Offset(slot));
       } else if (value_chunk->IsEvacuationCandidate()) {
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
         if (value_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
           RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, slot);
+              host_metadata, host_chunk->Offset(slot));
         } else if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
                    host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
           // When the sandbox is disabled, we use plain tagged pointers to
@@ -1338,17 +1340,17 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           // we need to check that both the value chunk and the host chunk are
           // trusted space chunks.
           RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, slot);
+              host_metadata, host_chunk->Offset(slot));
         } else {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, slot);
+              host_metadata, host_chunk->Offset(slot));
         }
       } else if (value_chunk->InWritableSharedSpace() &&
                  !InWritableSharedSpace(host)) {
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-            host_metadata, slot);
+            host_metadata, host_chunk->Offset(slot));
       }
     }
   }
@@ -4700,7 +4702,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
  private:
   template <typename TSlot>
   inline void CheckSlotForOldToSharedUntyped(PtrComprCageBase cage_base,
-                                             MutablePageMetadata* chunk,
+                                             MutablePageMetadata* page,
                                              TSlot slot) {
     Tagged<HeapObject> heap_object;
 
@@ -4710,7 +4712,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
     if (InWritableSharedSpace(heap_object)) {
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-          chunk, slot.address());
+          page, page->Chunk()->Offset(slot.address()));
     }
   }
 

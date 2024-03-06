@@ -131,9 +131,11 @@ class Scavenger {
   inline SlotCallbackResult CheckAndScavengeObject(Heap* heap, TSlot slot);
 
   template <typename TSlot>
-  inline void CheckOldToNewSlotForSharedUntyped(MutablePageMetadata* chunk,
+  inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
+                                                MutablePageMetadata* page,
                                                 TSlot slot);
-  inline void CheckOldToNewSlotForSharedTyped(MutablePageMetadata* chunk,
+  inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
+                                              MutablePageMetadata* page,
                                               SlotType slot_type,
                                               Address slot_address,
                                               Tagged<MaybeObject> new_target);
