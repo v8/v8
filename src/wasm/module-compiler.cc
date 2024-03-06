@@ -2894,7 +2894,7 @@ void AsyncCompileJob::StartBackgroundTask() {
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
   if (v8_flags.wasm_num_compilation_tasks > 0) {
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+    V8::GetCurrentPlatform()->CallBlockingTaskOnWorkerThread(std::move(task));
   } else {
     foreground_task_runner_->PostTask(std::move(task));
   }
