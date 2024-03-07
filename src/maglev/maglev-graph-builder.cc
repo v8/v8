@@ -7154,7 +7154,7 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (feedback_source.IsValid() &&
+  if (!feedback_source.IsValid() ||
       speculation_mode == SpeculationMode::kDisallowSpeculation) {
     // TODO(leszeks): Some builtins might be inlinable without speculation.
     return ReduceResult::Fail();
