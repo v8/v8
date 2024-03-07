@@ -162,7 +162,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
   void Generate() final {
     __ CheckPageFlag(value_, scratch0_,
-                     MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
+                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     __ Daddu(scratch1_, object_, index_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -874,8 +874,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, scratch0,
-                       MutablePageMetadata::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
       __ bind(ool->exit());
       break;
     }

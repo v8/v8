@@ -527,12 +527,10 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
-  CheckPageFlag(dst_addr,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, kZero,
-                &exit);
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
   JumpIfSmi(src, &exit);
-  CheckPageFlag(src, MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);

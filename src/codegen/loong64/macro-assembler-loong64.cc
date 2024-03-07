@@ -544,11 +544,10 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value, MutablePageMetadata::kPointersToHereAreInterestingMask,
-                eq, &done);
+  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &done);
 
-  CheckPageFlag(object,
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
+  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
                 &done);
 
   // Record the actual write.

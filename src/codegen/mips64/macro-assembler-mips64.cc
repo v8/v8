@@ -281,12 +281,10 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MutablePageMetadata::kPointersToHereAreInterestingMask, eq,
-                &done);
+                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MutablePageMetadata::kPointersFromHereAreInterestingMask, eq,
-                &done);
+                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
 
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
