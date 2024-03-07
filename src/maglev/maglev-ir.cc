@@ -1082,6 +1082,43 @@ void Phi::SetValueLocationConstraints() {
 
 void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
 
+void ArgumentsElements::SetValueLocationConstraints() {
+  using SloppyArgsD =
+      CallInterfaceDescriptorFor<Builtin::kNewSloppyArgumentsElements>::type;
+  using StrictArgsD =
+      CallInterfaceDescriptorFor<Builtin::kNewStrictArgumentsElements>::type;
+  using RestArgsD =
+      CallInterfaceDescriptorFor<Builtin::kNewRestArgumentsElements>::type;
+  static_assert(
+      SloppyArgsD::GetRegisterParameter(SloppyArgsD::kArgumentCount) ==
+      StrictArgsD::GetRegisterParameter(StrictArgsD::kArgumentCount));
+  static_assert(
+      SloppyArgsD::GetRegisterParameter(SloppyArgsD::kArgumentCount) ==
+      StrictArgsD::GetRegisterParameter(RestArgsD::kArgumentCount));
+  UseFixed(arguments_count_input(),
+           SloppyArgsD::GetRegisterParameter(SloppyArgsD::kArgumentCount));
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void ArgumentsElements::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register arguments_count = ToRegister(arguments_count_input());
+  switch (type()) {
+    case CreateArgumentsType::kMappedArguments:
+      __ CallBuiltin<Builtin::kNewSloppyArgumentsElements>(
+          __ GetFramePointer(), formal_parameter_count(), arguments_count);
+      break;
+    case CreateArgumentsType::kUnmappedArguments:
+      __ CallBuiltin<Builtin::kNewStrictArgumentsElements>(
+          __ GetFramePointer(), formal_parameter_count(), arguments_count);
+      break;
+    case CreateArgumentsType::kRestParameter:
+      __ CallBuiltin<Builtin::kNewRestArgumentsElements>(
+          __ GetFramePointer(), formal_parameter_count(), arguments_count);
+      break;
+  }
+}
+
 namespace {
 
 constexpr Builtin BuiltinFor(Operation operation) {

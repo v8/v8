@@ -912,6 +912,10 @@ class MaglevGraphBuilder {
                       NodeT::kProperties.can_eager_deopt() +
                       NodeT::kProperties.can_lazy_deopt() <=
                   1);
+    if constexpr (NodeT::kProperties.can_eager_deopt() ||
+                  NodeT::kProperties.can_lazy_deopt()) {
+      ClearCurrentAllocationBlock();
+    }
     AttachDeoptCheckpoint(node);
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
@@ -2037,6 +2041,14 @@ class MaglevGraphBuilder {
                                      AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastFixedArray array,
                                      AllocationType allocation);
+  template <CreateArgumentsType type>
+  ValueNode* BuildAllocateFastObject(FastArgumentsObject arguments,
+                                     AllocationType allocation);
+
+  ArgumentsElements* BuildArgumentsElements(CreateArgumentsType type);
+
+  template <CreateArgumentsType type>
+  ValueNode* BuildArgumentsObject();
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();

@@ -1430,6 +1430,10 @@ class MaglevFrameTranslationBuilder {
       case DeoptObject::kFixedArray:
         BuildFastFixedArray(value.fixed_array);
         break;
+      case DeoptObject::kArguments:
+        // TODO(victorgomes); Still not supported. Currently we always escape
+        // the arguments object.
+        UNREACHABLE();
       case DeoptObject::kNumber:
         BuildHeapNumber(value.number);
         break;

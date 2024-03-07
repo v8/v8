@@ -43,6 +43,28 @@ void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void ArgumentsLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void ArgumentsLength::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  __ movq(ToRegister(result()),
+          Operand(rbp, StandardFrameConstants::kArgCOffset));
+  __ decl(ToRegister(result()));  // Remove receiver.
+}
+
+void RestLength::SetValueLocationConstraints() { DefineAsRegister(this); }
+
+void RestLength::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register length = ToRegister(result());
+  Label done;
+  __ movq(length, Operand(rbp, StandardFrameConstants::kArgCOffset));
+  __ subl(length, Immediate(formal_parameter_count() + 1));
+  __ j(greater_equal, &done, Label::Distance::kNear);
+  __ Move(length, 0);
+  __ bind(&done);
+}
+
 void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   DefineAsRegister(this);

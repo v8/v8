@@ -39,6 +39,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/arguments.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
@@ -9249,6 +9250,92 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   return allocation;
 }
 
+template <CreateArgumentsType type>
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastArgumentsObject object, AllocationType allocation_type) {
+  constexpr int store_count =
+      type == CreateArgumentsType::kMappedArguments ? 5 : 4;
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      store_count * kTaggedSize, allocation_type, DeoptObject(object));
+  // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to be
+  // elided.
+  BuildStoreReceiverMap(allocation, object.map);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetRootConstant(RootIndex::kEmptyFixedArray)},
+      JSObject::kPropertiesOrHashOffset);
+  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  ValueNode* length = type == CreateArgumentsType::kRestParameter
+                          ? *object.callee_or_rest_length
+                          : object.length;
+  BuildInitializeStoreTaggedField(allocation, GetTaggedValue(length),
+                                  JSArray::kLengthOffset);
+  RecordKnownProperty(allocation, broker()->length_string(), length, false,
+                      compiler::AccessMode::kLoad);
+  BuildInitializeStoreTaggedField(allocation, object.elements,
+                                  JSObject::kElementsOffset);
+  RecordKnownProperty(allocation,
+                      KnownNodeAspects::LoadedPropertyMapKey::Elements(),
+                      object.elements, false, compiler::AccessMode::kLoad);
+  if constexpr (type == CreateArgumentsType::kMappedArguments) {
+    BuildInitializeStoreTaggedField(allocation, *object.callee_or_rest_length,
+                                    JSSloppyArgumentsObject::kCalleeOffset);
+  }
+  return allocation;
+}
+
+template <CreateArgumentsType type>
+ValueNode* MaglevGraphBuilder::BuildArgumentsObject() {
+  ValueNode* length = AddNewNode<ArgumentsLength>({});
+  EnsureType(length, NodeType::kSmi);
+  int param_count = parameter_count_without_receiver();
+  ValueNode* object;
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments: {
+      // TODO (victorgomes): Proper support for mapped arguments.
+      DCHECK_EQ(param_count, 0);
+      // If there is no aliasing, the arguments object elements are not
+      // special in any way, we can just return an unmapped backing store.
+      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+          {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
+          param_count);
+      FastArgumentsObject arguments(
+          NewObjectId(),
+          broker()->target_native_context().sloppy_arguments_map(broker()),
+          length, elements, GetClosure());
+      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      break;
+    }
+    case CreateArgumentsType::kUnmappedArguments: {
+      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+          {GetTaggedValue(length)}, type, param_count);
+      FastArgumentsObject arguments(
+          NewObjectId(),
+          broker()->target_native_context().strict_arguments_map(broker()),
+          length, elements);
+      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      break;
+    }
+    case CreateArgumentsType::kRestParameter: {
+      ValueNode* rest_length = AddNewNode<RestLength>({}, param_count);
+      EnsureType(rest_length, NodeType::kSmi);
+      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+          {GetTaggedValue(length)}, type, param_count);
+      FastArgumentsObject arguments(
+          NewObjectId(),
+          broker()->target_native_context().js_array_packed_elements_map(
+              broker()),
+          length, elements, rest_length);
+      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      break;
+    }
+  }
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
+  return object;
+}
+
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastField value, AllocationType allocation_type) {
   switch (value.type) {
@@ -9510,6 +9597,10 @@ void MaglevGraphBuilder::VisitCreateMappedArguments() {
   if (is_inline() || shared.object()->has_duplicate_parameters()) {
     SetAccumulator(
         BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
+  } else if (parameter_count_without_receiver() == 0) {
+    // TODO(victorgomes): Support aliased arguments.
+    SetAccumulator(
+        BuildArgumentsObject<CreateArgumentsType::kMappedArguments>());
   } else {
     SetAccumulator(
         BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
@@ -9522,7 +9613,7 @@ void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
         BuildCallRuntime(Runtime::kNewStrictArguments, {GetClosure()}));
   } else {
     SetAccumulator(
-        BuildCallBuiltin<Builtin::kFastNewStrictArguments>({GetClosure()}));
+        BuildArgumentsObject<CreateArgumentsType::kUnmappedArguments>());
   }
 }
 
@@ -9531,8 +9622,7 @@ void MaglevGraphBuilder::VisitCreateRestParameter() {
     SetAccumulator(
         BuildCallRuntime(Runtime::kNewRestParameter, {GetClosure()}));
   } else {
-    SetAccumulator(
-        BuildCallBuiltin<Builtin::kFastNewRestArguments>({GetClosure()}));
+    SetAccumulator(BuildArgumentsObject<CreateArgumentsType::kRestParameter>());
   }
 }
 

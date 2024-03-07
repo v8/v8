@@ -141,6 +141,9 @@ class MergePointInterpreterFrameState;
 #define VALUE_NODE_LIST(V)                          \
   V(Identity)                                       \
   V(AllocationBlock)                                \
+  V(ArgumentsElements)                              \
+  V(ArgumentsLength)                                \
+  V(RestLength)                                     \
   V(Call)                                           \
   V(CallBuiltin)                                    \
   V(CallCPPBuiltin)                                 \
@@ -942,18 +945,38 @@ struct FastField {
   };
 };
 
+struct FastArgumentsObject {
+  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
+                      ArgumentsElements* elements,
+                      base::Optional<ValueNode*> callee_or_rest_length = {})
+      : id(id),
+        map(map),
+        length(length),
+        elements(elements),
+        callee_or_rest_length(callee_or_rest_length) {}
+
+  int id;
+  compiler::MapRef map;
+  ValueNode* length;
+  ArgumentsElements* elements;
+  base::Optional<ValueNode*> callee_or_rest_length;
+};
+
 // Either a fast object, a number or a fast fixed array.
 struct DeoptObject {
   explicit DeoptObject(FastObject object) : type(kObject), object(object) {}
   explicit DeoptObject(FastFixedArray fixed_array)
       : type(kFixedArray), fixed_array(fixed_array) {}
   explicit DeoptObject(Float64 number) : type(kNumber), number(number) {}
+  explicit DeoptObject(FastArgumentsObject arguments)
+      : type(kArguments), arguments(arguments) {}
 
-  enum { kObject, kNumber, kFixedArray } type;
+  enum { kObject, kNumber, kFixedArray, kArguments } type;
   union {
     FastObject object;
     FastFixedArray fixed_array;
     Float64 number;
+    FastArgumentsObject arguments;
   };
 };
 
@@ -4990,6 +5013,71 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   AllocationType allocation_type_;
   int size_ = 0;
   InlinedAllocation::List allocation_list_;
+};
+
+class ArgumentsLength : public FixedInputValueNodeT<0, ArgumentsLength> {
+  using Base = FixedInputValueNodeT<0, ArgumentsLength>;
+
+ public:
+  explicit ArgumentsLength(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class RestLength : public FixedInputValueNodeT<0, RestLength> {
+  using Base = FixedInputValueNodeT<0, RestLength>;
+
+ public:
+  explicit RestLength(uint64_t bitfield, int formal_parameter_count)
+      : Base(bitfield), formal_parameter_count_(formal_parameter_count) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  int formal_parameter_count() const { return formal_parameter_count_; }
+
+  auto options() const { return std::tuple{formal_parameter_count_}; }
+
+ private:
+  int formal_parameter_count_;
+};
+
+class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
+  using Base = FixedInputValueNodeT<1, ArgumentsElements>;
+
+ public:
+  explicit ArgumentsElements(uint64_t bitfield, CreateArgumentsType type,
+                             int formal_parameter_count)
+      : Base(bitfield),
+        type_(type),
+        formal_parameter_count_(formal_parameter_count) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::NotIdempotent();
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& arguments_count_input() { return input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  CreateArgumentsType type() const { return type_; }
+  int formal_parameter_count() const { return formal_parameter_count_; }
+
+ private:
+  CreateArgumentsType type_;
+  int formal_parameter_count_;
 };
 
 class CreateFunctionContext

@@ -192,7 +192,8 @@ class AnyUseMarkingProcessor {
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  !NodeT::kProperties.is_required_when_unused()) {
+                  (!NodeT::kProperties.is_required_when_unused() ||
+                   std::is_same_v<ArgumentsElements, NodeT>)) {
       if (!node->is_used()) {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
@@ -231,7 +232,9 @@ class AnyUseMarkingProcessor {
  private:
   void DropInputUses(Input& input) {
     ValueNode* input_node = input.node();
-    if (input_node->properties().is_required_when_unused()) return;
+    if (input_node->properties().is_required_when_unused() &&
+        !input_node->Is<ArgumentsElements>())
+      return;
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
       DropInputUses(input_node);
@@ -285,7 +288,8 @@ class DeadNodeSweepingProcessor {
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  !NodeT::kProperties.is_required_when_unused()) {
+                  (!NodeT::kProperties.is_required_when_unused() ||
+                   std::is_same_v<ArgumentsElements, NodeT>)) {
       if (!node->is_used()) {
         if constexpr (std::is_same_v<NodeT, Phi>) {
           // The UseMarkingProcessor will clear dead forward jump Phis eagerly,
