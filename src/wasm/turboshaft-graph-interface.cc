@@ -6132,7 +6132,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           func_ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
           WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target =
-          BuildDecodeExternalCodePointer(call_target_handle);
+          BuildLoadWasmCodeEntrypointViaCodePointer(call_target_handle);
 #else
       V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
@@ -6447,7 +6447,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  V<WordPtr> BuildDecodeExternalCodePointer(V<Word32> handle) {
+  V<WordPtr> BuildLoadWasmCodeEntrypointViaCodePointer(V<Word32> handle) {
 #ifdef V8_ENABLE_SANDBOX
     V<Word32> index =
         __ Word32ShiftRightLogical(handle, kCodePointerHandleShift);
@@ -6455,8 +6455,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Word32ShiftLeft(index, kCodePointerTableEntrySizeLog2));
     V<WordPtr> table =
         __ ExternalConstant(ExternalReference::code_pointer_table_address());
-    return __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                   MemoryRepresentation::UintPtr());
+    V<WordPtr> entry = __ Load(table, offset, LoadOp::Kind::RawAligned(),
+                               MemoryRepresentation::UintPtr());
+    return __ Word64BitwiseXor(entry, __ UintPtrConstant(kWasmEntrypointTag));
 #else
     UNREACHABLE();
 #endif

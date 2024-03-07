@@ -3097,7 +3097,8 @@ Node* WasmGraphBuilder::BuildLoadCodeEntrypointViaCodePointer(Node* object,
   Node* table =
       gasm_->ExternalConstant(ExternalReference::code_pointer_table_address());
 
-  return gasm_->Load(MachineType::Pointer(), table, table_offset);
+  Node* entry = gasm_->Load(MachineType::Pointer(), table, table_offset);
+  return gasm_->WordXor(entry, gasm_->IntPtrConstant(kWasmEntrypointTag));
 #else
   // In this case we have to load the Code object, then load its entrypoint.
   Node* code_object =

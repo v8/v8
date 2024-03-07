@@ -145,6 +145,7 @@ namespace internal {
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
   V(WasmDummy)                                       \
+  V(WasmDummyWithJSLinkage)                          \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
   V(WasmJSToWasmWrapper)                             \
@@ -831,6 +832,17 @@ class WasmDummyDescriptor
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(WasmDummyDescriptor)
+};
+
+// TODO(wasm): Consider filling in details / defining real descriptors for all
+// builtins still using this placeholder descriptor.
+class WasmDummyWithJSLinkageDescriptor
+    : public StaticCallInterfaceDescriptor<WasmDummyWithJSLinkageDescriptor> {
+ public:
+  SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(WasmDummyWithJSLinkageDescriptor)
 };
 
 class AllocateDescriptor
@@ -2375,7 +2387,7 @@ class WasmFloat64ToTaggedDescriptor final
 class WasmJSToWasmWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmJSToWasmWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kWasmEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
   DEFINE_PARAMETERS_NO_CONTEXT(kWrapperBuffer, kInstance, kResultJSArray)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::IntPtr(),     // ParamBuffer
@@ -2397,7 +2409,7 @@ class WasmJSToWasmWrapperDescriptor final
 class WasmToJSWrapperDescriptor final
     : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kJSEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kWasmEntrypointTag)
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::IntPtr(),     // GP return 1

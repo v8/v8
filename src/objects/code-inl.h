@@ -682,18 +682,24 @@ void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 }
 
 CodeEntrypointTag Code::entrypoint_tag() const {
-  // Currently we only distinguish between bytecode handlers and other Code. In
-  // the future, we'll probably also want to distinguish between Wasm, RegExp,
-  // and JavaScript Code.
-  if (kind() == CodeKind::BYTECODE_HANDLER) {
-    return kBytecodeHandlerEntrypointTag;
-  } else if (kind() == CodeKind::BUILTIN) {
-    return Builtins::EntrypointTagFor(builtin_id());
-  } else if (kind() == CodeKind::REGEXP) {
-    return kRegExpEntrypointTag;
+  switch (kind()) {
+    case CodeKind::BYTECODE_HANDLER:
+      return kBytecodeHandlerEntrypointTag;
+    case CodeKind::BUILTIN:
+      return Builtins::EntrypointTagFor(builtin_id());
+    case CodeKind::REGEXP:
+      return kRegExpEntrypointTag;
+    case CodeKind::WASM_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      return kWasmEntrypointTag;
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::JS_TO_JS_FUNCTION:
+      return kJSEntrypointTag;
+    default:
+      // TODO(saelo): eventually we'll want this to be UNREACHABLE().
+      return kDefaultCodeEntrypointTag;
   }
-  // TODO(saelo): eventually we'll want this to be UNREACHABLE().
-  return kDefaultCodeEntrypointTag;
 }
 
 void Code::SetInstructionStreamAndInstructionStart(
