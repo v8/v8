@@ -1117,8 +1117,8 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
 
   // Currently only support builtin continuations for bytecodes that write to
   // the accumulator
-  DCHECK(
-      interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
+  DCHECK(interpreter::Bytecodes::WritesOrClobbersAccumulator(
+      iterator_.current_bytecode()));
 
 #ifdef DEBUG
   if (scope->data().tag() == DeoptFrame::FrameType::kBuiltinContinuationFrame) {
