@@ -1653,6 +1653,16 @@ std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind) {
 #undef PRINT_KIND
 }
 
+std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)                \
+  case Simd256TernaryOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_TERNARY_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
 std::ostream& operator<<(std::ostream& os, Simd256BinopOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(kind)              \

@@ -1082,7 +1082,6 @@
   # TODO(14108): Remove once supported.
   'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Const': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Select': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load8Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load16Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load32Splat': [SKIP],

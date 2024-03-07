@@ -138,7 +138,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd256Extract128Lane)                   \
   V(Simd256Unary)                            \
   V(Simd256Binop)                            \
-  V(Simd256Shift)
+  V(Simd256Shift)                            \
+  V(Simd256Ternary)
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -7947,6 +7948,42 @@ struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd256ShiftOp::Kind kind);
 
+#define FOREACH_SIMD_256_TERNARY_OPCODE(V) V(S256Select)
+struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_TERNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256TernaryOp(V<Simd256> first, V<Simd256> second, V<Simd256> third,
+                   Kind kind)
+      : Base(first, second, third), kind(kind) {}
+
+  V<Simd256> first() const { return input(0); }
+  V<Simd256> second() const { return input(1); }
+  V<Simd256> third() const { return input(2); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {

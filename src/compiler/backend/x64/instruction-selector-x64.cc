@@ -5915,7 +5915,11 @@ void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitS256Select(node_t node) {
-  UNIMPLEMENTED();
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  Emit(kX64SSelect | VectorLengthField::encode(kV256), g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)),
+       g.UseRegister(this->input_at(node, 2)));
 }
 
 template <>

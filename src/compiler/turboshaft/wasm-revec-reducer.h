@@ -136,6 +136,8 @@ namespace v8::internal::compiler::turboshaft {
   V(I64x2Shl, I64x4Shl)     \
   V(I64x2ShrU, I64x4ShrU)
 
+#define SIMD256_TERNARY_OP(V) V(S128Select, S256Select)
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 class NodeGroup {
@@ -432,6 +434,27 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Shift(ig_index, op);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Ternary)(OpIndex ig_index,
+                                             const Simd128TernaryOp& ternary) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        V<Simd256> first = analyzer_.GetReduced(ternary.first());
+        V<Simd256> second = analyzer_.GetReduced(ternary.second());
+        V<Simd256> third = analyzer_.GetReduced(ternary.third());
+
+        og_index = __ Simd256Ternary(first, second, third,
+                                     GetSimd256TernaryKind(ternary.kind));
+
+        pnode->SetRevectorizedNode(og_index);
+      }
+
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+    return Next::ReduceInputGraphSimd128Ternary(ig_index, ternary);
+  }
+
  private:
   static Simd256UnaryOp::Kind GetSimd256UnaryKind(
       Simd128UnaryOp::Kind simd128_kind) {
@@ -465,6 +488,19 @@ class WasmRevecReducer : public Next {
     return Simd256ShiftOp::Kind::k##to;
       SIMD256_SHIFT_OP(SHIFT_KIND_MAPPING)
 #undef SHIFT_KIND_MAPPING
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
+  static Simd256TernaryOp::Kind GetSimd256TernaryKind(
+      Simd128TernaryOp::Kind simd128_kind) {
+    switch (simd128_kind) {
+#define TERNARY_KIND_MAPPING(from, to)  \
+  case Simd128TernaryOp::Kind::k##from: \
+    return Simd256TernaryOp::Kind::k##to;
+      SIMD256_TERNARY_OP(TERNARY_KIND_MAPPING)
+#undef TERNARY_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }

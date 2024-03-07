@@ -247,6 +247,7 @@ bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
     CASE(Simd128Unary)
     CASE(Simd128Binop)
     CASE(Simd128Shift)
+    CASE(Simd128Ternary)
     default:
       return true;
   }
@@ -427,6 +428,23 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       }
       TRACE("Failed due to SimdShiftOp kind or shift scalar is different!\n");
       return nullptr;
+    }
+    case Opcode::kSimd128Ternary: {
+#define TERNARY_CASE(op_128, not_used) case Simd128TernaryOp::Kind::k##op_128:
+      switch (op0.Cast<Simd128TernaryOp>().kind) {
+        SIMD256_TERNARY_OP(TERNARY_CASE) {
+          TRACE("Added a vector of Ternary\n");
+          PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                                 recursion_depth);
+          return pnode;
+        }
+#undef TERNARY_CASE
+        default: {
+          TRACE("Unsupported Simd128Ternary: %s\n",
+                GetSimdOpcodeName(op0).c_str());
+          return nullptr;
+        }
+      }
     }
 
     default:

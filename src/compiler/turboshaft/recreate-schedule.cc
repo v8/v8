@@ -1851,6 +1851,18 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256ShiftOp& op) {
 #undef HANDLE_KIND
   }
 }
+
+Node* ScheduleBuilder::ProcessOperation(const Simd256TernaryOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)                                                      \
+  case Simd256TernaryOp::Kind::k##kind:                                        \
+    return AddNode(machine.kind(), {GetNode(op.first()), GetNode(op.second()), \
+                                    GetNode(op.third())});
+    FOREACH_SIMD_256_TERNARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {

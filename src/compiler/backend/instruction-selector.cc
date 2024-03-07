@@ -5423,6 +5423,17 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_SHIFT
       }
     }
+    case Opcode::kSimd256Ternary: {
+      const Simd256TernaryOp& ternary = op.Cast<Simd256TernaryOp>();
+      MarkAsSimd256(node);
+      switch (ternary.kind) {
+#define VISIT_SIMD_256_TERNARY(kind)    \
+  case Simd256TernaryOp::Kind::k##kind: \
+    return Visit##kind(node);
+        FOREACH_SIMD_256_TERNARY_OPCODE(VISIT_SIMD_256_TERNARY)
+#undef VISIT_SIMD_256_UNARY
+      }
+    }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
     case Opcode::kLoadStackPointer:
