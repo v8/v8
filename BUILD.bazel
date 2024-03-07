@@ -3148,6 +3148,7 @@ filegroup(
         "src/compiler/phase.h",
         "src/compiler/pipeline.cc",
         "src/compiler/pipeline.h",
+        "src/compiler/pipeline-data-inl.h",
         "src/compiler/pipeline-statistics.cc",
         "src/compiler/pipeline-statistics.h",
         "src/compiler/processed-feedback.h",

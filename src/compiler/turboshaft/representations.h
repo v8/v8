@@ -302,6 +302,41 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
     }
   }
 
+  static constexpr RegisterRepresentation FromMachineType(MachineType type) {
+    switch (type.representation()) {
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return RegisterRepresentation::Word32();
+      case MachineRepresentation::kWord64:
+        return RegisterRepresentation::Word64();
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTaggedPointer:
+        return RegisterRepresentation::Tagged();
+      case MachineRepresentation::kMapWord:
+        // Turboshaft does not support map packing.
+        DCHECK(!V8_MAP_PACKING_BOOL);
+        return RegisterRepresentation::Tagged();
+      case MachineRepresentation::kFloat32:
+        return RegisterRepresentation::Float32();
+      case MachineRepresentation::kFloat64:
+        return RegisterRepresentation::Float64();
+      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kSandboxedPointer:
+        return RegisterRepresentation::WordPtr();
+      case MachineRepresentation::kSimd128:
+        return RegisterRepresentation::Simd128();
+      case MachineRepresentation::kSimd256:
+        return RegisterRepresentation::Simd256();
+      case MachineRepresentation::kNone:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
+        UNREACHABLE();
+    }
+  }
+
   constexpr bool AllowImplicitRepresentationChangeTo(
       RegisterRepresentation dst_rep) const;
 

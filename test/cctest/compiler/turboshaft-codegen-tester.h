@@ -5,25 +5,72 @@
 #ifndef V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 
-#if 0
-
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
+#include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/linkage.h"
+#include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/raw-machine-assembler.h"
+#include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/instruction-selection-phase.h"
+#include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/zone-stats.h"
 #include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/call-tester.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler::turboshaft {
+
+class DataHolder {
+ public:
+  template <typename... ParamMachTypes>
+  DataHolder(Isolate* isolate, Zone* zone, MachineType return_type,
+             ParamMachTypes... p)
+      : isolate_(isolate),
+        graph_zone_(zone),
+        info_(zone->New<OptimizedCompilationInfo>(base::ArrayVector("testing"),
+                                                  zone, CodeKind::FOR_TESTING)),
+        zone_stats_(isolate->allocator()),
+        pipeline_data_(&zone_stats_, info_, isolate, isolate->allocator(),
+                       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                       AssemblerOptions::Default(isolate), nullptr),
+        ts_pipeline_data_(pipeline_data_.GetTurboshaftPipelineData(
+            turboshaft::TurboshaftPipelineKind::kJS)),
+        descriptor_(Linkage::GetSimplifiedCDescriptor(
+            zone, CSignature::New(zone, return_type, p...),
+            CallDescriptor::kInitializeRootRegister)) {}
+
+  compiler::PipelineData* pipeline_data() { return &pipeline_data_; }
+
+  PipelineData& ts_pipeline_data() { return ts_pipeline_data_; }
+
+  Isolate* isolate() { return isolate_; }
+  Zone* zone() { return graph_zone_; }
+  Graph& graph() { return ts_pipeline_data_.graph(); }
+  CallDescriptor* call_descriptor() { return descriptor_; }
+  OptimizedCompilationInfo* info() { return info_; }
+
+ private:
+  Isolate* isolate_;
+  Zone* graph_zone_;
+  OptimizedCompilationInfo* info_;
+  // zone_stats_ must be destroyed after pipeline_data_, so it's declared
+  // before.
+  ZoneStats zone_stats_;
+  compiler::PipelineData pipeline_data_;
+  turboshaft::PipelineData& ts_pipeline_data_;
+  CallDescriptor* descriptor_;
+};
 
 template <typename ReturnType>
 class RawMachineAssemblerTester : public HandleAndZoneScope,
                                   public CallHelper<ReturnType>,
-                                  public RawMachineAssembler {
+                                  public DataHolder,
+                                  public TSAssembler<> {
+  using Assembler = TSAssembler<>;
+
  public:
   template <typename... ParamMachTypes>
   explicit RawMachineAssemblerTester(ParamMachTypes... p)
@@ -31,16 +78,12 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
         CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
-        RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
-            Linkage::GetSimplifiedCDescriptor(
-                main_zone(),
-                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
-                                p...),
-                CallDescriptor::kInitializeRootRegister),
-            MachineType::PointerRepresentation(),
-            InstructionSelector::SupportedMachineOperatorFlags(),
-            InstructionSelector::AlignmentRequirements()) {}
+        DataHolder(main_isolate(), main_zone(), MachineTypeForC<ReturnType>(),
+                   p...),
+        TSAssembler<>(graph(), graph(), zone()),
+        data_scope_(ts_pipeline_data()) {
+    Init();
+  }
 
   template <typename... ParamMachTypes>
   RawMachineAssemblerTester(CodeKind kind, ParamMachTypes... p)
@@ -48,17 +91,13 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
         CallHelper<ReturnType>(
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
-        RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
-            Linkage::GetSimplifiedCDescriptor(
-                main_zone(),
-                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
-                                p...),
-                CallDescriptor::kInitializeRootRegister),
-            MachineType::PointerRepresentation(),
-            InstructionSelector::SupportedMachineOperatorFlags(),
-            InstructionSelector::AlignmentRequirements()),
-        kind_(kind) {}
+        DataHolder(main_isolate(), main_zone(), MachineTypeForC<ReturnType>(),
+                   p...),
+        TSAssembler<>(graph(), graph(), zone()),
+        kind_(kind),
+        data_scope_(ts_pipeline_data()) {
+    Init();
+  }
 
   ~RawMachineAssemblerTester() override = default;
 
@@ -79,22 +118,80 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     return code_.ToHandleChecked();
   }
 
+  using CallHelper<ReturnType>::Call;
+  using Assembler::Call;
+
+  // A few Assembler helpers.
+  using Assembler::Parameter;
+  OpIndex Parameter(int i) {
+    return Parameter(i, RegisterRepresentation::FromMachineType(
+                            call_descriptor()->GetParameterType(i)));
+  }
+  OpIndex PointerConstant(void* value) {
+    return IntPtrConstant(reinterpret_cast<intptr_t>(value));
+  }
+  OpIndex LoadFromPointer(void* address, MachineType type, int32_t offset = 0) {
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+    // These architectures require a valid Index and no offset.
+    return Load(PointerConstant(address), IntPtrConstant(offset),
+                LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::FromMachineType(type));
+#else
+    // Otherwise, we can use an offset instead of an Index.
+    return Load(PointerConstant(address), LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::FromMachineType(type), offset);
+#endif
+  }
+  void StoreToPointer(void* address, MachineRepresentation rep, OpIndex value) {
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+    // These architectures require a valid Index and no offset.
+    return Store(PointerConstant(address), IntPtrConstant(0), value,
+                 StoreOp::Kind::RawAligned(),
+                 MemoryRepresentation::FromMachineRepresentation(rep),
+                 WriteBarrierKind::kNoWriteBarrier);
+#else
+    // Otherwise, we can use an offset instead of an Index.
+    return Store(PointerConstant(address), value, StoreOp::Kind::RawAligned(),
+                 MemoryRepresentation::FromMachineRepresentation(rep),
+                 WriteBarrierKind::kNoWriteBarrier);
+#endif
+  }
+  V<Word32> Int32GreaterThan(V<Word32> a, V<Word32> b) {
+    return Int32LessThan(b, a);
+  }
+  V<Word32> Int32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+    return Int32LessThanOrEqual(b, a);
+  }
+  V<Word32> Uint32GreaterThan(V<Word32> a, V<Word32> b) {
+    return Uint32LessThan(b, a);
+  }
+  V<Word32> Uint32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+    return Uint32LessThanOrEqual(b, a);
+  }
+
  protected:
   Address Generate() override {
     if (code_.is_null()) {
-      Schedule* schedule = ExportForTest();
-      OptimizedCompilationInfo info(base::ArrayVector("testing"), main_zone(),
-                                    kind_);
-      code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor(), graph(),
-          AssemblerOptions::Default(main_isolate()), schedule);
+      code_ = Pipeline::GenerateTurboshaftCodeForTesting(
+          info(), main_isolate(), call_descriptor(), pipeline_data(),
+          AssemblerOptions::Default(main_isolate()));
     }
     return code_.ToHandleChecked()->instruction_start();
   }
 
  private:
+  void Init() {
+    // We bind a block right at the start so that the test can start emitting
+    // operations without always needing to bind a block first.
+    Block* start_block = NewBlock();
+    Bind(start_block);
+  }
+
   CodeKind kind_ = CodeKind::FOR_TESTING;
   MaybeHandle<Code> code_;
+  turboshaft::PipelineData::Scope data_scope_;
 };
 
 template <typename ReturnType>
@@ -112,7 +209,7 @@ class BufferedRawMachineAssemblerTester
                   "increase parameter_nodes_ array");
     std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
-      parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
+      parameter_nodes_[i] = Load(p_arr[i], Parameter(i));
     }
   }
 
@@ -123,7 +220,7 @@ class BufferedRawMachineAssemblerTester
   // to the IR graph, and adds Load nodes to the IR graph to load the
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
-  Node* Parameter(size_t index) {
+  OpIndex Parameter(size_t index) {
     CHECK_GT(arraysize(parameter_nodes_), index);
     return parameter_nodes_[index];
   }
@@ -132,20 +229,19 @@ class BufferedRawMachineAssemblerTester
   // to store the graph's return value in memory. The memory address for the
   // Store node is provided as a parameter. By storing the return value in
   // memory it is possible to return 64 bit values.
-  void Return(Node* input) {
+  void Return(OpIndex input) {
     if (COMPRESS_POINTERS_BOOL && MachineTypeForC<ReturnType>().IsTagged()) {
       // Since we are returning values via storing to off-heap location
       // generate full-word store here.
       Store(MachineType::PointerRepresentation(),
-            RawMachineAssembler::Parameter(return_parameter_index_),
-            BitcastTaggedToWord(input), kNoWriteBarrier);
+            Parameter(return_parameter_index_), BitcastTaggedToWordPtr(input),
+            kNoWriteBarrier);
 
     } else {
       Store(MachineTypeForC<ReturnType>().representation(),
-            RawMachineAssembler::Parameter(return_parameter_index_), input,
-            kNoWriteBarrier);
+            Parameter(return_parameter_index_), input, kNoWriteBarrier);
     }
-    RawMachineAssembler::Return(Int32Constant(1234));
+    Return(Word32Constant(1234));
   }
 
   template <typename... Params>
@@ -162,7 +258,7 @@ class BufferedRawMachineAssemblerTester
 
  private:
   CSignature* test_graph_signature_;
-  Node* parameter_nodes_[4];
+  OpIndex parameter_nodes_[4];
   uint32_t return_parameter_index_;
 };
 
@@ -180,7 +276,7 @@ class BufferedRawMachineAssemblerTester<void>
                   "increase parameter_nodes_ array");
     std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
-      parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
+      parameter_nodes_[i] = Load(p_arr[i], Parameter(i));
     }
   }
 
@@ -191,7 +287,7 @@ class BufferedRawMachineAssemblerTester<void>
   // to the IR graph, and adds Load nodes to the IR graph to load the
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
-  Node* Parameter(size_t index) {
+  OpIndex Parameter(size_t index) {
     CHECK_GT(arraysize(parameter_nodes_), index);
     return parameter_nodes_[index];
   }
@@ -204,7 +300,7 @@ class BufferedRawMachineAssemblerTester<void>
 
  private:
   CSignature* test_graph_signature_;
-  Node* parameter_nodes_[4];
+  OpIndex parameter_nodes_[4];
 };
 
 static const bool USE_RESULT_BUFFER = true;
@@ -227,8 +323,8 @@ class BinopTester {
         result(static_cast<CType>(0)) {}
 
   RawMachineAssemblerTester<int32_t>* T;
-  Node* param0;
-  Node* param1;
+  OpIndex param0;
+  OpIndex param1;
 
   CType call(CType a0, CType a1) {
     p0 = a0;
@@ -241,11 +337,11 @@ class BinopTester {
     }
   }
 
-  void AddReturn(Node* val) {
+  void AddReturn(OpIndex val) {
     if (use_result_buffer) {
       T->Store(type.representation(), T->PointerConstant(&result),
-               T->Int32Constant(0), val, kNoWriteBarrier);
-      T->Return(T->Int32Constant(CHECK_VALUE));
+               T->Word32Constant(0), val, kNoWriteBarrier);
+      T->Return(T->Word32Constant(CHECK_VALUE));
     } else {
       T->Return(val);
     }
@@ -340,12 +436,34 @@ class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
                                                MachineType::AnyTagged()) {}
 };
 
+#if 0
+
+#define BINOP_LIST(V) \
+  V(Word32Add)        \
+  V(Word32Sub)        \
+  V(Word32Mul)        \
+  V(Word32And)        \
+  V(Word32Or)         \
+  V(Word32Xor)        \
+  V(Word64Add)        \
+  V(Word64Sub)        \
+  V(Word64Mul)        \
+  V(Word64And)        \
+  V(Word64Or)         \
+  V(Word64Xor)
+
+enum class TurboshaftBinop {
+#define DEF(kind) k##kind,
+  BINOP_LIST(DEF)
+#undef DEF
+};
+
 // A helper class for integer binary operations. Wraps a machine opcode and
 // provides evaluation routines and the operators.
 template <typename T>
 class IntBinopWrapper {
  public:
-  explicit IntBinopWrapper(IrOpcode::Value op) : opcode(op) {}
+  explicit IntBinopWrapper(TurboshaftBinop kind) : kind(kind) {}
 
   const Operator* op(MachineOperatorBuilder* machine) const {
     switch (opcode) {
@@ -379,87 +497,81 @@ class IntBinopWrapper {
   }
 
   T eval(T a, T b) const {
-    switch (opcode) {
-      case IrOpcode::kInt32Add:
-      case IrOpcode::kInt64Add:
+    switch (kind) {
+      case TurboshaftBinop::kWord32Add:
+      case TurboshaftBinop::kWord64Add:
         return a + b;
-      case IrOpcode::kInt32Sub:
-      case IrOpcode::kInt64Sub:
+      case TurboshaftBinop::kWord32Sub:
+      case TurboshaftBinop::kWord64Sub:
         return a - b;
-      case IrOpcode::kInt32Mul:
-      case IrOpcode::kInt64Mul:
+      case TurboshaftBinop::kWord32Mul:
+      case TurboshaftBinop::kWord64Mul:
         return a * b;
-      case IrOpcode::kWord32And:
-      case IrOpcode::kWord64And:
+      case TurboshaftBinop::kWord32And:
+      case TurboshaftBinop::kWord64And:
         return a & b;
-      case IrOpcode::kWord32Or:
-      case IrOpcode::kWord64Or:
+      case TurboshaftBinop::kWord32Or:
+      case TurboshaftBinop::kWord64Or:
         return a | b;
-      case IrOpcode::kWord32Xor:
-      case IrOpcode::kWord64Xor:
+      case TurboshaftBinop::kWord32Xor:
+      case TurboshaftBinop::kWord64Xor:
         return a ^ b;
-      default:
-        UNREACHABLE();
     }
   }
-  IrOpcode::Value opcode;
+  TurboshaftBinop kind;
+};
+
+#endif
+
+#define COMPARE_LIST(V)    \
+  V(Word32Equal)           \
+  V(Int32LessThan)         \
+  V(Int32LessThanOrEqual)  \
+  V(Uint32LessThan)        \
+  V(Uint32LessThanOrEqual) \
+  V(Word64Equal)           \
+  V(Int64LessThan)         \
+  V(Int64LessThanOrEqual)  \
+  V(Uint64LessThan)        \
+  V(Uint64LessThanOrEqual) \
+  V(Float64Equal)          \
+  V(Float64LessThan)       \
+  V(Float64LessThanOrEqual)
+
+enum class TurboshaftComparison {
+#define DEF(kind) k##kind,
+  COMPARE_LIST(DEF)
+#undef DEF
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides
 // evaluation routines and the operators.
 class CompareWrapper {
  public:
-  explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
+  explicit CompareWrapper(TurboshaftComparison op) : op(op) {}
 
-  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a,
-                 Node* b) const {
-    return m->AddNode(op(m->machine()), a, b);
-  }
-
-  const Operator* op(MachineOperatorBuilder* machine) const {
-    switch (opcode) {
-      case IrOpcode::kWord32Equal:
-        return machine->Word32Equal();
-      case IrOpcode::kInt32LessThan:
-        return machine->Int32LessThan();
-      case IrOpcode::kInt32LessThanOrEqual:
-        return machine->Int32LessThanOrEqual();
-      case IrOpcode::kUint32LessThan:
-        return machine->Uint32LessThan();
-      case IrOpcode::kUint32LessThanOrEqual:
-        return machine->Uint32LessThanOrEqual();
-      case IrOpcode::kWord64Equal:
-        return machine->Word64Equal();
-      case IrOpcode::kInt64LessThan:
-        return machine->Int64LessThan();
-      case IrOpcode::kInt64LessThanOrEqual:
-        return machine->Int64LessThanOrEqual();
-      case IrOpcode::kUint64LessThan:
-        return machine->Uint64LessThan();
-      case IrOpcode::kUint64LessThanOrEqual:
-        return machine->Uint64LessThanOrEqual();
-      case IrOpcode::kFloat64Equal:
-        return machine->Float64Equal();
-      case IrOpcode::kFloat64LessThan:
-        return machine->Float64LessThan();
-      case IrOpcode::kFloat64LessThanOrEqual:
-        return machine->Float64LessThanOrEqual();
-      default:
-        UNREACHABLE();
+  V<Word32> MakeNode(RawMachineAssemblerTester<int32_t>* m, OpIndex a,
+                     OpIndex b) {
+    switch (op) {
+#define CASE(kind)                    \
+  case TurboshaftComparison::k##kind: \
+    return m->kind(a, b);
+      COMPARE_LIST(CASE)
+#undef CASE
     }
   }
 
   bool Int32Compare(int32_t a, int32_t b) const {
-    switch (opcode) {
-      case IrOpcode::kWord32Equal:
+    switch (op) {
+      case TurboshaftComparison::kWord32Equal:
         return a == b;
-      case IrOpcode::kInt32LessThan:
+      case TurboshaftComparison::kInt32LessThan:
         return a < b;
-      case IrOpcode::kInt32LessThanOrEqual:
+      case TurboshaftComparison::kInt32LessThanOrEqual:
         return a <= b;
-      case IrOpcode::kUint32LessThan:
+      case TurboshaftComparison::kUint32LessThan:
         return static_cast<uint32_t>(a) < static_cast<uint32_t>(b);
-      case IrOpcode::kUint32LessThanOrEqual:
+      case TurboshaftComparison::kUint32LessThanOrEqual:
         return static_cast<uint32_t>(a) <= static_cast<uint32_t>(b);
       default:
         UNREACHABLE();
@@ -467,16 +579,16 @@ class CompareWrapper {
   }
 
   bool Int64Compare(int64_t a, int64_t b) const {
-    switch (opcode) {
-      case IrOpcode::kWord64Equal:
+    switch (op) {
+      case TurboshaftComparison::kWord64Equal:
         return a == b;
-      case IrOpcode::kInt64LessThan:
+      case TurboshaftComparison::kInt64LessThan:
         return a < b;
-      case IrOpcode::kInt64LessThanOrEqual:
+      case TurboshaftComparison::kInt64LessThanOrEqual:
         return a <= b;
-      case IrOpcode::kUint64LessThan:
+      case TurboshaftComparison::kUint64LessThan:
         return static_cast<uint64_t>(a) < static_cast<uint64_t>(b);
-      case IrOpcode::kUint64LessThanOrEqual:
+      case TurboshaftComparison::kUint64LessThanOrEqual:
         return static_cast<uint64_t>(a) <= static_cast<uint64_t>(b);
       default:
         UNREACHABLE();
@@ -484,19 +596,19 @@ class CompareWrapper {
   }
 
   bool Float64Compare(double a, double b) const {
-    switch (opcode) {
-      case IrOpcode::kFloat64Equal:
+    switch (op) {
+      case TurboshaftComparison::kFloat64Equal:
         return a == b;
-      case IrOpcode::kFloat64LessThan:
+      case TurboshaftComparison::kFloat64LessThan:
         return a < b;
-      case IrOpcode::kFloat64LessThanOrEqual:
+      case TurboshaftComparison::kFloat64LessThanOrEqual:
         return a <= b;
       default:
         UNREACHABLE();
     }
   }
 
-  IrOpcode::Value opcode;
+  TurboshaftComparison op;
 };
 
 // A small closure class to generate code for a function of two inputs that
@@ -506,7 +618,8 @@ class CompareWrapper {
 template <typename T>
 class BinopGen {
  public:
-  virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) = 0;
+  virtual void gen(RawMachineAssemblerTester<int32_t>* m, OpIndex a,
+                   OpIndex b) = 0;
   virtual T expected(T a, T b) = 0;
   virtual ~BinopGen() = default;
 };
@@ -529,10 +642,7 @@ class Int32BinopInputShapeTester {
   void RunLeft(RawMachineAssemblerTester<int32_t>* m);
   void RunRight(RawMachineAssemblerTester<int32_t>* m);
 };
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
 
-#endif
+}  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_

@@ -19,42 +19,6 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-static constexpr RegisterRepresentation RegisterRepresentationFromMachineType(
-    MachineType type) {
-  switch (type.representation()) {
-    case MachineRepresentation::kBit:
-    case MachineRepresentation::kWord8:
-    case MachineRepresentation::kWord16:
-    case MachineRepresentation::kWord32:
-      return RegisterRepresentation::Word32();
-    case MachineRepresentation::kWord64:
-      return RegisterRepresentation::Word64();
-    case MachineRepresentation::kTagged:
-    case MachineRepresentation::kTaggedSigned:
-    case MachineRepresentation::kTaggedPointer:
-      return RegisterRepresentation::Tagged();
-    case MachineRepresentation::kMapWord:
-      // Turboshaft does not support map packing.
-      DCHECK(!V8_MAP_PACKING_BOOL);
-      return RegisterRepresentation::Tagged();
-    case MachineRepresentation::kFloat32:
-      return RegisterRepresentation::Float32();
-    case MachineRepresentation::kFloat64:
-      return RegisterRepresentation::Float64();
-    case MachineRepresentation::kIndirectPointer:
-    case MachineRepresentation::kSandboxedPointer:
-      return RegisterRepresentation::WordPtr();
-    case MachineRepresentation::kSimd128:
-      return RegisterRepresentation::Simd128();
-    case MachineRepresentation::kSimd256:
-      return RegisterRepresentation::Simd256();
-    case MachineRepresentation::kNone:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
-      UNREACHABLE();
-  }
-}
-
 #define BINOP_LIST(V)           \
   V(Word32BitwiseAnd)           \
   V(Word64BitwiseAnd)           \
@@ -270,7 +234,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     V<Word64> Int64Constant(int64_t c) { return Word64Constant(c); }
     using Assembler::Parameter;
     OpIndex Parameter(int index) {
-      return Parameter(index, RegisterRepresentationFromMachineType(
+      return Parameter(index, RegisterRepresentation::FromMachineType(
                                   call_descriptor()->GetParameterType(index)));
     }
     using Assembler::Phi;

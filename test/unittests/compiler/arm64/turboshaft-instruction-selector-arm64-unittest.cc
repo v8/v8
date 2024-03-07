@@ -542,7 +542,7 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, ShiftByImmediateOnRight) {
 OpIndex SignExtendAndEmit(TurboshaftInstructionSelectorTest::StreamBuilder& m,
                           MachineType type, TSBinop op, OpIndex left,
                           OpIndex right) {
-  RegisterRepresentation rep = RegisterRepresentationFromMachineType(type);
+  RegisterRepresentation rep = RegisterRepresentation::FromMachineType(type);
   if (rep == RegisterRepresentation::Word32()) {
     return m.Emit(op, left, right);
   }

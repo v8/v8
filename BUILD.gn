@@ -3389,6 +3389,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/per-isolate-compiler-cache.h",
     "src/compiler/persistent-map.h",
     "src/compiler/phase.h",
+    "src/compiler/pipeline-data-inl.h",
     "src/compiler/pipeline-statistics.h",
     "src/compiler/pipeline.h",
     "src/compiler/processed-feedback.h",

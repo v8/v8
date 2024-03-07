@@ -2,44 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if 0
-
 #include "src/base/overflowing-math.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/turboshaft-codegen-tester.h"
 #include "test/common/value-helper.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler::turboshaft {
 
-static IrOpcode::Value int32cmp_opcodes[] = {
-    IrOpcode::kWord32Equal, IrOpcode::kInt32LessThan,
-    IrOpcode::kInt32LessThanOrEqual, IrOpcode::kUint32LessThan,
-    IrOpcode::kUint32LessThanOrEqual};
-
+static TurboshaftComparison int32cmp_opcodes[] = {
+    TurboshaftComparison::kWord32Equal, TurboshaftComparison::kInt32LessThan,
+    TurboshaftComparison::kInt32LessThanOrEqual,
+    TurboshaftComparison::kUint32LessThan,
+    TurboshaftComparison::kUint32LessThanOrEqual};
 
 TEST(BranchCombineWord32EqualZero_1) {
   // Test combining a branch with x == 0
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1033;
   int32_t ne_constant = 825118;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Word32Equal(p0, m.Int32Constant(0)), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Word32Equal(p0, m.Word32Constant(0)), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_INT32_INPUTS(a) {
     int32_t expect = a == 0 ? eq_constant : ne_constant;
     CHECK_EQ(expect, m.Call(a));
   }
 }
-
 
 TEST(BranchCombineWord32EqualZero_chain) {
   // Test combining a branch with a chain of x == 0 == 0 == 0 ...
@@ -48,17 +43,17 @@ TEST(BranchCombineWord32EqualZero_chain) {
 
   for (int k = 0; k < 6; k++) {
     RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-    Node* p0 = m.Parameter(0);
-    RawMachineLabel blocka, blockb;
-    Node* cond = p0;
+    OpIndex p0 = m.Parameter(0);
+    Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+    V<Word32> cond = p0;
     for (int j = 0; j < k; j++) {
-      cond = m.Word32Equal(cond, m.Int32Constant(0));
+      cond = m.Word32Equal(cond, m.Word32Constant(0));
     }
-    m.Branch(cond, &blocka, &blockb);
-    m.Bind(&blocka);
-    m.Return(m.Int32Constant(eq_constant));
-    m.Bind(&blockb);
-    m.Return(m.Int32Constant(ne_constant));
+    m.Branch(cond, blocka, blockb);
+    m.Bind(blocka);
+    m.Return(m.Word32Constant(eq_constant));
+    m.Bind(blockb);
+    m.Return(m.Word32Constant(ne_constant));
 
     FOR_INT32_INPUTS(a) {
       int32_t expect = (k & 1) == 1 ? (a == 0 ? eq_constant : ne_constant)
@@ -68,20 +63,19 @@ TEST(BranchCombineWord32EqualZero_chain) {
   }
 }
 
-
 TEST(BranchCombineInt32LessThanZero_1) {
   // Test combining a branch with x < 0
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1433;
   int32_t ne_constant = 845118;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Int32LessThan(p0, m.Int32Constant(0)), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Int32LessThan(p0, m.Word32Constant(0)), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_INT32_INPUTS(a) {
     int32_t expect = a < 0 ? eq_constant : ne_constant;
@@ -89,20 +83,19 @@ TEST(BranchCombineInt32LessThanZero_1) {
   }
 }
 
-
 TEST(BranchCombineUint32LessThan100_1) {
   // Test combining a branch with x < 100
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   int32_t eq_constant = 1471;
   int32_t ne_constant = 88845718;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Uint32LessThan(p0, m.Int32Constant(100)), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Uint32LessThan(p0, m.Word32Constant(100)), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_UINT32_INPUTS(a) {
     int32_t expect = a < 100 ? eq_constant : ne_constant;
@@ -110,20 +103,19 @@ TEST(BranchCombineUint32LessThan100_1) {
   }
 }
 
-
 TEST(BranchCombineUint32LessThanOrEqual100_1) {
   // Test combining a branch with x <= 100
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   int32_t eq_constant = 1479;
   int32_t ne_constant = 77845719;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Uint32LessThanOrEqual(p0, m.Int32Constant(100)), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Uint32LessThanOrEqual(p0, m.Word32Constant(100)), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_UINT32_INPUTS(a) {
     int32_t expect = a <= 100 ? eq_constant : ne_constant;
@@ -131,20 +123,19 @@ TEST(BranchCombineUint32LessThanOrEqual100_1) {
   }
 }
 
-
 TEST(BranchCombineZeroLessThanInt32_1) {
   // Test combining a branch with 0 < x
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -2033;
   int32_t ne_constant = 225118;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Int32LessThan(m.Int32Constant(0), p0), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Int32LessThan(m.Word32Constant(0), p0), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_INT32_INPUTS(a) {
     int32_t expect = 0 < a ? eq_constant : ne_constant;
@@ -152,20 +143,19 @@ TEST(BranchCombineZeroLessThanInt32_1) {
   }
 }
 
-
 TEST(BranchCombineInt32GreaterThanZero_1) {
   // Test combining a branch with x > 0
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1073;
   int32_t ne_constant = 825178;
-  Node* p0 = m.Parameter(0);
+  OpIndex p0 = m.Parameter(0);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Int32GreaterThan(p0, m.Int32Constant(0)), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Int32GreaterThan(p0, m.Word32Constant(0)), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_INT32_INPUTS(a) {
     int32_t expect = a > 0 ? eq_constant : ne_constant;
@@ -173,22 +163,21 @@ TEST(BranchCombineInt32GreaterThanZero_1) {
   }
 }
 
-
 TEST(BranchCombineWord32EqualP) {
   // Test combining a branch with an Word32Equal.
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
   int32_t eq_constant = -1035;
   int32_t ne_constant = 825018;
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(m.Word32Equal(p0, p1), &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(eq_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(ne_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(m.Word32Equal(p0, p1), blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(eq_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(ne_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -198,7 +187,6 @@ TEST(BranchCombineWord32EqualP) {
   }
 }
 
-
 TEST(BranchCombineWord32EqualI) {
   int32_t eq_constant = -1135;
   int32_t ne_constant = 925718;
@@ -207,16 +195,16 @@ TEST(BranchCombineWord32EqualI) {
     FOR_INT32_INPUTS(a) {
       RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
 
-      Node* p0 = m.Int32Constant(a);
-      Node* p1 = m.Parameter(0);
+      OpIndex p0 = m.Word32Constant(a);
+      OpIndex p1 = m.Parameter(0);
 
-      RawMachineLabel blocka, blockb;
-      if (left == 1) m.Branch(m.Word32Equal(p0, p1), &blocka, &blockb);
-      if (left == 0) m.Branch(m.Word32Equal(p1, p0), &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(eq_constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(ne_constant));
+      Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+      if (left == 1) m.Branch(m.Word32Equal(p0, p1), blocka, blockb);
+      if (left == 0) m.Branch(m.Word32Equal(p1, p0), blocka, blockb);
+      m.Bind(blocka);
+      m.Return(m.Word32Constant(eq_constant));
+      m.Bind(blockb);
+      m.Return(m.Word32Constant(ne_constant));
 
       FOR_INT32_INPUTS(b) {
         int32_t expect = a == b ? eq_constant : ne_constant;
@@ -226,7 +214,6 @@ TEST(BranchCombineWord32EqualI) {
   }
 }
 
-
 TEST(BranchCombineInt32CmpP) {
   int32_t eq_constant = -1235;
   int32_t ne_constant = 725018;
@@ -234,16 +221,16 @@ TEST(BranchCombineInt32CmpP) {
   for (int op = 0; op < 2; op++) {
     RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                          MachineType::Int32());
-    Node* p0 = m.Parameter(0);
-    Node* p1 = m.Parameter(1);
+    OpIndex p0 = m.Parameter(0);
+    OpIndex p1 = m.Parameter(1);
 
-    RawMachineLabel blocka, blockb;
-    if (op == 0) m.Branch(m.Int32LessThan(p0, p1), &blocka, &blockb);
-    if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), &blocka, &blockb);
-    m.Bind(&blocka);
-    m.Return(m.Int32Constant(eq_constant));
-    m.Bind(&blockb);
-    m.Return(m.Int32Constant(ne_constant));
+    Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+    if (op == 0) m.Branch(m.Int32LessThan(p0, p1), blocka, blockb);
+    if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), blocka, blockb);
+    m.Bind(blocka);
+    m.Return(m.Word32Constant(eq_constant));
+    m.Bind(blockb);
+    m.Return(m.Word32Constant(ne_constant));
 
     FOR_INT32_INPUTS(a) {
       FOR_INT32_INPUTS(b) {
@@ -256,7 +243,6 @@ TEST(BranchCombineInt32CmpP) {
   }
 }
 
-
 TEST(BranchCombineInt32CmpI) {
   int32_t eq_constant = -1175;
   int32_t ne_constant = 927711;
@@ -264,16 +250,16 @@ TEST(BranchCombineInt32CmpI) {
   for (int op = 0; op < 2; op++) {
     FOR_INT32_INPUTS(a) {
       RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-      Node* p0 = m.Int32Constant(a);
-      Node* p1 = m.Parameter(0);
+      OpIndex p0 = m.Word32Constant(a);
+      OpIndex p1 = m.Parameter(0);
 
-      RawMachineLabel blocka, blockb;
-      if (op == 0) m.Branch(m.Int32LessThan(p0, p1), &blocka, &blockb);
-      if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(eq_constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(ne_constant));
+      Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+      if (op == 0) m.Branch(m.Int32LessThan(p0, p1), blocka, blockb);
+      if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), blocka, blockb);
+      m.Bind(blocka);
+      m.Return(m.Word32Constant(eq_constant));
+      m.Bind(blockb);
+      m.Return(m.Word32Constant(ne_constant));
 
       FOR_INT32_INPUTS(b) {
         int32_t expect = 0;
@@ -285,7 +271,6 @@ TEST(BranchCombineInt32CmpI) {
   }
 }
 
-
 // Now come the sophisticated tests for many input shape combinations.
 
 // Materializes a boolean (1 or 0) from a comparison.
@@ -294,12 +279,12 @@ class CmpMaterializeBoolGen : public BinopGen<int32_t> {
   CompareWrapper w;
   bool invert;
 
-  CmpMaterializeBoolGen(IrOpcode::Value opcode, bool i)
-      : w(opcode), invert(i) {}
+  CmpMaterializeBoolGen(TurboshaftComparison op, bool i) : w(op), invert(i) {}
 
-  void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) override {
-    Node* cond = w.MakeNode(m, a, b);
-    if (invert) cond = m->Word32Equal(cond, m->Int32Constant(0));
+  void gen(RawMachineAssemblerTester<int32_t>* m, OpIndex a,
+           OpIndex b) override {
+    OpIndex cond = w.MakeNode(m, a, b);
+    if (invert) cond = m->Word32Equal(cond, m->Word32Constant(0));
     m->Return(cond);
   }
   int32_t expected(int32_t a, int32_t b) override {
@@ -307,7 +292,6 @@ class CmpMaterializeBoolGen : public BinopGen<int32_t> {
     return w.Int32Compare(a, b) ? 1 : 0;
   }
 };
-
 
 // Generates a branch and return one of two values from a comparison.
 class CmpBranchGen : public BinopGen<int32_t> {
@@ -318,24 +302,25 @@ class CmpBranchGen : public BinopGen<int32_t> {
   int32_t eq_constant;
   int32_t ne_constant;
 
-  CmpBranchGen(IrOpcode::Value opcode, bool i, bool t, int32_t eq, int32_t ne)
-      : w(opcode), invert(i), true_first(t), eq_constant(eq), ne_constant(ne) {}
+  CmpBranchGen(TurboshaftComparison op, bool i, bool t, int32_t eq, int32_t ne)
+      : w(op), invert(i), true_first(t), eq_constant(eq), ne_constant(ne) {}
 
-  void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) override {
-    RawMachineLabel blocka, blockb;
-    Node* cond = w.MakeNode(m, a, b);
-    if (invert) cond = m->Word32Equal(cond, m->Int32Constant(0));
-    m->Branch(cond, &blocka, &blockb);
+  void gen(RawMachineAssemblerTester<int32_t>* m, OpIndex a,
+           OpIndex b) override {
+    Block *blocka = m->NewBlock(), *blockb = m->NewBlock();
+    V<Word32> cond = w.MakeNode(m, a, b);
+    if (invert) cond = m->Word32Equal(cond, m->Word32Constant(0));
+    m->Branch(cond, blocka, blockb);
     if (true_first) {
-      m->Bind(&blocka);
-      m->Return(m->Int32Constant(eq_constant));
-      m->Bind(&blockb);
-      m->Return(m->Int32Constant(ne_constant));
+      m->Bind(blocka);
+      m->Return(m->Word32Constant(eq_constant));
+      m->Bind(blockb);
+      m->Return(m->Word32Constant(ne_constant));
     } else {
-      m->Bind(&blockb);
-      m->Return(m->Int32Constant(ne_constant));
-      m->Bind(&blocka);
-      m->Return(m->Int32Constant(eq_constant));
+      m->Bind(blockb);
+      m->Return(m->Word32Constant(ne_constant));
+      m->Bind(blocka);
+      m->Return(m->Word32Constant(eq_constant));
     }
   }
   int32_t expected(int32_t a, int32_t b) override {
@@ -343,7 +328,6 @@ class CmpBranchGen : public BinopGen<int32_t> {
     return w.Int32Compare(a, b) ? eq_constant : ne_constant;
   }
 };
-
 
 TEST(BranchCombineInt32CmpAllInputShapes_materialized) {
   for (size_t i = 0; i < arraysize(int32cmp_opcodes); i++) {
@@ -353,7 +337,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_materialized) {
   }
 }
 
-
 TEST(BranchCombineInt32CmpAllInputShapes_inverted_materialized) {
   for (size_t i = 0; i < arraysize(int32cmp_opcodes); i++) {
     CmpMaterializeBoolGen gen(int32cmp_opcodes[i], true);
@@ -361,7 +344,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverted_materialized) {
     tester.TestAllInputShapes();
   }
 }
-
 
 TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
   for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
@@ -371,7 +353,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
   }
 }
 
-
 TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
   for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], false, true, 795 + i, -2011 - i);
@@ -379,7 +360,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
     tester.TestAllInputShapes();
   }
 }
-
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
   for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
@@ -389,7 +369,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
   }
 }
 
-
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
   for (int i = 0; i < static_cast<int>(arraysize(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], true, true, 595 + i, -4011 - i);
@@ -397,7 +376,6 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
     tester.TestAllInputShapes();
   }
 }
-
 
 TEST(BranchCombineFloat64Compares) {
   double inf = V8_INFINITY;
@@ -410,25 +388,26 @@ TEST(BranchCombineFloat64Compares) {
   double input_a = 0.0;
   double input_b = 0.0;
 
-  CompareWrapper cmps[] = {CompareWrapper(IrOpcode::kFloat64Equal),
-                           CompareWrapper(IrOpcode::kFloat64LessThan),
-                           CompareWrapper(IrOpcode::kFloat64LessThanOrEqual)};
+  CompareWrapper cmps[] = {
+      CompareWrapper(TurboshaftComparison::kFloat64Equal),
+      CompareWrapper(TurboshaftComparison::kFloat64LessThan),
+      CompareWrapper(TurboshaftComparison::kFloat64LessThanOrEqual)};
 
   for (size_t c = 0; c < arraysize(cmps); c++) {
     CompareWrapper cmp = cmps[c];
     for (int invert = 0; invert < 2; invert++) {
       RawMachineAssemblerTester<int32_t> m;
-      Node* a = m.LoadFromPointer(&input_a, MachineType::Float64());
-      Node* b = m.LoadFromPointer(&input_b, MachineType::Float64());
+      OpIndex a = m.LoadFromPointer(&input_a, MachineType::Float64());
+      OpIndex b = m.LoadFromPointer(&input_b, MachineType::Float64());
 
-      RawMachineLabel blocka, blockb;
-      Node* cond = cmp.MakeNode(&m, a, b);
-      if (invert) cond = m.Word32Equal(cond, m.Int32Constant(0));
-      m.Branch(cond, &blocka, &blockb);
-      m.Bind(&blocka);
-      m.Return(m.Int32Constant(eq_constant));
-      m.Bind(&blockb);
-      m.Return(m.Int32Constant(ne_constant));
+      Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+      V<Word32> cond = cmp.MakeNode(&m, a, b);
+      if (invert) cond = m.Word32Equal(cond, m.Word32Constant(0));
+      m.Branch(cond, blocka, blockb);
+      m.Bind(blocka);
+      m.Return(m.Word32Constant(eq_constant));
+      m.Bind(blockb);
+      m.Return(m.Word32Constant(ne_constant));
 
       for (size_t i = 0; i < arraysize(inputs); ++i) {
         for (size_t j = 0; j < arraysize(inputs); ++j) {
@@ -452,38 +431,38 @@ TEST(BranchCombineEffectLevel) {
   int32_t input = 0;
 
   RawMachineAssemblerTester<int32_t> m;
-  Node* a = m.LoadFromPointer(&input, MachineType::Int32());
-  Node* compare = m.Word32And(a, m.Int32Constant(1));
-  Node* equal = m.Word32Equal(compare, m.Int32Constant(0));
-  m.StoreToPointer(&input, MachineRepresentation::kWord32, m.Int32Constant(1));
+  OpIndex a = m.LoadFromPointer(&input, MachineType::Int32());
+  V<Word32> compare = m.Word32BitwiseAnd(a, m.Word32Constant(1));
+  V<Word32> equal = m.Word32Equal(compare, m.Word32Constant(0));
+  m.StoreToPointer(&input, MachineRepresentation::kWord32, m.Word32Constant(1));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(equal, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(42));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(0));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(equal, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(42));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(0));
 
   CHECK_EQ(42, m.Call());
 }
 
-TEST(BranchCombineInt32AddLessThanZero) {
+TEST(BranchCombineWord32AddLessThanZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Int32LessThan(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Int32LessThan(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -494,23 +473,23 @@ TEST(BranchCombineInt32AddLessThanZero) {
   }
 }
 
-TEST(BranchCombineInt32AddGreaterThanOrEqualZero) {
+TEST(BranchCombineWord32AddGreaterThanOrEqualZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Int32GreaterThanOrEqual(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Int32GreaterThanOrEqual(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -527,17 +506,17 @@ TEST(BranchCombineInt32ZeroGreaterThanAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Int32GreaterThan(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Int32GreaterThan(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -554,17 +533,17 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Int32LessThanOrEqual(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Int32LessThanOrEqual(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -575,23 +554,23 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAdd) {
   }
 }
 
-TEST(BranchCombineUint32AddLessThanOrEqualZero) {
+TEST(BranchCombineUWord32AddLessThanOrEqualZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Uint32LessThanOrEqual(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Uint32LessThanOrEqual(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -601,23 +580,23 @@ TEST(BranchCombineUint32AddLessThanOrEqualZero) {
   }
 }
 
-TEST(BranchCombineUint32AddGreaterThanZero) {
+TEST(BranchCombineUWord32AddGreaterThanZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Uint32GreaterThan(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Uint32GreaterThan(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -633,17 +612,17 @@ TEST(BranchCombineUint32ZeroGreaterThanOrEqualAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Uint32GreaterThanOrEqual(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Uint32GreaterThanOrEqual(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -659,17 +638,17 @@ TEST(BranchCombineUint32ZeroLessThanAdd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Int32Add(p0, p1);
-  Node* compare = m.Uint32LessThan(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32Add(p0, p1);
+  V<Word32> compare = m.Uint32LessThan(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -679,23 +658,23 @@ TEST(BranchCombineUint32ZeroLessThanAdd) {
   }
 }
 
-TEST(BranchCombineWord32AndLessThanZero) {
+TEST(BranchCombineWord32BitwiseAndLessThanZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Int32LessThan(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Int32LessThan(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -705,23 +684,23 @@ TEST(BranchCombineWord32AndLessThanZero) {
   }
 }
 
-TEST(BranchCombineWord32AndGreaterThanOrEqualZero) {
+TEST(BranchCombineWord32BitwiseAndGreaterThanOrEqualZero) {
   int32_t t_constant = -1033;
   int32_t f_constant = 825118;
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Int32GreaterThanOrEqual(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Int32GreaterThanOrEqual(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -737,17 +716,17 @@ TEST(BranchCombineInt32ZeroGreaterThanAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Int32GreaterThan(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Int32GreaterThan(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -763,17 +742,17 @@ TEST(BranchCombineInt32ZeroLessThanOrEqualAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Int32LessThanOrEqual(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Int32LessThanOrEqual(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_INT32_INPUTS(a) {
     FOR_INT32_INPUTS(b) {
@@ -789,17 +768,17 @@ TEST(BranchCombineUint32AndLessThanOrEqualZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Uint32LessThanOrEqual(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Uint32LessThanOrEqual(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -815,17 +794,17 @@ TEST(BranchCombineUint32AndGreaterThanZero) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Uint32GreaterThan(add, m.Int32Constant(0));
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Uint32GreaterThan(add, m.Word32Constant(0));
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -841,17 +820,17 @@ TEST(BranchCombineUint32ZeroGreaterThanOrEqualAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Uint32GreaterThanOrEqual(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Uint32GreaterThanOrEqual(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -867,17 +846,17 @@ TEST(BranchCombineUint32ZeroLessThanAnd) {
 
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
                                        MachineType::Uint32());
-  Node* p0 = m.Parameter(0);
-  Node* p1 = m.Parameter(1);
-  Node* add = m.Word32And(p0, p1);
-  Node* compare = m.Uint32LessThan(m.Int32Constant(0), add);
+  OpIndex p0 = m.Parameter(0);
+  OpIndex p1 = m.Parameter(1);
+  OpIndex add = m.Word32BitwiseAnd(p0, p1);
+  V<Word32> compare = m.Uint32LessThan(m.Word32Constant(0), add);
 
-  RawMachineLabel blocka, blockb;
-  m.Branch(compare, &blocka, &blockb);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(t_constant));
-  m.Bind(&blockb);
-  m.Return(m.Int32Constant(f_constant));
+  Block *blocka = m.NewBlock(), *blockb = m.NewBlock();
+  m.Branch(compare, blocka, blockb);
+  m.Bind(blocka);
+  m.Return(m.Word32Constant(t_constant));
+  m.Bind(blockb);
+  m.Return(m.Word32Constant(f_constant));
 
   FOR_UINT32_INPUTS(a) {
     FOR_UINT32_INPUTS(b) {
@@ -887,8 +866,4 @@ TEST(BranchCombineUint32ZeroLessThanAnd) {
   }
 }
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
-
-#endif
+}  // namespace v8::internal::compiler::turboshaft

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if 0
-
 #include "test/cctest/compiler/turboshaft-codegen-tester.h"
 
 #include "src/base/overflowing-math.h"
@@ -11,9 +9,7 @@
 #include "test/cctest/cctest.h"
 #include "test/common/value-helper.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler::turboshaft {
 
 void Int32BinopInputShapeTester::TestAllInputShapes() {
   base::Vector<const int32_t> inputs = ValueHelper::int32_vector();
@@ -25,10 +21,10 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
       if (i >= 0 && j >= 0) break;               // No constant/constant combos
       RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                            MachineType::Int32());
-      Node* p0 = m.Parameter(0);
-      Node* p1 = m.Parameter(1);
-      Node* n0;
-      Node* n1;
+      OpIndex p0 = m.Parameter(0);
+      OpIndex p1 = m.Parameter(1);
+      OpIndex n0;
+      OpIndex n1;
 
       // left = Parameter | Load | Constant
       if (i == -2) {
@@ -36,7 +32,7 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
       } else if (i == -1) {
         n0 = m.LoadFromPointer(&input_a, MachineType::Int32());
       } else {
-        n0 = m.Int32Constant(inputs[i]);
+        n0 = m.Word32Constant(inputs[i]);
       }
 
       // right = Parameter | Load | Constant
@@ -45,7 +41,7 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
       } else if (j == -1) {
         n1 = m.LoadFromPointer(&input_b, MachineType::Int32());
       } else {
-        n1 = m.Int32Constant(inputs[j]);
+        n1 = m.Word32Constant(inputs[j]);
       }
 
       gen->gen(&m, n0, n1);
@@ -92,8 +88,4 @@ void Int32BinopInputShapeTester::RunRight(
   }
 }
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
-
-#endif
+}  // namespace v8::internal::compiler::turboshaft

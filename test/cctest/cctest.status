@@ -560,6 +560,7 @@
   'test-concurrent-allocation/*': [SKIP],
   'test-sync-primitives-arm/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
+  'turboshaft-test-branch-combine/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
