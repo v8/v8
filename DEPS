@@ -278,7 +278,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '344117638c8ff7e239044fd0fa7085839fc03021',
   },
   'third_party/fuzztest':
-    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + '1aeb9304625552d2871a45dfaea4603f3a577900',
+    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'daea7ab861050a6445f59758f09cc3173f5add76',
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'bddcd9f77ba0a81a99ce50bcadf5149efe545df0',
   'third_party/googletest/src':
@@ -356,7 +356,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '7dcda6ce5910f535decf965a0e148073fe7153b6',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '308441de3def801c65d3ca3ed45564dab7db02fd',
     'condition': 'not build_with_chromium',
   }
 }
