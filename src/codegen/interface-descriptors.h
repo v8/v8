@@ -482,9 +482,6 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr bool kNoContext = false;
   static constexpr bool kAllowVarArgs = false;
   static constexpr bool kNoStackScan = false;
-  // TODO(saelo): we should not have a default value here to force all interface
-  // descriptors to define a (unique) tag.
-  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kDefault;
 
   // The set of registers available to the parameters, as a
@@ -885,6 +882,7 @@ class RegExpTrampolineDescriptor
 class ContextOnlyDescriptor
     : public StaticCallInterfaceDescriptor<ContextOnlyDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor)
@@ -895,6 +893,7 @@ class ContextOnlyDescriptor
 class NoContextDescriptor
     : public StaticCallInterfaceDescriptor<NoContextDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(NoContextDescriptor)
@@ -905,6 +904,7 @@ class NoContextDescriptor
 // LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -923,6 +923,7 @@ class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
 class LoadBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -935,6 +936,7 @@ class LoadBaselineDescriptor
 class LoadGlobalNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalNoFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kICKind)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kICKind
@@ -948,6 +950,7 @@ class LoadGlobalNoFeedbackDescriptor
 class LoadNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<LoadNoFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kICKind)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -962,6 +965,7 @@ class LoadNoFeedbackDescriptor
 class LoadGlobalDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kSlot
@@ -973,6 +977,7 @@ class LoadGlobalDescriptor
 class LoadGlobalBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned())  // kSlot
@@ -984,6 +989,7 @@ class LoadGlobalBaselineDescriptor
 class LookupWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LookupWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kDepth, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -995,6 +1001,7 @@ class LookupWithVectorDescriptor
 class LookupTrampolineDescriptor
     : public StaticCallInterfaceDescriptor<LookupTrampolineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kDepth, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -1005,6 +1012,7 @@ class LookupTrampolineDescriptor
 class LookupBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LookupBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kDepth, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
                          MachineType::AnyTagged(),  // kDepth
@@ -1016,6 +1024,7 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
     : public StaticCallInterfaceDescriptor<
           MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector, kTemporary)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),          // kFlags
                          MachineType::TaggedPointer(),  // kFeedbackVector
@@ -1032,6 +1041,7 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
 
 class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1050,6 +1060,7 @@ class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {
 class StoreNoFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<StoreNoFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kValue)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
                          MachineType::AnyTagged(),  // kName
@@ -1062,6 +1073,7 @@ class StoreNoFeedbackDescriptor
 class StoreBaselineDescriptor
     : public StaticCallInterfaceDescriptor<StoreBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1075,7 +1087,7 @@ class StoreBaselineDescriptor
 class StoreTransitionDescriptor
     : public StaticCallInterfaceDescriptor<StoreTransitionDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kICHandlerEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kStoreTransitionICHandlerEntrypointTag)
   DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1093,7 +1105,7 @@ class StoreTransitionDescriptor
 class StoreWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<StoreWithVectorDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kICHandlerEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kStoreWithVectorICHandlerEntrypointTag)
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1110,6 +1122,7 @@ class StoreWithVectorDescriptor
 class StoreGlobalDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1122,6 +1135,7 @@ class StoreGlobalDescriptor
 class StoreGlobalBaselineDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kName, kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1134,6 +1148,7 @@ class StoreGlobalBaselineDescriptor
 class StoreGlobalWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<StoreGlobalWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::AnyTagged(),     // kValue
@@ -1147,6 +1162,7 @@ class StoreGlobalWithVectorDescriptor
 class DefineKeyedOwnDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1163,6 +1179,7 @@ class DefineKeyedOwnDescriptor
 class DefineKeyedOwnBaselineDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1177,6 +1194,7 @@ class DefineKeyedOwnBaselineDescriptor
 class DefineKeyedOwnWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<DefineKeyedOwnWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags,
                     kSlot,   // register argument
                     kVector  // stack argument
@@ -1195,7 +1213,7 @@ class DefineKeyedOwnWithVectorDescriptor
 class LoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithVectorDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kICHandlerEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kLoadWithVectorICHandlerEntrypointTag)
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
@@ -1213,6 +1231,7 @@ class LoadWithVectorDescriptor
 class KeyedLoadBaselineDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1229,6 +1248,7 @@ class KeyedLoadBaselineDescriptor
 class KeyedLoadDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1241,6 +1261,7 @@ class KeyedLoadDescriptor
 class KeyedLoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<KeyedLoadWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1256,6 +1277,7 @@ class KeyedLoadWithVectorDescriptor
 class KeyedHasICBaselineDescriptor
     : public StaticCallInterfaceDescriptor<KeyedHasICBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1272,6 +1294,7 @@ class KeyedHasICBaselineDescriptor
 class KeyedHasICWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<KeyedHasICWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1291,6 +1314,7 @@ class LoadWithReceiverAndVectorDescriptor
     : public StaticCallInterfaceDescriptor<
           LoadWithReceiverAndVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kLookupStartObject, kName, kSlot, kVector)
@@ -1309,6 +1333,7 @@ class LoadWithReceiverAndVectorDescriptor
 class LoadWithReceiverBaselineDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithReceiverBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kLookupStartObject, kName, kSlot)
@@ -1324,6 +1349,7 @@ class LoadWithReceiverBaselineDescriptor
 class LoadGlobalWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadGlobalWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kName, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
                          MachineType::TaggedSigned(),  // kSlot
@@ -1338,6 +1364,7 @@ class LoadGlobalWithVectorDescriptor
 class FastNewObjectDescriptor
     : public StaticCallInterfaceDescriptor<FastNewObjectDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kTarget, kNewTarget)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged())  // kNewTarget
@@ -1352,6 +1379,7 @@ class FastNewObjectDescriptor
 class WriteBarrierDescriptor final
     : public StaticCallInterfaceDescriptor<WriteBarrierDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer())        // kSlotAddress
@@ -1378,6 +1406,7 @@ class IndirectPointerWriteBarrierDescriptor final
     : public StaticCallInterfaceDescriptor<
           IndirectPointerWriteBarrierDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kIndirectPointerTag)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlotAddress
@@ -1401,6 +1430,7 @@ class IndirectPointerWriteBarrierDescriptor final
 class TSANStoreDescriptor final
     : public StaticCallInterfaceDescriptor<TSANStoreDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kValue)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
                          MachineType::AnyTagged())  // kValue
@@ -1414,6 +1444,7 @@ class TSANStoreDescriptor final
 class TSANLoadDescriptor final
     : public StaticCallInterfaceDescriptor<TSANLoadDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())  // kAddress
 
@@ -1428,6 +1459,7 @@ class TSANLoadDescriptor final
 class TypeConversionDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversionDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionDescriptor)
@@ -1440,6 +1472,7 @@ class TypeConversionDescriptor final
 class TypeConversionNoContextDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversionNoContextDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeConversionNoContextDescriptor)
@@ -1450,6 +1483,7 @@ class TypeConversionNoContextDescriptor final
 class TypeConversion_BaselineDescriptor final
     : public StaticCallInterfaceDescriptor<TypeConversion_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::UintPtr())
   DECLARE_DESCRIPTOR(TypeConversion_BaselineDescriptor)
@@ -1458,6 +1492,7 @@ class TypeConversion_BaselineDescriptor final
 class SingleParameterOnStackDescriptor final
     : public StaticCallInterfaceDescriptor<SingleParameterOnStackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(SingleParameterOnStackDescriptor)
@@ -1469,6 +1504,7 @@ class AsyncFunctionStackParameterDescriptor final
     : public StaticCallInterfaceDescriptor<
           AsyncFunctionStackParameterDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kPromise, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor)
@@ -1480,6 +1516,7 @@ class GetIteratorStackParameterDescriptor final
     : public StaticCallInterfaceDescriptor<
           GetIteratorStackParameterDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kReceiver, kCallSlot, kFeedback, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
                          MachineType::AnyTagged(), MachineType::AnyTagged())
@@ -1491,6 +1528,7 @@ class GetIteratorStackParameterDescriptor final
 class GetPropertyDescriptor final
     : public StaticCallInterfaceDescriptor<GetPropertyDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kObject, kKey)
   DECLARE_DEFAULT_DESCRIPTOR(GetPropertyDescriptor)
 };
@@ -1498,6 +1536,7 @@ class GetPropertyDescriptor final
 class TypeofDescriptor
     : public StaticCallInterfaceDescriptor<TypeofDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kObject)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeofDescriptor)
@@ -1888,6 +1927,7 @@ class ArraySingleArgumentConstructorDescriptor
 class CompareDescriptor
     : public StaticCallInterfaceDescriptor<CompareDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(CompareDescriptor)
 
@@ -1897,6 +1937,7 @@ class CompareDescriptor
 class CompareNoContextDescriptor
     : public StaticCallInterfaceDescriptor<CompareNoContextDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight)
   DECLARE_DESCRIPTOR(CompareNoContextDescriptor)
 
@@ -1906,6 +1947,7 @@ class CompareNoContextDescriptor
 class StringEqualDescriptor
     : public StaticCallInterfaceDescriptor<StringEqualDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kLength)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -1916,6 +1958,7 @@ class StringEqualDescriptor
 class BinaryOpDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOpDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight)
   DECLARE_DESCRIPTOR(BinaryOpDescriptor)
 
@@ -1925,6 +1968,7 @@ class BinaryOpDescriptor
 class BinaryOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOp_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -1937,6 +1981,7 @@ class BinaryOp_BaselineDescriptor
 class BinarySmiOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<BinarySmiOp_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kLeft
                          MachineType::TaggedSigned(),  // kRight
@@ -1949,6 +1994,7 @@ class BinarySmiOp_BaselineDescriptor
 class StringAtAsStringDescriptor final
     : public StaticCallInterfaceDescriptor<StringAtAsStringDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kPosition)
   // TODO(turbofan): Return untagged value here.
   DEFINE_RESULT_AND_PARAMETER_TYPES(
@@ -1961,6 +2007,7 @@ class StringAtAsStringDescriptor final
 class StringSubstringDescriptor final
     : public StaticCallInterfaceDescriptor<StringSubstringDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kString, kFrom, kTo)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kString
                          MachineType::IntPtr(),     // kFrom
@@ -1973,6 +2020,7 @@ class StringSubstringDescriptor final
 class CppBuiltinAdaptorDescriptor
     : public StaticJSCallInterfaceDescriptor<CppBuiltinAdaptorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_JS_PARAMETERS(kCFunction)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor)
@@ -1981,6 +2029,7 @@ class CppBuiltinAdaptorDescriptor
 class CEntry1ArgvOnStackDescriptor
     : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kArity,          // register argument
                     kCFunction,      // register argument
                     kPadding,        // stack argument 1 (just padding)
@@ -2209,6 +2258,7 @@ class FindNonDefaultConstructorOrConstructDescriptor
     : public StaticCallInterfaceDescriptor<
           FindNonDefaultConstructorOrConstructDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(2, kThisFunction, kNewTarget)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),  // result 1 (true / false)
@@ -2221,6 +2271,7 @@ class FindNonDefaultConstructorOrConstructDescriptor
 class ForInPrepareDescriptor
     : public StaticCallInterfaceDescriptor<ForInPrepareDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(2, kEnumerator, kVectorIndex, kFeedbackVector)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),     // result 1 (cache array)
@@ -2234,6 +2285,7 @@ class ForInPrepareDescriptor
 class ResumeGeneratorDescriptor final
     : public StaticCallInterfaceDescriptor<ResumeGeneratorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kValue, kGenerator)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::AnyTagged())  // kGenerator
@@ -2245,6 +2297,7 @@ class ResumeGeneratorDescriptor final
 class ResumeGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<ResumeGeneratorBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kRegisterCount)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::TaggedSigned(),  // return type
@@ -2257,6 +2310,7 @@ class ResumeGeneratorBaselineDescriptor final
 class SuspendGeneratorBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<SuspendGeneratorBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kGeneratorObject, kSuspendId, kBytecodeOffset,
                                kRegisterCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kGeneratorObject
@@ -2413,6 +2467,7 @@ class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
 class CloneObjectWithVectorDescriptor final
     : public StaticCallInterfaceDescriptor<CloneObjectWithVectorDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kSource, kFlags, kSlot, kVector)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
                                     MachineType::AnyTagged(),      // kSource
@@ -2425,6 +2480,7 @@ class CloneObjectWithVectorDescriptor final
 class CloneObjectBaselineDescriptor final
     : public StaticCallInterfaceDescriptor<CloneObjectBaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kSource, kFlags, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kSource
                          MachineType::TaggedSigned(),  // kFlags
@@ -2435,6 +2491,7 @@ class CloneObjectBaselineDescriptor final
 class BinaryOp_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOp_WithFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2447,6 +2504,7 @@ class CallTrampoline_Baseline_CompactDescriptor
     : public StaticCallInterfaceDescriptor<
           CallTrampoline_Baseline_CompactDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   using ArgumentCountField = base::BitField<uint32_t, 0, 8>;
   using SlotField = base::BitField<uintptr_t, 8, 24>;
 
@@ -2468,6 +2526,7 @@ class CallTrampoline_Baseline_CompactDescriptor
 class CallTrampoline_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<CallTrampoline_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT_VARARGS(kFunction, kActualArgumentsCount, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
                          MachineType::Int32(),      // kActualArgumentsCount
@@ -2479,6 +2538,7 @@ class CallTrampoline_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<
           CallTrampoline_WithFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot,
                             kFeedbackVector, kReceiver)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
@@ -2492,6 +2552,7 @@ class CallTrampoline_WithFeedbackDescriptor
 class Compare_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<Compare_WithFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2503,6 +2564,7 @@ class Compare_WithFeedbackDescriptor
 class Compare_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<Compare_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
@@ -2515,6 +2577,7 @@ class Compare_BaselineDescriptor
 class Construct_BaselineDescriptor
     : public StaticJSCallInterfaceDescriptor<Construct_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_JS_PARAMETERS_NO_CONTEXT(kSlot)
   DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr())  // kSlot
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_BaselineDescriptor)
@@ -2523,6 +2586,7 @@ class Construct_BaselineDescriptor
 class Construct_WithFeedbackDescriptor
     : public StaticJSCallInterfaceDescriptor<Construct_WithFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   // kSlot is passed in a register, kFeedbackVector on the stack.
   DEFINE_JS_PARAMETERS(kSlot, kFeedbackVector)
   DEFINE_JS_PARAMETER_TYPES(MachineType::UintPtr(),    // kSlot
@@ -2533,6 +2597,7 @@ class Construct_WithFeedbackDescriptor
 class UnaryOp_WithFeedbackDescriptor
     : public StaticCallInterfaceDescriptor<UnaryOp_WithFeedbackDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS(kValue, kSlot, kFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr(),    // kSlot
@@ -2543,6 +2608,7 @@ class UnaryOp_WithFeedbackDescriptor
 class UnaryOp_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<UnaryOp_BaselineDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_NO_CONTEXT(kValue, kSlot)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
@@ -2553,6 +2619,7 @@ class CheckTurboshaftFloat32TypeDescriptor
     : public StaticCallInterfaceDescriptor<
           CheckTurboshaftFloat32TypeDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineTypeOf<Float32T>::value,
@@ -2565,6 +2632,7 @@ class CheckTurboshaftFloat64TypeDescriptor
     : public StaticCallInterfaceDescriptor<
           CheckTurboshaftFloat64TypeDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineTypeOf<Float64T>::value,
@@ -2576,6 +2644,7 @@ class CheckTurboshaftFloat64TypeDescriptor
 class DebugPrintWordPtrDescriptor
     : public StaticCallInterfaceDescriptor<DebugPrintWordPtrDescriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(1, kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineType::UintPtr())
@@ -2585,6 +2654,7 @@ class DebugPrintWordPtrDescriptor
 class DebugPrintFloat64Descriptor
     : public StaticCallInterfaceDescriptor<DebugPrintFloat64Descriptor> {
  public:
+  INTERNAL_DESCRIPTOR()
   DEFINE_RESULT_AND_PARAMETERS(1, kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
                                     MachineType::Float64())
@@ -2595,6 +2665,7 @@ class DebugPrintFloat64Descriptor
   class Name##Descriptor                                                     \
       : public StaticCallInterfaceDescriptor<Name##Descriptor> {             \
    public:                                                                   \
+    INTERNAL_DESCRIPTOR()                                                    \
     DEFINE_PARAMETERS(__VA_ARGS__)                                           \
     static constexpr bool kNoContext = DoesNeedContext == NeedsContext::kNo; \
     DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                             \

@@ -475,18 +475,18 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 
   Kind kind = Builtins::KindOf(builtin);
   switch (kind) {
-    case ASM:
-      return CallInterfaceDescriptorFor(builtin).tag();
+    case CPP:
+    case TFJ:
+      return kJSEntrypointTag;
     case BCH:
       return kBytecodeHandlerEntrypointTag;
-    case TFH:
-      return kICHandlerEntrypointTag;
     case TFC:
+    case TFS:
+    case TFH:
+    case ASM:
       return CallInterfaceDescriptorFor(builtin).tag();
-    default:
-      // TODO(saelo): use more fine-grained tags here.
-      return kDefaultCodeEntrypointTag;
   }
+  UNREACHABLE();
 }
 
 // static

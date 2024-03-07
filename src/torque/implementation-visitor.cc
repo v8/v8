@@ -3615,6 +3615,10 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
 
           interface_descriptors << " public:\n";
 
+          // Currently, no torque-defined builtins are directly exposed to
+          // objects inside the sandbox via the code pointer table.
+          interface_descriptors << "  INTERNAL_DESCRIPTOR()\n";
+
           if (has_context_parameter) {
             interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
           } else {

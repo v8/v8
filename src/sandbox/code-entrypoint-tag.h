@@ -40,8 +40,13 @@ enum CodeEntrypointTag : uint64_t {
   kJSEntrypointTag = kDefaultCodeEntrypointTag,
   kWasmEntrypointTag = kDefaultCodeEntrypointTag,
   kBytecodeHandlerEntrypointTag = uint64_t{1} << kCodeEntrypointTagShift,
-  kICHandlerEntrypointTag = uint64_t{2} << kCodeEntrypointTagShift,
-  kRegExpEntrypointTag = uint64_t{3} << kCodeEntrypointTagShift,
+  kLoadWithVectorICHandlerEntrypointTag = uint64_t{2}
+                                          << kCodeEntrypointTagShift,
+  kStoreWithVectorICHandlerEntrypointTag = uint64_t{3}
+                                           << kCodeEntrypointTagShift,
+  kStoreTransitionICHandlerEntrypointTag = uint64_t{4}
+                                           << kCodeEntrypointTagShift,
+  kRegExpEntrypointTag = uint64_t{5} << kCodeEntrypointTagShift,
   // TODO(saelo): create more of these tags.
 
   // Tag to use for code that will never be called indirectly via the CPT.
