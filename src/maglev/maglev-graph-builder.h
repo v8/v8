@@ -101,84 +101,6 @@ class V8_NODISCARD ReduceResult {
   base::PointerWithPayload<ValueNode, Kind, 3> payload_;
 };
 
-struct FastField;
-
-// Encoding of a fast allocation site object's element fixed array.
-struct FastFixedArray {
-  FastFixedArray() : type(kUninitialized) {}
-  explicit FastFixedArray(compiler::ObjectRef cow_value)
-      : type(kCoW), cow_value(cow_value) {}
-  explicit FastFixedArray(int length, Zone* zone)
-      : type(kTagged),
-        length(length),
-        values(zone->AllocateArray<FastField>(length)) {}
-  explicit FastFixedArray(int length, Zone* zone, double)
-      : type(kDouble),
-        length(length),
-        double_values(zone->AllocateArray<Float64>(length)) {}
-
-  enum { kUninitialized, kCoW, kTagged, kDouble } type;
-
-  union {
-    char uninitialized_marker;
-
-    compiler::ObjectRef cow_value;
-
-    struct {
-      int length;
-      union {
-        FastField* values;
-        Float64* double_values;
-      };
-    };
-  };
-};
-
-// Encoding of a fast allocation site boilerplate object.
-struct FastObject {
-  FastObject(compiler::MapRef map, Zone* zone, FastFixedArray elements)
-      : map(map),
-        inobject_properties(map.GetInObjectProperties()),
-        instance_size(map.instance_size()),
-        fields(zone->AllocateArray<FastField>(inobject_properties)),
-        elements(elements) {
-    DCHECK(!map.is_dictionary_map());
-    DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  }
-  FastObject(compiler::JSFunctionRef constructor, Zone* zone,
-             compiler::JSHeapBroker* broker);
-
-  void ClearFields();
-
-  compiler::MapRef map;
-  int inobject_properties;
-  int instance_size;
-  FastField* fields;
-  FastFixedArray elements;
-  compiler::OptionalObjectRef js_array_length;
-};
-
-// Encoding of a fast allocation site literal value.
-struct FastField {
-  FastField() : type(kUninitialized) {}
-  explicit FastField(FastObject object) : type(kObject), object(object) {}
-  explicit FastField(Float64 mutable_double_value)
-      : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
-  explicit FastField(compiler::ObjectRef constant_value)
-      : type(kConstant), constant_value(constant_value) {}
-
-  enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
-
-  bool IsInitialized();
-
-  union {
-    char uninitialized_marker;
-    FastObject object;
-    Float64 mutable_double_value;
-    compiler::ObjectRef constant_value;
-  };
-};
-
 #define RETURN_IF_DONE(result)   \
   do {                           \
     ReduceResult res = (result); \
@@ -260,6 +182,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 
 class MaglevGraphBuilder {
  public:
+  class DeoptFrameScope;
+
   explicit MaglevGraphBuilder(
       LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
       Graph* graph, float call_frequency = 1.0f,
@@ -411,6 +335,9 @@ class MaglevGraphBuilder {
     return current_interpreter_frame_;
   }
   const MaglevGraphBuilder* parent() const { return parent_; }
+  const DeoptFrameScope* current_deopt_scope() const {
+    return current_deopt_scope_;
+  }
   compiler::JSHeapBroker* broker() const { return broker_; }
   LocalIsolate* local_isolate() const { return local_isolate_; }
 
@@ -489,7 +416,6 @@ class MaglevGraphBuilder {
 
   class CallSpeculationScope;
   class SaveCallSpeculationScope;
-  class DeoptFrameScope;
 
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
@@ -1943,6 +1869,8 @@ class MaglevGraphBuilder {
                                       int index);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
+  void BuildInitializeStoreTaggedField(InlinedAllocation* alloc,
+                                       ValueNode* value, int offset);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);
   void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
                                            int offset);
@@ -2086,9 +2014,17 @@ class MaglevGraphBuilder {
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
-  ValueNode* ExtendOrReallocateCurrentRawAllocation(
-      int size, AllocationType allocation_type);
-  void ClearCurrentRawAllocation();
+  InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
+      int size, AllocationType allocation_type, DeoptObject value);
+  void ClearCurrentAllocationBlock();
+
+  inline void AddDeoptUse(ValueNode* node) {
+    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+      AddNonEscapingUses(alloc, 1);
+    }
+    node->add_use();
+  }
+  void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
@@ -2302,6 +2238,8 @@ class MaglevGraphBuilder {
     return bytecode().length();
   }
 
+  int NewObjectId() { return object_ids_++; }
+
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
@@ -2345,7 +2283,8 @@ class MaglevGraphBuilder {
   // TODO(leszeks): Allow having a stack of these.
   ForInState current_for_in_state = ForInState();
 
-  AllocateRaw* current_raw_allocation_ = nullptr;
+  AllocationBlock* current_allocation_block_ = nullptr;
+  int object_ids_ = 0;
 
   float call_frequency_;
 

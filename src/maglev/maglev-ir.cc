@@ -155,6 +155,25 @@ namespace {
 // Print
 // ---
 
+namespace {
+bool IsStoreToNonEscapedObject(const NodeBase* node) {
+  switch (node->opcode()) {
+    case Opcode::kStoreMap:
+    case Opcode::kStoreTaggedFieldWithWriteBarrier:
+    case Opcode::kStoreTaggedFieldNoWriteBarrier:
+    case Opcode::kStoreFloat64:
+      DCHECK_GT(node->input_count(), 0);
+      if (InlinedAllocation* alloc =
+              node->input(0).node()->template TryCast<InlinedAllocation>()) {
+        return !alloc->HasEscaped();
+      }
+      return false;
+    default:
+      return false;
+  }
+}
+}  // namespace
+
 void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                  const NodeBase* node) {
   if (!node->has_inputs()) return;
@@ -163,6 +182,9 @@ void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   for (int i = 0; i < node->input_count(); i++) {
     if (i != 0) os << ", ";
     graph_labeller->PrintInput(os, node->input(i));
+  }
+  if (IsStoreToNonEscapedObject(node)) {
+    os << " 🪦";
   }
   os << "]";
 }
@@ -183,6 +205,19 @@ void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
   if (!node->has_id()) {
     os << ", " << node->use_count() << " uses";
+    if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+      os << " (" << alloc->non_escaping_use_count() << " stores + deopt info)";
+      if (!alloc->HasEscaped()) {
+        os << " 🪦";
+      }
+    } else if (!node->is_used()) {
+      if (node->opcode() != Opcode::kAllocationBlock &&
+          node->properties().is_required_when_unused()) {
+        os << ", but required";
+      } else {
+        os << " 🪦";
+      }
+    }
   }
 }
 
@@ -730,9 +765,10 @@ void CallRuntime::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void FoldedAllocation::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+void InlinedAllocation::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
   Base::VerifyInputs(graph_labeller);
-  CheckValueInputIs(this, 0, Opcode::kAllocateRaw, graph_labeller);
+  CheckValueInputIs(this, 0, Opcode::kAllocationBlock, graph_labeller);
 }
 
 // ---
@@ -3216,10 +3252,10 @@ void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void AllocateRaw::SetValueLocationConstraints() { DefineAsRegister(this); }
+void AllocationBlock::SetValueLocationConstraints() { DefineAsRegister(this); }
 
-void AllocateRaw::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
+void AllocationBlock::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
   __ Allocate(register_snapshot(), ToRegister(result()), size(),
               allocation_type());
 }
@@ -6337,14 +6373,14 @@ void CreateClosure::PrintParams(std::ostream& os,
   os << ")";
 }
 
-void AllocateRaw::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << allocation_type() << ", " << size() << ")";
+void AllocationBlock::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << allocation_type() << ")";
 }
 
-void FoldedAllocation::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(+" << offset() << ")";
+void InlinedAllocation::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << size() << ")";
 }
 
 void Abort::PrintParams(std::ostream& os,
