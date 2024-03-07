@@ -797,7 +797,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return factory()->NewThisExpression(pos);
   }
 
-  Expression* NewSuperPropertyReference(Scope* home_object_scope, int pos);
+  Expression* NewSuperPropertyReference(int pos);
   SuperCallReference* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);
