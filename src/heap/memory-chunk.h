@@ -260,11 +260,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
 #ifdef DEBUG
-  size_t Offset(Address address);
+  size_t Offset(Address addr) const;
 #else
-  size_t Offset(Address address) {
-    return address - reinterpret_cast<Address>(this);
-  }
+  size_t Offset(Address addr) const { return addr - address(); }
 #endif
 
  private:

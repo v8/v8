@@ -1061,11 +1061,11 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     if (!InWritableSharedSpace(heap_object)) return;
     DCHECK(InWritableSharedSpace(heap_object));
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    MutablePageMetadata* host_page =
+    MutablePageMetadata* host_page_metadata =
         MutablePageMetadata::cast(host_chunk->Metadata());
     DCHECK(host_chunk->InYoungGeneration());
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-        host_page, host_chunk->Offset(slot.address()));
+        host_page_metadata, host_chunk->Offset(slot.address()));
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
   }
 
@@ -3605,11 +3605,12 @@ MarkCompactCollector::ProcessRelocInfo(Tagged<InstructionStream> host,
     }
   }
 
-  MutablePageMetadata* const source_chunk =
-      MutablePageMetadata::FromHeapObject(host);
-  const uintptr_t offset = addr - source_chunk->address();
+  MemoryChunk* const source_chunk = MemoryChunk::FromHeapObject(host);
+  MutablePageMetadata* const source_page_metadata =
+      MutablePageMetadata::cast(source_chunk->Metadata());
+  const uintptr_t offset = source_chunk->Offset(addr);
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-  result.memory_chunk = source_chunk;
+  result.page_metadata = source_page_metadata;
   result.slot_type = slot_type;
   result.offset = static_cast<uint32_t>(offset);
 
@@ -3627,9 +3628,9 @@ void MarkCompactCollector::RecordRelocSlot(Tagged<InstructionStream> host,
   // publish code in the background thread.
   base::Optional<base::MutexGuard> opt_guard;
   if (v8_flags.concurrent_sparkplug) {
-    opt_guard.emplace(info.memory_chunk->mutex());
+    opt_guard.emplace(info.page_metadata->mutex());
   }
-  RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
+  RememberedSet<OLD_TO_OLD>::InsertTyped(info.page_metadata, info.slot_type,
                                          info.offset);
 }
 
@@ -4712,19 +4713,19 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
     if (InWritableSharedSpace(heap_object)) {
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-          page, page->Chunk()->Offset(slot.address()));
+          page, page->Offset(slot.address()));
     }
   }
 
   inline void CheckSlotForOldToSharedTyped(
-      MutablePageMetadata* chunk, SlotType slot_type, Address addr,
+      MutablePageMetadata* page, SlotType slot_type, Address addr,
       WritableJitAllocation& jit_allocation) {
     Tagged<HeapObject> heap_object =
-        UpdateTypedSlotHelper::GetTargetObject(chunk->heap(), slot_type, addr);
+        UpdateTypedSlotHelper::GetTargetObject(page->heap(), slot_type, addr);
 
 #if DEBUG
     UpdateTypedSlotHelper::UpdateTypedSlot(
-        jit_allocation, chunk->heap(), slot_type, addr,
+        jit_allocation, page->heap(), slot_type, addr,
         [heap_object](FullMaybeObjectSlot slot) {
           DCHECK_EQ((*slot).GetHeapObjectAssumeStrong(), heap_object);
           return KEEP_SLOT;
@@ -4732,9 +4733,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 #endif  // DEBUG
 
     if (InWritableSharedSpace(heap_object)) {
-      const uintptr_t offset = addr - chunk->address();
+      const uintptr_t offset = page->Offset(addr);
       DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-      RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
+      RememberedSet<OLD_TO_SHARED>::InsertTyped(page, slot_type,
                                                 static_cast<uint32_t>(offset));
     }
   }
@@ -4872,7 +4873,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    if (InsideSandbox(chunk_->address())) return;
+    if (InsideSandbox(chunk_->ChunkAddress())) return;
 #endif
     if (!chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) return;
 
@@ -5272,18 +5273,18 @@ void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
       MarkingBitmap::LimitAddressToIndex(failed_start));
 
   // Remove outdated slots.
-  RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
+  RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->area_start(), failed_start,
                                          SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
+  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->area_start(),
                                               failed_start);
 
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-      page, page->address(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
+      page, page->area_start(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
   DCHECK_NULL(page->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
 
-  RememberedSet<OLD_TO_SHARED>::RemoveRange(page, page->address(), failed_start,
-                                            SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(page, page->address(),
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(
+      page, page->area_start(), failed_start, SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(page, page->area_start(),
                                                  failed_start);
 
   // Re-record slots and recompute live bytes.

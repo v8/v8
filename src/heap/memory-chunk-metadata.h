@@ -51,7 +51,7 @@ class MemoryChunkMetadata {
     // to another chunk. See the comment to
     // PageMetadata::FromAllocationAreaAddress.
     MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
+    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->ChunkAddress());
     intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
     while ((new_mark > old_mark) &&
            !chunk->high_water_mark_.compare_exchange_weak(
@@ -63,12 +63,11 @@ class MemoryChunkMetadata {
                    Address area_start, Address area_end,
                    VirtualMemory reservation);
 
-  Address address() const { return reinterpret_cast<Address>(this); }
+  Address ChunkAddress() const { return Chunk()->address(); }
+  Address MetadataAddress() const { return reinterpret_cast<Address>(this); }
 
   // Returns the offset of a given address to this page.
-  inline size_t Offset(Address a) const {
-    return static_cast<size_t>(a - address());
-  }
+  inline size_t Offset(Address a) const { return Chunk()->Offset(a); }
 
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
@@ -114,7 +113,7 @@ class MemoryChunkMetadata {
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() const { return allocated_bytes_; }
 
-  Address HighWaterMark() const { return address() + high_water_mark_; }
+  Address HighWaterMark() const { return ChunkAddress() + high_water_mark_; }
 
   VirtualMemory* reserved_memory() { return &reservation_; }
 

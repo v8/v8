@@ -149,8 +149,9 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 
 // static
 MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
-  Address page_address = MutablePageMetadata::FromAddress(address)->address();
-  return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
+  Address metadata_address =
+      MutablePageMetadata::FromAddress(address)->MetadataAddress();
+  return Cast(metadata_address + MemoryChunkLayout::kMarkingBitmapOffset);
 }
 
 // static
@@ -218,12 +219,14 @@ inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
   const auto index_of_last_leftmost_one =
       MarkingBitmap::kBitsPerCell - leading_zeros - leftmost_ones;
 
+  const MemoryChunk* chunk = page->Chunk();
+
   // If the leftmost sequence of set bits does not reach the start of the cell,
   // we found it.
   if (index_of_last_leftmost_one > 0) {
-    return page->address() + MarkingBitmap::IndexToAddressOffset(
-                                 cell_index * MarkingBitmap::kBitsPerCell +
-                                 index_of_last_leftmost_one);
+    return chunk->address() + MarkingBitmap::IndexToAddressOffset(
+                                  cell_index * MarkingBitmap::kBitsPerCell +
+                                  index_of_last_leftmost_one);
   }
 
   // The leftmost sequence of set bits reaches the start of the cell. We must
@@ -248,9 +251,9 @@ inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
   const auto index_of_last_leading_one =
       MarkingBitmap::kBitsPerCell - leading_ones;
   DCHECK_LT(0, index_of_last_leading_one);
-  return page->address() + MarkingBitmap::IndexToAddressOffset(
-                               cell_index * MarkingBitmap::kBitsPerCell +
-                               index_of_last_leading_one);
+  return chunk->address() + MarkingBitmap::IndexToAddressOffset(
+                                cell_index * MarkingBitmap::kBitsPerCell +
+                                index_of_last_leading_one);
 }
 
 // static
@@ -328,11 +331,12 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     current_cell_ = cells_[current_cell_index_] & ~(mask - 1);
   }
   // The next block finds any marked object starting from the current cell.
+  const MemoryChunk* chunk = page_->Chunk();
   while (true) {
     if (current_cell_) {
       const auto trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
       Address current_cell_base =
-          page_->address() + MarkingBitmap::CellToBase(current_cell_index_);
+          chunk->address() + MarkingBitmap::CellToBase(current_cell_index_);
       Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
       // The object may be a filler which we want to skip.
       current_object_ = HeapObject::FromAddress(object_address);

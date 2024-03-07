@@ -343,13 +343,14 @@ void SemiSpace::DecrementCommittedPhysicalMemory(size_t decrement_value) {
 
 void SemiSpace::AddRangeToActiveSystemPages(Address start, Address end) {
   PageMetadata* page = current_page();
+  MemoryChunk* chunk = page->Chunk();
 
-  DCHECK_LE(page->address(), start);
+  DCHECK_LE(chunk->address(), start);
   DCHECK_LT(start, end);
-  DCHECK_LE(end, page->address() + PageMetadata::kPageSize);
+  DCHECK_LE(end, chunk->address() + PageMetadata::kPageSize);
 
   const size_t added_pages = page->active_system_pages()->Add(
-      start - page->address(), end - page->address(),
+      chunk->Offset(start), chunk->Offset(end),
       MemoryAllocator::GetCommitPageSizeBits());
   IncrementCommittedPhysicalMemory(added_pages *
                                    MemoryAllocator::GetCommitPageSize());

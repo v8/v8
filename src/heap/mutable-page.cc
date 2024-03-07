@@ -102,7 +102,7 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
   // "Trusted" chunks should never be located inside the sandbox as they
   // couldn't be trusted in that case.
   DCHECK_IMPLIES(chunk->IsFlagSet(MemoryChunk::IS_TRUSTED),
-                 !InsideSandbox(address()));
+                 !InsideSandbox(ChunkAddress()));
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
@@ -212,7 +212,7 @@ void MutablePageMetadata::ReleaseSlotSet(RememberedSetType type) {
 
 TypedSlotSet* MutablePageMetadata::AllocateTypedSlotSet(
     RememberedSetType type) {
-  TypedSlotSet* typed_slot_set = new TypedSlotSet(address());
+  TypedSlotSet* typed_slot_set = new TypedSlotSet(ChunkAddress());
   TypedSlotSet* old_value = base::AsAtomicPointer::Release_CompareAndSwap(
       &typed_slot_set_[type], nullptr, typed_slot_set);
   if (old_value) {
@@ -259,45 +259,51 @@ int MutablePageMetadata::ComputeFreeListsLength() {
 #ifdef DEBUG
 void MutablePageMetadata::ValidateOffsets(MutablePageMetadata* chunk) {
   // Note that we cannot use offsetof because MutablePageMetadata is not a POD.
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->slot_set_) - chunk->address(),
-            MemoryChunkLayout::kSlotSetOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->progress_bar_) - chunk->address(),
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->slot_set_) - chunk->MetadataAddress(),
+      MemoryChunkLayout::kSlotSetOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->progress_bar_) -
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kProgressBarOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->live_byte_count_) -
+                chunk->MetadataAddress(),
+            MemoryChunkLayout::kLiveByteCountOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->typed_slot_set_) -
+                chunk->MetadataAddress(),
+            MemoryChunkLayout::kTypedSlotSetOffset);
   DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->live_byte_count_) - chunk->address(),
-      MemoryChunkLayout::kLiveByteCountOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->typed_slot_set_) - chunk->address(),
-      MemoryChunkLayout::kTypedSlotSetOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->mutex_) - chunk->address(),
-            MemoryChunkLayout::kMutexOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->shared_mutex_) - chunk->address(),
+      reinterpret_cast<Address>(&chunk->mutex_) - chunk->MetadataAddress(),
+      MemoryChunkLayout::kMutexOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->shared_mutex_) -
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kSharedMutexOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->concurrent_sweeping_) -
-                chunk->address(),
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kConcurrentSweepingOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->page_protection_change_mutex_) -
-                chunk->address(),
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kPageProtectionChangeMutexOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->external_backing_store_bytes_) -
-                chunk->address(),
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kExternalBackingStoreBytesOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->list_node_) - chunk->address(),
-            MemoryChunkLayout::kListNodeOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->categories_) - chunk->address(),
-            MemoryChunkLayout::kCategoriesOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->list_node_) - chunk->MetadataAddress(),
+      MemoryChunkLayout::kListNodeOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->categories_) - chunk->MetadataAddress(),
+      MemoryChunkLayout::kCategoriesOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->possibly_empty_buckets_) -
-                chunk->address(),
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kPossiblyEmptyBucketsOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
-                chunk->address(),
+                chunk->MetadataAddress(),
             MemoryChunkLayout::kActiveSystemPagesOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->allocated_lab_size_) - chunk->address(),
-      MemoryChunkLayout::kAllocatedLabSizeOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->age_in_new_space_) - chunk->address(),
-      MemoryChunkLayout::kAgeInNewSpaceOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->allocated_lab_size_) -
+                chunk->MetadataAddress(),
+            MemoryChunkLayout::kAllocatedLabSizeOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->age_in_new_space_) -
+                chunk->MetadataAddress(),
+            MemoryChunkLayout::kAgeInNewSpaceOffset);
 }
 #endif
 

@@ -70,7 +70,8 @@ void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
   // area_end() might not be aligned to a full bucket size with large objects.
   // Align it to bucket size such that the following RemoveRange invocation just
   // drops the whole bucket and the bucket is reset to nullptr.
-  Address aligned_area_end = address() + SlotSet::OffsetForBucket(buckets());
+  Address aligned_area_end =
+      ChunkAddress() + SlotSet::OffsetForBucket(buckets());
   DCHECK_LE(area_end(), aligned_area_end);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(this, free_start, aligned_area_end,
                                             SlotSet::FREE_EMPTY_BUCKETS);

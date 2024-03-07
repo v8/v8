@@ -306,7 +306,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
-    DCHECK_EQ(chunk->address() + chunk->size(),
+    DCHECK_EQ(chunk->ChunkAddress() + chunk->size(),
               chunk->area_end() + MemoryChunkLayout::CodePageGuardSize());
 
     if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !isolate_->jitless()) {
@@ -351,7 +351,7 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(MemoryChunkMetadata* chunk,
 #endif  // DEBUG
 
     Address executable_page_start =
-        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+        chunk->ChunkAddress() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
     size_t aligned_area_size =
         RoundUp(chunk->area_end() - executable_page_start, GetCommitPageSize());
     ThreadIsolation::UnregisterJitPage(executable_page_start,
@@ -383,7 +383,7 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
     // Only read-only pages can have a non-initialized reservation object. This
     // happens when the pages are remapped to multiple locations and where the
     // reservation would therefore be invalid.
-    FreeMemoryRegion(allocator, chunk->address(),
+    FreeMemoryRegion(allocator, chunk->ChunkAddress(),
                      RoundUp(chunk->size(), allocator->AllocatePageSize()));
   }
 }
@@ -522,7 +522,7 @@ MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
   MemoryChunkMetadata* chunk = pool()->TryGetPooled();
   if (chunk == nullptr) return {};
   const int size = MutablePageMetadata::kPageSize;
-  const Address start = chunk->address();
+  const Address start = chunk->ChunkAddress();
   const Address area_start =
       start +
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
@@ -676,15 +676,15 @@ const MemoryChunkMetadata* MemoryAllocator::LookupChunkContainingAddress(
   if (auto it = normal_pages_.find(chunk); it != normal_pages_.end()) {
     // The chunk is a normal page.
     auto* normal_page = PageMetadata::cast(chunk);
-    DCHECK_LE(normal_page->address(), addr);
+    DCHECK_LE(normal_page->ChunkAddress(), addr);
     if (normal_page->Contains(addr)) return normal_page;
   } else if (auto it = large_pages_.upper_bound(chunk);
              it != large_pages_.begin()) {
     // The chunk could be inside a large page.
-    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->address());
+    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->ChunkAddress());
     auto* large_page = *std::next(it, -1);
     DCHECK_NOT_NULL(large_page);
-    DCHECK_LE(large_page->address(), addr);
+    DCHECK_LE(large_page->ChunkAddress(), addr);
     if (large_page->Contains(addr)) return large_page;
   }
   // Not found in any page.

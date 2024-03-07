@@ -208,7 +208,7 @@ TEST_F(HeapTest, HeapLayout) {
   IsolateSafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   while (MutablePageMetadata* chunk = iter.next()) {
-    Address address = chunk->address();
+    Address address = chunk->ChunkAddress();
     size_t size = chunk->area_end() - address;
     AllocationSpace owner_id = chunk->owner_identity();
     if (V8_EXTERNAL_CODE_SPACE_BOOL && IsAnyCodeSpace(owner_id)) {

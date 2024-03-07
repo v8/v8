@@ -73,11 +73,13 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
 
     // Actual checks: The page is in new space first, but is moved to old space
     // during a full GC.
-    CHECK(heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
-    CHECK(!heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
+    CHECK(heap->new_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
+    CHECK(
+        !heap->old_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
     EmptyNewSpaceUsingGC();
-    CHECK(!heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
-    CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
+    CHECK(
+        !heap->new_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
+    CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
   }
 }
 

@@ -385,21 +385,21 @@ TEST_F(PoolTest, UnmapOnTeardown) {
                                 Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kReadWrite);
+  tracking_page_allocator()->CheckPagePermissions(
+      page->ChunkAddress(), page_size, PageAllocator::kReadWrite);
 
   allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kReadWrite);
+  tracking_page_allocator()->CheckPagePermissions(
+      page->ChunkAddress(), page_size, PageAllocator::kReadWrite);
   pool()->ReleasePooledChunks();
 #ifdef V8_COMPRESS_POINTERS
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
   tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
+      page->ChunkAddress(), page_size, PageAllocator::kNoAccess, false);
 #else
-  tracking_page_allocator()->CheckIsFree(page->address(), page_size);
+  tracking_page_allocator()->CheckIsFree(page->ChunkAddress(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
 #endif  // !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX

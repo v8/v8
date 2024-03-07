@@ -68,7 +68,7 @@ void LargeObjectSpace::TearDown() {
     LargePageMetadata* page = first_page();
     LOG(heap()->isolate(),
         DeleteEvent("LargeObjectChunk",
-                    reinterpret_cast<void*>(page->address())));
+                    reinterpret_cast<void*>(page->ChunkAddress())));
     memory_chunk_list_.Remove(page);
     heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                      page);
@@ -222,15 +222,16 @@ void LargeObjectSpace::RemovePage(LargePageMetadata* page) {
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
                                               Tagged<HeapObject> object,
                                               size_t object_size) {
+  MemoryChunk* chunk = page->Chunk();
 #ifdef DEBUG
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
-  DCHECK_EQ(page->Chunk()->executable(), NOT_EXECUTABLE);
+  DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
 
   const size_t used_committed_size =
-      ::RoundUp(object.address() - page->address() + object_size,
+      ::RoundUp(chunk->Offset(object.address()) + object_size,
                 MemoryAllocator::GetCommitPageSize());
 
   // Object shrunk since last GC.
@@ -242,7 +243,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
     if (used_committed_size < page->size()) {
       const size_t bytes_to_free = page->size() - used_committed_size;
       heap()->memory_allocator()->PartialFreeMemory(
-          page, page->address() + used_committed_size, bytes_to_free,
+          page, chunk->address() + used_committed_size, bytes_to_free,
           new_area_end);
       size_ -= bytes_to_free;
       AccountUncommitted(bytes_to_free);

@@ -140,7 +140,7 @@ size_t PageMetadata::ShrinkToHighWaterMark() {
         filler.address(),
         static_cast<int>(area_end() - filler.address() - unused));
     heap()->memory_allocator()->PartialFreeMemory(
-        this, address() + size() - unused, unused, area_end() - unused);
+        this, ChunkAddress() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
       CHECK(IsFreeSpaceOrFiller(filler, cage_base));
       CHECK_EQ(filler.address() + filler->Size(cage_base), area_end());

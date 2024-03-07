@@ -506,12 +506,13 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 
 void PagedSpaceBase::AddRangeToActiveSystemPages(PageMetadata* page,
                                                  Address start, Address end) {
-  DCHECK_LE(page->address(), start);
+  MemoryChunk* chunk = page->Chunk();
+  DCHECK_LE(chunk->address(), start);
   DCHECK_LT(start, end);
-  DCHECK_LE(end, page->address() + PageMetadata::kPageSize);
+  DCHECK_LE(end, chunk->address() + PageMetadata::kPageSize);
 
   const size_t added_pages = page->active_system_pages()->Add(
-      start - page->address(), end - page->address(),
+      chunk->Offset(start), chunk->Offset(end),
       MemoryAllocator::GetCommitPageSizeBits());
 
   IncrementCommittedPhysicalMemory(added_pages *

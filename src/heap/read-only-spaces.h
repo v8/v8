@@ -40,7 +40,7 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
 
   // Returns the address for a given offset in this page.
   Address OffsetToAddress(size_t offset) const {
-    Address address_in_page = address() + offset;
+    Address address_in_page = ChunkAddress() + offset;
     if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
       // Pointer compression with a per-Isolate cage and shared ReadOnlyPages
       // means that the area_start and area_end cannot be defined since they are
@@ -57,7 +57,7 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   // Returns the start area of the page without using area_start() which cannot
   // return the correct result when the page is remapped multiple times.
   Address GetAreaStart() const {
-    return address() +
+    return ChunkAddress() +
            MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
   }
 
@@ -266,7 +266,7 @@ class ReadOnlySpace : public BaseSpace {
   // Return size of allocatable area on a page in this space.
   int AreaSize() const { return static_cast<int>(area_size_); }
 
-  Address FirstPageAddress() const { return pages_.front()->address(); }
+  Address FirstPageAddress() const { return pages_.front()->ChunkAddress(); }
 
   // Ensure the read only space has at least one allocated page
   void EnsurePage();

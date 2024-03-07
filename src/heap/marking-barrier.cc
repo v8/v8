@@ -169,7 +169,7 @@ void MarkingBarrier::RecordRelocSlot(Tagged<InstructionStream> host,
   MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
-  auto& typed_slots = typed_slots_map_[info.memory_chunk];
+  auto& typed_slots = typed_slots_map_[info.page_metadata];
   if (!typed_slots) {
     typed_slots.reset(new TypedSlots());
   }

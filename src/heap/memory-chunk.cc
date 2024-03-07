@@ -52,9 +52,10 @@ bool MemoryChunk::IsTrusted() const {
   return is_trusted;
 }
 
-size_t MemoryChunk::Offset(Address address) {
-  DCHECK(Metadata()->Contains(address));
-  return address - reinterpret_cast<Address>(this);
+size_t MemoryChunk::Offset(Address addr) const {
+  DCHECK_GE(addr, Metadata()->area_start());
+  DCHECK_LE(addr, address() + Metadata()->size());
+  return addr - address();
 }
 
 #endif  // DEBUG

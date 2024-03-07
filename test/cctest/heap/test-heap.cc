@@ -6476,7 +6476,7 @@ TEST(RememberedSetRemoveRange) {
 
   for (auto x : slots) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
-        chunk, chunk->Chunk()->Offset(x.first));
+        chunk, chunk->Offset(x.first));
   }
 
   RememberedSet<OLD_TO_NEW>::Iterate(

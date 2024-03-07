@@ -146,9 +146,9 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
                     page_allocator->CommitPageSize());
   CHECK(memory_chunk->size() == reserved_size);
   CHECK(memory_chunk->area_start() <
-        memory_chunk->address() + memory_chunk->size());
+        memory_chunk->ChunkAddress() + memory_chunk->size());
   CHECK(memory_chunk->area_end() <=
-        memory_chunk->address() + memory_chunk->size());
+        memory_chunk->ChunkAddress() + memory_chunk->size());
   CHECK(static_cast<size_t>(memory_chunk->area_size()) == area_size);
 
   memory_allocator->Free(MemoryAllocator::FreeMode::kImmediately, memory_chunk);

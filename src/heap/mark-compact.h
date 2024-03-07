@@ -81,7 +81,7 @@ class MarkCompactCollector final {
   }
 
   struct RecordRelocSlotInfo {
-    MutablePageMetadata* memory_chunk;
+    MutablePageMetadata* page_metadata;
     SlotType slot_type;
     uint32_t offset;
   };

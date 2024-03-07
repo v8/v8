@@ -121,7 +121,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   Address FirstPageAddress() const {
     DCHECK_NOT_NULL(first_page());
-    return first_page()->address();
+    return first_page()->ChunkAddress();
   }
 
 #ifdef DEBUG

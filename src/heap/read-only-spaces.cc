@@ -83,7 +83,7 @@ SingleCopyReadOnlyArtifacts::~SingleCopyReadOnlyArtifacts() {
   shared_read_only_space_->pages_.resize(0);
 
   for (ReadOnlyPageMetadata* chunk : pages_) {
-    void* chunk_address = reinterpret_cast<void*>(chunk->address());
+    void* chunk_address = reinterpret_cast<void*>(chunk->ChunkAddress());
     size_t size = RoundUp(chunk->size(), page_allocator_->AllocatePageSize());
     CHECK(page_allocator_->FreePages(chunk_address, size));
   }
@@ -226,7 +226,7 @@ void PointerCompressedReadOnlyArtifacts::Initialize(
     shared_memory_.push_back(std::move(shared_memory));
     // This is just CompressTagged but inlined so it will always compile.
     Tagged_t compressed_address =
-        V8HeapCompressionScheme::CompressAny(page->address());
+        V8HeapCompressionScheme::CompressAny(page->ChunkAddress());
     page_offsets_.push_back(compressed_address);
 
     // 3. Update the accounting stats so the allocated bytes are for the new
@@ -339,7 +339,7 @@ void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
     // page allocator manually.
     v8::PageAllocator* page_allocator =
         memory_allocator->page_allocator(RO_SPACE);
-    CHECK(SetPermissions(page_allocator, chunk->address(), chunk->size(),
+    CHECK(SetPermissions(page_allocator, chunk->ChunkAddress(), chunk->size(),
                          access));
   }
 }
@@ -541,7 +541,7 @@ void ReadOnlySpace::EnsurePage() {
   // For all configurations where static roots are supported the read only roots
   // are currently allocated in the first page of the cage.
   CHECK_IMPLIES(V8_STATIC_ROOTS_BOOL,
-                heap_->isolate()->cage_base() == pages_.back()->address());
+                heap_->isolate()->cage_base() == pages_.back()->ChunkAddress());
 }
 
 void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
@@ -666,7 +666,7 @@ size_t ReadOnlyPageMetadata::ShrinkToHighWaterMark() {
         filler.address(),
         static_cast<int>(area_end() - filler.address() - unused));
     heap()->memory_allocator()->PartialFreeMemory(
-        this, address() + size() - unused, unused, area_end() - unused);
+        this, ChunkAddress() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
       CHECK(IsFreeSpaceOrFiller(filler));
       CHECK_EQ(filler.address() + filler->Size(), area_end());
@@ -755,7 +755,7 @@ size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   ReadOnlyPageMetadata* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
   // If this fails we probably allocated r/o space too late.
-  CHECK_EQ(pos, page->address());
+  CHECK_EQ(pos, page->ChunkAddress());
   capacity_ += AreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);
@@ -766,14 +766,14 @@ void ReadOnlySpace::InitializePageForDeserialization(
     ReadOnlyPageMetadata* page, size_t area_size_in_bytes) {
   page->IncreaseAllocatedBytes(area_size_in_bytes);
   limit_ = top_ = page->area_start() + area_size_in_bytes;
-  page->high_water_mark_ = top_ - page->address();
+  page->high_water_mark_ = page->Offset(top_);
 }
 
 void ReadOnlySpace::FinalizeSpaceForDeserialization() {
   // The ReadOnlyRoots table is now initialized. Create fillers, shrink pages,
   // and update accounting stats.
   for (ReadOnlyPageMetadata* page : pages_) {
-    Address top = page->address() + page->high_water_mark_;
+    Address top = page->ChunkAddress() + page->high_water_mark_;
     heap()->CreateFillerObjectAt(top, static_cast<int>(page->area_end() - top));
     page->ShrinkToHighWaterMark();
     accounting_stats_.IncreaseCapacity(page->area_size());

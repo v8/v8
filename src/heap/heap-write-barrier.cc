@@ -75,8 +75,8 @@ void WriteBarrier::SharedSlow(Tagged<InstructionStream> host,
   MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, reloc_info, value);
 
-  base::MutexGuard write_scope(info.memory_chunk->mutex());
-  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
+  base::MutexGuard write_scope(info.page_metadata->mutex());
+  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.page_metadata, info.slot_type,
                                             info.offset);
 }
 

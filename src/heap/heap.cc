@@ -930,13 +930,13 @@ class Heap::AllocationTrackerForDebugging final
  private:
   void UpdateAllocationsHash(Tagged<HeapObject> object) {
     Address object_address = object.address();
-    MutablePageMetadata* memory_chunk =
-        MutablePageMetadata::FromAddress(object_address);
-    AllocationSpace allocation_space = memory_chunk->owner_identity();
+    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
+    AllocationSpace allocation_space =
+        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
 
     static_assert(kSpaceTagSize + kPageSizeBits <= 32);
     uint32_t value =
-        static_cast<uint32_t>(object_address - memory_chunk->address()) |
+        static_cast<uint32_t>(memory_chunk->Offset(object_address)) |
         (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
 
     UpdateAllocationsHash(value);
@@ -7315,8 +7315,8 @@ void Heap::GenerationalBarrierForCodeSlow(Tagged<InstructionStream> host,
   const MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
 
-  base::MutexGuard write_scope(info.memory_chunk->mutex());
-  RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
+  base::MutexGuard write_scope(info.page_metadata->mutex());
+  RememberedSet<OLD_TO_NEW>::InsertTyped(info.page_metadata, info.slot_type,
                                          info.offset);
 }
 

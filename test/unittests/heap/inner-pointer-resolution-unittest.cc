@@ -258,7 +258,7 @@ class InnerPointerResolutionTest
     }
     for (auto [id, page] : pages_) {
       const Address outside_ptr = page->area_start() - 42;
-      DCHECK_LE(page->address(), outside_ptr);
+      DCHECK_LE(page->ChunkAddress(), outside_ptr);
       RunTestOutside(outside_ptr);
     }
     RunTestOutside(kNullAddress);

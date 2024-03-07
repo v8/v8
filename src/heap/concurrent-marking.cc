@@ -110,7 +110,7 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
-    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+    MemoryChunkData& data = (*memory_chunk_data_)[info.page_metadata];
     if (!data.typed_slots) {
       data.typed_slots.reset(new TypedSlots());
     }

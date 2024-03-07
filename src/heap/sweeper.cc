@@ -894,9 +894,10 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
                                             SlotSet::KEEP_EMPTY_BUCKETS);
 
   if (record_free_ranges) {
+    MemoryChunk* chunk = page->Chunk();
     free_ranges_map->insert(std::pair<uint32_t, uint32_t>(
-        static_cast<uint32_t>(free_start - page->address()),
-        static_cast<uint32_t>(free_end - page->address())));
+        static_cast<uint32_t>(chunk->Offset(free_start)),
+        static_cast<uint32_t>(chunk->Offset(free_end))));
   }
 }
 
@@ -1006,8 +1007,9 @@ void Sweeper::RawSweep(PageMetadata* p,
     free_start = free_end + size;
 
     if (active_system_pages_after_sweeping) {
+      MemoryChunk* chunk = p->Chunk();
       active_system_pages_after_sweeping->Add(
-          free_end - p->address(), free_start - p->address(),
+          chunk->Offset(free_end), chunk->Offset(free_start),
           MemoryAllocator::GetCommitPageSizeBits());
     }
   }

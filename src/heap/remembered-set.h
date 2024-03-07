@@ -39,7 +39,7 @@ class RememberedSetOperations {
                      Callback callback, SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
-      slots += slot_set->Iterate<access_mode>(chunk->address(), 0,
+      slots += slot_set->Iterate<access_mode>(chunk->ChunkAddress(), 0,
                                               chunk->buckets(), callback, mode);
     }
     return slots;
@@ -48,33 +48,34 @@ class RememberedSetOperations {
   static void Remove(SlotSet* slot_set, MutablePageMetadata* chunk,
                      Address slot_addr) {
     if (slot_set != nullptr) {
-      uintptr_t offset = slot_addr - chunk->address();
+      uintptr_t offset = chunk->Offset(slot_addr);
       slot_set->Remove(offset);
     }
   }
 
-  static void RemoveRange(SlotSet* slot_set, MutablePageMetadata* chunk,
+  static void RemoveRange(SlotSet* slot_set, MutablePageMetadata* page,
                           Address start, Address end,
                           SlotSet::EmptyBucketMode mode) {
     if (slot_set != nullptr) {
-      uintptr_t start_offset = start - chunk->address();
-      uintptr_t end_offset = end - chunk->address();
-      DCHECK_LT(start_offset, end_offset);
+      MemoryChunk* chunk = page->Chunk();
+      uintptr_t start_offset = chunk->Offset(start);
+      uintptr_t end_offset = chunk->Offset(end);
+      DCHECK_LE(start_offset, end_offset);
       slot_set->RemoveRange(static_cast<int>(start_offset),
-                            static_cast<int>(end_offset), chunk->buckets(),
+                            static_cast<int>(end_offset), page->buckets(),
                             mode);
     }
   }
 
-  static void CheckNoneInRange(SlotSet* slot_set, MutablePageMetadata* chunk,
+  static void CheckNoneInRange(SlotSet* slot_set, MemoryChunk* chunk,
                                Address start, Address end) {
     if (slot_set != nullptr) {
-      size_t start_bucket = SlotSet::BucketForSlot(start - chunk->address());
+      size_t start_bucket = SlotSet::BucketForSlot(chunk->Offset(start));
       // Both 'end' and 'end_bucket' are exclusive limits, so do some index
       // juggling to make sure we get the right bucket even if the end address
       // is at the start of a bucket.
       size_t end_bucket =
-          SlotSet::BucketForSlot(end - chunk->address() - kTaggedSize) + 1;
+          SlotSet::BucketForSlot(chunk->Offset(end) - kTaggedSize) + 1;
       slot_set->Iterate(
           chunk->address(), start_bucket, end_bucket,
           [start, end](MaybeObjectSlot slot) {
@@ -139,14 +140,15 @@ class RememberedSet : public AllStatic {
     if (slot_set == nullptr) {
       return false;
     }
-    uintptr_t offset = slot_addr - chunk->address();
+    uintptr_t offset = chunk->Offset(slot_addr);
     return slot_set->Contains(offset);
   }
 
-  static void CheckNoneInRange(MutablePageMetadata* chunk, Address start,
+  static void CheckNoneInRange(MutablePageMetadata* page, Address start,
                                Address end) {
-    SlotSet* slot_set = chunk->slot_set<type>();
-    RememberedSetOperations::CheckNoneInRange(slot_set, chunk, start, end);
+    SlotSet* slot_set = page->slot_set<type>();
+    RememberedSetOperations::CheckNoneInRange(slot_set, page->Chunk(), start,
+                                              end);
   }
 
   // Given a page and a slot in that page, this function removes the slot from
@@ -210,7 +212,7 @@ class RememberedSet : public AllStatic {
     if (slot_set != nullptr) {
       PossiblyEmptyBuckets* possibly_empty_buckets =
           chunk->possibly_empty_buckets();
-      slots += slot_set->IterateAndTrackEmptyBuckets(chunk->address(), 0,
+      slots += slot_set->IterateAndTrackEmptyBuckets(chunk->ChunkAddress(), 0,
                                                      chunk->buckets(), callback,
                                                      possibly_empty_buckets);
       if (!possibly_empty_buckets->IsEmpty()) empty_chunks->Push(chunk);
