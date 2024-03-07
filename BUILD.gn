@@ -7544,6 +7544,13 @@ v8_executable("v8_hello_world") {
     ":v8_libplatform",
     "//build/win:default_exe_manifest",
   ]
+
+  # Need to workaround a link error when using devtoolset
+  # https://bugzilla.redhat.com/show_bug.cgi?id=2268188
+  if ((v8_current_cpu == "ppc64" || v8_current_cpu == "s390x") && is_linux &&
+      !is_clang) {
+    libs = [ "stdc++" ]
+  }
 }
 
 v8_executable("v8_sample_process") {
