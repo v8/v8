@@ -135,6 +135,7 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - arm64 - no pointer compression - builder",
+        triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64},
         notifies = ["blamelist"],
