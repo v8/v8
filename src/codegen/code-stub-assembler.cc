@@ -7547,10 +7547,6 @@ TNode<BoolT> CodeStubAssembler::IsString(TNode<HeapObject> object) {
 #endif
 }
 
-TNode<Word32T> CodeStubAssembler::IsStringWrapper(TNode<HeapObject> object) {
-  return IsStringWrapperElementsKind(LoadMap(object));
-}
-
 TNode<BoolT> CodeStubAssembler::IsSeqOneByteString(TNode<HeapObject> object) {
   return IsSeqOneByteStringInstanceType(LoadInstanceType(object));
 }

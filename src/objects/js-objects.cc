@@ -5233,7 +5233,6 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
       real_receiver);
   isolate->UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
       real_receiver);
-  isolate->UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(real_receiver);
 
   Handle<Map> new_map = Map::TransitionToUpdatePrototype(
       isolate, map, Handle<HeapObject>::cast(value));

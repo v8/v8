@@ -1846,15 +1846,6 @@ RUNTIME_FUNCTION(Runtime_NoElementsProtector) {
   return isolate->heap()->ToBoolean(Protectors::IsNoElementsIntact(isolate));
 }
 
-RUNTIME_FUNCTION(Runtime_StringWrapperToPrimitiveProtector) {
-  SealHandleScope shs(isolate);
-  if (args.length() != 0) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  return isolate->heap()->ToBoolean(
-      Protectors::IsStringWrapperToPrimitiveIntact(isolate));
-}
-
 // For use by tests and fuzzers. It
 //
 // 1. serializes a snapshot of the current isolate,
