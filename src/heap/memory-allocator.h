@@ -239,15 +239,13 @@ class MemoryAllocator {
 #if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
-  V8_EXPORT_PRIVATE const MemoryChunkMetadata* LookupChunkContainingAddress(
+  V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   // Insert and remove normal and large pages that are owned by this heap.
-  void RecordNormalPageCreated(const PageMetadata& page);
-  void RecordNormalPageDestroyed(const PageMetadata& page);
-  void RecordLargePageCreated(const LargePageMetadata& page);
-  void RecordLargePageDestroyed(const LargePageMetadata& page);
+  void RecordMemoryChunkCreated(const MemoryChunk* chunk);
+  void RecordMemoryChunkDestroyed(const MemoryChunk* chunk);
 
   // We postpone page freeing until the pointer-update phase is done (updating
   // slots may happen for dead objects which point to dead memory).
@@ -445,17 +443,12 @@ class MemoryAllocator {
 
 #if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Allocated normal and large pages are stored here, to be used during
-  // conservative stack scanning. The normal page set is guaranteed to contain
-  // PageMetadata*, and the large page set is guaranteed to contain
-  // LargePageMetadata*. We will be looking up MemoryChunkMetadata*, however,
-  // and we want to avoid pointer casts that are technically undefined
-  // behaviour.
-  std::unordered_set<const MemoryChunkMetadata*,
-                     base::hash<const MemoryChunkMetadata*>>
+  // conservative stack scanning.
+  std::unordered_set<const MemoryChunk*, base::hash<const MemoryChunk*>>
       normal_pages_;
-  std::set<const MemoryChunkMetadata*> large_pages_;
+  std::set<const MemoryChunk*> large_pages_;
 
-  mutable base::Mutex pages_mutex_;
+  mutable base::Mutex chunks_mutex_;
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;

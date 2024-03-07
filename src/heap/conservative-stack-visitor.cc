@@ -33,12 +33,12 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
 Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
-  const MemoryChunkMetadata* chunk_metadata =
+  const MemoryChunk* chunk =
       allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
-  if (chunk_metadata == nullptr) return kNullAddress;
+  if (chunk == nullptr) return kNullAddress;
+  const MemoryChunkMetadata* chunk_metadata = chunk->Metadata();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
   // If it is contained in a large page, we want to mark the only object on it.
-  const MemoryChunk* chunk = chunk_metadata->Chunk();
   if (chunk->IsLargePage()) {
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.

@@ -708,10 +708,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_TRUE(weak2.IsEmpty());
   EXPECT_TRUE(!strong.IsEmpty());
   // The two pages should still be around, in the new space.
-  EXPECT_EQ(page1,
-            allocator->LookupChunkContainingAddress(inner_ptr1)->Chunk());
-  EXPECT_EQ(page2,
-            allocator->LookupChunkContainingAddress(inner_ptr2)->Chunk());
+  EXPECT_EQ(page1, allocator->LookupChunkContainingAddress(inner_ptr1));
+  EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
             MutablePageMetadata::cast(page1->Metadata())->owner_identity());
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
@@ -735,10 +733,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
             MutablePageMetadata::cast(page2->Metadata())->owner_identity());
   // The two pages should still be around, in the new space.
-  EXPECT_EQ(page1,
-            allocator->LookupChunkContainingAddress(inner_ptr1)->Chunk());
-  EXPECT_EQ(page2,
-            allocator->LookupChunkContainingAddress(inner_ptr2)->Chunk());
+  EXPECT_EQ(page1, allocator->LookupChunkContainingAddress(inner_ptr1));
+  EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
   EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
   EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
 
