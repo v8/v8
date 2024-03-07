@@ -3833,8 +3833,14 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       "Load address of v8::PropertyAccessorInfo::args_ array and name handle.");
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ mr(name_arg, scratch);
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ mr(name_arg, sp);
+#endif
+
   // property_callback_info_arg = v8::PCI::args_ (= &ShouldThrow)
   __ addi(property_callback_info_arg, name_arg,
           Operand(1 * kSystemPointerSize));

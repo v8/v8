@@ -4696,7 +4696,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static constexpr int kNameOnStackSize = 1;
   static constexpr int kStackUnwindSpace = PCA::kArgsLength + kNameOnStackSize;
 
-  // The API function takes a name handle and v8::PropertyCallbackInfo
+  // The API function takes a name local handle and v8::PropertyCallbackInfo
   // reference, allocate them in non-GCed space of the exit frame.
   static constexpr int kApiArgc = 2;
   static constexpr int kApiArg0Offset = 0 * kSystemPointerSize;
@@ -4718,8 +4718,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand info_object = ExitFrameStackSlotOperand(kApiArgsSize);
   __ mov(info_object, args_array);
 
-  __ RecordComment("Handle<Name>");
+  __ RecordComment("Local<Name>");
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  __ mov(args_array, Operand(args_array, -kSystemPointerSize));
+#else
   __ sub(args_array, Immediate(kSystemPointerSize));
+#endif
   __ mov(ExitFrameStackSlotOperand(kApiArg0Offset), args_array);
   args_array = no_reg;
   __ RecordComment("&v8::PropertyCallbackInfo::args_");

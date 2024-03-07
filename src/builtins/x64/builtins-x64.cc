@@ -4625,8 +4625,13 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand info_object = ExitFrameStackSlotOperand(0);
   __ movq(info_object, args_array);
 
-  // name_arg = Handle<Name>(&name), name value was pushed to GC-ed stack space.
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
+  __ movq(name_arg, Operand(args_array, -kSystemPointerSize));
+#else
+  // name_arg = Local<Name>(&name), name value was pushed to GC-ed stack space.
   __ leaq(name_arg, Operand(args_array, -kSystemPointerSize));
+#endif
   // The context register (rsi) might overlap with property_callback_info_arg
   // but the context value has been saved in EnterExitFrame and thus it could
   // be used to pass arguments.
