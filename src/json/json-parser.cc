@@ -2025,8 +2025,11 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
       int length = end - offset;
       bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
                                        : bits <= unibrow::Latin1::kMaxChar;
-      return JsonString(start, length, convert, needs_internalization,
-                        has_escape);
+      constexpr int kMaxInternalizedStringValueLength = 10;
+      bool internalize =
+          needs_internalization ||
+          (sizeof(Char) == 1 && length < kMaxInternalizedStringValueLength);
+      return JsonString(start, length, convert, internalize, has_escape);
     }
 
     if (*cursor_ == '\\') {
