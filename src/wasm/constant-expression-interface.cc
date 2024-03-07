@@ -356,8 +356,14 @@ void ConstantExpressionInterface::RefI31(FullDecoder* decoder,
   // For 32-bit Smi builds, set the topmost bit to sign-extend the second bit.
   // This way, interpretation in JS (if this value escapes there) will be the
   // same as i31.get_s.
-  intptr_t shifted =
-      static_cast<intptr_t>(raw << (kSmiTagSize + kSmiShiftSize + 1)) >> 1;
+  static_assert((SmiValuesAre31Bits() ^ SmiValuesAre32Bits()) == 1);
+  intptr_t shifted;
+  if constexpr (SmiValuesAre31Bits()) {
+    shifted = raw << (kSmiTagSize + kSmiShiftSize);
+  } else {
+    shifted =
+        static_cast<intptr_t>(raw << (kSmiTagSize + kSmiShiftSize + 1)) >> 1;
+  }
   result->runtime_value = WasmValue(handle(Tagged<Smi>(shifted), isolate_),
                                     wasm::kWasmI31Ref.AsNonNull());
 }
