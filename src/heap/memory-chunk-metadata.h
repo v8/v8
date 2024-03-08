@@ -194,9 +194,7 @@ template <>
 struct hash<const i::MemoryChunkMetadata*> {
   V8_INLINE size_t
   operator()(const i::MemoryChunkMetadata* chunk_metadata) const {
-    return static_cast<v8::internal::Tagged_t>(
-               reinterpret_cast<uintptr_t>(chunk_metadata->Chunk())) >>
-           kPageSizeBits;
+    return hash<const i::MemoryChunk*>()(chunk_metadata->Chunk());
   }
 };
 

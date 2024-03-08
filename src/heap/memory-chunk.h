@@ -6,6 +6,7 @@
 #define V8_HEAP_MEMORY_CHUNK_H_
 
 #include "src/base/build_config.h"
+#include "src/base/functional.h"
 #include "src/flags/flags.h"
 
 namespace v8 {
@@ -280,6 +281,33 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)
 
 }  // namespace internal
+
+namespace base {
+
+// Define special hash function for chunk pointers, to be used with std data
+// structures, e.g.
+// std::unordered_set<MemoryChunk*, base::hash<MemoryChunk*>
+// This hash function discards the trailing zero bits (chunk alignment).
+// Notice that, when pointer compression is enabled, it also discards the
+// cage base.
+template <>
+struct hash<const i::MemoryChunk*> {
+  V8_INLINE size_t operator()(const i::MemoryChunk* chunk) const {
+    return static_cast<v8::internal::Tagged_t>(
+               reinterpret_cast<uintptr_t>(chunk)) >>
+           kPageSizeBits;
+  }
+};
+
+template <>
+struct hash<i::MemoryChunk*> {
+  V8_INLINE size_t operator()(i::MemoryChunk* chunk) const {
+    return hash<const i::MemoryChunk*>()(chunk);
+  }
+};
+
+}  // namespace base
+
 }  // namespace v8
 
 #endif  // V8_HEAP_MEMORY_CHUNK_H_
