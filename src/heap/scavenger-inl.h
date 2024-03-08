@@ -84,7 +84,7 @@ void Scavenger::PageMemoryFence(Tagged<MaybeObject> object) {
   // with  page initialization.
   Tagged<HeapObject> heap_object;
   if (object.GetHeapObject(&heap_object)) {
-    MemoryChunkMetadata::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
   }
 #endif
 }

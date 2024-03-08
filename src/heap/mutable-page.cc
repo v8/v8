@@ -32,18 +32,6 @@ void MutablePageMetadata::DiscardUnusedMemory(Address addr, size_t size) {
   }
 }
 
-void MutablePageMetadata::InitializationMemoryFence() {
-  base::SeqCst_MemoryFence();
-#ifdef THREAD_SANITIZER
-  // Since TSAN does not process memory fences, we use the following annotation
-  // to tell TSAN that there is no data race when emitting a
-  // InitializationMemoryFence. Note that the other thread still needs to
-  // perform MutablePageMetadata::synchronized_heap().
-  base::Release_Store(reinterpret_cast<base::AtomicWord*>(&heap_),
-                      reinterpret_cast<base::AtomicWord>(heap_));
-#endif
-}
-
 MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,

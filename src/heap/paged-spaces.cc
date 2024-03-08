@@ -74,8 +74,10 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
   accounting_stats_.Clear();
 }
 
-PageMetadata* PagedSpaceBase::InitializePage(MutablePageMetadata* chunk) {
-  PageMetadata* page = static_cast<PageMetadata*>(chunk);
+PageMetadata* PagedSpaceBase::InitializePage(
+    MutablePageMetadata* mutable_page_metadata) {
+  MemoryChunk* chunk = mutable_page_metadata->Chunk();
+  PageMetadata* page = PageMetadata::cast(mutable_page_metadata);
   DCHECK_EQ(
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
       page->area_size());
@@ -86,7 +88,7 @@ PageMetadata* PagedSpaceBase::InitializePage(MutablePageMetadata* chunk) {
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();
-  page->InitializationMemoryFence();
+  chunk->InitializationMemoryFence();
   return page;
 }
 
@@ -112,7 +114,7 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
 
     // Ensure that pages are initialized before objects on it are discovered by
     // concurrent markers.
-    p->InitializationMemoryFence();
+    p->Chunk()->InitializationMemoryFence();
 
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);

@@ -31,12 +31,32 @@ constexpr MemoryChunk::MainThreadFlags
 // static
 constexpr MemoryChunk::MainThreadFlags MemoryChunk::kCopyOnFlipFlagsMask;
 
+void MemoryChunk::InitializationMemoryFence() {
+  base::SeqCst_MemoryFence();
 #ifdef THREAD_SANITIZER
+  // Since TSAN does not process memory fences, we use the following annotation
+  // to tell TSAN that there is no data race when emitting a
+  // InitializationMemoryFence. Note that the other thread still needs to
+  // perform MutablePageMetadata::synchronized_heap().
+  metadata_->SynchronizedHeapStore();
+  base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),
+                      reinterpret_cast<base::AtomicWord>(metadata_));
+#endif
+}
+
+#ifdef THREAD_SANITIZER
+
+void MemoryChunk::SynchronizedLoad() const {
+  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+      base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
+          &(const_cast<MemoryChunk*>(this)->metadata_))));
+  metadata->SynchronizedHeapLoad();
+}
 
 bool MemoryChunk::InReadOnlySpace() const {
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.
-  Metadata()->SynchronizedHeapLoad();
+  SynchronizedLoad();
   return IsFlagSet(READ_ONLY_HEAP);
 }
 

@@ -154,7 +154,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence
     // emitted after page initialization.
-    MemoryChunkMetadata::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
 #endif
   }
 

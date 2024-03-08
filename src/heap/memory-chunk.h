@@ -19,7 +19,8 @@ class Tagged;
 
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  MemoryChunk() = default;
+  explicit MemoryChunk(MemoryChunkMetadata* metadata)
+      : main_thread_flags_(NO_FLAGS), metadata_(metadata) {}
 
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
@@ -146,13 +147,13 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE MemoryChunkMetadata* Metadata() {
     // If this changes, we also need to update
     // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return reinterpret_cast<MemoryChunkMetadata*>(this);
+    return metadata_;
   }
 
   V8_INLINE const MemoryChunkMetadata* Metadata() const {
     // If this changes, we also need to update
     // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return reinterpret_cast<const MemoryChunkMetadata*>(this);
+    return metadata_;
   }
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
@@ -196,7 +197,12 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   Heap* GetHeap();
 
+  // Emits a memory barrier. For TSAN builds the other thread needs to perform
+  // MemoryChunk::SynchronizedLoad() to simulate the barrier.
+  void InitializationMemoryFence();
+
 #ifdef THREAD_SANITIZER
+  void SynchronizedLoad() const;
   bool InReadOnlySpace() const;
 #else
   V8_INLINE bool InReadOnlySpace() const { return IsFlagSet(READ_ONLY_HEAP); }
@@ -269,7 +275,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
  private:
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
-  MainThreadFlags main_thread_flags_{NO_FLAGS};
+  MainThreadFlags main_thread_flags_;
+
+  MemoryChunkMetadata* metadata_;
 
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);

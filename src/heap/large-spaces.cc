@@ -139,7 +139,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
-  page->InitializationMemoryFence();
+  page->Chunk()->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion(local_heap, identity(), page);
 
   if (local_heap->is_main_thread() && identity() != SHARED_LO_SPACE) {
@@ -386,7 +386,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
   }
-  page->InitializationMemoryFence();
+  chunk->InitializationMemoryFence();
   DCHECK(chunk->IsLargePage());
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   AdvanceAndInvokeAllocationObservers(result.address(),
@@ -420,11 +420,11 @@ void NewLargeObjectSpace::FreeDeadObjects(
     Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                       page);
       if (v8_flags.concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                       page);
     } else {
       surviving_object_size += static_cast<size_t>(object->Size(cage_base));
     }

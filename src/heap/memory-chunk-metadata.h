@@ -133,15 +133,10 @@ class MemoryChunkMetadata {
     allocated_bytes_ -= bytes;
   }
 
-#ifdef THREAD_SANITIZER
-  // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MutablePageMetadata::Initialize for the
-  // corresponding release store.
-  void SynchronizedHeapLoad() const;
-#endif
-
-  MemoryChunk* Chunk() { return &chunk_; }
-  const MemoryChunk* Chunk() const { return &chunk_; }
+  MemoryChunk* Chunk() { return MemoryChunk::FromAddress(area_start()); }
+  const MemoryChunk* Chunk() const {
+    return MemoryChunk::FromAddress(area_start());
+  }
 
  protected:
   MemoryChunk chunk_;
@@ -170,6 +165,15 @@ class MemoryChunkMetadata {
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
+
+#ifdef THREAD_SANITIZER
+  // Perform a dummy acquire load to tell TSAN that there is no data race in
+  // mark-bit initialization. See MutablePageMetadata::Initialize for the
+  // corresponding release store.
+  void SynchronizedHeapLoad() const;
+  void SynchronizedHeapStore();
+  friend class MemoryChunk;
+#endif
 
   friend class BasicMemoryChunkValidator;
   friend class ConcurrentMarkingState;

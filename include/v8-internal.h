@@ -748,12 +748,12 @@ class Internals {
 
 // These constants are copied from static-roots.h and guarded by static asserts.
 #define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
-  V(UndefinedValue, 0x61)                 \
-  V(NullValue, 0x7d)                      \
-  V(TrueValue, 0xc1)                      \
-  V(FalseValue, 0xa5)                     \
-  V(EmptyString, 0x99)                    \
-  V(TheHoleValue, 0x711)
+  V(UndefinedValue, 0x69)                 \
+  V(NullValue, 0x85)                      \
+  V(TrueValue, 0xc9)                      \
+  V(FalseValue, 0xad)                     \
+  V(EmptyString, 0xa1)                    \
+  V(TheHoleValue, 0x719)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
@@ -761,8 +761,8 @@ class Internals {
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT
 
-    static constexpr Tagged_t kFirstStringMap = 0xdd;
-    static constexpr Tagged_t kLastStringMap = 0x475;
+    static constexpr Tagged_t kFirstStringMap = 0xe5;
+    static constexpr Tagged_t kLastStringMap = 0x47d;
 
 #define PLUSONE(...) +1
     static constexpr size_t kNumberOfExportedStaticRoots =

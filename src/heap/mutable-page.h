@@ -188,10 +188,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // (like read-only chunks have).
   inline AllocationSpace owner_identity() const;
 
-  // Emits a memory barrier. For TSAN builds the other thread needs to perform
-  // MutablePageMetadata::synchronized_heap() to simulate the barrier.
-  void InitializationMemoryFence();
-
   static PageAllocator::Permission GetCodeModificationPermission() {
     DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
     // On MacOS on ARM64 RWX permissions are allowed to be set only when

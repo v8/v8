@@ -506,7 +506,7 @@ class PromotedPageRecordMigratedSlotVisitor final
       Tagged<HeapObject> key_object;
       if (!key.GetHeapObject(&key_object)) continue;
 #ifdef THREAD_SANITIZER
-      MemoryChunkMetadata::FromHeapObject(key_object)->SynchronizedHeapLoad();
+      MemoryChunk::FromHeapObject(key_object)->SynchronizedLoad();
 #endif  // THREAD_SANITIZER
       if (Heap::InYoungGeneration(key_object)) {
         indices.insert(i.as_int());
@@ -549,7 +549,7 @@ class PromotedPageRecordMigratedSlotVisitor final
 
     MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value_heap_object);
 #ifdef THREAD_SANITIZER
-    value_chunk->Metadata()->SynchronizedHeapLoad();
+    value_chunk->SynchronizedLoad();
 #endif  // THREAD_SANITIZER
     if (value_chunk->InYoungGeneration()) {
       RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(

@@ -40,7 +40,7 @@ PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
   }
-  page->InitializationMemoryFence();
+  chunk->InitializationMemoryFence();
   return page;
 }
 
@@ -864,9 +864,10 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
 }
 
 PageMetadata* PagedSpaceForNewSpace::InitializePage(
-    MutablePageMetadata* chunk) {
+    MutablePageMetadata* mutable_page_metadata) {
   DCHECK_EQ(identity(), NEW_SPACE);
-  PageMetadata* page = static_cast<PageMetadata*>(chunk);
+  MemoryChunk* chunk = mutable_page_metadata->Chunk();
+  PageMetadata* page = PageMetadata::cast(mutable_page_metadata);
   DCHECK_EQ(
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
       page->area_size());
@@ -879,7 +880,7 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();
-  page->InitializationMemoryFence();
+  chunk->InitializationMemoryFence();
   return page;
 }
 

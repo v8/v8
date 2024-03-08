@@ -190,7 +190,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   }
 
 #ifdef THREAD_SANITIZER
-  MemoryChunkMetadata::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+  MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
 #endif  // THREAD_SANITIZER
 
   if (!Heap::InYoungGeneration(heap_object)) {
