@@ -3445,8 +3445,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
       } else if (value_op.Is<StackPointerGreaterThanOp>()) {
         cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
         return VisitStackPointerGreaterThan(value, cont);
-      } else {
-        UNREACHABLE();
       }
     }
 
