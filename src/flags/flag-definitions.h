@@ -854,6 +854,9 @@ DEFINE_INT(invocation_count_for_maglev_osr, 100,
            "invocation count required for maglev OSR")
 DEFINE_BOOL(osr_from_maglev, false,
             "whether we try to OSR to Turbofan from OSR'd Maglev")
+DEFINE_FLOAT(
+    osr_from_maglev_interrupt_scale_factor, 0.8,
+    "Scale interrupt budget reduction for OSR from Maglev vs. OSR to Maglev")
 DEFINE_BOOL(always_osr_from_maglev, false,
             "whether we try to OSR to Turbofan from any Maglev")
 DEFINE_VALUE_IMPLICATION(always_osr_from_maglev, osr_from_maglev, true)

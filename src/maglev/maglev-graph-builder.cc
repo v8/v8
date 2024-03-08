@@ -9711,8 +9711,9 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   int target = iterator_.GetJumpTargetOffset();
 
   if (ShouldEmitInterruptBudgetChecks()) {
-    AddNewNode<ReduceInterruptBudgetForLoop>(
-        {}, relative_jump_bytecode_offset ? relative_jump_bytecode_offset : 1);
+    int reduction = relative_jump_bytecode_offset *
+                    v8_flags.osr_from_maglev_interrupt_scale_factor;
+    AddNewNode<ReduceInterruptBudgetForLoop>({}, reduction > 0 ? reduction : 1);
   } else {
     AddNewNode<HandleNoHeapWritesInterrupt>({});
   }
