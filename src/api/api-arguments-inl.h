@@ -204,7 +204,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
   }
 }
 
-// TODO(ishell): just return v8::Intecepted.
+// TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallNamedSetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     Handle<Object> value) {
@@ -232,7 +232,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetter(
   }
 }
 
-// TODO(ishell): just return v8::Intecepted.
+// TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     const v8::PropertyDescriptor& desc) {
@@ -301,23 +301,44 @@ Handle<Object> PropertyCallbackArguments::CallIndexedQuery(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedQueryCallback);
-  IndexedPropertyQueryCallback f =
-      ToCData<IndexedPropertyQueryCallback>(interceptor->query());
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor);
-  f(index, callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertyQueryCallbackV2 f =
+        ToCData<IndexedPropertyQueryCallbackV2>(interceptor->query());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor);
+    auto intercepted = f(index, callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    return GetReturnValueNoHoleCheck<Object>(isolate);
+
+  } else {
+    IndexedPropertyQueryCallback f =
+        ToCData<IndexedPropertyQueryCallback>(interceptor->query());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor);
+    f(index, callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
 Handle<Object> PropertyCallbackArguments::CallIndexedGetter(
     Handle<InterceptorInfo> interceptor, uint32_t index) {
   DCHECK(!interceptor->is_named());
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kNamedGetterCallback);
-  IndexedPropertyGetterCallback f =
-      ToCData<IndexedPropertyGetterCallback>(interceptor->getter());
-  Isolate* isolate = this->isolate();
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
-  f(index, callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertyGetterCallbackV2 f =
+        ToCData<IndexedPropertyGetterCallbackV2>(interceptor->getter());
+    Isolate* isolate = this->isolate();
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
+    auto intercepted = f(index, callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    return GetReturnValueNoHoleCheck<Object>(isolate);
+
+  } else {
+    IndexedPropertyGetterCallback f =
+        ToCData<IndexedPropertyGetterCallback>(interceptor->getter());
+    Isolate* isolate = this->isolate();
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
+    f(index, callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
 Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
@@ -325,50 +346,97 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDescriptorCallback);
-  IndexedPropertyDescriptorCallback f =
-      ToCData<IndexedPropertyDescriptorCallback>(interceptor->descriptor());
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
-  f(index, callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertyDescriptorCallbackV2 f =
+        ToCData<IndexedPropertyDescriptorCallbackV2>(interceptor->descriptor());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
+    auto intercepted = f(index, callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    return GetReturnValueNoHoleCheck<Object>(isolate);
+
+  } else {
+    IndexedPropertyDescriptorCallback f =
+        ToCData<IndexedPropertyDescriptorCallback>(interceptor->descriptor());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor);
+    f(index, callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
+// TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallIndexedSetter(
     Handle<InterceptorInfo> interceptor, uint32_t index, Handle<Object> value) {
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedSetterCallback);
-  IndexedPropertySetterCallback f =
-      ToCData<IndexedPropertySetterCallback>(interceptor->setter());
-  Handle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, has_side_effects);
-  f(index, v8::Utils::ToLocal(value), callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertySetterCallbackV2 f =
+        ToCData<IndexedPropertySetterCallbackV2>(interceptor->setter());
+    Handle<InterceptorInfo> has_side_effects;
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects);
+    auto intercepted = f(index, v8::Utils::ToLocal(value), callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    // Non-empty handle indicates that the request was intercepted.
+    return isolate->factory()->undefined_value();
+
+  } else {
+    IndexedPropertySetterCallback f =
+        ToCData<IndexedPropertySetterCallback>(interceptor->setter());
+    Handle<InterceptorInfo> has_side_effects;
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, has_side_effects);
+    f(index, v8::Utils::ToLocal(value), callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
+// TODO(ishell): just return v8::Intercepted.
 Handle<Object> PropertyCallbackArguments::CallIndexedDefiner(
     Handle<InterceptorInfo> interceptor, uint32_t index,
     const v8::PropertyDescriptor& desc) {
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDefinerCallback);
-  IndexedPropertyDefinerCallback f =
-      ToCData<IndexedPropertyDefinerCallback>(interceptor->definer());
-  Handle<InterceptorInfo> has_side_effects;
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, has_side_effects);
-  f(index, desc, callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertyDefinerCallbackV2 f =
+        ToCData<IndexedPropertyDefinerCallbackV2>(interceptor->definer());
+    Handle<InterceptorInfo> has_side_effects;
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, void, has_side_effects);
+    auto intercepted = f(index, desc, callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    // Non-empty handle indicates that the request was intercepted.
+    return isolate->factory()->undefined_value();
+
+  } else {
+    IndexedPropertyDefinerCallback f =
+        ToCData<IndexedPropertyDefinerCallback>(interceptor->definer());
+    Handle<InterceptorInfo> has_side_effects;
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, has_side_effects);
+    f(index, desc, callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
+// TODO(ishell): return Handle<Boolean>
 Handle<Object> PropertyCallbackArguments::CallIndexedDeleter(
     Handle<InterceptorInfo> interceptor, uint32_t index) {
   DCHECK(!interceptor->is_named());
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDeleterCallback);
-  IndexedPropertyDeleterCallback f =
-      ToCData<IndexedPropertyDeleterCallback>(interceptor->deleter());
-  PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, interceptor);
-  f(index, callback_info);
-  return GetReturnValue<Object>(isolate);
+  if (interceptor->has_new_callbacks_signature()) {
+    IndexedPropertyDeleterCallbackV2 f =
+        ToCData<IndexedPropertyDeleterCallbackV2>(interceptor->deleter());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, interceptor);
+    auto intercepted = f(index, callback_info);
+    if (intercepted == v8::Intercepted::kNo) return {};
+    return GetReturnValueNoHoleCheck<Object>(isolate);
+
+  } else {
+    IndexedPropertyDeleterCallback f =
+        ToCData<IndexedPropertyDeleterCallback>(interceptor->deleter());
+    PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Boolean, interceptor);
+    f(index, callback_info);
+    return GetReturnValue<Object>(isolate);
+  }
 }
 
 Handle<JSObject> PropertyCallbackArguments::CallPropertyEnumerator(

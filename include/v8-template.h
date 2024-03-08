@@ -374,15 +374,25 @@ using NamedPropertyDescriptorCallback = Intercepted (*)(
 using GenericNamedPropertyDescriptorCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
+// TODO(ishell): Rename IndexedPropertyXxxCallbackV2 back to
+// IndexedPropertyXxxCallback once the old IndexedPropertyXxxCallback is
+// removed.
+
 /**
  * See `v8::GenericNamedPropertyGetterCallback`.
  */
+using IndexedPropertyGetterCallbackV2 =
+    Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
+// This variant will be deprecated soon.
 using IndexedPropertyGetterCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 
 /**
  * See `v8::GenericNamedPropertySetterCallback`.
  */
+using IndexedPropertySetterCallbackV2 = Intercepted (*)(
+    uint32_t index, Local<Value> value, const PropertyCallbackInfo<void>& info);
+// This variant will be deprecated soon.
 using IndexedPropertySetterCallback =
     void (*)(uint32_t index, Local<Value> value,
              const PropertyCallbackInfo<Value>& info);
@@ -390,12 +400,18 @@ using IndexedPropertySetterCallback =
 /**
  * See `v8::GenericNamedPropertyQueryCallback`.
  */
+using IndexedPropertyQueryCallbackV2 =
+    Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
+// This variant will be deprecated soon.
 using IndexedPropertyQueryCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
 
 /**
  * See `v8::GenericNamedPropertyDeleterCallback`.
  */
+using IndexedPropertyDeleterCallbackV2 =
+    Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
+// This variant will be deprecated soon.
 using IndexedPropertyDeleterCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
 
@@ -411,6 +427,10 @@ using IndexedPropertyEnumeratorCallback =
 /**
  * See `v8::GenericNamedPropertyDefinerCallback`.
  */
+using IndexedPropertyDefinerCallbackV2 =
+    Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
+                    const PropertyCallbackInfo<void>& info);
+// This variant will be deprecated soon.
 using IndexedPropertyDefinerCallback =
     void (*)(uint32_t index, const PropertyDescriptor& desc,
              const PropertyCallbackInfo<Value>& info);
@@ -418,6 +438,9 @@ using IndexedPropertyDefinerCallback =
 /**
  * See `v8::GenericNamedPropertyDescriptorCallback`.
  */
+using IndexedPropertyDescriptorCallbackV2 =
+    Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
+// This variant will be deprecated soon.
 using IndexedPropertyDescriptorCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 
@@ -848,44 +871,114 @@ struct NamedPropertyHandlerConfiguration {
 };
 
 struct IndexedPropertyHandlerConfiguration {
+ private:
+  static constexpr PropertyHandlerFlags WithNewSignatureFlag(
+      PropertyHandlerFlags flags) {
+    return static_cast<PropertyHandlerFlags>(
+        static_cast<int>(flags) |
+        static_cast<int>(
+            PropertyHandlerFlags::kInternalNewCallbacksSignatures));
+  }
+
+ public:
   IndexedPropertyHandlerConfiguration(
-      IndexedPropertyGetterCallback getter,
-      IndexedPropertySetterCallback setter, IndexedPropertyQueryCallback query,
-      IndexedPropertyDeleterCallback deleter,
-      IndexedPropertyEnumeratorCallback enumerator,
-      IndexedPropertyDefinerCallback definer,
-      IndexedPropertyDescriptorCallback descriptor,
+      IndexedPropertyGetterCallbackV2 getter,          //
+      IndexedPropertySetterCallbackV2 setter,          //
+      IndexedPropertyQueryCallbackV2 query,            //
+      IndexedPropertyDeleterCallbackV2 deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,    //
+      IndexedPropertyDefinerCallbackV2 definer,        //
+      IndexedPropertyDescriptorCallbackV2 descriptor,  //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
-      : getter(getter),
-        setter(setter),
-        query(query),
-        deleter(deleter),
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
+        query(reinterpret_cast<void*>(query)),
+        deleter(reinterpret_cast<void*>(deleter)),
         enumerator(enumerator),
-        definer(definer),
-        descriptor(descriptor),
+        definer(reinterpret_cast<void*>(definer)),
+        descriptor(reinterpret_cast<void*>(descriptor)),
+        data(data),
+        flags(WithNewSignatureFlag(flags)) {}
+
+  // This variant will be deprecated soon.
+  IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallback getter,          //
+      IndexedPropertySetterCallback setter,          //
+      IndexedPropertyQueryCallback query,            //
+      IndexedPropertyDeleterCallback deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,  //
+      IndexedPropertyDefinerCallback definer,        //
+      IndexedPropertyDescriptorCallback descriptor,  //
+      Local<Value> data = Local<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
+        query(reinterpret_cast<void*>(query)),
+        deleter(reinterpret_cast<void*>(deleter)),
+        enumerator(enumerator),
+        definer(reinterpret_cast<void*>(definer)),
+        descriptor(reinterpret_cast<void*>(descriptor)),
         data(data),
         flags(flags) {}
 
-  IndexedPropertyHandlerConfiguration(
-      /** Note: getter is required */
-      IndexedPropertyGetterCallback getter = nullptr,
+  explicit IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallbackV2 getter = nullptr,
+      IndexedPropertySetterCallbackV2 setter = nullptr,
+      IndexedPropertyQueryCallbackV2 query = nullptr,
+      IndexedPropertyDeleterCallbackV2 deleter = nullptr,
+      IndexedPropertyEnumeratorCallback enumerator = nullptr,
+      Local<Value> data = Local<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
+        query(reinterpret_cast<void*>(query)),
+        deleter(reinterpret_cast<void*>(deleter)),
+        enumerator(enumerator),
+        definer(nullptr),
+        descriptor(nullptr),
+        data(data),
+        flags(WithNewSignatureFlag(flags)) {}
+
+  // This variant will be deprecated soon.
+  explicit IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = nullptr,
       IndexedPropertyQueryCallback query = nullptr,
       IndexedPropertyDeleterCallback deleter = nullptr,
       IndexedPropertyEnumeratorCallback enumerator = nullptr,
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
-      : getter(getter),
-        setter(setter),
-        query(query),
-        deleter(deleter),
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
+        query(reinterpret_cast<void*>(query)),
+        deleter(reinterpret_cast<void*>(deleter)),
         enumerator(enumerator),
         definer(nullptr),
         descriptor(nullptr),
         data(data),
         flags(flags) {}
 
+  IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallbackV2 getter,
+      IndexedPropertySetterCallbackV2 setter,
+      IndexedPropertyDescriptorCallbackV2 descriptor,
+      IndexedPropertyDeleterCallbackV2 deleter,
+      IndexedPropertyEnumeratorCallback enumerator,
+      IndexedPropertyDefinerCallbackV2 definer,
+      Local<Value> data = Local<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
+        query(nullptr),
+        deleter(reinterpret_cast<void*>(deleter)),
+        enumerator(enumerator),
+        definer(reinterpret_cast<void*>(definer)),
+        descriptor(reinterpret_cast<void*>(descriptor)),
+        data(data),
+        flags(WithNewSignatureFlag(flags)) {}
+
+  // This variant will be deprecated soon.
   IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter,
@@ -895,23 +988,23 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDefinerCallback definer,
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
-      : getter(getter),
-        setter(setter),
+      : getter(reinterpret_cast<void*>(getter)),
+        setter(reinterpret_cast<void*>(setter)),
         query(nullptr),
-        deleter(deleter),
+        deleter(reinterpret_cast<void*>(deleter)),
         enumerator(enumerator),
-        definer(definer),
-        descriptor(descriptor),
+        definer(reinterpret_cast<void*>(definer)),
+        descriptor(reinterpret_cast<void*>(descriptor)),
         data(data),
         flags(flags) {}
 
-  IndexedPropertyGetterCallback getter;
-  IndexedPropertySetterCallback setter;
-  IndexedPropertyQueryCallback query;
-  IndexedPropertyDeleterCallback deleter;
+  void* getter;   // IndexedPropertyGetterCallback[V2]
+  void* setter;   // IndexedPropertySetterCallback[V2]
+  void* query;    // IndexedPropertyQueryCallback[V2]
+  void* deleter;  // IndexedPropertyDeleterCallback[V2]
   IndexedPropertyEnumeratorCallback enumerator;
-  IndexedPropertyDefinerCallback definer;
-  IndexedPropertyDescriptorCallback descriptor;
+  void* definer;     // IndexedPropertyDefinerCallback[V2]
+  void* descriptor;  // IndexedPropertyDescriptorCallback[V2]
   Local<Value> data;
   PropertyHandlerFlags flags;
 };
@@ -995,7 +1088,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
+  V8_DEPRECATE_SOON("Use SetHandler instead")
   void SetIndexedPropertyHandler(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = nullptr,
