@@ -21,7 +21,6 @@ class FreeListCategory;
 class Heap;
 class TypedSlotsSet;
 class SlotSet;
-class MemoryChunkMetadata;
 
 enum RememberedSetType {
   OLD_TO_NEW,
@@ -46,7 +45,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   enum Header {
     // MemoryChunk fields:
     FIELD(uintptr_t, Flags),
-    FIELD(MemoryChunkMetadata*, Metadata),
     // MemoryChunkMetadata fields:
     FIELD(size_t, Size),
     FIELD(Heap*, Heap),

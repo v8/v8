@@ -140,10 +140,8 @@ class MemoryChunkMetadata {
   void SynchronizedHeapLoad() const;
 #endif
 
-  MemoryChunk* Chunk() { return MemoryChunk::FromAddress(area_start()); }
-  const MemoryChunk* Chunk() const {
-    return MemoryChunk::FromAddress(area_start());
-  }
+  MemoryChunk* Chunk() { return &chunk_; }
+  const MemoryChunk* Chunk() const { return &chunk_; }
 
  protected:
   MemoryChunk chunk_;

@@ -93,6 +93,21 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   heap->SetGCState(Heap::NOT_IN_GC);
 }
 
+TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
+  constexpr Address address1 = PageMetadata::kPageSize;
+  Tagged<HeapObject> object1 =
+      HeapObject::unchecked_cast(Tagged<Object>(address1));
+  MemoryChunkMetadata* chunk1 = MemoryChunkMetadata::FromHeapObject(object1);
+  MemoryChunk* slim_chunk1 = MemoryChunk::FromHeapObject(object1);
+  EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
+  constexpr Address address2 = 2 * PageMetadata::kPageSize - 1;
+  Tagged<HeapObject> object2 =
+      HeapObject::unchecked_cast(Tagged<Object>(address2));
+  MemoryChunkMetadata* chunk2 = MemoryChunkMetadata::FromHeapObject(object2);
+  MemoryChunk* slim_chunk2 = MemoryChunk::FromHeapObject(object2);
+  EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
+}
+
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
   const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];

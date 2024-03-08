@@ -18,8 +18,7 @@ class Tagged;
 
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  explicit MemoryChunk(MemoryChunkMetadata* metadata)
-      : main_thread_flags_(NO_FLAGS), metadata_(metadata) {}
+  MemoryChunk() = default;
 
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
@@ -146,13 +145,13 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE MemoryChunkMetadata* Metadata() {
     // If this changes, we also need to update
     // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
+    return reinterpret_cast<MemoryChunkMetadata*>(this);
   }
 
   V8_INLINE const MemoryChunkMetadata* Metadata() const {
     // If this changes, we also need to update
     // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
+    return reinterpret_cast<const MemoryChunkMetadata*>(this);
   }
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
@@ -269,9 +268,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
  private:
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
-  MainThreadFlags main_thread_flags_;
-
-  MemoryChunkMetadata* metadata_;
+  MainThreadFlags main_thread_flags_{NO_FLAGS};
 
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);

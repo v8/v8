@@ -19,8 +19,7 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
                                          VirtualMemory reservation)
-    : chunk_(this),
-      size_(chunk_size),
+    : size_(chunk_size),
       heap_(heap),
       area_start_(area_start),
       area_end_(area_end),
@@ -52,8 +51,6 @@ class BasicMemoryChunkValidator {
                 offsetof(MemoryChunkMetadata, size_));
   static_assert(MemoryChunkLayout::kFlagsOffset ==
                 offsetof(MemoryChunk, main_thread_flags_));
-  static_assert(MemoryChunkLayout::kMetadataOffset ==
-                offsetof(MemoryChunk, metadata_));
   static_assert(offsetof(MemoryChunkMetadata, chunk_) == 0);
   static_assert(MemoryChunkLayout::kHeapOffset ==
                 offsetof(MemoryChunkMetadata, heap_));
