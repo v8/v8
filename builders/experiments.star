@@ -138,6 +138,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64},
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["blamelist"],
     ),
     experiment_builder(
