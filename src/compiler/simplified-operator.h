@@ -1008,7 +1008,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
-  const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,

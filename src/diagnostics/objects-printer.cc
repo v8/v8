@@ -771,8 +771,6 @@ void Symbol::SymbolPrint(std::ostream& os) {
   os << "\n - private: " << is_private();
   os << "\n - private_name: " << is_private_name();
   os << "\n - private_brand: " << is_private_brand();
-  os << "\n - is_interesting_symbol: " << is_interesting_symbol();
-  os << "\n - is_well_known_symbol: " << is_well_known_symbol();
   os << "\n";
 }
 

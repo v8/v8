@@ -1765,12 +1765,6 @@ void* JSTypedArrayRef::data_ptr() const {
   return object()->DataPtr();
 }
 
-bool JSPrimitiveWrapperRef::IsStringWrapper(JSHeapBroker* broker) const {
-  auto elements_kind = map(broker).elements_kind();
-  return elements_kind == FAST_STRING_WRAPPER_ELEMENTS ||
-         elements_kind == SLOW_STRING_WRAPPER_ELEMENTS;
-}
-
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
   return construction_counter() != Map::kNoSlackTracking;
 }

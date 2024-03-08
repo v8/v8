@@ -73,8 +73,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
   V(StringIteratorProtector, string_iterator_protector,                        \
     StringIteratorProtector)                                                   \
-  V(StringWrapperToPrimitiveProtector, string_wrapper_to_primitive_protector,  \
-    StringWrapperToPrimitiveProtector)                                         \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
     TypedArraySpeciesProtector)                                                \
   V(AsyncFunctionAwaitRejectSharedFun, async_function_await_reject_shared_fun, \
@@ -3021,7 +3019,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSpecialReceiverMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
-  TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);

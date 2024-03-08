@@ -19,7 +19,6 @@ enum class BinaryOperationHint : uint8_t {
   kNumber,
   kNumberOrOddball,
   kString,
-  kStringOrStringWrapper,
   kBigInt,
   kBigInt64,
   kAny

@@ -340,22 +340,6 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         (IsJSPrimitiveWrapper(*receiver) || IsJSObjectPrototype(*receiver))) {
       Protectors::InvalidateNumberStringNotRegexpLike(isolate);
     }
-  } else if (*name == roots.to_primitive_symbol()) {
-    if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
-        isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
-        IsStringWrapper(*receiver)) {
-      Protectors::InvalidateStringWrapperToPrimitive(isolate);
-    }
-  } else if (*name == roots.valueOf_string()) {
-    if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
-        IsStringWrapper(*receiver)) {
-      Protectors::InvalidateStringWrapperToPrimitive(isolate);
-    }
   }
 }
 

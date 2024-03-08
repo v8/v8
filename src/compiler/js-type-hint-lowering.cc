@@ -35,7 +35,6 @@ bool BinaryOperationHintToNumberOperationHint(
     case BinaryOperationHint::kAny:
     case BinaryOperationHint::kNone:
     case BinaryOperationHint::kString:
-    case BinaryOperationHint::kStringOrStringWrapper:
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
       break;
@@ -53,7 +52,6 @@ bool BinaryOperationHintToBigIntOperationHint(
     case BinaryOperationHint::kAny:
     case BinaryOperationHint::kNone:
     case BinaryOperationHint::kString:
-    case BinaryOperationHint::kStringOrStringWrapper:
       return false;
     case BinaryOperationHint::kBigInt64:
       *bigint_hint = BigIntOperationHint::kBigInt64;

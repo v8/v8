@@ -1992,8 +1992,6 @@ class BinaryOperationFeedback {
     kString = 0x10,
     kBigInt64 = 0x20,
     kBigInt = 0x60,
-    kStringWrapper = 0x80,
-    kStringOrStringWrapper = 0x90,
     kAny = 0x7F
   };
 };

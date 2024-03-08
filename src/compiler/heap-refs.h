@@ -102,7 +102,6 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(JSGlobalObject)                                       \
   BACKGROUND_SERIALIZED(JSGlobalProxy)                                        \
   BACKGROUND_SERIALIZED(JSTypedArray)                                         \
-  NEVER_SERIALIZED(JSPrimitiveWrapper)                                        \
   /* Subtypes of Context */                                                   \
   NEVER_SERIALIZED(NativeContext)                                             \
   /* Subtypes of FixedArray */                                                \
@@ -1135,15 +1134,6 @@ class JSTypedArrayRef : public JSObjectRef {
   size_t length() const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
-};
-
-class JSPrimitiveWrapperRef : public JSObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(JSPrimitiveWrapper, JSObjectRef)
-
-  bool IsStringWrapper(JSHeapBroker* broker) const;
-
-  Handle<JSPrimitiveWrapper> object() const;
 };
 
 class SourceTextModuleRef : public HeapObjectRef {

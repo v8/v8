@@ -609,7 +609,6 @@ namespace internal {
   F(ShareObject, 1, 1)                        \
   F(SimulateNewspaceFull, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
-  F(StringWrapperToPrimitiveProtector, 0, 1)  \
   F(SystemBreak, 0, 1)                        \
   F(TakeHeapSnapshot, -1, 1)                  \
   F(TraceEnter, 0, 1)                         \
