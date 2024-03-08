@@ -1533,10 +1533,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
 
   Address source =
       trusted_instance_data->data_segment_starts()->get(segment_index) + offset;
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      isolate->factory()->NewStringFromUtf8(
-          {reinterpret_cast<const uint8_t*>(source), length}, variant));
+  MaybeHandle<String> result = isolate->factory()->NewStringFromUtf8(
+      {reinterpret_cast<const uint8_t*>(source), length}, variant);
+  if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+    DCHECK(!isolate->has_exception());
+    // Only instructions from the stringref proposal can set variant
+    // kUtf8NoTrap, so WasmNull is appropriate here.
+    if (result.is_null()) return *isolate->factory()->wasm_null();
+    return *result.ToHandleChecked();
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, result);
 }
 
 namespace {
