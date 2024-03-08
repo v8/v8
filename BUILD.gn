@@ -607,24 +607,26 @@ assert(
 if (v8_builtins_profiling_log_file == "default") {
   v8_builtins_profiling_log_file = ""
 
-  # Don't use existing profile when
-  # * v8_enable_builtins_optimization is disabled,
-  # * generating a new one (i.e. v8_enable_builtins_profiling),
-  # * is_debug or dcheck_always_on because they add more checks to the
-  #   builtins control flow which we don't want to generate,
-  # * !v8_enable_sandbox because it affects the way how external pointer values
-  #   are accessed,
-  # * v8_enable_webassembly because it changes the set of opcodes which affects
-  #   graphs hashes,
+  # The existing profile can be used only when
+  # * `v8_enable_builtins_optimization` - this switch enables builtins PGO,
+  # * `!v8_enable_builtins_profiling` - don't use the profiles when generating
+  #    a new one,
+  # * `!is_debug && !dcheck_always_on` - these modes add more checks to
+  #   the builtins control flow which makes the builtins code different,
+  # * `v8_enable_pointer_compression` - it changes the objects layouts,
+  # * `v8_enable_sandbox && v8_enable_external_code_space` because they affect
+  #   the way how external pointer values are accessed,
+  # * `v8_enable_webassembly` because it changes the set of opcodes which
+  #   affects graphs hashes.
   if (v8_enable_builtins_optimization && !v8_enable_builtins_profiling &&
       !is_debug && !dcheck_always_on && v8_enable_webassembly) {
-    # This is about function arguments evaluation order, which makes node IDs
-    # not predictable for subgraphs like Op1(Op2(), Op3()) and as a result
-    # different graph hashes.
+    # This is about function arguments evaluation order on the machine building
+    # mksnapshot, which makes node IDs not predictable for subgraphs like
+    # Op1(Op2(), Op3()) and as a result different graph hashes.
     # Clang uses left-to-right order everywhere except Windows, otherwise the
     # order is right-to-left.
     # TODO(crbug.com/v8/13647): Remove once this issue is fixed in CSA.
-    if (!is_clang || is_win) {
+    if (!is_clang || host_os == "win") {
       pgo_profile_suffix = "-rl"
     } else {
       pgo_profile_suffix = ""
