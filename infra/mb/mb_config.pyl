@@ -69,7 +69,7 @@
       'V8 Linux64 - builder (goma cache silo)': 'release_x64',
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
-      'V8 Linux64 - official - builder': 'official_x64',
+      'V8 Linux64 - official - builder': 'official_x64_on_release_branch',
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - no shared cage - debug builder': 'debug_x64_no_shared_cage',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
@@ -288,7 +288,7 @@
       'v8_linux64_no_pointer_compression_compile_rel': 'release_x64_no_pointer_compression',
       'v8_linux64_compile_rel': 'release_x64_test_features_gcmole_trybot',
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
-      'v8_linux64_official_compile_rel': 'official_x64',
+      'v8_linux64_official_compile_rel': 'official_x64_on_release_branch',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
       'v8_linux64_pku_compile_rel': 'release_x64',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
@@ -653,6 +653,9 @@
     'official_x64_pgo': [
       'release_bot', 'x64', 'official', 'disable_chrome_pgo',
       'builtins_optimization'],
+    'official_x64_on_release_branch': [
+      'release_bot', 'x64', 'official', 'disable_chrome_pgo',
+      'v8_is_on_release_branch'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -1116,6 +1119,10 @@
 
     'v8_full_debug': {
       'gn_args': 'v8_optimized_debug=false',
+    },
+
+    'v8_is_on_release_branch': {
+      'gn_args': 'v8_is_on_release_branch=true',
     },
 
     'v8_optimized_debug': {
