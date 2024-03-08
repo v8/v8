@@ -1292,6 +1292,9 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
 
 DEFINE_BOOL(turboshaft, true, "enable TurboFan's Turboshaft phases for JS")
 
+// Can't use Turbofan without Turboshaft.
+DEFINE_NEG_NEG_IMPLICATION(turboshaft, turbofan)
+
 DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
