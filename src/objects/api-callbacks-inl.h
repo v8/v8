@@ -116,6 +116,8 @@ BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, is_named, NamedBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
                HasNoSideEffectBit::kShift)
+BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
+               HasNewCallbacksSignatureBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

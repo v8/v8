@@ -7,6 +7,7 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   non_masking: bool: 1 bit;
   named: bool: 1 bit;
   has_no_side_effect: bool: 1 bit;
+  has_new_callbacks_signature: bool: 1 bit;
 }
 
 extern class InterceptorInfo extends Struct {

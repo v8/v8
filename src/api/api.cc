@@ -1699,7 +1699,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto obj =
       i::Handle<i::InterceptorInfo>::cast(i_isolate->factory()->NewStruct(
           i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
@@ -1721,13 +1722,12 @@ i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer);
   }
   obj->set_can_intercept_symbols(
-      !(static_cast<int>(flags) &
-        static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
-  obj->set_non_masking(static_cast<int>(flags) &
-                       static_cast<int>(PropertyHandlerFlags::kNonMasking));
-  obj->set_has_no_side_effect(
-      static_cast<int>(flags) &
-      static_cast<int>(PropertyHandlerFlags::kHasNoSideEffect));
+      !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
+  obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
+  obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+
+  obj->set_has_new_callbacks_signature(
+      flags & PropertyHandlerFlags::kInternalNewCallbacksSignatures);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1741,7 +1741,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateNamedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor =
       CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
                             remover, enumerator, definer, data, flags);
@@ -1754,7 +1755,8 @@ template <typename Getter, typename Setter, typename Query, typename Descriptor,
 i::Handle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
-    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+    Definer definer, Local<Value> data,
+    base::Flags<PropertyHandlerFlags> flags) {
   auto interceptor =
       CreateInterceptorInfo(i_isolate, getter, setter, query, descriptor,
                             remover, enumerator, definer, data, flags);

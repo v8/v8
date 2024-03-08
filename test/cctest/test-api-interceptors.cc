@@ -226,7 +226,7 @@ void CheckThisIndexedPropertyHandler(
             .FromJust());
 }
 
-void CheckThisNamedPropertyHandler(
+v8::Intercepted CheckThisNamedPropertyHandler(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyHandler));
@@ -234,6 +234,7 @@ void CheckThisNamedPropertyHandler(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
 
 void CheckThisIndexedPropertyDefiner(
@@ -247,15 +248,15 @@ void CheckThisIndexedPropertyDefiner(
             .FromJust());
 }
 
-void CheckThisNamedPropertyDefiner(
+v8::Intercepted CheckThisNamedPropertyDefiner(
     Local<Name> property, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
 
 void CheckThisIndexedPropertySetter(
@@ -279,7 +280,7 @@ void CheckThisIndexedPropertyDescriptor(
             .FromJust());
 }
 
-void CheckThisNamedPropertyDescriptor(
+v8::Intercepted CheckThisNamedPropertyDescriptor(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDescriptor));
@@ -287,17 +288,18 @@ void CheckThisNamedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
 
-void CheckThisNamedPropertySetter(
+v8::Intercepted CheckThisNamedPropertySetter(
     Local<Name> property, Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::PropertyCallbackInfo<void>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
 
 void CheckThisIndexedPropertyQuery(
@@ -310,8 +312,7 @@ void CheckThisIndexedPropertyQuery(
             .FromJust());
 }
 
-
-void CheckThisNamedPropertyQuery(
+v8::Intercepted CheckThisNamedPropertyQuery(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyQuery));
@@ -319,8 +320,8 @@ void CheckThisNamedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
-
 
 void CheckThisIndexedPropertyDeleter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
@@ -332,8 +333,7 @@ void CheckThisIndexedPropertyDeleter(
             .FromJust());
 }
 
-
-void CheckThisNamedPropertyDeleter(
+v8::Intercepted CheckThisNamedPropertyDeleter(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDeleter));
@@ -341,8 +341,8 @@ void CheckThisNamedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  return v8::Intercepted::kNo;
 }
-
 
 void CheckThisIndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
@@ -490,21 +490,24 @@ bool set_was_called = false;
 
 int set_was_called_counter = 0;
 
-void GetterCallback(Local<Name> property,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+v8::Intercepted GetterCallback(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called = true;
+  return v8::Intercepted::kNo;
 }
 
-void SetterCallback(Local<Name> property, Local<Value> value,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+v8::Intercepted SetterCallback(Local<Name> property, Local<Value> value,
+                               const v8::PropertyCallbackInfo<void>& info) {
   set_was_called = true;
   set_was_called_counter++;
+  return v8::Intercepted::kNo;
 }
 
-void InterceptingSetterCallback(
+v8::Intercepted InterceptingSetterCallback(
     Local<Name> property, Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::PropertyCallbackInfo<void>& info) {
   info.GetReturnValue().Set(value);
+  return v8::Intercepted::kYes;
 }
 
 }  // namespace
@@ -719,19 +722,21 @@ namespace {
 bool get_was_called_in_order = false;
 bool define_was_called_in_order = false;
 
-void GetterCallbackOrder(Local<Name> property,
-                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+v8::Intercepted GetterCallbackOrder(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called_in_order = true;
   CHECK(!define_was_called_in_order);
   info.GetReturnValue().Set(property);
+  return v8::Intercepted::kYes;
 }
 
-void DefinerCallbackOrder(Local<Name> property,
-                          const v8::PropertyDescriptor& desc,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+v8::Intercepted DefinerCallbackOrder(
+    Local<Name> property, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<void>& info) {
   // Get called before DefineProperty because we query the descriptor first.
   CHECK(get_was_called_in_order);
   define_was_called_in_order = true;
+  return v8::Intercepted::kNo;
 }
 
 }  // namespace
@@ -5202,7 +5207,8 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumerator));
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumerator));
+      static_cast<v8::GenericNamedPropertyGetterCallback>(nullptr), nullptr,
+      nullptr, nullptr, NamedPropertyEnumerator));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -5313,7 +5319,8 @@ THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
   obj_template->Set(isolate, "x", v8::Integer::New(isolate, 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumeratorException));
+      static_cast<v8::GenericNamedPropertyGetterCallback>(nullptr), nullptr,
+      nullptr, nullptr, NamedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();

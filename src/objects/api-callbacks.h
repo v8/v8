@@ -108,6 +108,9 @@ class InterceptorInfo
   DECL_BOOLEAN_ACCESSORS(non_masking)
   DECL_BOOLEAN_ACCESSORS(is_named)
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
+  // TODO(ishell): remove support for old signatures once they go through
+  // Api deprecation process.
+  DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
 
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
