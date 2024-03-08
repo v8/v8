@@ -334,6 +334,8 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
+    case BinaryOperationFeedback::kStringOrStringWrapper:
+      return BinaryOperationHint::kStringOrStringWrapper;
     case BinaryOperationFeedback::kBigInt:
       return BinaryOperationHint::kBigInt;
     case BinaryOperationFeedback::kBigInt64:
