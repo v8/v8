@@ -123,6 +123,7 @@ v8_source_set("cppgc_unittests_sources") {
 
   sources = [
     "heap/cppgc/allocation-unittest.cc",
+    "heap/cppgc/caged-heap-unittest.cc",
     "heap/cppgc/compactor-unittest.cc",
     "heap/cppgc/concurrent-marking-unittest.cc",
     "heap/cppgc/concurrent-sweeper-unittest.cc",
