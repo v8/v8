@@ -2883,6 +2883,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 #define WASM_TRY_OP kExprTry, kVoidCode
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t ex = builder.AddException(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
   ExpectValidates(sigs.v_v(),
@@ -2899,6 +2900,8 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
+  WASM_FEATURE_SCOPE(legacy_eh);
+
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprCatchAll, kExprRethrow, 0, kExprEnd});
   ExpectFailure(sigs.v_v(),
@@ -2911,6 +2914,7 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t ex = builder.AddException(sigs.v_v());
 
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
@@ -3644,6 +3648,7 @@ TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
+  WASM_FEATURE_SCOPE(legacy_eh);
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   ValueType rep = ref(struct_type_index);
   FunctionSig sig(0, 1, &rep);

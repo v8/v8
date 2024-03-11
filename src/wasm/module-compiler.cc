@@ -4137,7 +4137,7 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
       {kFeature_reftypes, Feature::kWasmRefTypes},
       {kFeature_simd, Feature::kWasmSimdOpcodes},
       {kFeature_threads, Feature::kWasmThreadOpcodes},
-      {kFeature_eh, Feature::kWasmExceptionHandling},
+      {kFeature_legacy_eh, Feature::kWasmExceptionHandling},
       {kFeature_memory64, Feature::kWasmMemory64},
       {kFeature_multi_memory, Feature::kWasmMultiMemory},
       {kFeature_gc, Feature::kWasmGC},
