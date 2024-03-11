@@ -7124,15 +7124,18 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(I32x4RelaxedTruncF64x2SZero)                      \
   V(I32x4RelaxedTruncF64x2UZero)
 
-#define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V) \
-  V(F32x4Ceil)                                    \
-  V(F32x4Floor)                                   \
-  V(F32x4Trunc)                                   \
-  V(F32x4NearestInt)                              \
-  V(F64x2Ceil)                                    \
-  V(F64x2Floor)                                   \
-  V(F64x2Trunc)                                   \
-  V(F64x2NearestInt)
+#define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V)                             \
+  V(F32x4Ceil)                                                                \
+  V(F32x4Floor)                                                               \
+  V(F32x4Trunc)                                                               \
+  V(F32x4NearestInt)                                                          \
+  V(F64x2Ceil)                                                                \
+  V(F64x2Floor)                                                               \
+  V(F64x2Trunc)                                                               \
+  V(F64x2NearestInt)                                                          \
+  /* TODO(mliedtke): Rename to ReverseBytes once the naming is decoupled from \
+   * Turbofan naming. */                                                      \
+  V(Simd128ReverseBytes)
 
 #define FOREACH_SIMD_128_UNARY_OPCODE(V)        \
   FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \

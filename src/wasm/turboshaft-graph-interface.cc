@@ -96,6 +96,18 @@ size_t GetTypeSize(DataViewOp op_type) {
   }
 }
 
+bool ReverseBytesSupported(size_t size_in_bytes) {
+  switch (size_in_bytes) {
+    case 4:
+    case 16:
+      return true;
+    case 8:
+      return Is64();
+    default:
+      return false;
+  }
+}
+
 }  // namespace
 
 // TODO(14108): Annotate runtime functions as not having side effects
@@ -963,14 +975,258 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         use_select ? Implementation::kCMove : Implementation::kBranch);
   }
 
+  OpIndex BuildChangeEndiannessStore(OpIndex node,
+                                     MachineRepresentation mem_rep,
+                                     wasm::ValueType wasmtype) {
+    OpIndex result;
+    OpIndex value = node;
+    int value_size_in_bytes = wasmtype.value_kind_size();
+    int value_size_in_bits = 8 * value_size_in_bytes;
+    bool is_float = false;
+
+    switch (wasmtype.kind()) {
+      case wasm::kF64:
+        value = __ BitcastFloat64ToWord64(node);
+        is_float = true;
+        V8_FALLTHROUGH;
+      case wasm::kI64:
+        result = __ Word64Constant(static_cast<uint64_t>(0));
+        break;
+      case wasm::kF32:
+        value = __ BitcastFloat32ToWord32(node);
+        is_float = true;
+        V8_FALLTHROUGH;
+      case wasm::kI32:
+        result = __ Word32Constant(0);
+        break;
+      case wasm::kS128:
+        DCHECK(ReverseBytesSupported(value_size_in_bytes));
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    if (mem_rep == MachineRepresentation::kWord8) {
+      // No need to change endianness for byte size, return original node
+      return node;
+    }
+    if (wasmtype == wasm::kWasmI64 &&
+        mem_rep < MachineRepresentation::kWord64) {
+      // In case we store lower part of WasmI64 expression, we can truncate
+      // upper 32bits.
+      // TODO(miladfarca): This truncation is probably a duplicate as the
+      // callers already truncate to word32 in this case.
+      value = __ TruncateWord64ToWord32(value);
+      value_size_in_bytes = wasm::kWasmI32.value_kind_size();
+      value_size_in_bits = 8 * value_size_in_bytes;
+      if (mem_rep == MachineRepresentation::kWord16) {
+        value = __ Word32ShiftLeft(value, 16);
+      }
+    } else if (wasmtype == wasm::kWasmI32 &&
+               mem_rep == MachineRepresentation::kWord16) {
+      value = __ Word32ShiftLeft(value, 16);
+    }
+
+    int i;
+    uint32_t shift_count;
+
+    if (ReverseBytesSupported(value_size_in_bytes)) {
+      switch (value_size_in_bytes) {
+        case 4:
+          result = __ Word32ReverseBytes(value);
+          break;
+        case 8:
+          result = __ Word64ReverseBytes(value);
+          break;
+        case 16:
+          result = __ Simd128ReverseBytes(value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      for (i = 0, shift_count = value_size_in_bits - 8;
+           i < value_size_in_bits / 2; i += 8, shift_count -= 16) {
+        OpIndex shift_lower;
+        OpIndex shift_higher;
+        OpIndex lower_byte;
+        OpIndex higher_byte;
+
+        DCHECK_LT(0, shift_count);
+        DCHECK_EQ(0, (shift_count + 8) % 16);
+
+        if (value_size_in_bits > 32) {
+          shift_lower = __ Word64ShiftLeft(value, shift_count);
+          shift_higher = __ Word64ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word64BitwiseAnd(shift_lower,
+                                           static_cast<uint64_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word64BitwiseAnd(shift_higher,
+                                            static_cast<uint64_t>(0xFF) << i);
+          result = __ Word64BitwiseOr(result, lower_byte);
+          result = __ Word64BitwiseOr(result, higher_byte);
+        } else {
+          shift_lower = __ Word32ShiftLeft(value, shift_count);
+          shift_higher = __ Word32ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word32BitwiseAnd(shift_lower,
+                                           static_cast<uint32_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word32BitwiseAnd(shift_higher,
+                                            static_cast<uint32_t>(0xFF) << i);
+          result = __ Word32BitwiseOr(result, lower_byte);
+          result = __ Word32BitwiseOr(result, higher_byte);
+        }
+      }
+    }
+
+    if (is_float) {
+      switch (wasmtype.kind()) {
+        case wasm::kF64:
+          result = __ BitcastWord64ToFloat64(result);
+          break;
+        case wasm::kF32:
+          result = __ BitcastWord32ToFloat32(result);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    return result;
+  }
+
+  OpIndex BuildChangeEndiannessLoad(OpIndex node, MachineType memtype,
+                                    wasm::ValueType wasmtype) {
+    OpIndex result;
+    OpIndex value = node;
+    int value_size_in_bytes = ElementSizeInBytes(memtype.representation());
+    int value_size_in_bits = 8 * value_size_in_bytes;
+    bool is_float = false;
+
+    switch (memtype.representation()) {
+      case MachineRepresentation::kFloat64:
+        value = __ BitcastFloat64ToWord64(node);
+        is_float = true;
+        V8_FALLTHROUGH;
+      case MachineRepresentation::kWord64:
+        result = __ Word64Constant(static_cast<uint64_t>(0));
+        break;
+      case MachineRepresentation::kFloat32:
+        value = __ BitcastFloat32ToWord32(node);
+        is_float = true;
+        V8_FALLTHROUGH;
+      case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord16:
+        result = __ Word32Constant(0);
+        break;
+      case MachineRepresentation::kWord8:
+        // No need to change endianness for byte size, return original node
+        return node;
+      case MachineRepresentation::kSimd128:
+        DCHECK(ReverseBytesSupported(value_size_in_bytes));
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    int i;
+    uint32_t shift_count;
+
+    if (ReverseBytesSupported(value_size_in_bytes < 4 ? 4
+                                                      : value_size_in_bytes)) {
+      switch (value_size_in_bytes) {
+        case 2:
+          result = __ Word32ReverseBytes(__ Word32ShiftLeft(value, 16));
+          break;
+        case 4:
+          result = __ Word32ReverseBytes(value);
+          break;
+        case 8:
+          result = __ Word64ReverseBytes(value);
+          break;
+        case 16:
+          result = __ Simd128ReverseBytes(value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      for (i = 0, shift_count = value_size_in_bits - 8;
+           i < value_size_in_bits / 2; i += 8, shift_count -= 16) {
+        OpIndex shift_lower;
+        OpIndex shift_higher;
+        OpIndex lower_byte;
+        OpIndex higher_byte;
+
+        DCHECK_LT(0, shift_count);
+        DCHECK_EQ(0, (shift_count + 8) % 16);
+
+        if (value_size_in_bits > 32) {
+          shift_lower = __ Word64ShiftLeft(value, shift_count);
+          shift_higher = __ Word64ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word64BitwiseAnd(shift_lower,
+                                           static_cast<uint64_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word64BitwiseAnd(shift_higher,
+                                            static_cast<uint64_t>(0xFF) << i);
+          result = __ Word64BitwiseOr(result, lower_byte);
+          result = __ Word64BitwiseOr(result, higher_byte);
+        } else {
+          shift_lower = __ Word32ShiftLeft(value, shift_count);
+          shift_higher = __ Word32ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word32BitwiseAnd(shift_lower,
+                                           static_cast<uint32_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word32BitwiseAnd(shift_higher,
+                                            static_cast<uint32_t>(0xFF) << i);
+          result = __ Word32BitwiseOr(result, lower_byte);
+          result = __ Word32BitwiseOr(result, higher_byte);
+        }
+      }
+    }
+
+    if (is_float) {
+      switch (memtype.representation()) {
+        case MachineRepresentation::kFloat64:
+          result = __ BitcastWord64ToFloat64(result);
+          break;
+        case MachineRepresentation::kFloat32:
+          result = __ BitcastWord32ToFloat32(result);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    // We need to sign or zero extend the value.
+    if (memtype.IsSigned()) {
+      DCHECK(!is_float);
+      if (value_size_in_bits < 32) {
+        // Perform sign extension using following trick
+        // result = (x << machine_width - type_width) >> (machine_width -
+        // type_width)
+        if (wasmtype == wasm::kWasmI64) {
+          int shift_bit_count = 64 - value_size_in_bits;
+          result = __ Word64ShiftRightArithmeticShiftOutZeros(
+              __ Word64ShiftLeft(__ BitcastWord32ToWord64(result),
+                                 shift_bit_count),
+              shift_bit_count);
+        } else if (wasmtype == wasm::kWasmI32) {
+          int shift_bit_count = 32 - value_size_in_bits;
+          result = __ Word32ShiftRightArithmeticShiftOutZeros(
+              __ Word32ShiftLeft(result, shift_bit_count), shift_bit_count);
+        }
+      }
+    } else if (wasmtype == wasm::kWasmI64 && value_size_in_bits < 64) {
+      result = __ ChangeUint32ToUint64(result);
+    }
+
+    return result;
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
-
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineType(type.mem_type());
 
@@ -989,6 +1245,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
     int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
     OpIndex load = __ Load(base, final_index, load_kind, repr, offset);
+
+#if V8_TARGET_BIG_ENDIAN
+    load = BuildChangeEndiannessLoad(load, type.mem_type(), type.value_type());
+#endif
+
     OpIndex extended_load =
         (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8)
             ? (repr.IsSigned() ? __ ChangeInt32ToInt64(load)
@@ -1133,11 +1394,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
-
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
@@ -1156,6 +1412,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (value.type == kWasmI64 && repr.SizeInBytes() <= 4) {
       store_value = __ TruncateWord64ToWord32(store_value);
     }
+
+#if defined(V8_TARGET_BIG_ENDIAN)
+    store_value = BuildChangeEndiannessStore(store_value, type.mem_rep(),
+                                             type.value_type());
+
+#endif
     const bool offset_in_int_range =
         imm.offset <= std::numeric_limits<int32_t>::max();
     OpIndex base =
@@ -2958,14 +3220,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     };
 
     AtomicOpInfo info = AtomicOpInfo::Get(opcode);
-
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    if (info.op_type == kLoad || info.op_type == kStore) {
-      Bailout(decoder);
-    }
-#endif
-
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;
     std::tie(index, bounds_check_result) =
@@ -2997,6 +3251,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           info.input_rep != MemoryRepresentation::Uint64()) {
         value = __ TruncateWord64ToWord32(value);
       }
+#ifdef V8_TARGET_BIG_ENDIAN
+      // Reverse the value bytes before storing.
+      DCHECK(info.result_rep == RegisterRepresentation::Word32() ||
+             info.result_rep == RegisterRepresentation::Word64());
+      wasm::ValueType wasm_type =
+          info.result_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+                                                              : wasm::kWasmI64;
+      value = BuildChangeEndiannessStore(
+          value, info.input_rep.ToMachineType().representation(), wasm_type);
+#endif
       __ Store(MemBuffer(imm.memory->index, imm.offset), index, value,
                access_kind == MemoryAccessKind::kProtected
                    ? LoadOp::Kind::Protected().Atomic()
@@ -3010,6 +3274,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                              ? LoadOp::Kind::Protected().Atomic()
                              : LoadOp::Kind::RawAligned().Atomic(),
                          info.input_rep, info.result_rep);
+
+#ifdef V8_TARGET_BIG_ENDIAN
+    // Reverse the value bytes after load.
+    DCHECK(info.result_rep == RegisterRepresentation::Word32() ||
+           info.result_rep == RegisterRepresentation::Word64());
+    wasm::ValueType wasm_type =
+        info.result_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+                                                            : wasm::kWasmI64;
+    result->op = BuildChangeEndiannessLoad(
+        result->op, info.input_rep.ToMachineType(), wasm_type);
+#endif
   }
 
   void AtomicFence(FullDecoder* decoder) {

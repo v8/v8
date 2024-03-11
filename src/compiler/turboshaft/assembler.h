@@ -3678,6 +3678,10 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128Unary(input, kind);
   }
 
+  V<Simd128> Simd128ReverseBytes(V<Simd128> input) {
+    return Simd128Unary(input, Simd128UnaryOp::Kind::kSimd128ReverseBytes);
+  }
+
   V<Simd128> Simd128Shift(V<Simd128> input, V<Word32> shift,
                           Simd128ShiftOp::Kind kind) {
     return ReduceIfReachableSimd128Shift(input, shift, kind);
