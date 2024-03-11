@@ -551,7 +551,8 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
     return function->code(isolate);
   }
 
-  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering())) {
+  if (V8_UNLIKELY(isolate->UseEfficiencyModeForTiering() ||
+                  isolate->UseBatterySaverMode())) {
     function->feedback_vector()->reset_osr_urgency();
     function->SetInterruptBudget(isolate);
     return Smi::zero();
