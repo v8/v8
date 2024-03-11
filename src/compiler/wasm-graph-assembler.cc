@@ -145,14 +145,14 @@ Node* WasmGraphAssembler::LoadFromObject(MachineType type, Node* base,
 }
 
 Node* WasmGraphAssembler::LoadProtectedPointerFromObject(Node* object,
-                                                         int offset) {
+                                                         Node* offset) {
 #if V8_ENABLE_SANDBOX
   static_assert(COMPRESS_POINTERS_BOOL);
-  Node* tagged =
-      LoadFromObject(MachineType::Int32(), object, IntPtrConstant(offset));
+  Node* tagged = LoadFromObject(MachineType::Int32(), object, offset);
   Node* trusted_cage_base = Load(MachineType::Pointer(), LoadRootRegister(),
                                  IsolateData::trusted_cage_base_offset());
-  return WordOr(trusted_cage_base, BuildChangeUint32ToUintPtr(tagged));
+  return BitcastWordToTagged(
+      WordOr(trusted_cage_base, BuildChangeUint32ToUintPtr(tagged)));
 #else
   return LoadFromObject(MachineType::AnyTagged(), object, offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -332,6 +332,20 @@ Node* WasmGraphAssembler::LoadFixedArrayElement(Node* array, int index,
       type, array, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index));
 }
 
+Node* WasmGraphAssembler::LoadProtectedFixedArrayElement(Node* array,
+                                                         int index) {
+  return LoadProtectedPointerFromObject(
+      array, wasm::ObjectAccess::ElementOffsetInProtectedFixedArray(index));
+}
+
+Node* WasmGraphAssembler::LoadProtectedFixedArrayElement(Node* array,
+                                                         Node* index_intptr) {
+  Node* offset = IntAdd(WordShl(index_intptr, IntPtrConstant(kTaggedSizeLog2)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            ProtectedFixedArray::kHeaderSize)));
+  return LoadProtectedPointerFromObject(array, offset);
+}
+
 Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
                                                Node* index_intptr,
                                                MachineType type) {
@@ -365,6 +379,31 @@ Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
   return BuildDecodeTrustedPointer(handle, tag);
 #else
   return LoadImmutableFromObject(MachineType::TaggedPointer(), object, offset);
+#endif
+}
+
+Node* WasmGraphAssembler::LoadTrustedPointerFromObject(Node* object,
+                                                       int field_offset,
+                                                       IndirectPointerTag tag) {
+  Node* offset = IntPtrConstant(field_offset);
+#ifdef V8_ENABLE_SANDBOX
+  Node* handle = LoadFromObject(MachineType::Uint32(), object, offset);
+  return BuildDecodeTrustedPointer(handle, tag);
+#else
+  return LoadFromObject(MachineType::TaggedPointer(), object, offset);
+#endif
+}
+
+std::pair<Node*, Node*>
+WasmGraphAssembler::LoadTrustedPointerFromObjectTrapOnNull(
+    Node* object, int field_offset, IndirectPointerTag tag) {
+  Node* offset = IntPtrConstant(field_offset);
+#ifdef V8_ENABLE_SANDBOX
+  Node* handle = LoadTrapOnNull(MachineType::Uint32(), object, offset);
+  return {handle, BuildDecodeTrustedPointer(handle, tag)};
+#else
+  Node* value = LoadTrapOnNull(MachineType::TaggedPointer(), object, offset);
+  return {value, value};
 #endif
 }
 

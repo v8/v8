@@ -94,9 +94,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
       V<WordPtr> func_index, V<WasmTrustedInstanceData> trusted_instance_data);
   RegisterRepresentation RepresentationFor(ValueType type);
-#if V8_ENABLE_SANDBOX
-  V<HeapObject> DecodeTrustedPointer(V<Word32> handle, IndirectPointerTag tag);
-#endif
   V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
       V<HeapObject> instance_object);
 

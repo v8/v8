@@ -208,45 +208,14 @@ RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
   }
 }
 
-#if V8_ENABLE_SANDBOX
-V<HeapObject> WasmGraphBuilderBase::DecodeTrustedPointer(
-    V<Word32> handle, IndirectPointerTag tag) {
-  V<Word32> index =
-      __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
-  V<Word64> offset = __ ChangeUint32ToUint64(
-      __ Word32ShiftLeft(index, kTrustedPointerTableEntrySizeLog2));
-  V<WordPtr> table =
-      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
-              MemoryRepresentation::UintPtr(),
-              IsolateData::trusted_pointer_table_offset() +
-                  Internals::kTrustedPointerTableBasePointerOffset);
-  V<WordPtr> decoded_ptr = __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                                   MemoryRepresentation::UintPtr());
-  // TODO(saelo): Mask out the tag once we encode it in the table.
-  USE(tag);
-
-  // Always set the tagged bit, used as a marking bit in that table.
-  V<HeapObject> trusted_object = V<HeapObject>::Cast(__ BitcastWordPtrToTagged(
-      __ Word64BitwiseOr(decoded_ptr, kHeapObjectTag)));
-  return trusted_object;
-}
-#endif  // V8_ENABLE_SANDBOX
-
 // Load the trusted data from a WasmInstanceObject.
 V<WasmTrustedInstanceData>
 WasmGraphBuilderBase::LoadTrustedDataFromInstanceObject(
     V<HeapObject> instance_object) {
-#if V8_ENABLE_SANDBOX
-  V<Word32> handle = __ Load(
+  return V<WasmTrustedInstanceData>::Cast(__ LoadTrustedPointerField(
       instance_object, LoadOp::Kind::TaggedBase().Immutable(),
-      MemoryRepresentation::Uint32(), WasmInstanceObject::kTrustedDataOffset);
-  return V<WasmTrustedInstanceData>::Cast(
-      DecodeTrustedPointer(handle, kWasmTrustedInstanceDataIndirectPointerTag));
-#else
-  return __ Load(instance_object, LoadOp::Kind::TaggedBase().Immutable(),
-                 MemoryRepresentation::TaggedPointer(),
-                 WasmInstanceObject::kTrustedDataOffset);
-#endif  // V8_ENABLE_SANDBOX
+      kWasmTrustedInstanceDataIndirectPointerTag,
+      WasmInstanceObject::kTrustedDataOffset));
 }
 
 // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
@@ -5951,11 +5920,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     /* Step 1: Load the indirect function tables for this table. */
     V<WasmDispatchTable> dispatch_table;
     if (table_index == 0) {
-      dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
-                                                     DispatchTable0);
+      dispatch_table = V<WasmDispatchTable>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data(), DispatchTable0));
     } else {
-      V<ProtectedFixedArray> dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data(), DispatchTables);
+      V<ProtectedFixedArray> dispatch_tables =
+          V<ProtectedFixedArray>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
+              trusted_instance_data(), DispatchTables));
       dispatch_table = V<WasmDispatchTable>::Cast(
           __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
     }

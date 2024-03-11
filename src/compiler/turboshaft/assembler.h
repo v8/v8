@@ -2147,11 +2147,16 @@ class TurboshaftAssemblerOpInterface
                 rep.SizeInBytesLog2());
   }
 
-  OpIndex LoadProtectedPointerField(OpIndex base, int32_t offset) {
+  // Load a protected (trusted -> trusted) pointer field. The read value is
+  // either a Smi or a TrustedObject.
+  V<Object> LoadProtectedPointerField(
+      V<Object> base, OptionalV<WordPtr> index,
+      LoadOp::Kind kind = LoadOp::Kind::TaggedBase(), int offset = 0,
+      int element_size_log2 = kTaggedSizeLog2) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
-    OpIndex tagged = Load(base, LoadOp::Kind::TaggedBase(),
-                          MemoryRepresentation::Uint32(), offset);
+    V<Word32> tagged = Load(base, index, kind, MemoryRepresentation::Uint32(),
+                            offset, index.valid() ? element_size_log2 : 0);
     OpIndex trusted_cage_base =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
@@ -2159,12 +2164,61 @@ class TurboshaftAssemblerOpInterface
     // The bit cast is needed to change the type of the node to Tagged. This is
     // necessary so that if this value gets spilled on the stack, then the GC
     // will process it.
+    // TODO(clemensb): Can an addition instead of bitwise-or generate better
+    // code?
     return BitcastWordPtrToTagged(
         WordPtrBitwiseOr(ChangeUint32ToUintPtr(tagged), trusted_cage_base));
 #else
-    return Load(base, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::TaggedPointer(), offset);
+    return Load(base, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(), offset,
+                index.valid() ? element_size_log2 : 0);
 #endif  // V8_ENABLE_SANDBOX
+  }
+
+  // Load a protected (trusted -> trusted) pointer field. The read value is
+  // either a Smi or a TrustedObject.
+  V<Object> LoadProtectedPointerField(V<Object> base, LoadOp::Kind kind,
+                                      int32_t offset) {
+    return LoadProtectedPointerField(base, OpIndex::Invalid(), kind, offset);
+  }
+
+  // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
+  V<Object> LoadTrustedPointerField(V<HeapObject> base, OptionalV<Word32> index,
+                                    LoadOp::Kind kind, IndirectPointerTag tag,
+                                    int offset = 0) {
+#if V8_ENABLE_SANDBOX
+    static_assert(COMPRESS_POINTERS_BOOL);
+    V<Word32> handle =
+        Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
+    V<Word32> table_index =
+        Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
+    V<Word64> table_offset = __ ChangeUint32ToUint64(
+        Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
+    V<WordPtr> table =
+        Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+             MemoryRepresentation::UintPtr(),
+             IsolateData::trusted_pointer_table_offset() +
+                 Internals::kTrustedPointerTableBasePointerOffset);
+    V<WordPtr> decoded_ptr =
+        Load(table, table_offset, LoadOp::Kind::RawAligned(),
+             MemoryRepresentation::UintPtr());
+    // TODO(saelo): Mask out the tag once we encode it in the table.
+    USE(tag);
+
+    // Always set the tagged bit, used as a marking bit in that table.
+    decoded_ptr = Word64BitwiseOr(decoded_ptr, kHeapObjectTag);
+    // Bitcast to tagged to this gets scanned by the GC properly.
+    return BitcastWordPtrToTagged(decoded_ptr);
+#else
+    return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
+                offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
+  V<Object> LoadTrustedPointerField(V<HeapObject> base, LoadOp::Kind kind,
+                                    IndirectPointerTag tag, int offset = 0) {
+    return LoadTrustedPointerField(base, OpIndex::Invalid(), kind, tag, offset);
   }
 
   V<Object> LoadFixedArrayElement(V<FixedArray> array, int index) {
@@ -2191,6 +2245,19 @@ class TurboshaftAssemblerOpInterface
                 MemoryRepresentation::Float64(),
                 FixedDoubleArray::OffsetOfElementAt(0),
                 ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
+  }
+
+  V<Object> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
+                                           V<WordPtr> index) {
+    return LoadProtectedPointerField(array, index,
+                                     ProtectedFixedArray::OffsetOfElementAt(0));
+  }
+
+  V<Object> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
+                                           int index) {
+    return LoadProtectedPointerField(
+        array, LoadOp::Kind::TaggedBase(),
+        ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
   void Store(
@@ -3679,12 +3746,6 @@ class TurboshaftAssemblerOpInterface
   V<WasmTrustedInstanceData> WasmInstanceParameter() {
     return Parameter(wasm::kWasmInstanceParameterIndex,
                      RegisterRepresentation::Tagged());
-  }
-
-  V<Object> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
-                                           int index) {
-    return LoadProtectedPointerField(
-        array, ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
   OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }
