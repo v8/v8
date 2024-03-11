@@ -36,6 +36,7 @@ in_category(
         dimensions = {"os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_remoteexec = RECLIENT.DEFAULT,
+        close_tree = False,
     ),
 )
 
