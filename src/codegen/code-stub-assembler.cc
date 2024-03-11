@@ -2658,10 +2658,12 @@ TNode<TValue> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
                                                   TNode<TIndex> index_node,
                                                   int additional_offset) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
-  static_assert(std::is_same<TIndex, Smi>::value ||
-                    std::is_same<TIndex, UintPtrT>::value ||
-                    std::is_same<TIndex, IntPtrT>::value,
-                "Only Smi, UintPtrT or IntPtrT indices are allowed");
+  static_assert(
+      std::is_same<TIndex, Smi>::value ||
+          std::is_same<TIndex, UintPtrT>::value ||
+          std::is_same<TIndex, IntPtrT>::value ||
+          std::is_same<TIndex, TaggedIndex>::value,
+      "Only Smi, UintPtrT, IntPtrT or TaggedIndex indices are allowed");
   CSA_DCHECK(this, IntPtrGreaterThanOrEqual(ParameterToIntPtr(index_node),
                                             IntPtrConstant(0)));
   DCHECK(IsAligned(additional_offset, kTaggedSize));
@@ -2694,10 +2696,12 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
     TNode<FixedArray> object, TNode<TIndex> index, int additional_offset,
     CheckBounds check_bounds) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
-  static_assert(std::is_same<TIndex, Smi>::value ||
-                    std::is_same<TIndex, UintPtrT>::value ||
-                    std::is_same<TIndex, IntPtrT>::value,
-                "Only Smi, UintPtrT or IntPtrT indexes are allowed");
+  static_assert(
+      std::is_same<TIndex, Smi>::value ||
+          std::is_same<TIndex, UintPtrT>::value ||
+          std::is_same<TIndex, IntPtrT>::value ||
+          std::is_same<TIndex, TaggedIndex>::value,
+      "Only Smi, UintPtrT, IntPtrT or TaggedIndex indexes are allowed");
   CSA_DCHECK(this, IsFixedArraySubclass(object));
   CSA_DCHECK(this, IsNotWeakFixedArraySubclass(object));
 
@@ -2712,6 +2716,10 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
 template V8_EXPORT_PRIVATE TNode<Object>
 CodeStubAssembler::LoadFixedArrayElement<Smi>(TNode<FixedArray>, TNode<Smi>,
                                               int, CheckBounds);
+template V8_EXPORT_PRIVATE TNode<Object>
+CodeStubAssembler::LoadFixedArrayElement<TaggedIndex>(TNode<FixedArray>,
+                                                      TNode<TaggedIndex>, int,
+                                                      CheckBounds);
 template V8_EXPORT_PRIVATE TNode<Object>
 CodeStubAssembler::LoadFixedArrayElement<UintPtrT>(TNode<FixedArray>,
                                                    TNode<UintPtrT>, int,
@@ -2756,6 +2764,19 @@ TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
   int additional_offset = 0;
   return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
                                additional_offset));
+}
+
+void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
+                                              TNode<TaggedIndex> index,
+                                              int additional_offset) {
+  if (!v8_flags.fixed_array_bounds_checks) return;
+  DCHECK(IsAligned(additional_offset, kTaggedSize));
+  // IntPtrAdd does constant-folding automatically.
+  TNode<IntPtrT> effective_index =
+      IntPtrAdd(TaggedIndexToIntPtr(index),
+                IntPtrConstant(additional_offset / kTaggedSize));
+  CSA_CHECK(this, UintPtrLessThan(effective_index,
+                                  LoadAndUntagFixedArrayBaseLength(array)));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(

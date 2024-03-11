@@ -198,6 +198,136 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
                                  caller_context, lookup_start_object));
 }
 
+void AccessorAssembler::TryEnumeratedKeyedLoad(
+    const LoadICParameters* p, TNode<Map> lookup_start_object_map,
+    ExitPoint* exit_point) {
+  if (!p->IsEnumeratedKeyedLoad()) return;
+  Label no_enum_cache(this);
+  // p->cache_type() comes from the outer loop's ForIn state.
+  GotoIf(TaggedNotEqual(p->cache_type(), lookup_start_object_map),
+         &no_enum_cache);
+
+  // Use field index in EnumCache.
+  TNode<DescriptorArray> descriptors =
+      LoadMapDescriptors(lookup_start_object_map);
+  TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
+      descriptors, DescriptorArray::kEnumCacheOffset);
+  TNode<FixedArray> enum_keys =
+      LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
+  // p->enum_index() comes from the outer loop's ForIn state.
+  TNode<Object> key =
+      LoadFixedArrayElement(enum_keys, TaggedIndexToSmi(p->enum_index()));
+  // Check if the key in parameters match the one in enum cache. Debugger might
+  // change the value in key register, in this case we should not use the field
+  // index in enum cache.
+  GotoIf(TaggedNotEqual(key, p->name()), &no_enum_cache);
+  TNode<FixedArray> enum_indices =
+      LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
+  // Check if we have enum indices available.
+  GotoIf(IsEmptyFixedArray(enum_indices), &no_enum_cache);
+  TNode<Int32T> field_index = SmiToInt32(CAST(
+      LoadFixedArrayElement(enum_indices, TaggedIndexToSmi(p->enum_index()))));
+
+  TVARIABLE(Object, result);
+  Label if_double(this, Label::kDeferred), done(this, &result);
+  // Check if field is a mutable double field.
+  uint32_t kIsMutableDoubleFieldMask = 1;
+  GotoIf(IsSetWord32(field_index, kIsMutableDoubleFieldMask), &if_double);
+
+  TNode<Int32T> zero = Int32Constant(0);
+  {
+    Label if_outofobject(this);
+    // Check if field is in-object or out-of-object.
+    GotoIf(Int32LessThan(field_index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(field_index, Int32Constant(kTaggedSizeLog2 - 1)),
+                   Int32Constant(JSObject::kHeaderSize))));
+      result =
+          LoadObjectField(CAST(p->receiver_and_lookup_start_object()), offset);
+      Goto(&done);
+    }
+
+    // The field is located in the properties backing store of {object}.
+    // The {index} is equal to the negated out of property index plus 1.
+    BIND(&if_outofobject);
+    {
+      TNode<PropertyArray> properties = CAST(LoadFastProperties(
+          CAST(p->receiver_and_lookup_start_object()), true));
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(Int32Sub(zero, field_index),
+                             Int32Constant(kTaggedSizeLog2 - 1)),
+                   Int32Constant(FixedArray::kHeaderSize - kTaggedSize))));
+      result = LoadObjectField(properties, offset);
+      Goto(&done);
+    }
+  }
+
+  // The field is a Double field, either unboxed in the object on 64-bit
+  // architectures, or a mutable HeapNumber.
+  BIND(&if_double);
+  {
+    TVARIABLE(Object, field);
+    Label loaded_field(this, &field), if_outofobject(this);
+    field_index = Word32Sar(field_index, Int32Constant(1));
+    // Check if field is in-object or out-of-object.
+    GotoIf(Int32LessThan(field_index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(field_index, Int32Constant(kTaggedSizeLog2)),
+                   Int32Constant(JSObject::kHeaderSize))));
+      field =
+          LoadObjectField(CAST(p->receiver_and_lookup_start_object()), offset);
+      Goto(&loaded_field);
+    }
+
+    BIND(&if_outofobject);
+    {
+      TNode<PropertyArray> properties = CAST(LoadFastProperties(
+          CAST(p->receiver_and_lookup_start_object()), true));
+      TNode<IntPtrT> offset = Signed(ChangeUint32ToWord(
+          Int32Add(Word32Shl(Int32Sub(zero, field_index),
+                             Int32Constant(kTaggedSizeLog2)),
+                   Int32Constant(FixedArray::kHeaderSize - kTaggedSize))));
+      field = LoadObjectField(properties, offset);
+      Goto(&loaded_field);
+    }
+
+    BIND(&loaded_field);
+    {
+      // We may have transitioned in-place away from double, so check that
+      // this is a HeapNumber -- otherwise the load is fine and we don't need
+      // to copy anything anyway.
+      Label if_not_double(this);
+      GotoIf(TaggedIsSmi(field.value()), &if_not_double);
+
+      TNode<HeapObject> double_field = CAST(field.value());
+      TNode<Map> field_map = LoadMap(double_field);
+      GotoIfNot(TaggedEqual(field_map, HeapNumberMapConstant()),
+                &if_not_double);
+
+      TNode<Float64T> value = LoadHeapNumberValue(double_field);
+      result = AllocateHeapNumberWithValue(value);
+      Goto(&done);
+
+      BIND(&if_not_double);
+      {
+        result = field.value();
+        Goto(&done);
+      }
+    }
+  }
+
+  BIND(&done);
+  { exit_point->Return(result.value()); }
+
+  BIND(&no_enum_cache);
+}
+
 void AccessorAssembler::HandleLoadICHandlerCase(
     const LazyLoadICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
@@ -3445,6 +3575,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
       LoadReceiverMap(p->receiver_and_lookup_start_object());
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
+  TryEnumeratedKeyedLoad(p, lookup_start_object_map, &direct_exit);
+
   GotoIf(IsUndefined(p->vector()), &generic);
 
   // Check monomorphic case.
@@ -4498,6 +4630,23 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
   KeyedLoadIC(&p, LoadAccessMode::kLoad);
 }
 
+void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
+  using Descriptor = EnumeratedKeyedLoadDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto cache_type = Parameter<Object>(Descriptor::kCacheType);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto lookup_start_object = base::nullopt;
+
+  LoadICParameters p(context, receiver, name, slot, vector, lookup_start_object,
+                     enum_index, cache_type);
+  KeyedLoadIC(&p, LoadAccessMode::kLoad);
+}
+
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   using Descriptor = KeyedLoadWithVectorDescriptor;
 
@@ -4533,6 +4682,21 @@ void AccessorAssembler::GenerateKeyedLoadICBaseline() {
   TNode<Context> context = LoadContextFromBaseline();
 
   TailCallBuiltin(Builtin::kKeyedLoadIC, context, receiver, name, slot, vector);
+}
+
+void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
+  using Descriptor = EnumeratedKeyedLoadBaselineDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto cache_type = Parameter<Object>(Descriptor::kCacheType);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  TailCallBuiltin(Builtin::kEnumeratedKeyedLoadIC, context, receiver, name,
+                  enum_index, cache_type, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {

@@ -5256,6 +5256,11 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
   SetAccumulator(build_generic_access());
 }
 
+void MaglevGraphBuilder::VisitGetEnumeratedKeyedProperty() {
+  // TODO(v8:14245): Implement this bytecode in Maglev/Turbofan.
+  UNREACHABLE();
+}
+
 void MaglevGraphBuilder::VisitLdaModuleVariable() {
   // LdaModuleVariable <cell_index> <depth>
   int cell_index = iterator_.GetImmediateOperand(0);

@@ -405,6 +405,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> ParameterToIntPtr(TNode<UintPtrT> value) {
     return Signed(value);
   }
+  TNode<IntPtrT> ParameterToIntPtr(TNode<TaggedIndex> value) {
+    return TaggedIndexToIntPtr(value);
+  }
 
   TNode<Smi> ParameterToTagged(TNode<Smi> value) { return value; }
 
@@ -1721,6 +1724,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<UintPtrT> index,
                              int additional_offset) {
     FixedArrayBoundsCheck(array, Signed(index), additional_offset);
+  }
+
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
+                             TNode<TaggedIndex> index, int additional_offset);
+  void FixedArrayBoundsCheck(TNode<FixedArray> array, TNode<TaggedIndex> index,
+                             int additional_offset) {
+    FixedArrayBoundsCheck(UncheckedCast<FixedArrayBase>(array), index,
+                          additional_offset);
   }
 
   // Array is any array-like type that has a fixed header followed by

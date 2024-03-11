@@ -101,7 +101,9 @@ namespace internal {
   V(KeyedHasICWithVector)                            \
   V(KeyedLoad)                                       \
   V(KeyedLoadBaseline)                               \
+  V(EnumeratedKeyedLoadBaseline)                     \
   V(KeyedLoadWithVector)                             \
+  V(EnumeratedKeyedLoad)                             \
   V(Load)                                            \
   V(LoadBaseline)                                    \
   V(LoadGlobal)                                      \
@@ -1282,6 +1284,42 @@ class KeyedLoadWithVectorDescriptor
   DECLARE_DESCRIPTOR(KeyedLoadWithVectorDescriptor)
 
   static constexpr inline Register VectorRegister();
+
+  static constexpr auto registers();
+};
+
+class EnumeratedKeyedLoadBaselineDescriptor
+    : public StaticCallInterfaceDescriptor<
+          EnumeratedKeyedLoadBaselineDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kEnumIndex, kCacheType, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kEnumIndex
+                         MachineType::AnyTagged(),     // kCacheType
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(EnumeratedKeyedLoadBaselineDescriptor)
+
+  static constexpr inline Register EnumIndexRegister();
+  static constexpr inline Register CacheTypeRegister();
+  static constexpr inline Register SlotRegister();
+
+  static constexpr auto registers();
+};
+
+class EnumeratedKeyedLoadDescriptor
+    : public StaticCallInterfaceDescriptor<EnumeratedKeyedLoadDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  DEFINE_PARAMETERS(kReceiver, kName, kEnumIndex, kCacheType, kSlot, kVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kEnumIndex
+                         MachineType::AnyTagged(),     // kCacheType
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(EnumeratedKeyedLoadDescriptor)
 
   static constexpr auto registers();
 };

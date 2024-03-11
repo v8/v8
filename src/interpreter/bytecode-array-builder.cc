@@ -866,6 +866,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadEnumeratedKeyedProperty(
+    Register object, Register enum_index, Register cache_type,
+    int feedback_slot) {
+  OutputGetEnumeratedKeyedProperty(object, enum_index, cache_type,
+                                   feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = IteratorSymbolConstantPoolEntry();

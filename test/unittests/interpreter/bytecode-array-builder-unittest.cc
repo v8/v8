@@ -162,6 +162,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
       .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())
       .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
+      .LoadEnumeratedKeyedProperty(reg, reg, reg, keyed_load_slot.ToInt())
       .SetNamedProperty(reg, name, sloppy_store_slot.ToInt(),
                         LanguageMode::kSloppy)
       .SetKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),

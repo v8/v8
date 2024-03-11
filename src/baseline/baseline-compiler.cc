@@ -934,6 +934,16 @@ void BaselineCompiler::VisitGetKeyedProperty() {
       IndexAsTagged(1));                // slot
 }
 
+void BaselineCompiler::VisitGetEnumeratedKeyedProperty() {
+  DCHECK(v8_flags.enable_enumerated_keyed_access_bytecode);
+  CallBuiltin<Builtin::kEnumeratedKeyedLoadICBaseline>(
+      RegisterOperand(0),               // object
+      kInterpreterAccumulatorRegister,  // key
+      RegisterOperand(1),               // enum index
+      RegisterOperand(2),               // cache type
+      IndexAsTagged(3));                // slot
+}
+
 void BaselineCompiler::VisitLdaModuleVariable() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register scratch = scratch_scope.AcquireScratch();

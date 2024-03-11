@@ -665,6 +665,10 @@ DEFINE_BOOL(maglev_function_context_specialization, true,
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 
+DEFINE_BOOL(
+    enable_enumerated_keyed_access_bytecode, false,
+    "enable generating GetEnumeratedKeyedProperty bytecode for keyed access")
+
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
