@@ -1495,7 +1495,7 @@ size_t MinorMSConcurrentMarkingTrigger(Heap* heap) {
 }  // namespace
 
 void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
-  DCHECK(!incremental_marking()->IsMarking());
+  if (incremental_marking()->IsMarking()) return;
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
       (paged_new_space()->paged_space()->UsableCapacity() >=
