@@ -1107,7 +1107,6 @@ bool Heap::CreateReadOnlyObjects() {
 
     // Mark "Interesting Symbols" appropriately.
     to_string_tag_symbol->set_is_interesting_symbol(true);
-    to_primitive_symbol->set_is_interesting_symbol(true);
   }
 
   {
@@ -1123,6 +1122,8 @@ bool Heap::CreateReadOnlyObjects() {
 
     SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
                                         /* not used */)
+    PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
+                                               /* not used */)
     WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
                                                    /* not used */)
 #undef ALLOCATE_SYMBOL_STRING
@@ -1135,8 +1136,13 @@ bool Heap::CreateReadOnlyObjects() {
                                                      /* not used */)
     SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(PUBLIC_SYMBOL_INIT,
                                         /* not used */)
+    PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(PUBLIC_SYMBOL_INIT,
+                                               /* not used */)
     WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT,
                                                    /* not used */)
+
+    // Mark "Interesting Symbols" appropriately.
+    to_primitive_symbol->set_is_interesting_symbol(true);
 
 #ifdef DEBUG
     roots.VerifyNameForProtectors();
@@ -1360,6 +1366,7 @@ void Heap::CreateInitialMutableObjects() {
   set_set_iterator_protector(*factory->NewProtector());
   set_string_iterator_protector(*factory->NewProtector());
   set_string_length_protector(*factory->NewProtector());
+  set_string_wrapper_to_primitive_protector(*factory->NewProtector());
   set_number_string_not_regexp_like_protector(*factory->NewProtector());
   set_typed_array_species_protector(*factory->NewProtector());
 

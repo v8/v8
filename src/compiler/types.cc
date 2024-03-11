@@ -918,6 +918,10 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
+  if (ref.IsJSPrimitiveWrapper() &&
+      ref.AsJSPrimitiveWrapper().IsStringWrapper(broker)) {
+    return Type::StringWrapper();
+  }
   if (ref.HoleType() != HoleType::kNone) {
     return Type::Hole();
   }

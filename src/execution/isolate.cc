@@ -5377,6 +5377,17 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
   }
 }
 
+void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
+    Handle<JSObject> object) {
+  if (!Protectors::IsStringWrapperToPrimitiveIntact(this)) {
+    return;
+  }
+
+  if (IsStringWrapper(*object)) {
+    Protectors::InvalidateStringWrapperToPrimitive(this);
+  }
+}
+
 static base::RandomNumberGenerator* ensure_rng_exists(
     base::RandomNumberGenerator** rng, int seed) {
   if (*rng == nullptr) {

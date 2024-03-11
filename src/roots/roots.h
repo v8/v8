@@ -282,6 +282,8 @@ class RootVisitor;
   V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+  V(PropertyCell, string_wrapper_to_primitive_protector,                       \
+    StringWrapperToPrimitiveProtector)                                         \
   V(PropertyCell, number_string_not_regexp_like_protector,                     \
     NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
@@ -417,10 +419,11 @@ class RootVisitor;
   WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 
 // Produces (Na,e, name, CamelCase) entries
-#define NAME_FOR_PROTECTOR_ROOT_LIST(V)                            \
-  INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(                \
-      INTERNALIZED_STRING_LIST_ADAPTER, V)                         \
-  SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V) \
+#define NAME_FOR_PROTECTOR_ROOT_LIST(V)                                   \
+  INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(                       \
+      INTERNALIZED_STRING_LIST_ADAPTER, V)                                \
+  SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)        \
+  PUBLIC_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V) \
   WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 
 // Adapts one ACCESSOR_INFO_LIST_GENERATOR entry to the ROOT_LIST-compatible

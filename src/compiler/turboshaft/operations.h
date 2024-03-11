@@ -4172,6 +4172,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kReceiverOrNullOrUndefined,
     kSmi,
     kString,
+    kStringOrStringWrapper,
     kSymbol,
     kUndetectable,
   };

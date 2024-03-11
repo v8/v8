@@ -406,6 +406,13 @@ class JSDataViewData : public JSObjectData {
       : JSObjectData(broker, storage, object, kind) {}
 };
 
+class JSPrimitiveWrapperData : public JSObjectData {
+ public:
+  JSPrimitiveWrapperData(JSHeapBroker* broker, ObjectData** storage,
+                         Handle<JSPrimitiveWrapper> object, ObjectDataKind kind)
+      : JSObjectData(broker, storage, object, kind) {}
+};
+
 class JSBoundFunctionData : public JSObjectData {
  public:
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -1763,6 +1770,12 @@ void* JSTypedArrayRef::data_ptr() const {
   // base_pointer load).
   static_assert(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
   return object()->DataPtr();
+}
+
+bool JSPrimitiveWrapperRef::IsStringWrapper(JSHeapBroker* broker) const {
+  auto elements_kind = map(broker).elements_kind();
+  return elements_kind == FAST_STRING_WRAPPER_ELEMENTS ||
+         elements_kind == SLOW_STRING_WRAPPER_ELEMENTS;
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
