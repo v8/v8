@@ -2447,15 +2447,13 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         MAYBE_RETURN(owned, Nothing<bool>());
         if (!owned.FromJust()) {
           // |own_lookup| might become outdated at this point anyway.
-          // TODO(leszeks): Remove this restart since we don't really use the
-          // lookup iterator after this.
           own_lookup.Restart();
           if (!CheckContextualStoreToJSGlobalObject(&own_lookup,
                                                     should_throw)) {
             return Nothing<bool>();
           }
-          return JSReceiver::CreateDataProperty(isolate, receiver, it->GetKey(),
-                                                value, should_throw);
+          return JSReceiver::CreateDataProperty(&own_lookup, value,
+                                                should_throw);
         }
         if (PropertyDescriptor::IsAccessorDescriptor(&desc) ||
             !desc.writable()) {

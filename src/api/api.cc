@@ -4512,19 +4512,19 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
 
   i::PropertyKey lookup_key(i_isolate, key_obj);
+  i::LookupIterator it(i_isolate, self, lookup_key, i::LookupIterator::OWN);
   if (i::IsJSProxy(*self)) {
     ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
-    Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-        i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
+    Maybe<bool> result =
+        i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   } else {
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, CreateDataProperty,
                        i::HandleScope);
-    Maybe<bool> result = i::JSObject::CreateDataProperty(
-        i_isolate, i::Handle<i::JSObject>::cast(self), lookup_key, value_obj,
-        Just(i::kDontThrow));
+    Maybe<bool> result =
+        i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
@@ -4538,20 +4538,19 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
 
-  i::PropertyKey lookup_key(i_isolate, index);
+  i::LookupIterator it(i_isolate, self, index, self, i::LookupIterator::OWN);
   if (i::IsJSProxy(*self)) {
     ENTER_V8(i_isolate, context, Object, CreateDataProperty, i::HandleScope);
-    Maybe<bool> result = i::JSReceiver::CreateDataProperty(
-        i_isolate, self, lookup_key, value_obj, Just(i::kDontThrow));
+    Maybe<bool> result =
+        i::JSReceiver::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
   } else {
     ENTER_V8_NO_SCRIPT(i_isolate, context, Object, CreateDataProperty,
                        i::HandleScope);
-    Maybe<bool> result = i::JSObject::CreateDataProperty(
-        i_isolate, i::Handle<i::JSObject>::cast(self), lookup_key, value_obj,
-        Just(i::kDontThrow));
+    Maybe<bool> result =
+        i::JSObject::CreateDataProperty(&it, value_obj, Just(i::kDontThrow));
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;

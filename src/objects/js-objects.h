@@ -182,11 +182,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Name> key,
       Handle<Object> value, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
-      Isolate* isolate, Handle<Object> object, PropertyKey key,
-      Handle<Object> value, Maybe<ShouldThrow> should_throw);
-  V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
-      Isolate* isolate, Handle<JSReceiver> object, PropertyKey key,
-      Handle<Object> value, Maybe<ShouldThrow> should_throw);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
 
   // Add private fields to the receiver, ignoring extensibility and the
   // traps. The caller should check that the private field does not already
@@ -473,8 +470,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Adds or reconfigures a property to attributes NONE. It will fail when it
   // cannot.
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
-      Isolate* isolate, Handle<JSObject> object, PropertyKey key,
-      Handle<Object> value, Maybe<ShouldThrow> should_throw = Just(kDontThrow));
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw = Just(kDontThrow));
 
   V8_EXPORT_PRIVATE static void AddProperty(Isolate* isolate,
                                             Handle<JSObject> object,

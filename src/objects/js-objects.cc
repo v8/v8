@@ -389,8 +389,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         // 4a ii 2. Perform ? CreateDataProperty(target, nextKey, propValue).
         // This is an OWN lookup, so constructing a named-mode LookupIterator
         // from {next_key} is safe.
-        CHECK(JSReceiver::CreateDataProperty(isolate, target, next_key,
-                                             prop_value, Just(kThrowOnError))
+        LookupIterator it(isolate, target, next_key, LookupIterator::OWN);
+        CHECK(JSObject::CreateDataProperty(&it, prop_value, Just(kThrowOnError))
                   .FromJust());
       }
     }
@@ -489,8 +489,8 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
       } else {
         // 4a ii 2. Perform ! CreateDataProperty(target, nextKey, propValue).
         PropertyKey key(isolate, next_key);
-        CHECK(JSReceiver::CreateDataProperty(isolate, target, key, prop_value,
-                                             Just(kThrowOnError))
+        LookupIterator it(isolate, target, key, LookupIterator::OWN);
+        CHECK(JSObject::CreateDataProperty(&it, prop_value, Just(kThrowOnError))
                   .FromJust());
       }
     }
@@ -1713,33 +1713,21 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
                                            Handle<Name> key,
                                            Handle<Object> value,
                                            Maybe<ShouldThrow> should_throw) {
-  return CreateDataProperty(isolate, object, PropertyKey(isolate, key), value,
-                            should_throw);
+  PropertyKey lookup_key(isolate, key);
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+  return CreateDataProperty(&it, value, should_throw);
 }
 
 // static
-Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
-                                           Handle<Object> object,
-                                           PropertyKey key,
+Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
                                            Handle<Object> value,
                                            Maybe<ShouldThrow> should_throw) {
-  if (!IsJSReceiver(*object)) {
-    return Object::CannotCreateProperty(isolate, object, key.GetName(isolate),
-                                        value, Nothing<ShouldThrow>());
-  }
-  return CreateDataProperty(isolate, Handle<JSReceiver>::cast(object), key,
-                            value, should_throw);
-}
+  DCHECK(!it->check_prototype_chain());
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = it->isolate();
 
-// static
-Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
-                                           Handle<JSReceiver> object,
-                                           PropertyKey key,
-                                           Handle<Object> value,
-                                           Maybe<ShouldThrow> should_throw) {
-  if (IsJSObject(*object)) {
-    return JSObject::CreateDataProperty(isolate, Handle<JSObject>::cast(object),
-                                        key, value, should_throw);  // Shortcut.
+  if (IsJSObject(*receiver)) {
+    return JSObject::CreateDataProperty(it, value, should_throw);  // Shortcut.
   }
 
   PropertyDescriptor new_desc;
@@ -1748,7 +1736,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
   new_desc.set_enumerable(true);
   new_desc.set_configurable(true);
 
-  return JSReceiver::DefineOwnProperty(isolate, object, key.GetName(isolate),
+  return JSReceiver::DefineOwnProperty(isolate, receiver, it->GetName(),
                                        &new_desc, should_throw);
 }
 
@@ -3525,40 +3513,9 @@ bool JSObject::TryMigrateInstance(Isolate* isolate, Handle<JSObject> object) {
   return true;
 }
 
-namespace {
-
-bool TryFastAddDataProperty(Isolate* isolate, Handle<JSObject> object,
-                            Handle<Name> name, Handle<Object> value,
-                            PropertyAttributes attributes) {
-  DCHECK(IsUniqueName(*name));
-  Tagged<Map> map = TransitionsAccessor(isolate, object->map())
-                        .SearchTransition(*name, PropertyKind::kData, NONE);
-  if (map.is_null()) return false;
-  DCHECK(!map->is_dictionary_map());
-
-  Handle<Map> new_map = handle(map, isolate);
-  InternalIndex descriptor = map->LastAdded();
-  new_map = Map::PrepareForDataProperty(isolate, new_map, descriptor,
-                                        PropertyConstness::kConst, value);
-  JSObject::MigrateToMap(isolate, object, new_map);
-  // TODO(leszeks): Avoid re-loading the property details, which we already
-  // loaded in PrepareForDataProperty.
-  object->WriteToField(descriptor,
-                       new_map->instance_descriptors()->GetDetails(descriptor),
-                       *value);
-  return true;
-}
-
-}  // namespace
-
 void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
                            Handle<Name> name, Handle<Object> value,
                            PropertyAttributes attributes) {
-  name = isolate->factory()->InternalizeName(name);
-  if (TryFastAddDataProperty(isolate, object, name, value, attributes)) {
-    return;
-  }
-
   LookupIterator it(isolate, object, name, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
@@ -4075,25 +4032,20 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   return Just(IsTrue(*result, isolate));
 }
 
-Maybe<bool> JSObject::CreateDataProperty(Isolate* isolate,
-                                         Handle<JSObject> object,
-                                         PropertyKey key, Handle<Object> value,
+Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
+                                         Handle<Object> value,
                                          Maybe<ShouldThrow> should_throw) {
-  if (!key.is_element()) {
-    if (TryFastAddDataProperty(isolate, object, key.name(), value, NONE)) {
-      return Just(true);
-    }
-  }
+  DCHECK(IsJSObject(*it->GetReceiver()));
+  Isolate* isolate = it->isolate();
 
-  LookupIterator it(isolate, object, key, LookupIterator::OWN);
   Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
-      isolate, &it, value, should_throw);
+      isolate, it, value, should_throw);
   if (can_define.IsNothing() || !can_define.FromJust()) {
     return can_define;
   }
 
   RETURN_ON_EXCEPTION_VALUE(isolate,
-                            DefineOwnPropertyIgnoreAttributes(&it, value, NONE),
+                            DefineOwnPropertyIgnoreAttributes(it, value, NONE),
                             Nothing<bool>());
 
   return Just(true);

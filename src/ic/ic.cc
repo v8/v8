@@ -1842,11 +1842,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     DCHECK(!name->IsPrivateName());
 
     PropertyKey key(isolate(), name);
+    LookupIterator it(
+        isolate(), object, key,
+        IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+    // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
+    // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
-      MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(
-          isolate(), object, key, value, Nothing<ShouldThrow>()));
+      MAYBE_RETURN_NULL(
+          JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
     } else {
-      LookupIterator it(isolate(), object, key, LookupIterator::DEFAULT);
       MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     }
     return value;
@@ -2966,9 +2970,11 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   DCHECK(!IsSymbol(*key) || !Symbol::cast(*key)->is_private_name());
 
   PropertyKey lookup_key(isolate, key);
-  MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate, object, lookup_key,
-                                              value, Nothing<ShouldThrow>()),
-               ReadOnlyRoots(isolate).exception());
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+
+  MAYBE_RETURN(
+      JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()),
+      ReadOnlyRoots(isolate).exception());
   return *value;
 }
 

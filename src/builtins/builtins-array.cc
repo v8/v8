@@ -704,10 +704,9 @@ class ArrayConcatVisitor {
     }
 
     if (!is_fixed_array()) {
-      MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate_, storage_,
-                                                  PropertyKey(isolate_, index),
-                                                  elm, Just(kThrowOnError)),
-                   false);
+      LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
+      MAYBE_RETURN(
+          JSReceiver::CreateDataProperty(&it, elm, Just(kThrowOnError)), false);
       return true;
     }
 
