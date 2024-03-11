@@ -340,7 +340,7 @@ class S390OperandGeneratorT final : public OperandGeneratorT<Adapter> {
             UseImmediate(static_cast<int>(m->displacement));
         return kMode_Root;
       } else if (CanBeImmediate(m->displacement, immediate_mode)) {
-        DCHECK_EQ(0, m->scale);
+        DCHECK_EQ(m->scale, 0);
         return GenerateMemoryOperandInputs(m->index, m->base, m->displacement,
                                            m->displacement_mode, inputs,
                                            input_count);
@@ -821,12 +821,14 @@ void VisitUnaryOp(InstructionSelectorT<Adapter>* selector,
                   typename Adapter::node_t node, InstructionCode opcode,
                   OperandModes operand_mode, FlagsContinuationT<Adapter>* cont,
                   CanCombineWithLoad canCombineWithLoad) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  using node_t = typename Adapter::node_t;
   S390OperandGeneratorT<Adapter> g(selector);
   InstructionOperand inputs[8];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
-  Node* input = node->InputAt(0);
+  node_t input = selector->input_at(node, 0);
 
   GenerateRightOperands(selector, node, input, &opcode, &operand_mode, inputs,
                         &input_count, canCombineWithLoad);
@@ -869,7 +871,7 @@ void VisitBinOp(InstructionSelectorT<Adapter>* selector,
                 typename Adapter::node_t node, InstructionCode opcode,
                 OperandModes operand_mode, FlagsContinuationT<Adapter>* cont,
                 CanCombineWithLoad canCombineWithLoad) {
-  using namespace turboshaft;
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   using node_t = typename Adapter::node_t;
   S390OperandGeneratorT<Adapter> g(selector);
   node_t left = selector->input_at(node, 0);
@@ -880,7 +882,9 @@ void VisitBinOp(InstructionSelectorT<Adapter>* selector,
   size_t output_count = 0;
 
   if constexpr (Adapter::IsTurboshaft) {
-    if (WordBinopOp::IsCommutative(
+    const Operation& op = selector->Get(node);
+    if (op.TryCast<WordBinopOp>() &&
+        WordBinopOp::IsCommutative(
             selector->Get(node).template Cast<WordBinopOp>().kind) &&
         !g.CanBeImmediate(right, operand_mode) &&
         (g.CanBeBetterLeftOperand(right))) {
@@ -1236,7 +1240,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64And(node_t node) {
         CanCover(node, left)) {
       // Try to absorb left/right shift into rldic
       int64_t shift_by;
-      const WordBinopOp& shift_op = lhs.Cast<WordBinopOp>();
+      const ShiftOp& shift_op = lhs.Cast<ShiftOp>();
       if (MatchIntegralWord64Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 63)) {
         left = shift_op.left();
@@ -1368,11 +1372,55 @@ InstructionSelectorT<TurboshaftAdapter>::FindProjection(
   return turboshaft::OpIndex::Invalid();
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Shl(node_t node) {
+  S390OperandGeneratorT<TurboshaftAdapter> g(this);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
+  const Operation& lhs = this->Get(shl.left());
+  if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
+      this->is_integer_constant(shl.right()) &&
+      base::IsInRange(this->integer_constant(shl.right()), 0, 63)) {
+    int sh = this->integer_constant(shl.right());
+    int mb;
+    int me;
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    if (this->is_integer_constant(bitwise_and.right()) &&
+        IsContiguousMask64(this->integer_constant(bitwise_and.right()) << sh,
+                           &mb, &me)) {
+      // Adjust the mask such that it doesn't include any rotated bits.
+      if (me < sh) me = sh;
+      if (mb >= me) {
+        bool match = false;
+        ArchOpcode opcode;
+        int mask;
+        if (me == 0) {
+          match = true;
+          opcode = kS390_RotLeftAndClearLeft64;
+          mask = mb;
+        } else if (mb == 63) {
+          match = true;
+          opcode = kS390_RotLeftAndClearRight64;
+          mask = me;
+        } else if (sh && me <= sh) {
+          match = true;
+          opcode = kS390_RotLeftAndClear64;
+          mask = mb;
+        }
+        if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+          Emit(opcode, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+               g.TempImmediate(mask));
+          return;
+        }
+      }
+    }
+  }
+  VisitWord64BinOp(this, node, kS390_ShiftLeft64, Shift64OperandMode);
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     S390OperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     // TODO(mbrandy): eliminate left sign extension if right >= 32
@@ -1412,14 +1460,56 @@ void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
       }
     }
     VisitWord64BinOp(this, node, kS390_ShiftLeft64, Shift64OperandMode);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Shr(node_t node) {
+  S390OperandGeneratorT<TurboshaftAdapter> g(this);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
+  const Operation& lhs = this->Get(shr.left());
+  if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
+      this->is_integer_constant(shr.right()) &&
+      base::IsInRange(this->integer_constant(shr.right()), 0, 63)) {
+    int sh = this->integer_constant(shr.right());
+    int mb;
+    int me;
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    if (this->is_integer_constant(bitwise_and.right()) &&
+        IsContiguousMask64(
+            static_cast<uint64_t>(this->integer_constant(bitwise_and.right()) >>
+                                  sh),
+            &mb, &me)) {
+      // Adjust the mask such that it doesn't include any rotated bits.
+      if (mb > 63 - sh) mb = 63 - sh;
+      sh = (64 - sh) & 0x3F;
+      if (mb >= me) {
+        bool match = false;
+        ArchOpcode opcode;
+        int mask;
+        if (me == 0) {
+          match = true;
+          opcode = kS390_RotLeftAndClearLeft64;
+          mask = mb;
+        } else if (mb == 63) {
+          match = true;
+          opcode = kS390_RotLeftAndClearRight64;
+          mask = me;
+        }
+        if (match) {
+          Emit(opcode, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
+               g.TempImmediate(mask));
+          return;
+        }
+      }
+    }
   }
+  VisitWord64BinOp(this, node, kS390_ShiftRight64, Shift64OperandMode);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     S390OperandGeneratorT<Adapter> g(this);
     Int64BinopMatcher m(node);
     if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
@@ -1456,7 +1546,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
       }
     }
     VisitWord64BinOp(this, node, kS390_ShiftRight64, Shift64OperandMode);
-  }
 }
 #endif
 
@@ -1656,10 +1745,32 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
 template <typename Adapter, class Matcher, ArchOpcode neg_opcode>
 static inline bool TryMatchNegFromSub(InstructionSelectorT<Adapter>* selector,
                                       typename Adapter::node_t node) {
+  S390OperandGeneratorT<Adapter> g(selector);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    static_assert(neg_opcode == kS390_Neg32 || neg_opcode == kS390_Neg64,
+                  "Provided opcode is not a Neg opcode.");
+    const WordBinopOp& sub_op =
+        selector->Get(node).template Cast<WordBinopOp>();
+    if (selector->MatchIntegralZero(sub_op.left())) {
+      typename Adapter::node_t value = sub_op.right();
+      bool doZeroExt = DoZeroExtForResult<Adapter>(selector, node);
+      bool canEliminateZeroExt = ProduceWord32Result<Adapter>(selector, value);
+      if (doZeroExt) {
+        selector->Emit(neg_opcode,
+                       canEliminateZeroExt ? g.DefineSameAsFirst(node)
+                                           : g.DefineAsRegister(node),
+                       g.UseRegister(value),
+                       g.TempImmediate(!canEliminateZeroExt));
+      } else {
+        selector->Emit(neg_opcode, g.DefineAsRegister(node),
+                       g.UseRegister(value));
+      }
+      return true;
+    }
+    return false;
+
   } else {
-    S390OperandGeneratorT<Adapter> g(selector);
     Matcher m(node);
     static_assert(neg_opcode == kS390_Neg32 || neg_opcode == kS390_Neg64,
                   "Provided opcode is not a Neg opcode.");
@@ -1686,10 +1797,36 @@ static inline bool TryMatchNegFromSub(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter, class Matcher, ArchOpcode shift_op>
 bool TryMatchShiftFromMul(InstructionSelectorT<Adapter>* selector,
                           typename Adapter::node_t node) {
+  S390OperandGeneratorT<Adapter> g(selector);
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& op = selector->Get(node);
+    const WordBinopOp& mul_op = op.Cast<WordBinopOp>();
+    turboshaft::OpIndex left = mul_op.left();
+    turboshaft::OpIndex right = mul_op.right();
+    if (g.CanBeImmediate(right, OperandMode::kInt32Imm) &&
+        base::bits::IsPowerOfTwo(g.GetImmediate(right))) {
+      int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
+      bool doZeroExt = DoZeroExtForResult<Adapter>(selector, node);
+      bool canEliminateZeroExt = ProduceWord32Result<Adapter>(selector, left);
+      InstructionOperand dst = (doZeroExt && !canEliminateZeroExt &&
+                                CpuFeatures::IsSupported(DISTINCT_OPS))
+                                   ? g.DefineAsRegister(node)
+                                   : g.DefineSameAsFirst(node);
+
+      if (doZeroExt) {
+        selector->Emit(shift_op, dst, g.UseRegister(left),
+                       g.UseImmediate(power),
+                       g.TempImmediate(!canEliminateZeroExt));
+      } else {
+        selector->Emit(shift_op, dst, g.UseRegister(left),
+                       g.UseImmediate(power));
+      }
+      return true;
+    }
+    return false;
+
   } else {
-    S390OperandGeneratorT<Adapter> g(selector);
     Matcher m(node);
     Node* left = m.left().node();
     Node* right = m.right().node();
@@ -1799,7 +1936,7 @@ static inline bool TryMatchInt64AddWithOverflow(
 
 template <typename Adapter>
 static inline bool TryMatchInt64SubWithOverflow(
-    InstructionSelectorT<Adapter>* selector, Node* node) {
+    InstructionSelectorT<Adapter>* selector, typename Adapter::node_t node) {
   return TryMatchInt64OpWithOverflow<Adapter, kS390_Sub64>(selector, node,
                                                            SubOperandMode);
 }
@@ -1956,7 +2093,7 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kNone, null)                                                \
   V(Word32, ChangeUint32ToUint64, kS390_Uint32ToUint64, OperandMode::kNone,  \
     [&]() -> bool {                                                          \
-      if (ProduceWord32Result<Adapter>(this, node->InputAt(0))) {            \
+      if (ProduceWord32Result<Adapter>(this, this->input_at(node, 0))) {     \
         EmitIdentity(node);                                                  \
         return true;                                                         \
       }                                                                      \
@@ -2058,12 +2195,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
 #define DECLARE_UNARY_OP(type, name, op, mode, try_extra)        \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##name(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                       \
-      UNIMPLEMENTED();                                           \
-    } else {                                                     \
       if (std::function<bool()>(try_extra)()) return;            \
       Visit##type##UnaryOp(this, node, op, mode);                \
-    }                                                            \
   }
 
 #define DECLARE_BIN_OP(type, name, op, mode, try_extra)          \
@@ -2179,26 +2312,20 @@ void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
     node_t node, InstructionCode opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     S390OperandGeneratorT<Adapter> g(this);
-    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
+    Emit(opcode, g.DefineAsFixed(node, d1),
+         g.UseFixed(this->input_at(node, 0), d1))
         ->MarkAsCall();
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
     node_t node, InstructionCode opcode) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    S390OperandGeneratorT<Adapter> g(this);
-    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
-         g.UseFixed(node->InputAt(1), d2))
-        ->MarkAsCall();
-  }
+  S390OperandGeneratorT<Adapter> g(this);
+  Emit(opcode, g.DefineAsFixed(node, d1),
+       g.UseFixed(this->input_at(node, 0), d1),
+       g.UseFixed(this->input_at(node, 1), d2))
+      ->MarkAsCall();
 }
 
 template <typename Adapter>
@@ -2878,11 +3005,8 @@ void InstructionSelectorT<Adapter>::VisitWordCompareZero(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
   S390OperandGeneratorT<Adapter> g(this);
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2915,7 +3039,6 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
 
   // Generate a tree of conditional jumps.
   return EmitBinarySearchSwitch(sw, value_operand);
-  }
 }
 
 template <typename Adapter>
@@ -3116,24 +3239,19 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicLoadParameters atomic_load_params =
-        AtomicLoadParametersOf(node->op());
-    LoadRepresentation load_rep = atomic_load_params.representation();
-    VisitLoad(node, node, SelectLoadOpcode(load_rep));
-  }
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
-  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  auto store = this->store_view(node);
+  AtomicStoreParameters store_params(store.stored_rep().representation(),
+                                     store.stored_rep().write_barrier_kind(),
+                                     store.memory_order().value(),
+                                     store.access_kind());
   VisitGeneralStore(this, node, store_params.representation());
-  }
 }
 
 template <typename Adapter>
@@ -3421,24 +3539,19 @@ VISIT_ATOMIC64_BINOP(Xor)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicLoadParameters atomic_load_params =
-        AtomicLoadParametersOf(node->op());
-    LoadRepresentation load_rep = atomic_load_params.representation();
-    VisitLoad(node, node, SelectLoadOpcode(load_rep));
-  }
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-    VisitGeneralStore(this, node, store_params.representation());
-  }
+  auto store = this->store_view(node);
+  AtomicStoreParameters store_params(store.stored_rep().representation(),
+                                     store.stored_rep().write_barrier_kind(),
+                                     store.memory_order().value(),
+                                     store.access_kind());
+  VisitGeneralStore(this, node, store_params.representation());
 }
 
 #define SIMD_TYPES(V) \
