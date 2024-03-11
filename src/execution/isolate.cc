@@ -3828,6 +3828,7 @@ void Isolate::Deinit() {
   }
 
   DisallowGarbageCollection no_gc;
+  IgnoreLocalGCRequests ignore_gc_requests(heap());
 
   tracing_cpu_profiler_.reset();
   if (v8_flags.stress_sampling_allocation_profiler > 0) {
