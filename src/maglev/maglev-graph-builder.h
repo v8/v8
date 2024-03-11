@@ -2250,7 +2250,7 @@ class MaglevGraphBuilder {
     return bytecode().length();
   }
 
-  int NewObjectId() { return object_ids_++; }
+  int NewObjectId() { return graph_->NewObjectId(); }
 
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
@@ -2296,7 +2296,6 @@ class MaglevGraphBuilder {
   ForInState current_for_in_state = ForInState();
 
   AllocationBlock* current_allocation_block_ = nullptr;
-  int object_ids_ = 0;
 
   float call_frequency_;
 
