@@ -12,10 +12,7 @@
 // for V8_FALLTHROUGH instead of the user-specific fallthrough macro.
 // So do not include this header in any of v8's public headers -- only
 // use it in src/, not in include/.
-#if defined(__clang__)
-#define V8_FALLTHROUGH [[clang::fallthrough]]
-#else
-#define V8_FALLTHROUGH
-#endif
+// TODO(mliedtke): Replace all uses and remove the macro.
+#define V8_FALLTHROUGH [[fallthrough]]
 
 #endif  // V8_BASE_V8_FALLTHROUGH_H_
