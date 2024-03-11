@@ -767,10 +767,11 @@ def main(argv):
   configs = parser.parse_arguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
-  if (IS_GOMA_MACHINE and
-      _call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
+  is_goma_running_cmd = "tasklist | FIND \"compiler_proxy.exe\" > nul" if \
+    sys.platform == "win32" else "pgrep -x compiler_proxy > /dev/null"
+  if (IS_GOMA_MACHINE and _call(is_goma_running_cmd, silent=True) != 0):
     goma_ctl = GOMADIR / "goma_ctl.py"
-    _call(f"{goma_ctl} ensure_start")
+    _call(f"{sys.executable} {goma_ctl} ensure_start")
   # If we have Reclient with the Google configuration, check for current
   # certificate.
   if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):
