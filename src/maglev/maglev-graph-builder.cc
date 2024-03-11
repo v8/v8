@@ -5796,6 +5796,14 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   // Set receiver.
   ValueNode* receiver =
       GetRawConvertReceiver(compilation_unit_->shared_function_info(), args);
+  if (InlinedAllocation* alloc = receiver->TryCast<InlinedAllocation>()) {
+    // The inlined function could call a builtin that iterates the frame, the
+    // receiver needs to have been materialized.
+    // TODO(victorgomes): Can we relax this requirement? Maybe we can allocate
+    // the object lazily? This is also only required if the inlined function
+    // is not a leaf (ie. it calls other functions).
+    alloc->ForceEscape();
+  }
   SetArgument(0, receiver);
   // Set remaining arguments.
   RootConstant* undefined_constant =
@@ -9176,26 +9184,6 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
   // If we are inside a try-catch block, always escape the objects, ie, do not
   // add non escaping use.
   if (catch_block_stack_.size() > 0) return;
-  if (is_inline()) {
-    // If we inline a constructor, {allocation} could be the implicit receiver.
-    // In that case, do not mark the use as non-escaping, since we could have a
-    // call to a builtin that iterate the stack and the object needs to be
-    // materialized there.
-    // Walk the deopt frame scope looking for the implicit receiver.
-    // TODO(victorgomes): Another possible solution is to have a way to mark the
-    // constructor as escaping if the inlined function is not a leaf.
-    const MaglevGraphBuilder* builder = parent();
-    while (builder != nullptr) {
-      const DeoptFrameScope* scope = builder->current_deopt_scope();
-      if (scope && scope->data().tag() ==
-                       DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-        auto& frame =
-            scope->data().get<DeoptFrame::ConstructInvokeStubFrameData>();
-        if (allocation == frame.receiver) return;
-      }
-      builder = builder->parent();
-    }
-  }
   allocation->AddNonEscapingUses(use_count);
 }
 
