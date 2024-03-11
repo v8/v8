@@ -160,7 +160,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 }
 
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     return HeapObject::cast(
         Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(

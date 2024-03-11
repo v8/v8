@@ -130,7 +130,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeInstructionStart(a2, optimized_code_entry);
+  __ LoadCodeInstructionStart(a2, optimized_code_entry, kJSEntrypointTag);
   __ Jump(a2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -189,7 +189,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
     CallRuntime(function_id, 1);
     // Use the return value before restoring a0
-    LoadCodeInstructionStart(a2, a0);
+    LoadCodeInstructionStart(a2, a0, kJSEntrypointTag);
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
         kJavaScriptCallArgCountRegister);
@@ -428,17 +428,23 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   Or(destination, destination, Operand(kHeapObjectTag));
 }
 
-void MacroAssembler::LoadCodeEntrypointViaCodePointer(
-    Register destination, MemOperand field_operand) {
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
+                                                      MemOperand field_operand,
+                                                      CodeEntrypointTag tag) {
+  DCHECK_NE(tag, kInvalidEntrypointTag);
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
-  Register table = temps.Acquire();
-  li(table, ExternalReference::code_pointer_table_address());
+  Register scratch = temps.Acquire();
+  li(scratch, ExternalReference::code_pointer_table_address());
   Lwu(destination, field_operand);
   SrlWord(destination, destination, kCodePointerHandleShift);
   SllWord(destination, destination, kCodePointerTableEntrySizeLog2);
-  AddWord(destination, destination, table);
-  LoadWord(destination, MemOperand(destination, 0));
+  AddWord(scratch, scratch, destination);
+  LoadWord(destination, MemOperand(scratch, 0));
+  if (tag != 0) {
+    li(scratch, Operand(tag));
+    xor_(destination, destination, scratch);
+  }
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -6730,6 +6736,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
+  ASM_CODE_COMMENT(this);
   auto pc = -pc_offset();
   auipc(dst, 0);
   if (pc != 0) {
@@ -6780,44 +6787,50 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
 #endif
 }
 
-void MacroAssembler::CallCodeObject(Register code_object) {
+void MacroAssembler::CallCodeObject(Register code_object,
+                                    CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-  LoadCodeInstructionStart(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object, tag);
   Call(code_object);
 }
 
-void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
+                                    JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeInstructionStart(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object, tag);
   Jump(code_object);
 }
 
 void MacroAssembler::CallJSFunction(Register function_object) {
+  ASM_CODE_COMMENT(this);
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   Call(code);
 #else
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(code);
+  CallCodeObject(code, kJSEntrypointTag);
 #endif
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
+  ASM_CODE_COMMENT(this);
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   // We jump through x17 here because for Branch Identification (BTI) we use
   // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
@@ -6828,7 +6841,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #else
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(code, jump_mode);
+  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
 #endif
 }
 
