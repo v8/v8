@@ -1197,6 +1197,9 @@ DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
+DEFINE_BOOL(maglev_escape_analysis, false,
+            "avoid inlined allocation of objects that cannot escape")
+
 // TODO(dmercadier): fix and re-enable string builder.
 DEFINE_BOOL_READONLY(turbo_string_builder, false,
                      "use TurboFan fast string builder")

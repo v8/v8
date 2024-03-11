@@ -9164,6 +9164,7 @@ bool FastField::IsInitialized() {
 
 void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
                                             int use_count) {
+  if (!v8_flags.maglev_escape_analysis) return;
   // TODO(victorgomes): Support materializing objects in catch blocks.
   // If we are inside a try-catch block, always escape the objects, ie, do not
   // add non escaping use.
