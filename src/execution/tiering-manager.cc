@@ -481,9 +481,14 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   const bool had_feedback_vector = function->has_feedback_vector();
   const bool first_time_tiered_up_to_sparkplug =
       FirstTimeTierUpToSparkplug(isolate_, *function);
+  // We don't want to trigger GC in the middle of OSR, so do not build a
+  // baseline code for such case.
+  const bool maybe_had_optimized_osr_code =
+      had_feedback_vector &&
+      function->feedback_vector()->maybe_has_optimized_osr_code();
   const bool compile_sparkplug =
       CanCompileWithBaseline(isolate_, function->shared()) &&
-      function->ActiveTierIsIgnition(isolate_);
+      function->ActiveTierIsIgnition(isolate_) && !maybe_had_optimized_osr_code;
 
   // Ensure that the feedback vector has been allocated.
   if (!had_feedback_vector) {
