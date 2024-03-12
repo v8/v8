@@ -319,4 +319,9 @@ in_category(
         dimensions = {"host_class": "docker", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         disable_resultdb_exports = True,
     ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 - official",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+    ),
 )

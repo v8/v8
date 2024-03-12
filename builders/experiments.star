@@ -187,13 +187,6 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - official",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
-        notifies = ["sheriffs on new failure", "blamelist"],
-    ),
 )
 
 in_category(
