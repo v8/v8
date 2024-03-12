@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   template <typename T>
   using V = compiler::turboshaft::V<T>;
+  template <typename T>
+  using ConstOrV = compiler::turboshaft::ConstOrV<T>;
 
   using ValidationTag = Decoder::FullValidationTag;
   using FullDecoder =
@@ -92,17 +94,12 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
-      V<WordPtr> func_index, V<WasmTrustedInstanceData> trusted_instance_data);
+      ConstOrV<Word32> func_index,
+      V<WasmTrustedInstanceData> trusted_instance_data);
   RegisterRepresentation RepresentationFor(ValueType type);
   V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
       V<HeapObject> instance_object);
 
-  // Load the trusted data if the given object is a WasmInstanceObject.
-  // Otherwise return the value unmodified.
-  // This is used when calling via WasmInternalFunction where the "ref" is
-  // either an instance object or a WasmApiFunctionRef.
-  V<HeapObject> LoadTrustedDataFromMaybeInstanceObject(
-      V<HeapObject> maybe_instance_object);
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args);
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,

@@ -1484,7 +1484,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared()->wasm_capi_function_data()->internal()->ref())
+      function->shared()->wasm_capi_function_data()->internal()->ref(isolate))
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;

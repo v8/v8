@@ -231,8 +231,8 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
                    Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
-ACCESSORS(WasmTrustedInstanceData, imported_function_refs, Tagged<FixedArray>,
-          kImportedFunctionRefsOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, imported_function_refs,
+                            ProtectedFixedArray, kImportedFunctionRefsOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
                             WasmDispatchTable, kDispatchTable0Offset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
@@ -339,9 +339,8 @@ int WasmDispatchTable::capacity() const {
 
 inline Tagged<Object> WasmDispatchTable::ref(int index) const {
   DCHECK_LT(index, length());
-  int offset = OffsetOf(index) + kRefBias;
-  Tagged<Object> ref = TaggedField<Object>::load(*this, offset);
-  DCHECK(IsWasmInstanceObject(ref) || IsWasmApiFunctionRef(ref) ||
+  Tagged<Object> ref = ReadProtectedPointerField(OffsetOf(index) + kRefBias);
+  DCHECK(IsWasmTrustedInstanceData(ref) || IsWasmApiFunctionRef(ref) ||
          ref == Smi::zero());
   return HeapObject::cast(ref);
 }
@@ -372,6 +371,12 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kWasmInternalFunctionCallTargetTag)
 
 CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
+
+// {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
+// TODO(14564): Make this type-safe by moving WasmInternalFunction to
+// the trusted space and using a protected pointer.
+TRUSTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,
+                          kIndirectRefOffset, kUnknownIndirectPointerTag)
 
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)

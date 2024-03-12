@@ -403,8 +403,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmJSFunctionData;
     case WASM_RESUME_DATA_TYPE:
       return kVisitWasmResumeData;
-    case WASM_API_FUNCTION_REF_TYPE:
-      return kVisitWasmApiFunctionRef;
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return kVisitWasmExportedFunctionData;
     case WASM_CAPI_FUNCTION_DATA_TYPE:

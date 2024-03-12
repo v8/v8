@@ -2252,35 +2252,39 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Incompatible signature for promising function");
       return;
     }
-    i::Handle<i::WasmInstanceObject> instance(
-        i::WasmInstanceObject::cast(data->internal()->ref()), i_isolate);
-    i::Handle<i::WasmTrustedInstanceData> trusted_data(
-        instance->trusted_data(i_isolate), i_isolate);
+    i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
+        i::WasmTrustedInstanceData::cast(data->internal()->ref(i_isolate)),
+        i_isolate);
     int func_index = data->function_index();
     i::Handle<i::Code> wrapper =
         BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
 
-    int sig_index = instance->module()->functions[func_index].sig_index;
+    int sig_index =
+        trusted_instance_data->module()->functions[func_index].sig_index;
     // TODO(14034): Create funcref RTTs lazily?
     i::Handle<i::Map> rtt = handle(
-        i::Map::cast(trusted_data->managed_object_maps()->get(sig_index)),
+        i::Map::cast(
+            trusted_instance_data->managed_object_maps()->get(sig_index)),
         i_isolate);
 
-    int num_imported_functions = instance->module()->num_imported_functions;
-    i::Handle<i::HeapObject> ref =
+    int num_imported_functions =
+        trusted_instance_data->module()->num_imported_functions;
+    i::Handle<i::ExposedTrustedObject> ref =
         func_index >= num_imported_functions
-            ? instance
+            ? trusted_instance_data
             : i::handle(
-                  i::HeapObject::cast(
-                      trusted_data->imported_function_refs()->get(func_index)),
+                  i::ExposedTrustedObject::cast(
+                      trusted_instance_data->imported_function_refs()->get(
+                          func_index)),
                   i_isolate);
 
     i::Handle<i::WasmInternalFunction> internal =
         i_isolate->factory()->NewWasmInternalFunction(
-            trusted_data->GetCallTarget(func_index), ref, rtt, func_index);
+            trusted_instance_data->GetCallTarget(func_index), ref, rtt,
+            func_index);
 
     i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
-        i_isolate, instance, internal, func_index,
+        i_isolate, trusted_instance_data, internal, func_index,
         static_cast<int>(data->sig()->parameter_count()), wrapper);
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;

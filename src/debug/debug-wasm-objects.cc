@@ -958,10 +958,11 @@ Handle<WasmValueObject> WasmValueObject::New(
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            IsWasmInstanceObject(internal_fct->ref())) {
-          module_object = handle(
-              WasmInstanceObject::cast(internal_fct->ref())->module_object(),
-              isolate);
+            IsWasmTrustedInstanceData(internal_fct->ref(isolate))) {
+          module_object =
+              handle(WasmTrustedInstanceData::cast(internal_fct->ref(isolate))
+                         ->module_object(),
+                     isolate);
         }
         t = GetRefTypeName(isolate, value.type(), module_object);
       } else if (IsWasmNull(*ref)) {

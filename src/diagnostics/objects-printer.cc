@@ -2512,7 +2512,7 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - call target: " << reinterpret_cast<void*>(call_target(isolate));
-  os << "\n - ref: " << Brief(ref());
+  os << "\n - ref: " << Brief(ref(isolate));
   os << "\n - external: " << Brief(external());
   os << "\n - code: " << Brief(code(isolate));
   os << "\n";

@@ -91,7 +91,7 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 // Trigger tier-up of a particular function to TurboFan. If tier-up was already
 // triggered, we instead increase the priority with exponential back-off.
-V8_EXPORT_PRIVATE void TriggerTierUp(Tagged<WasmTrustedInstanceData>,
+V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, Tagged<WasmTrustedInstanceData>,
                                      int func_index);
 // Synchronous version of the above.
 void TierUpNowForTesting(Isolate*, Tagged<WasmTrustedInstanceData>,

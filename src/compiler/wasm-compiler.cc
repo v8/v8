@@ -2871,13 +2871,14 @@ Node* WasmGraphBuilder::BuildImportCall(
     base::Vector<Node*> rets, wasm::WasmCodePosition position, Node* func_index,
     IsReturnCall continuation, Node* frame_state) {
   // Load the imported function refs array from the instance.
-  Node* imported_function_refs =
-      LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
+  Node* imported_function_refs = gasm_->LoadProtectedPointerFromObject(
+      GetInstanceData(),
+      wasm::ObjectAccess::ToTagged(
+          WasmTrustedInstanceData::kImportedFunctionRefsOffset));
   // Access fixed array at {header_size - tag + func_index * kTaggedSize}.
   Node* func_index_intptr = gasm_->BuildChangeUint32ToUintPtr(func_index);
-  Node* ref_node = gasm_->LoadFixedArrayElement(
-      imported_function_refs, func_index_intptr, MachineType::TaggedPointer());
-  Node* first_param = LoadTrustedDataFromMaybeInstanceObject(ref_node);
+  Node* ref = gasm_->LoadProtectedFixedArrayElement(imported_function_refs,
+                                                    func_index_intptr);
 
   // Load the target from the imported_targets array at the offset of
   // {func_index}.
@@ -2888,16 +2889,16 @@ Node* WasmGraphBuilder::BuildImportCall(
           wasm::ObjectAccess::ToTagged(FixedAddressArray::kHeaderSize)));
   Node* imported_targets = LOAD_INSTANCE_FIELD(ImportedFunctionTargets,
                                                MachineType::TaggedPointer());
-  Node* target_node = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
-                                                     imported_targets, offset);
-  args[0] = target_node;
+  Node* target = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
+                                                imported_targets, offset);
+  args[0] = target;
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, first_param, frame_state);
+      return BuildWasmCall(sig, args, rets, position, ref, frame_state);
     case kReturnCall:
       DCHECK(rets.empty());
-      return BuildWasmReturnCall(sig, args, position, first_param);
+      return BuildWasmReturnCall(sig, args, position, ref);
   }
 }
 
@@ -3060,11 +3061,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
   }
 
-  Node* target_ref = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), dispatch_table,
+  Node* target_ref = gasm_->LoadProtectedPointerFromObject(
+      dispatch_table,
       gasm_->IntAdd(dispatch_table_entry_offset,
                     gasm_->IntPtrConstant(WasmDispatchTable::kRefBias)));
-  Node* first_param = LoadTrustedDataFromMaybeInstanceObject(target_ref);
 
   Node* target = gasm_->LoadFromObject(
       MachineType::Pointer(), dispatch_table,
@@ -3076,9 +3076,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, first_param);
+      return BuildWasmCall(sig, args, rets, position, target_ref);
     case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, first_param);
+      return BuildWasmReturnCall(sig, args, position, target_ref);
   }
 }
 
@@ -3139,19 +3139,21 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   auto load_target = gasm_->MakeLabel();
   auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  Node* ref_node =
-      null_check == kWithNullCheck &&
-              null_check_strategy_ == NullCheckStrategy::kTrapHandler
-          ? gasm_->LoadTrapOnNull(
-                MachineType::TaggedPointer(), function,
-                gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
-                    WasmInternalFunction::kRefOffset)))
-          : gasm_->LoadImmutableFromObject(
-                MachineType::TaggedPointer(), function,
-                wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
-  SetSourcePosition(ref_node, position);
-
-  Node* first_param = LoadTrustedDataFromMaybeInstanceObject(ref_node);
+  Node* ref;
+  if (null_check == kWithNullCheck &&
+      null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
+    Node* load;
+    std::tie(load, ref) = gasm_->LoadTrustedPointerFromObjectTrapOnNull(
+        function,
+        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
+        kUnknownIndirectPointerTag);
+    SetSourcePosition(load, position);
+  } else {
+    ref = gasm_->LoadTrustedPointerFromObject(
+        function,
+        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
+        kUnknownIndirectPointerTag);
+  }
 
   Node* target = gasm_->BuildLoadExternalPointerFromObject(
       function, WasmInternalFunction::kCallTargetOffset,
@@ -3171,26 +3173,9 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   args[0] = end_label.PhiAt(0);
 
   Node* call = continuation == kCallContinues
-                   ? BuildWasmCall(sig, args, rets, position, first_param)
-                   : BuildWasmReturnCall(sig, args, position, first_param);
+                   ? BuildWasmCall(sig, args, rets, position, ref)
+                   : BuildWasmReturnCall(sig, args, position, ref);
   return call;
-}
-
-Node* WasmGraphBuilder::LoadTrustedDataFromMaybeInstanceObject(
-    Node* maybe_instance_object) {
-  // If the "ref" is a WasmInstanceObject, load the WasmTrustedInstanceData from
-  // it.
-  auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-  Node* instance_type =
-      gasm_->LoadInstanceType(gasm_->LoadMap(maybe_instance_object));
-  gasm_->GotoIfNot(
-      gasm_->Word32Equal(instance_type,
-                         gasm_->Uint32Constant(WASM_INSTANCE_OBJECT_TYPE)),
-      &done, maybe_instance_object);
-  gasm_->Goto(&done,
-              gasm_->LoadTrustedDataFromInstanceObject(maybe_instance_object));
-  gasm_->Bind(&done);
-  return done.PhiAt(0);
 }
 
 void WasmGraphBuilder::CompareToInternalFunctionAtIndex(Node* func_ref,
@@ -7547,11 +7532,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[0] = gasm_->BuildLoadExternalPointerFromObject(
             internal, WasmInternalFunction::kCallTargetOffset,
             kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
-        Node* instance_object = gasm_->LoadFromObject(
-            MachineType::TaggedPointer(), internal,
-            wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
-        Node* instance_data =
-            gasm_->LoadTrustedDataFromInstanceObject(instance_object);
+        Node* instance_data = gasm_->LoadTrustedPointerFromObject(
+            internal,
+            wasm::ObjectAccess::ToTagged(
+                WasmInternalFunction::kIndirectRefOffset),
+            kUnknownIndirectPointerTag);
         BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
                       wasm::kNoCodePosition, instance_data, frame_state);
       }
@@ -8354,9 +8339,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* internal = gasm_->LoadFromObject(
         MachineType::AnyTagged(), func_data,
         wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
-    Node* ref = gasm_->LoadFromObject(
-        MachineType::AnyTagged(), internal,
-        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
+    Node* ref = gasm_->LoadTrustedPointerFromObject(
+        internal,
+        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
+        kUnknownIndirectPointerTag);
     Node* callable = gasm_->LoadFromObject(
         MachineType::AnyTagged(), ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));

@@ -1663,8 +1663,9 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
   Tagged<Map> map = *wasm_api_function_ref_map();
   auto result = Tagged<WasmApiFunctionRef>::cast(AllocateRawWithImmortalMap(
-      map->instance_size(), AllocationType::kOld, map));
+      map->instance_size(), AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
   result->set_native_context(*isolate()->native_context());
   DCHECK(IsUndefined(*callable) || IsJSReceiver(*callable));
   result->set_callable(*callable);
@@ -1696,7 +1697,7 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    Address opt_call_target, DirectHandle<HeapObject> ref,
+    Address opt_call_target, DirectHandle<ExposedTrustedObject> ref,
     DirectHandle<Map> rtt, int function_index) {
   Tagged<HeapObject> raw =
       AllocateRaw(rtt->instance_size(), AllocationType::kOld);
@@ -1704,7 +1705,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   Tagged<WasmInternalFunction> result = Tagged<WasmInternalFunction>::cast(raw);
   DisallowGarbageCollection no_gc;
   result->init_call_target(isolate(), opt_call_target);
-  DCHECK(IsWasmInstanceObject(*ref) || IsWasmApiFunctionRef(*ref));
+  DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
   result->set_ref(*ref);
   // Default values, will be overwritten by the caller.
   result->set_code(*BUILTIN_CODE(isolate(), Abort));

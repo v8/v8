@@ -404,11 +404,11 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   mov(dst, liftoff::GetInstanceDataOperand());
 }
 
-void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
-    Register dst, Register instance_object) {
-  LoadTaggedPointerFromInstance(
-      dst, instance_object,
-      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset));
+void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
+                                          int offset, IndirectPointerTag tag) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  static_assert(!COMPRESS_POINTERS_BOOL);
+  mov(dst, Operand{src_addr, offset});
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,

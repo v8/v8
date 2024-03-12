@@ -646,7 +646,7 @@ macro UpdateIC(
 // Liftoff uses the two returned values directly.
 struct TargetAndRef {
   target: RawPtr;
-  ref: WasmInstanceObject|WasmApiFunctionRef;
+  ref: WasmTrustedInstanceData|WasmApiFunctionRef;
 }
 
 builtin CallRefIC(

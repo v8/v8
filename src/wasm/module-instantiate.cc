@@ -1786,8 +1786,9 @@ bool InstanceBuilder::ProcessImportedFunction(
           imported_function->instance(), isolate_);
       // The import reference is the instance object itself.
       Address imported_target = imported_function->GetWasmCallTarget();
-      imported_entry.SetWasmToWasm(imported_function->instance(),
-                                   imported_target);
+      imported_entry.SetWasmToWasm(
+          imported_function->instance()->trusted_data(isolate_),
+          imported_target);
       break;
     }
     case ImportCallKind::kWasmToCapi: {
@@ -1868,7 +1869,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         // Wasm math intrinsics are compiled as regular Wasm functions.
         DCHECK(kind >= ImportCallKind::kFirstMathIntrinsic &&
                kind <= ImportCallKind::kLastMathIntrinsic);
-        imported_entry.SetWasmToWasm(trusted_instance_data->instance_object(),
+        imported_entry.SetWasmToWasm(*trusted_instance_data,
                                      wasm_code->instruction_start());
       }
       break;

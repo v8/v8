@@ -90,7 +90,6 @@ enum InstanceType : uint16_t;
   V(SyntheticModule)                   \
   V(ThinString)                        \
   V(TransitionArray)                   \
-  IF_WASM(V, WasmApiFunctionRef)       \
   IF_WASM(V, WasmArray)                \
   IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \

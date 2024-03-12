@@ -443,16 +443,16 @@ void WasmTableObject::UpdateDispatchTables(
   Handle<FixedArray> uses = handle(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  Handle<HeapObject> call_ref =
+  Handle<ExposedTrustedObject> call_ref =
       func->imported
           // The function in the target instance was imported. Use its imports
           // table, which contains a tuple needed by the import wrapper.
-          ? handle(HeapObject::cast(
+          ? handle(ExposedTrustedObject::cast(
                        target_instance_data->imported_function_refs()->get(
                            func->func_index)),
                    isolate)
-          // For wasm functions, just pass the target instance.
-          : handle(target_instance_data->instance_object(), isolate);
+          // For wasm functions, just pass the target instance data.
+          : target_instance_data;
   Address call_target = target_instance_data->GetCallTarget(func->func_index);
 
   int original_sig_id = func->sig_index;
@@ -551,7 +551,7 @@ void WasmTableObject::UpdateDispatchTables(
     Tagged<HeapObject> ref = capi_function->shared()
                                  ->wasm_capi_function_data()
                                  ->internal(isolate)
-                                 ->ref();
+                                 ->ref(isolate);
     Address call_target = wasm_code->instruction_start();
     trusted_instance_data->dispatch_table(table_index)
         ->Set(entry_index, ref, call_target, canonical_type_index);
@@ -963,14 +963,14 @@ FunctionTargetAndRef::FunctionTargetAndRef(
   Isolate* isolate = target_instance_object->GetIsolate();
   Handle<WasmTrustedInstanceData> trusted_target_instance_data{
       target_instance_object->trusted_data(isolate), isolate};
-  ref_ = target_instance_object;
+  ref_ = trusted_target_instance_data;
   if (target_func_index <
       static_cast<int>(
           trusted_target_instance_data->module()->num_imported_functions)) {
     // The function in the target instance was imported. Use its imports table,
     // which contains a tuple needed by the import wrapper.
     ref_ =
-        handle(HeapObject::cast(
+        handle(ExposedTrustedObject::cast(
                    trusted_target_instance_data->imported_function_refs()->get(
                        target_func_index)),
                isolate);
@@ -1035,16 +1035,16 @@ void ImportedFunctionEntry::SetWasmToJs(
 }
 
 void ImportedFunctionEntry::SetWasmToWasm(
-    Tagged<WasmInstanceObject> target_instance_object, Address call_target) {
-  TRACE_IFT("Import Wasm 0x%" PRIxPTR "[%d] = {instance_object=0x%" PRIxPTR
+    Tagged<WasmTrustedInstanceData> target_instance_data, Address call_target) {
+  TRACE_IFT("Import Wasm 0x%" PRIxPTR "[%d] = {instance_data=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
-            instance_object_->ptr(), index_, target_instance_object.ptr(),
+            instance_object_->ptr(), index_, target_instance_data.ptr(),
             call_target);
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       instance_object_->trusted_data(instance_object_->GetIsolate());
   trusted_instance_data->imported_function_refs()->set(index_,
-                                                       target_instance_object);
+                                                       target_instance_data);
   trusted_instance_data->imported_function_targets()->set(index_, call_target);
 }
 
@@ -1079,15 +1079,15 @@ void ImportedFunctionEntry::set_target(Address new_target) {
 }
 
 // static
-constexpr std::array<uint16_t, 19> WasmTrustedInstanceData::kTaggedFieldOffsets;
+constexpr std::array<uint16_t, 18> WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, 19>
+constexpr std::array<const char*, 18>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 2>
+constexpr std::array<uint16_t, 3>
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 2>
+constexpr std::array<const char*, 3>
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
@@ -1141,8 +1141,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   int num_imported_functions = module->num_imported_functions;
   Handle<FixedAddressArray> imported_function_targets =
       FixedAddressArray::New(isolate, num_imported_functions);
-  Handle<FixedArray> imported_function_refs =
-      isolate->factory()->NewFixedArray(num_imported_functions);
+  Handle<ProtectedFixedArray> imported_function_refs =
+      isolate->factory()->NewProtectedFixedArray(num_imported_functions);
   Handle<FixedArray> well_known_imports =
       isolate->factory()->NewFixedArray(num_imported_functions);
 
@@ -1397,10 +1397,10 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
   const wasm::NativeModule* native_module =
       trusted_instance_data->module_object()->native_module();
   const WasmModule* module = native_module->module();
-  Handle<HeapObject> ref =
+  Handle<ExposedTrustedObject> ref =
       function_index >= static_cast<int>(module->num_imported_functions)
-          ? handle(trusted_instance_data->instance_object(), isolate)
-          : handle(HeapObject::cast(
+          ? trusted_instance_data
+          : handle(ExposedTrustedObject::cast(
                        trusted_instance_data->imported_function_refs()->get(
                            function_index)),
                    isolate);
@@ -1474,18 +1474,20 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   }
 
   // {this} can either be:
-  // - a declared function, i.e. {ref()} is an instance,
+  // - a declared function, i.e. {ref()} is a WasmTrustedInstanceData,
   // - or an imported callable, i.e. {ref()} is a WasmApiFunctionRef which
   //   refers to the imported instance.
   // It cannot be a JS/C API function as for those, the external function is set
   // at creation.
-  Handle<WasmInstanceObject> instance_object =
-      handle(IsWasmInstanceObject(internal->ref())
-                 ? WasmInstanceObject::cast(internal->ref())
-                 : WasmInstanceObject::cast(
-                       WasmApiFunctionRef::cast(internal->ref())->instance()),
-             isolate);
-  const WasmModule* module = instance_object->module();
+  Handle<ExposedTrustedObject> ref{internal->ref(isolate), isolate};
+  Handle<WasmTrustedInstanceData> instance_data =
+      IsWasmTrustedInstanceData(*ref)
+          ? Handle<WasmTrustedInstanceData>::cast(ref)
+          : handle(WasmInstanceObject::cast(
+                       WasmApiFunctionRef::cast(*ref)->instance())
+                       ->trusted_data(isolate),
+                   isolate);
+  const WasmModule* module = instance_data->module();
   const WasmFunction& function = module->functions[internal->function_index()];
   uint32_t canonical_sig_index =
       module->isorecursive_canonical_type_ids[function.sig_index];
@@ -1511,8 +1513,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
     // this signature. We compile it and store the wrapper in the module for
     // later use.
     wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, function.sig, canonical_sig_index, instance_object->module(),
-        function.imported);
+        isolate, function.sig, canonical_sig_index, module, function.imported);
   }
   if (!wrapper_code->is_builtin()) {
     // Store the wrapper in the isolate, or make its reference weak now that we
@@ -1521,7 +1522,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
         wrapper_index, MakeWeak(wrapper_code->wrapper()));
   }
   auto result = WasmExportedFunction::New(
-      isolate, instance_object, internal, internal->function_index(),
+      isolate, instance_data, internal, internal->function_index(),
       static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
   internal->set_external(*result);
@@ -1825,12 +1826,17 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
 
 void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
                             int sig_id) {
+  if (ref == Smi::zero()) {
+    DCHECK_EQ(kNullAddress, call_target);
+    Clear(index);
+    return;
+  }
+
   DCHECK_LT(index, length());
-  DCHECK(IsWasmApiFunctionRef(ref) || IsWasmInstanceObject(ref) ||
-         ref == Smi::zero());
+  DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
   DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
   const int offset = OffsetOf(index);
-  TaggedField<Object>::store(*this, offset + kRefBias, ref);
+  WriteProtectedPointerField(offset + kRefBias, TrustedObject::cast(ref));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kRefBias, ref,
                             UPDATE_WRITE_BARRIER);
   WriteField<Address>(offset + kTargetBias, call_target);
@@ -1840,7 +1846,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
 void WasmDispatchTable::Clear(int index) {
   DCHECK_LT(index, length());
   const int offset = OffsetOf(index);
-  TaggedField<Object>::store(*this, offset + kRefBias, Smi::zero());
+  ClearProtectedPointerField(offset + kRefBias);
   WriteField<Address>(offset + kTargetBias, kNullAddress);
   WriteField<int>(offset + kSigBias, -1);
 }
@@ -2188,7 +2194,7 @@ int WasmExportedFunction::function_index() {
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance_object,
+    Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
     Handle<WasmInternalFunction> internal, int func_index, int arity,
     Handle<Code> export_wrapper) {
   DCHECK(
@@ -2197,9 +2203,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
        (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
         export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
   Factory* factory = isolate->factory();
-  Handle<WasmTrustedInstanceData> trusted_data{
-      instance_object->trusted_data(isolate), isolate};
-  const wasm::WasmModule* module = trusted_data->module();
+  Handle<WasmInstanceObject> instance_object{instance_data->instance_object(),
+                                             isolate};
+  const wasm::WasmModule* module = instance_data->module();
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
   Handle<Map> rtt;
   wasm::Promise promise =
@@ -2432,14 +2438,14 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 Tagged<JSReceiver> WasmJSFunction::GetCallable() const {
   return JSReceiver::cast(
       WasmApiFunctionRef::cast(
-          shared()->wasm_js_function_data()->internal()->ref())
+          shared()->wasm_js_function_data()->internal()->ref(GetIsolate()))
           ->callable());
 }
 
 wasm::Suspend WasmJSFunction::GetSuspend() const {
   return static_cast<wasm::Suspend>(
       WasmApiFunctionRef::cast(
-          shared()->wasm_js_function_data()->internal()->ref())
+          shared()->wasm_js_function_data()->internal()->ref(GetIsolate()))
           ->suspend());
 }
 

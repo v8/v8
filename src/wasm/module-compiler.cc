@@ -1287,16 +1287,19 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 class TransitiveTypeFeedbackProcessor {
  public:
-  static void Process(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+  static void Process(Isolate* isolate,
+                      Tagged<WasmTrustedInstanceData> trusted_instance_data,
                       int func_index) {
-    TransitiveTypeFeedbackProcessor{trusted_instance_data, func_index}
+    TransitiveTypeFeedbackProcessor{isolate, trusted_instance_data, func_index}
         .ProcessQueue();
   }
 
  private:
   TransitiveTypeFeedbackProcessor(
-      Tagged<WasmTrustedInstanceData> trusted_instance_data, int func_index)
-      : instance_data_(trusted_instance_data),
+      Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
+      int func_index)
+      : isolate_(isolate),
+        instance_data_(trusted_instance_data),
         module_(trusted_instance_data->module()),
         mutex_guard(&module_->type_feedback.mutex),
         feedback_for_function_(module_->type_feedback.feedback_for_function) {
@@ -1334,8 +1337,8 @@ class TransitiveTypeFeedbackProcessor {
   }
 
   DisallowGarbageCollection no_gc_scope_;
-  Isolate* isolate_;
-  Tagged<WasmTrustedInstanceData> instance_data_;
+  Isolate* const isolate_;
+  const Tagged<WasmTrustedInstanceData> instance_data_;
   const WasmModule* const module_;
   // TODO(jkummerow): Check if it makes a difference to apply any updates
   // as a single batch at the end.
@@ -1346,9 +1349,11 @@ class TransitiveTypeFeedbackProcessor {
 
 class FeedbackMaker {
  public:
-  FeedbackMaker(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+  FeedbackMaker(IsolateForSandbox isolate,
+                Tagged<WasmTrustedInstanceData> trusted_instance_data,
                 int func_index, int num_calls)
-      : instance_data_(trusted_instance_data),
+      : isolate_(isolate),
+        instance_data_(trusted_instance_data),
         num_imported_functions_(static_cast<int>(
             trusted_instance_data->module()->num_imported_functions)),
         func_index_(func_index) {
@@ -1359,7 +1364,7 @@ class FeedbackMaker {
     if (!IsWasmInternalFunction(maybe_function)) return;
     Tagged<WasmInternalFunction> function =
         WasmInternalFunction::cast(maybe_function);
-    if (function->ref() != instance_data_->instance_object()) {
+    if (function->ref(isolate_) != instance_data_) {
       // Not a wasm function, or not a function declared in this instance.
       return;
     }
@@ -1414,6 +1419,7 @@ class FeedbackMaker {
   std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
 
  private:
+  const IsolateForSandbox isolate_;
   const Tagged<WasmTrustedInstanceData> instance_data_;
   std::vector<CallSiteFeedback> result_;
   const int num_imported_functions_;
@@ -1433,7 +1439,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
   DCHECK_EQ(feedback->length(), call_direct_targets.size() * 2);
-  FeedbackMaker fm(instance_data_, func_index, feedback->length() / 2);
+  FeedbackMaker fm(isolate_, instance_data_, func_index,
+                   feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
     Tagged<Object> value = feedback->get(i);
     if (IsWasmInternalFunction(value)) {
@@ -1469,7 +1476,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }
 
-void TriggerTierUp(Tagged<WasmTrustedInstanceData> trusted_instance_data,
+void TriggerTierUp(Isolate* isolate,
+                   Tagged<WasmTrustedInstanceData> trusted_instance_data,
                    int func_index) {
   NativeModule* native_module =
       trusted_instance_data->module_object()->native_module();
@@ -1505,7 +1513,8 @@ void TriggerTierUp(Tagged<WasmTrustedInstanceData> trusted_instance_data,
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
-    TransitiveTypeFeedbackProcessor::Process(trusted_instance_data, func_index);
+    TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
+                                             func_index);
   }
 
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
@@ -1518,7 +1527,8 @@ void TierUpNowForTesting(Isolate* isolate,
       trusted_instance_data->module_object()->native_module();
   if (native_module->enabled_features().has_inlining() ||
       native_module->module()->is_wasm_gc) {
-    TransitiveTypeFeedbackProcessor::Process(trusted_instance_data, func_index);
+    TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
+                                             func_index);
   }
   wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,
                                          func_index,

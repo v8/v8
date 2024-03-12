@@ -28,7 +28,8 @@ constexpr uint64_t kIndirectPointerTagMask = 0xffff000000000000;
   V(kBytecodeArrayIndirectPointerTag, BYTECODE_ARRAY_TYPE)     \
   V(kInterpreterDataIndirectPointerTag, INTERPRETER_DATA_TYPE) \
   IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag,       \
-          WASM_TRUSTED_INSTANCE_DATA_TYPE)
+          WASM_TRUSTED_INSTANCE_DATA_TYPE)                     \
+  IF_WASM(V, kWasmApiFunctionRefIndirectPointerTag, WASM_API_FUNCTION_REF_TYPE)
 
 #define MAKE_TAG(instance_type) \
   (uint64_t{instance_type} << kIndirectPointerTagShift)

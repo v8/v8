@@ -2225,8 +2225,8 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
   for (int i = 0; i < len; ++i) {
     Tagged<Object> call_ref = ref(i);
     Object::VerifyPointer(isolate, call_ref);
-    CHECK(IsWasmInstanceObject(call_ref) || IsWasmApiFunctionRef(call_ref) ||
-          call_ref == Smi::zero());
+    CHECK(IsWasmTrustedInstanceData(call_ref) ||
+          IsWasmApiFunctionRef(call_ref) || call_ref == Smi::zero());
     CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
   }
 }

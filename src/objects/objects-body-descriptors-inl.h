@@ -752,6 +752,7 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kWasmApiFunctionRefIndirectPointerTag, v);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
   }
@@ -788,6 +789,9 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
+    IterateTrustedPointer(obj, kIndirectRefOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kUnknownIndirectPointerTag);
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kCallTargetOffset,
                                           kWasmInternalFunctionCallTargetTag));
@@ -846,7 +850,7 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     int length = WasmDispatchTable::cast(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
-      IteratePointer(obj, OffsetOf(i) + kRefBias, v);
+      IterateProtectedPointer(obj, OffsetOf(i) + kRefBias, v);
     }
   }
 
@@ -1188,8 +1192,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case COVERAGE_INFO_TYPE:
       return CALL_APPLY(CoverageInfo);
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_API_FUNCTION_REF_TYPE:
-      return CALL_APPLY(WasmApiFunctionRef);
     case WASM_ARRAY_TYPE:
       return CALL_APPLY(WasmArray);
     case WASM_CAPI_FUNCTION_DATA_TYPE:

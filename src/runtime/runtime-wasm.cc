@@ -720,7 +720,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
       wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
     } else {
-      wasm::TriggerTierUp(trusted_data, func_index);
+      wasm::TriggerTierUp(isolate, trusted_data, func_index);
     }
   }
 

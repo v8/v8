@@ -1307,6 +1307,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
+  TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
+      TNode<WasmInternalFunction> object) {
+    TNode<TrustedObject> ref = LoadTrustedPointerFromObject(
+        object, WasmInternalFunction::kIndirectRefOffset,
+        kUnknownIndirectPointerTag);
+    CSA_DCHECK(this,
+               Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
+                        HasInstanceType(ref, WASM_API_FUNCTION_REF_TYPE)));
+    return CAST(ref);
+  }
+
   TNode<RawPtrT> LoadWasmInternalFunctionCallTargetPtr(
       TNode<WasmInternalFunction> object) {
     return LoadExternalPointerFromObject(

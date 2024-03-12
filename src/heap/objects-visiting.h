@@ -74,7 +74,6 @@ namespace internal {
   V(ThinString)                        \
   V(TransitionArray)                   \
   V(WeakCell)                          \
-  IF_WASM(V, WasmApiFunctionRef)       \
   IF_WASM(V, WasmArray)                \
   IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \

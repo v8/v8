@@ -3884,7 +3884,7 @@ class LiftoffCompiler {
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
-    CallRef(decoder, func_ref.type, sig, kNoTailCall);
+    CallRefImpl(decoder, func_ref.type, sig, kNoTailCall);
   }
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
@@ -3903,7 +3903,7 @@ class LiftoffCompiler {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallRef(decoder, func_ref.type, sig, kTailCall);
+    CallRefImpl(decoder, func_ref.type, sig, kTailCall);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -7852,30 +7852,6 @@ class LiftoffCompiler {
   }
 
  private:
-  // Load the trusted data if the given object is a WasmInstanceObject.
-  // Otherwise return the value unmodified.
-  // This is used when calling via WasmInternalFunction where the "ref" is
-  // either an instance object or a WasmApiFunctionRef.
-  // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
-  // indirect load.
-  void LoadTrustedDataFromMaybeInstanceObject(Register dst, Register ref,
-                                              Register scratch) {
-    // Load the map.
-    __ LoadMap(scratch, ref);
-    // Load the instance type.
-    __ Load(LiftoffRegister{scratch}, scratch, no_reg,
-            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
-            LoadType::kI32Load16U);
-    // If not WASM_INSTANCE_OBJECT_TYPE -> done.
-    if (dst != ref) __ Move(dst, ref, kIntPtrKind);
-    Label done;
-    FreezeCacheState frozen{asm_};
-    __ emit_i32_cond_jumpi(kNotEqual, &done, scratch, WASM_INSTANCE_OBJECT_TYPE,
-                           frozen);
-    __ LoadTrustedDataFromInstanceObject(dst, ref);
-    __ bind(&done);
-  }
-
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[], TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
@@ -7901,21 +7877,14 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
-      // Load the ref object (either a WasmInstanceObject or a
+      // Load the ref object (either a WasmTrustedInstanceData or a
       // WasmApiFunctionRef).
       Register imported_function_refs = imported_function_ref;
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
-                                     ImportedFunctionRefs, pinned);
-      __ LoadTaggedPointer(
-          imported_function_ref, imported_function_refs, no_reg,
-          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
-
-      // If the ref is a WasmInstanceObject, load the WasmTrustedInstanceData
-      // from it.
-      Register first_arg = imported_function_ref;
-      LoadTrustedDataFromMaybeInstanceObject(
-          first_arg, imported_function_ref,
-          target /* use as scratch register */);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(imported_function_refs,
+                                        ImportedFunctionRefs, pinned);
+      __ LoadProtectedPointer(
+          imported_function_ref, imported_function_refs,
+          ObjectAccess::ElementOffsetInProtectedFixedArray(imm.index));
 
       Register imported_targets = target;
       LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
@@ -7925,7 +7894,7 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
               imm.index));
 
-      __ PrepareCall(&sig, call_descriptor, &target, first_arg);
+      __ PrepareCall(&sig, call_descriptor, &target, imported_function_ref);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -8169,11 +8138,8 @@ class LiftoffCompiler {
       Register target = tmp2;
 
       // Load ref and target from the dispatch table.
-      Register ref = tmp1;
-      __ LoadTaggedPointer(ref, dispatch_table_entry, no_reg,
-                           WasmDispatchTable::kRefBias);
-      LoadTrustedDataFromMaybeInstanceObject(first_param, ref,
-                                             tmp2 /* scratch */);
+      __ LoadProtectedPointer(first_param, dispatch_table_entry,
+                              WasmDispatchTable::kRefBias);
       __ Load(LiftoffRegister(target), dispatch_table_entry, no_reg,
               WasmDispatchTable::kTargetBias,
               LoadType::ForValueKind(kIntPtrKind));
@@ -8198,8 +8164,8 @@ class LiftoffCompiler {
     }
   }
 
-  void CallRef(FullDecoder* decoder, ValueType func_ref_type,
-               const FunctionSig* type_sig, TailCall tail_call) {
+  void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
+                   const FunctionSig* type_sig, TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, type_sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -8229,20 +8195,13 @@ class LiftoffCompiler {
       VarState index_var(kIntPtrKind, index, 0);
 
       // CallRefIC(vector: FixedArray, index: intptr,
-      //           funcref: WasmInternalFunction)
+      //           funcref: WasmInternalFunction) -> <target, ref>
       CallBuiltin(Builtin::kCallRefIC,
                   MakeSig::Returns(kIntPtrKind, kIntPtrKind)
                       .Params(kRef, kIntPtrKind, kRef),
                   {vector_var, index_var, func_ref_var}, decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
-      Register ref_reg = kReturnRegister1;
-
       first_param_reg = kReturnRegister1;
-      // We are after a call, so there are plenty of free registers.
-      pinned = LiftoffRegList{target_reg, ref_reg};
-      Register scratch =
-          __ cache_state() -> unused_register(kGpReg, pinned).gp();
-      LoadTrustedDataFromMaybeInstanceObject(first_param_reg, ref_reg, scratch);
     } else {  // inlining_enabled(decoder)
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
@@ -8263,13 +8222,12 @@ class LiftoffCompiler {
       LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      // Load "ref" (WasmInstanceObject or WasmApiFunctionRef) and target.
+      // Load "ref" (WasmTrustedInstanceData or WasmApiFunctionRef) and target.
       Register ref = first_param_reg;
-      __ LoadTaggedPointer(
-          ref, internal_func.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
-      LoadTrustedDataFromMaybeInstanceObject(first_param_reg, ref,
-                                             target.gp() /* scratch */);
+      __ LoadTrustedPointer(ref, internal_func.gp(),
+                            wasm::ObjectAccess::ToTagged(
+                                WasmInternalFunction::kIndirectRefOffset),
+                            kUnknownIndirectPointerTag);
 
       __ LoadExternalPointer(
           target.gp(), internal_func.gp(),

@@ -63,6 +63,7 @@ using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::BuiltinCallDescriptor;
+using compiler::turboshaft::ConstOrV;
 using compiler::turboshaft::V;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
@@ -166,21 +167,33 @@ V<BigInt> WasmGraphBuilderBase::BuildChangeInt64ToBigInt(
 
 std::pair<V<WordPtr>, V<HeapObject>>
 WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
-    V<WordPtr> func_index, V<WasmTrustedInstanceData> trusted_instance_data) {
+    ConstOrV<Word32> func_index,
+    V<WasmTrustedInstanceData> trusted_instance_data) {
   // Imported function.
-  V<FixedArray> imported_function_refs =
-      LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data, ImportedFunctionRefs,
-                                    MemoryRepresentation::TaggedPointer());
+  V<ProtectedFixedArray> imported_function_refs =
+      V<ProtectedFixedArray>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data, ImportedFunctionRefs));
   auto ref = V<HeapObject>::Cast(
-      __ LoadFixedArrayElement(imported_function_refs, func_index));
-  ref = LoadTrustedDataFromMaybeInstanceObject(ref);
+      func_index.is_constant()
+          ? __ LoadProtectedFixedArrayElement(imported_function_refs,
+                                              func_index.constant_value())
+          : __ LoadProtectedFixedArrayElement(
+                imported_function_refs,
+                __ ChangeUint32ToUintPtr(func_index.value())));
   V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
       trusted_instance_data, ImportedFunctionTargets,
       MemoryRepresentation::TaggedPointer());
   V<WordPtr> target =
-      __ Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
-              MemoryRepresentation::UintPtr(), FixedAddressArray::kHeaderSize,
-              kSystemPointerSizeLog2);
+      func_index.is_constant()
+          ? __ Load(imported_targets, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::UintPtr(),
+                    FixedAddressArray::OffsetOfElementAt(
+                        func_index.constant_value()))
+          : __
+            Load(imported_targets, __ ChangeUint32ToUintPtr(func_index.value()),
+                 LoadOp::Kind::TaggedBase(), MemoryRepresentation::UintPtr(),
+                 FixedAddressArray::OffsetOfElementAt(0),
+                 kSystemPointerSizeLog2);
   return {target, ref};
 }
 
@@ -216,24 +229,6 @@ WasmGraphBuilderBase::LoadTrustedDataFromInstanceObject(
       instance_object, LoadOp::Kind::TaggedBase().Immutable(),
       kWasmTrustedInstanceDataIndirectPointerTag,
       WasmInstanceObject::kTrustedDataOffset));
-}
-
-// TODO(14499): Refactor WasmInternalFunction to avoid this conditional
-// indirect load.
-V<HeapObject> WasmGraphBuilderBase::LoadTrustedDataFromMaybeInstanceObject(
-    V<HeapObject> maybe_instance_object) {
-  // If the "ref" is a WasmInstanceObject, load the WasmTrustedInstanceData
-  // from it.
-  Label<HeapObject> done(&asm_);
-  GOTO_IF_NOT(LIKELY(__ HasInstanceType(maybe_instance_object,
-                                        WASM_INSTANCE_OBJECT_TYPE)),
-              done, maybe_instance_object);
-  V<WasmTrustedInstanceData> trusted_data =
-      LoadTrustedDataFromInstanceObject(maybe_instance_object);
-  GOTO(done, trusted_data);
-
-  BIND(done, result);
-  return result;
 }
 
 void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
@@ -5901,14 +5896,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
  private:
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
-      uint32_t function_index) {
-    // Imported function.
-    V<WordPtr> func_index = __ IntPtrConstant(function_index);
+      ConstOrV<Word32> function_index) {
     return WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
-        func_index, instance_cache_.trusted_instance_data());
+        function_index, instance_cache_.trusted_instance_data());
   }
 
-  std::pair<V<WordPtr>, V<HeapObject>> BuildIndirectCallTargetAndRef(
+  // Returns the call target and the ref (WasmTrustedInstanceData or
+  // WasmApiFunctionRef) for an indirect call.
+  std::pair<V<WordPtr>, V<ExposedTrustedObject>> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
     uint32_t table_index = imm.table_imm.index;
     // Use zero-extension instead of sign-extension; for negative values this
@@ -6042,22 +6037,22 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> target = __ Load(
         dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
         MemoryRepresentation::UintPtr(), WasmDispatchTable::kTargetBias);
-    V<HeapObject> ref = __ Load(
-        dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
-        MemoryRepresentation::TaggedPointer(), WasmDispatchTable::kRefBias);
-
-    // If ref is a WasmInstanceObject, load the WasmTrustedInstanceData from it
-    // (if it's a WasmApiFunctionRef we pass it unmodified).
-    ref = LoadTrustedDataFromMaybeInstanceObject(ref);
+    V<ExposedTrustedObject> ref =
+        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+            dispatch_table, dispatch_table_entry_offset,
+            LoadOp::Kind::TaggedBase(), WasmDispatchTable::kRefBias, 0));
 
     return {target, ref};
   }
 
-  std::pair<V<WordPtr>, V<HeapObject>> BuildFunctionReferenceTargetAndRef(
-      V<HeapObject> func_ref, ValueType type) {
+  // Load the call target and ref (WasmTrustedInstanceData or
+  // WasmApiFunctionRef) from a function reference.
+  std::pair<V<WordPtr>, V<ExposedTrustedObject>>
+  BuildFunctionReferenceTargetAndRef(V<WasmInternalFunction> func_ref,
+                                     ValueType type) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
-      func_ref = V<HeapObject>::Cast(
+      func_ref = V<WasmInternalFunction>::Cast(
           __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference));
     }
 
@@ -6067,12 +6062,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             ? LoadOp::Kind::TrapOnNull()
             : LoadOp::Kind::TaggedBase();
 
-    V<HeapObject> ref =
-        __ Load(func_ref, load_kind, MemoryRepresentation::TaggedPointer(),
-                WasmInternalFunction::kRefOffset);
-
-    // If ref is a WasmInstanceObject, load the trusted data from it.
-    ref = LoadTrustedDataFromMaybeInstanceObject(ref);
+    V<ExposedTrustedObject> ref =
+        V<ExposedTrustedObject>::Cast(__ LoadTrustedPointerField(
+            func_ref, load_kind, kUnknownIndirectPointerTag,
+            WasmInternalFunction::kIndirectRefOffset));
 
 #ifdef V8_ENABLE_SANDBOX
     V<Word32> target_handle = __ Load(func_ref, LoadOp::Kind::TaggedBase(),

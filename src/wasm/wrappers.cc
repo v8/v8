@@ -383,7 +383,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       if (is_import) {
         // Call to an imported function.
         // Load function index from {WasmExportedFunctionData}.
-        V<WordPtr> function_index = BuildChangeSmiToIntPtr(
+        V<Word32> function_index = BuildChangeSmiToInt32(
             LoadExportedFunctionIndexAsSmi(function_data));
         auto [target, ref] =
             BuildImportedFunctionTargetAndRef(function_index, instance_data);
@@ -687,15 +687,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                : __
                  TruncateWordPtrToWord32(__ WordPtrShiftRightArithmetic(
                      value, BuildSmiShiftBitsConstant()));
-  }
-
-  V<WordPtr> BuildChangeSmiToIntPtr(OpIndex value) {
-    return COMPRESS_POINTERS_BOOL ? __ ChangeInt32ToIntPtr(
-                                        __ Word32ShiftRightArithmetic(
-                                            value,
-                                            BuildSmiShiftBitsConstant32()))
-                                  : __ WordPtrShiftRightArithmetic(
-                                        value, BuildSmiShiftBitsConstant());
   }
 
   V<Float64> HeapNumberToFloat64(V<HeapNumber> input) {

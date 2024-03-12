@@ -2249,7 +2249,7 @@ class TurboshaftAssemblerOpInterface
 
   V<Object> LoadProtectedFixedArrayElement(V<ProtectedFixedArray> array,
                                            V<WordPtr> index) {
-    return LoadProtectedPointerField(array, index,
+    return LoadProtectedPointerField(array, index, LoadOp::Kind::TaggedBase(),
                                      ProtectedFixedArray::OffsetOfElementAt(0));
   }
 

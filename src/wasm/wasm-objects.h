@@ -71,12 +71,12 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
   FunctionTargetAndRef(Handle<WasmInstanceObject> target_instance_object,
                        int target_func_index);
-  // The "ref" will be a WasmInstanceObject or a WasmApiFunctionRef.
-  Handle<HeapObject> ref() { return ref_; }
+  // The "ref" will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
+  Handle<ExposedTrustedObject> ref() { return ref_; }
   Address call_target() { return call_target_; }
 
  private:
-  Handle<HeapObject> ref_;
+  Handle<ExposedTrustedObject> ref_;
   Address call_target_;
 };
 
@@ -94,7 +94,7 @@ enum class OnResume : int { kContinue, kThrow };
 //      - object = a WasmApiFunctionRef
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
-//      - object = target instance
+//      - object = target instance data
 //      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
@@ -112,7 +112,7 @@ class ImportedFunctionEntry {
                                      const wasm::FunctionSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
-  void SetWasmToWasm(Tagged<WasmInstanceObject> target_instance_object,
+  void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_data,
                      Address call_target);
 
   Tagged<JSReceiver> callable();
@@ -357,7 +357,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
   // tables: FixedArray of WasmTableObject.
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
-  DECL_ACCESSORS(imported_function_refs, Tagged<FixedArray>)
+  DECL_PROTECTED_POINTER_ACCESSORS(imported_function_refs, ProtectedFixedArray)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
   DECL_ACCESSORS(imported_function_targets, Tagged<FixedAddressArray>)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
@@ -463,7 +463,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // GC support: List all tagged fields and protected fields.
   // V(offset, name)
 #define WASM_TAGGED_INSTANCE_DATA_FIELDS(V)                                   \
-  V(kImportedFunctionRefsOffset, "imported_function_refs")                    \
   V(kInstanceObjectOffset, "instance_object")                                 \
   V(kNativeContextOffset, "native_context")                                   \
   V(kMemoryObjectsOffset, "memory_objects")                                   \
@@ -484,18 +483,19 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kElementSegmentsOffset, "element_segments")
 #define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V) \
   V(kDispatchTable0Offset, "dispatch_table0")  \
-  V(kDispatchTablesOffset, "dispatch_tables")
+  V(kDispatchTablesOffset, "dispatch_tables")  \
+  V(kImportedFunctionRefsOffset, "imported_function_refs")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
 #define WASM_INSTANCE_FIELD_NAME(_, name) name,
 
-  static constexpr std::array<uint16_t, 19> kTaggedFieldOffsets = {
+  static constexpr std::array<uint16_t, 18> kTaggedFieldOffsets = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 19> kTaggedFieldNames = {
+  static constexpr std::array<const char*, 18> kTaggedFieldNames = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
-  static constexpr std::array<uint16_t, 2> kProtectedFieldOffsets = {
+  static constexpr std::array<uint16_t, 3> kProtectedFieldOffsets = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 2> kProtectedFieldNames = {
+  static constexpr std::array<const char*, 3> kProtectedFieldNames = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
 
 #undef WASM_INSTANCE_FIELD_OFFSET
@@ -628,10 +628,8 @@ class WasmDispatchTable : public TrustedObject {
 
   // Entries consist of
   // - target (pointer)
-  // - ref (tagged)
+  // - ref (protected pointer, tagged sized)
   // - sig (int32_t)
-  // TODO(14564): Make "ref" a protected pointer by moving WasmApiFunctionRef to
-  // the trusted space and linking either that or WasmTrustedInstanceData.
   static constexpr size_t kTargetBias = 0;
   static constexpr size_t kRefBias = kTargetBias + kSystemPointerSize;
   static constexpr size_t kSigBias = kRefBias + kTaggedSize;
@@ -760,7 +758,7 @@ class WasmExportedFunction : public JSFunction {
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
-      Isolate* isolate, Handle<WasmInstanceObject> instance_object,
+      Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
       Handle<WasmInternalFunction> internal, int func_index, int arity,
       Handle<Code> export_wrapper);
 
@@ -873,7 +871,8 @@ class WasmExportedFunctionData
 };
 
 class WasmApiFunctionRef
-    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef, HeapObject> {
+    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef,
+                                               ExposedTrustedObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmApiFunctionRef)
@@ -911,8 +910,8 @@ class WasmInternalFunction
       Handle<WasmInternalFunction> internal);
 
   DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address)
-
   DECL_CODE_POINTER_ACCESSORS(code)
+  DECL_TRUSTED_POINTER_ACCESSORS(ref, ExposedTrustedObject)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
