@@ -9286,7 +9286,7 @@ ValueNode* MaglevGraphBuilder::BuildArgumentsObject() {
   ValueNode* object;
   switch (type) {
     case CreateArgumentsType::kMappedArguments: {
-      // TODO (victorgomes): Proper support for mapped arguments.
+      // TODO(victorgomes): Proper support for mapped arguments.
       DCHECK_EQ(param_count, 0);
       // If there is no aliasing, the arguments object elements are not
       // special in any way, we can just return an unmapped backing store.
