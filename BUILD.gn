@@ -7352,6 +7352,7 @@ group("v8_fuzzers") {
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
       ":v8_simple_wasm_compile_fuzzer",
+      ":v8_simple_wasm_compile_simd_fuzzer",
       ":v8_simple_wasm_fuzzer",
       ":v8_simple_wasm_init_expr_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
@@ -7821,6 +7822,27 @@ if (v8_enable_webassembly) {
   }
 
   v8_fuzzer("wasm_compile_fuzzer") {
+  }
+
+  v8_source_set("wasm_compile_simd_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile-simd.cc",
+    ]
+
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_fuzzer("wasm_compile_simd_fuzzer") {
   }
 
   v8_source_set("wasm_streaming_fuzzer") {

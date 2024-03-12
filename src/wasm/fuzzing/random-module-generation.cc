@@ -4125,9 +4125,16 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   return base::VectorOf(buffer);
 }
 
+// Explicit template instantiation for kMVP.
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     base::Vector<uint8_t> GenerateRandomWasmModule<
         WasmModuleGenerationOptions::kMVP>(Zone*,
                                            base::Vector<const uint8_t> data);
+
+// Explicit template instantiation for kGenerateSIMD.
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    base::Vector<uint8_t> GenerateRandomWasmModule<
+        WasmModuleGenerationOptions::kGenerateSIMD>(
+        Zone*, base::Vector<const uint8_t> data);
 
 }  // namespace v8::internal::wasm::fuzzing
