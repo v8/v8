@@ -2162,13 +2162,14 @@ HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
     HeapObjectType::Flags flags(0);
     if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map->is_callable()) flags |= HeapObjectType::kCallable;
-    return HeapObjectType(map->instance_type(), flags,
+    return HeapObjectType(map->instance_type(), map->elements_kind(), flags,
                           GetOddballType(broker->isolate(), map), HoleType());
   }
   HeapObjectType::Flags flags(0);
   if (map(broker).is_undetectable()) flags |= HeapObjectType::kUndetectable;
   if (map(broker).is_callable()) flags |= HeapObjectType::kCallable;
-  return HeapObjectType(map(broker).instance_type(), flags,
+  return HeapObjectType(map(broker).instance_type(),
+                        map(broker).elements_kind(), flags,
                         map(broker).oddball_type(broker), HoleType());
 }
 

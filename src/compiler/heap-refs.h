@@ -439,9 +439,10 @@ class HeapObjectType {
 
   using Flags = base::Flags<Flag>;
 
-  HeapObjectType(InstanceType instance_type, Flags flags,
-                 OddballType oddball_type, HoleType hole_type)
+  HeapObjectType(InstanceType instance_type, ElementsKind elements_kind,
+                 Flags flags, OddballType oddball_type, HoleType hole_type)
       : instance_type_(instance_type),
+        elements_kind_(elements_kind),
         oddball_type_(oddball_type),
         hole_type_(hole_type),
         flags_(flags) {
@@ -456,12 +457,14 @@ class HeapObjectType {
   HoleType hole_type(JSHeapBroker* broker) const { return hole_type_; }
   InstanceType instance_type() const { return instance_type_; }
   Flags flags() const { return flags_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
   bool is_callable() const { return flags_ & kCallable; }
   bool is_undetectable() const { return flags_ & kUndetectable; }
 
  private:
   InstanceType const instance_type_;
+  ElementsKind const elements_kind_;
   OddballType const oddball_type_;
   HoleType const hole_type_;
   Flags const flags_;
