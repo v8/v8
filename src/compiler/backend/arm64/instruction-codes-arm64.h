@@ -112,6 +112,7 @@ namespace compiler {
   V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S32x4Reverse)                  \
+  V(Arm64S32x4OneLaneSwizzle)           \
   V(Arm64S32x2Reverse)                  \
   V(Arm64S16x4Reverse)                  \
   V(Arm64S16x2Reverse)                  \

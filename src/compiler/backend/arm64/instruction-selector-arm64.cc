@@ -7550,6 +7550,8 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
     return;
   }
   int index = 0;
+  uint8_t from = 0;
+  uint8_t to = 0;
   if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
       DCHECK_GT(4, index);
@@ -7557,6 +7559,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
            g.UseImmediate(4), g.UseImmediate(index % 4));
     } else if (wasm::SimdShuffle::TryMatch32x4Reverse(shuffle32x4)) {
       Emit(kArm64S32x4Reverse, g.DefineAsRegister(node), g.UseRegister(input0));
+    } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4, &from,
+                                                             &to)) {
+      Emit(kArm64S32x4OneLaneSwizzle, g.DefineAsRegister(node),
+           g.UseRegister(input0), g.TempImmediate(from), g.TempImmediate(to));
     } else if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
       // Bypass normal shuffle code generation in this case.
       // EmitIdentity
