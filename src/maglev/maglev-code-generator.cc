@@ -1415,7 +1415,13 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreLiteral(
             GetDeoptLiteral(Smi::FromInt(array.length)));
         for (int i = 0; i < array.length; i++) {
-          BuildHeapNumber(array.double_values[i]);
+          Float64 value = array.double_values[i];
+          if (value.is_hole_nan()) {
+            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
+                ReadOnlyRoots(local_isolate_).the_hole_value()));
+          } else {
+            BuildHeapNumber(value);
+          }
         }
         break;
       }
