@@ -383,6 +383,13 @@
   'TimeTicks.NowResolution': [PASS,FAIL],
 }],  # system == windows
 
+##############################################################################
+['system == android', {
+  # https://crbug.com/v8/14545
+  'LogAllTest.LogAll': [SKIP],
+  'LogTimerTest.ConsoleTimeEvents': [SKIP],
+}],  # 'system == android'
+
 ['clang_coverage and mode == debug', {
   # Too slow tests.
   'LogAllTest.LogAll': [SKIP],
