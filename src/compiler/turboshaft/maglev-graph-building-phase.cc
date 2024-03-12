@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -1290,7 +1291,7 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
                                     : broker->isolate()->AsLocalIsolate();
   maglev::Graph* maglev_graph =
       maglev::Graph::New(temp_zone, data.info()->is_osr());
-  if (v8_flags.trace_turbo_graph) {
+  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
     compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
   }
   maglev::MaglevGraphBuilder maglev_graph_builder(
@@ -1298,7 +1299,7 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
       maglev_graph);
   maglev_graph_builder.Build();
 
-  if (v8_flags.trace_turbo_graph) {
+  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
     CodeTracer* code_tracer = data.GetCodeTracer();
     CodeTracer::StreamScope tracing_scope(code_tracer);
     tracing_scope.stream()
