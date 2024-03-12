@@ -5,6 +5,7 @@
 #include "src/wasm/fuzzing/random-module-generation.h"
 
 #include <algorithm>
+#include <array>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/v8-fallthrough.h"
@@ -63,6 +64,32 @@ struct StringImports {
   uint32_t array_i16;
   uint32_t array_i8;
 };
+
+// Creates an array out of the arguments without hardcoding the exact number of
+// arguments.
+template <typename... T>
+constexpr auto CreateArray(T... elements) {
+  std::array result = {elements...};
+  return result;
+}
+
+// Concatenate arrays into one array in compile-time.
+template <typename T, size_t... N>
+constexpr auto ConcatArrays(std::array<T, N>... array) {
+  constexpr size_t kNumArrays = sizeof...(array);
+  std::array<T*, kNumArrays> kArrays = {&array[0]...};
+  constexpr size_t kLengths[kNumArrays] = {array.size()...};
+  constexpr size_t kSumOfLengths = (... + array.size());
+
+  std::array<T, kSumOfLengths> result = {0};
+  size_t result_index = 0;
+  for (size_t arr = 0; arr < kNumArrays; arr++) {
+    for (size_t pos = 0; pos < kLengths[arr]; pos++) {
+      result[result_index++] = kArrays[arr][pos];
+    }
+  }
+  return result;
+}
 
 class DataRange {
   // data_ is used for general random values for fuzzing.
@@ -173,12 +200,16 @@ enum Generics {
 };
 enum IncludeS128 { kIncludeS128 = 1, kExcludeS128 = 0 };
 
+// Chooses one `ValueType` randomly based on `options` and the enums specified
+// above.
+template <WasmModuleGenerationOptions options>
 ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              uint32_t num_non_nullable_types,
                              NumericTypes include_numeric_types,
                              PackedTypes include_packed_types,
                              Generics include_generics,
                              IncludeS128 include_s128 = kIncludeS128) {
+  // Create and fill a vector of potential types to choose from.
   std::vector<ValueType> types;
   // Non wasm-gc types.
   if (include_numeric_types == kIncludeNumericTypes) {
@@ -186,7 +217,10 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
     // probability (such as 3x).
     types.insert(types.end(),
                  {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
-    if (include_s128 == kIncludeS128) types.push_back(kWasmS128);
+    if (options == WasmModuleGenerationOptions::kGenerateSIMD &&
+        include_s128 == kIncludeS128) {
+      types.push_back(kWasmS128);
+    }
     if (include_packed_types == kIncludePackedTypes) {
       types.insert(types.end(), {kWasmI8, kWasmI16});
     }
@@ -228,9 +262,11 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   return types[id];
 }
 
+template <WasmModuleGenerationOptions options>
 ValueType GetValueType(DataRange* data, uint32_t num_types) {
-  return GetValueTypeHelper(data, num_types, num_types, kIncludeNumericTypes,
-                            kExcludePackedTypes, kAlwaysIncludeAllGenerics);
+  return GetValueTypeHelper<options>(data, num_types, num_types,
+                                     kIncludeNumericTypes, kExcludePackedTypes,
+                                     kAlwaysIncludeAllGenerics);
 }
 
 void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
@@ -920,7 +956,7 @@ class WasmGenerator {
   }
 
   void drop(DataRange* data) {
-    Generate(GetValueType(
+    Generate(GetValueType<options>(
                  data, static_cast<uint32_t>(functions_.size() +
                                              structs_.size() + arrays_.size())),
              data);
@@ -1992,12 +2028,13 @@ class WasmGenerator {
     call_string_import(string_imports_.decodeStringFromUTF8Array);
   }
 
-  using GenerateFn = void (WasmGenerator::*const)(DataRange*);
-  using GenerateFnWithHeap = bool (WasmGenerator::*const)(HeapType, DataRange*,
-                                                          Nullability);
+  using GenerateFn = void (WasmGenerator::*)(DataRange*);
+  using GenerateFnWithHeap = bool (WasmGenerator::*)(HeapType, DataRange*,
+                                                     Nullability);
 
   template <size_t N>
-  void GenerateOneOf(GenerateFn (&alternatives)[N], DataRange* data) {
+  void GenerateOneOf(const std::array<GenerateFn, N>& alternatives,
+                     DataRange* data) {
     static_assert(N < std::numeric_limits<uint8_t>::max(),
                   "Too many alternatives. Use a bigger type if needed.");
     const auto which = data->get<uint8_t>();
@@ -2006,11 +2043,11 @@ class WasmGenerator {
     (this->*alternate)(data);
   }
 
-  // Returns true if it had succesfully generated the reference
-  // and false otherwise.
+  // Returns true if it had succesfully generated a randomly chosen expression
+  // from the `alternatives`.
   template <size_t N>
-  bool GenerateOneOf(GenerateFnWithHeap (&alternatives)[N], HeapType type,
-                     DataRange* data, Nullability nullability) {
+  bool GenerateOneOf(const std::array<GenerateFnWithHeap, N>& alternatives,
+                     HeapType type, DataRange* data, Nullability nullability) {
     static_assert(N < std::numeric_limits<uint8_t>::max(),
                   "Too many alternatives. Use a bigger type if needed.");
 
@@ -2078,7 +2115,7 @@ class WasmGenerator {
     uint32_t num_types = static_cast<uint32_t>(
         functions_.size() + structs_.size() + arrays_.size());
     for (ValueType& local : locals_) {
-      local = GetValueType(data, num_types);
+      local = GetValueType<options>(data, num_types);
       fn->AddLocal(local);
     }
   }
@@ -2096,68 +2133,73 @@ class WasmGenerator {
     GeneratorRecursionScope rec_scope(this);
     if (recursion_limit_reached() || data->size() == 0) return;
 
-    constexpr GenerateFn alternatives[] = {
-        &WasmGenerator::sequence<kVoid, kVoid>,
-        &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid>,
-        &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid, kVoid, kVoid,
-                                 kVoid, kVoid>,
-        &WasmGenerator::block<kVoid>,
-        &WasmGenerator::loop<kVoid>,
-        &WasmGenerator::finite_loop<kVoid>,
-        &WasmGenerator::if_<kVoid, kIf>,
-        &WasmGenerator::if_<kVoid, kIfElse>,
-        &WasmGenerator::br,
-        &WasmGenerator::br_if<kVoid>,
-        &WasmGenerator::br_on_null<kVoid>,
-        &WasmGenerator::br_on_non_null<kVoid>,
-        &WasmGenerator::br_table<kVoid>,
-        &WasmGenerator::return_op,
+    constexpr auto alternatives =
+        CreateArray(&WasmGenerator::sequence<kVoid, kVoid>,
+                    &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid>,
+                    &WasmGenerator::sequence<kVoid, kVoid, kVoid, kVoid, kVoid,
+                                             kVoid, kVoid, kVoid>,
+                    &WasmGenerator::block<kVoid>,           //
+                    &WasmGenerator::loop<kVoid>,            //
+                    &WasmGenerator::finite_loop<kVoid>,     //
+                    &WasmGenerator::if_<kVoid, kIf>,        //
+                    &WasmGenerator::if_<kVoid, kIfElse>,    //
+                    &WasmGenerator::br,                     //
+                    &WasmGenerator::br_if<kVoid>,           //
+                    &WasmGenerator::br_on_null<kVoid>,      //
+                    &WasmGenerator::br_on_non_null<kVoid>,  //
+                    &WasmGenerator::br_table<kVoid>,        //
+                    &WasmGenerator::return_op,              //
 
-        &WasmGenerator::memop<kExprI32StoreMem, kI32>,
-        &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
-        &WasmGenerator::memop<kExprI32StoreMem16, kI32>,
-        &WasmGenerator::memop<kExprI64StoreMem, kI64>,
-        &WasmGenerator::memop<kExprI64StoreMem8, kI64>,
-        &WasmGenerator::memop<kExprI64StoreMem16, kI64>,
-        &WasmGenerator::memop<kExprI64StoreMem32, kI64>,
-        &WasmGenerator::memop<kExprF32StoreMem, kF32>,
-        &WasmGenerator::memop<kExprF64StoreMem, kF64>,
-        &WasmGenerator::memop<kExprI32AtomicStore, kI32>,
-        &WasmGenerator::memop<kExprI32AtomicStore8U, kI32>,
-        &WasmGenerator::memop<kExprI32AtomicStore16U, kI32>,
-        &WasmGenerator::memop<kExprI64AtomicStore, kI64>,
-        &WasmGenerator::memop<kExprI64AtomicStore8U, kI64>,
-        &WasmGenerator::memop<kExprI64AtomicStore16U, kI64>,
-        &WasmGenerator::memop<kExprI64AtomicStore32U, kI64>,
-        &WasmGenerator::memop<kExprS128StoreMem, kS128>,
-        &WasmGenerator::simd_lane_memop<kExprS128Store8Lane, 16, kS128>,
-        &WasmGenerator::simd_lane_memop<kExprS128Store16Lane, 8, kS128>,
-        &WasmGenerator::simd_lane_memop<kExprS128Store32Lane, 4, kS128>,
-        &WasmGenerator::simd_lane_memop<kExprS128Store64Lane, 2, kS128>,
+                    &WasmGenerator::memop<kExprI32StoreMem, kI32>,
+                    &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
+                    &WasmGenerator::memop<kExprI32StoreMem16, kI32>,
+                    &WasmGenerator::memop<kExprI64StoreMem, kI64>,
+                    &WasmGenerator::memop<kExprI64StoreMem8, kI64>,
+                    &WasmGenerator::memop<kExprI64StoreMem16, kI64>,
+                    &WasmGenerator::memop<kExprI64StoreMem32, kI64>,
+                    &WasmGenerator::memop<kExprF32StoreMem, kF32>,
+                    &WasmGenerator::memop<kExprF64StoreMem, kF64>,
+                    &WasmGenerator::memop<kExprI32AtomicStore, kI32>,
+                    &WasmGenerator::memop<kExprI32AtomicStore8U, kI32>,
+                    &WasmGenerator::memop<kExprI32AtomicStore16U, kI32>,
+                    &WasmGenerator::memop<kExprI64AtomicStore, kI64>,
+                    &WasmGenerator::memop<kExprI64AtomicStore8U, kI64>,
+                    &WasmGenerator::memop<kExprI64AtomicStore16U, kI64>,
+                    &WasmGenerator::memop<kExprI64AtomicStore32U, kI64>,
 
-        &WasmGenerator::drop,
+                    &WasmGenerator::drop,
 
-        &WasmGenerator::call<kVoid>,
-        &WasmGenerator::call_indirect<kVoid>,
-        &WasmGenerator::call_ref<kVoid>,
+                    &WasmGenerator::call<kVoid>,           //
+                    &WasmGenerator::call_indirect<kVoid>,  //
+                    &WasmGenerator::call_ref<kVoid>,       //
 
-        &WasmGenerator::set_local,
-        &WasmGenerator::set_global,
-        &WasmGenerator::throw_or_rethrow,
-        &WasmGenerator::try_block<kVoid>,
+                    &WasmGenerator::set_local,         //
+                    &WasmGenerator::set_global,        //
+                    &WasmGenerator::throw_or_rethrow,  //
+                    &WasmGenerator::try_block<kVoid>,  //
 
-        &WasmGenerator::struct_set,
-        &WasmGenerator::array_set,
-        &WasmGenerator::array_copy,
-        &WasmGenerator::array_fill,
-        &WasmGenerator::array_init_data,
-        &WasmGenerator::array_init_elem,
+                    &WasmGenerator::struct_set,       //
+                    &WasmGenerator::array_set,        //
+                    &WasmGenerator::array_copy,       //
+                    &WasmGenerator::array_fill,       //
+                    &WasmGenerator::array_init_data,  //
+                    &WasmGenerator::array_init_elem,  //
 
-        &WasmGenerator::table_set,
-        &WasmGenerator::table_fill,
-        &WasmGenerator::table_copy};
+                    &WasmGenerator::table_set,    //
+                    &WasmGenerator::table_fill,   //
+                    &WasmGenerator::table_copy);  //
 
-    GenerateOneOf(alternatives, data);
+    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+      constexpr auto simd_alternatives = CreateArray(
+          &WasmGenerator::memop<kExprS128StoreMem, kS128>,
+          &WasmGenerator::simd_lane_memop<kExprS128Store8Lane, 16, kS128>,
+          &WasmGenerator::simd_lane_memop<kExprS128Store16Lane, 8, kS128>,
+          &WasmGenerator::simd_lane_memop<kExprS128Store32Lane, 4, kS128>,
+          &WasmGenerator::simd_lane_memop<kExprS128Store64Lane, 2, kS128>);
+      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
+    } else {
+      GenerateOneOf(alternatives, data);
+    }
   }
 
   void GenerateI32(DataRange* data) {
@@ -2173,11 +2215,11 @@ class WasmGenerator {
       return;
     }
 
-    constexpr GenerateFn alternatives[] = {
-        &WasmGenerator::i32_const<1>,
-        &WasmGenerator::i32_const<2>,
-        &WasmGenerator::i32_const<3>,
-        &WasmGenerator::i32_const<4>,
+    constexpr auto alternatives = CreateArray(
+        &WasmGenerator::i32_const<1>,  //
+        &WasmGenerator::i32_const<2>,  //
+        &WasmGenerator::i32_const<3>,  //
+        &WasmGenerator::i32_const<4>,  //
 
         &WasmGenerator::sequence<kI32, kVoid>,
         &WasmGenerator::sequence<kVoid, kI32>,
@@ -2243,14 +2285,14 @@ class WasmGenerator {
         &WasmGenerator::op_with_prefix<kExprI32SConvertSatF64, kF64>,
         &WasmGenerator::op_with_prefix<kExprI32UConvertSatF64, kF64>,
 
-        &WasmGenerator::block<kI32>,
-        &WasmGenerator::loop<kI32>,
-        &WasmGenerator::finite_loop<kI32>,
-        &WasmGenerator::if_<kI32, kIfElse>,
-        &WasmGenerator::br_if<kI32>,
-        &WasmGenerator::br_on_null<kI32>,
-        &WasmGenerator::br_on_non_null<kI32>,
-        &WasmGenerator::br_table<kI32>,
+        &WasmGenerator::block<kI32>,           //
+        &WasmGenerator::loop<kI32>,            //
+        &WasmGenerator::finite_loop<kI32>,     //
+        &WasmGenerator::if_<kI32, kIfElse>,    //
+        &WasmGenerator::br_if<kI32>,           //
+        &WasmGenerator::br_on_null<kI32>,      //
+        &WasmGenerator::br_on_non_null<kI32>,  //
+        &WasmGenerator::br_table<kI32>,        //
 
         &WasmGenerator::memop<kExprI32LoadMem>,
         &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -2286,60 +2328,63 @@ class WasmGenerator {
         &WasmGenerator::atomic_op<kExprI32AtomicCompareExchange16U, kI32, kI32,
                                   kI32>,
 
-        &WasmGenerator::op_with_prefix<kExprV128AnyTrue, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI8x16AllTrue, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI8x16BitMask, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI16x8AllTrue, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI16x8BitMask, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI32x4AllTrue, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI32x4BitMask, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI64x2AllTrue, kS128>,
-        &WasmGenerator::op_with_prefix<kExprI64x2BitMask, kS128>,
-        &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneS, 16, kS128>,
-        &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneU, 16, kS128>,
-        &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneS, 8, kS128>,
-        &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneU, 8, kS128>,
-        &WasmGenerator::simd_lane_op<kExprI32x4ExtractLane, 4, kS128>,
+        &WasmGenerator::current_memory,  //
+        &WasmGenerator::grow_memory,     //
 
-        &WasmGenerator::current_memory,
-        &WasmGenerator::grow_memory,
+        &WasmGenerator::get_local<kI32>,                    //
+        &WasmGenerator::tee_local<kI32>,                    //
+        &WasmGenerator::get_global<kI32>,                   //
+        &WasmGenerator::op<kExprSelect, kI32, kI32, kI32>,  //
+        &WasmGenerator::select_with_type<kI32>,             //
 
-        &WasmGenerator::get_local<kI32>,
-        &WasmGenerator::tee_local<kI32>,
-        &WasmGenerator::get_global<kI32>,
-        &WasmGenerator::op<kExprSelect, kI32, kI32, kI32>,
-        &WasmGenerator::select_with_type<kI32>,
-
-        &WasmGenerator::call<kI32>,
-        &WasmGenerator::call_indirect<kI32>,
-        &WasmGenerator::call_ref<kI32>,
-        &WasmGenerator::try_block<kI32>,
+        &WasmGenerator::call<kI32>,           //
+        &WasmGenerator::call_indirect<kI32>,  //
+        &WasmGenerator::call_ref<kI32>,       //
+        &WasmGenerator::try_block<kI32>,      //
 
         &WasmGenerator::i31_get,
 
-        &WasmGenerator::struct_get<kI32>,
-        &WasmGenerator::array_get<kI32>,
-        &WasmGenerator::array_len,
+        &WasmGenerator::struct_get<kI32>,  //
+        &WasmGenerator::array_get<kI32>,   //
+        &WasmGenerator::array_len,         //
 
-        &WasmGenerator::ref_is_null,
-        &WasmGenerator::ref_eq,
-        &WasmGenerator::ref_test<kExprRefTest>,
-        &WasmGenerator::ref_test<kExprRefTestNull>,
+        &WasmGenerator::ref_is_null,                 //
+        &WasmGenerator::ref_eq,                      //
+        &WasmGenerator::ref_test<kExprRefTest>,      //
+        &WasmGenerator::ref_test<kExprRefTestNull>,  //
 
-        &WasmGenerator::string_test,
-        &WasmGenerator::string_charcodeat,
-        &WasmGenerator::string_codepointat,
-        &WasmGenerator::string_length,
-        &WasmGenerator::string_equals,
-        &WasmGenerator::string_compare,
-        &WasmGenerator::string_intocharcodearray,
-        &WasmGenerator::string_intoutf8array,
-        &WasmGenerator::string_measureutf8,
+        &WasmGenerator::string_test,               //
+        &WasmGenerator::string_charcodeat,         //
+        &WasmGenerator::string_codepointat,        //
+        &WasmGenerator::string_length,             //
+        &WasmGenerator::string_equals,             //
+        &WasmGenerator::string_compare,            //
+        &WasmGenerator::string_intocharcodearray,  //
+        &WasmGenerator::string_intoutf8array,      //
+        &WasmGenerator::string_measureutf8,        //
 
-        &WasmGenerator::table_size,
-        &WasmGenerator::table_grow};
+        &WasmGenerator::table_size, &WasmGenerator::table_grow);
 
-    GenerateOneOf(alternatives, data);
+    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+      constexpr auto simd_alternatives = CreateArray(
+          &WasmGenerator::op_with_prefix<kExprV128AnyTrue, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI8x16AllTrue, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI8x16BitMask, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI16x8AllTrue, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI16x8BitMask, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI32x4AllTrue, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI32x4BitMask, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI64x2AllTrue, kS128>,
+          &WasmGenerator::op_with_prefix<kExprI64x2BitMask, kS128>,
+          &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneS, 16, kS128>,
+          &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneU, 16, kS128>,
+          &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneS, 8, kS128>,
+          &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneU, 8, kS128>,
+          &WasmGenerator::simd_lane_op<kExprI32x4ExtractLane, 4, kS128>);
+      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
+    } else {
+      GenerateOneOf(alternatives, data);
+    }
   }
 
   void GenerateI64(DataRange* data) {
@@ -2349,15 +2394,15 @@ class WasmGenerator {
       return;
     }
 
-    constexpr GenerateFn alternatives[] = {
-        &WasmGenerator::i64_const<1>,
-        &WasmGenerator::i64_const<2>,
-        &WasmGenerator::i64_const<3>,
-        &WasmGenerator::i64_const<4>,
-        &WasmGenerator::i64_const<5>,
-        &WasmGenerator::i64_const<6>,
-        &WasmGenerator::i64_const<7>,
-        &WasmGenerator::i64_const<8>,
+    constexpr auto alternatives = CreateArray(
+        &WasmGenerator::i64_const<1>,  //
+        &WasmGenerator::i64_const<2>,  //
+        &WasmGenerator::i64_const<3>,  //
+        &WasmGenerator::i64_const<4>,  //
+        &WasmGenerator::i64_const<5>,  //
+        &WasmGenerator::i64_const<6>,  //
+        &WasmGenerator::i64_const<7>,  //
+        &WasmGenerator::i64_const<8>,  //
 
         &WasmGenerator::sequence<kI64, kVoid>,
         &WasmGenerator::sequence<kVoid, kI64>,
@@ -2390,14 +2435,14 @@ class WasmGenerator {
         &WasmGenerator::op_with_prefix<kExprI64SConvertSatF64, kF64>,
         &WasmGenerator::op_with_prefix<kExprI64UConvertSatF64, kF64>,
 
-        &WasmGenerator::block<kI64>,
-        &WasmGenerator::loop<kI64>,
-        &WasmGenerator::finite_loop<kI64>,
-        &WasmGenerator::if_<kI64, kIfElse>,
-        &WasmGenerator::br_if<kI64>,
-        &WasmGenerator::br_on_null<kI64>,
-        &WasmGenerator::br_on_non_null<kI64>,
-        &WasmGenerator::br_table<kI64>,
+        &WasmGenerator::block<kI64>,           //
+        &WasmGenerator::loop<kI64>,            //
+        &WasmGenerator::finite_loop<kI64>,     //
+        &WasmGenerator::if_<kI64, kIfElse>,    //
+        &WasmGenerator::br_if<kI64>,           //
+        &WasmGenerator::br_on_null<kI64>,      //
+        &WasmGenerator::br_on_non_null<kI64>,  //
+        &WasmGenerator::br_table<kI64>,        //
 
         &WasmGenerator::memop<kExprI64LoadMem>,
         &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -2444,23 +2489,27 @@ class WasmGenerator {
         &WasmGenerator::atomic_op<kExprI64AtomicCompareExchange32U, kI32, kI64,
                                   kI64>,
 
-        &WasmGenerator::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>,
+        &WasmGenerator::get_local<kI64>,                    //
+        &WasmGenerator::tee_local<kI64>,                    //
+        &WasmGenerator::get_global<kI64>,                   //
+        &WasmGenerator::op<kExprSelect, kI64, kI64, kI32>,  //
+        &WasmGenerator::select_with_type<kI64>,             //
 
-        &WasmGenerator::get_local<kI64>,
-        &WasmGenerator::tee_local<kI64>,
-        &WasmGenerator::get_global<kI64>,
-        &WasmGenerator::op<kExprSelect, kI64, kI64, kI32>,
-        &WasmGenerator::select_with_type<kI64>,
+        &WasmGenerator::call<kI64>,           //
+        &WasmGenerator::call_indirect<kI64>,  //
+        &WasmGenerator::call_ref<kI64>,       //
+        &WasmGenerator::try_block<kI64>,      //
 
-        &WasmGenerator::call<kI64>,
-        &WasmGenerator::call_indirect<kI64>,
-        &WasmGenerator::call_ref<kI64>,
-        &WasmGenerator::try_block<kI64>,
+        &WasmGenerator::struct_get<kI64>,  //
+        &WasmGenerator::array_get<kI64>);  //
 
-        &WasmGenerator::struct_get<kI64>,
-        &WasmGenerator::array_get<kI64>};
-
-    GenerateOneOf(alternatives, data);
+    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+      constexpr auto simd_alternatives = CreateArray(
+          &WasmGenerator::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>);
+      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
+    } else {
+      GenerateOneOf(alternatives, data);
+    }
   }
 
   void GenerateF32(DataRange* data) {
@@ -2470,61 +2519,65 @@ class WasmGenerator {
       return;
     }
 
-    constexpr GenerateFn alternatives[] = {
-        &WasmGenerator::sequence<kF32, kVoid>,
-        &WasmGenerator::sequence<kVoid, kF32>,
-        &WasmGenerator::sequence<kVoid, kF32, kVoid>,
+    constexpr auto alternatives =
+        CreateArray(&WasmGenerator::sequence<kF32, kVoid>,
+                    &WasmGenerator::sequence<kVoid, kF32>,
+                    &WasmGenerator::sequence<kVoid, kF32, kVoid>,
 
-        &WasmGenerator::op<kExprF32Abs, kF32>,
-        &WasmGenerator::op<kExprF32Neg, kF32>,
-        &WasmGenerator::op<kExprF32Ceil, kF32>,
-        &WasmGenerator::op<kExprF32Floor, kF32>,
-        &WasmGenerator::op<kExprF32Trunc, kF32>,
-        &WasmGenerator::op<kExprF32NearestInt, kF32>,
-        &WasmGenerator::op<kExprF32Sqrt, kF32>,
-        &WasmGenerator::op<kExprF32Add, kF32, kF32>,
-        &WasmGenerator::op<kExprF32Sub, kF32, kF32>,
-        &WasmGenerator::op<kExprF32Mul, kF32, kF32>,
-        &WasmGenerator::op<kExprF32Div, kF32, kF32>,
-        &WasmGenerator::op<kExprF32Min, kF32, kF32>,
-        &WasmGenerator::op<kExprF32Max, kF32, kF32>,
-        &WasmGenerator::op<kExprF32CopySign, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Abs, kF32>,
+                    &WasmGenerator::op<kExprF32Neg, kF32>,
+                    &WasmGenerator::op<kExprF32Ceil, kF32>,
+                    &WasmGenerator::op<kExprF32Floor, kF32>,
+                    &WasmGenerator::op<kExprF32Trunc, kF32>,
+                    &WasmGenerator::op<kExprF32NearestInt, kF32>,
+                    &WasmGenerator::op<kExprF32Sqrt, kF32>,
+                    &WasmGenerator::op<kExprF32Add, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Sub, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Mul, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Div, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Min, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32Max, kF32, kF32>,
+                    &WasmGenerator::op<kExprF32CopySign, kF32, kF32>,
 
-        &WasmGenerator::op<kExprF32SConvertI32, kI32>,
-        &WasmGenerator::op<kExprF32UConvertI32, kI32>,
-        &WasmGenerator::op<kExprF32SConvertI64, kI64>,
-        &WasmGenerator::op<kExprF32UConvertI64, kI64>,
-        &WasmGenerator::op<kExprF32ConvertF64, kF64>,
-        &WasmGenerator::op<kExprF32ReinterpretI32, kI32>,
+                    &WasmGenerator::op<kExprF32SConvertI32, kI32>,
+                    &WasmGenerator::op<kExprF32UConvertI32, kI32>,
+                    &WasmGenerator::op<kExprF32SConvertI64, kI64>,
+                    &WasmGenerator::op<kExprF32UConvertI64, kI64>,
+                    &WasmGenerator::op<kExprF32ConvertF64, kF64>,
+                    &WasmGenerator::op<kExprF32ReinterpretI32, kI32>,
 
-        &WasmGenerator::block<kF32>,
-        &WasmGenerator::loop<kF32>,
-        &WasmGenerator::finite_loop<kF32>,
-        &WasmGenerator::if_<kF32, kIfElse>,
-        &WasmGenerator::br_if<kF32>,
-        &WasmGenerator::br_on_null<kF32>,
-        &WasmGenerator::br_on_non_null<kF32>,
-        &WasmGenerator::br_table<kF32>,
+                    &WasmGenerator::block<kF32>,           //
+                    &WasmGenerator::loop<kF32>,            //
+                    &WasmGenerator::finite_loop<kF32>,     //
+                    &WasmGenerator::if_<kF32, kIfElse>,    //
+                    &WasmGenerator::br_if<kF32>,           //
+                    &WasmGenerator::br_on_null<kF32>,      //
+                    &WasmGenerator::br_on_non_null<kF32>,  //
+                    &WasmGenerator::br_table<kF32>,        //
 
-        &WasmGenerator::memop<kExprF32LoadMem>,
+                    &WasmGenerator::memop<kExprF32LoadMem>,
 
-        &WasmGenerator::simd_lane_op<kExprF32x4ExtractLane, 4, kS128>,
+                    &WasmGenerator::get_local<kF32>,                    //
+                    &WasmGenerator::tee_local<kF32>,                    //
+                    &WasmGenerator::get_global<kF32>,                   //
+                    &WasmGenerator::op<kExprSelect, kF32, kF32, kI32>,  //
+                    &WasmGenerator::select_with_type<kF32>,             //
 
-        &WasmGenerator::get_local<kF32>,
-        &WasmGenerator::tee_local<kF32>,
-        &WasmGenerator::get_global<kF32>,
-        &WasmGenerator::op<kExprSelect, kF32, kF32, kI32>,
-        &WasmGenerator::select_with_type<kF32>,
+                    &WasmGenerator::call<kF32>,           //
+                    &WasmGenerator::call_indirect<kF32>,  //
+                    &WasmGenerator::call_ref<kF32>,       //
+                    &WasmGenerator::try_block<kF32>,      //
 
-        &WasmGenerator::call<kF32>,
-        &WasmGenerator::call_indirect<kF32>,
-        &WasmGenerator::call_ref<kF32>,
-        &WasmGenerator::try_block<kF32>,
+                    &WasmGenerator::struct_get<kF32>,  //
+                    &WasmGenerator::array_get<kF32>);  //
 
-        &WasmGenerator::struct_get<kF32>,
-        &WasmGenerator::array_get<kF32>};
-
-    GenerateOneOf(alternatives, data);
+    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+      constexpr auto simd_alternatives = CreateArray(
+          &WasmGenerator::simd_lane_op<kExprF32x4ExtractLane, 4, kS128>);
+      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
+    } else {
+      GenerateOneOf(alternatives, data);
+    }
   }
 
   void GenerateF64(DataRange* data) {
@@ -2534,64 +2587,69 @@ class WasmGenerator {
       return;
     }
 
-    constexpr GenerateFn alternatives[] = {
-        &WasmGenerator::sequence<kF64, kVoid>,
-        &WasmGenerator::sequence<kVoid, kF64>,
-        &WasmGenerator::sequence<kVoid, kF64, kVoid>,
+    constexpr auto alternatives =
+        CreateArray(&WasmGenerator::sequence<kF64, kVoid>,
+                    &WasmGenerator::sequence<kVoid, kF64>,
+                    &WasmGenerator::sequence<kVoid, kF64, kVoid>,
 
-        &WasmGenerator::op<kExprF64Abs, kF64>,
-        &WasmGenerator::op<kExprF64Neg, kF64>,
-        &WasmGenerator::op<kExprF64Ceil, kF64>,
-        &WasmGenerator::op<kExprF64Floor, kF64>,
-        &WasmGenerator::op<kExprF64Trunc, kF64>,
-        &WasmGenerator::op<kExprF64NearestInt, kF64>,
-        &WasmGenerator::op<kExprF64Sqrt, kF64>,
-        &WasmGenerator::op<kExprF64Add, kF64, kF64>,
-        &WasmGenerator::op<kExprF64Sub, kF64, kF64>,
-        &WasmGenerator::op<kExprF64Mul, kF64, kF64>,
-        &WasmGenerator::op<kExprF64Div, kF64, kF64>,
-        &WasmGenerator::op<kExprF64Min, kF64, kF64>,
-        &WasmGenerator::op<kExprF64Max, kF64, kF64>,
-        &WasmGenerator::op<kExprF64CopySign, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Abs, kF64>,
+                    &WasmGenerator::op<kExprF64Neg, kF64>,
+                    &WasmGenerator::op<kExprF64Ceil, kF64>,
+                    &WasmGenerator::op<kExprF64Floor, kF64>,
+                    &WasmGenerator::op<kExprF64Trunc, kF64>,
+                    &WasmGenerator::op<kExprF64NearestInt, kF64>,
+                    &WasmGenerator::op<kExprF64Sqrt, kF64>,
+                    &WasmGenerator::op<kExprF64Add, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Sub, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Mul, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Div, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Min, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64Max, kF64, kF64>,
+                    &WasmGenerator::op<kExprF64CopySign, kF64, kF64>,
 
-        &WasmGenerator::op<kExprF64SConvertI32, kI32>,
-        &WasmGenerator::op<kExprF64UConvertI32, kI32>,
-        &WasmGenerator::op<kExprF64SConvertI64, kI64>,
-        &WasmGenerator::op<kExprF64UConvertI64, kI64>,
-        &WasmGenerator::op<kExprF64ConvertF32, kF32>,
-        &WasmGenerator::op<kExprF64ReinterpretI64, kI64>,
+                    &WasmGenerator::op<kExprF64SConvertI32, kI32>,
+                    &WasmGenerator::op<kExprF64UConvertI32, kI32>,
+                    &WasmGenerator::op<kExprF64SConvertI64, kI64>,
+                    &WasmGenerator::op<kExprF64UConvertI64, kI64>,
+                    &WasmGenerator::op<kExprF64ConvertF32, kF32>,
+                    &WasmGenerator::op<kExprF64ReinterpretI64, kI64>,
 
-        &WasmGenerator::block<kF64>,
-        &WasmGenerator::loop<kF64>,
-        &WasmGenerator::finite_loop<kF64>,
-        &WasmGenerator::if_<kF64, kIfElse>,
-        &WasmGenerator::br_if<kF64>,
-        &WasmGenerator::br_on_null<kF64>,
-        &WasmGenerator::br_on_non_null<kF64>,
-        &WasmGenerator::br_table<kF64>,
+                    &WasmGenerator::block<kF64>,           //
+                    &WasmGenerator::loop<kF64>,            //
+                    &WasmGenerator::finite_loop<kF64>,     //
+                    &WasmGenerator::if_<kF64, kIfElse>,    //
+                    &WasmGenerator::br_if<kF64>,           //
+                    &WasmGenerator::br_on_null<kF64>,      //
+                    &WasmGenerator::br_on_non_null<kF64>,  //
+                    &WasmGenerator::br_table<kF64>,        //
 
-        &WasmGenerator::memop<kExprF64LoadMem>,
+                    &WasmGenerator::memop<kExprF64LoadMem>,
 
-        &WasmGenerator::simd_lane_op<kExprF64x2ExtractLane, 2, kS128>,
+                    &WasmGenerator::get_local<kF64>,                    //
+                    &WasmGenerator::tee_local<kF64>,                    //
+                    &WasmGenerator::get_global<kF64>,                   //
+                    &WasmGenerator::op<kExprSelect, kF64, kF64, kI32>,  //
+                    &WasmGenerator::select_with_type<kF64>,             //
 
-        &WasmGenerator::get_local<kF64>,
-        &WasmGenerator::tee_local<kF64>,
-        &WasmGenerator::get_global<kF64>,
-        &WasmGenerator::op<kExprSelect, kF64, kF64, kI32>,
-        &WasmGenerator::select_with_type<kF64>,
+                    &WasmGenerator::call<kF64>,           //
+                    &WasmGenerator::call_indirect<kF64>,  //
+                    &WasmGenerator::call_ref<kF64>,       //
+                    &WasmGenerator::try_block<kF64>,      //
 
-        &WasmGenerator::call<kF64>,
-        &WasmGenerator::call_indirect<kF64>,
-        &WasmGenerator::call_ref<kF64>,
-        &WasmGenerator::try_block<kF64>,
+                    &WasmGenerator::struct_get<kF64>,  //
+                    &WasmGenerator::array_get<kF64>);  //
 
-        &WasmGenerator::struct_get<kF64>,
-        &WasmGenerator::array_get<kF64>};
-
-    GenerateOneOf(alternatives, data);
+    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+      constexpr auto simd_alternatives = CreateArray(
+          &WasmGenerator::simd_lane_op<kExprF64x2ExtractLane, 2, kS128>);
+      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
+    } else {
+      GenerateOneOf(alternatives, data);
+    }
   }
 
   void GenerateS128(DataRange* data) {
+    CHECK_EQ(options, WasmModuleGenerationOptions::kGenerateSIMD);
     GeneratorRecursionScope rec_scope(this);
     has_simd_ = true;
     if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
@@ -2602,7 +2660,7 @@ class WasmGenerator {
       return;
     }
 
-    constexpr GenerateFn alternatives[] = {
+    constexpr auto alternatives = CreateArray(
         &WasmGenerator::simd_const,
         &WasmGenerator::simd_lane_op<kExprI8x16ReplaceLane, 16, kS128, kI32>,
         &WasmGenerator::simd_lane_op<kExprI16x8ReplaceLane, 8, kS128, kI32>,
@@ -2863,8 +2921,7 @@ class WasmGenerator {
         &WasmGenerator::op_with_prefix<kExprI32x4RelaxedTruncF64x2UZero, kS128>,
         &WasmGenerator::op_with_prefix<kExprI16x8DotI8x16I7x16S, kS128, kS128>,
         &WasmGenerator::op_with_prefix<kExprI32x4DotI8x16I7x16AddS, kS128,
-                                       kS128, kS128>,
-    };
+                                       kS128, kS128>);
 
     GenerateOneOf(alternatives, data);
   }
@@ -2942,22 +2999,32 @@ class WasmGenerator {
       // recursive by construction, so the depth is limited already.
     }
 
-    constexpr GenerateFnWithHeap alternatives_indexed_type[] = {
-        &WasmGenerator::new_object,    &WasmGenerator::get_local_ref,
-        &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref,
-        &WasmGenerator::ref_cast,      &WasmGenerator::ref_as_non_null,
-        &WasmGenerator::br_on_cast};
+    constexpr auto alternatives_indexed_type =
+        CreateArray(&WasmGenerator::new_object,       //
+                    &WasmGenerator::get_local_ref,    //
+                    &WasmGenerator::array_get_ref,    //
+                    &WasmGenerator::struct_get_ref,   //
+                    &WasmGenerator::ref_cast,         //
+                    &WasmGenerator::ref_as_non_null,  //
+                    &WasmGenerator::br_on_cast);      //
 
-    constexpr GenerateFnWithHeap alternatives_func_any[] = {
-        &WasmGenerator::table_get,       &WasmGenerator::get_local_ref,
-        &WasmGenerator::array_get_ref,   &WasmGenerator::struct_get_ref,
-        &WasmGenerator::ref_cast,        &WasmGenerator::any_convert_extern,
-        &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
+    constexpr auto alternatives_func_any =
+        CreateArray(&WasmGenerator::table_get,           //
+                    &WasmGenerator::get_local_ref,       //
+                    &WasmGenerator::array_get_ref,       //
+                    &WasmGenerator::struct_get_ref,      //
+                    &WasmGenerator::ref_cast,            //
+                    &WasmGenerator::any_convert_extern,  //
+                    &WasmGenerator::ref_as_non_null,     //
+                    &WasmGenerator::br_on_cast);         //
 
-    constexpr GenerateFnWithHeap alternatives_other[] = {
-        &WasmGenerator::array_get_ref,   &WasmGenerator::get_local_ref,
-        &WasmGenerator::struct_get_ref,  &WasmGenerator::ref_cast,
-        &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
+    constexpr auto alternatives_other =
+        CreateArray(&WasmGenerator::array_get_ref,    //
+                    &WasmGenerator::get_local_ref,    //
+                    &WasmGenerator::struct_get_ref,   //
+                    &WasmGenerator::ref_cast,         //
+                    &WasmGenerator::ref_as_non_null,  //
+                    &WasmGenerator::br_on_cast);      //
 
     switch (type.representation()) {
       // For abstract types, sometimes generate one of their subtypes.
@@ -3156,7 +3223,7 @@ class WasmGenerator {
     std::vector<ValueType> types;
     int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
     for (int i = 0; i < num_params; ++i) {
-      types.push_back(GetValueType(
+      types.push_back(GetValueType<options>(
           data, static_cast<uint32_t>(functions_.size() + structs_.size() +
                                       arrays_.size())));
     }
@@ -3290,6 +3357,7 @@ class WasmGenerator {
 
 enum SigKind { kFunctionSig, kExceptionSig };
 
+template <WasmModuleGenerationOptions options>
 FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
                          int num_types) {
   // Generate enough parameters to spill some to the stack.
@@ -3300,10 +3368,10 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
 
   FunctionSig::Builder builder(zone, num_returns, num_params);
   for (int i = 0; i < num_returns; ++i) {
-    builder.AddReturn(GetValueType(data, num_types));
+    builder.AddReturn(GetValueType<options>(data, num_types));
   }
   for (int i = 0; i < num_params; ++i) {
-    builder.AddParam(GetValueType(data, num_types));
+    builder.AddParam(GetValueType<options>(data, num_types));
   }
   return builder.Build();
 }
@@ -3672,7 +3740,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
       //   arrays. This is so that GenerateInitExpr has a way to break a
       //   recursion between a struct/array field and those types
       //   ((ref extern) gets materialized through (ref any)).
-      ValueType type = GetValueTypeHelper(
+      ValueType type = GetValueTypeHelper<options>(
           &module_range, current_rec_group_end + 1, current_type_index,
           kIncludeNumericTypes, kIncludePackedTypes,
           kExcludeSomeGenericsWhenTypeIsNonNullable);
@@ -3691,7 +3759,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                         ? rec_group->second
                                         : current_type_index;
-    ValueType type = GetValueTypeHelper(
+    ValueType type = GetValueTypeHelper<options>(
         &module_range, current_rec_group_end + 1, current_type_index,
         kIncludeNumericTypes, kIncludePackedTypes,
         kExcludeSomeGenericsWhenTypeIsNonNullable);
@@ -3724,8 +3792,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                         ? rec_group->second
                                         : current_type_index;
-    FunctionSig* sig = GenerateSig(zone, &module_range, kFunctionSig,
-                                   current_rec_group_end + 1);
+    FunctionSig* sig = GenerateSig<options>(zone, &module_range, kFunctionSig,
+                                            current_rec_group_end + 1);
     uint32_t signature_index = builder.ForceAddSignature(sig, kIsFinal);
     function_signatures.push_back(signature_index);
   }
@@ -3733,7 +3801,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
   for (int i = 0; i < num_exceptions; ++i) {
     FunctionSig* sig =
-        GenerateSig(zone, &module_range, kExceptionSig, num_types);
+        GenerateSig<options>(zone, &module_range, kExceptionSig, num_types);
     builder.AddTag(sig);
   }
 
@@ -3839,9 +3907,9 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     ValueType type =
         force_funcref
             ? kWasmFuncRef
-            : GetValueTypeHelper(&module_range, num_types, num_types,
-                                 kExcludeNumericTypes, kExcludePackedTypes,
-                                 kAlwaysIncludeAllGenerics);
+            : GetValueTypeHelper<options>(
+                  &module_range, num_types, num_types, kExcludeNumericTypes,
+                  kExcludePackedTypes, kAlwaysIncludeAllGenerics);
     bool use_initializer = !type.is_defaultable() || module_range.get<bool>();
     uint32_t table_index =
         use_initializer
@@ -3874,7 +3942,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   mutable_globals.reserve(num_globals);
 
   for (int i = 0; i < num_globals; ++i) {
-    ValueType type = GetValueType(&module_range, num_types);
+    ValueType type = GetValueType<options>(&module_range, num_types);
     // 1/8 of globals are immutable.
     const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
     builder.AddGlobal(type, mutability,
@@ -3904,6 +3972,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                                                sig->return_count());
     gen.InitializeNonDefaultableLocals(&function_range);
     gen.Generate(return_types, &function_range);
+    // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
+    // always generated.
     if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return {};
     f->Emit(kExprEnd);
     if (i == 0) builder.AddExport(base::CStrVector("main"), f);
@@ -3915,8 +3985,12 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   return base::VectorOf(buffer);
 }
 
+// Used by the initializer expression fuzzer.
 base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     Zone* zone, base::Vector<const uint8_t> data, size_t* count) {
+  // Don't limit expressions for the initializer expression fuzzer.
+  constexpr WasmModuleGenerationOptions options =
+      WasmModuleGenerationOptions::kGenerateSIMD;
   WasmModuleBuilder builder(zone);
 
   DataRange module_range(data);
@@ -3960,7 +4034,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
       }
     }
     for (; field_index < num_fields; field_index++) {
-      ValueType type = GetValueTypeHelper(
+      ValueType type = GetValueTypeHelper<options>(
           &module_range, current_type_index, current_type_index,
           kIncludeNumericTypes, kIncludePackedTypes,
           kExcludeSomeGenericsWhenTypeIsNonNullable);
@@ -3974,7 +4048,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   }
 
   for (; current_type_index < num_structs + num_arrays; current_type_index++) {
-    ValueType type = GetValueTypeHelper(
+    ValueType type = GetValueTypeHelper<options>(
         &module_range, current_type_index, current_type_index,
         kIncludeNumericTypes, kIncludePackedTypes,
         kExcludeSomeGenericsWhenTypeIsNonNullable);
@@ -3994,7 +4068,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   constexpr bool kIsFinal = true;
   std::vector<ValueType> globals;
   for (; current_type_index < num_types; current_type_index++) {
-    ValueType return_type = GetValueTypeHelper(
+    ValueType return_type = GetValueTypeHelper<options>(
         &module_range, num_types - num_globals, num_types - num_globals,
         kIncludeNumericTypes, kExcludePackedTypes, kAlwaysIncludeAllGenerics,
         kExcludeS128);
