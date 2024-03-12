@@ -1656,6 +1656,11 @@ bool increment_effect_level_for_node(TurbofanAdapter* adapter, Node* node) {
   return opcode == IrOpcode::kStore || opcode == IrOpcode::kUnalignedStore ||
          opcode == IrOpcode::kCall || opcode == IrOpcode::kProtectedStore ||
          opcode == IrOpcode::kStoreTrapOnNull ||
+#if V8_ENABLE_WEBASSEMBLY
+         opcode == IrOpcode::kStoreLane ||
+#endif
+         opcode == IrOpcode::kStorePair ||
+         opcode == IrOpcode::kStoreIndirectPointer ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) opcode == IrOpcode::k##Opcode ||
          MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)
 #undef ADD_EFFECT_FOR_ATOMIC_OP
