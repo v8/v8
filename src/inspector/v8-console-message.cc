@@ -312,6 +312,8 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
                                         bool generatePreview) const {
   int contextGroupId = session->contextGroupId();
   V8InspectorImpl* inspector = session->inspector();
+  // Protect against reentrant debugger calls via interrupts.
+  v8::debug::PostponeInterruptsScope no_interrupts(inspector->isolate());
 
   if (m_origin == V8MessageOrigin::kException) {
     std::unique_ptr<protocol::Runtime::RemoteObject> exception =
