@@ -2548,6 +2548,17 @@ class TurboshaftAssemblerOpInterface
                  SelectOp::Implementation implem) {
     return ReduceIfReachableSelect(cond, vtrue, vfalse, rep, hint, implem);
   }
+#define DEF_SELECT(Rep)                                                 \
+  V<Rep> Rep##Select(V<Word32> cond, V<Rep> vtrue, V<Rep> vfalse) {     \
+    return Select(cond, vtrue, vfalse, RegisterRepresentation::Rep(),   \
+                  BranchHint::kNone, SelectOp::Implementation::kCMove); \
+  }
+  DEF_SELECT(Word32)
+  DEF_SELECT(Word64)
+  DEF_SELECT(Float32)
+  DEF_SELECT(Float64)
+#undef DEF_SELECT
+
   template <typename T, typename U>
   V<std::common_type_t<T, U>> Conditional(V<Word32> cond, V<T> vtrue,
                                           V<U> vfalse,

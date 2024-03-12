@@ -14,6 +14,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
+#include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/zone-stats.h"
@@ -22,6 +23,8 @@
 #include "test/common/call-tester.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer>;
 
 class DataHolder {
  public:
@@ -38,9 +41,18 @@ class DataHolder {
                        AssemblerOptions::Default(isolate), nullptr),
         ts_pipeline_data_(pipeline_data_.GetTurboshaftPipelineData(
             turboshaft::TurboshaftPipelineKind::kJS)),
+        ts_data_scope_(ts_pipeline_data_),
         descriptor_(Linkage::GetSimplifiedCDescriptor(
             zone, CSignature::New(zone, return_type, p...),
-            CallDescriptor::kInitializeRootRegister)) {}
+            CallDescriptor::kInitializeRootRegister)) {
+    // TODO(dmercadier): remove once turboshaft_instruction_selection is the
+    // default. We currently set it manually so that
+    // LoadStoreSimplificationReducer triggers lowering of Stores/Loads (and
+    // anyways, these tests always go through GenerateTurboshaftCodeForTesting,
+    // which uses the Turboshaft instruction selector without even checking
+    // v8_flags.turboshaft_instruction_selection).
+    v8_flags.turboshaft_instruction_selection = true;
+  }
 
   compiler::PipelineData* pipeline_data() { return &pipeline_data_; }
 
@@ -61,6 +73,7 @@ class DataHolder {
   ZoneStats zone_stats_;
   compiler::PipelineData pipeline_data_;
   turboshaft::PipelineData& ts_pipeline_data_;
+  turboshaft::PipelineData::Scope ts_data_scope_;
   CallDescriptor* descriptor_;
 };
 
@@ -68,9 +81,7 @@ template <typename ReturnType>
 class RawMachineAssemblerTester : public HandleAndZoneScope,
                                   public CallHelper<ReturnType>,
                                   public DataHolder,
-                                  public TSAssembler<> {
-  using Assembler = TSAssembler<>;
-
+                                  public BaseAssembler {
  public:
   template <typename... ParamMachTypes>
   explicit RawMachineAssemblerTester(ParamMachTypes... p)
@@ -80,8 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         DataHolder(main_isolate(), main_zone(), MachineTypeForC<ReturnType>(),
                    p...),
-        TSAssembler<>(graph(), graph(), zone()),
-        data_scope_(ts_pipeline_data()) {
+        BaseAssembler(graph(), graph(), zone()) {
     Init();
   }
 
@@ -93,9 +103,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         DataHolder(main_isolate(), main_zone(), MachineTypeForC<ReturnType>(),
                    p...),
-        TSAssembler<>(graph(), graph(), zone()),
-        kind_(kind),
-        data_scope_(ts_pipeline_data()) {
+        BaseAssembler(graph(), graph(), zone()),
+        kind_(kind) {
     Init();
   }
 
@@ -127,37 +136,35 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     return Parameter(i, RegisterRepresentation::FromMachineType(
                             call_descriptor()->GetParameterType(i)));
   }
+
   OpIndex PointerConstant(void* value) {
     return IntPtrConstant(reinterpret_cast<intptr_t>(value));
   }
+
+  using Assembler::Load;
   OpIndex LoadFromPointer(void* address, MachineType type, int32_t offset = 0) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-    // These architectures require a valid Index and no offset.
-    return Load(PointerConstant(address), IntPtrConstant(offset),
-                LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::FromMachineType(type));
-#else
-    // Otherwise, we can use an offset instead of an Index.
     return Load(PointerConstant(address), LoadOp::Kind::RawAligned(),
                 MemoryRepresentation::FromMachineType(type), offset);
-#endif
   }
+  OpIndex Load(MachineType type, OpIndex base) {
+    MemoryRepresentation mem_rep = MemoryRepresentation::FromMachineType(type);
+    return Load(base, LoadOp::Kind::RawAligned(), mem_rep);
+  }
+
+  using Assembler::Store;
   void StoreToPointer(void* address, MachineRepresentation rep, OpIndex value) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-    // These architectures require a valid Index and no offset.
-    return Store(PointerConstant(address), IntPtrConstant(0), value,
-                 StoreOp::Kind::RawAligned(),
-                 MemoryRepresentation::FromMachineRepresentation(rep),
-                 WriteBarrierKind::kNoWriteBarrier);
-#else
     // Otherwise, we can use an offset instead of an Index.
     return Store(PointerConstant(address), value, StoreOp::Kind::RawAligned(),
                  MemoryRepresentation::FromMachineRepresentation(rep),
                  WriteBarrierKind::kNoWriteBarrier);
-#endif
   }
+  void Store(MachineRepresentation rep, OpIndex base, OpIndex value,
+             WriteBarrierKind write_barrier) {
+    MemoryRepresentation mem_rep =
+        MemoryRepresentation::FromMachineRepresentation(rep);
+    Store(base, value, StoreOp::Kind::RawAligned(), mem_rep, write_barrier);
+  }
+
   V<Word32> Int32GreaterThan(V<Word32> a, V<Word32> b) {
     return Int32LessThan(b, a);
   }
@@ -191,7 +198,6 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   CodeKind kind_ = CodeKind::FOR_TESTING;
   MaybeHandle<Code> code_;
-  turboshaft::PipelineData::Scope data_scope_;
 };
 
 template <typename ReturnType>
@@ -203,14 +209,15 @@ class BufferedRawMachineAssemblerTester
       : RawMachineAssemblerTester<int32_t>(
             MachineType::Pointer(), ((void)p, MachineType::Pointer())...),
         test_graph_signature_(
-            CSignature::New(this->main_zone(), MachineType::Int32(), p...)),
-        return_parameter_index_(sizeof...(p)) {
+            CSignature::New(this->main_zone(), MachineType::Int32(), p...)) {
     static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
                   "increase parameter_nodes_ array");
     std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
-      parameter_nodes_[i] = Load(p_arr[i], Parameter(i));
+      parameter_nodes_[i] = Load(
+          p_arr[i], RawMachineAssemblerTester::Parameter(static_cast<int>(i)));
     }
+    return_param_ = RawMachineAssemblerTester::Parameter(sizeof...(p));
   }
 
   Address Generate() override { return RawMachineAssemblerTester::Generate(); }
@@ -233,15 +240,14 @@ class BufferedRawMachineAssemblerTester
     if (COMPRESS_POINTERS_BOOL && MachineTypeForC<ReturnType>().IsTagged()) {
       // Since we are returning values via storing to off-heap location
       // generate full-word store here.
-      Store(MachineType::PointerRepresentation(),
-            Parameter(return_parameter_index_), BitcastTaggedToWordPtr(input),
-            kNoWriteBarrier);
+      Store(MachineType::PointerRepresentation(), return_param_,
+            BitcastTaggedToWordPtr(input), kNoWriteBarrier);
 
     } else {
-      Store(MachineTypeForC<ReturnType>().representation(),
-            Parameter(return_parameter_index_), input, kNoWriteBarrier);
+      Store(MachineTypeForC<ReturnType>().representation(), return_param_,
+            input, kNoWriteBarrier);
     }
-    Return(Word32Constant(1234));
+    BaseAssembler::Return(Word32Constant(1234));
   }
 
   template <typename... Params>
@@ -259,7 +265,7 @@ class BufferedRawMachineAssemblerTester
  private:
   CSignature* test_graph_signature_;
   OpIndex parameter_nodes_[4];
-  uint32_t return_parameter_index_;
+  OpIndex return_param_;
 };
 
 template <>
@@ -436,21 +442,19 @@ class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
                                                MachineType::AnyTagged()) {}
 };
 
-#if 0
-
 #define BINOP_LIST(V) \
   V(Word32Add)        \
   V(Word32Sub)        \
   V(Word32Mul)        \
-  V(Word32And)        \
-  V(Word32Or)         \
-  V(Word32Xor)        \
+  V(Word32BitwiseAnd) \
+  V(Word32BitwiseOr)  \
+  V(Word32BitwiseXor) \
   V(Word64Add)        \
   V(Word64Sub)        \
   V(Word64Mul)        \
-  V(Word64And)        \
-  V(Word64Or)         \
-  V(Word64Xor)
+  V(Word64BitwiseAnd) \
+  V(Word64BitwiseOr)  \
+  V(Word64BitwiseXor)
 
 enum class TurboshaftBinop {
 #define DEF(kind) k##kind,
@@ -463,41 +467,24 @@ enum class TurboshaftBinop {
 template <typename T>
 class IntBinopWrapper {
  public:
-  explicit IntBinopWrapper(TurboshaftBinop kind) : kind(kind) {}
+  explicit IntBinopWrapper(TurboshaftBinop op) : op(op) {}
 
-  const Operator* op(MachineOperatorBuilder* machine) const {
-    switch (opcode) {
-      case IrOpcode::kInt32Add:
-        return machine->Int32Add();
-      case IrOpcode::kInt32Sub:
-        return machine->Int32Sub();
-      case IrOpcode::kInt32Mul:
-        return machine->Int32Mul();
-      case IrOpcode::kWord32And:
-        return machine->Word32And();
-      case IrOpcode::kWord32Or:
-        return machine->Word32Or();
-      case IrOpcode::kWord32Xor:
-        return machine->Word32Xor();
-      case IrOpcode::kInt64Add:
-        return machine->Int64Add();
-      case IrOpcode::kInt64Sub:
-        return machine->Int64Sub();
-      case IrOpcode::kInt64Mul:
-        return machine->Int64Mul();
-      case IrOpcode::kWord64And:
-        return machine->Word64And();
-      case IrOpcode::kWord64Or:
-        return machine->Word64Or();
-      case IrOpcode::kWord64Xor:
-        return machine->Word64Xor();
-      default:
-        UNREACHABLE();
+  OpIndex MakeNode(BaseAssembler& m, OpIndex a, OpIndex b) {
+    return MakeNode(&m, a, b);
+  }
+
+  OpIndex MakeNode(BaseAssembler* m, OpIndex a, OpIndex b) {
+    switch (op) {
+#define CASE(kind)               \
+  case TurboshaftBinop::k##kind: \
+    return m->kind(a, b);
+      BINOP_LIST(CASE)
+#undef CASE
     }
   }
 
   T eval(T a, T b) const {
-    switch (kind) {
+    switch (op) {
       case TurboshaftBinop::kWord32Add:
       case TurboshaftBinop::kWord64Add:
         return a + b;
@@ -507,21 +494,19 @@ class IntBinopWrapper {
       case TurboshaftBinop::kWord32Mul:
       case TurboshaftBinop::kWord64Mul:
         return a * b;
-      case TurboshaftBinop::kWord32And:
-      case TurboshaftBinop::kWord64And:
+      case TurboshaftBinop::kWord32BitwiseAnd:
+      case TurboshaftBinop::kWord64BitwiseAnd:
         return a & b;
-      case TurboshaftBinop::kWord32Or:
-      case TurboshaftBinop::kWord64Or:
+      case TurboshaftBinop::kWord32BitwiseOr:
+      case TurboshaftBinop::kWord64BitwiseOr:
         return a | b;
-      case TurboshaftBinop::kWord32Xor:
-      case TurboshaftBinop::kWord64Xor:
+      case TurboshaftBinop::kWord32BitwiseXor:
+      case TurboshaftBinop::kWord64BitwiseXor:
         return a ^ b;
     }
   }
-  TurboshaftBinop kind;
+  TurboshaftBinop op;
 };
-
-#endif
 
 #define COMPARE_LIST(V)    \
   V(Word32Equal)           \
@@ -550,8 +535,10 @@ class CompareWrapper {
  public:
   explicit CompareWrapper(TurboshaftComparison op) : op(op) {}
 
-  V<Word32> MakeNode(RawMachineAssemblerTester<int32_t>* m, OpIndex a,
-                     OpIndex b) {
+  V<Word32> MakeNode(BaseAssembler& m, OpIndex a, OpIndex b) {
+    return MakeNode(&m, a, b);
+  }
+  V<Word32> MakeNode(BaseAssembler* m, OpIndex a, OpIndex b) {
     switch (op) {
 #define CASE(kind)                    \
   case TurboshaftComparison::k##kind: \

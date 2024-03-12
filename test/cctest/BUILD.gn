@@ -204,6 +204,7 @@ v8_source_set("cctest_sources") {
       "compiler/turboshaft-codegen-tester.cc",
       "compiler/turboshaft-codegen-tester.h",
       "compiler/turboshaft-test-branch-combine.cc",
+      "compiler/turboshaft-test-select-combine.cc",
       "setup-isolate-for-tests.cc",
       "setup-isolate-for-tests.h",
       "test-accessor-assembler.cc",

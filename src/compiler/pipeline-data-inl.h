@@ -390,7 +390,6 @@ class PipelineData {
     jsgraph_ = nullptr;
     mcgraph_ = nullptr;
     schedule_ = nullptr;
-    DCHECK(!turboshaft::PipelineData::HasScope());
     graph_zone_scope_.Destroy();
   }
 
