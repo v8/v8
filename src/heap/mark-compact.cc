@@ -5225,7 +5225,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
           auto tag = IndirectPointerTagFromInstanceType(instance_type);
-          tpt->Set(handle, relocated_object.address(), tag);
+          tpt->Set(handle, relocated_object.ptr(), tag);
         }
       });
 

@@ -358,7 +358,7 @@ Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
-  return Tagged<Object>(table.Get(handle));
+  return Tagged<Object>(table.Get(handle, tag_));
 }
 
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(

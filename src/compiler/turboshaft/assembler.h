@@ -2202,11 +2202,11 @@ class TurboshaftAssemblerOpInterface
     V<WordPtr> decoded_ptr =
         Load(table, table_offset, LoadOp::Kind::RawAligned(),
              MemoryRepresentation::UintPtr());
-    // TODO(saelo): Mask out the tag once we encode it in the table.
-    USE(tag);
 
-    // Always set the tagged bit, used as a marking bit in that table.
-    decoded_ptr = Word64BitwiseOr(decoded_ptr, kHeapObjectTag);
+    // Untag the pointer and remove the marking bit in one operation.
+    decoded_ptr =
+        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
+
     // Bitcast to tagged to this gets scanned by the GC properly.
     return BitcastWordPtrToTagged(decoded_ptr);
 #else

@@ -594,9 +594,10 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   movq(destination,
        Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
   movq(destination, Operand{destination, handle, times_8, 0});
-  // The LSB is used as marking bit by the trusted pointer table, so here we
-  // have to set it using a bitwise OR as it may or may not be set.
-  orq(destination, Immediate(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  Register tag_reg = handle;
+  movq(tag_reg, Immediate64(~(tag | kTrustedPointerTableMarkBit)));
+  andq(destination, tag_reg);
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,

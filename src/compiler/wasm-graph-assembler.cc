@@ -220,11 +220,9 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(Node* handle,
                      IsolateData::trusted_pointer_table_offset() +
                          Internals::kTrustedPointerTableBasePointerOffset);
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
-  // Mask out the tag.
-  // TODO(saelo): Enable this once we tag pointers in the trusted table.
-  // decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(~tag));
-  // Always set the tagged bit, used as a marking bit in that table.
-  decoded_ptr = WordOr(decoded_ptr, IntPtrConstant(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  decoded_ptr = WordAnd(decoded_ptr,
+                        IntPtrConstant(~(tag | kTrustedPointerTableMarkBit)));
   // We have to change the type of the result value to Tagged, so if the value
   // gets spilled on the stack, it will get processed by the GC.
   decoded_ptr = BitcastWordToTagged(decoded_ptr);

@@ -1921,10 +1921,9 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   TNode<UintPtrT> offset = ChangeUint32ToWord(Word32Shl(
       index, UniqueUint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // The LSB is used as marking bit by the code pointer table, so here we have
-  // to set it using a bitwise OR as it may or may not be set.
-  value =
-      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
+  // Untag the pointer and remove the marking bit in one operation.
+  value = UncheckedCast<UintPtrT>(
+      WordAnd(value, UintPtrConstant(~(tag | kTrustedPointerTableMarkBit))));
   return UncheckedCast<TrustedObject>(BitcastWordToTagged(value));
 }
 
