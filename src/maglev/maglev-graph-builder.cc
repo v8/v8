@@ -5783,6 +5783,14 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   StoreRegisterPair(register_pair, result);
 }
 
+namespace {
+void ForceEscapeIfAllocation(ValueNode* value) {
+  if (InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+    alloc->ForceEscape();
+  }
+}
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
                                               ValueNode* function,
                                               ValueNode* new_target,
@@ -5796,28 +5804,39 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   // Set receiver.
   ValueNode* receiver =
       GetRawConvertReceiver(compilation_unit_->shared_function_info(), args);
-  if (InlinedAllocation* alloc = receiver->TryCast<InlinedAllocation>()) {
-    // The inlined function could call a builtin that iterates the frame, the
-    // receiver needs to have been materialized.
-    // TODO(victorgomes): Can we relax this requirement? Maybe we can allocate
-    // the object lazily? This is also only required if the inlined function
-    // is not a leaf (ie. it calls other functions).
-    alloc->ForceEscape();
-  }
   SetArgument(0, receiver);
+
+  // The inlined function could call a builtin that iterates the frame, the
+  // receiver needs to have been materialized.
+  // TODO(victorgomes): Can we relax this requirement? Maybe we can allocate the
+  // object lazily? This is also only required if the inlined function is not a
+  // leaf (ie. it calls other functions).
+  ForceEscapeIfAllocation(receiver);
+
   // Set remaining arguments.
   RootConstant* undefined_constant =
       GetRootConstant(RootIndex::kUndefinedValue);
-  for (int i = 1; i < parameter_count(); i++) {
-    ValueNode* arg_value = args[i - 1];
-    if (arg_value == nullptr) arg_value = undefined_constant;
-    SetArgument(i, arg_value);
-  }
-
   int arg_count = static_cast<int>(args.count());
   int formal_parameter_count =
       compilation_unit_->shared_function_info()
           .internal_formal_parameter_count_without_receiver();
+  for (int i = 0; i < formal_parameter_count; i++) {
+    ValueNode* arg_value = args[i];
+    if (arg_value == nullptr) arg_value = undefined_constant;
+    SetArgument(i + 1, arg_value);
+    // Escape values that could be stored in an arguments object.
+    // TODO(victorgomes): This is probably only needed in sloopy mode.
+    ForceEscapeIfAllocation(arg_value);
+  }
+
+  for (int i = formal_parameter_count; i < arg_count; i++) {
+    // Escape extra arguments.
+    // TODO(victorgomes): This is probably only needed in sloopy mode.
+    ForceEscapeIfAllocation(args[i]);
+  }
+
+  // Save all arguments if we have a mismatch between arguments count and
+  // parameter count.
   if (arg_count != formal_parameter_count) {
     inlined_arguments_.emplace(
         zone()->AllocateVector<ValueNode*>(arg_count + 1));
