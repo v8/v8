@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5e8aba5d3228895540c7f87db3e56a29065ca7c6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29a8709a6d130096a67ee02473d9e2682699ad11',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9491ff1efcb98797b3989a454c3bb721272689e5',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2f8033eb3b167a6744b5f8ee7212ff655c298c14',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8180c278e7694070dee365bb2a658cf9f9224f09',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '29e08c1737507596dbc222b74a274b53137a23e3',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6ec5a9ab6086ec6f043cd7aab1f1744eb58b17f7',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'bddcd9f77ba0a81a99ce50bcadf5149efe545df0',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e1a38bc3707741d249fa22d2064552a08e37555b',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b479e7a3c161d7087113a05f8cb034b870313a55',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libraries':
@@ -356,7 +356,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '51564d23de4abfca962b61d413a2da48a6216ba8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b3ae305fd5dbc6ad41eed9add26768c29181219f',
     'condition': 'not build_with_chromium',
   }
 }
