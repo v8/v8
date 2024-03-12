@@ -1479,6 +1479,8 @@ DEFINE_INT(
 DEFINE_BOOL(trace_wasm_compilation_times, false,
             "print how long it took to compile each wasm function")
 DEFINE_INT(wasm_tier_up_filter, -1, "only tier-up function with this index")
+DEFINE_INT(wasm_eager_tier_up_function, -1,
+           "eagerly tier-up function with this index")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,

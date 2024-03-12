@@ -3682,6 +3682,19 @@ void CompilationStateImpl::InitializeCompilationProgress(
     }
   }
 
+  // Transform --wasm-eager-tier-up-function, if given, into a fake
+  // compilation hint.
+  if (V8_UNLIKELY(v8_flags.wasm_eager_tier_up_function >= 0 &&
+                  static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
+                      module->num_imported_functions)) {
+    uint32_t func_idx =
+        v8_flags.wasm_eager_tier_up_function - module->num_imported_functions;
+    WasmCompilationHint hint{WasmCompilationHintStrategy::kEager,
+                             WasmCompilationHintTier::kOptimized,
+                             WasmCompilationHintTier::kOptimized};
+    ApplyCompilationHintToInitialProgress(hint, func_idx);
+  }
+
   // Apply PGO information, if available.
   if (pgo_info) ApplyPgoInfoToInitialProgress(pgo_info);
 
