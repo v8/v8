@@ -660,7 +660,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), GetCodeKind(result),
+        result.source_positions.as_vector(),
+        result.inlining_positions.as_vector(), GetCodeKind(result),
         wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
     wasm_code = native_module->PublishCode(std::move(compiled_code));
     isolate->counters()->wasm_generated_code_size()->Increment(

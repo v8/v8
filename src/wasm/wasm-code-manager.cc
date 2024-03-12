@@ -1073,10 +1073,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
     base::Vector<const uint8_t> protected_instructions_data,
-    base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
+    base::Vector<const uint8_t> source_position_table,
+    base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<uint8_t> code_space;
-  base::Vector<uint8_t> inlining_positions;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};

@@ -4497,7 +4497,8 @@ WasmCode* CompileImportWrapper(
       result.func_index, result.code_desc, result.frame_slot_count,
       result.tagged_parameter_slots,
       result.protected_instructions_data.as_vector(),
-      result.source_positions.as_vector(), GetCodeKind(result),
+      result.source_positions.as_vector(),
+      result.inlining_positions.as_vector(), GetCodeKind(result),
       ExecutionTier::kNone, kNotForDebugging);
   WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
   (*cache_scope)[key] = published_code;

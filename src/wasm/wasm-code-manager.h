@@ -510,7 +510,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int index, const CodeDesc& desc, int stack_slots,
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions,
-      base::Vector<const uint8_t> source_position_table, WasmCode::Kind kind,
+      base::Vector<const uint8_t> source_position_table,
+      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
