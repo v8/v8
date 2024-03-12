@@ -57,7 +57,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.132.0.1a8ff94-gomaip',
+  'reclient_version': 're_client_version:0.134.1.2c9285b-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -80,7 +80,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:8632c71c8cadd9cb9ea4d43e6b30eeae4dffcd12',
+  'siso_version': 'git_revision:110b1d8c0528de153cef259f09f3dc5ee627e6cb',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:623f8d17a069eaea6d0fca13147888284ec76ff1',
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29a8709a6d130096a67ee02473d9e2682699ad11',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8a71ad60d1f8756faa424639cb99258d9ca377f2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9491ff1efcb98797b3989a454c3bb721272689e5',
   'buildtools/linux64': {
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6ec5a9ab6086ec6f043cd7aab1f1744eb58b17f7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fe6a359a803f55829ede3666215d080f6775f173',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
