@@ -347,10 +347,9 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
   LoadU64(dst, liftoff::GetInstanceDataOperand(), r0);
 }
 
-void LiftoffAssembler::LoadTrustedDataFromInstanceObject(
-    Register dst, Register instance_object) {
-  MemOperand src{instance_object, wasm::ObjectAccess::ToTagged(
-                                      WasmInstanceObject::kTrustedDataOffset)};
+void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
+                                          int offset, IndirectPointerTag tag) {
+  MemOperand src{src_addr, offset};
   LoadTrustedPointerField(dst, src, kWasmTrustedInstanceDataIndirectPointerTag,
                           r0);
 }
