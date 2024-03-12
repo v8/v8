@@ -37,8 +37,12 @@ using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
 using compiler::Operator;
 using compiler::TrapId;
+using TSBlock = compiler::turboshaft::Block;
+using compiler::turboshaft::BuiltinCallDescriptor;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
+using compiler::turboshaft::ConstantOp;
+using compiler::turboshaft::ConstOrV;
 using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
@@ -58,16 +62,13 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
+using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::WasmTypeAnnotationOp;
-using compiler::turboshaft::WordRepresentation;
-using TSBlock = compiler::turboshaft::Block;
-using compiler::turboshaft::BuiltinCallDescriptor;
-using compiler::turboshaft::ConstOrV;
-using compiler::turboshaft::V;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::WordPtr;
+using compiler::turboshaft::WordRepresentation;
 
 namespace {
 
@@ -6048,7 +6049,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // We already checked that offset is below the max memory size.
     DCHECK_LT(offset, memory->max_memory_size);
 
-    // TODO(14108): Optimize constant index as per wasm-compiler.cc.
+    uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
+
+    if (end_offset <= memory->min_memory_size &&
+        __ output_graph().Get(index).Is<ConstantOp>()) {
+      ConstantOp& constant_index_op =
+          __ output_graph().Get(index).Cast<ConstantOp>();
+      uintptr_t constant_index = memory->is_memory64
+                                     ? constant_index_op.word64()
+                                     : constant_index_op.word32();
+      if (constant_index < memory->min_memory_size - end_offset) {
+        return {converted_index, compiler::BoundsCheckResult::kInBounds};
+      }
+    }
 
     using Implementation = compiler::turboshaft::SelectOp::Implementation;
     if (bounds_checks == kTrapHandler &&
@@ -6068,8 +6081,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }
-
-    uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
 
     V<WordPtr> memory_size = MemSize(memory->index);
     if (end_offset > memory->min_memory_size) {
