@@ -228,16 +228,17 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 template <YoungGenerationMarkingVisitationMode marking_mode>
 V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
-    HeapObjectSlot slot, HeapObject* heap_object) {
+    HeapObjectSlot slot, Tagged<HeapObject>* heap_object) {
   DCHECK_EQ(YoungGenerationMarkingVisitationMode::kParallel, marking_mode);
   if (shortcut_strings_) {
     DCHECK(V8_STATIC_ROOTS_BOOL);
 #if V8_STATIC_ROOTS_BOOL
-    ObjectSlot map_slot = heap_object->map_slot();
+    ObjectSlot map_slot = (*heap_object)->map_slot();
     Address map_address = map_slot.load_map().ptr();
     if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
         map_address == StaticReadOnlyRoot::kThinTwoByteStringMap) {
-      DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
+      DCHECK_EQ((*heap_object)
+                    ->map(ObjectVisitorWithCageBases::cage_base())
                     ->visitor_id(),
                 VisitorId::kVisitThinString);
       *heap_object = ThinString::cast(*heap_object)->actual();
@@ -250,7 +251,8 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
                map_address == StaticReadOnlyRoot::kConsTwoByteStringMap) {
       // Not all ConsString are short cut candidates.
       const VisitorId visitor_id =
-          heap_object->map(ObjectVisitorWithCageBases::cage_base())
+          (*heap_object)
+              ->map(ObjectVisitorWithCageBases::cage_base())
               ->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
         Tagged<ConsString> string = ConsString::cast(*heap_object);

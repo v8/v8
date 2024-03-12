@@ -824,6 +824,8 @@ DEFINE_BOOL(trace_protector_invalidation, false,
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 DEFINE_BOOL(minor_ms_shortcut_strings, false,
             "short cut strings during marking")
+// String shortcutting currently doesn't work with concurrent marking.
+DEFINE_NEG_IMPLICATION(minor_ms_shortcut_strings, concurrent_minor_ms_marking)
 #else
 DEFINE_BOOL_READONLY(minor_ms_shortcut_strings, false,
                      "short cut strings during marking")

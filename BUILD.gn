@@ -877,6 +877,7 @@ external_v8_defines = [
   "V8_IS_TSAN",
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
   "V8_ENABLE_DIRECT_LOCAL",
+  "V8_MINORMS_STRING_SHORTCUTTING",
 ]
 
 enabled_external_v8_defines = []

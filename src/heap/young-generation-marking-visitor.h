@@ -110,7 +110,8 @@ class YoungGenerationMarkingVisitor final
                                    TSlot end);
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
-  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
+  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot,
+                                 Tagged<HeapObject>* heap_object);
 #endif  // V8_MINORMS_STRING_SHORTCUTTING
 
   template <typename T>
