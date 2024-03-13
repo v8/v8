@@ -549,6 +549,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   Handle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
       ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
+  if (num_elements == 0) return *result;
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> elements = FixedArray::cast(result->elements());
