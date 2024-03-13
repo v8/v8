@@ -2525,18 +2525,22 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing
         // +0 and -0.
+        // Note: for JavaScript, it would be fine to return true when both
+        // values are NaNs, but for Wasm we must not merge NaNs that way.
+        // Since we canonicalize NaNs for JS anyway, we don't need to treat
+        // them specially here.
         return base::bit_cast<uint32_t>(storage.float32) ==
-                   base::bit_cast<uint32_t>(other.storage.float32) ||
-               (std::isnan(storage.float32) &&
-                std::isnan(other.storage.float32));
+               base::bit_cast<uint32_t>(other.storage.float32);
       case Kind::kFloat64:
       case Kind::kNumber:
         // Using a bit_cast to uint64_t in order to return false when comparing
         // +0 and -0.
+        // Note: for JavaScript, it would be fine to return true when both
+        // values are NaNs, but for Wasm we must not merge NaNs that way.
+        // Since we canonicalize NaNs for JS anyway, we don't need to treat
+        // them specially here.
         return base::bit_cast<uint64_t>(storage.float64) ==
-                   base::bit_cast<uint64_t>(other.storage.float64) ||
-               (std::isnan(storage.float64) &&
-                std::isnan(other.storage.float64));
+               base::bit_cast<uint64_t>(other.storage.float64);
       case Kind::kExternal:
         return storage.external.address() == other.storage.external.address();
       case Kind::kHeapObject:
