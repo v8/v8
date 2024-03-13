@@ -7620,11 +7620,25 @@ v8_executable("cppgc_hello_world") {
 }
 
 template("v8_fuzzer") {
-  name = target_name
-  forward_variables_from(invoker, "*")
-  v8_executable("v8_simple_" + name) {
+  fuzzer_name = target_name
+
+  v8_source_set(fuzzer_name) {
+    sources = invoker.sources
+
+    deps = [ ":fuzzer_support" ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_executable("v8_simple_${fuzzer_name}") {
     deps = [
-      ":" + name,
+      ":${fuzzer_name}",
       "//build/win:default_exe_manifest",
     ]
 
@@ -7634,61 +7648,21 @@ template("v8_fuzzer") {
   }
 }
 
-v8_source_set("json_fuzzer") {
-  sources = [ "test/fuzzer/json.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
 v8_fuzzer("json_fuzzer") {
-}
-
-v8_source_set("parser_fuzzer") {
-  sources = [ "test/fuzzer/parser.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
+  sources = [ "test/fuzzer/json.cc" ]
 }
 
 v8_fuzzer("parser_fuzzer") {
-}
-
-v8_source_set("regexp_fuzzer") {
-  sources = [ "test/fuzzer/regexp.cc" ]
-
-  deps = [ ":fuzzer_support" ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
+  sources = [ "test/fuzzer/parser.cc" ]
 }
 
 v8_fuzzer("regexp_fuzzer") {
+  sources = [ "test/fuzzer/regexp.cc" ]
 }
 
 if (v8_enable_webassembly) {
-  v8_source_set("multi_return_fuzzer") {
-    sources = [ "test/fuzzer/multi-return.cc" ]
-
-    deps = [ ":fuzzer_support" ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
   v8_fuzzer("multi_return_fuzzer") {
+    sources = [ "test/fuzzer/multi-return.cc" ]
   }
 
   v8_source_set("wasm_test_common") {
@@ -7719,64 +7693,7 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_source_set("wasm_fuzzer") {
-    sources = [ "test/fuzzer/wasm.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_fuzzer") {
-  }
-
-  v8_source_set("wasm_async_fuzzer") {
-    sources = [ "test/fuzzer/wasm-async.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_async_fuzzer") {
-  }
-
-  v8_source_set("wasm_code_fuzzer") {
-    sources = [
-      "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-code.cc",
-    ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
-  v8_fuzzer("wasm_code_fuzzer") {
-  }
-
-  v8_source_set("lib_wasm_fuzzer_common") {
+  v8_source_set("wasm_fuzzer_common") {
     sources = [
       "test/fuzzer/wasm-fuzzer-common.cc",
       "test/fuzzer/wasm-fuzzer-common.h",
@@ -7802,100 +7719,57 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_source_set("wasm_compile_fuzzer") {
+  template("v8_wasm_fuzzer") {
+    forward_variables_from(invoker, "*")
+    v8_fuzzer(target_name) {
+      deps = [
+        ":wasm_fuzzer_common",
+        ":wasm_test_common",
+      ]
+    }
+  }
+
+  v8_wasm_fuzzer("wasm_fuzzer") {
+    sources = [ "test/fuzzer/wasm.cc" ]
+  }
+
+  v8_wasm_fuzzer("wasm_async_fuzzer") {
+    sources = [ "test/fuzzer/wasm-async.cc" ]
+  }
+
+  v8_wasm_fuzzer("wasm_code_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-code.cc",
+    ]
+  }
+
+  v8_wasm_fuzzer("wasm_compile_fuzzer") {
     sources = [
       "test/common/wasm/test-signatures.h",
       "test/fuzzer/wasm-compile.cc",
     ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
 
-  v8_fuzzer("wasm_compile_fuzzer") {
-  }
-
-  v8_source_set("wasm_compile_simd_fuzzer") {
+  v8_wasm_fuzzer("wasm_compile_simd_fuzzer") {
     sources = [
       "test/common/wasm/test-signatures.h",
       "test/fuzzer/wasm-compile-simd.cc",
     ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
 
-  v8_fuzzer("wasm_compile_simd_fuzzer") {
-  }
-
-  v8_source_set("wasm_streaming_fuzzer") {
+  v8_wasm_fuzzer("wasm_streaming_fuzzer") {
     sources = [ "test/fuzzer/wasm-streaming.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
 
-  v8_fuzzer("wasm_streaming_fuzzer") {
-  }
-
-  v8_source_set("wasm_init_expr_fuzzer") {
+  v8_wasm_fuzzer("wasm_init_expr_fuzzer") {
     sources = [ "test/fuzzer/wasm-init-expr.cc" ]
-
-    deps = [
-      ":fuzzer_support",
-      ":lib_wasm_fuzzer_common",
-      ":wasm_test_common",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
   }
-
-  v8_fuzzer("wasm_init_expr_fuzzer") {
-  }
-}
-
-v8_source_set("inspector_fuzzer") {
-  sources = [ "test/fuzzer/inspector-fuzzer.cc" ]
-
-  deps = [
-    ":fuzzer_support",
-    "test/inspector:inspector_test",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
 }
 
 v8_fuzzer("inspector_fuzzer") {
+  sources = [ "test/fuzzer/inspector-fuzzer.cc" ]
+  deps = [ "test/inspector:inspector_test" ]
 }
 
 # Target to build all generated .cc files.
