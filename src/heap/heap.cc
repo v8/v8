@@ -407,7 +407,8 @@ size_t Heap::OldGenerationCapacity() const {
   if (shared_lo_space_) {
     total += shared_lo_space_->SizeOfObjects();
   }
-  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
+  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects() +
+         trusted_lo_space_->SizeOfObjects();
 }
 
 size_t Heap::CommittedOldGenerationMemory() {
@@ -2629,8 +2630,9 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
 
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
-  } else if (HasLowYoungGenerationAllocationRate() &&
-             old_generation_allocation_limit_configured()) {
+  } else {
+    DCHECK(HasLowYoungGenerationAllocationRate() &&
+           old_generation_allocation_limit_configured());
     size_t new_old_generation_allocation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
@@ -5174,7 +5176,8 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   if (shared_lo_space_) {
     total += shared_lo_space_->SizeOfObjects();
   }
-  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
+  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects() +
+         trusted_lo_space_->SizeOfObjects();
 }
 
 size_t Heap::YoungGenerationSizeOfObjects() const {
