@@ -99,7 +99,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       set_switch_jump_table();
       break;
     case CodeKind::C_WASM_ENTRY:
-    case CodeKind::JS_TO_JS_FUNCTION:
     case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
       break;

@@ -834,8 +834,6 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::JS_TO_WASM;
       }
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
-    case CodeKind::JS_TO_JS_FUNCTION:
-      return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     case CodeKind::WASM_TO_JS_FUNCTION:
@@ -846,7 +844,6 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       UNREACHABLE();
 #else
     case CodeKind::C_WASM_ENTRY:
-    case CodeKind::JS_TO_JS_FUNCTION:
     case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:

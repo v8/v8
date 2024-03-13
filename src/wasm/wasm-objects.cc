@@ -2335,20 +2335,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   int parameter_count = static_cast<int>(sig->parameter_count());
   Handle<PodArray<wasm::ValueType>> serialized_sig =
       wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig);
-  // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
-  // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code;
-  if (!v8_flags.wasm_js_js_generic_wrapper) {
-    wrapper_code =
-        compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
-  } else {
     if (wasm::IsJSCompatibleSignature(sig)) {
       wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToJSWrapper);
     } else {
       wrapper_code =
           isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
     }
-  }
 
   // WasmJSFunctions use on-heap Code objects as call targets, so we can't
   // cache the target address, unless the WasmJSFunction wraps a

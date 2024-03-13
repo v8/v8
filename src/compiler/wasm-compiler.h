@@ -99,12 +99,6 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          int expected_arity,
                                          wasm::Suspend suspend);
 
-// Compiles a stub with JS linkage that serves as an adapter for function
-// objects constructed via {WebAssembly.Function}. It performs a round-trip
-// simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
-MaybeHandle<Code> CompileJSToJSWrapper(Isolate*, const wasm::FunctionSig*,
-                                       const wasm::WasmModule* module);
-
 enum CWasmEntryParameters {
   kCodeEntry,
   kObjectRef,

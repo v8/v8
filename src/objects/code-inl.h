@@ -694,7 +694,6 @@ CodeEntrypointTag Code::entrypoint_tag() const {
     case CodeKind::WASM_TO_JS_FUNCTION:
       return kWasmEntrypointTag;
     case CodeKind::JS_TO_WASM_FUNCTION:
-    case CodeKind::JS_TO_JS_FUNCTION:
       return kJSEntrypointTag;
     default:
       // TODO(saelo): eventually we'll want this to be UNREACHABLE().

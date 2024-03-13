@@ -24,7 +24,6 @@ namespace internal {
   V(WASM_TO_CAPI_FUNCTION) \
   V(WASM_TO_JS_FUNCTION)   \
   V(JS_TO_WASM_FUNCTION)   \
-  V(JS_TO_JS_FUNCTION)     \
   V(C_WASM_ENTRY)          \
   V(INTERPRETED_FUNCTION)  \
   V(BASELINE)              \

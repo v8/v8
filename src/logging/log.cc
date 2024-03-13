@@ -2459,10 +2459,6 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
       description = "A JavaScript to Wasm adapter";
       tag = CodeTag::kStub;
       break;
-    case CodeKind::JS_TO_JS_FUNCTION:
-      description = "A WebAssembly.Function adapter";
-      tag = CodeTag::kStub;
-      break;
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       description = "A Wasm to C-API adapter";
       tag = CodeTag::kStub;
