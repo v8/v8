@@ -9267,11 +9267,59 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   return allocation;
 }
 
+ValueNode* MaglevGraphBuilder::BuildArgumentsElements(
+    FastArgumentsObject arguments, ValueNode* arguments_length,
+    AllocationType allocation_type) {
+  switch (arguments.type) {
+    case FastArgumentsObject::kDefault:
+      return arguments.elements;
+    case FastArgumentsObject::kSloppyWithMappedArguments: {
+      int allocation_size = SloppyArgumentsElements::SizeFor(
+          arguments.sloppy_elements.mapped_count);
+      InlinedAllocation* elements = ExtendOrReallocateCurrentAllocationBlock(
+          allocation_size, allocation_type,
+          DeoptObject(arguments.sloppy_elements));
+      // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to
+      // be elided.
+      AddNewNode<StoreMap>({elements},
+                           broker()->sloppy_arguments_elements_map());
+      BuildInitializeStoreTaggedField(
+          elements, GetSmiConstant(arguments.sloppy_elements.mapped_count),
+          FixedArray::kLengthOffset);
+      BuildInitializeStoreTaggedField(elements,
+                                      arguments.sloppy_elements.context,
+                                      SloppyArgumentsElements::kContextOffset);
+      BuildInitializeStoreTaggedField(
+          elements, arguments.sloppy_elements.unmapped_elements,
+          SloppyArgumentsElements::kArgumentsOffset);
+      for (int i = 0; i < arguments.sloppy_elements.mapped_count; i++) {
+        int idx = compilation_unit_->shared_function_info()
+                      .context_parameters_start() +
+                  arguments.sloppy_elements.mapped_count - 1 - i;
+        ValueNode* value = Select<BranchIfInt32Compare>(
+            [&] { return GetSmiConstant(idx); },
+            [&] { return GetConstant(broker()->the_hole_value()); },
+            {GetInt32Constant(i), arguments_length}, Operation::kLessThan);
+        BuildInitializeStoreTaggedField(
+            elements, value,
+            SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize);
+      }
+      return elements;
+    }
+  }
+}
+
 template <CreateArgumentsType type>
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastArgumentsObject object, AllocationType allocation_type) {
   constexpr int store_count =
       type == CreateArgumentsType::kMappedArguments ? 5 : 4;
+  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  ValueNode* length = type == CreateArgumentsType::kRestParameter
+                          ? *object.callee_or_rest_length
+                          : object.length;
+  ValueNode* elements = BuildArgumentsElements(object, length, allocation_type);
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       store_count * kTaggedSize, allocation_type, DeoptObject(object));
   // TODO(victorgomes): Add AddNonEscapingUses for the arguments object to be
@@ -9280,26 +9328,28 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetRootConstant(RootIndex::kEmptyFixedArray)},
       JSObject::kPropertiesOrHashOffset);
-  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
-  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
-  ValueNode* length = type == CreateArgumentsType::kRestParameter
-                          ? *object.callee_or_rest_length
-                          : object.length;
   BuildInitializeStoreTaggedField(allocation, GetTaggedValue(length),
                                   JSArray::kLengthOffset);
   RecordKnownProperty(allocation, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
-  BuildInitializeStoreTaggedField(allocation, object.elements,
+  BuildInitializeStoreTaggedField(allocation, elements,
                                   JSObject::kElementsOffset);
   RecordKnownProperty(allocation,
                       KnownNodeAspects::LoadedPropertyMapKey::Elements(),
-                      object.elements, false, compiler::AccessMode::kLoad);
+                      elements, false, compiler::AccessMode::kLoad);
   if constexpr (type == CreateArgumentsType::kMappedArguments) {
     BuildInitializeStoreTaggedField(allocation, *object.callee_or_rest_length,
                                     JSSloppyArgumentsObject::kCalleeOffset);
   }
   return allocation;
 }
+
+namespace {
+bool CanAllocateSloppyArgumentElements(int parameter_count) {
+  return SloppyArgumentsElements::SizeFor(parameter_count) <=
+         kMaxRegularHeapObjectSize;
+}
+}  // namespace
 
 template <CreateArgumentsType type>
 ValueNode* MaglevGraphBuilder::BuildArgumentsObject() {
@@ -9309,18 +9359,37 @@ ValueNode* MaglevGraphBuilder::BuildArgumentsObject() {
   ValueNode* object;
   switch (type) {
     case CreateArgumentsType::kMappedArguments: {
-      // TODO(victorgomes): Proper support for mapped arguments.
-      DCHECK_EQ(param_count, 0);
-      // If there is no aliasing, the arguments object elements are not
-      // special in any way, we can just return an unmapped backing store.
-      ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
-          {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
-          param_count);
-      FastArgumentsObject arguments(
-          NewObjectId(),
-          broker()->target_native_context().sloppy_arguments_map(broker()),
-          length, elements, GetClosure());
-      object = BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      if (param_count == 0) {
+        // If there is no aliasing, the arguments object elements are not
+        // special in any way, we can just return an unmapped backing store.
+        ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
+            {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
+            param_count);
+        FastArgumentsObject arguments(
+            NewObjectId(),
+            broker()->target_native_context().sloppy_arguments_map(broker()),
+            length, elements, GetClosure());
+        object =
+            BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      } else {
+        // The {unmapped_elements} correspond to the extra arguments
+        // (overapplication) that do not need be "mapped" to the actual
+        // arguments. Mapped arguments are accessed via the context, whereas
+        // unmapped arguments are simply accessed via this fixed array. See
+        // SloppyArgumentsElements in src/object/arguments.h.
+        ArgumentsElements* unmapped_elements = AddNewNode<ArgumentsElements>(
+            {GetTaggedValue(length)}, CreateArgumentsType::kMappedArguments,
+            param_count);
+        FastSloppyArgumentsElements sloppy_elements(
+            NewObjectId(), param_count, GetContext(), unmapped_elements);
+        FastArgumentsObject arguments(
+            NewObjectId(),
+            broker()->target_native_context().fast_aliased_arguments_map(
+                broker()),
+            length, sloppy_elements, GetClosure());
+        object =
+            BuildAllocateFastObject<type>(arguments, AllocationType::kYoung);
+      }
       break;
     }
     case CreateArgumentsType::kUnmappedArguments: {
@@ -9614,8 +9683,8 @@ void MaglevGraphBuilder::VisitCreateMappedArguments() {
   if (is_inline() || shared.object()->has_duplicate_parameters()) {
     SetAccumulator(
         BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
-  } else if (parameter_count_without_receiver() == 0) {
-    // TODO(victorgomes): Support aliased arguments.
+  } else if (CanAllocateSloppyArgumentElements(
+                 parameter_count_without_receiver())) {
     SetAccumulator(
         BuildArgumentsObject<CreateArgumentsType::kMappedArguments>());
   } else {

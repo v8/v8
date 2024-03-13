@@ -33,6 +33,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/objects/arguments.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
@@ -945,20 +946,53 @@ struct FastField {
   };
 };
 
+struct FastSloppyArgumentsElements {
+  FastSloppyArgumentsElements(int id, int mapped_count, ValueNode* context,
+                              ArgumentsElements* unmapped_elements)
+      : id(id),
+        mapped_count(mapped_count),
+        context(context),
+        unmapped_elements(unmapped_elements) {}
+  int id;
+  int mapped_count;
+  ValueNode* context;
+  ArgumentsElements* unmapped_elements;
+};
+
 struct FastArgumentsObject {
+  enum Type {
+    kDefault,
+    kSloppyWithMappedArguments,
+  };
+
   FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
                       ArgumentsElements* elements,
                       base::Optional<ValueNode*> callee_or_rest_length = {})
       : id(id),
+        type(kDefault),
         map(map),
         length(length),
         elements(elements),
         callee_or_rest_length(callee_or_rest_length) {}
 
+  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
+                      FastSloppyArgumentsElements sloppy_elements,
+                      ValueNode* callee = {})
+      : id(id),
+        type(kSloppyWithMappedArguments),
+        map(map),
+        length(length),
+        sloppy_elements(sloppy_elements),
+        callee_or_rest_length(callee) {}
+
   int id;
+  Type type;
   compiler::MapRef map;
   ValueNode* length;
-  ArgumentsElements* elements;
+  union {
+    ArgumentsElements* elements;
+    FastSloppyArgumentsElements sloppy_elements;
+  };
   base::Optional<ValueNode*> callee_or_rest_length;
 };
 
@@ -970,13 +1004,16 @@ struct DeoptObject {
   explicit DeoptObject(Float64 number) : type(kNumber), number(number) {}
   explicit DeoptObject(FastArgumentsObject arguments)
       : type(kArguments), arguments(arguments) {}
+  explicit DeoptObject(FastSloppyArgumentsElements sloppy_elements)
+      : type(kSloppyElements), sloppy_elements(sloppy_elements) {}
 
-  enum { kObject, kNumber, kFixedArray, kArguments } type;
+  enum { kObject, kNumber, kFixedArray, kArguments, kSloppyElements } type;
   union {
     FastObject object;
     FastFixedArray fixed_array;
     Float64 number;
     FastArgumentsObject arguments;
+    FastSloppyArgumentsElements sloppy_elements;
   };
 };
 

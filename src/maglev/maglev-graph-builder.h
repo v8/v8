@@ -35,6 +35,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/arguments.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/string.h"
@@ -2041,11 +2042,13 @@ class MaglevGraphBuilder {
                                      AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastFixedArray array,
                                      AllocationType allocation);
+
+  ValueNode* BuildArgumentsElements(FastArgumentsObject arguments,
+                                    ValueNode* arguments_length,
+                                    AllocationType allocation);
   template <CreateArgumentsType type>
   ValueNode* BuildAllocateFastObject(FastArgumentsObject arguments,
                                      AllocationType allocation);
-
-  ArgumentsElements* BuildArgumentsElements(CreateArgumentsType type);
 
   template <CreateArgumentsType type>
   ValueNode* BuildArgumentsObject();
