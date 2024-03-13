@@ -3973,7 +3973,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     gen.Generate(return_types, &function_range);
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
-    if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return {};
+    if (options == WasmModuleGenerationOptions::kGenerateSIMD &&
+        !CheckHardwareSupportsSimd() && gen.HasSimd()) {
+      return {};
+    }
     f->Emit(kExprEnd);
     if (i == 0) builder.AddExport(base::CStrVector("main"), f);
   }
