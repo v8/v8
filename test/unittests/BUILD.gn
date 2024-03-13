@@ -807,6 +807,13 @@ v8_source_set("v8_unittests_sources") {
       "//third_party/abseil-cpp:absl_full",
       "//third_party/fuzztest:fuzztest",
     ]
+
+    if (!is_win) {
+      # TODO(https://crbug.com/40941204): Using jsoncpp doesn't work on
+      # Windows.
+      sources += [ "json/json-unittest.cc" ]
+      deps += [ "//third_party/jsoncpp:jsoncpp" ]
+    }
   }
 
   if (v8_enable_webassembly) {
