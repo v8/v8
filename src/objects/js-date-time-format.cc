@@ -536,6 +536,7 @@ Handle<String> DateTimeStyleAsString(Isolate* isolate,
     case JSDateTimeFormat::DateTimeStyle::kUndefined:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 int FractionalSecondDigitsFromPattern(const std::string& pattern) {
