@@ -332,9 +332,10 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   srli_d(handle, handle, kTrustedPointerHandleShift);
   Alsl_d(destination, handle, table, kTrustedPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(destination, 0));
-  // The LSB is used as marking bit by the trusted pointer table, so here we
-  // have to set it using a bitwise OR as it may or may not be set.
-  Or(destination, destination, Operand(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  Register tag_reg = handle;
+  li(tag_reg, Operand(~(tag | kTrustedPointerTableMarkBit)));
+  and_(destination, destination, tag_reg);
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
