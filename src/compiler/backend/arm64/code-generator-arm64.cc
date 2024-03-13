@@ -2906,8 +2906,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(temp, src1);
         src1 = temp;
       }
-      // Perform shuffle as a vmov per lane.
       int32_t shuffle = i.InputInt32(2);
+
+      // Check whether we can reduce the number of vmovs by performing a dup
+      // first.
+      if (src0 == src1) {
+        const std::array<int, 4> lanes{shuffle & 0x3, shuffle >> 8 & 0x3,
+                                       shuffle >> 16 & 0x3,
+                                       shuffle >> 24 & 0x3};
+        std::array<int, 4> lane_counts{};
+        for (int lane : lanes) {
+          ++lane_counts[lane];
+        }
+
+        int duplicate_lane = -1;
+        for (int lane = 0; lane < 4; ++lane) {
+          if (lane_counts[lane] > 1) {
+            duplicate_lane = lane;
+            break;
+          }
+        }
+
+        if (duplicate_lane != -1) {
+          __ Dup(dst, src0, duplicate_lane);
+          for (int i = 0; i < 4; ++i) {
+            int lane = lanes[i];
+            if (lane == duplicate_lane) continue;
+            __ Mov(dst, i, src0, lane);
+          }
+          break;
+        }
+      }
+
+      // Perform shuffle as a vmov per lane.
       for (int i = 0; i < 4; i++) {
         VRegister src = src0;
         int lane = shuffle & 0x7;

@@ -3283,6 +3283,7 @@ void RunShuffleOpTest(TestExecutionTier execution_tier, WasmOpcode simd_op,
   V(S32x4Reverse)        \
   V(S32x2Reverse)        \
   V(S32x4Irregular)      \
+  V(S32x4DupAndCopy)     \
   V(S32x4Rotate)         \
   V(S16x8Dup)            \
   V(S16x8ZipLeft)        \
@@ -3339,6 +3340,8 @@ ShuffleMap test_shuffles = {
      {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
     {kS32x4Irregular,
      {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}}},
+    {kS32x4DupAndCopy,  // swizzle only
+     {{3, 2, 1, 0, 3, 2, 1, 0, 11, 10, 9, 8, 15, 14, 13, 12}}},
     {kS32x4Rotate, {{4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3}}},
     {kS16x8Dup,
      {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}}},
