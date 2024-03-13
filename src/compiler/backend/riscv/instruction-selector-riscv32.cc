@@ -109,6 +109,69 @@ void EmitLoad(InstructionSelectorT<Adapter>* selector,
   }
 }
 
+template <>
+void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
+              typename TurboshaftAdapter::node_t node, InstructionCode opcode,
+              typename TurboshaftAdapter::node_t output) {
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(selector);
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& op = selector->Get(node);
+  const LoadOp& load = op.Cast<LoadOp>();
+
+  // The LoadStoreSimplificationReducer transforms all loads into
+  // *(base + index).
+  OpIndex base = load.base();
+  OptionalOpIndex index = load.index();
+  DCHECK_EQ(load.offset, 0);
+  DCHECK_EQ(load.element_size_log2, 0);
+
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  InstructionOperand output_op;
+
+  // If output is valid, use that as the output register. This is used when we
+  // merge a conversion into the load.
+  output_op = g.DefineAsRegister(output.valid() ? output : node);
+
+  const Operation& base_op = selector->Get(base);
+  if (base_op.Is<Opmask::kExternalConstant>()) {
+    UNIMPLEMENTED();
+  }
+
+  if (base_op.Is<LoadRootRegisterOp>()) {
+    DCHECK(selector->is_integer_constant(selector->value(index)));
+    input_count = 1;
+    inputs[0] =
+        g.UseImmediate64(selector->integer_constant(selector->value(index)));
+    opcode |= AddressingModeField::encode(kMode_Root);
+    selector->Emit(opcode, 1, &output_op, input_count, inputs);
+    return;
+  }
+
+  if (index.has_value() && g.CanBeImmediate(selector->value(index), opcode)) {
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                   g.DefineAsRegister(output.valid() ? output : node),
+                   g.UseRegister(base),
+                   index.has_value() ? g.UseImmediate(selector->value(index))
+                                     : g.UseImmediate(0));
+  } else {
+    if (index.has_value()) {
+      InstructionOperand addr_reg = g.TempRegister();
+      selector->Emit(kRiscvAdd32 | AddressingModeField::encode(kMode_None),
+                     addr_reg, g.UseRegister(selector->value(index)),
+                     g.UseRegister(base));
+      // Emit desired load opcode, using temp addr_reg.
+      selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                     g.DefineAsRegister(output.valid() ? output : node),
+                     addr_reg, g.TempImmediate(0));
+    } else {
+      selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                     g.DefineAsRegister(output.valid() ? output : node),
+                     g.UseRegister(base), g.TempImmediate(0));
+    }
+  }
+}
+
 template <typename Adapter>
 void EmitS128Load(InstructionSelectorT<Adapter>* selector, Node* node,
                   InstructionCode opcode, VSew sew, Vlmul lmul) {
@@ -181,48 +244,44 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-
-    InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kFloat32:
-        opcode = kRiscvLoadFloat;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kRiscvLoadDouble;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
-        break;
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
-      case MachineRepresentation::kWord32:
-        opcode = kRiscvLw;
-        break;
-      case MachineRepresentation::kSimd128:
-        opcode = kRiscvRvvLd;
-        break;
-      case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kSandboxedPointer:
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kWord64:
-      case MachineRepresentation::kNone:
-      case MachineRepresentation::kSimd256:  // Fall through.
-      case MachineRepresentation::kIndirectPointer:
-        UNREACHABLE();
+  auto load = this->load_view(node);
+  LoadRepresentation load_rep = load.loaded_rep();
+  InstructionCode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      opcode = kRiscvLoadFloat;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kRiscvLoadDouble;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
+      break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kRiscvLw;
+      break;
+    case MachineRepresentation::kSimd128:
+      opcode = kRiscvRvvLd;
+      break;
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kNone:
+    case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kIndirectPointer:
+      UNREACHABLE();
     }
 
     EmitLoad(this, node, opcode);
-  }
 }
 
 template <typename Adapter>
@@ -231,8 +290,85 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 }
 
 template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
-  UNREACHABLE();
+void InstructionSelectorT<TurboshaftAdapter>::VisitStore(node_t node) {
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  typename TurboshaftAdapter::StoreView store_view = this->store_view(node);
+  node_t base = store_view.base();
+  optional_node_t index = store_view.index();
+  node_t value = store_view.value();
+
+  WriteBarrierKind write_barrier_kind =
+      store_view.stored_rep().write_barrier_kind();
+  MachineRepresentation rep = store_view.stored_rep().representation();
+
+  // TODO(riscv): I guess this could be done in a better way.
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!v8_flags.disable_write_barriers)) {
+    UNREACHABLE();
+  } else {
+    InstructionCode code;
+    switch (rep) {
+      case MachineRepresentation::kFloat32:
+        code = kRiscvStoreFloat;
+        break;
+      case MachineRepresentation::kFloat64:
+        code = kRiscvStoreDouble;
+        break;
+      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kWord8:
+        code = kRiscvSb;
+        break;
+      case MachineRepresentation::kWord16:
+        code = kRiscvSh;
+        break;
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kWord32:
+        code = kRiscvSw;
+        break;
+      case MachineRepresentation::kSimd128:
+        code = kRiscvRvvSt;
+        break;
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kSandboxedPointer:
+      case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kNone:
+      case MachineRepresentation::kWord64:
+      case MachineRepresentation::kSimd256:  // Fall through.
+      case MachineRepresentation::kIndirectPointer:
+        UNREACHABLE();
+    }
+
+    if (this->is_load_root_register(base)) {
+      Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
+           g.UseRegisterOrImmediateZero(value),
+           index.has_value() ? g.UseImmediate(this->value(index))
+                             : g.UseImmediate(0));
+      return;
+    }
+
+    if (index.has_value() && g.CanBeImmediate(this->value(index), code)) {
+      Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+           g.UseRegisterOrImmediateZero(value), g.UseRegister(base),
+           index.has_value() ? g.UseImmediate(this->value(index))
+                             : g.UseImmediate(0));
+    } else {
+      if (index.has_value()) {
+        InstructionOperand addr_reg = g.TempRegister();
+        Emit(kRiscvAdd32 | AddressingModeField::encode(kMode_None), addr_reg,
+             g.UseRegister(this->value(index)), g.UseRegister(base));
+        // Emit desired store opcode, using temp addr_reg.
+        Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+             g.UseRegisterOrImmediateZero(value), addr_reg, g.TempImmediate(0));
+      } else {
+        Emit(code | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+             g.UseRegisterOrImmediateZero(value), g.UseRegister(base),
+             g.UseImmediate(0));
+      }
+    }
+  }
 }
 
 template <typename Adapter>
@@ -332,16 +468,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
-  VisitBinop<TurbofanAdapter, Int32BinopMatcher>(this, node, kRiscvAnd, true,
-                                                 kRiscvAnd);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
+  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvAnd, true,
+                                         kRiscvAnd);
 }
 
 template <typename Adapter>
@@ -935,11 +1065,7 @@ template <typename Adapter>
 void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node,
                       FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitWordCompare(selector, node, kRiscvCmp, cont, false);
-  }
+  VisitWordCompare(selector, node, kRiscvCmp, cont, false);
 }
 
 template <typename Adapter>
@@ -1272,9 +1398,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
     Int32BinopMatcher m(node);
     if (m.right().Is(0)) {
@@ -1282,7 +1405,22 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
     }
 
     VisitWordCompare(this, node, &cont);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Operation& equal = Get(node);
+  DCHECK(equal.Is<ComparisonOp>());
+  OpIndex left = equal.input(0);
+  OpIndex right = equal.input(1);
+  OpIndex user = node;
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+
+  if (MatchZero(right)) {
+    return VisitWordCompareZero(user, left, &cont);
   }
+  VisitWordCompare(this, node, &cont);
 }
 
 template <typename Adapter>

@@ -323,6 +323,18 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     case kFloatGreaterThanOrEqual:
       *predicate = true;
       return GE;
+    case kFloatLessThanOrUnordered:
+      *predicate = true;
+      return LT;
+    case kFloatGreaterThanOrUnordered:
+      *predicate = false;
+      return LE;
+    case kFloatGreaterThanOrEqualOrUnordered:
+      *predicate = false;
+      return LT;
+    case kFloatLessThanOrEqualOrUnordered:
+      *predicate = true;
+      return LE;
     default:
       *predicate = true;
       break;
