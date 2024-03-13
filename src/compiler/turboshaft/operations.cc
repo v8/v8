@@ -1643,6 +1643,23 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  if (load_kind.maybe_unaligned) os << "unaligned, ";
+  if (load_kind.with_trap_handler) os << "protected, ";
+
+  switch (transform_kind) {
+#define PRINT_KIND(kind)       \
+  case TransformKind::k##kind: \
+    os << #kind;               \
+    break;
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(PRINT_KIND)
+#undef PRINT_KIND
+  }
+
+  os << ", offset: " << offset << "]";
+}
+
 std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(kind)              \

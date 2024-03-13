@@ -31,16 +31,21 @@ std::string GetSimdOpcodeName(Operation const& op) {
 //  This class is the wrapper for StoreOp/LoadOp, which is helpful to calcualte
 //  the relative offset between two StoreOp/LoadOp.
 template <typename Op,
-          typename = std::enable_if_t<std::is_same_v<Op, StoreOp> ||
-                                      std::is_same_v<Op, LoadOp>>>
+          typename = std::enable_if_t<
+              std::is_same_v<Op, StoreOp> || std::is_same_v<Op, LoadOp> ||
+              std::is_same_v<Op, Simd128LoadTransformOp>>>
 class StoreLoadInfo {
  public:
   StoreLoadInfo(const Graph* graph, const Op* op)
       : op_(op), offset_(op->offset) {
-    if (!op->index().has_value()) return;
     base_ = &graph->Get(op->base());
-    const ChangeOp* change =
-        graph->Get(op->index().value()).template TryCast<ChangeOp>();
+    const ChangeOp* change = nullptr;
+    if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
+      change = graph->Get(op->index()).template TryCast<ChangeOp>();
+    } else {
+      if (!op->index().has_value()) return;
+      change = graph->Get(op->index().value()).template TryCast<ChangeOp>();
+    }
     if (change == nullptr) {
       SetInvalid();
       return;
@@ -64,8 +69,15 @@ class StoreLoadInfo {
 
   base::Optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
     DCHECK(IsValid() && rhs.IsValid());
-    bool calculatable = base_ == rhs.base_ && index_ == rhs.index_ &&
-                        op_->kind == rhs.op_->kind;
+    bool calculatable = base_ == rhs.base_ && index_ == rhs.index_;
+
+    if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
+      calculatable &= (op_->load_kind == rhs.op_->load_kind &&
+                       op_->transform_kind == rhs.op_->transform_kind);
+    } else {
+      calculatable &= (op_->kind == rhs.op_->kind);
+    }
+
     if constexpr (std::is_same_v<Op, StoreOp>) {
       // TODO(v8:12716) If one store has a full write barrier and the other has
       // no write barrier, consider combine them with a full write barrier.
@@ -306,6 +318,32 @@ PackNode* SLPTree::BuildTree(const NodeGroup& roots) {
   return root_;
 }
 
+bool IsLoadExtend(const Simd128LoadTransformOp& op) {
+  switch (op.transform_kind) {
+    case Simd128LoadTransformOp::TransformKind::k8x8S:
+    case Simd128LoadTransformOp::TransformKind::k8x8U:
+    case Simd128LoadTransformOp::TransformKind::k16x4S:
+    case Simd128LoadTransformOp::TransformKind::k16x4U:
+    case Simd128LoadTransformOp::TransformKind::k32x2S:
+    case Simd128LoadTransformOp::TransformKind::k32x2U:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsLoadSplat(const Simd128LoadTransformOp& op) {
+  switch (op.transform_kind) {
+    case Simd128LoadTransformOp::TransformKind::k8Splat:
+    case Simd128LoadTransformOp::TransformKind::k16Splat:
+    case Simd128LoadTransformOp::TransformKind::k32Splat:
+    case Simd128LoadTransformOp::TransformKind::k64Splat:
+      return true;
+    default:
+      return false;
+  }
+}
+
 PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
                                 unsigned recursion_depth) {
   DCHECK_EQ(node_group.size(), 2);
@@ -344,6 +382,36 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   int value_in_count = op0.input_count;
 
   switch (op0.opcode) {
+    case Opcode::kSimd128LoadTransform: {
+      const Simd128LoadTransformOp& transform_op =
+          op0.Cast<Simd128LoadTransformOp>();
+      if (IsLoadSplat(transform_op)) {
+        TRACE("Simd128LoadTransform: LoadSplat\n");
+        if (!IsSplat(node_group)) {
+          return nullptr;
+        }
+      } else if (IsLoadExtend(transform_op)) {
+        TRACE("Simd128LoadTransform: LoadExtend\n");
+        if (!LoadStrideEqualTo<Simd128LoadTransformOp,
+                               StoreLoadInfo<Simd128LoadTransformOp>>(
+                graph_, node_group, kSimd128Size / 2)) {
+          TRACE("Wrong Access stride\n");
+          return nullptr;
+        }
+      } else {
+        TRACE("Load Transfrom k64Zero/k32Zero!\n");
+        DCHECK(transform_op.transform_kind ==
+                   Simd128LoadTransformOp::TransformKind::k32Zero ||
+               transform_op.transform_kind ==
+                   Simd128LoadTransformOp::TransformKind::k64Zero);
+        // k64Zero/k32Zero is not supported
+        TRACE("Simd128LoadTransform: unsupported  k64Zero/k32Zero\n");
+        return nullptr;
+      }
+      PackNode* p = NewPackNode(node_group);
+      return p;
+    }
+
     case Opcode::kLoad: {
       TRACE("Load leaf node\n");
       if (op0.Cast<LoadOp>().loaded_rep != MemoryRepresentation::Simd128() ||

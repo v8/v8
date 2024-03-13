@@ -3738,6 +3738,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd256Extract128Lane(source, lane);
   }
 
+  V<Simd256> Simd256LoadTransform(
+      V<WordPtr> base, V<WordPtr> index,
+      Simd256LoadTransformOp::LoadKind load_kind,
+      Simd256LoadTransformOp::TransformKind transform_kind, int offset) {
+    return ReduceIfReachableSimd256LoadTransform(base, index, load_kind,
+                                                 transform_kind, offset);
+  }
+
   V<Simd256> Simd256Unary(V<Simd256> input, Simd256UnaryOp::Kind kind) {
     return ReduceIfReachableSimd256Unary(input, kind);
   }

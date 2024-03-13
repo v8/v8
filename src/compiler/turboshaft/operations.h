@@ -136,6 +136,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #if V8_ENABLE_WASM_SIMD256_REVEC
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
   V(Simd256Extract128Lane)                   \
+  V(Simd256LoadTransform)                    \
   V(Simd256Unary)                            \
   V(Simd256Binop)                            \
   V(Simd256Shift)                            \
@@ -7731,6 +7732,65 @@ struct Simd256Extract128LaneOp
   auto options() const { return std::tuple{lane}; }
 };
 
+#define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \
+  V(8x16S)                                        \
+  V(8x16U)                                        \
+  V(16x8S)                                        \
+  V(16x8U)                                        \
+  V(32x4S)                                        \
+  V(32x4U)                                        \
+  V(8Splat)                                       \
+  V(16Splat)                                      \
+  V(32Splat)                                      \
+  V(64Splat)
+
+struct Simd256LoadTransformOp
+    : FixedArityOperationT<2, Simd256LoadTransformOp> {
+  using LoadKind = LoadOp::Kind;
+  enum class TransformKind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  LoadKind load_kind;
+  TransformKind transform_kind;
+  int offset;
+
+  OpEffects Effects() const {
+    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    if (load_kind.with_trap_handler) {
+      effects = effects.CanLeaveCurrentFunction();
+    }
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::WordPtr(),
+                          RegisterRepresentation::WordPtr()>();
+  }
+
+  Simd256LoadTransformOp(V<WordPtr> base, V<WordPtr> index, LoadKind load_kind,
+                         TransformKind transform_kind, int offset)
+      : Base(base, index),
+        load_kind(load_kind),
+        transform_kind(transform_kind),
+        offset(offset) {}
+
+  V<WordPtr> base() const { return input(0); }
+  V<WordPtr> index() const { return input(1); }
+
+  void Validate(const Graph& graph) { DCHECK(!load_kind.tagged_base); }
+
+  auto options() const { return std::tuple{load_kind, transform_kind, offset}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
 #define FOREACH_SIMD_256_UNARY_OPCODE(V) \
   V(S256Not)                             \
   V(I8x32Abs)                            \
@@ -8103,6 +8163,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<Simd128LaneMemoryOp>().Effects();
     case Opcode::kSimd128LoadTransform:
       return Cast<Simd128LoadTransformOp>().Effects();
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    case Opcode::kSimd256LoadTransform:
+      return Cast<Simd256LoadTransformOp>().Effects();
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif
     default:
       UNREACHABLE();

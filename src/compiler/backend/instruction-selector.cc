@@ -1601,6 +1601,12 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
             operation.TryCast<Simd128LoadTransformOp>()) {
       return lt->load_kind.with_trap_handler;
     }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    if (const Simd256LoadTransformOp* lt =
+            operation.TryCast<Simd256LoadTransformOp>()) {
+      return lt->load_kind.with_trap_handler;
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
     if (const Simd128LaneMemoryOp* lm =
             operation.TryCast<Simd128LaneMemoryOp>()) {
       return lm->kind.with_trap_handler;
@@ -5394,6 +5400,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kSimd256Extract128Lane: {
       MarkAsSimd128(node);
       return VisitExtractF128(node);
+    }
+    case Opcode::kSimd256LoadTransform: {
+      MarkAsSimd256(node);
+      return VisitSimd256LoadTransform(node);
     }
     case Opcode::kSimd256Unary: {
       const Simd256UnaryOp& unary = op.Cast<Simd256UnaryOp>();

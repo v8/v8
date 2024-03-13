@@ -1822,6 +1822,27 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd256LoadTransformOp& op) {
+  DCHECK_EQ(op.offset, 0);
+  MemoryAccessKind access =
+      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtected
+      : op.load_kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
+                                     : MemoryAccessKind::kNormal;
+  LoadTransformation transformation;
+  switch (op.transform_kind) {
+#define HANDLE_KIND(kind)                                 \
+  case Simd256LoadTransformOp::TransformKind::k##kind:    \
+    transformation = LoadTransformation::kS256Load##kind; \
+    break;
+    FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(HANDLE_KIND)
+#undef HANDLE_KIND
+  }
+
+  const Operator* o = machine.LoadTransform(access, transformation);
+
+  return AddNode(o, {GetNode(op.base()), GetNode(op.index())});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const Simd256UnaryOp& op) {
   switch (op.kind) {
 #define HANDLE_KIND(kind)             \

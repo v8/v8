@@ -1092,17 +1092,7 @@
   # TODO(14108): Remove once supported.
   'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_S256Const': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load8Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load16Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load32Splat': [SKIP],
-  'test-run-wasm-simd/RunWasmTurbofan_S256Load64Splat': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_ShuffleVpshufd': [SKIP],
-  'test-run-wasm-simd/S128Load8x8S': [SKIP],
-  'test-run-wasm-simd/S128Load8x8U': [SKIP],
-  'test-run-wasm-simd/S128Load16x4S': [SKIP],
-  'test-run-wasm-simd/S128Load16x4U': [SKIP],
-  'test-run-wasm-simd/S128Load32x2S': [SKIP],
-  'test-run-wasm-simd/S128Load32x2U': [SKIP],
 }],  # variant == turboshaft or variant == future
 
 ##############################################################################

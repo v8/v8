@@ -1023,6 +1023,11 @@ class InstructionSelectorT final : public Adapter {
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
   void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  void VisitSimd256LoadTransform(node_t node);
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================

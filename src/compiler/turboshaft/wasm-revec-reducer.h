@@ -17,6 +17,18 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#define SIMD256_LOADTRANSFORM_OP(V) \
+  V(8x8S, 8x16S)                    \
+  V(8x8U, 8x16U)                    \
+  V(16x4S, 16x8S)                   \
+  V(16x4U, 16x8U)                   \
+  V(32x2S, 32x4S)                   \
+  V(32x2U, 32x4U)                   \
+  V(8Splat, 8Splat)                 \
+  V(16Splat, 16Splat)               \
+  V(32Splat, 32Splat)               \
+  V(64Splat, 64Splat)
+
 #define SIMD256_UNARY_OP(V)                                \
   V(S128Not, S256Not)                                      \
   V(I8x16Abs, I8x32Abs)                                    \
@@ -323,6 +335,29 @@ class WasmRevecReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
+      V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      V<Simd256> og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        auto base = __ MapToNewGraph(load_transform.base());
+        auto index = __ MapToNewGraph(load_transform.index());
+        auto offset = load_transform.offset;
+        DCHECK_EQ(load_transform.offset, 0);
+
+        og_index = __ Simd256LoadTransform(
+            base, index, load_transform.load_kind,
+            Get256LoadTransformKindFrom128(load_transform.transform_kind),
+            offset);
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    return Next::ReduceInputGraphSimd128LoadTransform(ig_index, load_transform);
+  }
+
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
       OpIndex og_index = pnode->RevectorizedNode();
@@ -503,6 +538,19 @@ class WasmRevecReducer : public Next {
 #undef TERNARY_KIND_MAPPING
       default:
         UNIMPLEMENTED();
+    }
+  }
+
+  static Simd256LoadTransformOp::TransformKind Get256LoadTransformKindFrom128(
+      Simd128LoadTransformOp::TransformKind simd128_kind) {
+    switch (simd128_kind) {
+#define TRANSFORM_KIND_MAPPING(from, to)               \
+  case Simd128LoadTransformOp::TransformKind::k##from: \
+    return Simd256LoadTransformOp::TransformKind::k##to;
+      SIMD256_LOADTRANSFORM_OP(TRANSFORM_KIND_MAPPING)
+#undef TRANSFORM_KIND_MAPPING
+      default:
+        UNREACHABLE();
     }
   }
 
