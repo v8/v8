@@ -150,7 +150,7 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
       v8_flags.append(flag)
     elif flag.startswith('-') and flag[1] in 'DWFfmgOX':
       v8_flags.append(flag)
-  return v8_flags
+  return list(set(v8_flags))
 
 
 def MakeIncludePathAbsolute(flag, prefix, out_dir):
