@@ -8,7 +8,6 @@
 #include <array>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -628,7 +627,7 @@ class WasmGenerator {
           if_({}, {}, kIf, data);
           return;
         }
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 4:
         if_(param_types, return_types, kIfElse, data);
         return;
@@ -1324,7 +1323,7 @@ class WasmGenerator {
             builder_->EmitU32V(data_index);
             break;
           }
-          V8_FALLTHROUGH;  // To array.new.
+          [[fallthrough]];  // To array.new.
         }
         case kExprArrayNew:
           Generate(element_type.Unpacked(), data);
@@ -3183,7 +3182,7 @@ class WasmGenerator {
           }
         }
         // ~10% chance of fallthrough.
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       }
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
@@ -3529,7 +3528,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           null_only || (range.get<uint8_t>() % 4 == 0)) {
         return WasmInitExpr::RefNullConst(type.heap_type().representation());
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kRef: {
       switch (type.heap_representation()) {
@@ -3551,7 +3550,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                                          type.nullability()),
                                  structs, arrays, recursion_depth + 1));
           }
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         }
         case HeapType::kEq: {
           uint8_t choice = range.get<uint8_t>() % 3;

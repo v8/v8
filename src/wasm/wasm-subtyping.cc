@@ -4,7 +4,6 @@
 
 #include "src/wasm/wasm-subtyping.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
 

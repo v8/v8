@@ -407,7 +407,7 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot,
             map, slot, String::unchecked_cast(source), size,
             ObjectFields::kDataOnly);
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     default:
       return EvacuateObjectDefault(map, slot, source, size,
                                    Map::ObjectFieldsFrom(visitor_id));

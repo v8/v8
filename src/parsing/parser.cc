@@ -1613,7 +1613,7 @@ Statement* Parser::ParseExportDefault() {
         result = ParseAsyncFunctionDeclaration(&local_names, true);
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     default: {
       int pos = position();
@@ -1816,7 +1816,7 @@ Statement* Parser::ParseExportDeclaration() {
         result = ParseAsyncFunctionDeclaration(&names, false);
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     default:
       ReportUnexpectedToken(scanner()->current_token());

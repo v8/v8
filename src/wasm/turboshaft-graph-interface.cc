@@ -989,14 +989,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case wasm::kF64:
         value = __ BitcastFloat64ToWord64(node);
         is_float = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case wasm::kI64:
         result = __ Word64Constant(static_cast<uint64_t>(0));
         break;
       case wasm::kF32:
         value = __ BitcastFloat32ToWord32(node);
         is_float = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case wasm::kI32:
         result = __ Word32Constant(0);
         break;
@@ -1108,14 +1108,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case MachineRepresentation::kFloat64:
         value = __ BitcastFloat64ToWord64(node);
         is_float = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case MachineRepresentation::kWord64:
         result = __ Word64Constant(static_cast<uint64_t>(0));
         break;
       case MachineRepresentation::kFloat32:
         value = __ BitcastFloat32ToWord32(node);
         is_float = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case MachineRepresentation::kWord32:
       case MachineRepresentation::kWord16:
         result = __ Word32Constant(0);
@@ -2814,7 +2814,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       switch (sig->GetParam(i).kind()) {
         case kF32:
           value = __ BitcastFloat32ToWord32(value);
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kI32:
           BuildEncodeException32BitValue(values_array, index, value);
           // We need 2 Smis to encode a 32-bit value.
@@ -2822,7 +2822,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           break;
         case kF64:
           value = __ BitcastFloat64ToWord64(value);
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kI64: {
           OpIndex upper_half =
               __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(value, 32));

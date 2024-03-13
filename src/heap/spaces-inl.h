@@ -6,7 +6,6 @@
 #define V8_HEAP_SPACES_INL_H_
 
 #include "src/base/atomic-utils.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -73,41 +72,41 @@ MutablePageMetadata* OldGenerationMemoryChunkIterator::next() {
       if (iterator != heap_->old_space()->end()) return *(iterator++);
       state_ = kCodeSpace;
       iterator_ = heap_->code_space()->begin();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kCodeSpace: {
       PageIterator& iterator = std::get<PageIterator>(iterator_);
       if (iterator != heap_->code_space()->end()) return *(iterator++);
       state_ = kLargeObjectSpace;
       iterator_ = heap_->lo_space()->begin();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kLargeObjectSpace: {
       LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
       if (iterator != heap_->lo_space()->end()) return *(iterator++);
       state_ = kCodeLargeObjectSpace;
       iterator_ = heap_->code_lo_space()->begin();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kCodeLargeObjectSpace: {
       LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
       if (iterator != heap_->code_lo_space()->end()) return *(iterator++);
       state_ = kTrustedSpace;
       iterator_ = heap_->trusted_space()->begin();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kTrustedSpace: {
       PageIterator& iterator = std::get<PageIterator>(iterator_);
       if (iterator != heap_->trusted_space()->end()) return *(iterator++);
       state_ = kTrustedLargeObjectSpace;
       iterator_ = heap_->trusted_lo_space()->begin();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kTrustedLargeObjectSpace: {
       LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
       if (iterator != heap_->trusted_lo_space()->end()) return *(iterator++);
       state_ = kFinished;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kFinished:
       return nullptr;

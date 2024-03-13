@@ -4380,7 +4380,7 @@ bool TryEmitCbzOrTbz(InstructionSelectorT<Adapter>* selector,
           }
         }
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case kUnsignedLessThanOrEqual:
     case kUnsignedGreaterThan: {

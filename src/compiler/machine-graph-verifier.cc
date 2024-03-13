@@ -4,7 +4,6 @@
 
 #include "src/compiler/machine-graph-verifier.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -551,7 +550,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kWord32AtomicPairExchange:
             CheckValueInputRepresentationIs(node, 3,
                                             MachineRepresentation::kWord32);
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           case IrOpcode::kStore:
           case IrOpcode::kStoreIndirectPointer:
           case IrOpcode::kUnalignedStore:
@@ -627,7 +626,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord32);
             CheckValueInputRepresentationIs(node, 5,
                                             MachineRepresentation::kWord32);
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           case IrOpcode::kWord32AtomicCompareExchange:
           case IrOpcode::kWord64AtomicCompareExchange:
             CheckValueInputIsTaggedOrPointer(node, 0);

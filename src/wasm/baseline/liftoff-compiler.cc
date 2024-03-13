@@ -3834,7 +3834,7 @@ class LiftoffCompiler {
               break;
             }
             DCHECK_EQ(DebugSideTableBuilder::kAssumeSpilling, assume_spilling);
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           case kStack:
             value.storage = DebugSideTable::Entry::kStack;
             value.stack_offset = slot.offset();

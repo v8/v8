@@ -10,7 +10,6 @@
 #include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
@@ -3056,7 +3055,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
         default:
           break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case Opcode::kConstant: {
       compiler::HeapObjectRef ref =
@@ -4321,7 +4320,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
         }
         return GetUint32Constant(uint32_value);
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case ValueRepresentation::kHoleyFloat64: {
       // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
       return AddNewNode<CheckedTruncateFloat64ToUint32>({object});
@@ -8666,7 +8665,7 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
       // Uint32 has the same logic as Int32 when converting ToBoolean, namely
       // comparison against zero, so we can cast it and ignore the signedness.
       value = AddNewNode<TruncateUint32ToInt32>({value});
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case ValueRepresentation::kInt32:
       return AddNewNode<Int32ToBoolean>({value}, flip);
 
@@ -10071,7 +10070,7 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
       // Uint32 has the same logic as Int32 when converting ToBoolean, namely
       // comparison against zero, so we can cast it and ignore the signedness.
       node = AddNewNode<TruncateUint32ToInt32>({node});
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case ValueRepresentation::kInt32:
       return FinishBlock<BranchIfInt32ToBooleanTrue>({node}, true_target,
                                                      false_target);

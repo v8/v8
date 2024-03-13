@@ -2338,7 +2338,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return SetDataProperty(it, value);
         }
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         *found = false;
@@ -2427,7 +2427,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
           return Object::SetPropertyWithAccessor(&own_lookup, value,
                                                  should_throw);
         }
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
@@ -6172,12 +6172,12 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
       return PropertyCellType::kConstant;
     case PropertyCellType::kConstant:
       if (value == cell->value()) return PropertyCellType::kConstant;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case PropertyCellType::kConstantType:
       if (RemainsConstantType(cell, value)) {
         return PropertyCellType::kConstantType;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case PropertyCellType::kMutable:
       return PropertyCellType::kMutable;
     case PropertyCellType::kInTransition:

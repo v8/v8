@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/base/iterator.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
@@ -720,7 +719,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         }
       }
     }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:

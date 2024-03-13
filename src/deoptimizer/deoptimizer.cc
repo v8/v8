@@ -87,7 +87,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           // moving.
           safepoint_scope_.reset();
           state_ = kDone;
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kDone:
           return Code();
       }

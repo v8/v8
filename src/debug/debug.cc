@@ -735,7 +735,7 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
     case StepOver:
       // StepOver should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StepInto: {
       // StepInto and StepOver should enter "generator stepping" mode, except
       // for the implicit initial yield in generators, where it should simply
@@ -1544,7 +1544,7 @@ void Debug::PrepareStep(StepAction step_action) {
     }
     case StepOver:
       thread_local_.target_frame_count_ = current_frame_count;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StepInto:
       FloodWithOneShot(shared);
       break;

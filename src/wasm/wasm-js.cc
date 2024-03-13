@@ -1733,7 +1733,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
         thrower.TypeError("Non-defaultable global needs initial value");
         break;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case i::wasm::kRefNull: {
       // We need the wasm default value {null} over {undefined}.
       i::Handle<i::Object> value_handle;

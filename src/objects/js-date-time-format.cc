@@ -1366,7 +1366,7 @@ icu::UnicodeString GetSkeletonForPatternKind(const icu::UnicodeString& input,
       // Row TemporalInstantPattern is the same as TemporalPlainDateTimePattern
       // in Table 16: Supported fields for Temporal patterns
       // #table-temporal-patterns
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case PatternKind::kInstant:
       return KeepSupportedAddDefault(
           input,
@@ -1819,11 +1819,11 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
         result.append(ch);
         break;
       case 'H':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'h':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'K':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'k':
         // If the previous field is a day, add a space before the hour.
         if (replace && last == u'd') {
@@ -2026,18 +2026,18 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
       // We need to skip 'a', 'b', 'B' here due to
       // https://unicode-org.atlassian.net/browse/ICU-20437
       case 'a':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'b':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'B':
         // ignore
         break;
       case 'h':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'H':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'K':
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 'k':
         result += to;
         break;

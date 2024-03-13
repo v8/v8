@@ -8,7 +8,6 @@
 
 #include "src/base/optional.h"
 #include "src/base/small-vector.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/compiler.h"
@@ -1377,14 +1376,14 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
     case wasm::kF64:
       value = gasm_->BitcastFloat64ToInt64(node);
       isFloat = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case wasm::kI64:
       result = Int64Constant(0);
       break;
     case wasm::kF32:
       value = gasm_->BitcastFloat32ToInt32(node);
       isFloat = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case wasm::kI32:
       result = Int32Constant(0);
       break;
@@ -1495,14 +1494,14 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
     case MachineRepresentation::kFloat64:
       value = gasm_->BitcastFloat64ToInt64(node);
       isFloat = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MachineRepresentation::kWord64:
       result = Int64Constant(0);
       break;
     case MachineRepresentation::kFloat32:
       value = gasm_->BitcastFloat32ToInt32(node);
       isFloat = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord16:
       result = Int32Constant(0);
@@ -2276,13 +2275,13 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
     switch (sig->GetParam(i).kind()) {
       case wasm::kF32:
         value = gasm_->BitcastFloat32ToInt32(value);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case wasm::kI32:
         BuildEncodeException32BitValue(values_array, &index, value);
         break;
       case wasm::kF64:
         value = gasm_->BitcastFloat64ToInt64(value);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case wasm::kI64: {
         Node* upper32 = gasm_->TruncateInt64ToInt32(
             Binop(wasm::kExprI64ShrU, value, Int64Constant(32)));
@@ -7944,7 +7943,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // =======================================================================
       case wasm::ImportCallKind::kJSFunctionArityMatch:
         DCHECK_EQ(expected_arity, wasm_count - suspend);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case wasm::ImportCallKind::kJSFunctionArityMismatch: {
         int pushed_count = std::max(expected_arity, wasm_count - suspend);
         base::SmallVector<Node*, 16> args(pushed_count + 7);

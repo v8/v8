@@ -26530,7 +26530,7 @@ void AtomicsWaitCallbackForTesting(
         break;
       case AtomicsWaitCallbackAction::StopAndThrowInFirstCall:
         ThrowSomething();
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case AtomicsWaitCallbackAction::StopAndThrowInSecondCall:
         wake_handle->Wake();
         break;

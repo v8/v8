@@ -19,7 +19,6 @@
 #include "src/base/bounds.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/strings/unicode.h"
 #include "src/utils/bit-vector.h"
@@ -1612,7 +1611,7 @@ class WasmDecoder : public Decoder {
       switch (opcode) {
         case kExprLoop:
           if (loop_is_innermost && depth >= 0) *loop_is_innermost = false;
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kExprIf:
         case kExprBlock:
         case kExprTry:
@@ -3336,7 +3335,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kBottom:
         // We are in a polymorphic stack. Leave the stack as it is.
         DCHECK(!current_code_reachable_and_ok_);
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case kRef:
         // For a non-nullable value, we won't take the branch, and can leave
         // the stack as it is.

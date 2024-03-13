@@ -165,7 +165,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         // Support calling this method without an active context, but refuse
         // access to access-checked objects in that case.
         if (!it->isolate()->context().is_null() && it->HasAccess()) continue;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case LookupIterator::JSPROXY:
       case LookupIterator::WASM_OBJECT:
         it->NotFound();
@@ -5452,7 +5452,7 @@ int JSObject::GetFastElementsUsage() {
                               : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = SloppyArgumentsElements::cast(store)->arguments();
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:

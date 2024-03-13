@@ -1663,7 +1663,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       if (version_ >= 15) return ReadSharedObject();
       // If the data doesn't support shared values because it is from an older
       // version, treat the tag as unknown.
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     default:
       // Before there was an explicit tag for host objects, all unknown tags
       // were delegated to the host.

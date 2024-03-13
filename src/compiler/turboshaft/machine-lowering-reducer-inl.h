@@ -7,7 +7,6 @@
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -244,7 +243,7 @@ class MachineLoweringReducer : public Next {
               __ TaggedEqual(input, __ HeapConstant(factory_->null_value()));
           return __ Word32BitwiseOr(is_undefined, is_null);
         }
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case ObjectIsOp::Kind::kCallable:
       case ObjectIsOp::Kind::kConstructor:
       case ObjectIsOp::Kind::kDetectableCallable:
@@ -290,7 +289,7 @@ class MachineLoweringReducer : public Next {
                                        Map::Bits1::IsCallableBit::kMask));
             GOTO_IF_NOT(check, done, 0);
             // Fallthrough into receiver check.
-            V8_FALLTHROUGH;
+            [[fallthrough]];
           case ObjectIsOp::Kind::kReceiver:
             check = JSAnyIsNotPrimitiveHeapObject(input, map);
             break;

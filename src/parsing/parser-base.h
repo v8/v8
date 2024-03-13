@@ -16,7 +16,6 @@
 #include "src/base/flags.h"
 #include "src/base/hashmap.h"
 #include "src/base/pointer-with-payload.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -2437,7 +2436,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         }
         return expression;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     default:
       prop_info->name = ParsePropertyName();
@@ -3191,7 +3190,7 @@ ParserBase<Impl>::ParseYieldExpression() {
         // a regular yield, given only one look-ahead token.
         if (!delegating) break;
         // Delegating yields require an RHS; fall through.
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       default:
         expression = ParseAssignmentExpressionCoverGrammar();
         break;
@@ -5589,7 +5588,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
             MessageTemplate::kAsyncFunctionInSingleStatementContext);
         return impl()->NullStatement();
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     default:
       return ParseExpressionOrLabelledStatement(labels, own_labels,
                                                 allow_function);

@@ -466,7 +466,7 @@ Reduction TypedOptimization::
       }
       break;
     case IrOpcode::kStringLessThan:
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case IrOpcode::kStringLessThanOrEqual:
       if (string.length() == 0) {
         // String.fromCharCode(x) <= "" is always false,

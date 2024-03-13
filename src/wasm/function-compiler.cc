@@ -149,7 +149,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // If Liftoff failed, fall back to TurboFan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
       compiler::WasmCompilationData data(func_body);

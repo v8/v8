@@ -181,7 +181,7 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, dst);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case LoadType::kI64Load32U:
       assm->MacroAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 4);
       break;
@@ -201,7 +201,7 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, dst);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case LoadType::kI64Load:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
       break;
@@ -236,7 +236,7 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI32Store:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
       break;
@@ -247,7 +247,7 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       is_float = true;
       tmp = assm->GetUnusedRegister(kGpReg, pinned);
       assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, src);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case StoreType::kI64Store:
       assm->MacroAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 8);
       break;

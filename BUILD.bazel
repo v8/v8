@@ -803,7 +803,6 @@ filegroup(
         "src/base/timezone-cache.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
-        "src/base/v8-fallthrough.h",
         "src/base/vector.h",
         "src/base/virtual-address-space.cc",
         "src/base/virtual-address-space.h",

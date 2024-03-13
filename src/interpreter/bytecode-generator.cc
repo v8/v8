@@ -3550,7 +3550,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         DCHECK(clone_object_spread || !property->value()->IsCompileTimeValue());
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already
         // contains computed properties with an uninitialized value.

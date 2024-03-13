@@ -16,7 +16,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
