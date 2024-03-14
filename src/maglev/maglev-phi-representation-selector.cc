@@ -979,15 +979,8 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
       // unwrap it.
       DCHECK_NE(phi->value_representation(), ValueRepresentation::kTagged);
       if (backedge->Is<Identity>()) {
-        // {backedge} should have the same representation as {phi}, although if
-        // {phi} has HoleyFloat64 representation, the backedge is allowed to
-        // have Float64 representation rather than HoleyFloat64.
-        DCHECK((backedge->input(0).node()->value_representation() ==
-                phi->value_representation()) ||
-               (backedge->input(0).node()->value_representation() ==
-                    ValueRepresentation::kFloat64 &&
-                phi->value_representation() ==
-                    ValueRepresentation::kHoleyFloat64));
+        DCHECK_EQ(backedge->input(0).node()->value_representation(),
+                  phi->value_representation());
         phi->change_input(last_input_idx, backedge->input(0).node());
       }
     }
