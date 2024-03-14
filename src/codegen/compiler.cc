@@ -1946,8 +1946,6 @@ void BackgroundCompileTask::Run(
   // Update the character stream's runtime call stats.
   info.character_stream()->set_runtime_call_stats(info.runtime_call_stats());
 
-  // Parser needs to stay alive for finalizing the parsing on the main
-  // thread.
   Parser parser(isolate, &info, script_);
   if (flags().is_toplevel()) {
     parser.InitializeEmptyScopeChain(&info);
