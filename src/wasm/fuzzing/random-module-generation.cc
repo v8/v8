@@ -216,8 +216,7 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
     // probability (such as 3x).
     types.insert(types.end(),
                  {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
-    if (options == WasmModuleGenerationOptions::kGenerateSIMD &&
-        include_s128 == kIncludeS128) {
+    if (ShouldGenerateSIMD(options) && include_s128 == kIncludeS128) {
       types.push_back(kWasmS128);
     }
     if (include_packed_types == kIncludePackedTypes) {
@@ -2188,7 +2187,7 @@ class WasmGenerator {
                     &WasmGenerator::table_fill,   //
                     &WasmGenerator::table_copy);  //
 
-    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+    if constexpr (ShouldGenerateSIMD(options)) {
       constexpr auto simd_alternatives = CreateArray(
           &WasmGenerator::memop<kExprS128StoreMem, kS128>,
           &WasmGenerator::simd_lane_memop<kExprS128Store8Lane, 16, kS128>,
@@ -2364,7 +2363,7 @@ class WasmGenerator {
 
         &WasmGenerator::table_size, &WasmGenerator::table_grow);
 
-    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+    if constexpr (ShouldGenerateSIMD(options)) {
       constexpr auto simd_alternatives = CreateArray(
           &WasmGenerator::op_with_prefix<kExprV128AnyTrue, kS128>,
           &WasmGenerator::op_with_prefix<kExprI8x16AllTrue, kS128>,
@@ -2502,7 +2501,7 @@ class WasmGenerator {
         &WasmGenerator::struct_get<kI64>,  //
         &WasmGenerator::array_get<kI64>);  //
 
-    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+    if constexpr (ShouldGenerateSIMD(options)) {
       constexpr auto simd_alternatives = CreateArray(
           &WasmGenerator::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>);
       GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
@@ -2570,7 +2569,7 @@ class WasmGenerator {
                     &WasmGenerator::struct_get<kF32>,  //
                     &WasmGenerator::array_get<kF32>);  //
 
-    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+    if constexpr (ShouldGenerateSIMD(options)) {
       constexpr auto simd_alternatives = CreateArray(
           &WasmGenerator::simd_lane_op<kExprF32x4ExtractLane, 4, kS128>);
       GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
@@ -2638,7 +2637,7 @@ class WasmGenerator {
                     &WasmGenerator::struct_get<kF64>,  //
                     &WasmGenerator::array_get<kF64>);  //
 
-    if constexpr (options == WasmModuleGenerationOptions::kGenerateSIMD) {
+    if constexpr (ShouldGenerateSIMD(options)) {
       constexpr auto simd_alternatives = CreateArray(
           &WasmGenerator::simd_lane_op<kExprF64x2ExtractLane, 2, kS128>);
       GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
@@ -2648,7 +2647,7 @@ class WasmGenerator {
   }
 
   void GenerateS128(DataRange* data) {
-    CHECK_EQ(options, WasmModuleGenerationOptions::kGenerateSIMD);
+    CHECK(ShouldGenerateSIMD(options));
     GeneratorRecursionScope rec_scope(this);
     has_simd_ = true;
     if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
@@ -3973,8 +3972,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     gen.Generate(return_types, &function_range);
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
-    if (options == WasmModuleGenerationOptions::kGenerateSIMD &&
-        !CheckHardwareSupportsSimd() && gen.HasSimd()) {
+    if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
+        gen.HasSimd()) {
       return {};
     }
     f->Emit(kExprEnd);
@@ -3992,7 +3991,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     Zone* zone, base::Vector<const uint8_t> data, size_t* count) {
   // Don't limit expressions for the initializer expression fuzzer.
   constexpr WasmModuleGenerationOptions options =
-      WasmModuleGenerationOptions::kGenerateSIMD;
+      WasmModuleGenerationOptions::kGenerateAll;
   WasmModuleBuilder builder(zone);
 
   DataRange module_range(data);
@@ -4137,6 +4136,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     base::Vector<uint8_t> GenerateRandomWasmModule<
         WasmModuleGenerationOptions::kGenerateSIMD>(
+        Zone*, base::Vector<const uint8_t> data);
+
+// Explicit template instantiation for kGenerateAll.
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    base::Vector<uint8_t> GenerateRandomWasmModule<
+        WasmModuleGenerationOptions::kGenerateAll>(
         Zone*, base::Vector<const uint8_t> data);
 
 }  // namespace v8::internal::wasm::fuzzing

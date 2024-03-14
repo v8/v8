@@ -730,9 +730,11 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     }
   }
 
+  // Don't limit any expressions in the generated Wasm module.
+  constexpr auto options =
+      wasm::fuzzing::WasmModuleGenerationOptions::kGenerateAll;
   base::Vector<const uint8_t> module_bytes =
-      wasm::fuzzing::GenerateRandomWasmModule<
-          wasm::fuzzing::WasmModuleGenerationOptions::kMVP>(
+      wasm::fuzzing::GenerateRandomWasmModule<options>(
           &temporary_zone, base::VectorOf(input_bytes));
 
   if (module_bytes.empty()) return ReadOnlyRoots(isolate).undefined_value();
