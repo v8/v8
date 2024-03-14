@@ -5,7 +5,9 @@
 #include "src/heap/memory-chunk.h"
 
 #include "src/heap/base-space.h"
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/large-page.h"
+#include "src/heap/page.h"
+#include "src/heap/read-only-spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -31,8 +33,20 @@ constexpr MemoryChunk::MainThreadFlags
 // static
 constexpr MemoryChunk::MainThreadFlags MemoryChunk::kCopyOnFlipFlagsMask;
 
+MemoryChunk::MemoryChunk(ReadOnlyPageMetadata* metadata)
+    : main_thread_flags_(metadata->InitialFlags()), metadata_(metadata) {}
+
+MemoryChunk::MemoryChunk(PageMetadata* metadata, Executability executable)
+    : main_thread_flags_(metadata->InitialFlags(executable)),
+      metadata_(metadata) {}
+
+MemoryChunk::MemoryChunk(LargePageMetadata* metadata, Executability executable)
+    : main_thread_flags_(metadata->InitialFlags(executable)),
+      metadata_(metadata) {}
+
 void MemoryChunk::InitializationMemoryFence() {
   base::SeqCst_MemoryFence();
+
 #ifdef THREAD_SANITIZER
   // Since TSAN does not process memory fences, we use the following annotation
   // to tell TSAN that there is no data race when emitting a

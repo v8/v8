@@ -31,6 +31,7 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   ReadOnlyPageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                        Address area_start, Address area_end,
                        VirtualMemory reservation);
+  MemoryChunk::MainThreadFlags InitialFlags() const;
 
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
@@ -59,6 +60,12 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   Address GetAreaStart() const {
     return ChunkAddress() +
            MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
+  }
+
+  // A special case of the ChunkAddress since the ReadOnlyMetadata is inlined in
+  // the MemoryChunk.
+  Address ChunkAddress() const {
+    return MemoryChunk::FromAddress(MetadataAddress())->address();
   }
 
  private:

@@ -14,14 +14,14 @@ namespace internal {
 
 class Heap;
 class MemoryChunkMetadata;
+class ReadOnlyPageMetadata;
+class PageMetadata;
+class LargePageMetadata;
 template <typename T>
 class Tagged;
 
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
-  explicit MemoryChunk(MemoryChunkMetadata* metadata)
-      : main_thread_flags_(NO_FLAGS), metadata_(metadata) {}
-
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
   // in order to have dense page flag checks in the write barrier.
@@ -123,6 +123,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
+
+  explicit MemoryChunk(ReadOnlyPageMetadata* metadata);
+  explicit MemoryChunk(PageMetadata* metadata, Executability executable);
+  explicit MemoryChunk(LargePageMetadata* metadata, Executability executable);
 
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 

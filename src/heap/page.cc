@@ -20,10 +20,9 @@ static_assert(kClearedWeakHeapObjectLower32 < PageMetadata::kHeaderSize);
 
 PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            Address area_start, Address area_end,
-                           VirtualMemory reservation, Executability executable)
+                           VirtualMemory reservation)
     : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), executable,
-                          PageSize::kRegular) {}
+                          std::move(reservation), PageSize::kRegular) {}
 
 void PageMetadata::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);

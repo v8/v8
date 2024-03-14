@@ -326,6 +326,10 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
   Chunk()->SetFlags(MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP);
 }
 
+MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
+  return MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP;
+}
+
 void ReadOnlyPageMetadata::MakeHeaderRelocatable() {
   heap_ = nullptr;
   owner_ = nullptr;

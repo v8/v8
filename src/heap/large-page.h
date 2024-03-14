@@ -35,6 +35,8 @@ class LargePageMetadata : public MutablePageMetadata {
                     Address area_start, Address area_end,
                     VirtualMemory reservation, Executability executable);
 
+  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+
   Tagged<HeapObject> GetObject() const {
     return HeapObject::FromAddress(area_start());
   }

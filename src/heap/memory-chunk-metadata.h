@@ -60,8 +60,8 @@ class MemoryChunkMetadata {
   }
 
   MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
-                   Address area_start, Address area_end,
-                   VirtualMemory reservation);
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation);
 
   Address ChunkAddress() const { return Chunk()->address(); }
   Address MetadataAddress() const { return reinterpret_cast<Address>(this); }
@@ -92,6 +92,8 @@ class MemoryChunkMetadata {
 
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
+  bool InSharedSpace() const;
+  bool InTrustedSpace() const;
 
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
@@ -139,16 +141,8 @@ class MemoryChunkMetadata {
   }
 
  protected:
-  MemoryChunk chunk_;
-
-  // Overall size of the chunk, including the header and guards.
-  size_t size_;
-
-  Heap* heap_;
-
-  // Start and end of allocatable memory on this chunk.
-  Address area_start_;
-  Address area_end_;
+  // If the chunk needs to remember its memory reservation, it is stored here.
+  VirtualMemory reservation_;
 
   // Byte allocated on the page, which includes all objects on the page and the
   // linear allocation area.
@@ -160,11 +154,25 @@ class MemoryChunkMetadata {
   // number of bytes ever allocated on the page.
   std::atomic<intptr_t> high_water_mark_;
 
+  // Overall size of the chunk, including the header and guards.
+  size_t size_;
+
+  Address area_end_;
+
+  // TODO(sroettger): the following fields are accessed most often (AFAICT) and
+  // are moved to the end to occupy the same cache line as the slot set array.
+  // Without this change, there was a 0.5% performance impact after cache line
+  // aligning the metadata on x64 (before, the metadata started at offset 0x10).
+  // After reordering, the impact is still 0.1%/0.2% on jetstream2/speedometer3,
+  // so there should be some more optimization potential here.
+
+  Heap* heap_;
+
+  // Start and end of allocatable memory on this chunk.
+  Address area_start_;
+
   // The space owning this memory chunk.
   std::atomic<BaseSpace*> owner_;
-
-  // If the chunk needs to remember its memory reservation, it is stored here.
-  VirtualMemory reservation_;
 
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
