@@ -1816,7 +1816,7 @@ class WasmGenerator {
                   source_is_nullable ? kNullable : kNonNullable);
       const bool target_is_nullable =
           source_is_nullable && break_type.is_nullable() && data->get<bool>();
-      builder_->EmitWithPrefix(kExprBrOnCastGeneric);
+      builder_->EmitWithPrefix(kExprBrOnCast);
       builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
       builder_->EmitU32V(block_index);
       builder_->EmitI32V(source_type.code());             // source type
@@ -1835,7 +1835,7 @@ class WasmGenerator {
           (!break_type.is_nullable() || data->get<bool>());
       HeapType target_type = choose_sub_type(source_type, data);
 
-      builder_->EmitWithPrefix(kExprBrOnCastFailGeneric);
+      builder_->EmitWithPrefix(kExprBrOnCastFail);
       builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
       builder_->EmitU32V(block_index);
       builder_->EmitI32V(source_type.code());

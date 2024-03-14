@@ -2447,8 +2447,8 @@ class WasmDecoder : public Decoder {
             (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
-          case kExprBrOnCastGeneric:
-          case kExprBrOnCastFailGeneric: {
+          case kExprBrOnCast:
+          case kExprBrOnCastFail: {
             BrOnCastImmediate flags_imm(decoder, pc + length, validate);
             BranchDepthImmediate branch(decoder, pc + length + flags_imm.length,
                                         validate);
@@ -5265,14 +5265,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, value);
         return opcode_length;
       }
-      case kExprBrOnCastGeneric: {
+      case kExprBrOnCast: {
         NON_CONST_ONLY
         uint32_t pc_offset = opcode_length;
         BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
         pc_offset += flags_imm.length;
         return ParseBrOnCast(opcode, pc_offset, flags_imm.flags);
       }
-      case kExprBrOnCastFailGeneric: {
+      case kExprBrOnCastFail: {
         NON_CONST_ONLY
         uint32_t pc_offset = opcode_length;
         BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
@@ -5317,13 +5317,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Value obj = Pop();
 
-    ValueType src_type = kWasmBottom;
-    DCHECK_EQ(opcode, kExprBrOnCastGeneric);
+    DCHECK_EQ(opcode, kExprBrOnCast);
     HeapTypeImmediate src_imm(this->enabled_, this, this->pc_ + pc_offset,
                               validate);
     if (!this->Validate(this->pc_ + pc_offset, src_imm)) return 0;
     pc_offset += src_imm.length;
-    src_type = ValueType::RefMaybeNull(
+    ValueType src_type = ValueType::RefMaybeNull(
         src_imm.type, flags.src_is_null ? kNullable : kNonNullable);
     ValidateStackValue(0, obj, src_type);
 
@@ -5335,11 +5334,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType target_type = ValueType::RefMaybeNull(
         target_imm.type, null_succeeds ? kNullable : kNonNullable);
 
-    if (src_type != kWasmBottom &&
-        !VALIDATE(IsSubtypeOf(target_type, src_type, this->module_))) {
-      this->DecodeError("invalid types for %s: %s is not a subtype of %s",
-                        WasmOpcodes::OpcodeName(opcode),
-                        target_type.name().c_str(), src_type.name().c_str());
+    if (!VALIDATE(IsSubtypeOf(target_type, src_type, this->module_))) {
+      this->DecodeError(
+          "invalid types for br_on_cast: %s is not a subtype of %s",
+          target_type.name().c_str(), src_type.name().c_str());
       return 0;
     }
 
@@ -5349,9 +5347,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                  this->module_)) ||
             obj.type.is_bottom())) {
       this->DecodeError(obj.pc(),
-                        "invalid types for %s: %s of type %s has to "
+                        "invalid types for br_on_cast: %s of type %s has to "
                         "be in the same reference type hierarchy as %s",
-                        WasmOpcodes::OpcodeName(opcode),
                         SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
                         target_type.name().c_str());
       return 0;
@@ -5359,8 +5356,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Control* c = control_at(branch_depth.depth);
     if (c->br_merge()->arity == 0) {
-      this->DecodeError("%s must target a branch of arity at least 1",
-                        WasmOpcodes::OpcodeName(opcode));
+      this->DecodeError("br_on_cast must target a branch of arity at least 1");
       return 0;
     }
     Value* value_on_branch = Push(target_type);
@@ -5424,13 +5420,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
     uint32_t pc_offset = opcode_length + branch_depth.length;
 
-    ValueType source_type = kWasmBottom;
-    DCHECK_EQ(opcode, kExprBrOnCastFailGeneric);
     HeapTypeImmediate source_imm(this->enabled_, this, this->pc_ + pc_offset,
                                  validate);
     if (!this->Validate(this->pc_ + pc_offset, source_imm)) return 0;
     pc_offset += source_imm.length;
-    source_type = ValueType::RefMaybeNull(
+    ValueType source_type = ValueType::RefMaybeNull(
         source_imm.type, flags.src_is_null ? kNullable : kNonNullable);
 
     HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
@@ -5442,13 +5436,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType target_type = ValueType::RefMaybeNull(
         imm.type, null_succeeds ? kNullable : kNonNullable);
 
-    Value obj = Peek();
+    Value obj = Pop();
 
     DCHECK_NE(source_type, kWasmBottom);
     if (!VALIDATE(IsSubtypeOf(target_type, source_type, this->module_))) {
-      this->DecodeError("invalid types for %s: %s is not a subtype of %s",
-                        WasmOpcodes::OpcodeName(opcode),
-                        target_type.name().c_str(), source_type.name().c_str());
+      this->DecodeError(
+          "invalid types for br_on_cast_fail: %s is not a subtype of %s",
+          target_type.name().c_str(), source_type.name().c_str());
       return 0;
     }
     ValidateStackValue(0, obj, source_type);
@@ -5458,27 +5452,25 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
              IsSameTypeHierarchy(obj.type.heap_type(), target_type.heap_type(),
                                  this->module_)) ||
             obj.type.is_bottom())) {
-      this->DecodeError(obj.pc(),
-                        "Invalid types for %s: %s of type %s has to "
-                        "be in the same reference type hierarchy as %s",
-                        WasmOpcodes::OpcodeName(opcode),
-                        SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-                        target_type.name().c_str());
+      this->DecodeError(
+          obj.pc(),
+          "Invalid types for br_on_cast_fail: %s of type %s has to "
+          "be in the same reference type hierarchy as %s",
+          SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+          target_type.name().c_str());
       return 0;
     }
 
     Control* c = control_at(branch_depth.depth);
     if (c->br_merge()->arity == 0) {
-      this->DecodeError("%s must target a branch of arity at least 1",
-                        WasmOpcodes::OpcodeName(opcode));
+      this->DecodeError(
+          "br_on_cast_fail must target a branch of arity at least 1");
       return 0;
     }
 
     // The branch type is set based on the source type immediate (independent
     // of the actual stack value). If the target type is nullable, the branch
     // type is non-nullable.
-    DCHECK(!source_type.is_bottom());
-    Drop(obj);
     Push(flags.res_is_null ? source_type.AsNonNull() : source_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
 
@@ -5489,12 +5481,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
 
     Value result_on_fallthrough = CreateValue(target_type);
-    if (opcode != kExprBrOnCastFailGeneric) {
-      result_on_fallthrough.type = ValueType::RefMaybeNull(
-          target_type.heap_type(), (obj.type.is_bottom() || !null_succeeds)
-                                       ? kNonNullable
-                                       : obj.type.nullability());
-    }
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       // This logic ensures that code generation can assume that functions
       // can only be cast between compatible types.

@@ -716,8 +716,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefTestNull, 0xfb15, _, "ref.test null")                                   \
   V(RefCast, 0xfb16, _, "ref.cast")                                            \
   V(RefCastNull, 0xfb17, _, "ref.cast null")                                   \
-  V(BrOnCastGeneric, 0xfb18, _, "br_on_cast")                                  \
-  V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
+  V(BrOnCast, 0xfb18, _, "br_on_cast")                                         \
+  V(BrOnCastFail, 0xfb19, _, "br_on_cast_fail")                                \
   V(AnyConvertExtern, 0xfb1a, _, "any.convert_extern")                         \
   V(ExternConvertAny, 0xfb1b, _, "extern.convert_any")                         \
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \

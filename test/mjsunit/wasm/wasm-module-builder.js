@@ -521,8 +521,12 @@ let kExprRefTest = 0x14;
 let kExprRefTestNull = 0x15;
 let kExprRefCast = 0x16;
 let kExprRefCastNull = 0x17;
-let kExprBrOnCastGeneric = 0x18;      // TODO(14034): Drop "Generic" name.
-let kExprBrOnCastFailGeneric = 0x19;  // TODO(14034): Drop "Generic" name.
+let kExprBrOnCast = 0x18;
+let kExprBrOnCastFail = 0x19;
+// TODO(mliedtke): Drop by 07/2024 or later.
+// (Just keeping it temporarily for bisection.)
+let kExprBrOnCastGeneric = kExprBrOnCast;
+let kExprBrOnCastFailGeneric = kExprBrOnCastFail;
 let kExprAnyConvertExtern = 0x1a;
 let kExprExternConvertAny = 0x1b;
 let kExprRefI31 = 0x1c;
@@ -2280,7 +2284,7 @@ let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
     flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, brOnFail ? kExprBrOnCastFailGeneric : kExprBrOnCastGeneric,
+      kGCPrefix, brOnFail ? kExprBrOnCastFail : kExprBrOnCast,
       flags, ...labelIdx, ...srcHeap, ...tgtHeap];
   }
 })();
