@@ -6051,7 +6051,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
 
-    if (end_offset <= memory->min_memory_size &&
+    // The index can be invalid if we are generating unreachable operations.
+    if (end_offset <= memory->min_memory_size && index.valid() &&
         __ output_graph().Get(index).Is<ConstantOp>()) {
       ConstantOp& constant_index_op =
           __ output_graph().Get(index).Cast<ConstantOp>();
