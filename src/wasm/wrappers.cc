@@ -545,34 +545,44 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   void BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend, const WasmModule* module) {
-    int wasm_count = static_cast<int>(sig_->parameter_count());
+    int wasm_count = static_cast<int>(sig_->parameter_count()) - suspend;
 
     __ Bind(__ NewBlock());
+    base::SmallVector<OpIndex, 16> wasm_params(wasm_count);
+    OpIndex ref = __ Parameter(0, RegisterRepresentation::Tagged());
+    V<HeapObject> suspender =
+        suspend ? __ Parameter(1, RegisterRepresentation::Tagged())
+                : OpIndex::Invalid();
+    for (int i = 0; i < wasm_count; ++i) {
+      RegisterRepresentation rep =
+          RepresentationFor(sig_->GetParam(i + suspend));
+      wasm_params[i] = (__ Parameter(1 + suspend + i, rep));
+    }
 
-    V<HeapObject> ref = __ Parameter(0, RegisterRepresentation::Tagged());
     V<Context> native_context = __ Load(
         ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
         WasmApiFunctionRef::kNativeContextOffset);
 
-    // For runtime type errors, the import uses the {WasmToJsWrapperInvalidSig}
-    // builtin instead of the generic wrapper, so it does not tier up and we
-    // don't need to handle this case here.
-    DCHECK_NE(kind, wasm::ImportCallKind::kRuntimeTypeError);
+    if (kind == wasm::ImportCallKind::kRuntimeTypeError) {
+      // =======================================================================
+      // === Runtime TypeError =================================================
+      // =======================================================================
+      CallRuntime(zone_, Runtime::kWasmThrowJSTypeError, {}, native_context);
+      __ Unreachable();
+      return;
+    }
 
     V<Undefined> undefined_node = LOAD_ROOT(UndefinedValue);
-    V<HeapObject> suspender =
-        suspend ? __ Parameter(1, RegisterRepresentation::Tagged())
-                : OpIndex::Invalid();
-    int pushed_count = std::max(expected_arity, wasm_count - suspend);
+    int pushed_count = std::max(expected_arity, wasm_count);
     // 4 extra arguments: receiver, new target, arg count and context.
     base::SmallVector<OpIndex, 16> args(pushed_count + 4);
     // Position of the first wasm argument in the JS arguments.
     int pos = kind == ImportCallKind::kUseCallBuiltin ? 3 : 1;
     // If {suspend} is true, {wasm_count} includes the suspender argument, which
     // is dropped in {AddArgumentNodes}.
-    pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
+    pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_params, sig_,
                            native_context, suspend);
-    for (int i = wasm_count - suspend; i < expected_arity; ++i) {
+    for (int i = wasm_count; i < expected_arity; ++i) {
       args[pos++] = undefined_node;
     }
 
@@ -586,7 +596,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // === JS Functions ======================================================
       // =======================================================================
       case wasm::ImportCallKind::kJSFunctionArityMatch:
-        DCHECK_EQ(expected_arity, wasm_count - suspend);
+        DCHECK_EQ(expected_arity, wasm_count);
         [[fallthrough]];
       case wasm::ImportCallKind::kJSFunctionArityMismatch: {
         auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
@@ -599,8 +609,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             BuildReceiverNode(callable_node, native_context, undefined_node);
         DCHECK_EQ(pos, pushed_count + 1);
         args[pos++] = undefined_node;  // new target
-        args[pos++] = __ Word32Constant(
-            JSParameterCount(wasm_count - suspend));  // argument count
+        args[pos++] =
+            __ Word32Constant(JSParameterCount(wasm_count));  // argument count
         args[pos++] = LoadContextFromJSFunction(callable_node);
         call = BuildCallOnCentralStack(callable_node, args, ts_call_descriptor,
                                        callable_node);
@@ -610,17 +620,17 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       // === General case of unknown callable ==================================
       // =======================================================================
       case wasm::ImportCallKind::kUseCallBuiltin: {
-        DCHECK_EQ(expected_arity, wasm_count - suspend);
+        DCHECK_EQ(expected_arity, wasm_count);
         OpIndex target = GetBuiltinPointerTarget(Builtin::kCall_ReceiverIsAny);
         args[0] = callable_node;
-        args[1] = __ Word32Constant(
-            JSParameterCount(wasm_count - suspend));  // argument count
-        args[2] = undefined_node;                     // receiver
+        args[1] =
+            __ Word32Constant(JSParameterCount(wasm_count));  // argument count
+        args[2] = undefined_node;                             // receiver
 
         auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
-            __ graph_zone(), CallTrampolineDescriptor{},
-            wasm_count + 1 - suspend, CallDescriptor::kNoFlags,
-            Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+            __ graph_zone(), CallTrampolineDescriptor{}, wasm_count + 1,
+            CallDescriptor::kNoFlags, Operator::kNoProperties,
+            StubCallMode::kCallBuiltinPointer);
         const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
             call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
 
@@ -638,15 +648,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         UNIMPLEMENTED();
     }
     DCHECK(call.valid());
-
-    // For asm.js the error location can differ depending on whether an
-    // exception was thrown in imported JS code or an exception was thrown in
-    // the ToNumber builtin that converts the result of the JS code a
-    // WebAssembly value. The source position allows asm.js to determine the
-    // correct error location. Source position 1 encodes the call to ToNumber,
-    // source position 0 encodes the call to the imported JS code.
-    __ output_graph().source_positions()[call] = SourcePosition(0);
-
     if (suspend) {
       call = BuildSuspend(call, suspender, ref);
     }
@@ -994,22 +995,15 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   // Must be called in the first block to emit the Parameter ops.
-  int AddArgumentNodes(base::Vector<OpIndex> args, int pos, int param_count,
+  int AddArgumentNodes(base::Vector<OpIndex> args, int pos,
+                       base::SmallVector<OpIndex, 16> wasm_params,
                        const wasm::FunctionSig* sig, V<Context> context,
                        wasm::Suspend suspend) {
     // Convert wasm numbers to JS values.
-    // Drop the instance node, and possibly the suspender node.
-    // Emit the Parameters first so that they are in the first block, and
-    // convert them in a separate loop.
-    for (int i = 0; i < param_count - suspend; ++i) {
-      RegisterRepresentation rep =
-          RepresentationFor(sig->GetParam(i + suspend));
-      args[pos + i] = __ Parameter(i + suspend + 1, rep);
+    for (size_t i = 0; i < wasm_params.size(); ++i) {
+      args[pos++] = ToJS(wasm_params[i], sig->GetParam(i + suspend), context);
     }
-    for (int i = 0; i < param_count - suspend; ++i) {
-      args[pos + i] = ToJS(args[pos + i], sig->GetParam(i + suspend), context);
-    }
-    return pos + param_count - suspend;
+    return pos;
   }
 
   OpIndex LoadSharedFunctionInfo(V<JSFunction> js_function) {
@@ -1102,17 +1096,25 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         IsolateData::is_on_central_stack_flag_offset());
     Variable result_var = __ NewVariable(RegisterRepresentation::Tagged());
     IF (is_on_central_stack_flag) {
-      __ SetVariable(result_var,
-                     __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
-                             call_descriptor));
+      OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
+                             call_descriptor);
+      // For asm.js the error location can differ depending on whether an
+      // exception was thrown in imported JS code or an exception was thrown in
+      // the ToNumber builtin that converts the result of the JS code a
+      // WebAssembly value. The source position allows asm.js to determine the
+      // correct error location. Source position 1 encodes the call to ToNumber,
+      // source position 0 encodes the call to the imported JS code.
+      __ output_graph().source_positions()[call] = SourcePosition(0);
+      __ SetVariable(result_var, call);
     } ELSE {
       OpIndex old_sp = BuildSwitchToTheCentralStack(receiver);
-      __ SetVariable(result_var,
-                     __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
-                             call_descriptor));
+      // See comment above.
+      OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
+                             call_descriptor);
+      __ output_graph().source_positions()[call] = SourcePosition(0);
+      __ SetVariable(result_var, call);
       BuildSwitchBackFromCentralStack(old_sp, receiver);
     }
-
     OpIndex result = __ GetVariable(result_var);
     __ SetVariable(result_var, OpIndex::Invalid());
     return result;

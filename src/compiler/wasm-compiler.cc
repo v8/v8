@@ -7891,6 +7891,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     args[pos++] = control();
     DCHECK_EQ(pos, args.size());
     Node* call = gasm_->Call(call_descriptor, pos, args.begin());
+    // For asm.js the error location can differ depending on whether an
+    // exception was thrown in imported JS code or an exception was thrown in
+    // the ToNumber builtin that converts the result of the JS code a
+    // WebAssembly value. The source position allows asm.js to determine the
+    // correct error location. Source position 1 encodes the call to ToNumber,
+    // source position 0 encodes the call to the imported JS code.
+    SetSourcePosition(call, 0);
     gasm_->Goto(&end, call);
 
     gasm_->Bind(&do_switch);
@@ -7899,6 +7906,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     args[pos - 1] = control();
 
     call = gasm_->Call(call_descriptor, pos, args.begin());
+    // See comment above.
+    SetSourcePosition(call, 0);
     BuildSwitchBackFromCentralStack(old_sp, callable_node);
     gasm_->Goto(&end, call);
 
@@ -8010,14 +8019,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         UNREACHABLE();
     }
     DCHECK_NOT_NULL(call);
-
-    // For asm.js the error location can differ depending on whether an
-    // exception was thrown in imported JS code or an exception was thrown in
-    // the ToNumber builtin that converts the result of the JS code a
-    // WebAssembly value. The source position allows asm.js to determine the
-    // correct error location. Source position 1 encodes the call to ToNumber,
-    // source position 0 encodes the call to the imported JS code.
-    SetSourcePosition(call, 0);
 
     if (suspend) {
       call = BuildSuspend(call, Param(1), Param(0));
@@ -8646,12 +8647,8 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
         WasmStubAssemblerOptions(), source_position_table);
   };
 
-  auto result = compile_with_turbofan();
-  USE(compile_with_turboshaft);
-  // TODO(thibaudm): Replace with the code below once the wasm-to-js graph is
-  // implemented:
-  // auto result = v8_flags.turboshaft_wasm_wrappers ? compile_with_turboshaft()
-  //                                                 : compile_with_turbofan();
+  auto result = v8_flags.turboshaft_wasm_wrappers ? compile_with_turboshaft()
+                                                  : compile_with_turbofan();
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
@@ -8828,12 +8825,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
     }
     return job->compilation_info()->code();
   };
-  return compile_with_turbofan();
-  USE(compile_with_turboshaft);
-  // TODO(thibaudm): Replace with the code below once the wasm-to-js graph is
-  // implemented:
-  // return v8_flags.turboshaft_wasm_wrappers ? compile_with_turboshaft()
-  //                                          : compile_with_turbofan();
+  return v8_flags.turboshaft_wasm_wrappers ? compile_with_turboshaft()
+                                           : compile_with_turbofan();
 }
 
 Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,

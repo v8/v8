@@ -2346,10 +2346,11 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
   base::Optional<turboshaft::PipelineData::Scope> turboshaft_scope(
       pipeline_.GetTurboshaftPipelineData(
-          turboshaft::TurboshaftPipelineKind::kJSToWasm));
+          wrapper_info_.code_kind == CodeKind::JS_TO_WASM_FUNCTION
+              ? turboshaft::TurboshaftPipelineKind::kJSToWasm
+              : turboshaft::TurboshaftPipelineKind::kWasm));
   auto& turboshaft_pipeline = turboshaft_scope.value();
   turboshaft_pipeline.Value().SetIsWasm(module_, sig_);
-  DCHECK_NOT_NULL(turboshaft::PipelineData::Get().wasm_module());
 
   AccountingAllocator allocator;
   BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig_,
@@ -3152,6 +3153,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         pipeline.GetTurboshaftPipelineData(
             turboshaft::TurboshaftPipelineKind::kWasm));
     auto& turboshaft_pipeline = turboshaft_scope.value();
+    turboshaft_pipeline.Value().SetIsWasm(module, sig);
     AccountingAllocator allocator;
     BuildWasmWrapper(&allocator, turboshaft_pipeline.Value().graph(), sig,
                      wrapper_info, module);
