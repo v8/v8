@@ -1631,18 +1631,15 @@ class MachineLoweringReducer : public Next {
     // have been initialized.
     auto array = __ FinishInitialization(std::move(uninitialized_array));
 
-    // Initialize the backing store with holes.
-    LoopLabel<WordPtr> loop(this);
-    GOTO(loop, intptr_t{0});
+    ScopedVar<WordPtr> index(Asm(), __ WordPtrConstant(0));
 
-    LOOP(loop, index) {
-      GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(index, length)), done, array);
-
+    WHILE(__ UintPtrLessThan(index, length)) {
       __ StoreNonArrayBufferElement(array, access, index, the_hole_value);
-
       // Advance the {index}.
-      GOTO(loop, __ WordPtrAdd(index, 1));
+      index = __ WordPtrAdd(*index, 1);
     }
+
+    GOTO(done, array);
 
     BIND(done, result);
     return result;

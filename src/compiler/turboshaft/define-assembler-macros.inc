@@ -28,6 +28,19 @@
     Asm().ControlFlowHelper_BindLoop(loop_label); CONCAT(run_loop_, __LINE__); \
         Asm().ControlFlowHelper_EndLoop(loop_label),                           \
         CONCAT(run_loop_, __LINE__) = false)
+
+#define WHILE(...)                                                            \
+    for (auto [CONCAT(run_loop_, __LINE__), loop_header_xx, loop_exit_xx]     \
+              = Asm().ControlFlowHelper_While([&]() {                         \
+           return __VA_ARGS__;                                                \
+         });                                                                  \
+         CONCAT(run_loop_, __LINE__);                                         \
+         Asm().ControlFlowHelper_EndWhileLoop(loop_header_xx, loop_exit_xx),  \
+              CONCAT(run_loop_, __LINE__) = false)
+
+#define BREAK Asm().ControlFlowHelper_Goto(loop_exit_xx, {})
+#define CONTINUE Asm().ControlFlowHelper_Goto(loop_header_xx, {})
+
 #define GOTO(label, ...)                             \
   Asm().ControlFlowHelper_Goto(label, {__VA_ARGS__})
 #define GOTO_IF(cond, label, ...)                            \

@@ -162,6 +162,9 @@ class LabelBase {
  protected:
   static constexpr size_t size = sizeof...(Ts);
 
+  LabelBase(const LabelBase&) = delete;
+  LabelBase& operator=(const LabelBase&) = delete;
+
  public:
   static constexpr bool is_loop = loop;
   using values_t = std::tuple<V<Ts>...>;
@@ -231,6 +234,10 @@ class LabelBase {
     DCHECK_NOT_NULL(data_.block);
   }
 
+  LabelBase(LabelBase&& other) V8_NOEXCEPT
+      : data_(std::move(other.data_)),
+        has_incoming_jump_(other.has_incoming_jump_) {}
+
   static void RecordValues(Block* source, BlockData& data,
                            const values_t& values) {
     DCHECK_NOT_NULL(source);
@@ -298,9 +305,14 @@ template <typename... Ts>
 class Label : public LabelBase<false, Ts...> {
   using super = LabelBase<false, Ts...>;
 
+  Label(const Label&) = delete;
+  Label& operator=(const Label&) = delete;
+
  public:
   template <typename Reducer>
   explicit Label(Reducer* reducer) : super(reducer->Asm().NewBlock()) {}
+
+  Label(Label&& other) V8_NOEXCEPT : super(std::move(other)) {}
 };
 
 template <typename... Ts>
@@ -308,12 +320,20 @@ class LoopLabel : public LabelBase<true, Ts...> {
   using super = LabelBase<true, Ts...>;
   using BlockData = typename super::BlockData;
 
+  LoopLabel(const LoopLabel&) = delete;
+  LoopLabel& operator=(const LoopLabel&) = delete;
+
  public:
   using values_t = typename super::values_t;
   template <typename Reducer>
   explicit LoopLabel(Reducer* reducer)
       : super(reducer->Asm().NewBlock()),
         loop_header_data_{reducer->Asm().NewLoopHeader()} {}
+
+  LoopLabel(LoopLabel&& other) V8_NOEXCEPT
+      : super(std::move(other)),
+        loop_header_data_(std::move(other.loop_header_data_)),
+        pending_loop_phis_(std::move(other.pending_loop_phis_)) {}
 
   Block* loop_header() const { return loop_header_data_.block; }
 
@@ -623,6 +643,7 @@ class ScopedVariable : Variable {
 
   void operator=(V<T> new_value) { assembler_.SetVariable(*this, new_value); }
   V<T> operator*() const { return assembler_.GetVariable(*this); }
+  operator V<T>() const { return assembler_.GetVariable(*this); }
   ScopedVariable(const ScopedVariable&) = delete;
   ScopedVariable(ScopedVariable&&) = delete;
   ScopedVariable& operator=(const ScopedVariable) = delete;
@@ -1010,6 +1031,29 @@ class GenericAssemblerOpInterface : public Next {
   void ControlFlowHelper_EndLoop(L& label) {
     static_assert(L::is_loop);
     label.EndLoop(Asm());
+  }
+
+  std::tuple<bool, LoopLabel<>, Label<>> ControlFlowHelper_While(
+      std::function<V<Word32>()> cond_builder) {
+    LoopLabel<> loop_header(this);
+    Label<> loop_exit(this);
+
+    ControlFlowHelper_Goto(loop_header, {});
+
+    auto [bound] = loop_header.BindLoop(Asm());
+    V<Word32> cond = cond_builder();
+    ControlFlowHelper_GotoIfNot(cond, loop_exit, {});
+
+    return std::make_tuple(bound, std::move(loop_header), std::move(loop_exit));
+  }
+
+  template <typename L1, typename L2>
+  void ControlFlowHelper_EndWhileLoop(L1& header_label, L2& exit_label) {
+    static_assert(L1::is_loop);
+    static_assert(!L2::is_loop);
+    ControlFlowHelper_Goto(header_label, {});
+    ControlFlowHelper_EndLoop(header_label);
+    ControlFlowHelper_Bind(exit_label);
   }
 
   template <typename L>
@@ -1751,6 +1795,9 @@ class TurboshaftAssemblerOpInterface
   }
   V<Word64> Word64Constant(int64_t value) {
     return Word64Constant(static_cast<uint64_t>(value));
+  }
+  V<WordPtr> WordPtrConstant(uintptr_t value) {
+    return WordConstant(value, WordRepresentation::WordPtr());
   }
   OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
     switch (rep.value()) {

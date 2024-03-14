@@ -17,6 +17,8 @@
 #undef Assert
 
 #undef BIND
+#undef BREAK
+#undef CONTINUE
 #undef ELSE
 #undef GOTO
 #undef GOTO_IF
@@ -28,5 +30,6 @@
 #undef REDUCE
 #undef REDUCE_INPUT_GRAPH
 #undef UNLIKELY
+#undef WHILE
 
 #undef V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED
