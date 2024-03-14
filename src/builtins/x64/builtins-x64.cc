@@ -4731,7 +4731,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
   __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
-  // r8 is kCArgRegs[4] on Linux
+  // r8 is kCArgRegs[4] on Linux.
   __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
 #endif
 
