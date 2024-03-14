@@ -195,14 +195,12 @@ in_category(
         name = "V8 Linux64 - no sandbox",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
         triggered_by = ["v8-trigger"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
         triggered_by = ["v8-trigger"],
     ),
 )

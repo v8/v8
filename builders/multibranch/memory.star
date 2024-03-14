@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "in_branch_console", "main_multibranch_builder", "multibranch_builder")
+load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "in_branch_console", "main_multibranch_builder", "multibranch_builder")
 
 in_category = in_branch_console("memory")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -13,6 +13,7 @@ in_category(
         name = "V8 Linux64 ASAN",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
@@ -24,7 +25,7 @@ in_category(
         name = "V8 Win64 ASAN",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
 )
@@ -36,7 +37,7 @@ in_category(
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
     ),
 )
 
@@ -46,10 +47,12 @@ in_category(
         name = "V8 Linux64 TSAN - builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 TSAN",
         parent_builder = "V8 Linux64 TSAN - builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - debug",

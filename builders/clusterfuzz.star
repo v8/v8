@@ -2,15 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
-def clusterfuzz_builder(properties = None, close_tree = True, default_target = "v8_clusterfuzz", **kwargs):
+def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, default_target = "v8_clusterfuzz", **kwargs):
     properties = dict(properties or {})
     properties["builder_group"] = "client.v8.clusterfuzz"
     properties["default_targets"] = [default_target]
     return v8_builder(
         bucket = "ci",
-        close_tree = close_tree,
+        barrier = barrier,
         properties = properties,
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
@@ -116,14 +116,14 @@ in_category(
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        close_tree = False,
+        barrier = BARRIER.NONE,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN no origins",
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        close_tree = False,
+        barrier = BARRIER.NONE,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
@@ -161,7 +161,7 @@ in_category(
         bucket = "ci",
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
         disable_resultdb_exports = True,
@@ -172,7 +172,7 @@ in_category(
         bucket = "ci",
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
         disable_resultdb_exports = True,
@@ -183,7 +183,7 @@ in_category(
         bucket = "ci",
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
         disable_resultdb_exports = True,

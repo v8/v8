@@ -292,6 +292,25 @@ def _gclient_vars_properties(props):
     else:
         return {}
 
+BARRIER = struct(
+    LKGR_TREE_CLOSER = struct(
+        closes_tree = True,
+        properties = {"__lkgr_contributor": True},
+    ),
+    LKGR_ONLY = struct(
+        closes_tree = False,
+        properties = {"__lkgr_contributor": True},
+    ),
+    TREE_CLOSER = struct(
+        closes_tree = True,
+        properties = {},
+    ),
+    NONE = struct(
+        closes_tree = False,
+        properties = {},
+    ),
+)
+
 multibot_caches = [
     swarming.cache(
         path = "builder",
@@ -304,7 +323,8 @@ def v8_builder(defaults = None, **kwargs):
     in_console = kwargs.pop("in_console", None)
     in_list = kwargs.pop("in_list", None)
     defaults = defaults or defaults_dict[bucket_name]
-    if kwargs.pop("close_tree", False):
+    barrier = kwargs.pop("barrier", BARRIER.NONE)
+    if barrier.closes_tree:
         notifies = kwargs.pop("notifies", [])
         if kwargs.get("executable") != "recipe:v8":
             notifies.append("generic tree closer")
@@ -314,6 +334,7 @@ def v8_builder(defaults = None, **kwargs):
     if parent_builder:
         resolve_parent_triggering(kwargs, bucket_name, parent_builder)
     kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
+    add_barrier_properties(barrier, kwargs)
     v8_basic_builder(defaults, **kwargs)
     if in_console:
         splited = in_console.split("/")
@@ -402,7 +423,7 @@ def bq_exports(rdb_export_disabled, resultdb_bq_table_prefix):
 
 def multibranch_builder(**kwargs):
     added_builders = []
-    close_tree = kwargs.pop("close_tree", True)
+    barrier = kwargs.pop("barrier", BARRIER.TREE_CLOSER)
     for branch in branch_descriptors:
         args = dict(kwargs)
         parent_builder = args.pop("parent_builder", None)
@@ -417,7 +438,7 @@ def multibranch_builder(**kwargs):
         args["priority"] = branch.priority
 
         if branch.bucket == "ci":
-            if close_tree:
+            if barrier.closes_tree:
                 notifies = args.pop("notifies", [])
                 if parent_builder:
                     notifies.append("v8 tree closer")
@@ -428,9 +449,18 @@ def multibranch_builder(**kwargs):
             args["disable_resultdb_exports"] = True
             if _builder_is_not_supported(branch.bucket, first_branch_version):
                 continue
+        add_barrier_properties(barrier, args)
+        properties = args.get("properties", {})
+        properties.update(barrier.properties)
+        args["properties"] = properties
         v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)
         added_builders.append(branch.bucket + "/" + kwargs["name"])
     return added_builders
+
+def add_barrier_properties(barrier, properties_holder):
+    properties = properties_holder.get("properties", {})
+    properties.update(barrier.properties)
+    properties_holder["properties"] = properties
 
 def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})
@@ -572,7 +602,7 @@ def ci_pair_factory(func):
             "bucket",
             "properties",
             "experiments",
-            "close_tree",
+            "barrier",
             "first_branch_version",
             "notifies",
             "notify_owners",

@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
+load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
 
 def port_builder(*args, **kwargs):
     experiments = kwargs.pop("experiments", {})
@@ -22,6 +22,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Arm - debug builder",
@@ -29,6 +30,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Android Arm - builder",
@@ -37,6 +39,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm32", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim",
@@ -46,6 +49,7 @@ in_category(
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - debug",
@@ -54,6 +58,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite",
@@ -62,8 +67,8 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = True,
-        tester_close_tree = False,
+        barrier = BARRIER.TREE_CLOSER,
+        tester_barrier = BARRIER.NONE,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite - debug",
@@ -72,15 +77,15 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = True,
-        tester_close_tree = False,
+        barrier = BARRIER.TREE_CLOSER,
+        tester_barrier = BARRIER.NONE,
     ),
     multibranch_builder(
         name = "V8 Arm",
         parent_builder = "V8 Arm - builder",
         execution_timeout = 28800,
         properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         notifies = ["V8 Flake Sheriff"],
         disable_resultdb_exports = True,
     ),
@@ -91,6 +96,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         notifies = ["V8 Flake Sheriff"],
         disable_resultdb_exports = True,
+        barrier = BARRIER.TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Arm GC Stress",
@@ -111,6 +117,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64, "builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Android Arm64 - builder",
@@ -119,6 +126,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm64", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder(
         name = "V8 Android Arm64 - debug builder",
@@ -131,7 +139,7 @@ in_category(
         name = "V8 Android Arm64 - N5X",
         parent_builder = "V8 Android Arm64 - builder",
         properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         notifies = ["V8 Flake Sheriff"],
         disable_resultdb_exports = True,
     ),
@@ -153,6 +161,7 @@ in_category(
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - debug",
@@ -161,6 +170,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         tester_notifies = ["V8 Flake Sheriff"],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - gc stress",
@@ -193,7 +203,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
 )
@@ -207,7 +217,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
@@ -217,7 +227,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
 )
@@ -229,7 +239,7 @@ in_category(
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         first_branch_version = "10.5",
         disable_resultdb_exports = True,
     ),
@@ -238,7 +248,7 @@ in_category(
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
@@ -246,7 +256,7 @@ in_category(
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
+        barrier = BARRIER.NONE,
         first_branch_version = "11.8",
         disable_resultdb_exports = True,
     ),
@@ -261,7 +271,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
 )

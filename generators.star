@@ -268,7 +268,39 @@ def collect_sherriffed_non_tree_closer_builders(ctx):
         indent = "  ",
     )
 
-lucicfg.generator(collect_sherriffed_non_tree_closer_builders)
+def build_lkgr_list(ctx):
+    """
+    This callback configures the V8 lkgr finder to include all builders that
+    have the `__lkgr_contributor` property set.
+    """
+    build_bucket = ctx.output["cr-buildbucket.cfg"]
+
+    ci_builders = [
+        builder
+        for bucket in build_bucket.buckets
+        for builder in bucket.swarming.builders
+        if builder.properties
+    ]
+
+    lkgr_contributors = dict()
+    for builder in ci_builders:
+        properties = json.decode(builder.properties)
+        if "__lkgr_contributor" in properties:
+            properties.pop("__lkgr_contributor")
+            builder.properties = json.encode(properties)
+            lkgr_contributors[builder.name] = None
+    lkgr_contributors = lkgr_contributors.keys()
+
+    lkgr_finder = [
+        builder
+        for bucket in build_bucket.buckets
+        for builder in bucket.swarming.builders
+        if bucket.name == "ci-hp" and builder.name == "V8 lkgr finder"
+    ][0]
+
+    lkgr_properties = json.decode(lkgr_finder.properties)
+    lkgr_properties["config"]["buckets"]["v8/ci"]["builders"] = lkgr_contributors
+    lkgr_finder.properties = json.encode(lkgr_properties)
 
 lucicfg.generator(aggregate_builder_tester_console)
 
@@ -283,3 +315,7 @@ lucicfg.generator(ensure_forward_triggering_properties)
 lucicfg.generator(hide_wip_builders)
 
 lucicfg.generator(scheduled_builder_cleanup)
+
+lucicfg.generator(collect_sherriffed_non_tree_closer_builders)
+
+lucicfg.generator(build_lkgr_list)

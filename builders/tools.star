@@ -82,3 +82,54 @@ v8_builder(
     execution_timeout = 3600,
     notifies = ["test262 impex", "infra"],
 )
+
+v8_builder(
+    name = "V8 lkgr finder",
+    bucket = "ci-hp",
+    executable = "recipe:lkgr_finder",
+    build_numbers = True,
+    properties = {
+        "config": {
+            "allowed_gap": 150,
+            "allowed_lag": 4,
+            "project": "v8",
+            "source_url": "https://chromium.googlesource.com/v8/v8",
+            "status_url": "https://v8-status.appspot.com",
+            "monkeypatch_rev_map": {
+                "7b9ea585802485b842a8bbbc941e53543963dde2": (24865, "refs/heads/master"),
+                "4c0decf17e75806f956a253e786af6606659231e": (24866, "refs/heads/master"),
+                "29e361f9dc64ff542502780fcd58b5f38fa711a6": (24867, "refs/heads/master"),
+                "602eb9bdb529cc12f95b1bff0b2d690aba732d06": (24868, "refs/heads/master"),
+                "f546c6e449ab6147cda1c3cf060e47ec03f7bcd1": (24869, "refs/heads/master"),
+                "c5a9917aeaa17cef6051cac057cb237dbbab1b7e": (24870, "refs/heads/master"),
+                "20992764bf73f3bbf70beee0dfb7fe4eafb5d055": (24871, "refs/heads/master"),
+                "4897f7d89cc506ade9b2f99ea97d88d0f5108da1": (24872, "refs/heads/master"),
+                "ec878cfe59572fdaf26051b40a2c4157197aa738": (24873, "refs/heads/master"),
+                "1dd8281162f30d6dda51f702b5ecfe70e366c945": (24874, "refs/heads/master"),
+                "ad7a50bd7b511064915bc2a09f53157b6bbc7c5b": (24875, "refs/heads/master"),
+                "0c5049ea2fe5002a0032a83de35bd7c1a033b62b": (24876, "refs/heads/master"),
+                "be4aa1490dfc912800a02bcf48102ace7bde2f65": (24877, "refs/heads/master"),
+            },
+            "buckets": {
+                "v8/ci": {
+                    # bucket alias: luci.v8.ci
+                    "builders": [
+                        # Maintained by build_lkgr_list generator
+                    ],
+                },
+            },
+        },
+        "project": "v8",
+        "repo": "https://chromium.googlesource.com/v8/v8",
+        "ref": "refs/heads/lkgr",
+        "lkgr_status_gs_path": "chromium-v8/lkgr-status",
+        # 10x9 h is the allowed lag in low commit periods (e.g. weekends)
+        "allowed_lag": 4,
+        "src_ref": "refs/heads/main",
+    },
+    schedule = "2/6 * * * *",
+    execution_timeout = 3600,
+    disable_resultdb_exports = True,
+    in_list = "tools",
+    notifies = ["infra"],
+)

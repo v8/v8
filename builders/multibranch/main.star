@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
+load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
 
 in_category = in_branch_console("main")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -16,17 +16,19 @@ in_category(
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
     main_multibranch_builder_pair(
@@ -34,6 +36,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - noi18n - debug",
@@ -44,6 +47,7 @@ in_category(
         name = "V8 Linux - verify csa",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     # this is only a builder
     main_multibranch_builder(
@@ -63,10 +67,12 @@ in_category(
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64",
         parent_builder = "V8 Linux64 - builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - debug builder",
@@ -74,10 +80,12 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - debug",
         parent_builder = "V8 Linux64 - debug builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 css - debug",
@@ -115,6 +123,7 @@ in_category(
         name = "V8 Linux64 - verify csa",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - no pointer compression",
@@ -156,6 +165,7 @@ in_category(
         properties = {"default_targets": ["verify_all_builtins_hashes"]},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "11.7",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - verify deterministic",
@@ -163,6 +173,7 @@ in_category(
         properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "11.3",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - PKU",
@@ -178,14 +189,14 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     main_multibranch_builder(
         name = "V8 Fuchsia - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
         use_remoteexec = RECLIENT.DEFAULT,
-        close_tree = False,
+        barrier = BARRIER.LKGR_ONLY,
     ),
 )
 
@@ -196,27 +207,29 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win32", "binary": "d8.exe"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Win32",
         parent_builder = "V8 Win32 - builder",
-        close_tree = False,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug",
         parent_builder = "V8 Win32 - debug builder",
-        close_tree = False,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - msvc - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         # TODO(crbug.com/v8/8811): Enable again when it is green.
         work_in_progress = True,
     ),
@@ -225,17 +238,19 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win64", "binary": "d8.exe"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - msvc",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
-        close_tree = False,
+        barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
 )
@@ -248,30 +263,36 @@ in_category(
         dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "mac64", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Mac64",
         parent_builder = "V8 Mac64 - builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Mac64 - debug builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac", "cpu": "x86-64"},
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Mac64 - debug",
         parent_builder = "V8 Mac64 - debug builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64",
         dimensions = {"os": "Mac", "cpu": "arm64"},
         use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "12.1",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64 - debug",
         dimensions = {"os": "Mac", "cpu": "arm64"},
         use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac - arm64 - no pointer compression debug",
@@ -286,20 +307,23 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux - gc stress",
         parent_builder = "V8 Linux - debug builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - gc stress",
         parent_builder = "V8 Linux64 - debug builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 GC Stress - custom snapshot",
         parent_builder = "V8 Linux64 - custom snapshot - debug builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Mac - arm64 - gc stress",
         parent_builder = "V8 Mac - arm64 - debug builder",
         first_branch_version = "12.1",
-        close_tree = False,
+        barrier = BARRIER.NONE,
     ),
 )
 
