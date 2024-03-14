@@ -5,6 +5,7 @@
 load("//lib/lib.star", "RECLIENT", "defaults_ci", "v8_builder")
 load(
     "//lib/service-accounts.star",
+    "V8_AUTOROLL_ACCOUNT",
     "V8_CI_ACCOUNT",
     "V8_TEST262_EXPORT_ACCOUNT",
     "V8_TEST262_IMPORT_ACCOUNT",
@@ -88,6 +89,7 @@ v8_builder(
     bucket = "ci-hp",
     executable = "recipe:lkgr_finder",
     build_numbers = True,
+    service_account = V8_AUTOROLL_ACCOUNT,
     properties = {
         "config": {
             "allowed_gap": 150,
