@@ -1146,9 +1146,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         }
         // Trap if there is any JS frame on the stack.
         OpIndex has_js_frames =
-            __ Load(suspender, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::Int32(),
-                    WasmSuspenderObject::kHasJsFramesOffset);
+            __ UntagSmi(__ Load(suspender, LoadOp::Kind::TaggedBase(),
+                                MemoryRepresentation::TaggedSigned(),
+                                WasmSuspenderObject::kHasJsFramesOffset));
         IF (has_js_frames) {
           // {ThrowWasmError} expects to be called from wasm code, so set the
           // thread-in-wasm flag now.
