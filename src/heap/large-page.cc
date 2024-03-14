@@ -44,23 +44,6 @@ MemoryChunk::MainThreadFlags LargePageMetadata::InitialFlags(
          MemoryChunk::LARGE_PAGE;
 }
 
-LargePageMetadata* LargePageMetadata::Initialize(Heap* heap,
-                                                 MutablePageMetadata* metadata,
-                                                 Executability executable) {
-  if (executable && metadata->size() > LargePageMetadata::kMaxCodePageSize) {
-    static_assert(LargePageMetadata::kMaxCodePageSize <=
-                  TypedSlotSet::kMaxOffset);
-    FATAL("Code page is too large.");
-  }
-
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(metadata->area_start(),
-                                      metadata->area_size());
-
-  metadata->Chunk()->SetFlag(MemoryChunk::LARGE_PAGE);
-  metadata->list_node().Initialize();
-  return LargePageMetadata::cast(metadata);
-}
-
 void LargePageMetadata::ClearOutOfLiveRangeSlots(Address free_start) {
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(typed_slot_set<OLD_TO_NEW>());

@@ -23,8 +23,6 @@ namespace internal {
 class FreeListCategory;
 class Space;
 
-enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
-
 // MutablePageMetadata represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
@@ -78,8 +76,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
-  void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+  void SetOldGenerationPageFlags(MarkingMode marking_mode) {
+    return Chunk()->SetOldGenerationPageFlags(marking_mode, InSharedSpace());
+  }
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
+    return Chunk()->SetYoungGenerationPageFlags(marking_mode);
+  }
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, MutablePageMetadata* from,

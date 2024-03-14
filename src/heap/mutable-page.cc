@@ -101,42 +101,6 @@ size_t MutablePageMetadata::CommittedPhysicalMemory() const {
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
-void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
-  MemoryChunk* chunk = Chunk();
-  if (marking_mode == MarkingMode::kMajorMarking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else if (owner_identity() == SHARED_SPACE ||
-             owner_identity() == SHARED_LO_SPACE) {
-    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
-    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    if (marking_mode == MarkingMode::kMinorMarking) {
-      chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-    } else {
-      chunk->ClearFlags(MemoryChunk::INCREMENTAL_MARKING);
-    }
-  }
-}
-
-void MutablePageMetadata::SetYoungGenerationPageFlags(
-    MarkingMode marking_mode) {
-  MemoryChunk* chunk = Chunk();
-  chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (marking_mode != MarkingMode::kNoMarking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  }
-}
 // -----------------------------------------------------------------------------
 // MutablePageMetadata implementation
 
