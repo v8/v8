@@ -137,6 +137,25 @@ void ExecuteAgainstReference(Isolate* isolate,
     return;
   }
 
+  struct OomCallbackData {
+    Isolate* isolate;
+    bool heap_limit_reached{false};
+    size_t initial_limit{0};
+  };
+  OomCallbackData oom_callback_data{isolate};
+  auto heap_limit_callback = [](void* raw_data, size_t current_limit,
+                                size_t initial_limit) -> size_t {
+    OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
+    data->heap_limit_reached = true;
+    data->isolate->TerminateExecution();
+    data->initial_limit = initial_limit;
+    // Return a slightly raised limit, just to make it to the next
+    // interrupt check point, where execution will terminate.
+    return initial_limit * 1.25;
+  };
+  isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
+                                            &oom_callback_data);
+
   base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
   std::unique_ptr<const char[]> exception_ref;
@@ -149,6 +168,14 @@ void ExecuteAgainstReference(Isolate* isolate,
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
   if (nondeterminism != 0) execute = false;
+  // Similar to max steps reached, also discard modules that need too much
+  // memory.
+  isolate->heap()->RemoveNearHeapLimitCallback(heap_limit_callback,
+                                               oom_callback_data.initial_limit);
+  if (oom_callback_data.heap_limit_reached) {
+    execute = false;
+    isolate->CancelTerminateExecution();
+  }
 
   if (exception_ref) {
     if (strcmp(exception_ref.get(),

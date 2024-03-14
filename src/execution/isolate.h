@@ -1680,9 +1680,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   inline void DidFinishModuleAsyncEvaluation(unsigned ordinal);
 
-  void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
-  void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
-                                   size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
