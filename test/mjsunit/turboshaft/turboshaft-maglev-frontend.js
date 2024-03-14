@@ -723,3 +723,21 @@ assertOptimized(simple_loop);
   assertEquals(expected_1, f(0.758));
   assertEquals(expected_2, f(2));
 }
+
+// Testinf for-in loops.
+{
+  function f(o) {
+    let s = 0;
+    for (let i in o) {
+      s += o[i];
+    }
+    return s;
+  }
+
+  let o = { x : 42, y : 19, z: 5 };
+
+  %PrepareFunctionForOptimization(f);
+  assertEquals(66, f(o));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(66, f(o));
+}

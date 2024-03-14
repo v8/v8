@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -89,6 +90,23 @@ class GraphBuilder {
       __ Goto(Map(block));
     }
     __ Bind(Map(block));
+
+    // Because of edge splitting in Maglev, the order of predecessors in the
+    // Turboshaft graph is not always the same as in the Maglev graph, which
+    // means that Phi inputs will have to be reordered. We thus compute in
+    // {predecessor_permutation_} the Turboshaft predecessors position of each
+    // Maglev predecessor, and we'll use this later when emitting Phis to
+    // reorder their inputs.
+    predecessor_permutation_.clear();
+    if (block->has_phi()) {
+      for (int i = 0; i < block->predecessor_count(); ++i) {
+        Block* pred = Map(block->predecessor_at(i));
+        int pred_index = __ current_block() -> GetPredecessorIndex(pred);
+        DCHECK_IMPLIES(pred_index == -1,
+                       block->is_loop() && i == block->predecessor_count() - 1);
+        predecessor_permutation_.push_back(pred_index);
+      }
+    }
   }
 
   maglev::ProcessResult Process(maglev::Constant* node,
@@ -161,9 +179,10 @@ class GraphBuilder {
       DCHECK_EQ(input_count, 2);
       SetMap(node, __ PendingLoopPhi(Map(node->input(0)), rep));
     } else {
+      DCHECK(!predecessor_permutation_.empty());
       base::SmallVector<OpIndex, 16> inputs;
       for (int i = 0; i < input_count; ++i) {
-        inputs.push_back(Map(node->input(i)));
+        inputs.push_back(Map(node->input(predecessor_permutation_[i])));
       }
       SetMap(node, __ Phi(base::VectorOf(inputs), rep));
     }
@@ -288,6 +307,15 @@ class GraphBuilder {
         node->first_instance_type(), node->last_instance_type(),
         node->check_type() != maglev::CheckType::kOmitHeapObjectCheck);
 
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckDynamicValue* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    __ DeoptimizeIfNot(
+        __ TaggedEqual(Map(node->first_input()), Map(node->second_input())),
+        frame_state, DeoptimizeReason::kWrongValue,
+        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -474,6 +502,39 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  // For-in specific operations.
+  maglev::ProcessResult Process(maglev::LoadEnumCacheLength* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> bitfield3 =
+        __ LoadField<Word32>(V<i::Map>::Cast(Map(node->map_input())),
+                             AccessBuilder::ForMapBitField3());
+    V<Word32> length = __ Word32ShiftRightLogical(
+        __ Word32BitwiseAnd(bitfield3, Map::Bits3::EnumLengthBits::kMask),
+        Map::Bits3::EnumLengthBits::kShift);
+    SetMap(node, length);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckCacheIndicesNotCleared* node,
+                                const maglev::ProcessingState& state) {
+    // If the cache length is zero, we don't have any indices, so we know this
+    // is ok even though the indices are the empty array.
+    IF_NOT (__ Word32Equal(Map(node->length_input()), 0)) {
+      // Otherwise, an empty array with non-zero required length is not valid.
+      V<Word32> condition =
+          RootEqual(node->indices_input(), RootIndex::kEmptyFixedArray);
+      __ DeoptimizeIfNot(condition, BuildFrameState(node->eager_deopt_info()),
+                         DeoptimizeReason::kWrongEnumIndices,
+                         node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadTaggedFieldByFieldIndex* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ LoadFieldByIndex(Map(node->object_input()),
+                                     Map(node->index_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Jump* node,
                                 const maglev::ProcessingState& state) {
     __ Goto(Map(node->target()));
@@ -557,11 +618,17 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::BranchIfRootConstant* node,
                                 const maglev::ProcessingState& state) {
-    RootIndex root = node->root_index();
-    V<Word32> condition = __ TaggedEqual(
-        Map(node->condition_input()),
-        __ HeapConstant(Handle<HeapObject>::cast(isolate_->root_handle(root))));
+    V<Word32> condition =
+        RootEqual(node->condition_input(), node->root_index());
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfUndefinedOrNull* node,
+                                const maglev::ProcessingState& state) {
+    __ GotoIf(RootEqual(node->condition_input(), RootIndex::kUndefinedValue),
+              Map(node->if_true()));
+    __ Branch(RootEqual(node->condition_input(), RootIndex::kNullValue),
+              Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -893,6 +960,14 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::ToObject* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ConvertJSPrimitiveToObject(
+                     Map(node->value_input()), Map(node->context()),
+                     ConvertReceiverMode::kNotNullOrUndefined));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Return* node,
                                 const maglev::ProcessingState& state) {
     __ Return(Map(node->value_input()));
@@ -1121,6 +1196,12 @@ class GraphBuilder {
     return __ Comparison(left, right, kind, WordRepresentation::Word32());
   }
 
+  V<Word32> RootEqual(maglev::Input input, RootIndex root) {
+    return __ TaggedEqual(
+        Map(input),
+        __ HeapConstant(Handle<HeapObject>::cast(isolate_->root_handle(root))));
+  }
+
   void FixLoopPhis(maglev::BasicBlock* loop) {
     DCHECK(loop->is_loop());
     for (maglev::Phi* maglev_phi : *loop->phis()) {
@@ -1275,6 +1356,7 @@ class GraphBuilder {
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
   V<Context> native_context_ = OpIndex::Invalid();
+  base::SmallVector<int, 16> predecessor_permutation_;
 };
 
 void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {

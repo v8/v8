@@ -532,6 +532,7 @@ class MaglevGraphBuilder {
         // point to the new empty predecessor block.
         old_jump_targets =
             old_jump_targets->SetToBlockAndReturnNext(predecessor);
+        merge_state.set_predecessor_at(predecessor_index, predecessor);
       } else {
         // Re-register the block in the offset's ref list.
         old_jump_targets = old_jump_targets->MoveToRefList(&jump_targets);

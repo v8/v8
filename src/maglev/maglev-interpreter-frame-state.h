@@ -789,6 +789,11 @@ class MergePointInterpreterFrameState {
     DCHECK_LT(i, predecessor_count_);
     return predecessors_[i];
   }
+  void set_predecessor_at(int i, BasicBlock* val) {
+    // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+    DCHECK_LT(i, predecessor_count_);
+    predecessors_[i] = val;
+  }
 
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;

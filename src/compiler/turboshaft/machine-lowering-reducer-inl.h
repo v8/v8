@@ -1503,11 +1503,12 @@ class MachineLoweringReducer : public Next {
 
   OpIndex REDUCE(ConvertJSPrimitiveToObject)(V<Object> value,
                                              V<Object> native_context,
-                                             V<Object> global_proxy,
+                                             OptionalV<Object> global_proxy,
                                              ConvertReceiverMode mode) {
     switch (mode) {
       case ConvertReceiverMode::kNullOrUndefined:
-        return global_proxy;
+        DCHECK(global_proxy.valid());
+        return global_proxy.value();
       case ConvertReceiverMode::kNotNullOrUndefined:
       case ConvertReceiverMode::kAny: {
         Label<Object> done(this);
@@ -1522,13 +1523,14 @@ class MachineLoweringReducer : public Next {
         // Wrap the primitive {value} into a JSPrimitiveWrapper.
         if (BIND(convert_to_object)) {
           if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
+            DCHECK(global_proxy.valid());
             // Replace the {value} with the {global_proxy}.
             GOTO_IF(UNLIKELY(__ TaggedEqual(
                         value, __ HeapConstant(factory_->undefined_value()))),
-                    done, global_proxy);
+                    done, global_proxy.value());
             GOTO_IF(UNLIKELY(__ TaggedEqual(
                         value, __ HeapConstant(factory_->null_value()))),
-                    done, global_proxy);
+                    done, global_proxy.value());
           }
           GOTO(done, __ CallBuiltin_ToObject(
                          isolate_, V<Context>::Cast(native_context), value));
