@@ -879,7 +879,7 @@ class MjsunitImmediatesPrinter {
 
   void I64Const(ImmI64Immediate& imm) {
     if (imm.value >= 0 && imm.value <= 0x3F) {
-      out_ << "kExprI64Const, " << static_cast<uint32_t>(imm.value);
+      out_ << "kExprI64Const, " << static_cast<uint32_t>(imm.value) << ',';
       return;
     }
     out_ << "...";
