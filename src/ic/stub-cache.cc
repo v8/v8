@@ -91,7 +91,10 @@ void StubCache::Set(Tagged<Name> name, Tagged<Map> map,
       TaggedValue::ToMaybeObject(isolate(), primary->value));
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (old_handler != isolate()->builtins()->code(Builtin::kIllegal) &&
+  // We need SafeEquals here while Builtin Code objects still live in the RO
+  // space inside the sandbox.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+  if (!old_handler.SafeEquals(isolate()->builtins()->code(Builtin::kIllegal)) &&
       !primary->map.IsSmi()) {
     Tagged<Map> old_map =
         Map::cast(StrongTaggedValue::ToObject(isolate(), primary->map));
