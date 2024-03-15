@@ -8189,8 +8189,9 @@ class LiftoffCompiler {
                                ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
     // TODO(14616): Extend this for shared types.
-    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef &&
-                        type != kWasmExnRef && type != kWasmNullExnRef;
+    bool is_wasm_null =
+        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, env_->module) &&
+        !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, env_->module);
     uint32_t value = is_wasm_null ? StaticReadOnlyRoot::kWasmNull
                                   : StaticReadOnlyRoot::kNullValue;
     __ LoadConstant(LiftoffRegister(null),
