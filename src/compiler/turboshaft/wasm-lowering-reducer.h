@@ -43,15 +43,17 @@ class WasmLoweringReducer : public Next {
   OpIndex REDUCE(Null)(wasm::ValueType type) { return Null(type); }
 
   OpIndex REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
-    // TODO(14108): Can this be done simpler for static-roots nowadays?
-    Tagged_t static_null =
-        wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
-    OpIndex null_value =
+#if V8_STATIC_ROOTS_BOOL
+    // TODO(14616): Extend this for shared types.
+    const bool is_wasm_null =
         !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-                !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_) &&
-                static_null != 0
-            ? __ UintPtrConstant(static_null)
-            : Null(type);
+        !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
+    OpIndex null_value =
+        __ UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
+                                        : StaticReadOnlyRoot::kNullValue);
+#else
+    OpIndex null_value = Null(type);
+#endif
     return __ TaggedEqual(object, null_value);
   }
 

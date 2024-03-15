@@ -8183,17 +8183,17 @@ class LiftoffCompiler {
   // not compare this against 64 bits using quadword instructions.
   void LoadNullValueForCompare(Register null, LiftoffRegList pinned,
                                ValueType type) {
-    Tagged_t static_null =
-        wasm::GetWasmEngine()->compressed_wasm_null_value_or_zero();
-    if (type != kWasmExternRef && type != kWasmNullExternRef &&
-        type != kWasmExnRef && type != kWasmNullExnRef && static_null != 0) {
-      // static_null is only set for builds with pointer compression.
-      DCHECK_LE(static_null, std::numeric_limits<uint32_t>::max());
-      __ LoadConstant(LiftoffRegister(null),
-                      WasmValue(static_cast<uint32_t>(static_null)));
-    } else {
-      LoadNullValue(null, type);
-    }
+#if V8_STATIC_ROOTS_BOOL
+    // TODO(14616): Extend this for shared types.
+    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef &&
+                        type != kWasmExnRef && type != kWasmNullExnRef;
+    uint32_t value = is_wasm_null ? StaticReadOnlyRoot::kWasmNull
+                                  : StaticReadOnlyRoot::kNullValue;
+    __ LoadConstant(LiftoffRegister(null),
+                    WasmValue(static_cast<uint32_t>(value)));
+#else
+    LoadNullValue(null, type);
+#endif
   }
 
   void LoadExceptionSymbol(Register dst, LiftoffRegList pinned,
