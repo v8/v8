@@ -1749,7 +1749,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   // is resolved to preserve its identity. This handles exported functions as
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-    trusted_instance_data->SetWasmInternalFunction(
+    trusted_instance_data->wasm_internal_functions()->set(
         func_index, WasmExternalFunction::cast(*value)->internal());
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
@@ -2501,7 +2501,7 @@ void InstanceBuilder::ProcessExports(
     if (import.kind == kExternalFunction) {
       Handle<Object> value = sanitized_imports_[index].value;
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-        trusted_instance_data->SetWasmInternalFunction(
+        trusted_instance_data->wasm_internal_functions()->set(
             import.index, WasmExternalFunction::cast(*value)->internal());
       }
     } else if (import.kind == kExternalGlobal) {
@@ -2691,10 +2691,9 @@ V8_INLINE void SetFunctionTablePlaceholder(
     uint32_t func_index) {
   const WasmModule* module = trusted_instance_data->module();
   const WasmFunction* function = &module->functions[func_index];
-  Handle<WasmInternalFunction> internal_function;
-  if (WasmTrustedInstanceData::GetWasmInternalFunction(
-          isolate, trusted_instance_data, func_index)
-          .ToHandle(&internal_function)) {
+  Tagged<WasmInternalFunction> internal_function;
+  if (trusted_instance_data->try_get_internal_function(func_index,
+                                                       &internal_function)) {
     table_object->entries()->set(entry_index, internal_function->func_ref());
   } else {
     WasmTableObject::SetFunctionTablePlaceholder(

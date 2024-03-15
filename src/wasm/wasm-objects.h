@@ -540,9 +540,11 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
 
-  static MaybeHandle<WasmInternalFunction> GetWasmInternalFunction(
-      Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
-      int index);
+  // Read a WasmFuncRef from the func_refs FixedArray. Returns true on success
+  // and writes the result in the output parameter. Returns false if no func_ref
+  // exists yet for this function. Use GetOrCreateFuncRef to always create one.
+  bool try_get_internal_function(int index,
+                                 Tagged<WasmInternalFunction>* result);
 
   // Acquires the {WasmInternalFunction} for a given {function_index} from the
   // cache of the given {trusted_instance_data}, or creates a new
@@ -552,8 +554,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   static Handle<WasmInternalFunction> GetOrCreateWasmInternalFunction(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
       int function_index);
-
-  void SetWasmInternalFunction(int index, Tagged<WasmInternalFunction> val);
 
   // Imports a constructed {WasmJSFunction} into the indirect function table of
   // this instance. Note that this might trigger wrapper compilation, since a
@@ -905,6 +905,10 @@ class WasmInternalFunction
     : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
                                                  HeapObject> {
  public:
+  // Get the external function if it exists. Returns true and writes to the
+  // output parameter if an external function exists. Returns false otherwise.
+  bool try_get_external(Tagged<JSFunction>* result);
+
   V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
       Handle<WasmInternalFunction> internal);
 
@@ -918,10 +922,6 @@ class WasmInternalFunction
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
- private:
-  // Make this private so it is not use by accident. Use {GetOrCreateExternal}
-  // instead.
-  Tagged<HeapObject> external();
 };
 
 class WasmFuncRef : public TorqueGeneratedWasmFuncRef<WasmFuncRef, HeapObject> {

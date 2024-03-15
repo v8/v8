@@ -1378,24 +1378,23 @@ base::Optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
   return {};
 }
 
-MaybeHandle<WasmInternalFunction>
-WasmTrustedInstanceData::GetWasmInternalFunction(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
-    int index) {
-  Tagged<Object> val =
-      trusted_instance_data->wasm_internal_functions()->get(index);
-  if (IsSmi(val)) return {};
-  return handle(WasmInternalFunction::cast(val), isolate);
+bool WasmTrustedInstanceData::try_get_internal_function(
+    int index, Tagged<WasmInternalFunction>* result) {
+  Tagged<Object> val = wasm_internal_functions()->get(index);
+  if (IsSmi(val)) return false;
+  *result = WasmInternalFunction::cast(val);
+  return true;
 }
 
 Handle<WasmInternalFunction>
 WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
     int function_index) {
-  MaybeHandle<WasmInternalFunction> maybe_result =
-      WasmTrustedInstanceData::GetWasmInternalFunction(
-          isolate, trusted_instance_data, function_index);
-  if (!maybe_result.is_null()) return maybe_result.ToHandleChecked();
+  Tagged<WasmInternalFunction> existing_internal;
+  if (trusted_instance_data->try_get_internal_function(function_index,
+                                                       &existing_internal)) {
+    return handle(existing_internal, isolate);
+  }
 
   const wasm::NativeModule* native_module =
       trusted_instance_data->module_object()->native_module();
@@ -1459,21 +1458,25 @@ WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
           isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig));
     }
   }
-  trusted_instance_data->SetWasmInternalFunction(function_index, *result);
+  trusted_instance_data->wasm_internal_functions()->set(function_index,
+                                                        *result);
   return result;
 }
 
-void WasmTrustedInstanceData::SetWasmInternalFunction(
-    int index, Tagged<WasmInternalFunction> val) {
-  wasm_internal_functions()->set(index, val);
+bool WasmInternalFunction::try_get_external(Tagged<JSFunction>* result) {
+  if (IsUndefined(external())) return false;
+  *result = JSFunction::cast(external());
+  return true;
 }
 
 // static
 Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
     Handle<WasmInternalFunction> internal) {
   Isolate* isolate = GetIsolateFromWritableObject(*internal);
-  if (!IsUndefined(internal->external())) {
-    return handle(JSFunction::cast(internal->external()), isolate);
+
+  Tagged<JSFunction> existing_external;
+  if (internal->try_get_external(&existing_external)) {
+    return handle(existing_external, isolate);
   }
 
   // {this} can either be:
@@ -1530,10 +1533,6 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 
   internal->set_external(*result);
   return result;
-}
-
-Tagged<HeapObject> WasmInternalFunction::external() {
-  return this->TorqueGeneratedWasmInternalFunction::external();
 }
 
 // static

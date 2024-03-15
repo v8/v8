@@ -131,16 +131,20 @@ Tagged<Object> ThrowWasmError(Isolate* isolate, MessageTemplate message,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  HandleScope scope(isolate);
+  SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> value(args[0], isolate);
-  if (IsWasmInternalFunction(*value)) {
-    Handle<WasmInternalFunction> internal =
-        Handle<WasmInternalFunction>::cast(value);
-    return *WasmInternalFunction::GetOrCreateExternal(internal);
+  Tagged<Object> value = args[0];
+  if (IsWasmInternalFunction(value)) {
+    Tagged<WasmInternalFunction> internal = WasmInternalFunction::cast(value);
+    Tagged<JSFunction> external;
+    if (internal->try_get_external(&external)) return external;
+    // Slow path:
+    HandleScope scope(isolate);
+    return *WasmInternalFunction::GetOrCreateExternal(
+        handle(internal, isolate));
   }
-  if (IsWasmNull(*value)) return ReadOnlyRoots(isolate).null_value();
-  return *value;
+  if (IsWasmNull(value)) return ReadOnlyRoots(isolate).null_value();
+  return value;
 }
 
 // Takes a JS object and a wasm type as Smi. Type checks the object against the
@@ -165,15 +169,12 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
     type = wasm::ValueType::RefMaybeNull(canonical_index, type.nullability());
   }
   const char* error_message;
-  {
-    Handle<Object> result;
-    if (JSToWasmObject(isolate, value, type, &error_message)
-            .ToHandle(&result)) {
-      return *result;
-    }
+  Handle<Object> result;
+  if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kWasmTrapJSTypeError));
   }
-  return isolate->Throw(
-      *isolate->factory()->NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
+  return *result;
 }
 
 // Takes a JS object and a wasm type as Smi. Type checks the object against the
@@ -446,15 +447,14 @@ namespace {
 void ReplaceWrapper(Isolate* isolate,
                     Handle<WasmTrustedInstanceData> trusted_instance_data,
                     int function_index, Handle<Code> wrapper_code) {
-  Handle<WasmInternalFunction> internal =
-      WasmTrustedInstanceData::GetWasmInternalFunction(
-          isolate, trusted_instance_data, function_index)
-          .ToHandleChecked();
-  Handle<JSFunction> exported_function =
-      WasmInternalFunction::GetOrCreateExternal(internal);
-  exported_function->set_code(*wrapper_code);
+  Tagged<WasmInternalFunction> internal_function;
+  CHECK(trusted_instance_data->try_get_internal_function(function_index,
+                                                         &internal_function));
+  Tagged<JSFunction> external_function;
+  CHECK(internal_function->try_get_external(&external_function));
+  external_function->set_code(*wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
-      exported_function->shared()->wasm_exported_function_data();
+      external_function->shared()->wasm_exported_function_data();
   function_data->set_wrapper_code(*wrapper_code);
 }
 }  // namespace
@@ -482,9 +482,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   // an exported function (although it is called as one).
   // If there is no entry for the start function,
   // the tier-up is abandoned.
-  if (WasmTrustedInstanceData::GetWasmInternalFunction(isolate, trusted_data,
-                                                       function_index)
-          .is_null()) {
+  Tagged<WasmInternalFunction> internal_function;
+  if (!trusted_data->try_get_internal_function(function_index,
+                                               &internal_function)) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -499,7 +499,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
           isolate, sig, canonical_sig_index, module, imported);
 
   // Replace the wrapper for the function that triggered the tier-up.
-  // This is to verify that the wrapper is replaced, even if the function
+  // This is to ensure that the wrapper is replaced, even if the function
   // is implicitly exported and is not part of the export_table.
   ReplaceWrapper(isolate, trusted_data, function_index, wrapper_code);
 
