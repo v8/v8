@@ -15,6 +15,7 @@ def chromium_builder(name):
         use_remoteexec = RECLIENT.DEFAULT,
         in_console = "chromium/Future",
         disable_resultdb_exports = True,
+        execution_timeout = 3 * 60 * 60,
     )
 
 chromium_builder("Linux - Future")
