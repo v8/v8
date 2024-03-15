@@ -1015,9 +1015,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         mem_rep < MachineRepresentation::kWord64) {
       // In case we store lower part of WasmI64 expression, we can truncate
       // upper 32bits.
-      // TODO(miladfarca): This truncation is probably a duplicate as the
-      // callers already truncate to word32 in this case.
-      value = __ TruncateWord64ToWord32(value);
       value_size_in_bytes = wasm::kWasmI32.value_kind_size();
       value_size_in_bits = 8 * value_size_in_bytes;
       if (mem_rep == MachineRepresentation::kWord16) {
@@ -1209,7 +1206,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         if (wasmtype == wasm::kWasmI64) {
           int shift_bit_count = 64 - value_size_in_bits;
           result = __ Word64ShiftRightArithmeticShiftOutZeros(
-              __ Word64ShiftLeft(__ BitcastWord32ToWord64(result),
+              __ Word64ShiftLeft(__ ChangeInt32ToInt64(result),
                                  shift_bit_count),
               shift_bit_count);
         } else if (wasmtype == wasm::kWasmI32) {
