@@ -1631,12 +1631,12 @@ class MachineLoweringReducer : public Next {
     // have been initialized.
     auto array = __ FinishInitialization(std::move(uninitialized_array));
 
-    ScopedVar<WordPtr> index(Asm(), __ WordPtrConstant(0));
+    ScopedVar<WordPtr> index(Asm(), 0);
 
     WHILE(__ UintPtrLessThan(index, length)) {
       __ StoreNonArrayBufferElement(array, access, index, the_hole_value);
       // Advance the {index}.
-      index = __ WordPtrAdd(*index, 1);
+      index = __ WordPtrAdd(index, 1);
     }
 
     GOTO(done, array);
@@ -1673,13 +1673,13 @@ class MachineLoweringReducer : public Next {
       V<Float64> element = __ template LoadNonArrayBufferElement<Float64>(
           elements, AccessBuilder::ForFixedDoubleArrayElement(), index);
 
-      result = is_max ? __ Float64Max(*result, element)
-                      : __ Float64Min(*result, element);
+      result = is_max ? __ Float64Max(result, element)
+                      : __ Float64Min(result, element);
       GOTO(loop, __ WordPtrAdd(index, 1));
     }
 
     BIND(done);
-    return __ ConvertFloat64ToNumber(*result,
+    return __ ConvertFloat64ToNumber(result,
                                      CheckForMinusZeroMode::kCheckForMinusZero);
   }
 
@@ -2124,7 +2124,7 @@ class MachineLoweringReducer : public Next {
       GOTO(loop);
 
       LOOP(loop) {
-        V<Map> map = __ LoadMapField(*receiver);
+        V<Map> map = __ LoadMapField(receiver);
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         V<Word32> representation =
             __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
@@ -2135,20 +2135,20 @@ class MachineLoweringReducer : public Next {
             IF (__ Word32Equal(representation, kConsStringTag)) {
               // if_consstring
               V<String> second = __ template LoadField<String>(
-                  *receiver, AccessBuilder::ForConsStringSecond());
+                  receiver, AccessBuilder::ForConsStringSecond());
               GOTO_IF_NOT(
                   LIKELY(__ TaggedEqual(
                       second, __ HeapConstant(factory_->empty_string()))),
                   runtime);
               receiver = __ template LoadField<String>(
-                  *receiver, AccessBuilder::ForConsStringFirst());
+                  receiver, AccessBuilder::ForConsStringFirst());
               GOTO(loop);
             } ELSE {
               // if_seqstring
               V<Word32> onebyte = __ Word32Equal(
                   __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
                   kOneByteStringTag);
-              GOTO(done, LoadFromSeqString(*receiver, *position, onebyte));
+              GOTO(done, LoadFromSeqString(receiver, position, onebyte));
             }
           }
         } ELSE {
@@ -2157,7 +2157,7 @@ class MachineLoweringReducer : public Next {
             IF (__ Word32Equal(representation, kThinStringTag)) {
               // if_thinstring
               receiver = __ template LoadField<String>(
-                  *receiver, AccessBuilder::ForThinStringActual());
+                  receiver, AccessBuilder::ForThinStringActual());
               GOTO(loop);
             } ELSE IF (__ Word32Equal(representation, kExternalStringTag)) {
               // if_externalstring
@@ -2170,14 +2170,14 @@ class MachineLoweringReducer : public Next {
                       runtime);
 
               OpIndex data = __ LoadField(
-                  *receiver, AccessBuilder::ForExternalStringResourceData());
+                  receiver, AccessBuilder::ForExternalStringResourceData());
               IF (__ Word32Equal(
                       __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
                       kTwoByteStringTag)) {
                 // if_twobyte
                 constexpr uint8_t twobyte_size_log2 = 1;
                 V<Word32> value = __ Load(
-                    data, *position,
+                    data, position,
                     LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
                     MemoryRepresentation::Uint16(), 0, twobyte_size_log2);
                 GOTO(done, value);
@@ -2185,7 +2185,7 @@ class MachineLoweringReducer : public Next {
                 // if_onebyte
                 constexpr uint8_t onebyte_size_log2 = 0;
                 V<Word32> value = __ Load(
-                    data, *position,
+                    data, position,
                     LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
                     MemoryRepresentation::Uint8(), 0, onebyte_size_log2);
                 GOTO(done, value);
@@ -2194,11 +2194,11 @@ class MachineLoweringReducer : public Next {
                           __ Word32Equal(representation, kSlicedStringTag))) {
               // if_slicedstring
               V<Smi> offset = __ template LoadField<Smi>(
-                  *receiver, AccessBuilder::ForSlicedStringOffset());
+                  receiver, AccessBuilder::ForSlicedStringOffset());
               receiver = __ template LoadField<String>(
-                  *receiver, AccessBuilder::ForSlicedStringParent());
+                  receiver, AccessBuilder::ForSlicedStringParent());
               position = __ WordPtrAdd(
-                  *position, __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
+                  position, __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
               GOTO(loop);
             } ELSE {
               GOTO(runtime);
@@ -2209,8 +2209,8 @@ class MachineLoweringReducer : public Next {
         if (BIND(runtime)) {
           V<Word32> value =
               __ UntagSmi(V<Smi>::Cast(__ CallRuntime_StringCharCodeAt(
-                  isolate_, __ NoContextConstant(), *receiver,
-                  __ TagSmi(__ TruncateWordPtrToWord32(*position)))));
+                  isolate_, __ NoContextConstant(), receiver,
+                  __ TagSmi(__ TruncateWordPtrToWord32(position)))));
           GOTO(done, value);
         }
       }

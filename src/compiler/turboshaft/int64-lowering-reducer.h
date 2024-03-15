@@ -507,7 +507,7 @@ class Int64LoweringReducer : public Next {
       result = __ Word32CountLeadingZeros(high);
     }
 
-    return __ Tuple(*result, __ Word32Constant(0));
+    return __ Tuple(result, __ Word32Constant(0));
   }
 
   OpIndex LowerCtz(V<Word64> input) {
@@ -520,7 +520,7 @@ class Int64LoweringReducer : public Next {
       result = __ Word32CountTrailingZeros(low);
     }
 
-    return __ Tuple(*result, __ Word32Constant(0));
+    return __ Tuple(result, __ Word32Constant(0));
   }
 
   OpIndex LowerPopCount(V<Word64> input) {
@@ -630,8 +630,8 @@ class Int64LoweringReducer : public Next {
       var_high = left_high;
     }
 
-    V<Word32> rotate_low = __ Word32RotateRight(*var_low, safe_shift);
-    V<Word32> rotate_high = __ Word32RotateRight(*var_high, safe_shift);
+    V<Word32> rotate_low = __ Word32RotateRight(var_low, safe_shift);
+    V<Word32> rotate_high = __ Word32RotateRight(var_high, safe_shift);
 
     V<Word32> low_node =
         __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_low, bit_mask),

@@ -498,6 +498,24 @@ V8_INLINE size_t hash_value(OptionalOpIndex op) {
   return base::hash_value(op.hash());
 }
 
+namespace detail {
+template <typename T, typename = void>
+struct ConstOrVTypeHelper {
+  static constexpr bool exists = false;
+  using type = V<T>;
+};
+template <typename T>
+struct ConstOrVTypeHelper<T, std::void_t<ConstOrV<T>>> {
+  static constexpr bool exists = true;
+  using type = ConstOrV<T>;
+};
+}  // namespace detail
+
+template <typename T>
+using maybe_const_or_v_t = typename detail::ConstOrVTypeHelper<T>::type;
+template <typename T>
+constexpr bool const_or_v_exists_v = detail::ConstOrVTypeHelper<T>::exists;
+
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.
 // It corresponds to the ordering of basic blocks in the operations buffer.

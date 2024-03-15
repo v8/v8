@@ -26,6 +26,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
@@ -631,19 +632,18 @@ class GenericReducerBase;
 
 template <class T, class Assembler>
 class ScopedVariable : Variable {
+  using value_type = maybe_const_or_v_t<T>;
+
  public:
   explicit ScopedVariable(Assembler& assembler)
       : Variable(assembler.NewVariable(
             static_cast<const RegisterRepresentation&>(V<T>::rep))),
         assembler_(assembler) {}
-  ScopedVariable(Assembler& assembler, V<T> initial_value)
+  ScopedVariable(Assembler& assembler, value_type initial_value)
       : ScopedVariable(assembler) {
-    assembler.SetVariable(*this, initial_value);
+    assembler.SetVariable(*this, assembler.resolve(initial_value));
   }
 
-  void operator=(V<T> new_value) { assembler_.SetVariable(*this, new_value); }
-  V<T> operator*() const { return assembler_.GetVariable(*this); }
-  operator V<T>() const { return assembler_.GetVariable(*this); }
   ScopedVariable(const ScopedVariable&) = delete;
   ScopedVariable(ScopedVariable&&) = delete;
   ScopedVariable& operator=(const ScopedVariable) = delete;
@@ -653,6 +653,32 @@ class ScopedVariable : Variable {
     // unnecessary loop phis.
     assembler_.SetVariable(*this, OpIndex::Invalid());
   }
+
+  void Set(value_type new_value) {
+    assembler_.SetVariable(*this, assembler_.resolve(new_value));
+  }
+  V<T> Get() const { return assembler_.GetVariable(*this); }
+
+  void operator=(value_type new_value) { Set(new_value); }
+  template <typename U, typename = std::enable_if_t<v_traits<
+                            T>::template implicitly_convertible_to<U>::value>>
+  operator V<U>() const {
+    return Get();
+  }
+  template <typename U, typename = std::enable_if_t<v_traits<
+                            T>::template implicitly_convertible_to<U>::value>>
+  operator OptionalV<U>() const {
+    return Get();
+  }
+  template <typename U,
+            typename = std::enable_if_t<
+                const_or_v_exists_v<U> &&
+                v_traits<T>::template implicitly_convertible_to<U>::value>>
+  operator ConstOrV<U>() const {
+    return Get();
+  }
+  operator OpIndex() const { return Get(); }
+  operator OptionalOpIndex() const { return Get(); }
 
  private:
   Assembler& assembler_;
@@ -2354,14 +2380,20 @@ class TurboshaftAssemblerOpInterface
           WriteBarrierKind::kNoWriteBarrier, offset, rep.SizeInBytesLog2());
   }
 
-  template <typename Rep = Any, typename Base>
-  V<Rep> LoadField(V<Base> object, const FieldAccess& access) {
-    if constexpr (is_taggable_v<Base>) {
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
-    } else {
-      static_assert(std::is_same_v<Base, WordPtr>);
-      DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
-    }
+  template <typename Rep = Any>
+  V<Rep> LoadField(V<Object> object, const FieldAccess& access) {
+    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
+    return LoadFieldImpl<Rep>(object, access);
+  }
+
+  template <typename Rep = Any>
+  V<Rep> LoadField(V<WordPtr> raw_base, const FieldAccess& access) {
+    DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kUntaggedBase);
+    return LoadFieldImpl<Rep>(raw_base, access);
+  }
+
+  template <typename Rep>
+  V<Rep> LoadFieldImpl(OpIndex object, const FieldAccess& access) {
     MachineType machine_type = access.machine_type;
     if (machine_type.IsMapWord()) {
       machine_type = MachineType::TaggedPointer();

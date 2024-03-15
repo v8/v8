@@ -751,11 +751,11 @@ class GraphBuilder {
       OpIndex input = Map(node->input());
       ScopedVariable<Float64, AssemblerT> result(Asm(),
                                                  __ Float64RoundUp(input));
-      IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(*result, 0.5), input)) {
-        result = __ Float64Sub(*result, 1.0);
+      IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(result, 0.5), input)) {
+        result = __ Float64Sub(result, 1.0);
       }
 
-      SetMap(node, *result);
+      SetMap(node, result);
     }
     return maglev::ProcessResult::kContinue;
   }
