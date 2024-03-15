@@ -34,7 +34,7 @@ in_category(
     "MSAN",
     main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - MSAN",
-        dimensions = {"os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.NONE,

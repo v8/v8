@@ -238,7 +238,7 @@ trybot_pair(
 trybot_pair(
     name = "v8_linux64_msan_rel",
     cq_properties = CQ.EXP_100_PERCENT,
-    dimensions = {"os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )

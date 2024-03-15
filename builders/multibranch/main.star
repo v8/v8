@@ -145,7 +145,7 @@ in_category(
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "strong", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         executable = "recipe:v8/bazel",
     ),
     main_multibranch_builder(
