@@ -1743,7 +1743,7 @@ config("always_turbofanimize") {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+  if (((is_posix && !is_android) || is_fuchsia || is_win) && !using_sanitizer) {
     configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     configs += [ "//build/config/compiler:optimize_max" ]
