@@ -3928,13 +3928,13 @@ struct ReturnOp : OperationT<ReturnOp> {
   }
 
   // Number of additional stack slots to be removed.
-  OpIndex pop_count() const { return input(0); }
+  V<Word32> pop_count() const { return input(0); }
 
   base::Vector<const OpIndex> return_values() const {
     return inputs().SubVector(1, input_count);
   }
 
-  ReturnOp(OpIndex pop_count, base::Vector<const OpIndex> return_values)
+  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values)
       : Base(1 + return_values.size()) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = pop_count;
@@ -3950,7 +3950,7 @@ struct ReturnOp : OperationT<ReturnOp> {
 
   void Validate(const Graph& graph) const {
   }
-  static ReturnOp& New(Graph* graph, OpIndex pop_count,
+  static ReturnOp& New(Graph* graph, V<Word32> pop_count,
                        base::Vector<const OpIndex> return_values) {
     return Base::New(graph, 1 + return_values.size(), pop_count, return_values);
   }

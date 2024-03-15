@@ -2258,8 +2258,9 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kJSStackCheck: {
       DCHECK_EQ(OpParameter<StackCheckKind>(node->op()),
                 StackCheckKind::kJSFunctionEntry);
-      return __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
-                           StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
+                    StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      return OpIndex::Invalid();
     }
 
     default:

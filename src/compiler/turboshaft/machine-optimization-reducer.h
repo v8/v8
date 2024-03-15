@@ -850,7 +850,7 @@ class MachineOptimizationReducer : public Next {
           }
           // left ^ 1  =>  left == 0  if left is 0 or 1
           if (right_value == 1 && IsBit(left)) {
-            return __ Word32Equal(left, __ Word32Constant(0));
+            return __ Word32Equal(left, 0);
           }
           // (x ^ -1) ^ -1  =>  x
           {
@@ -900,9 +900,8 @@ class MachineOptimizationReducer : public Next {
           }
           // left * 2^k  =>  left << k
           if (base::bits::IsPowerOfTwo(right_value)) {
-            OpIndex shift_amount =
-                __ Word32Constant(base::bits::WhichPowerOfTwo(right_value));
-            return __ ShiftLeft(left, shift_amount, rep);
+            return __ ShiftLeft(left, base::bits::WhichPowerOfTwo(right_value),
+                                rep);
           }
           break;
         case Kind::kBitwiseAnd:

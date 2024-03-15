@@ -1230,27 +1230,17 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachable##operation(left, right,                        \
                                         operation##Op::Kind::k##kind, rep); \
   }
-#define DECL_SINGLE_REP_BINOP(name, operation, kind, rep)                   \
-  OpIndex name(OpIndex left, OpIndex right) {                               \
-    return ReduceIfReachable##operation(left, right,                        \
-                                        operation##Op::Kind::k##kind, rep); \
-  }
+
 #define DECL_SINGLE_REP_BINOP_V(name, operation, kind, tag)            \
   V<tag> name(ConstOrV<tag> left, ConstOrV<tag> right) {               \
     return ReduceIfReachable##operation(resolve(left), resolve(right), \
                                         operation##Op::Kind::k##kind,  \
                                         V<tag>::rep);                  \
   }
-#define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep) \
-  OpIndex name(OpIndex left, OpIndex right) {               \
-    return ReduceIfReachable##operation(left, right, rep);  \
-  }
   DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
   DECL_SINGLE_REP_BINOP_V(Word32Add, WordBinop, Add, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Add, WordBinop, Add, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrAdd, WordBinop, Add, WordPtr)
-  DECL_SINGLE_REP_BINOP(PointerAdd, WordBinop, Add,
-                        WordRepresentation::WordPtr())
 
   DECL_MULTI_REP_BINOP(WordMul, WordBinop, WordRepresentation, Mul)
   DECL_SINGLE_REP_BINOP_V(Word32Mul, WordBinop, Mul, Word32)
@@ -1277,8 +1267,6 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Word32Sub, WordBinop, Sub, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Sub, WordBinop, Sub, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrSub, WordBinop, Sub, WordPtr)
-  DECL_SINGLE_REP_BINOP(PointerSub, WordBinop, Sub,
-                        WordRepresentation::WordPtr())
 
   DECL_MULTI_REP_BINOP(IntDiv, WordBinop, WordRepresentation, SignedDiv)
   DECL_SINGLE_REP_BINOP_V(Int32Div, WordBinop, SignedDiv, Word32)
@@ -1454,8 +1442,7 @@ class TurboshaftAssemblerOpInterface
                        UnsignedLessThan)
   DECL_SINGLE_REP_COMPARISON_V(Uint32LessThan, UnsignedLessThan, Word32)
   DECL_SINGLE_REP_COMPARISON_V(Uint64LessThan, UnsignedLessThan, Word64)
-  DECL_SINGLE_REP_BINOP(UintPtrLessThan, Comparison, UnsignedLessThan,
-                        WordRepresentation::WordPtr())
+  DECL_SINGLE_REP_COMPARISON_V(UintPtrLessThan, UnsignedLessThan, WordPtr)
   DECL_MULTI_REP_BINOP(FloatLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
   DECL_SINGLE_REP_COMPARISON_V(Float32LessThan, SignedLessThan, Float32)
@@ -1473,8 +1460,8 @@ class TurboshaftAssemblerOpInterface
                                Word32)
   DECL_SINGLE_REP_COMPARISON_V(Uint64LessThanOrEqual, UnsignedLessThanOrEqual,
                                Word64)
-  DECL_SINGLE_REP_BINOP(UintPtrLessThanOrEqual, Comparison,
-                        UnsignedLessThanOrEqual, WordRepresentation::WordPtr())
+  DECL_SINGLE_REP_COMPARISON_V(UintPtrLessThanOrEqual, UnsignedLessThanOrEqual,
+                               WordPtr)
   DECL_MULTI_REP_BINOP(FloatLessThanOrEqual, Comparison, RegisterRepresentation,
                        SignedLessThanOrEqual)
   DECL_SINGLE_REP_COMPARISON_V(Float32LessThanOrEqual, SignedLessThanOrEqual,
@@ -1488,10 +1475,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableComparison(left, right, kind, rep);
   }
 
-#undef DECL_SINGLE_REP_BINOP
 #undef DECL_SINGLE_REP_BINOP_V
 #undef DECL_MULTI_REP_BINOP
-#undef DECL_SINGLE_REP_BINOP_NO_KIND
 
   OpIndex FloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
                      FloatRepresentation rep) {
@@ -2587,25 +2572,25 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 
-  OpIndex StackCheck(StackCheckOp::CheckOrigin origin,
-                     StackCheckOp::CheckKind kind) {
-    return ReduceIfReachableStackCheck(origin, kind);
+  void StackCheck(StackCheckOp::CheckOrigin origin,
+                  StackCheckOp::CheckKind kind) {
+    ReduceIfReachableStackCheck(origin, kind);
   }
 
   void Retain(OpIndex value) { ReduceIfReachableRetain(value); }
 
-  OpIndex StackPointerGreaterThan(OpIndex limit, StackCheckKind kind) {
+  V<Word32> StackPointerGreaterThan(V<WordPtr> limit, StackCheckKind kind) {
     return ReduceIfReachableStackPointerGreaterThan(limit, kind);
   }
 
-  OpIndex StackCheckOffset() {
+  V<Smi> StackCheckOffset() {
     return ReduceIfReachableFrameConstant(
         FrameConstantOp::Kind::kStackCheckOffset);
   }
-  OpIndex FramePointer() {
+  V<WordPtr> FramePointer() {
     return ReduceIfReachableFrameConstant(FrameConstantOp::Kind::kFramePointer);
   }
-  OpIndex ParentFramePointer() {
+  V<WordPtr> ParentFramePointer() {
     return ReduceIfReachableFrameConstant(
         FrameConstantOp::Kind::kParentFramePointer);
   }
@@ -2636,10 +2621,12 @@ class TurboshaftAssemblerOpInterface
                  SelectOp::Implementation implem) {
     return ReduceIfReachableSelect(cond, vtrue, vfalse, rep, hint, implem);
   }
-#define DEF_SELECT(Rep)                                                 \
-  V<Rep> Rep##Select(V<Word32> cond, V<Rep> vtrue, V<Rep> vfalse) {     \
-    return Select(cond, vtrue, vfalse, RegisterRepresentation::Rep(),   \
-                  BranchHint::kNone, SelectOp::Implementation::kCMove); \
+#define DEF_SELECT(Rep)                                             \
+  V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,    \
+                     ConstOrV<Rep> vfalse) {                        \
+    return Select(resolve(cond), resolve(vtrue), resolve(vfalse),   \
+                  RegisterRepresentation::Rep(), BranchHint::kNone, \
+                  SelectOp::Implementation::kCMove);                \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
@@ -2648,13 +2635,14 @@ class TurboshaftAssemblerOpInterface
 #undef DEF_SELECT
 
   template <typename T, typename U>
-  V<std::common_type_t<T, U>> Conditional(V<Word32> cond, V<T> vtrue,
+  V<std::common_type_t<T, U>> Conditional(ConstOrV<Word32> cond, V<T> vtrue,
                                           V<U> vfalse,
                                           BranchHint hint = BranchHint::kNone) {
-    return Select(cond, vtrue, vfalse, V<std::common_type_t<T, U>>::rep, hint,
+    return Select(resolve(cond), vtrue, vfalse,
+                  V<std::common_type_t<T, U>>::rep, hint,
                   SelectOp::Implementation::kBranch);
   }
-  void Switch(OpIndex input, base::Vector<SwitchOp::Case> cases,
+  void Switch(V<Word32> input, base::Vector<SwitchOp::Case> cases,
               Block* default_case,
               BranchHint default_hint = BranchHint::kNone) {
     ReduceIfReachableSwitch(input, cases, default_case, default_hint);
@@ -2681,7 +2669,7 @@ class TurboshaftAssemblerOpInterface
     return cached_param;
   }
   OpIndex OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
-  void Return(OpIndex pop_count, base::Vector<const OpIndex> return_values) {
+  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values) {
     ReduceIfReachableReturn(pop_count, return_values);
   }
   void Return(OpIndex result) {
@@ -3145,15 +3133,15 @@ class TurboshaftAssemblerOpInterface
                      const FrameStateData* data) {
     return ReduceIfReachableFrameState(inputs, inlined, data);
   }
-  void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
+  void DeoptimizeIf(V<Word32> condition, OpIndex frame_state,
                     const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, false, parameters);
   }
-  void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
+  void DeoptimizeIfNot(V<Word32> condition, OpIndex frame_state,
                        const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, true, parameters);
   }
-  void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
+  void DeoptimizeIf(V<Word32> condition, OpIndex frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
@@ -3163,7 +3151,7 @@ class TurboshaftAssemblerOpInterface
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIf(condition, frame_state, params);
   }
-  void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
+  void DeoptimizeIfNot(V<Word32> condition, OpIndex frame_state,
                        DeoptimizeReason reason,
                        const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3199,7 +3187,7 @@ class TurboshaftAssemblerOpInterface
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void StaticAssert(OpIndex condition, const char* source) {
+  void StaticAssert(V<Word32> condition, const char* source) {
     ReduceIfReachableStaticAssert(condition, source);
   }
 
