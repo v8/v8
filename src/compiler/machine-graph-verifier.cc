@@ -527,6 +527,12 @@ class MachineRepresentationChecker {
             CheckValueInputForFloat64Op(node, 0);
             CheckValueInputForInt32Op(node, 1);
             break;
+          case IrOpcode::kInt32PairAdd:
+          case IrOpcode::kInt32PairSub:
+            for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
+              CheckValueInputForInt32Op(node, j);
+            }
+            break;
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
             break;
