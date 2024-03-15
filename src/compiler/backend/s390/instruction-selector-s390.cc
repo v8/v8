@@ -135,7 +135,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     if (store->kind.tagged_base) result.displacement -= kHeapObjectTag;
     return result;
   } else if (op.Is<WordBinopOp>()) {
-    UNREACHABLE();
+    UNIMPLEMENTED();
 #ifdef V8_ENABLE_WEBASSEMBLY
   } else if (const Simd128LaneMemoryOp* lane_op =
                  op.TryCast<Simd128LaneMemoryOp>()) {
@@ -256,16 +256,16 @@ class S390OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return false;
   }
 
-  AddressingMode GenerateMemoryOperandInputs(node_t index, node_t base,
-                                             int64_t displacement,
-                                             DisplacementMode displacement_mode,
-                                             InstructionOperand inputs[],
-                                             size_t* input_count) {
+  AddressingMode GenerateMemoryOperandInputs(
+      optional_node_t index, node_t base, int64_t displacement,
+      DisplacementMode displacement_mode, InstructionOperand inputs[],
+      size_t* input_count,
+      RegisterUseKind reg_kind = RegisterUseKind::kUseRegister) {
     AddressingMode mode = kMode_MRI;
     if (this->valid(base)) {
-      inputs[(*input_count)++] = UseRegister(base);
+      inputs[(*input_count)++] = UseRegister(base, reg_kind);
       if (this->valid(index)) {
-        inputs[(*input_count)++] = UseRegister(index);
+        inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
         if (displacement != 0) {
           inputs[(*input_count)++] = UseImmediate(
               displacement_mode == kNegativeDisplacement ? -displacement
@@ -286,7 +286,7 @@ class S390OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
     } else {
       DCHECK(this->valid(index));
-      inputs[(*input_count)++] = UseRegister(index);
+      inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
       if (displacement != 0) {
         inputs[(*input_count)++] = UseImmediate(
             displacement_mode == kNegativeDisplacement ? -displacement
@@ -299,11 +299,11 @@ class S390OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return mode;
   }
 
-  AddressingMode GenerateMemoryOperandInputs(Node* index, Node* base,
-                                             Node* displacement,
-                                             DisplacementMode displacement_mode,
-                                             InstructionOperand inputs[],
-                                             size_t* input_count) {
+  AddressingMode GenerateMemoryOperandInputs(
+      Node* index, Node* base, Node* displacement,
+      DisplacementMode displacement_mode, InstructionOperand inputs[],
+      size_t* input_count,
+      RegisterUseKind reg_kind = RegisterUseKind::kUseRegister) {
     if constexpr (Adapter::IsTurboshaft) {
       // Turboshaft is not using this overload.
       UNREACHABLE();
@@ -991,27 +991,28 @@ static void VisitGeneralStore(
     MachineRepresentation rep,
     WriteBarrierKind write_barrier_kind = kNoWriteBarrier) {
   using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
   S390OperandGeneratorT<Adapter> g(selector);
+
   auto store_view = selector->store_view(node);
+  DCHECK_EQ(store_view.element_size_log2(), 0);
+
   node_t base = store_view.base();
-  node_t offset = selector->value(store_view.index());
+  optional_node_t index = store_view.index();
   node_t value = store_view.value();
+  int32_t displacement = store_view.displacement();
+
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[3];
+    InstructionOperand inputs[4];
     size_t input_count = 0;
-    inputs[input_count++] = g.UseUniqueRegister(base);
-    // OutOfLineRecordWrite uses the offset in an 'AddS64' instruction as well
-    // as for the store itself, so we must check compatibility with both.
-    if (g.CanBeImmediate(offset, OperandMode::kInt20Imm)) {
-      inputs[input_count++] = g.UseImmediate(offset);
-      addressing_mode = kMode_MRI;
-    } else {
-      inputs[input_count++] = g.UseUniqueRegister(offset);
-      addressing_mode = kMode_MRR;
-    }
+    addressing_mode = g.GenerateMemoryOperandInputs(
+        index, base, displacement, DisplacementMode::kPositiveDisplacement,
+        inputs, &input_count,
+        S390OperandGeneratorT<Adapter>::RegisterUseKind::kUseUniqueRegister);
+    DCHECK_LT(input_count, 4);
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
