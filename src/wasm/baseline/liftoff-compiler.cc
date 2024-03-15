@@ -3157,12 +3157,8 @@ class LiftoffCompiler {
         kNeedI64RegPair && index.is_gp_pair() ? index.low_gp() : index.gp();
 
     if (check_alignment) {
-      pinned.set(index_ptrsize);
-      if (memory->is_memory64 && kSystemPointerSize == kInt32Size) {
-        // The index.high_gp() is still needed to check for out of bounds.
-        pinned.set(index);
-      }
-      AlignmentCheckMem(decoder, access_size, offset, index_ptrsize, pinned);
+      AlignmentCheckMem(decoder, access_size, offset, index_ptrsize,
+                        pinned | LiftoffRegList{index});
     }
 
     // Without bounds checks (testing only), just return the ptrsize index.
