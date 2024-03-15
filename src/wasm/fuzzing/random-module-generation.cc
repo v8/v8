@@ -3680,21 +3680,19 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     }
   }
 
-  uint8_t current_type_index = 0;
   // Add default array types.
-  uint32_t array_i8;
-  uint32_t array_i16;
+  static constexpr uint32_t kArrayI8 = 0;
+  static constexpr uint32_t kArrayI16 = 1;
   {
     ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
-    array_i8 = builder.AddArrayType(a8, true, kNoSuperType);
-    DCHECK_EQ(array_i8, current_type_index);
-    array_types.push_back(array_i8);
+    CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
+    array_types.push_back(kArrayI8);
     ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
-    array_i16 = builder.AddArrayType(a16, true, kNoSuperType);
-    array_types.push_back(array_i16);
-    current_type_index = array_i16 + 1;
+    CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
+    array_types.push_back(kArrayI16);
   }
-  DCHECK_EQ(current_type_index, kNumDefaultArrayTypes);
+  static_assert(kNumDefaultArrayTypes == kArrayI16 + 1);
+  uint32_t current_type_index = kNumDefaultArrayTypes;
 
   // Add random-generated types.
   uint8_t last_struct_type = current_type_index + num_structs;
@@ -3806,14 +3804,14 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // Add the "wasm:js-string" imports to the module. They may or may not be
   // used later, but they'll always be available.
   StringImports strings;
-  strings.array_i16 = array_i16;
-  strings.array_i8 = array_i8;
+  strings.array_i16 = kArrayI16;
+  strings.array_i8 = kArrayI8;
   static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
   static constexpr ValueType kExternRef = kWasmExternRef;
   static constexpr ValueType kI32 = kWasmI32;
-  const ValueType kRefA8 = ValueType::Ref(array_i8);
-  const ValueType kRefNullA8 = ValueType::RefNull(array_i8);
-  const ValueType kRefNullA16 = ValueType::RefNull(array_i16);
+  static constexpr ValueType kRefA8 = ValueType::Ref(kArrayI8);
+  static constexpr ValueType kRefNullA8 = ValueType::RefNull(kArrayI8);
+  static constexpr ValueType kRefNullA16 = ValueType::RefNull(kArrayI16);
 
   // Shorthands: "r" = nullable "externref",
   // "e" = non-nullable "ref extern".
@@ -3824,11 +3822,15 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                                               kI32};
   static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
   static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
-  const ValueType kReps_from_a16[] = {kRefExtern, kRefNullA16, kI32, kI32};
-  const ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32, kI32};
-  const ValueType kReps_into_a16[] = {kI32, kExternRef, kRefNullA16, kI32};
-  const ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8, kI32};
-  const ValueType kReps_to_a8[] = {kRefA8, kExternRef};
+  static constexpr ValueType kReps_from_a16[] = {kRefExtern, kRefNullA16, kI32,
+                                                 kI32};
+  static constexpr ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32,
+                                                kI32};
+  static constexpr ValueType kReps_into_a16[] = {kI32, kExternRef, kRefNullA16,
+                                                 kI32};
+  static constexpr ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8,
+                                                kI32};
+  static constexpr ValueType kReps_to_a8[] = {kRefA8, kExternRef};
 
   static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
   static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
@@ -3838,11 +3840,11 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
   static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
   static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
-  const FunctionSig kSig_from_a16(1, 3, kReps_from_a16);
-  const FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
-  const FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
-  const FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
-  const FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
+  static constexpr FunctionSig kSig_from_a16(1, 3, kReps_from_a16);
+  static constexpr FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
+  static constexpr FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
+  static constexpr FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
+  static constexpr FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
 
   static constexpr base::Vector<const char> kJsString =
       base::StaticCharVector("wasm:js-string");
