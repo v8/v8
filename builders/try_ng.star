@@ -529,8 +529,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_mac64_rel",
     total_timeout = 7200,
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
@@ -546,7 +546,7 @@ trybot_pair(
 trybot_pair(
     name = "v8_mac_arm64_rel",
     total_timeout = 7200,
-    cq_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
     # TODO(https://crbug.com/v8/13008): Promote to blocking after M110.
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
