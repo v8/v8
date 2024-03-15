@@ -1631,7 +1631,7 @@ class MachineLoweringReducer : public Next {
     // have been initialized.
     auto array = __ FinishInitialization(std::move(uninitialized_array));
 
-    ScopedVar<WordPtr> index(Asm(), 0);
+    ScopedVar<WordPtr> index(this, 0);
 
     WHILE(__ UintPtrLessThan(index, length)) {
       __ StoreNonArrayBufferElement(array, access, index, the_hole_value);
@@ -1652,8 +1652,6 @@ class MachineLoweringReducer : public Next {
     const bool is_max = kind == DoubleArrayMinMaxOp::Kind::kMax;
 
     // Iterate the elements and find the result.
-    V<Float64> empty_value =
-        __ Float64Constant(is_max ? -V8_INFINITY : V8_INFINITY);
     V<WordPtr> array_length =
         __ ChangeInt32ToIntPtr(__ UntagSmi(__ template LoadField<Smi>(
             array, AccessBuilder::ForJSArrayLength(
@@ -1661,24 +1659,18 @@ class MachineLoweringReducer : public Next {
     V<Object> elements = __ template LoadField<Object>(
         array, AccessBuilder::ForJSObjectElements());
 
-    Label<> done(this);
-    LoopLabel<WordPtr> loop(this);
-    ScopedVar<Float64> result(Asm(), empty_value);
+    ScopedVar<Float64> result(this, is_max ? -V8_INFINITY : V8_INFINITY);
+    ScopedVar<WordPtr> index(this, 0);
 
-    GOTO(loop, intptr_t{0});
-
-    LOOP(loop, index) {
-      GOTO_IF_NOT(LIKELY(__ UintPtrLessThan(index, array_length)), done);
-
+    WHILE(__ UintPtrLessThan(index, array_length)) {
       V<Float64> element = __ template LoadNonArrayBufferElement<Float64>(
           elements, AccessBuilder::ForFixedDoubleArrayElement(), index);
 
       result = is_max ? __ Float64Max(result, element)
                       : __ Float64Min(result, element);
-      GOTO(loop, __ WordPtrAdd(index, 1));
+      index = __ WordPtrAdd(index, 1);
     }
 
-    BIND(done);
     return __ ConvertFloat64ToNumber(result,
                                      CheckForMinusZeroMode::kCheckForMinusZero);
   }
@@ -2119,11 +2111,11 @@ class MachineLoweringReducer : public Next {
       // We need a loop here to properly deal with indirect strings
       // (SlicedString, ConsString and ThinString).
       LoopLabel<> loop(this);
-      ScopedVar<String> receiver(Asm(), string);
-      ScopedVar<WordPtr> position(Asm(), pos);
+      ScopedVar<String> receiver(this, string);
+      ScopedVar<WordPtr> position(this, pos);
       GOTO(loop);
 
-      LOOP(loop) {
+      BIND_LOOP(loop) {
         V<Map> map = __ LoadMapField(receiver);
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         V<Word32> representation =
@@ -3127,7 +3119,7 @@ class MachineLoweringReducer : public Next {
         LoopLabel<WordPtr> loop(this);
         GOTO(loop, first_entry);
 
-        LOOP(loop, entry) {
+        BIND_LOOP(loop, entry) {
           GOTO_IF(__ WordPtrEqual(entry, OrderedHashMap::kNotFound), done,
                   entry);
           V<WordPtr> candidate =

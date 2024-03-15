@@ -421,8 +421,8 @@ class OptionalV : public OptionalOpIndex {
   // different conversion rules in the corresponding `v_traits` when necessary.
   template <typename U, typename = std::enable_if_t<v_traits<
                             U>::template implicitly_convertible_to<T>::value>>
-  OptionalV(OptionalV<U> index)
-      : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+  OptionalV(OptionalV<U> index)  // NOLINT(runtime/explicit)
+      : OptionalOpIndex(index) {}
   template <typename U, typename = std::enable_if_t<v_traits<
                             U>::template implicitly_convertible_to<T>::value>>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)

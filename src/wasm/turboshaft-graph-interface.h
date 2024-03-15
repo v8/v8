@@ -59,6 +59,10 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
       compiler::turboshaft::SelectLoweringReducer,
       compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;
+  template <typename T>
+  using ScopedVar = compiler::turboshaft::ScopedVariable<T, Assembler>;
+  template <typename T, typename A>
+  friend class compiler::turboshaft::ScopedVariable;
 
  public:
   using OpIndex = compiler::turboshaft::OpIndex;

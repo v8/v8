@@ -17,6 +17,7 @@
 #undef Assert
 
 #undef BIND
+#undef BIND_LOOP
 #undef BREAK
 #undef CONTINUE
 #undef ELSE
@@ -26,7 +27,6 @@
 #undef IF
 #undef IF_NOT
 #undef LIKLEY
-#undef LOOP
 #undef REDUCE
 #undef REDUCE_INPUT_GRAPH
 #undef UNLIKELY

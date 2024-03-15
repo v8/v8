@@ -3569,97 +3569,82 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     ValueType element_type = src_imm.array_type->element_type();
 
-    Label<> end(&asm_);
-    Label<> builtin(&asm_);
-    Label<> reverse(&asm_);
+    IF_NOT (__ Word32Equal(length.op, 0)) {
+      // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
+      int array_copy_max_loop_length;
+      switch (element_type.kind()) {
+        case wasm::kI32:
+        case wasm::kI64:
+        case wasm::kI8:
+        case wasm::kI16:
+          array_copy_max_loop_length = 20;
+          break;
+        case wasm::kF32:
+        case wasm::kF64:
+          array_copy_max_loop_length = 35;
+          break;
+        case wasm::kS128:
+          array_copy_max_loop_length = 100;
+          break;
+        case wasm::kRtt:
+        case wasm::kRef:
+        case wasm::kRefNull:
+          array_copy_max_loop_length = 15;
+          break;
+        case wasm::kVoid:
+        case wasm::kBottom:
+          UNREACHABLE();
+      }
 
-    GOTO_IF(__ Word32Equal(length.op, 0), end);
+      IF (__ Uint32LessThan(array_copy_max_loop_length, length.op)) {
+        // Builtin
+        MachineType arg_types[]{
+            MachineType::TaggedPointer(), MachineType::TaggedPointer(),
+            MachineType::Uint32(),        MachineType::TaggedPointer(),
+            MachineType::Uint32(),        MachineType::Uint32()};
+        MachineSignature sig(0, 6, arg_types);
 
-    // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
-    int array_copy_max_loop_length;
-    switch (element_type.kind()) {
-      case wasm::kI32:
-      case wasm::kI64:
-      case wasm::kI8:
-      case wasm::kI16:
-        array_copy_max_loop_length = 20;
-        break;
-      case wasm::kF32:
-      case wasm::kF64:
-        array_copy_max_loop_length = 35;
-        break;
-      case wasm::kS128:
-        array_copy_max_loop_length = 100;
-        break;
-      case wasm::kRtt:
-      case wasm::kRef:
-      case wasm::kRefNull:
-        array_copy_max_loop_length = 15;
-        break;
-      case wasm::kVoid:
-      case wasm::kBottom:
-        UNREACHABLE();
-    }
+        CallC(&sig, ExternalReference::wasm_array_copy(),
+              {trusted_instance_data(), dst.op, dst_index.op, src.op,
+               src_index.op, length.op});
+      } ELSE {
+        V<Word32> src_end_index =
+            __ Word32Sub(__ Word32Add(src_index.op, length.op), 1);
 
-    GOTO_IF(__ Uint32LessThan(array_copy_max_loop_length, length.op), builtin);
-    V<Word32> src_end_index =
-        __ Word32Sub(__ Word32Add(src_index.op, length.op), 1);
-    GOTO_IF(__ Uint32LessThan(src_index.op, dst_index.op), reverse);
+        IF (__ Uint32LessThan(src_index.op, dst_index.op)) {
+          // Reverse
+          V<Word32> dst_end_index =
+              __ Word32Sub(__ Word32Add(dst_index.op, length.op), 1);
+          ScopedVar<Word32> src_index_loop(this, src_end_index);
+          ScopedVar<Word32> dst_index_loop(this, dst_end_index);
 
-    {
-      LoopLabel<Word32, Word32> loop_label(&asm_);
-      GOTO(loop_label, src_index.op, dst_index.op);
-      LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value =
-            __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
-        __ ArraySet(dst.op, dst_index_loop, value, element_type);
+          WHILE(__ Word32Constant(1)) {
+            OpIndex value =
+                __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
+            __ ArraySet(dst.op, dst_index_loop, value, element_type);
 
-        V<Word32> condition = __ Uint32LessThan(src_index_loop, src_end_index);
-        IF (condition) {
-          GOTO(loop_label, __ Word32Add(src_index_loop, 1),
-               __ Word32Add(dst_index_loop, 1));
+            IF_NOT (__ Uint32LessThan(src_index.op, src_index_loop)) BREAK;
+
+            src_index_loop = __ Word32Sub(src_index_loop, 1);
+            dst_index_loop = __ Word32Sub(dst_index_loop, 1);
+          }
+        } ELSE {
+          ScopedVar<Word32> src_index_loop(this, src_index.op);
+          ScopedVar<Word32> dst_index_loop(this, dst_index.op);
+
+          WHILE(__ Word32Constant(1)) {
+            OpIndex value =
+                __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
+            __ ArraySet(dst.op, dst_index_loop, value, element_type);
+
+            IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
+
+            src_index_loop = __ Word32Add(src_index_loop, 1);
+            dst_index_loop = __ Word32Add(dst_index_loop, 1);
+          }
         }
-
-        GOTO(end);
       }
     }
-
-    {
-      BIND(reverse);
-      V<Word32> dst_end_index =
-          __ Word32Sub(__ Word32Add(dst_index.op, length.op), 1);
-      LoopLabel<Word32, Word32> loop_label(&asm_);
-      GOTO(loop_label, src_end_index, dst_end_index);
-      LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value =
-            __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
-        __ ArraySet(dst.op, dst_index_loop, value, element_type);
-
-        V<Word32> condition = __ Uint32LessThan(src_index.op, src_index_loop);
-        IF (condition) {
-          GOTO(loop_label, __ Word32Sub(src_index_loop, 1),
-               __ Word32Sub(dst_index_loop, 1));
-        }
-
-        GOTO(end);
-      }
-    }
-
-    {
-      BIND(builtin);
-      MachineType arg_types[]{
-          MachineType::TaggedPointer(), MachineType::TaggedPointer(),
-          MachineType::Uint32(),        MachineType::TaggedPointer(),
-          MachineType::Uint32(),        MachineType::Uint32()};
-      MachineSignature sig(0, 6, arg_types);
-
-      CallC(&sig, ExternalReference::wasm_array_copy(),
-            {trusted_instance_data(), dst.op, dst_index.op, src.op,
-             src_index.op, length.op});
-      GOTO(end);
-    }
-
-    BIND(end);
   }
 
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
@@ -6995,36 +6980,35 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // null/number initializer. Use a loop for small arrays and reference arrays
     // with a non-null initial value.
     Label<> done(&asm_);
-    LoopLabel<Word32> loop(&asm_);
 
     // The builtin cannot handle s128 values other than 0.
     if (!(element_type == wasm::kWasmS128 && !IsSimd128ZeroConstant(value))) {
       constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
-      GOTO_IF(__ Uint32LessThan(
-                  length, __ Word32Constant(kArrayNewMinimumSizeForMemSet)),
-              loop, index);
-      OpIndex stack_slot = StoreInInt64StackSlot(value, element_type);
-      MachineType arg_types[]{
-          MachineType::TaggedPointer(), MachineType::Uint32(),
-          MachineType::Uint32(),        MachineType::Uint32(),
-          MachineType::Uint32(),        MachineType::Pointer()};
-      MachineSignature sig(0, 6, arg_types);
-      CallC(
-          &sig, ExternalReference::wasm_array_fill(),
-          {array, index, length, __ Word32Constant(emit_write_barrier ? 1 : 0),
-           __ Word32Constant(element_type.raw_bit_field()), stack_slot});
-      GOTO(done);
-    } else {
-      GOTO(loop, index);
+      IF_NOT (__ Uint32LessThan(
+                  length, __ Word32Constant(kArrayNewMinimumSizeForMemSet))) {
+        OpIndex stack_slot = StoreInInt64StackSlot(value, element_type);
+        MachineType arg_types[]{
+            MachineType::TaggedPointer(), MachineType::Uint32(),
+            MachineType::Uint32(),        MachineType::Uint32(),
+            MachineType::Uint32(),        MachineType::Pointer()};
+        MachineSignature sig(0, 6, arg_types);
+        CallC(&sig, ExternalReference::wasm_array_fill(),
+              {array, index, length,
+               __ Word32Constant(emit_write_barrier ? 1 : 0),
+               __ Word32Constant(element_type.raw_bit_field()), stack_slot});
+        GOTO(done);
+      }
     }
-    LOOP(loop, current_index) {
-      V<Word32> check =
-          __ Uint32LessThan(current_index, __ Word32Add(index, length));
-      GOTO_IF_NOT(check, done);
+
+    ScopedVar<Word32> current_index(this, index);
+
+    WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
       __ ArraySet(array, current_index, value, type->element_type());
       current_index = __ Word32Add(current_index, 1);
-      GOTO(loop, current_index);
     }
+
+    GOTO(done);
+
     BIND(done);
   }
 

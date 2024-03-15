@@ -635,13 +635,15 @@ class ScopedVariable : Variable {
   using value_type = maybe_const_or_v_t<T>;
 
  public:
-  explicit ScopedVariable(Assembler& assembler)
-      : Variable(assembler.NewVariable(
+  template <typename Reducer>
+  explicit ScopedVariable(Reducer* reducer)
+      : Variable(reducer->Asm().NewVariable(
             static_cast<const RegisterRepresentation&>(V<T>::rep))),
-        assembler_(assembler) {}
-  ScopedVariable(Assembler& assembler, value_type initial_value)
-      : ScopedVariable(assembler) {
-    assembler.SetVariable(*this, assembler.resolve(initial_value));
+        assembler_(reducer->Asm()) {}
+  template <typename Reducer>
+  ScopedVariable(Reducer* reducer, value_type initial_value)
+      : ScopedVariable(reducer) {
+    assembler_.SetVariable(*this, assembler_.resolve(initial_value));
   }
 
   ScopedVariable(const ScopedVariable&) = delete;
@@ -1036,11 +1038,12 @@ class GenericAssemblerOpInterface : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(GenericAssemblerOpInterface)
 
-  // These methods are used by the assembler macros (LOOP, BIND, GOTO, GOTO_IF).
+  // These methods are used by the assembler macros (BIND, BIND_LOOP, GOTO,
+  // GOTO_IF).
   template <typename L>
   auto ControlFlowHelper_Bind(L& label)
       -> base::prepend_tuple_type<bool, typename L::values_t> {
-    // LoopLabels need to be bound with `LOOP` instead of `BIND`.
+    // LoopLabels need to be bound with `BIND_LOOP` instead of `BIND`.
     static_assert(!L::is_loop);
     return label.Bind(Asm());
   }
@@ -1048,7 +1051,7 @@ class GenericAssemblerOpInterface : public Next {
   template <typename L>
   auto ControlFlowHelper_BindLoop(L& label)
       -> base::prepend_tuple_type<bool, typename L::values_t> {
-    // Only LoopLabels can be bound with `LOOP`. Otherwise use `BIND`.
+    // Only LoopLabels can be bound with `BIND_LOOP`. Otherwise use `BIND`.
     static_assert(L::is_loop);
     return label.BindLoop(Asm());
   }

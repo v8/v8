@@ -401,7 +401,7 @@ class WasmLoweringReducer : public Next {
         __ LoadInstanceTypeField(__ LoadMapField(original_string));
     GOTO(dispatch, original_string, original_type, __ Word32Constant(0));
 
-    LOOP(dispatch, string, instance_type, offset) {
+    BIND_LOOP(dispatch, string, instance_type, offset) {
       Label<> thin_string(&Asm());
       Label<> cons_string(&Asm());
 

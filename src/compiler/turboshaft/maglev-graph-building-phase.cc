@@ -749,7 +749,7 @@ class GraphBuilder {
       // adjusting if the difference exceeds 0.5 (like SimplifiedLowering does
       // for lower Float64Round).
       OpIndex input = Map(node->input());
-      ScopedVariable<Float64, AssemblerT> result(Asm(),
+      ScopedVariable<Float64, AssemblerT> result(this,
                                                  __ Float64RoundUp(input));
       IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(result, 0.5), input)) {
         result = __ Float64Sub(result, 1.0);

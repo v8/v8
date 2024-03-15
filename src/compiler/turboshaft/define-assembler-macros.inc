@@ -23,7 +23,7 @@
     Asm().ControlFlowHelper_Bind(label);                                  \
     (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
         CONCAT(is_bound_, __LINE__)))
-#define LOOP(loop_label, ...) \
+#define BIND_LOOP(loop_label, ...) \
   for(auto [CONCAT(run_loop_, __LINE__), ##__VA_ARGS__] =                      \
     Asm().ControlFlowHelper_BindLoop(loop_label); CONCAT(run_loop_, __LINE__); \
         Asm().ControlFlowHelper_EndLoop(loop_label),                           \
