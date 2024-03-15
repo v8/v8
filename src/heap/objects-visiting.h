@@ -79,6 +79,7 @@ namespace internal {
   IF_WASM(V, WasmContinuationObject)   \
   IF_WASM(V, WasmExportedFunctionData) \
   IF_WASM(V, WasmFunctionData)         \
+  IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
   IF_WASM(V, WasmInternalFunction)     \
   IF_WASM(V, WasmJSFunctionData)       \

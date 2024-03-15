@@ -30,7 +30,7 @@ extern class WasmApiFunctionRef extends ExposedTrustedObject {
   instance: WasmInstanceObject|Undefined;
   suspend: Smi;  // Boolean.
   wrapper_budget: Smi;
-  call_origin: Smi|WasmInternalFunction|Tuple2;
+  call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: PodArrayOfWasmValueType;
 }
@@ -60,6 +60,11 @@ extern class WasmInternalFunction extends HeapObject {
   external: JSFunction|Undefined;
   // The function index if ref is a WasmInstanceObject, -1 otherwise.
   function_index: Smi;
+  // The object representing a function reference to this function.
+  // TODO(14564): Remove this field, or disallow undefined which is only allowed
+  // so we can construct the two objects subsequently and satify any in-between
+  // heap verification.
+  func_ref: WasmFuncRef|Undefined;
   // This field is used when the call target is null.
   @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) code: Code;
@@ -71,6 +76,15 @@ extern operator '.ref' macro LoadRefFromWasmInternalFunction(
     WasmInternalFunction): WasmTrustedInstanceData|WasmApiFunctionRef;
 extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
     WasmInternalFunction): RawPtr;
+
+// WasmFuncRef is the type of function references. They are stored on-heap and
+// link to a WasmInternalFunction which contains the actual information.
+// TODO(14564): Actually use this for function references.
+extern class WasmFuncRef extends HeapObject {
+  // TODO(14564): Move the WasmInternalFunction to the trusted space and store a
+  // trusted (indirect) pointer here.
+  internal: WasmInternalFunction;
+}
 
 extern class WasmFunctionData extends HeapObject {
   // Used for calling this function from JavaScript.
@@ -158,7 +172,7 @@ extern class WasmTableObject extends JSObject {
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
   // Each element is either
-  //   - a WasmInternalFunction (Wasm function added from Wasm),
+  //   - a WasmFuncRef (Wasm function added from Wasm),
   //   - a WasmExportedFunction (exported Wasm function added from JS),
   //   - a WasmJSFunction (WebAssembly.Function created from JS), or
   //   - a Tuple2 (placeholder for lazy initialization), holding a

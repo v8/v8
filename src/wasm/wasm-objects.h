@@ -257,8 +257,7 @@ class WasmTableObject
   // {entry} is either {Null} or a {WasmInternalFunction}.
   static void SetFunctionTableEntry(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    Handle<FixedArray> entries, int entry_index,
-                                    Handle<Object> entry);
+                                    int entry_index, Handle<Object> entry);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTableObject)
 };
@@ -923,6 +922,17 @@ class WasmInternalFunction
   // Make this private so it is not use by accident. Use {GetOrCreateExternal}
   // instead.
   Tagged<HeapObject> external();
+};
+
+class WasmFuncRef : public TorqueGeneratedWasmFuncRef<WasmFuncRef, HeapObject> {
+ public:
+  DECL_ACCESSORS(internal, Tagged<WasmInternalFunction>)
+
+  DECL_PRINTER(WasmFuncRef)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmFuncRef)
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of

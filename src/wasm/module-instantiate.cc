@@ -1225,8 +1225,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           isolate_, instance_object, table.type, table.initial_size,
           table.has_maximum_size, table.maximum_size,
           IsSubtypeOf(table.type, kWasmExternRef, module_)
-              ? Handle<Object>::cast(isolate_->factory()->null_value())
-              : Handle<Object>::cast(isolate_->factory()->wasm_null()));
+              ? Handle<HeapObject>{isolate_->factory()->null_value()}
+              : Handle<HeapObject>{isolate_->factory()->wasm_null()});
       tables->set(i, *table_obj);
     }
     trusted_data->set_tables(*tables);
@@ -2691,17 +2691,14 @@ V8_INLINE void SetFunctionTablePlaceholder(
     uint32_t func_index) {
   const WasmModule* module = trusted_instance_data->module();
   const WasmFunction* function = &module->functions[func_index];
-  MaybeHandle<WasmInternalFunction> wasm_internal_function =
-      WasmTrustedInstanceData::GetWasmInternalFunction(
-          isolate, trusted_instance_data, func_index);
-  if (wasm_internal_function.is_null()) {
-    // No JSFunction entry yet exists for this function. Create a {Tuple2}
-    // holding the information to lazily allocate one.
+  Handle<WasmInternalFunction> internal_function;
+  if (WasmTrustedInstanceData::GetWasmInternalFunction(
+          isolate, trusted_instance_data, func_index)
+          .ToHandle(&internal_function)) {
+    table_object->entries()->set(entry_index, internal_function->func_ref());
+  } else {
     WasmTableObject::SetFunctionTablePlaceholder(
         isolate, table_object, entry_index, trusted_instance_data, func_index);
-  } else {
-    table_object->entries()->set(entry_index,
-                                 *wasm_internal_function.ToHandleChecked());
   }
   WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
                                         function, trusted_instance_data);

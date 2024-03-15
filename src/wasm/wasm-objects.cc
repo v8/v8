@@ -274,16 +274,17 @@ MaybeHandle<Object> WasmTableObject::JSToWasmElement(
 
 void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
                                             Handle<WasmTableObject> table,
-                                            Handle<FixedArray> entries,
                                             int entry_index,
                                             Handle<Object> entry) {
   if (IsWasmNull(*entry, isolate)) {
     table->ClearDispatchTables(entry_index);  // Degenerate case.
-    entries->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
+    table->entries()->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
     return;
   }
-  Handle<Object> external = WasmInternalFunction::GetOrCreateExternal(
-      Handle<WasmInternalFunction>::cast(entry));
+  Handle<WasmInternalFunction> internal_function =
+      Handle<WasmInternalFunction>::cast(entry);
+  Handle<Object> external =
+      WasmInternalFunction::GetOrCreateExternal(internal_function);
 
   if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
     auto exported_function = Handle<WasmExportedFunction>::cast(external);
@@ -302,7 +303,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
     UpdateDispatchTables(isolate, table, entry_index,
                          Handle<WasmCapiFunction>::cast(external));
   }
-  entries->set(entry_index, *entry);
+  table->entries()->set(entry_index, internal_function->func_ref());
 }
 
 // Note: This needs to be handlified because it transitively calls
@@ -335,7 +336,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       entries->set(entry_index, *entry);
       return;
     case wasm::HeapType::kFunc:
-      SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+      SetFunctionTableEntry(isolate, table, entry_index, entry);
       return;
     case wasm::HeapType::kBottom:
       UNREACHABLE();
@@ -344,7 +345,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       if (WasmInstanceObject::cast(table->instance())
               ->module()
               ->has_signature(table->type().ref_index())) {
-        SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+        SetFunctionTableEntry(isolate, table, entry_index, entry);
         return;
       }
       entries->set(entry_index, *entry);
@@ -364,8 +365,10 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   Handle<Object> entry(entries->get(entry_index), isolate);
 
-  if (IsWasmNull(*entry, isolate)) {
-    return entry;
+  if (IsWasmNull(*entry, isolate)) return entry;
+
+  if (IsWasmFuncRef(*entry)) {
+    return handle(WasmFuncRef::cast(*entry)->internal(isolate), isolate);
   }
 
   switch (table->type().heap_representation_non_shared()) {
@@ -386,7 +389,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kNoExn:
       return entry;
     case wasm::HeapType::kFunc:
-      if (IsWasmInternalFunction(*entry)) return entry;
+      // Placeholder; handled below.
       break;
     case wasm::HeapType::kBottom:
       UNREACHABLE();
@@ -399,7 +402,6 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
         return entry;
       }
       DCHECK(module->has_signature(table->type().ref_index()));
-      if (IsWasmInternalFunction(*entry)) return entry;
       break;
   }
 
@@ -416,7 +418,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   Handle<WasmInternalFunction> internal =
       WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
           isolate, trusted_instance_data, function_index);
-  entries->set(entry_index, *internal);
+  entries->set(entry_index, internal->func_ref());
   return internal;
 }
 
@@ -603,9 +605,10 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_null = IsWasmNull(*element, isolate);
   if (*is_null) return;
 
-  if (IsWasmInternalFunction(*element)) {
-    element = WasmInternalFunction::GetOrCreateExternal(
-        Handle<WasmInternalFunction>::cast(element));
+  if (IsWasmFuncRef(*element)) {
+    Handle<WasmInternalFunction> internal{
+        WasmFuncRef::cast(*element)->internal(isolate), isolate};
+    element = WasmInternalFunction::GetOrCreateExternal(internal);
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
     auto target_func = Handle<WasmExportedFunction>::cast(element);
@@ -1578,7 +1581,7 @@ void WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
 // static
 void WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(
     Handle<WasmApiFunctionRef> ref, Handle<WasmInternalFunction> internal) {
-  ref->set_call_origin(*internal);
+  ref->set_call_origin(internal->func_ref());
 }
 
 // static

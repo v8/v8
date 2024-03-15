@@ -2515,6 +2515,13 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   os << "\n - ref: " << Brief(ref(isolate));
   os << "\n - external: " << Brief(external());
   os << "\n - code: " << Brief(code(isolate));
+  os << "\n - func_ref: " << Brief(func_ref());
+  os << "\n";
+}
+
+void WasmFuncRef::WasmFuncRefPrint(std::ostream& os) {
+  PrintHeader(os, "WasmFuncRef");
+  os << "\n - internal: " << Brief(internal());
   os << "\n";
 }
 

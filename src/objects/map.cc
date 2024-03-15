@@ -405,6 +405,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmResumeData;
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return kVisitWasmExportedFunctionData;
+    case WASM_FUNC_REF_TYPE:
+      return kVisitWasmFuncRef;
     case WASM_CAPI_FUNCTION_DATA_TYPE:
       return kVisitWasmCapiFunctionData;
     case WASM_SUSPENDER_OBJECT_TYPE:

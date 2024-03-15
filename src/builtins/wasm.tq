@@ -269,6 +269,8 @@ builtin WasmTableSet(tableIndex: intptr, index: uint32, value: Object):
   }
 }
 
+// Returns WasmInternalFunction or WasmNull, or throws an exception.
+// TODO(14564): Return and use the WasmFuncRef directly.
 builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
@@ -282,16 +284,14 @@ builtin WasmTableGetFuncRef(tableIndex: intptr, index: uint32): Object {
     if (index >= entriesCount) goto IndexOutOfRange;
 
     const entries: FixedArray = table.entries;
-    const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+    const entry: HeapObject =
+        UnsafeCast<HeapObject>(LoadFixedArrayElement(entries, entryIndex));
 
-    try {
-      const entryObject: HeapObject =
-          TaggedToHeapObject<HeapObject>(entry) otherwise ReturnEntry;
-      if (IsTuple2Map(entryObject.map)) goto CallRuntime;
-      goto ReturnEntry;
-    } label ReturnEntry {
-      return entry;
-    }
+    dcheck(Is<WasmFuncRef>(entry) || Is<WasmNull>(entry) || Is<Tuple2>(entry));
+    if (IsTuple2Map(entry.map)) goto CallRuntime;
+    if (Is<WasmNull>(entry)) return entry;
+    dcheck(Is<WasmFuncRef>(entry));
+    return UnsafeCast<WasmFuncRef>(entry).internal;
   } label CallRuntime deferred {
     tail runtime::WasmFunctionTableGet(
         LoadContextFromInstanceData(trustedData), trustedData,
@@ -339,9 +339,10 @@ builtin WasmRefFunc(index: uint32): Object {
         LoadInternalFunctionsFromInstanceData(trustedData);
     const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
     const result: Object = LoadFixedArrayElement(table, functionIndex);
-    // {result} is either a funcref or nullptr. A Smi check is the fastest
-    // way to distinguish these two cases.
+    // {result} is either a WasmInternalFunction or Smi::zero(). A Smi check is
+    // the fastest way to distinguish these two cases.
     if (TaggedIsSmi(result)) goto CallRuntime;
+    dcheck(Is<WasmInternalFunction>(result));
     return result;
   } label CallRuntime deferred {
     tail runtime::WasmRefFunc(
@@ -652,6 +653,7 @@ struct TargetAndRef {
 builtin CallRefIC(
     vector: FixedArray, index: intptr,
     funcref: WasmInternalFunction): TargetAndRef {
+  dcheck(Is<WasmInternalFunction>(funcref));
   UpdateIC(vector, index, funcref);
 
   let target = funcref.call_target_ptr;

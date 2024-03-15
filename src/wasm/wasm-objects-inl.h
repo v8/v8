@@ -43,9 +43,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFuncRef)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInternalFunction)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmNull)
@@ -378,6 +380,9 @@ CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
 TRUSTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,
                           kIndirectRefOffset, kUnknownIndirectPointerTag)
 
+// WasmFuncRef
+ACCESSORS(WasmFuncRef, internal, Tagged<WasmInternalFunction>, kInternalOffset)
+
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
 
@@ -396,9 +401,6 @@ WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmJSFunction(*this));
 }
 CAST_ACCESSOR(WasmJSFunction)
-
-// WasmJSFunctionData
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

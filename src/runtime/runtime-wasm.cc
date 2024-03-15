@@ -538,7 +538,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
   Handle<Object> origin = handle(ref->call_origin(), isolate);
 
-  if (IsWasmInternalFunction(*origin)) {
+  if (IsWasmFuncRef(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there is no instance.
     size_t expected_arity = sig.parameter_count() - ref->suspend();
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -559,10 +559,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
     // We have to install the optimized wrapper as `code`, as the generated
     // code may move. `call_target` would become stale then.
-    Handle<WasmInternalFunction>::cast(origin)->set_code(
-        *wasm_to_js_wrapper_code);
+    Handle<WasmInternalFunction> internal_function{
+        WasmFuncRef::cast(*origin)->internal(isolate), isolate};
+    internal_function->set_code(*wasm_to_js_wrapper_code);
     // Reset a possibly existing generic wrapper in the call target.
-    Handle<WasmInternalFunction>::cast(origin)->init_call_target(isolate, 0);
+    internal_function->init_call_target(isolate, 0);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

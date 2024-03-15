@@ -1276,8 +1276,8 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 }
 
 namespace {
-i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
-                                           i::wasm::ValueType type) {
+i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
+                                               i::wasm::ValueType type) {
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.

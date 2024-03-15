@@ -3379,18 +3379,29 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_)) {
       // If the entry has map type Tuple2, call WasmFunctionTableGet which will
       // initialize the function table entry.
-      Label<Object> end(&asm_);
-      // The entry is a funcref, null or a Tuple2, so it can't be a a smi and it
-      // is safe to cast it to an object.
-      V<Map> entry_map = __ LoadMapField(V<Object>::Cast(entry));
+      Label<Object> resolved(&asm_);
+      Label<> call_runtime(&asm_);
+      // The entry is a WasmFuncRef, WasmNull, or Tuple2. Hence
+      // it is safe to cast it to HeapObject.
+      V<Map> entry_map = __ LoadMapField(V<HeapObject>::Cast(entry));
       V<Word32> instance_type = __ LoadInstanceTypeField(entry_map);
-      GOTO_IF_NOT(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE), end,
-                  entry);
-      GOTO(end, CallBuiltinThroughJumptable<
-                    BuiltinCallDescriptor::WasmFunctionTableGet>(
-                    decoder, {__ IntPtrConstant(imm.index), index.op}));
+      GOTO_IF(
+          UNLIKELY(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE)),
+          call_runtime);
+      GOTO_IF(__ Word32Equal(instance_type, InstanceType::WASM_NULL_TYPE),
+              resolved, entry);
+      // Load the WasmInternalFunction from the WasmFuncRef.
+      V<WasmInternalFunction> internal = __ Load(
+          entry, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::TaggedPointer(), WasmFuncRef::kInternalOffset);
+      GOTO(resolved, internal);
 
-      BIND(end, resolved_entry);
+      BIND(call_runtime);
+      GOTO(resolved, CallBuiltinThroughJumptable<
+                         BuiltinCallDescriptor::WasmFunctionTableGet>(
+                         decoder, {__ IntPtrConstant(imm.index), index.op}));
+
+      BIND(resolved, resolved_entry);
       result->op = resolved_entry;
     } else {
       result->op = entry;

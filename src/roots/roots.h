@@ -141,6 +141,7 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
+  IF_WASM(V, Map, wasm_func_ref_map, WasmFuncRefMap)                           \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
