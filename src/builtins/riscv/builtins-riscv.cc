@@ -50,6 +50,7 @@ enum class ArgumentsElementType {
 void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
                             Register scratch, Register scratch2,
                             ArgumentsElementType element_type) {
+  ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(array, argc, scratch));
   Label loop, entry;
   __ SubWord(scratch, argc, Operand(kJSArgcReceiverSlots));
@@ -318,6 +319,7 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 // Equivalent of SharedFunctionInfo::GetData
 static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
                                       Register sfi, Register scratch) {
+  ASM_CODE_COMMENT(masm);
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(data, scratch));
   DCHECK(!AreAliased(sfi, scratch));

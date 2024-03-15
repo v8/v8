@@ -373,6 +373,7 @@ void MacroAssembler::StoreTrustedPointerField(Register value,
 void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
                                                   Register handle,
                                                   IndirectPointerTag tag) {
+  ASM_CODE_COMMENT(this);
   // The tag implies which pointer table to use.
   if (tag == kUnknownIndirectPointerTag) {
     // In this case we have to rely on the handle marking to determine which
@@ -397,6 +398,7 @@ void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
 void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
                                                  Register handle,
                                                  IndirectPointerTag tag) {
+  ASM_CODE_COMMENT(this);
   DCHECK_NE(tag, kCodeIndirectPointerTag);
   DCHECK(!AreAliased(handle, destination));
 
@@ -410,17 +412,21 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   LoadWord(destination, MemOperand(destination, 0));
   // The LSB is used as marking bit by the trusted pointer table, so here we
   // have to set it using a bitwise OR as it may or may not be set.
-  Or(destination, destination, Operand(kHeapObjectTag));
+  // Untag the pointer and remove the marking bit in one operation.
+  Register tag_reg = handle;
+  li(tag_reg, Operand(~(tag | kTrustedPointerTableMarkBit)));
+  and_(destination, destination, tag_reg);
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
                                               Register handle) {
+  ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(handle, destination));
 
   Register table = destination;
   li(table, ExternalReference::code_pointer_table_address());
   SrlWord(handle, handle, kCodePointerHandleShift);
-  CalcScaledAddress(destination, handle, table, kCodePointerTableEntrySizeLog2);
+  CalcScaledAddress(destination, table, handle, kCodePointerTableEntrySizeLog2);
   LoadWord(destination,
            MemOperand(destination, kCodePointerTableEntryCodeObjectOffset));
   // The LSB is used as marking bit by the code pointer table, so here we have
