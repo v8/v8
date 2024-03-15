@@ -333,11 +333,11 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes
             // through JS conversions while the global is accessed directly.)
-            CHECK(IsWasmInternalFunction(*global_val));
+            CHECK(IsWasmFuncRef(*global_val));
             CHECK(
                 WasmExportedFunction::IsWasmExportedFunction(*function_result));
-            CHECK(*WasmInternalFunction::GetOrCreateExternal(
-                      Handle<WasmInternalFunction>::cast(global_val)) ==
+            CHECK(*WasmInternalFunction::GetOrCreateExternal(handle(
+                      WasmFuncRef::cast(*global_val)->internal(), i_isolate)) ==
                   *function_result);
           } else {
             // On arrays and structs, perform a deep comparison.

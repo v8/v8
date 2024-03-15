@@ -241,8 +241,8 @@ PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
                             ProtectedFixedArray, kDispatchTablesOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
-ACCESSORS(WasmTrustedInstanceData, wasm_internal_functions, Tagged<FixedArray>,
-          kWasmInternalFunctionsOffset)
+ACCESSORS(WasmTrustedInstanceData, func_refs, Tagged<FixedArray>,
+          kFuncRefsOffset)
 ACCESSORS(WasmTrustedInstanceData, managed_object_maps, Tagged<FixedArray>,
           kManagedObjectMapsOffset)
 ACCESSORS(WasmTrustedInstanceData, feedback_vectors, Tagged<FixedArray>,
@@ -371,7 +371,6 @@ CAST_ACCESSOR(WasmExportedFunction)
 EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kCallTargetOffset,
                            kWasmInternalFunctionCallTargetTag)
-
 CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
 
 // {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.

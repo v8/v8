@@ -400,10 +400,9 @@ Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
-  Node* functions =
-      LOAD_INSTANCE_FIELD(WasmInternalFunctions, MachineType::TaggedPointer());
+  Node* func_refs = LOAD_INSTANCE_FIELD(FuncRefs, MachineType::TaggedPointer());
   Node* maybe_function =
-      gasm_->LoadFixedArrayElementPtr(functions, function_index);
+      gasm_->LoadFixedArrayElementPtr(func_refs, function_index);
   auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
   auto create_funcref = gasm_->MakeDeferredLabel();
   // We only care to distinguish between zero and funcref, "IsI31" is close
@@ -3127,35 +3126,38 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
                                      CheckForNull null_check,
                                      IsReturnCall continuation,
                                      wasm::WasmCodePosition position) {
+  Node* func_ref = args[0];
   if (null_check == kWithNullCheck &&
       null_check_strategy_ == NullCheckStrategy::kExplicit) {
-    args[0] =
-        AssertNotNull(args[0], wasm::kWasmFuncRef /* good enough */, position);
+    func_ref =
+        AssertNotNull(func_ref, wasm::kWasmFuncRef /* good enough */, position);
   }
 
-  Node* function = args[0];
-
-  auto load_target = gasm_->MakeLabel();
   auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  Node* ref;
+  Node* internal_function;
   if (null_check == kWithNullCheck &&
       null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
-    Node* load;
-    std::tie(load, ref) = gasm_->LoadTrustedPointerFromObjectTrapOnNull(
-        function,
-        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
-        kUnknownIndirectPointerTag);
-    SetSourcePosition(load, position);
+    // TODO(14564): Move WasmInternalFunction to trusted space and make
+    // this a load of a trusted (immutable) pointer.
+    internal_function = gasm_->LoadTrapOnNull(
+        MachineType::TaggedPointer(), func_ref,
+        gasm_->IntPtrConstant(
+            wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset)));
+    SetSourcePosition(internal_function, position);
   } else {
-    ref = gasm_->LoadTrustedPointerFromObject(
-        function,
-        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
-        kUnknownIndirectPointerTag);
+    internal_function = gasm_->LoadImmutableFromObject(
+        MachineType::TaggedPointer(), func_ref,
+        gasm_->IntPtrConstant(
+            wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset)));
   }
 
+  Node* ref = gasm_->LoadTrustedPointerFromObject(
+      internal_function,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kIndirectRefOffset),
+      kUnknownIndirectPointerTag);
   Node* target = gasm_->BuildLoadExternalPointerFromObject(
-      function, WasmInternalFunction::kCallTargetOffset,
+      internal_function, WasmInternalFunction::kCallTargetOffset,
       kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
   Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
   gasm_->GotoIfNot(is_null_target, &end_label, target);
@@ -3163,7 +3165,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
     // Compute the call target from the (on-heap) wrapper code. The cached
     // target can only be null for WasmJSFunctions.
     Node* call_target = BuildLoadCodeEntrypointViaCodePointer(
-        function, WasmInternalFunction::kCodeOffset);
+        internal_function, WasmInternalFunction::kCodeOffset);
     gasm_->Goto(&end_label, call_target);
   }
 
@@ -3177,23 +3179,22 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   return call;
 }
 
-void WasmGraphBuilder::CompareToInternalFunctionAtIndex(Node* func_ref,
-                                                        uint32_t function_index,
-                                                        Node** success_control,
-                                                        Node** failure_control,
-                                                        bool is_last_case) {
+void WasmGraphBuilder::CompareToFuncRefAtIndex(Node* func_ref,
+                                               uint32_t function_index,
+                                               Node** success_control,
+                                               Node** failure_control,
+                                               bool is_last_case) {
   // Since we are comparing to a function reference, it is guaranteed that
   // instance->wasm_internal_functions() has been initialized.
-  Node* internal_functions = gasm_->LoadImmutable(
+  Node* func_refs = gasm_->LoadImmutable(
       MachineType::TaggedPointer(), GetInstanceData(),
-      wasm::ObjectAccess::ToTagged(
-          WasmTrustedInstanceData::kWasmInternalFunctionsOffset));
+      wasm::ObjectAccess::ToTagged(WasmTrustedInstanceData::kFuncRefsOffset));
   // We cannot use an immutable load here, since function references are
   // initialized lazily: Calling {RefFunc()} between two invocations of this
   // function may initialize the function, i.e. mutate the object we are
   // loading.
   Node* function_ref_at_index = gasm_->LoadFixedArrayElement(
-      internal_functions, gasm_->IntPtrConstant(function_index),
+      func_refs, gasm_->IntPtrConstant(function_index),
       MachineType::AnyTagged());
   BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
   gasm_->Branch(gasm_->TaggedEqual(function_ref_at_index, func_ref),
@@ -7178,11 +7179,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             if (type.heap_representation_non_shared() ==
                     wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
-              // Typed function. Extract the external function.
+              // Function reference. Extract the external function.
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-              Node* maybe_external = gasm_->LoadFromObject(
+              Node* internal = gasm_->LoadFromObject(
                   MachineType::TaggedPointer(), node,
+                  wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
+              Node* maybe_external = gasm_->LoadFromObject(
+                  MachineType::TaggedPointer(), internal,
                   wasm::ObjectAccess::ToTagged(
                       WasmInternalFunction::kExternalOffset));
               gasm_->GotoIfNot(
@@ -7190,7 +7194,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                   maybe_external);
               Node* from_builtin = gasm_->CallBuiltin(
                   Builtin::kWasmInternalFunctionCreateExternal,
-                  Operator::kNoProperties, node, context);
+                  Operator::kNoProperties, internal, context);
               gasm_->Goto(&done, from_builtin);
               gasm_->Bind(&done);
               return done.PhiAt(0);
@@ -7225,12 +7229,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             if (type.heap_representation_non_shared() ==
                     wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
+              // Function reference. Extract the external function.
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
               auto null_label = gasm_->MakeLabel();
               gasm_->GotoIf(IsNull(node, type), &null_label);
-              Node* maybe_external = gasm_->LoadFromObject(
+              Node* internal = gasm_->LoadFromObject(
                   MachineType::TaggedPointer(), node,
+                  wasm::ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
+              Node* maybe_external = gasm_->LoadFromObject(
+                  MachineType::TaggedPointer(), internal,
                   wasm::ObjectAccess::ToTagged(
                       WasmInternalFunction::kExternalOffset));
               gasm_->GotoIfNot(
@@ -7238,7 +7246,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                   maybe_external);
               Node* from_builtin = gasm_->CallBuiltin(
                   Builtin::kWasmInternalFunctionCreateExternal,
-                  Operator::kNoProperties, node, context);
+                  Operator::kNoProperties, internal, context);
               gasm_->Goto(&done, from_builtin);
               gasm_->Bind(&null_label);
               gasm_->Goto(&done, LOAD_ROOT(NullValue, null_value));

@@ -1075,9 +1075,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);
@@ -1164,9 +1164,9 @@ class WasmGraphBuildingInterface {
 
       TFNode* success_control;
       TFNode* failure_control;
-      builder_->CompareToInternalFunctionAtIndex(
-          func_ref.node, expected_function_index, &success_control,
-          &failure_control, i == num_cases - 1);
+      builder_->CompareToFuncRefAtIndex(func_ref.node, expected_function_index,
+                                        &success_control, &failure_control,
+                                        i == num_cases - 1);
       TFNode* initial_effect = effect();
 
       builder_->SetControl(success_control);

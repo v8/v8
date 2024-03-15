@@ -223,12 +223,16 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             if (type.heap_representation_non_shared() ==
                     wasm::HeapType::kFunc ||
                 module_->has_signature(type.ref_index())) {
-              // Typed function. Extract the external function.
+              // Function reference. Extract the external function.
               Variable maybe_external =
                   __ NewVariable(RegisterRepresentation::Tagged());
+              V<WasmInternalFunction> internal =
+                  __ Load(ret, LoadOp::Kind::TaggedBase(),
+                          MemoryRepresentation::TaggedPointer(),
+                          WasmFuncRef::kInternalOffset);
               __ SetVariable(maybe_external,
-                             __ Load(ret, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::AnyTagged(),
+                             __ Load(internal, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
                                      WasmInternalFunction::kExternalOffset));
               IF (__ TaggedEqual(__ GetVariable(maybe_external),
                                  LOAD_ROOT(UndefinedValue))) {
@@ -236,7 +240,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                     maybe_external,
                     CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                         Builtin::kWasmInternalFunctionCreateExternal,
-                        Operator::kNoProperties, ret, context));
+                        Operator::kNoProperties, internal, context));
               }
               OpIndex merge = __ GetVariable(maybe_external);
               __ SetVariable(maybe_external, OpIndex::Invalid());
@@ -281,15 +285,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
-                V<Object> maybe_external =
+                V<WasmInternalFunction> internal =
                     __ Load(ret, LoadOp::Kind::TaggedBase(),
+                            MemoryRepresentation::TaggedPointer(),
+                            WasmFuncRef::kInternalOffset);
+                V<Object> maybe_external =
+                    __ Load(internal, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::AnyTagged(),
                             WasmInternalFunction::kExternalOffset);
                 IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
                   V<Object> from_builtin =
                       CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
                           Builtin::kWasmInternalFunctionCreateExternal,
-                          Operator::kNoProperties, ret, context);
+                          Operator::kNoProperties, internal, context);
                   __ SetVariable(result, from_builtin);
                 } ELSE{
                   __ SetVariable(result, maybe_external);

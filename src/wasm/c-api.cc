@@ -1920,9 +1920,9 @@ auto Global::get() const -> Val {
       i::HandleScope scope(store->i_isolate());
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
-      if (IsWasmInternalFunction(*result)) {
-        result = i::WasmInternalFunction::GetOrCreateExternal(
-            i::Handle<i::WasmInternalFunction>::cast(result));
+      if (IsWasmFuncRef(*result)) {
+        result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
+            i::WasmFuncRef::cast(*result)->internal(), store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2063,9 +2063,9 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (IsWasmInternalFunction(*result)) {
+  if (IsWasmFuncRef(*result)) {
     result = i::WasmInternalFunction::GetOrCreateExternal(
-        i::Handle<i::WasmInternalFunction>::cast(result));
+        i::handle(i::WasmFuncRef::cast(*result)->internal(), isolate));
   }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();

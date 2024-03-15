@@ -204,9 +204,9 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!trusted_instance_data_.is_null()) {
-    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
+    Handle<FixedArray> func_refs = isolate_->factory()->NewFixedArrayWithZeroes(
         static_cast<int>(test_module_->functions.size()));
-    trusted_instance_data_->set_wasm_internal_functions(*funcs);
+    trusted_instance_data_->set_func_refs(*func_refs);
   }
   return index;
 }
@@ -225,9 +225,9 @@ void TestingModuleBuilder::InitializeWrapperCache() {
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   InitializeWrapperCache();
-  Handle<WasmInternalFunction> internal =
-      WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-          isolate_, trusted_instance_data_, index);
+  Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
+      isolate_, trusted_instance_data_, index);
+  Handle<WasmInternalFunction> internal{func_ref->internal(), isolate_};
   return WasmInternalFunction::GetOrCreateExternal(internal);
 }
 

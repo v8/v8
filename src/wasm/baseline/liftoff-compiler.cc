@@ -8079,7 +8079,7 @@ class LiftoffCompiler {
       VarState index_var(kIntPtrKind, index, 0);
 
       // CallRefIC(vector: FixedArray, index: intptr,
-      //           funcref: WasmInternalFunction) -> <target, ref>
+      //           funcref: WasmFuncRef) -> <target, ref>
       CallBuiltin(Builtin::kCallRefIC,
                   MakeSig::Returns(kIntPtrKind, kIntPtrKind)
                       .Params(kRef, kIntPtrKind, kRef),
@@ -8094,49 +8094,54 @@ class LiftoffCompiler {
       __ SpillAllRegisters();
 
       // We limit ourselves to four registers:
-      // (1) internal_func.
+      // (1) func_ref / internal_function.
       // (2) first_param_reg, initially used for ref.
       // (3) target, initially used as temp.
       // (4) temp.
       LiftoffRegList pinned;
-      LiftoffRegister internal_func =
-          pinned.set(__ PopToModifiableRegister(pinned));
-      MaybeEmitNullCheck(decoder, internal_func.gp(), pinned, func_ref_type);
+      Register func_ref = pinned.set(__ PopToModifiableRegister(pinned)).gp();
+      MaybeEmitNullCheck(decoder, func_ref, pinned, func_ref_type);
       first_param_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+
+      // Load the WasmInternalFunction from the WasmFuncRef.
+      Register internal_function = func_ref;
+      __ LoadTaggedPointer(
+          internal_function, func_ref, no_reg,
+          ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
 
       // Load "ref" (WasmTrustedInstanceData or WasmApiFunctionRef) and target.
       Register ref = first_param_reg;
-      __ LoadTrustedPointer(ref, internal_func.gp(),
+      __ LoadTrustedPointer(ref, internal_function,
                             wasm::ObjectAccess::ToTagged(
                                 WasmInternalFunction::kIndirectRefOffset),
                             kUnknownIndirectPointerTag);
 
       __ LoadExternalPointer(
-          target.gp(), internal_func.gp(),
+          target, internal_function,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
-          kWasmInternalFunctionCallTargetTag, temp.gp());
+          kWasmInternalFunctionCallTargetTag, temp);
 
       FREEZE_STATE(frozen);
       Label perform_call;
 
-      LiftoffRegister null_address = temp;
-      __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
-      __ emit_cond_jump(kNotEqual, &perform_call, kIntPtrKind, target.gp(),
-                        null_address.gp(), frozen);
+      Register null_address = temp;
+      __ LoadConstant(LiftoffRegister{null_address}, WasmValue::ForUintPtr(0));
+      __ emit_cond_jump(kNotEqual, &perform_call, kIntPtrKind, target,
+                        null_address, frozen);
       // The cached target can only be null for WasmJSFunctions.
 #ifdef V8_ENABLE_SANDBOX
       // In this case, we can use a shortcut and load the entrypoint directly
       // from the code pointer table without going through the Code object.
       __ LoadCodeEntrypointViaCodePointer(
-          target.gp(), internal_func.gp(),
+          target, internal_function,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
 #else
       __ LoadTaggedPointer(
-          target.gp(), internal_func.gp(), no_reg,
+          target, internal_function, no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-      __ LoadCodeInstructionStart(target.gp(), target.gp(), kWasmEntrypointTag);
+      __ LoadCodeInstructionStart(target, target, kWasmEntrypointTag);
 #endif
       // Fall through to {perform_call}.
 
@@ -8144,7 +8149,7 @@ class LiftoffCompiler {
       // Now the call target is in {target} and the first parameter
       // (WasmTrustedInstanceData or WasmApiFunctionRef) is in
       // {first_param_reg}.
-      target_reg = target.gp();
+      target_reg = target;
     }  // inlining_enabled(decoder)
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, first_param_reg);

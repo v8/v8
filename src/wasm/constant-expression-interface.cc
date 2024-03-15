@@ -120,10 +120,9 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   }
   if (!generate_value()) return;
   ValueType type = ValueType::Ref(module_->functions[function_index].sig_index);
-  Handle<WasmInternalFunction> internal =
-      WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-          isolate_, trusted_instance_data_, function_index);
-  result->runtime_value = WasmValue(internal, type);
+  Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
+      isolate_, trusted_instance_data_, function_index);
+  result->runtime_value = WasmValue(func_ref, type);
 }
 
 void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,

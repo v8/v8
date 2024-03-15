@@ -311,10 +311,9 @@ class WasmGraphBuilder {
   Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
-  void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
-                                        Node** success_control,
-                                        Node** failure_control,
-                                        bool is_last_case);
+  void CompareToFuncRefAtIndex(Node* func_ref, uint32_t function_index,
+                               Node** success_control, Node** failure_control,
+                               bool is_last_case);
 
   // BrOnNull returns the control for the null and non-null case.
   std::tuple<Node*, Node*> BrOnNull(Node* ref_object, wasm::ValueType type);

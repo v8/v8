@@ -1360,16 +1360,14 @@ class FeedbackMaker {
     result_.reserve(num_calls);
   }
 
-  void AddCandidate(Tagged<Object> maybe_function, int count) {
-    if (!IsWasmInternalFunction(maybe_function)) return;
-    Tagged<WasmInternalFunction> function =
-        WasmInternalFunction::cast(maybe_function);
-    if (function->ref(isolate_) != instance_data_) {
-      // Not a wasm function, or not a function declared in this instance.
-      return;
-    }
-    if (function->function_index() < num_imported_functions_) return;
-    AddCall(function->function_index(), count);
+  void AddCandidate(Tagged<WasmFuncRef> funcref, int count) {
+    Tagged<WasmInternalFunction> internal_function =
+        WasmFuncRef::cast(funcref)->internal();
+    // Only consider wasm function declared in this instance.
+    if (internal_function->ref(isolate_) != instance_data_) return;
+    // Discard imports for now.
+    if (internal_function->function_index() < num_imported_functions_) return;
+    AddCall(internal_function->function_index(), count);
   }
 
   void AddCall(int target, int count) {
@@ -1443,17 +1441,17 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
                    feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
     Tagged<Object> value = feedback->get(i);
-    if (IsWasmInternalFunction(value)) {
+    if (IsWasmFuncRef(value)) {
       // Monomorphic.
       int count = Smi::cast(feedback->get(i + 1)).value();
-      fm.AddCandidate(value, count);
+      fm.AddCandidate(WasmFuncRef::cast(value), count);
     } else if (IsFixedArray(value)) {
       // Polymorphic.
       Tagged<FixedArray> polymorphic = FixedArray::cast(value);
       for (int j = 0; j < polymorphic->length(); j += 2) {
-        Tagged<Object> function = polymorphic->get(j);
+        Tagged<Object> func_ref = polymorphic->get(j);
         int count = Smi::cast(polymorphic->get(j + 1)).value();
-        fm.AddCandidate(function, count);
+        fm.AddCandidate(WasmFuncRef::cast(func_ref), count);
       }
     } else if (IsSmi(value)) {
       // Uninitialized, or a direct call collecting call count.

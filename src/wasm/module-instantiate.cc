@@ -1277,7 +1277,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     DCHECK(IsMap(o));
     Tagged<Map> map = Map::cast(o);
     if (module_->has_signature(index)) {
-      DCHECK_EQ(map->instance_type(), WASM_INTERNAL_FUNCTION_TYPE);
+      DCHECK_EQ(map->instance_type(), WASM_FUNC_REF_TYPE);
     } else if (module_->has_array(index)) {
       DCHECK_EQ(map->instance_type(), WASM_ARRAY_TYPE);
     } else if (module_->has_struct(index)) {
@@ -1398,11 +1398,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (start_function_.is_null()) {
       // TODO(clemensb): Don't generate an exported function for the start
       // function. Use CWasmEntry instead.
-      Handle<WasmInternalFunction> internal =
-          WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-              isolate_, trusted_data, start_index);
-      start_function_ = Handle<WasmExportedFunction>::cast(
-          WasmInternalFunction::GetOrCreateExternal(internal));
+      Handle<WasmFuncRef> func_ref =
+          WasmTrustedInstanceData::GetOrCreateFuncRef(isolate_, trusted_data,
+                                                      start_index);
+      Handle<WasmInternalFunction> internal{func_ref->internal(), isolate_};
+      start_function_ = WasmInternalFunction::GetOrCreateExternal(internal);
     }
   }
 
@@ -1749,8 +1749,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   // is resolved to preserve its identity. This handles exported functions as
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-    trusted_instance_data->wasm_internal_functions()->set(
-        func_index, WasmExternalFunction::cast(*value)->internal());
+    trusted_instance_data->func_refs()->set(
+        func_index, WasmExternalFunction::cast(*value)->internal()->func_ref());
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
@@ -2501,8 +2501,9 @@ void InstanceBuilder::ProcessExports(
     if (import.kind == kExternalFunction) {
       Handle<Object> value = sanitized_imports_[index].value;
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-        trusted_instance_data->wasm_internal_functions()->set(
-            import.index, WasmExternalFunction::cast(*value)->internal());
+        trusted_instance_data->func_refs()->set(
+            import.index,
+            WasmExternalFunction::cast(*value)->internal()->func_ref());
       }
     } else if (import.kind == kExternalGlobal) {
       Handle<Object> value = sanitized_imports_[index].value;
@@ -2550,11 +2551,13 @@ void InstanceBuilder::ProcessExports(
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
-        Handle<WasmInternalFunction> internal =
-            WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+        Handle<WasmFuncRef> func_ref =
+            WasmTrustedInstanceData::GetOrCreateFuncRef(
                 isolate_, trusted_instance_data, exp.index);
+        Handle<WasmInternalFunction> internal_function{func_ref->internal(),
+                                                       isolate_};
         Handle<JSFunction> wasm_external_function =
-            WasmInternalFunction::GetOrCreateExternal(internal);
+            WasmInternalFunction::GetOrCreateExternal(internal_function);
         value = wasm_external_function;
 
         if (is_asm_js &&
@@ -2691,10 +2694,9 @@ V8_INLINE void SetFunctionTablePlaceholder(
     uint32_t func_index) {
   const WasmModule* module = trusted_instance_data->module();
   const WasmFunction* function = &module->functions[func_index];
-  Tagged<WasmInternalFunction> internal_function;
-  if (trusted_instance_data->try_get_internal_function(func_index,
-                                                       &internal_function)) {
-    table_object->entries()->set(entry_index, internal_function->func_ref());
+  Tagged<WasmFuncRef> func_ref;
+  if (trusted_instance_data->try_get_func_ref(func_index, &func_ref)) {
+    table_object->entries()->set(entry_index, *func_ref);
   } else {
     WasmTableObject::SetFunctionTablePlaceholder(
         isolate, table_object, entry_index, trusted_instance_data, func_index);

@@ -362,7 +362,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
-  DECL_ACCESSORS(wasm_internal_functions, Tagged<FixedArray>)
+  DECL_ACCESSORS(func_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
   DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
@@ -435,7 +435,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kTablesOffset, kTaggedSize)                                           \
   V(kDispatchTablesOffset, kTaggedSize)                                   \
   V(kTagsTableOffset, kTaggedSize)                                        \
-  V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
+  V(kFuncRefsOffset, kTaggedSize)                                         \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kFeedbackVectorsOffset, kTaggedSize)                                  \
   V(kWellKnownImportsOffset, kTaggedSize)                                 \
@@ -470,7 +470,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kImportedMutableGlobalsBuffersOffset, "imported_mutable_globals_buffers") \
   V(kTablesOffset, "tables")                                                  \
   V(kTagsTableOffset, "tags_table")                                           \
-  V(kWasmInternalFunctionsOffset, "wasm_internal_functions")                  \
+  V(kFuncRefsOffset, "func_refs")                                             \
   V(kManagedObjectMapsOffset, "managed_object_maps")                          \
   V(kFeedbackVectorsOffset, "feedback_vectors")                               \
   V(kWellKnownImportsOffset, "well_known_imports")                            \
@@ -543,15 +543,13 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // Read a WasmFuncRef from the func_refs FixedArray. Returns true on success
   // and writes the result in the output parameter. Returns false if no func_ref
   // exists yet for this function. Use GetOrCreateFuncRef to always create one.
-  bool try_get_internal_function(int index,
-                                 Tagged<WasmInternalFunction>* result);
+  bool try_get_func_ref(int index, Tagged<WasmFuncRef>* result);
 
-  // Acquires the {WasmInternalFunction} for a given {function_index} from the
-  // cache of the given {trusted_instance_data}, or creates a new
-  // {WasmInternalFunction} if it does not exist yet. The new
-  // {WasmInternalFunction} is added to the cache of the {trusted_instance_data}
-  // immediately.
-  static Handle<WasmInternalFunction> GetOrCreateWasmInternalFunction(
+  // Acquires the {WasmFuncRef} for a given {function_index} from the cache of
+  // the given {trusted_instance_data}, or creates a new {WasmInternalFunction}
+  // and {WasmFuncRef} if it does not exist yet. The new objects are added to
+  // the cache of the {trusted_instance_data} immediately.
+  static Handle<WasmFuncRef> GetOrCreateFuncRef(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
       int function_index);
 

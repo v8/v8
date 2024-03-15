@@ -1699,38 +1699,39 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     Address opt_call_target, DirectHandle<ExposedTrustedObject> ref,
     DirectHandle<Map> rtt, int function_index) {
-  DCHECK_EQ(WASM_INTERNAL_FUNCTION_TYPE, rtt->instance_type());
-  DCHECK_EQ(WasmInternalFunction::kSize, rtt->instance_size());
-  Tagged<HeapObject> raw =
-      AllocateRaw(WasmInternalFunction::kSize, AllocationType::kOld);
-  raw->set_map_after_allocation(*rtt);
-  Tagged<WasmInternalFunction> result = WasmInternalFunction::cast(raw);
+  Tagged<WasmInternalFunction> internal =
+      Tagged<WasmInternalFunction>::cast(AllocateRawWithImmortalMap(
+          WasmInternalFunction::kSize, AllocationType::kOld,
+          *wasm_internal_function_map()));
   {
     DisallowGarbageCollection no_gc;
-    result->init_call_target(isolate(), opt_call_target);
+    internal->init_call_target(isolate(), opt_call_target);
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
-    result->set_ref(*ref);
+    internal->set_ref(*ref);
     // Default values, will be overwritten by the caller.
-    result->set_code(*BUILTIN_CODE(isolate(), Abort));
-    result->set_function_index(function_index);
-    result->set_external(*undefined_value());
+    internal->set_code(*BUILTIN_CODE(isolate(), Abort));
+    internal->set_function_index(function_index);
+    internal->set_external(*undefined_value());
     // Initially set undefined here, so heap verification passes if the
     // allocation of the WasmFuncRef triggers GC.
-    result->set_func_ref(*undefined_value());
+    internal->set_func_ref(*undefined_value());
   }
 
-  Handle<WasmInternalFunction> result_handle{result, isolate()};
-  // Disallow using the unhandlified references from here on.
-  raw = result = {};
+  Handle<WasmInternalFunction> result{internal, isolate()};
+  // Disallow using the unhandlified reference from here on.
+  internal = {};
   // Now allocate the WasmFuncRef and link the two objects.
-  Handle<WasmFuncRef> func_ref{
-      WasmFuncRef::cast(AllocateRawWithImmortalMap(
-          WasmFuncRef::kSize, AllocationType::kOld, *wasm_func_ref_map())),
-      isolate()};
-  func_ref->set_internal(*result_handle);
-  result_handle->set_func_ref(*func_ref);
+  Tagged<HeapObject> func_ref_raw =
+      AllocateRaw(WasmFuncRef::kSize, AllocationType::kOld);
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
+  DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
+  func_ref_raw->set_map_after_allocation(*rtt);
+  Tagged<WasmFuncRef> func_ref = WasmFuncRef::cast(func_ref_raw);
+  func_ref->set_internal(*result);
+  result->set_func_ref(*func_ref);
 
-  return result_handle;
+  return result;
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(

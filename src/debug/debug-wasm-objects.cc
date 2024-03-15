@@ -278,10 +278,11 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
                             uint32_t index) {
     Handle<WasmTrustedInstanceData> trusted_data{
         instance->trusted_data(isolate), isolate};
-    Handle<WasmInternalFunction> internal =
-        WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
-            isolate, trusted_data, index);
-    return WasmInternalFunction::GetOrCreateExternal(internal);
+    Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
+        isolate, trusted_data, index);
+    Handle<WasmInternalFunction> internal_function{func_ref->internal(),
+                                                   isolate};
+    return WasmInternalFunction::GetOrCreateExternal(internal_function);
   }
 
   static Handle<String> GetName(Isolate* isolate,
@@ -950,8 +951,9 @@ Handle<WasmValueObject> WasmValueObject::New(
             isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
-      } else if (IsWasmInternalFunction(*ref)) {
-        auto internal_fct = Handle<WasmInternalFunction>::cast(ref);
+      } else if (IsWasmFuncRef(*ref)) {
+        Handle<WasmInternalFunction> internal_fct{
+            WasmFuncRef::cast(*ref)->internal(), isolate};
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
         // If the module is not provided by the caller, retrieve it from the
         // instance object. If the function was created in JavaScript using

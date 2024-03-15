@@ -344,23 +344,21 @@ class WasmLoweringReducer : public Next {
 
   OpIndex REDUCE(WasmRefFunc)(V<Object> wasm_instance,
                               uint32_t function_index) {
-    V<FixedArray> functions =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(wasm_instance, WasmInternalFunctions,
-                                      MemoryRepresentation::TaggedPointer());
-    V<Object> maybe_function =
-        __ LoadFixedArrayElement(functions, function_index);
+    V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        wasm_instance, FuncRefs, MemoryRepresentation::TaggedPointer());
+    V<Object> maybe_func_ref =
+        __ LoadFixedArrayElement(func_refs, function_index);
 
-    Label<WasmInternalFunction> done(&Asm());
-    IF (UNLIKELY(__ IsSmi(maybe_function))) {
+    Label<WasmFuncRef> done(&Asm());
+    IF (UNLIKELY(__ IsSmi(maybe_func_ref))) {
       V<Word32> function_index_constant = __ Word32Constant(function_index);
 
-      V<WasmInternalFunction> from_builtin =
-          __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::WasmRefFunc>({function_index_constant});
+      V<WasmFuncRef> from_builtin = __ template WasmCallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmRefFunc>({function_index_constant});
 
       GOTO(done, from_builtin);
     } ELSE {
-      GOTO(done, V<WasmInternalFunction>::Cast(maybe_function));
+      GOTO(done, V<WasmFuncRef>::Cast(maybe_func_ref));
     }
 
     BIND(done, result_value);

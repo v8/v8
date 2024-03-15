@@ -2410,9 +2410,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      V<FixedArray> internal_functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), WasmInternalFunctions,
-          MemoryRepresentation::TaggedPointer());
+      V<FixedArray> func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), FuncRefs,
+                                        MemoryRepresentation::TaggedPointer());
       size_t return_count = sig->return_count();
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
@@ -2440,7 +2440,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         uint32_t inlined_index = tree->function_index();
         V<Object> inlined_func_ref =
-            __ LoadFixedArrayElement(internal_functions, inlined_index);
+            __ LoadFixedArrayElement(func_refs, inlined_index);
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
         BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -2510,9 +2510,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      V<FixedArray> internal_functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), WasmInternalFunctions,
-          MemoryRepresentation::TaggedPointer());
+      V<FixedArray> func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), FuncRefs,
+                                        MemoryRepresentation::TaggedPointer());
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
       base::SmallVector<TSBlock*, 5> case_blocks;
@@ -2529,7 +2529,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         uint32_t inlined_index = tree->function_index();
         V<Object> inlined_func_ref =
-            __ LoadFixedArrayElement(internal_functions, inlined_index);
+            __ LoadFixedArrayElement(func_refs, inlined_index);
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
         BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -3385,13 +3385,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       GOTO_IF(
           UNLIKELY(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE)),
           call_runtime);
-      GOTO_IF(__ Word32Equal(instance_type, InstanceType::WASM_NULL_TYPE),
-              resolved, entry);
-      // Load the WasmInternalFunction from the WasmFuncRef.
-      V<WasmInternalFunction> internal = __ Load(
-          entry, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::TaggedPointer(), WasmFuncRef::kInternalOffset);
-      GOTO(resolved, internal);
+      // Otherwise the entry is WasmFuncRef or WasmNull; we are done.
+      GOTO(resolved, entry);
 
       BIND(call_runtime);
       GOTO(resolved, CallBuiltinThroughJumptable<
@@ -6328,11 +6323,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Load the call target and ref (WasmTrustedInstanceData or
   // WasmApiFunctionRef) from a function reference.
   std::pair<V<WordPtr>, V<ExposedTrustedObject>>
-  BuildFunctionReferenceTargetAndRef(V<WasmInternalFunction> func_ref,
-                                     ValueType type) {
+  BuildFunctionReferenceTargetAndRef(V<WasmFuncRef> func_ref, ValueType type) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
-      func_ref = V<WasmInternalFunction>::Cast(
+      func_ref = V<WasmFuncRef>::Cast(
           __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference));
     }
 
@@ -6340,21 +6334,27 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         type.is_nullable() && null_check_strategy_ ==
                                   compiler::NullCheckStrategy::kTrapHandler
             ? LoadOp::Kind::TrapOnNull()
-            : LoadOp::Kind::TaggedBase();
+            : LoadOp::Kind::TaggedBase().Immutable();
+
+    V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
+        __ Load(func_ref, load_kind, MemoryRepresentation::AnyTagged(),
+                WasmInternalFunction::kIndirectRefOffset));
 
     V<ExposedTrustedObject> ref =
         V<ExposedTrustedObject>::Cast(__ LoadTrustedPointerField(
-            func_ref, load_kind, kUnknownIndirectPointerTag,
+            internal_function, LoadOp::Kind::TaggedBase().Immutable(),
+            kUnknownIndirectPointerTag,
             WasmInternalFunction::kIndirectRefOffset));
 
 #ifdef V8_ENABLE_SANDBOX
-    V<Word32> target_handle = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                      MemoryRepresentation::Uint32(),
-                                      WasmInternalFunction::kCallTargetOffset);
+    V<Word32> target_handle =
+        __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Uint32(),
+                WasmInternalFunction::kCallTargetOffset);
     V<WordPtr> target = __ DecodeExternalPointer(
         target_handle, kWasmInternalFunctionCallTargetTag);
 #else
-    V<WordPtr> target = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
+    V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                                 MemoryRepresentation::UintPtr(),
                                 WasmInternalFunction::kCallTargetOffset);
 #endif
@@ -6372,14 +6372,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // through which we reference the Code object also directly contains the
       // entrypoint, so we don't have to load it from the Code object.
       V<Word32> call_target_handle = __ Load(
-          func_ref, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-          WasmInternalFunction::kCodeOffset);
+          internal_function, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::Uint32(), WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target =
           BuildLoadWasmCodeEntrypointViaCodePointer(call_target_handle);
 #else
-      V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::TaggedPointer(),
-                                     WasmInternalFunction::kCodeOffset);
+      V<Code> wrapper_code =
+          __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmInternalFunction::kCodeOffset);
       V<WordPtr> call_target = __ Load(wrapper_code, LoadOp::Kind::TaggedBase(),
                                        MemoryRepresentation::UintPtr(),
                                        Code::kInstructionStartOffset);

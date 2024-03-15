@@ -134,8 +134,9 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> value = args[0];
-  if (IsWasmInternalFunction(value)) {
-    Tagged<WasmInternalFunction> internal = WasmInternalFunction::cast(value);
+  if (IsWasmFuncRef(value)) {
+    Tagged<WasmInternalFunction> internal =
+        WasmFuncRef::cast(value)->internal();
     Tagged<JSFunction> external;
     if (internal->try_get_external(&external)) return external;
     // Slow path:
@@ -447,11 +448,10 @@ namespace {
 void ReplaceWrapper(Isolate* isolate,
                     Handle<WasmTrustedInstanceData> trusted_instance_data,
                     int function_index, Handle<Code> wrapper_code) {
-  Tagged<WasmInternalFunction> internal_function;
-  CHECK(trusted_instance_data->try_get_internal_function(function_index,
-                                                         &internal_function));
+  Tagged<WasmFuncRef> func_ref;
+  CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
-  CHECK(internal_function->try_get_external(&external_function));
+  CHECK(func_ref->internal()->try_get_external(&external_function));
   external_function->set_code(*wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
@@ -480,11 +480,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 
   // The start function is not guaranteed to be registered as
   // an exported function (although it is called as one).
-  // If there is no entry for the start function,
-  // the tier-up is abandoned.
-  Tagged<WasmInternalFunction> internal_function;
-  if (!trusted_data->try_get_internal_function(function_index,
-                                               &internal_function)) {
+  // If there is no entry for the start function, the tier-up is abandoned.
+  Tagged<WasmFuncRef> func_ref;
+  if (!trusted_data->try_get_func_ref(function_index, &func_ref)) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -796,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
       WasmTrustedInstanceData::cast(args[0]), isolate);
   uint32_t function_index = args.positive_smi_value_at(1);
 
-  return *WasmTrustedInstanceData::GetOrCreateWasmInternalFunction(
+  return *WasmTrustedInstanceData::GetOrCreateFuncRef(
       isolate, trusted_instance_data, function_index);
 }
 
@@ -804,6 +802,7 @@ RUNTIME_FUNCTION(Runtime_WasmInternalFunctionCreateExternal) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  // TODO(14564): Pass WasmFuncRef here instead of WasmInternalFunction.
   Handle<WasmInternalFunction> internal(WasmInternalFunction::cast(args[0]),
                                         isolate);
   return *WasmInternalFunction::GetOrCreateExternal(internal);
