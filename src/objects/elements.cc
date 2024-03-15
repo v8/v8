@@ -4262,7 +4262,7 @@ Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS, uint32_t>::ToHandle(
 template <>
 uint16_t TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::FromScalar(
     double value) {
-  return fp16_ieee_from_fp32_value(DoubleToFloat32(value));
+  return DoubleToFloat16(value);
 }
 
 // static
@@ -4498,7 +4498,7 @@ Handle<Object> TypedElementsAccessor<RAB_GSAB_UINT32_ELEMENTS,
 template <>
 uint16_t TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::FromScalar(
     double value) {
-  return fp16_ieee_from_fp32_value(DoubleToFloat32(value));
+  return DoubleToFloat16(value);
 }
 
 // static

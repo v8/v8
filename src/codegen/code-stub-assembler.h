@@ -1047,6 +1047,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
+  TNode<Word32T> TruncateWord64ToWord32(TNode<Word64T> value);
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);

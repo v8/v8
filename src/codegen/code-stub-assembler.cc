@@ -1300,11 +1300,6 @@ TNode<Object> CodeStubAssembler::GetCoverageInfo(
                             std::make_pair(MachineType::TaggedPointer(), sfi)));
 }
 
-TNode<Float16T> CodeStubAssembler::TruncateFloat64ToFloat16(
-    TNode<Float64T> value) {
-  return TruncateFloat32ToFloat16(TruncateFloat64ToFloat32(value));
-}
-
 TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(TNode<WordT> value) {
   if (Is64()) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
@@ -1317,6 +1312,10 @@ TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(TNode<IntPtrT> value) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
   }
   return ReinterpretCast<Int32T>(value);
+}
+
+TNode<Word32T> CodeStubAssembler::TruncateWord64ToWord32(TNode<Word64T> value) {
+  return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
@@ -6410,6 +6409,184 @@ TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
     TNode<BoolT> overflow = Projection<1>(pair);
     GotoIf(overflow, not_smi);
     return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+  }
+}
+
+TNode<Float16T> CodeStubAssembler::TruncateFloat64ToFloat16(
+    TNode<Float64T> value) {
+  // This is a verbatim CSA implementation of DoubleToFloat16.
+  //
+  // The 64-bit and 32-bit paths are implemented separately, but the algorithm
+  // is the same in both cases. The 32-bit version requires manual pairwise
+  // operations.
+
+  if (Is64()) {
+    TVARIABLE(Uint16T, out);
+    TNode<Int64T> signed_in = BitcastFloat64ToInt64(value);
+
+    // Take the absolute value of the input.
+    TNode<Word64T> sign = Word64And(signed_in, Uint64Constant(kFP64SignMask));
+    TNode<Word64T> in = Word64Xor(signed_in, sign);
+
+    Label if_infinity_or_nan(this), if_finite(this), done(this);
+    Branch(Uint64GreaterThanOrEqual(in,
+                                    Uint64Constant(kFP16InfinityAndNaNInfimum)),
+           &if_infinity_or_nan, &if_finite);
+
+    BIND(&if_infinity_or_nan);
+    {
+      // Result is infinity or NaN.
+      out = Select<Uint16T>(
+          Uint64GreaterThan(in, Uint64Constant(kFP64Infinity)),
+          [=] { return Uint16Constant(kFP16qNaN); },       // NaN->qNaN
+          [=] { return Uint16Constant(kFP16Infinity); });  // Inf->Inf
+      Goto(&done);
+    }
+
+    BIND(&if_finite);
+    {
+      // Result is a (de)normalized number or zero.
+
+      Label if_denormal(this), not_denormal(this);
+      Branch(Uint64LessThan(in, Uint64Constant(kFP16DenormalThreshold)),
+             &if_denormal, &not_denormal);
+
+      BIND(&if_denormal);
+      {
+        // Result is a denormal or zero. Use the magic value and FP addition to
+        // align 10 mantissa bits at the bottom of the float. Depends on FP
+        // addition being round-to-nearest-even.
+        TNode<Float64T> temp = Float64Add(
+            BitcastInt64ToFloat64(ReinterpretCast<Int64T>(in)),
+            Float64Constant(base::bit_cast<double>(kFP64To16DenormalMagic)));
+        out = ReinterpretCast<Uint16T>(TruncateWord64ToWord32(
+            Uint64Sub(ReinterpretCast<Uint64T>(BitcastFloat64ToInt64(temp)),
+                      Uint64Constant(kFP64To16DenormalMagic))));
+        Goto(&done);
+      }
+
+      BIND(&not_denormal);
+      {
+        // Result is not a denormal.
+
+        // Remember if the result mantissa will be odd before rounding.
+        TNode<Uint64T> mant_odd = ReinterpretCast<Uint64T>(Word64And(
+            Word64Shr(in, Int64Constant(kFP64MantissaBits - kFP16MantissaBits)),
+            Uint64Constant(1)));
+
+        // Update the exponent and round to nearest even.
+        //
+        // Rounding to nearest even is handled in two parts. First, adding
+        // kFP64To16RebiasExponentAndRound has the effect of rebiasing the
+        // exponent and that if any of the lower 41 bits of the mantissa are
+        // set, the 11th mantissa bit from the front becomes set. Second, adding
+        // mant_odd ensures ties are rounded to even.
+        TNode<Uint64T> temp1 =
+            Uint64Add(ReinterpretCast<Uint64T>(in),
+                      Uint64Constant(kFP64To16RebiasExponentAndRound));
+        TNode<Uint64T> temp2 = Uint64Add(temp1, mant_odd);
+
+        out = ReinterpretCast<Uint16T>(TruncateWord64ToWord32(Word64Shr(
+            temp2, Int64Constant(kFP64MantissaBits - kFP16MantissaBits))));
+
+        Goto(&done);
+      }
+    }
+
+    BIND(&done);
+    return ReinterpretCast<Float16T>(
+        Word32Or(TruncateWord64ToWord32(Word64Shr(sign, Int64Constant(48))),
+                 out.value()));
+  } else {
+    TVARIABLE(Uint16T, out);
+    TNode<Word32T> signed_in_hi_word = Float64ExtractHighWord32(value);
+    TNode<Word32T> in_lo_word = Float64ExtractLowWord32(value);
+
+    // Take the absolute value of the input.
+    TNode<Word32T> sign = Word32And(
+        signed_in_hi_word, Uint64HighWordConstantNoLowWord(kFP64SignMask));
+    TNode<Word32T> in_hi_word = Word32Xor(signed_in_hi_word, sign);
+
+    Label if_infinity_or_nan(this), if_finite(this), done(this);
+    Branch(Uint32GreaterThanOrEqual(
+               in_hi_word,
+               Uint64HighWordConstantNoLowWord(kFP16InfinityAndNaNInfimum)),
+           &if_infinity_or_nan, &if_finite);
+
+    BIND(&if_infinity_or_nan);
+    {
+      // Result is infinity or NaN.
+      out = Select<Uint16T>(
+          Uint32GreaterThan(in_hi_word,
+                            Uint64HighWordConstantNoLowWord(kFP64Infinity)),
+          [=] { return Uint16Constant(kFP16qNaN); },       // NaN->qNaN
+          [=] { return Uint16Constant(kFP16Infinity); });  // Inf->Inf
+      Goto(&done);
+    }
+
+    BIND(&if_finite);
+    {
+      // Result is a (de)normalized number or zero.
+
+      Label if_denormal(this), not_denormal(this);
+      Branch(Uint32LessThan(in_hi_word, Uint64HighWordConstantNoLowWord(
+                                            kFP16DenormalThreshold)),
+             &if_denormal, &not_denormal);
+
+      BIND(&if_denormal);
+      {
+        // Result is a denormal or zero. Use the magic value and FP addition to
+        // align 10 mantissa bits at the bottom of the float. Depends on FP
+        // addition being round-to-nearest-even.
+        TNode<Float64T> double_in = Float64InsertHighWord32(
+            Float64InsertLowWord32(Float64Constant(0), in_lo_word), in_hi_word);
+        TNode<Float64T> temp = Float64Add(
+            double_in,
+            Float64Constant(base::bit_cast<double>(kFP64To16DenormalMagic)));
+        out = ReinterpretCast<Uint16T>(Projection<0>(Int32PairSub(
+            Float64ExtractLowWord32(temp), Float64ExtractHighWord32(temp),
+            Uint64LowWordConstant(kFP64To16DenormalMagic),
+            Uint64HighWordConstant(kFP64To16DenormalMagic))));
+
+        Goto(&done);
+      }
+
+      BIND(&not_denormal);
+      {
+        // Result is not a denormal.
+
+        // Remember if the result mantissa will be odd before rounding.
+        TNode<Uint32T> mant_odd = ReinterpretCast<Uint32T>(Word32And(
+            Word32Shr(in_hi_word, Int32Constant(kFP64MantissaBits -
+                                                kFP16MantissaBits - 32)),
+            Uint32Constant(1)));
+
+        // Update the exponent and round to nearest even.
+        //
+        // Rounding to nearest even is handled in two parts. First, adding
+        // kFP64To16RebiasExponentAndRound has the effect of rebiasing the
+        // exponent and that if any of the lower 41 bits of the mantissa are
+        // set, the 11th mantissa bit from the front becomes set. Second, adding
+        // mant_odd ensures ties are rounded to even.
+        TNode<PairT<Word32T, Word32T>> temp1 = Int32PairAdd(
+            in_lo_word, in_hi_word,
+            Uint64LowWordConstant(kFP64To16RebiasExponentAndRound),
+            Uint64HighWordConstant(kFP64To16RebiasExponentAndRound));
+        TNode<PairT<Word32T, Word32T>> temp2 =
+            Int32PairAdd(Projection<0>(temp1), Projection<1>(temp1), mant_odd,
+                         Int32Constant(0));
+
+        out = ReinterpretCast<Uint16T>((Word32Shr(
+            Projection<1>(temp2),
+            Int32Constant(kFP64MantissaBits - kFP16MantissaBits - 32))));
+
+        Goto(&done);
+      }
+    }
+
+    BIND(&done);
+    return ReinterpretCast<Float16T>(
+        Word32Or(Word32Shr(sign, Int32Constant(16)), out.value()));
   }
 }
 

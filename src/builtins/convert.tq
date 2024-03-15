@@ -356,7 +356,7 @@ Convert<float32, Number>(n: Number): float32 {
   return Convert<float32>(ChangeNumberToFloat64(n));
 }
 Convert<float16, Number>(n: Number): float16 {
-  return TruncateFloat32ToFloat16(Convert<float32>(n));
+  return TruncateFloat64ToFloat16(ChangeNumberToFloat64(n));
 }
 
 Convert<float64, float16>(n: float16): float64 {

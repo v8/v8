@@ -233,6 +233,11 @@ class CodeAssemblerParameterizedLabel;
   V(Uint32LessThanOrEqual, BoolT, Word32T, Word32T)       \
   V(Uint32GreaterThan, BoolT, Word32T, Word32T)           \
   V(Uint32GreaterThanOrEqual, BoolT, Word32T, Word32T)    \
+  /* Use Word64Equal if you need Uint64Equal */           \
+  V(Uint64LessThan, BoolT, Word64T, Word64T)              \
+  V(Uint64LessThanOrEqual, BoolT, Word64T, Word64T)       \
+  V(Uint64GreaterThan, BoolT, Word64T, Word64T)           \
+  V(Uint64GreaterThanOrEqual, BoolT, Word64T, Word64T)    \
   /* Use WordEqual if you need UintPtrEqual */            \
   V(UintPtrLessThan, BoolT, WordT, WordT)                 \
   V(UintPtrLessThanOrEqual, BoolT, WordT, WordT)          \
@@ -352,7 +357,8 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(ChangeUint32ToUint64, Uint64T, Word32T)                    \
   V(BitcastInt32ToFloat32, Float32T, Word32T)                  \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                  \
-  V(BitcastFloat64ToInt64, IntPtrT, Float64T)                  \
+  V(BitcastFloat64ToInt64, Int64T, Float64T)                   \
+  V(BitcastInt64ToFloat64, Float64T, Int64T)                   \
   V(RoundFloat64ToInt32, Int32T, Float64T)                     \
   V(RoundInt32ToFloat32, Float32T, Int32T)                     \
   V(Float64SilenceNaN, Float64T, Float64T)                     \
@@ -540,6 +546,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
+  }
+  TNode<Uint32T> Uint64HighWordConstant(uint64_t value) {
+    return Uint32Constant(value >> 32);
+  }
+  TNode<Uint32T> Uint64HighWordConstantNoLowWord(uint64_t value) {
+    DCHECK_EQ(0, value & ~uint32_t{0});
+    return Uint64HighWordConstant(value);
+  }
+  TNode<Uint32T> Uint64LowWordConstant(uint64_t value) {
+    return Uint32Constant(static_cast<uint32_t>(value));
   }
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
@@ -938,6 +954,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<ResType> name(TNode<Arg1Type> a, TNode<Arg2Type> b);
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
+
+  // Pairwise operations for 32bit.
+  TNode<PairT<Word32T, Word32T>> Int32PairAdd(TNode<Word32T> lhs_lo_word,
+                                              TNode<Word32T> lhs_hi_word,
+                                              TNode<Word32T> rhs_lo_word,
+                                              TNode<Word32T> rhs_hi_word);
+  TNode<PairT<Word32T, Word32T>> Int32PairSub(TNode<Word32T> lhs_lo_word,
+                                              TNode<Word32T> lhs_hi_word,
+                                              TNode<Word32T> rhs_lo_word,
+                                              TNode<Word32T> rhs_hi_word);
 
   TNode<UintPtrT> WordShr(TNode<UintPtrT> left, TNode<IntegralT> right) {
     return Unsigned(WordShr(static_cast<TNode<WordT>>(left), right));

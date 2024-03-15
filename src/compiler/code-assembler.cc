@@ -611,6 +611,20 @@ TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
 
+TNode<PairT<Word32T, Word32T>> CodeAssembler::Int32PairAdd(
+    TNode<Word32T> lhs_lo_word, TNode<Word32T> lhs_hi_word,
+    TNode<Word32T> rhs_lo_word, TNode<Word32T> rhs_hi_word) {
+  return UncheckedCast<PairT<Word32T, Word32T>>(raw_assembler()->Int32PairAdd(
+      lhs_lo_word, lhs_hi_word, rhs_lo_word, rhs_hi_word));
+}
+
+TNode<PairT<Word32T, Word32T>> CodeAssembler::Int32PairSub(
+    TNode<Word32T> lhs_lo_word, TNode<Word32T> lhs_hi_word,
+    TNode<Word32T> rhs_lo_word, TNode<Word32T> rhs_hi_word) {
+  return UncheckedCast<PairT<Word32T, Word32T>>(raw_assembler()->Int32PairSub(
+      lhs_lo_word, lhs_hi_word, rhs_lo_word, rhs_hi_word));
+}
+
 TNode<WordT> CodeAssembler::WordShl(TNode<WordT> value, int shift) {
   return (shift != 0) ? WordShl(value, IntPtrConstant(shift)) : value;
 }
