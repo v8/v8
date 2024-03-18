@@ -546,6 +546,11 @@ constexpr int kTrustedPointerSize = kTaggedSize;
 #endif
 constexpr int kCodePointerSize = kTrustedPointerSize;
 
+// Pointers between trusted objects use compressed pointers with the trusted
+// space base when the sandbox is enabled. Otherwise, they are regular tagged
+// pointers. Either way, they are always kTaggedSize fields.
+constexpr int kProtectedPointerSize = kTaggedSize;
+
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
 constexpr int kEmbedderDataSlotSizeInTaggedSlots =
