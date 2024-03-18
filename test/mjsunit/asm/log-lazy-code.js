@@ -11,10 +11,16 @@ function OnProfilerSampleCallback(profile) {
   profile = JSON.parse(profile);
   let functionNames = profile.nodes.map(n => n.callFrame.functionName);
   for (let i = 0; i < functionNames.length; ++i) {
-    if (functionNames[i].startsWith('js-to-wasm')) {
-      assertTrue(functionNames[i + 1].startsWith('f'));
-      assertTrue(functionNames[i + 2].startsWith('wasm-to-js'));
-      assertTrue(functionNames[i + 3].startsWith('g'));
+    // Sampling the stack isn't entirely reliable: about 1 in 30K runs have
+    // a bogus frame somewhere early on. While that may not be WAI, it's not
+    // this test's purpose to worry about it; it seems that we'll always find
+    // the f -> wasm-to-js -> g sequence somewhere on the stack, which is what
+    // this test cares about.
+    // In theory, the frame before "f" should always be "js-to-wasm:i:i", but
+    // that isn't always the case.
+    if (functionNames[i] == 'g') {
+      assertTrue(functionNames[i - 1] == 'wasm-to-js');
+      assertTrue(functionNames[i - 2] == 'f');
       // {sampleCollected} is set at the end because the asserts above don't
       // show up in the test runner, probably because this function is called as
       // a callback from d8.
