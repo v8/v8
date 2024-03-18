@@ -2555,8 +2555,8 @@ class LiftoffCompiler {
       static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
       LiftoffRegister dst = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       uint32_t protected_load_pc = 0;
-      __ Load(dst, obj.gp(), no_reg, kTaggedSize, LoadType::kI32Load,
-              &protected_load_pc);
+      __ Load(dst, obj.gp(), no_reg, wasm::ObjectAccess::ToTagged(kTaggedSize),
+              LoadType::kI32Load, &protected_load_pc);
       RegisterProtectedInstruction(decoder, protected_load_pc);
     }
     __ PushRegister(kRef, obj);
