@@ -142,7 +142,8 @@ enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
  * Interceptor for get requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should
  *  - (optionally) use info.GetReturnValue().Set()` to set the return value
  *    (by default the result is set to v8::Undefined),
  *  - return `Intercepted::kYes`.
@@ -194,7 +195,8 @@ using GenericNamedPropertyGetterCallback =
  * Interceptor for set requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should return `Intercepted::kYes`.
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
  *
@@ -229,9 +231,10 @@ using GenericNamedPropertySetterCallback =
  * defineProperty().
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should
- *  - use `info.GetReturnValue().Set()` to set to an Integer value encoding
- *    a `v8::PropertyAttribute` bits,
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should
+ *  - (optionally) use `info.GetReturnValue().Set()` to set to an Integer
+ *    value encoding a `v8::PropertyAttribute` bits,
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
@@ -263,9 +266,10 @@ using GenericNamedPropertyQueryCallback =
  * Interceptor for delete requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should
- *  - use `info.GetReturnValue().Set()` to set to a Boolean value indicating
- *    whether the property deletion was successful or not,
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should
+ *  - (optionally) use `info.GetReturnValue().Set()` to set to a Boolean value
+ *    indicating whether the property deletion was successful or not,
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
@@ -311,7 +315,8 @@ using GenericNamedPropertyEnumeratorCallback = NamedPropertyEnumeratorCallback;
  * Interceptor for defineProperty requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should return `Intercepted::kYes`.
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
  *
@@ -344,10 +349,11 @@ using GenericNamedPropertyDefinerCallback =
  * Interceptor for getOwnPropertyDescriptor requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
- * looked up beyond the interceptor) it should
- *  - use `info.GetReturnValue().Set()` to set the return value which must be
- *    object that can be converted to a PropertyDescriptor (for example,
- *    a value returned by `v8::Object::getOwnPropertyDescriptor`),
+ * looked up beyond the interceptor or in case an exception was thrown) it
+ * should
+ *  - (optionally) use `info.GetReturnValue().Set()` to set the return value
+ *    which must be object that can be converted to a PropertyDescriptor (for
+ *    example, a value returned by `v8::Object::getOwnPropertyDescriptor`),
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
@@ -379,7 +385,7 @@ using GenericNamedPropertyDescriptorCallback =
 // removed.
 
 /**
- * See `v8::GenericNamedPropertyGetterCallback`.
+ * See `v8::NamedPropertyGetterCallback`.
  */
 using IndexedPropertyGetterCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
@@ -388,7 +394,7 @@ using IndexedPropertyGetterCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 
 /**
- * See `v8::GenericNamedPropertySetterCallback`.
+ * See `v8::NamedPropertySetterCallback`.
  */
 using IndexedPropertySetterCallbackV2 = Intercepted (*)(
     uint32_t index, Local<Value> value, const PropertyCallbackInfo<void>& info);
@@ -398,7 +404,7 @@ using IndexedPropertySetterCallback =
              const PropertyCallbackInfo<Value>& info);
 
 /**
- * See `v8::GenericNamedPropertyQueryCallback`.
+ * See `v8::NamedPropertyQueryCallback`.
  */
 using IndexedPropertyQueryCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
@@ -407,7 +413,7 @@ using IndexedPropertyQueryCallback =
     void (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
 
 /**
- * See `v8::GenericNamedPropertyDeleterCallback`.
+ * See `v8::NamedPropertyDeleterCallback`.
  */
 using IndexedPropertyDeleterCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
@@ -425,7 +431,7 @@ using IndexedPropertyEnumeratorCallback =
     void (*)(const PropertyCallbackInfo<Array>& info);
 
 /**
- * See `v8::GenericNamedPropertyDefinerCallback`.
+ * See `v8::NamedPropertyDefinerCallback`.
  */
 using IndexedPropertyDefinerCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
@@ -436,7 +442,7 @@ using IndexedPropertyDefinerCallback =
              const PropertyCallbackInfo<Value>& info);
 
 /**
- * See `v8::GenericNamedPropertyDescriptorCallback`.
+ * See `v8::NamedPropertyDescriptorCallback`.
  */
 using IndexedPropertyDescriptorCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);

@@ -3434,10 +3434,10 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
   FreeCurrentEmbeddedBlob();
 }
 
-static int serialized_static_field = 314;
+namespace {
+int serialized_static_field = 314;
 
-static void SerializedCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   if (info.Data()->IsExternal()) {
     CHECK_EQ(info.Data().As<v8::External>()->Value(),
@@ -3449,30 +3449,31 @@ static void SerializedCallback(
   info.GetReturnValue().Set(v8_num(42));
 }
 
-static void SerializedCallbackReplacement(
+void SerializedCallbackReplacement(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(1337));
 }
 
-static void NamedPropertyGetterForSerialization(
+v8::Intercepted NamedPropertyGetterForSerialization(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  if (name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("x"))
-          .FromJust()) {
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  if (name->Equals(context, v8_str("x")).FromJust()) {
     info.GetReturnValue().Set(v8_num(2016));
+    return v8::Intercepted::kYes;
   }
+  return v8::Intercepted::kNo;
 }
 
-static void AccessorForSerialization(
-    v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+void AccessorForSerialization(v8::Local<v8::Name> property,
+                              const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(v8_num(2017));
 }
 
-static SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
-static SerializerTwoByteResource serializable_two_byte_resource(
+SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
+SerializerTwoByteResource serializable_two_byte_resource(
     AsciiToTwoByteString(u"two_byte 🤓"), 11);
 
 intptr_t original_external_references[] = {
@@ -3497,6 +3498,8 @@ intptr_t replaced_external_references[] = {
 
 intptr_t short_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
+
+}  // namespace
 
 UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
   DisableAlwaysOpt();

@@ -1238,6 +1238,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
       DCHECK_IMPLIES((value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK) != 0,
                      value == PropertyAttributes::ABSENT);
       // In case of absent property side effects are not allowed.
+      // TODO(ishell): the PropertyAttributes::ABSENT is not exposed in the Api,
+      // so it can't be officially returned. We should fix the tests instead.
       if (value != PropertyAttributes::ABSENT) {
         args.AcceptSideEffects();
       }

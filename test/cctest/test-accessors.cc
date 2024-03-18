@@ -590,12 +590,11 @@ void JSONStringifyEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
   info.GetReturnValue().Set(array);
 }
 
-
-void JSONStringifyGetter(Local<Name> name,
-                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+v8::Intercepted JSONStringifyGetter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_str("crbug-161028"));
+  return v8::Intercepted::kYes;
 }
-
 
 THREADED_TEST(JSONStringifyNamedInterceptorObject) {
   LocalContext env;
@@ -680,16 +679,19 @@ THREADED_TEST(GlobalObjectAccessor) {
   }
 }
 
-static void EmptyGenericGetter(
+namespace {
+v8::Intercepted EmptyGenericGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
+  return v8::Intercepted::kNo;
 }
 
-static void OneProperty(Local<Name> name,
-                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+void OneProperty(Local<Name> name,
+                 const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(1));
 }
+}  // namespace
 
 THREADED_TEST(Regress433458) {
   LocalContext env;
