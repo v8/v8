@@ -137,18 +137,20 @@ struct IndexedDebugProxy {
     return GetProvider(GetHolder(info), GetIsolate(info));
   }
 
-  static void IndexedGetter(uint32_t index,
-                            const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted IndexedGetter(
+      uint32_t index, const PropertyCallbackInfo<v8::Value>& info) {
     auto isolate = GetIsolate(info);
     auto provider = GetProvider(info);
     if (index < T::Count(isolate, provider)) {
       auto value = T::Get(isolate, provider, index);
       info.GetReturnValue().Set(Utils::ToLocal(value));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedDescriptor(uint32_t index,
-                                const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted IndexedDescriptor(
+      uint32_t index, const PropertyCallbackInfo<v8::Value>& info) {
     auto isolate = GetIsolate(info);
     auto provider = GetProvider(info);
     if (index < T::Count(isolate, provider)) {
@@ -158,16 +160,20 @@ struct IndexedDebugProxy {
       descriptor.set_writable(false);
       descriptor.set_value(T::Get(isolate, provider, index));
       info.GetReturnValue().Set(Utils::ToLocal(descriptor.ToObject(isolate)));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedQuery(uint32_t index,
-                           const PropertyCallbackInfo<v8::Integer>& info) {
+  static v8::Intercepted IndexedQuery(
+      uint32_t index, const PropertyCallbackInfo<v8::Integer>& info) {
     if (index < T::Count(GetIsolate(info), GetProvider(info))) {
       info.GetReturnValue().Set(Integer::New(
           info.GetIsolate(),
           PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 
   static void IndexedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -237,19 +243,28 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     return {};
   }
 
-  static void NamedGetter(Local<v8::Name> name,
-                          const PropertyCallbackInfo<v8::Value>& info) {
-    if (auto index = FindName(name, info)) T::IndexedGetter(*index, info);
+  static v8::Intercepted NamedGetter(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedGetter(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedQuery(Local<v8::Name> name,
-                         const PropertyCallbackInfo<v8::Integer>& info) {
-    if (auto index = FindName(name, info)) T::IndexedQuery(*index, info);
+  static v8::Intercepted NamedQuery(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Integer>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedQuery(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedDescriptor(Local<v8::Name> name,
-                              const PropertyCallbackInfo<v8::Value>& info) {
-    if (auto index = FindName(name, info)) T::IndexedDescriptor(*index, info);
+  static v8::Intercepted NamedDescriptor(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
+    if (auto index = FindName(name, info)) {
+      return T::IndexedDescriptor(*index, info);
+    }
+    return v8::Intercepted::kNo;
   }
 
   static void NamedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -573,15 +588,17 @@ class ContextProxyPrototype {
     return {};
   }
 
-  static void NamedGetter(Local<v8::Name> name,
-                          const PropertyCallbackInfo<v8::Value>& info) {
+  static v8::Intercepted NamedGetter(
+      Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
     auto name_string = Handle<String>::cast(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
     auto receiver = Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
     Handle<Object> value;
     if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
+      return v8::Intercepted::kYes;
     }
+    return v8::Intercepted::kNo;
   }
 };
 
