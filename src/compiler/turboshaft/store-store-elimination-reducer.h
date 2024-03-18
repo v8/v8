@@ -377,8 +377,12 @@ class RedundantStoreAnalysis {
                     store1.offset - store0.offset == 4) {
                   uint32_t high = static_cast<uint32_t>(c1->handle()->ptr());
                   uint32_t low = static_cast<uint32_t>(c0->handle()->ptr());
-                  mergeable_store_pairs_->insert(
-                      {index, make_uint64(high, low)});
+#if V8_TARGET_BIG_ENDIAN
+                  uint64_t merged = make_uint64(low, high);
+#else
+                  uint64_t merged = make_uint64(high, low);
+#endif
+                  mergeable_store_pairs_->insert({index, merged});
 
                   eliminable_stores_->insert(last_field_initialization_store_);
                   last_field_initialization_store_ = OpIndex::Invalid();
