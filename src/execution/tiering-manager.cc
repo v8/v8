@@ -286,6 +286,15 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   static_assert(kTieringStateInProgressBlocksTierup);
   if (V8_UNLIKELY(IsInProgress(tiering_state)) ||
       V8_UNLIKELY(IsInProgress(osr_tiering_state))) {
+    if (v8_flags.concurrent_recompilation_front_running &&
+        (IsRequestTurbofan(tiering_state) ||
+         IsRequestTurbofan(osr_tiering_state))) {
+      // TODO(olivf): In the case of Maglev we tried a queue with two
+      // priorities, but it seems not actually beneficial. More
+      // investigation is needed.
+      isolate_->IncreaseConcurrentOptimizationPriority(CodeKind::TURBOFAN,
+                                                       function->shared());
+    }
     // Note: This effectively disables further tiering actions (e.g. OSR, or
     // tiering up into Maglev) for the function while it is being compiled.
     TraceInOptimizationQueue(function, current_code_kind);

@@ -1615,6 +1615,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return optimizing_compile_dispatcher_ != nullptr;
   }
 
+  void IncreaseConcurrentOptimizationPriority(
+      CodeKind kind, Tagged<SharedFunctionInfo> function);
+
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
     DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;

@@ -1041,6 +1041,9 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+DEFINE_BOOL(concurrent_recompilation_front_running, true,
+            "move compile jobs to the front if recompilation is requested "
+            "multiple times")
 DEFINE_UINT(
     concurrent_turbofan_max_threads, 0,
     "max number of threads that concurrent Turbofan can use (0 for unbounded)")

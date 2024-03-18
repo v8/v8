@@ -5185,6 +5185,12 @@ void Isolate::DumpAndResetStats() {
   }
 }
 
+void Isolate::IncreaseConcurrentOptimizationPriority(
+    CodeKind kind, Tagged<SharedFunctionInfo> function) {
+  DCHECK(kind == CodeKind::TURBOFAN);
+  optimizing_compile_dispatcher()->Prioritize(function);
+}
+
 void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
   if (concurrent_recompilation_enabled()) {
     DisallowGarbageCollection no_recursive_gc;
