@@ -791,6 +791,7 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kCallTargetOffset,
                                           kWasmInternalFunctionCallTargetTag));
+    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
