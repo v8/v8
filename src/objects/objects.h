@@ -42,6 +42,7 @@ class LookupIterator;
 class PropertyDescriptorObject;
 class ReadOnlyRoots;
 class RootVisitor;
+class PropertyKey;
 
 // UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
 // SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
