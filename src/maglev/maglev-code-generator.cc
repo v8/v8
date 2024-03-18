@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "src/base/hashmap.h"
-#include "src/base/logging.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -1365,10 +1364,6 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreLiteral(GetDeoptLiteral(
             ReadOnlyRoots(local_isolate_).one_pointer_filler_map()));
         break;
-      case FastField::kRuntimeValue:
-        // TODO(victorgomes); Still not supported. Currently we always escape
-        // the arguments object.
-        UNREACHABLE();
       case FastField::kObject:
         BuildFastObject(value.object);
         break;
@@ -1442,7 +1437,7 @@ class MaglevFrameTranslationBuilder {
         BuildFastFixedArray(value.fixed_array);
         break;
       case DeoptObject::kArguments:
-      case DeoptObject::kMappedArgumentsElements:
+      case DeoptObject::kSloppyElements:
         // TODO(victorgomes); Still not supported. Currently we always escape
         // the arguments object.
         UNREACHABLE();
