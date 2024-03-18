@@ -3339,6 +3339,10 @@ void Isolate::UpdateCentralStackInfo() {
   }
 }
 
+wasm::WasmOrphanedGlobalHandle* Isolate::NewWasmOrphanedGlobalHandle() {
+  return wasm::WasmEngine::NewOrphanedGlobalHandle(&wasm_orphaned_handle_);
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
@@ -4099,6 +4103,10 @@ Isolate::~Isolate() {
   global_handles_ = nullptr;
   delete eternal_handles_;
   eternal_handles_ = nullptr;
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmEngine::FreeAllOrphanedGlobalHandles(wasm_orphaned_handle_);
+#endif
 
   delete string_stream_debug_object_cache_;
   string_stream_debug_object_cache_ = nullptr;

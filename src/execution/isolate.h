@@ -183,6 +183,7 @@ class Recorder;
 
 namespace wasm {
 class WasmCodeLookupCache;
+class WasmOrphanedGlobalHandle;
 }
 
 #define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
@@ -1340,6 +1341,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache() {
     return wasm_code_look_up_cache_;
   }
+  wasm::WasmOrphanedGlobalHandle* NewWasmOrphanedGlobalHandle();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
@@ -2686,6 +2688,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   wasm::StackMemory* wasm_stacks_ = nullptr;
+  wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
 #endif
 
   // Enables the host application to provide a mechanism for recording a
