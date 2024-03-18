@@ -9841,6 +9841,9 @@ void MaglevGraphBuilder::VisitJumpIfFalseConstant() { VisitJumpIfFalse(); }
 void MaglevGraphBuilder::VisitJumpIfJSReceiverConstant() {
   VisitJumpIfJSReceiver();
 }
+void MaglevGraphBuilder::VisitJumpIfForInDoneConstant() {
+  VisitJumpIfForInDone();
+}
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrueConstant() {
   VisitJumpIfToBooleanTrue();
 }
@@ -10287,6 +10290,17 @@ void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
 }
+void MaglevGraphBuilder::VisitJumpIfForInDone() {
+  // JumpIfForInDone <target> <index> <cache_length>
+  ValueNode* index = LoadRegisterInt32(1);
+  ValueNode* cache_length = LoadRegisterInt32(2);
+  BasicBlock* block = FinishBlock<BranchIfInt32Compare>(
+      {index, cache_length}, Operation::kEqual,
+      &jump_targets_[iterator_.GetJumpTargetOffset()],
+      &jump_targets_[next_offset()]);
+  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
+}
 
 void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
@@ -10400,14 +10414,6 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   }
 }
 
-void MaglevGraphBuilder::VisitForInContinue() {
-  // ForInContinue <index> <cache_length>
-  ValueNode* index = LoadRegisterInt32(0);
-  ValueNode* cache_length = LoadRegisterInt32(1);
-  SetAccumulator(
-      AddNewNode<Int32Compare>({index, cache_length}, Operation::kLessThan));
-}
-
 void MaglevGraphBuilder::VisitForInNext() {
   // ForInNext <receiver> <index> <cache_info_pair>
   ValueNode* receiver = LoadRegisterTagged(0);
@@ -10466,8 +10472,10 @@ void MaglevGraphBuilder::VisitForInNext() {
 }
 
 void MaglevGraphBuilder::VisitForInStep() {
-  ValueNode* index = LoadRegisterInt32(0);
-  SetAccumulator(AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
+  interpreter::Register index_reg = iterator_.GetRegisterOperand(0);
+  ValueNode* index = GetInt32(index_reg);
+  StoreRegister(index_reg,
+                AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
   if (!in_peeled_iteration_) {
     // With loop peeling, only the `ForInStep` in the non-peeled loop body marks
     // the end of for-in.

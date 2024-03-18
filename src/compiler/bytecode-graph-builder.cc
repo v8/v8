@@ -22,6 +22,7 @@
 #include "src/compiler/state-values-utils.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/js-generator.h"
@@ -332,6 +333,7 @@ class BytecodeGraphBuilder {
   void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
   void BuildJumpIfJSReceiver();
+  void BuildJumpIfForInDone();
 
   void BuildSwitchOnSmi(Node* condition);
   void BuildSwitchOnGeneratorState(
@@ -3633,6 +3635,12 @@ void BytecodeGraphBuilder::VisitJumpIfJSReceiverConstant() {
   BuildJumpIfJSReceiver();
 }
 
+void BytecodeGraphBuilder::VisitJumpIfForInDone() { BuildJumpIfForInDone(); }
+
+void BytecodeGraphBuilder::VisitJumpIfForInDoneConstant() {
+  BuildJumpIfForInDone();
+}
+
 void BytecodeGraphBuilder::VisitJumpIfNull() {
   BuildJumpIfEqual(jsgraph()->NullConstant());
 }
@@ -3767,18 +3775,6 @@ void BytecodeGraphBuilder::VisitForInPrepare() {
       bytecode_iterator().GetRegisterOperand(0), node);
 }
 
-void BytecodeGraphBuilder::VisitForInContinue() {
-  PrepareEagerCheckpoint();
-  Node* index =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* cache_length =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* exit_cond = NewNode(simplified()->SpeculativeNumberLessThan(
-                                NumberOperationHint::kSignedSmall),
-                            index, cache_length);
-  environment()->BindAccumulator(exit_cond);
-}
-
 void BytecodeGraphBuilder::VisitForInNext() {
   PrepareEagerCheckpoint();
   Node* receiver =
@@ -3810,12 +3806,12 @@ void BytecodeGraphBuilder::VisitForInNext() {
 
 void BytecodeGraphBuilder::VisitForInStep() {
   PrepareEagerCheckpoint();
-  Node* index =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  interpreter::Register index_reg = bytecode_iterator().GetRegisterOperand(0);
+  Node* index = environment()->LookupRegister(index_reg);
   index = NewNode(simplified()->SpeculativeSafeIntegerAdd(
                       NumberOperationHint::kSignedSmall),
                   index, jsgraph()->OneConstant());
-  environment()->BindAccumulator(index, Environment::kAttachFrameState);
+  environment()->BindRegister(index_reg, index, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitGetIterator() {
@@ -4207,6 +4203,20 @@ void BytecodeGraphBuilder::BuildJumpIfNotHole() {
 void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
+  BuildJumpIf(condition);
+}
+
+void BytecodeGraphBuilder::BuildJumpIfForInDone() {
+  // There's an eager checkpoint here for the speculative comparison, but it can
+  // never actually deopt because these are known to be Smi.
+  PrepareEagerCheckpoint();
+  Node* index =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  Node* cache_length =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
+  Node* condition = NewNode(
+      simplified()->SpeculativeNumberEqual(NumberOperationHint::kSignedSmall),
+      index, cache_length);
   BuildJumpIf(condition);
 }
 
