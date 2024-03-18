@@ -856,8 +856,10 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Returns the number of operands expected by |bytecode|.
   static int NumberOfOperands(Bytecode bytecode) {
-    DCHECK_LE(bytecode, Bytecode::kLast);
-    return kOperandCount[static_cast<size_t>(bytecode)];
+    // Using V8_ASSUME instead of DCHECK here works around a spurious GCC
+    // warning -- somehow GCC thinks that bytecode == kLast+1 can happen here.
+    V8_ASSUME(bytecode <= Bytecode::kLast);
+    return kOperandCount[static_cast<uint8_t>(bytecode)];
   }
 
   // Returns the i-th operand of |bytecode|.
