@@ -1398,7 +1398,7 @@ DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
 DEFINE_BOOL(profile_guided_optimization, false, "profile guided optimization")
 DEFINE_BOOL(profile_guided_optimization_for_empty_feedback_vector, false,
             "profile guided optimization for empty feedback vector")
-DEFINE_INT(invocation_count_for_early_optimization, 20,
+DEFINE_INT(invocation_count_for_early_optimization, 30,
            "invocation count threshold for early optimization")
 
 // Favor memory over execution speed.
