@@ -375,19 +375,20 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
 CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
 
 // {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
-// TODO(14564): Make this type-safe by moving WasmInternalFunction to
-// the trusted space and using a protected pointer.
-TRUSTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,
-                          kIndirectRefOffset, kUnknownIndirectPointerTag)
+PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,
+                            kProtectedRefOffset)
 
 // WasmFuncRef
-ACCESSORS(WasmFuncRef, internal, Tagged<WasmInternalFunction>, kInternalOffset)
+TRUSTED_POINTER_ACCESSORS(WasmFuncRef, internal, WasmInternalFunction,
+                          kTrustedInternalOffset,
+                          kWasmInternalFunctionIndirectPointerTag)
 
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
 
-ACCESSORS(WasmFunctionData, internal, Tagged<WasmInternalFunction>,
-          kInternalOffset)
+TRUSTED_POINTER_ACCESSORS(WasmFunctionData, internal, WasmInternalFunction,
+                          kTrustedInternalOffset,
+                          kWasmInternalFunctionIndirectPointerTag)
 
 // WasmExportedFunctionData
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
@@ -414,8 +415,9 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExternalFunction)
 
-Tagged<WasmInternalFunction> WasmExternalFunction::internal() const {
-  return shared()->wasm_function_data()->internal();
+Tagged<WasmInternalFunction> WasmExternalFunction::internal(
+    IsolateForSandbox isolate) const {
+  return shared()->wasm_function_data()->internal(isolate);
 }
 
 // WasmTypeInfo

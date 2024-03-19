@@ -295,7 +295,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
         instance->trusted_data(isolate), isolate};
     Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
         isolate, trusted_data, index);
-    Handle<WasmInternalFunction> internal_function{func_ref->internal(),
+    Handle<WasmInternalFunction> internal_function{func_ref->internal(isolate),
                                                    isolate};
     return WasmInternalFunction::GetOrCreateExternal(internal_function);
   }
@@ -970,16 +970,16 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
       } else if (IsWasmFuncRef(*ref)) {
         Handle<WasmInternalFunction> internal_fct{
-            WasmFuncRef::cast(*ref)->internal(), isolate};
+            WasmFuncRef::cast(*ref)->internal(isolate), isolate};
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
         // If the module is not provided by the caller, retrieve it from the
         // instance object. If the function was created in JavaScript using
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            IsWasmTrustedInstanceData(internal_fct->ref(isolate))) {
+            IsWasmTrustedInstanceData(internal_fct->ref())) {
           module_object =
-              handle(WasmTrustedInstanceData::cast(internal_fct->ref(isolate))
+              handle(WasmTrustedInstanceData::cast(internal_fct->ref())
                          ->module_object(),
                      isolate);
         }

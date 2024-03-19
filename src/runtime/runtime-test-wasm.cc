@@ -183,12 +183,14 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   if (WasmExportedFunction::IsWasmExportedFunction(*param)) {
     Handle<WasmExportedFunction> exported =
         Handle<WasmExportedFunction>::cast(param);
-    internal = exported->shared()->wasm_exported_function_data()->internal();
+    internal =
+        exported->shared()->wasm_exported_function_data()->internal(isolate);
   } else {
     DCHECK(WasmJSFunction::IsWasmJSFunction(*param));
     Handle<WasmJSFunction> wasm_js_function =
         Handle<WasmJSFunction>::cast(param);
-    internal = wasm_js_function->shared()->wasm_js_function_data()->internal();
+    internal =
+        wasm_js_function->shared()->wasm_js_function_data()->internal(isolate);
   }
 
   Tagged<Code> wrapper =
@@ -213,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
 
   Handle<JSFunction> external_function =
       WasmInternalFunction::GetOrCreateExternal(
-          handle(function_data->internal(), isolate));
+          handle(function_data->internal(isolate), isolate));
   Handle<Code> external_function_code =
       handle(external_function->code(isolate), isolate);
   Handle<Code> function_data_code =

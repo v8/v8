@@ -2467,7 +2467,7 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
-  os << "\n - internal: " << Brief(internal());
+  os << "\n - internal: " << Brief(internal(isolate));
   os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
   // No newline here; the caller prints it after printing additional fields.
@@ -2512,7 +2512,7 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - call target: " << reinterpret_cast<void*>(call_target(isolate));
-  os << "\n - ref: " << Brief(ref(isolate));
+  os << "\n - ref: " << Brief(ref());
   os << "\n - external: " << Brief(external());
   os << "\n - code: " << Brief(code(isolate));
   os << "\n - func_ref: " << Brief(func_ref());
@@ -2521,7 +2521,8 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
 
 void WasmFuncRef::WasmFuncRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmFuncRef");
-  os << "\n - internal: " << Brief(internal());
+  Isolate* isolate = GetIsolateForSandbox(*this);
+  os << "\n - internal: " << Brief(internal(isolate));
   os << "\n";
 }
 

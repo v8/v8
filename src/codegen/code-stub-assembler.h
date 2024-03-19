@@ -550,8 +550,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                    \
     return IntPtrOpName(a, b);                                                 \
   }                                                                            \
-  /* IntPtrXXX comparisons shouldn't be used with unsigned types, use          \
-   * UintPtrXXX operations explicitly instead. */                              \
+  /* IntPtrXXX comparisons shouldn't be used with unsigned types, use       */ \
+  /* UintPtrXXX operations explicitly instead.                              */ \
   TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) { UNREACHABLE(); } \
   TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) { UNREACHABLE(); }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
@@ -1314,9 +1314,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns WasmApiFunctionRef or WasmTrustedInstanceData.
   TNode<ExposedTrustedObject> LoadRefFromWasmInternalFunction(
       TNode<WasmInternalFunction> object) {
-    TNode<TrustedObject> ref = LoadTrustedPointerFromObject(
-        object, WasmInternalFunction::kIndirectRefOffset,
-        kUnknownIndirectPointerTag);
+    TNode<Object> obj = LoadProtectedPointerField(
+        object, WasmInternalFunction::kProtectedRefOffset);
+    CSA_DCHECK(this, TaggedIsNotSmi(obj));
+    TNode<HeapObject> ref = CAST(obj);
     CSA_DCHECK(this,
                Word32Or(HasInstanceType(ref, WASM_TRUSTED_INSTANCE_DATA_TYPE),
                         HasInstanceType(ref, WASM_API_FUNCTION_REF_TYPE)));
@@ -1352,6 +1353,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadExternalPointerFromObject(object,
                                          WasmExportedFunctionData::kSigOffset,
                                          kWasmExportedFunctionDataSignatureTag);
+  }
+
+  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
+      TNode<WasmFuncRef> func_ref) {
+    return CAST(LoadTrustedPointerFromObject(
+        func_ref, WasmFuncRef::kTrustedInternalOffset,
+        kWasmInternalFunctionIndirectPointerTag));
+  }
+
+  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromWasmFunctionData(
+      TNode<WasmFunctionData> data) {
+    return CAST(LoadTrustedPointerFromObject(
+        data, WasmFunctionData::kTrustedInternalOffset,
+        kWasmInternalFunctionIndirectPointerTag));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

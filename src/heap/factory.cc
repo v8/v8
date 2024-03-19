@@ -1701,8 +1701,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DirectHandle<Map> rtt, int function_index) {
   Tagged<WasmInternalFunction> internal =
       Tagged<WasmInternalFunction>::cast(AllocateRawWithImmortalMap(
-          WasmInternalFunction::kSize, AllocationType::kOld,
+          WasmInternalFunction::kSize, AllocationType::kTrusted,
           *wasm_internal_function_map()));
+  internal->init_self_indirect_pointer(isolate());
   {
     DisallowGarbageCollection no_gc;
     internal->init_call_target(isolate(), opt_call_target);

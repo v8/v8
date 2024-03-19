@@ -1362,9 +1362,9 @@ class FeedbackMaker {
 
   void AddCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
-        WasmFuncRef::cast(funcref)->internal();
+        WasmFuncRef::cast(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
-    if (internal_function->ref(isolate_) != instance_data_) return;
+    if (internal_function->ref() != instance_data_) return;
     // Discard imports for now.
     if (internal_function->function_index() < num_imported_functions_) return;
     AddCall(internal_function->function_index(), count);

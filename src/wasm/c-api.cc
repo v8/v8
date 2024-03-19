@@ -1484,7 +1484,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared()->wasm_capi_function_data()->internal()->ref(isolate))
+      function->shared()->wasm_capi_function_data()->internal(isolate)->ref())
       ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
@@ -1719,7 +1719,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   PrepareFunctionData(isolate, function_data, sig, module);
   i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(isolate),
                                   isolate);
-  i::Address call_target = function_data->internal()->call_target(isolate);
+  i::Address call_target =
+      function_data->internal(isolate)->call_target(isolate);
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);
@@ -1922,7 +1923,8 @@ auto Global::get() const -> Val {
       i::Handle<i::Object> result = v8_global->GetRef();
       if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
-            i::WasmFuncRef::cast(*result)->internal(), store->i_isolate()));
+            i::WasmFuncRef::cast(*result)->internal(store->i_isolate()),
+            store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2065,7 +2067,7 @@ auto Table::get(size_t index) const -> own<Ref> {
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (IsWasmFuncRef(*result)) {
     result = i::WasmInternalFunction::GetOrCreateExternal(
-        i::handle(i::WasmFuncRef::cast(*result)->internal(), isolate));
+        i::handle(i::WasmFuncRef::cast(*result)->internal(isolate), isolate));
   }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();

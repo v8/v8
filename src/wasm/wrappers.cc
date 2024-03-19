@@ -227,9 +227,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               Variable maybe_external =
                   __ NewVariable(RegisterRepresentation::Tagged());
               V<WasmInternalFunction> internal =
-                  __ Load(ret, LoadOp::Kind::TaggedBase(),
-                          MemoryRepresentation::TaggedPointer(),
-                          WasmFuncRef::kInternalOffset);
+                  V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+                      ret, LoadOp::Kind::TaggedBase(),
+                      kWasmInternalFunctionIndirectPointerTag,
+                      WasmFuncRef::kTrustedInternalOffset));
               __ SetVariable(maybe_external,
                              __ Load(internal, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
@@ -286,9 +287,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 __ SetVariable(result, LOAD_ROOT(NullValue));
               } ELSE{
                 V<WasmInternalFunction> internal =
-                    __ Load(ret, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::TaggedPointer(),
-                            WasmFuncRef::kInternalOffset);
+                    V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+                        ret, LoadOp::Kind::TaggedBase(),
+                        kWasmInternalFunctionIndirectPointerTag,
+                        WasmFuncRef::kTrustedInternalOffset));
                 V<Object> maybe_external =
                     __ Load(internal, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::AnyTagged(),
@@ -367,7 +369,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildCallAndReturn(bool is_import, V<Context> js_context,
-                             V<Object> function_data,
+                             V<HeapObject> function_data,
                              base::SmallVector<OpIndex, 16> args,
                              bool do_conversion, bool set_in_wasm_flag) {
     const int rets_count = static_cast<int>(sig_->return_count());
@@ -400,9 +402,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        V<Object> internal = __ Load(function_data, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::TaggedPointer(),
-                                     WasmFunctionData::kInternalOffset);
+        V<Object> internal = __ LoadTrustedPointerField(
+            function_data, LoadOp::Kind::TaggedBase(),
+            kWasmInternalFunctionIndirectPointerTag,
+            WasmFunctionData::kTrustedInternalOffset);
 #ifdef V8_ENABLE_SANDBOX
         V<Word32> target_handle =
             __ Load(internal, LoadOp::Kind::TaggedBase(),
@@ -465,9 +468,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 JSFunction::kSharedFunctionInfoOffset);
-    V<Object> function_data = __ Load(shared, LoadOp::Kind::TaggedBase(),
-                                      MemoryRepresentation::TaggedPointer(),
-                                      SharedFunctionInfo::kFunctionDataOffset);
+    V<HeapObject> function_data =
+        __ Load(shared, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(),
+                SharedFunctionInfo::kFunctionDataOffset);
 
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript

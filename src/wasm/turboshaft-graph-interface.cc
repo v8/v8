@@ -6334,15 +6334,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             ? LoadOp::Kind::TrapOnNull()
             : LoadOp::Kind::TaggedBase().Immutable();
 
-    V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
-        __ Load(func_ref, load_kind, MemoryRepresentation::AnyTagged(),
-                WasmInternalFunction::kIndirectRefOffset));
+    V<WasmInternalFunction> internal_function =
+        V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+            func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
+            WasmFuncRef::kTrustedInternalOffset));
 
     V<ExposedTrustedObject> ref =
-        V<ExposedTrustedObject>::Cast(__ LoadTrustedPointerField(
+        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
             internal_function, LoadOp::Kind::TaggedBase().Immutable(),
-            kUnknownIndirectPointerTag,
-            WasmInternalFunction::kIndirectRefOffset));
+            WasmInternalFunction::kProtectedRefOffset));
 
 #ifdef V8_ENABLE_SANDBOX
     V<Word32> target_handle =

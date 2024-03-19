@@ -823,7 +823,7 @@ class WasmExternalFunction : public JSFunction {
  public:
   static bool IsWasmExternalFunction(Tagged<Object> object);
 
-  inline Tagged<WasmInternalFunction> internal() const;
+  inline Tagged<WasmInternalFunction> internal(IsolateForSandbox isolate) const;
 
   DECL_CAST(WasmExternalFunction)
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
@@ -834,12 +834,11 @@ class WasmFunctionData
  public:
   DECL_CODE_POINTER_ACCESSORS(wrapper_code)
 
-  DECL_ACCESSORS(internal, Tagged<WasmInternalFunction>)
+  DECL_TRUSTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
 
   DECL_PRINTER(WasmFunctionData)
 
-  using BodyDescriptor = FixedBodyDescriptor<kStartOfStrongFieldsOffset,
-                                             kEndOfStrongFieldsOffset, kSize>;
+  class BodyDescriptor;
 
   using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
   using PromiseField = base::BitField<wasm::Promise, 1, 1>;
@@ -901,7 +900,7 @@ class WasmApiFunctionRef
 
 class WasmInternalFunction
     : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
-                                                 HeapObject> {
+                                                 ExposedTrustedObject> {
  public:
   // Get the external function if it exists. Returns true and writes to the
   // output parameter if an external function exists. Returns false otherwise.
@@ -912,7 +911,7 @@ class WasmInternalFunction
 
   DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address)
   DECL_CODE_POINTER_ACCESSORS(code)
-  DECL_TRUSTED_POINTER_ACCESSORS(ref, ExposedTrustedObject)
+  DECL_PROTECTED_POINTER_ACCESSORS(ref, ExposedTrustedObject)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
@@ -924,7 +923,7 @@ class WasmInternalFunction
 
 class WasmFuncRef : public TorqueGeneratedWasmFuncRef<WasmFuncRef, HeapObject> {
  public:
-  DECL_ACCESSORS(internal, Tagged<WasmInternalFunction>)
+  DECL_TRUSTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
 
   DECL_PRINTER(WasmFuncRef)
 

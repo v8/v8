@@ -8111,16 +8111,16 @@ class LiftoffCompiler {
 
       // Load the WasmInternalFunction from the WasmFuncRef.
       Register internal_function = func_ref;
-      __ LoadTaggedPointer(
-          internal_function, func_ref, no_reg,
-          ObjectAccess::ToTagged(WasmFuncRef::kInternalOffset));
+      __ LoadTrustedPointer(
+          internal_function, func_ref,
+          ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
+          kWasmInternalFunctionIndirectPointerTag);
 
       // Load "ref" (WasmTrustedInstanceData or WasmApiFunctionRef) and target.
       Register ref = first_param_reg;
-      __ LoadTrustedPointer(ref, internal_function,
-                            wasm::ObjectAccess::ToTagged(
-                                WasmInternalFunction::kIndirectRefOffset),
-                            kUnknownIndirectPointerTag);
+      __ LoadProtectedPointer(ref, internal_function,
+                              wasm::ObjectAccess::ToTagged(
+                                  WasmInternalFunction::kProtectedRefOffset));
 
       __ LoadExternalPointer(
           target, internal_function,

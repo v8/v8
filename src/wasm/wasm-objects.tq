@@ -42,20 +42,14 @@ class WasmFastApiCallData extends HeapObject {
 
 // This is the representation that is used internally by wasm to represent
 // function references.
-extern class WasmInternalFunction extends HeapObject {
+extern class WasmInternalFunction extends ExposedTrustedObject {
   // This is the "reference" value that must be passed along in the "instance"
   // register when calling the given function. It is either the target instance
   // data (for wasm functions), or a WasmApiFunctionRef object (for functions
   // defined through the JS or C APIs). For imported functions, this value
   // equals the respective entry in the module's imported_function_refs array.
-  // Note: torque code uses the "ref" macro defined below to load the reference.
-  // The indirect pointer currently uses the kUnknownIndirectPointerTag because
-  // it links to two different object types; this will be fixed once the
-  // WasmInternalFunction becomes a trusted object.
-  @if(V8_ENABLE_SANDBOX) indirect_ref:
-      IndirectPointer<WasmTrustedInstanceData|WasmApiFunctionRef>;
-  @ifnot(V8_ENABLE_SANDBOX) indirect_ref: WasmTrustedInstanceData
-      |WasmApiFunctionRef;
+  // Torque code should use the '.ref' macro to access the value.
+  protected_ref: ProtectedPointer<WasmTrustedInstanceData|WasmApiFunctionRef>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
   // The function index if ref is a WasmInstanceObject, -1 otherwise.
@@ -66,9 +60,11 @@ extern class WasmInternalFunction extends HeapObject {
   // heap verification.
   func_ref: WasmFuncRef|Undefined;
   // This field is used when the call target is null.
+  // TODO(14564): Remove the indirection.
   @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) code: Code;
   // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
+  // TODO(14564): Store as raw pointer.
   call_target: ExternalPointer;
 }
 
@@ -79,22 +75,32 @@ extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
 
 // WasmFuncRef is the type of function references. They are stored on-heap and
 // link to a WasmInternalFunction which contains the actual information.
-// TODO(14564): Actually use this for function references.
 extern class WasmFuncRef extends HeapObject {
-  // TODO(14564): Move the WasmInternalFunction to the trusted space and store a
-  // trusted (indirect) pointer here.
-  internal: WasmInternalFunction;
+  // Note: Torque code uses the '.internal' macro below to access the reference.
+  @if(V8_ENABLE_SANDBOX) trusted_internal:
+      IndirectPointer<WasmInternalFunction>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_internal: WasmInternalFunction;
 }
+
+extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
+    WasmFuncRef): WasmInternalFunction;
 
 extern class WasmFunctionData extends HeapObject {
   // Used for calling this function from JavaScript.
   @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
   // The wasm-internal representation of this function object.
-  internal: WasmInternalFunction;
+  // Torque code uses the '.internal' macro below to load the actual reference
+  // to the WasmInternalFunction.
+  @if(V8_ENABLE_SANDBOX) trusted_internal:
+      IndirectPointer<WasmInternalFunction>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_internal: WasmInternalFunction;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
 }
+
+extern operator '.internal' macro LoadWasmInternalFunctionFromWasmFunctionData(
+    WasmFunctionData): WasmInternalFunction;
 
 extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of

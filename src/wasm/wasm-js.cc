@@ -2253,7 +2253,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return;
     }
     i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
-        i::WasmTrustedInstanceData::cast(data->internal()->ref(i_isolate)),
+        i::WasmTrustedInstanceData::cast(data->internal(i_isolate)->ref()),
         i_isolate);
     int func_index = data->function_index();
     i::Handle<i::Code> wrapper =

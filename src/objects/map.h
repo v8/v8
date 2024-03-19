@@ -97,7 +97,6 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmFunctionData)         \
   IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
-  IF_WASM(V, WasmInternalFunction)     \
   IF_WASM(V, WasmJSFunctionData)       \
   IF_WASM(V, WasmResumeData)           \
   IF_WASM(V, WasmStruct)               \

@@ -1401,7 +1401,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       Handle<WasmFuncRef> func_ref =
           WasmTrustedInstanceData::GetOrCreateFuncRef(isolate_, trusted_data,
                                                       start_index);
-      Handle<WasmInternalFunction> internal{func_ref->internal(), isolate_};
+      Handle<WasmInternalFunction> internal{func_ref->internal(isolate_),
+                                            isolate_};
       start_function_ = WasmInternalFunction::GetOrCreateExternal(internal);
     }
   }
@@ -1750,7 +1751,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
     trusted_instance_data->func_refs()->set(
-        func_index, WasmExternalFunction::cast(*value)->internal()->func_ref());
+        func_index,
+        WasmExternalFunction::cast(*value)->internal(isolate_)->func_ref());
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
@@ -2503,7 +2505,7 @@ void InstanceBuilder::ProcessExports(
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
         trusted_instance_data->func_refs()->set(
             import.index,
-            WasmExternalFunction::cast(*value)->internal()->func_ref());
+            WasmExternalFunction::cast(*value)->internal(isolate_)->func_ref());
       }
     } else if (import.kind == kExternalGlobal) {
       Handle<Object> value = sanitized_imports_[index].value;
@@ -2554,8 +2556,8 @@ void InstanceBuilder::ProcessExports(
         Handle<WasmFuncRef> func_ref =
             WasmTrustedInstanceData::GetOrCreateFuncRef(
                 isolate_, trusted_instance_data, exp.index);
-        Handle<WasmInternalFunction> internal_function{func_ref->internal(),
-                                                       isolate_};
+        Handle<WasmInternalFunction> internal_function{
+            func_ref->internal(isolate_), isolate_};
         Handle<JSFunction> wasm_external_function =
             WasmInternalFunction::GetOrCreateExternal(internal_function);
         value = wasm_external_function;

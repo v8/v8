@@ -293,7 +293,6 @@ namespace internal {
   IF_WASM(V, WasmFuncRef)                       \
   IF_WASM(V, WasmGlobalObject)                  \
   IF_WASM(V, WasmInstanceObject)                \
-  IF_WASM(V, WasmInternalFunction)              \
   IF_WASM(V, WasmJSFunctionData)                \
   IF_WASM(V, WasmMemoryObject)                  \
   IF_WASM(V, WasmModuleObject)                  \
@@ -346,16 +345,17 @@ namespace internal {
 // - (Transitively) inherit from TrustedObject
 // - Have a unique instance type
 // - Define a custom body descriptor
-#define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)       \
-  APPLY(V, BytecodeArray, BYTECODE_ARRAY)                      \
-  APPLY(V, Code, CODE)                                         \
-  APPLY(V, InstructionStream, INSTRUCTION_STREAM)              \
-  APPLY(V, InterpreterData, INTERPRETER_DATA)                  \
-  APPLY(V, ProtectedFixedArray, PROTECTED_FIXED_ARRAY)         \
-  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)               \
-  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)             \
-  IF_WASM(APPLY, V, WasmApiFunctionRef, WASM_API_FUNCTION_REF) \
-  IF_WASM(APPLY, V, WasmDispatchTable, WASM_DISPATCH_TABLE)    \
+#define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)          \
+  APPLY(V, BytecodeArray, BYTECODE_ARRAY)                         \
+  APPLY(V, Code, CODE)                                            \
+  APPLY(V, InstructionStream, INSTRUCTION_STREAM)                 \
+  APPLY(V, InterpreterData, INTERPRETER_DATA)                     \
+  APPLY(V, ProtectedFixedArray, PROTECTED_FIXED_ARRAY)            \
+  APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)                  \
+  APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)                \
+  IF_WASM(APPLY, V, WasmApiFunctionRef, WASM_API_FUNCTION_REF)    \
+  IF_WASM(APPLY, V, WasmDispatchTable, WASM_DISPATCH_TABLE)       \
+  IF_WASM(APPLY, V, WasmInternalFunction, WASM_INTERNAL_FUNCTION) \
   IF_WASM(APPLY, V, WasmTrustedInstanceData, WASM_TRUSTED_INSTANCE_DATA)
 
 #define TRUSTED_OBJECT_LIST1_ADAPTER(V, Name, NAME) V(Name)

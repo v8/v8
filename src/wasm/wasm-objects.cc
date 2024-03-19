@@ -281,7 +281,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
   }
   DCHECK(IsWasmFuncRef(*entry));
   Handle<Object> external = WasmInternalFunction::GetOrCreateExternal(
-      handle(WasmFuncRef::cast(*entry)->internal(), isolate));
+      handle(WasmFuncRef::cast(*entry)->internal(isolate), isolate));
 
   if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
     auto exported_function = Handle<WasmExportedFunction>::cast(external);
@@ -546,7 +546,7 @@ void WasmTableObject::UpdateDispatchTables(
     Tagged<HeapObject> ref = capi_function->shared()
                                  ->wasm_capi_function_data()
                                  ->internal(isolate)
-                                 ->ref(isolate);
+                                 ->ref();
     Address call_target = wasm_code->instruction_start();
     trusted_instance_data->dispatch_table(table_index)
         ->Set(entry_index, ref, call_target, canonical_type_index);
@@ -1480,7 +1480,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   //   refers to the imported instance.
   // It cannot be a JS/C API function as for those, the external function is set
   // at creation.
-  Handle<ExposedTrustedObject> ref{internal->ref(isolate), isolate};
+  Handle<ExposedTrustedObject> ref{internal->ref(), isolate};
   Handle<WasmTrustedInstanceData> instance_data =
       IsWasmTrustedInstanceData(*ref)
           ? Handle<WasmTrustedInstanceData>::cast(ref)
@@ -2179,7 +2179,7 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   Handle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
           .Build();
-  fun_data->internal()->set_external(*result);
+  fun_data->internal(isolate)->set_external(*result);
   return Handle<WasmCapiFunction>::cast(result);
 }
 
@@ -2263,7 +2263,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(JSParameterCount(arity));
   shared->set_script(instance_object->module_object()->script(), kReleaseStore);
-  function_data->internal()->set_external(*js_function);
+  function_data->internal(isolate)->set_external(*js_function);
   return Handle<WasmExportedFunction>::cast(js_function);
 }
 
@@ -2407,7 +2407,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                     .ToHandleChecked();
     }
   }
-  function_data->internal()->set_code(*wasm_to_js_wrapper_code);
+  function_data->internal(isolate)->set_code(*wasm_to_js_wrapper_code);
 
   Handle<String> name = factory->Function_string();
   if (IsJSFunction(*callable)) {
@@ -2422,21 +2422,21 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           .Build();
   js_function->shared()->set_internal_formal_parameter_count(
       JSParameterCount(parameter_count));
-  function_data->internal()->set_external(*js_function);
+  function_data->internal(isolate)->set_external(*js_function);
   return Handle<WasmJSFunction>::cast(js_function);
 }
 
 Tagged<JSReceiver> WasmJSFunction::GetCallable() const {
   return JSReceiver::cast(
       WasmApiFunctionRef::cast(
-          shared()->wasm_js_function_data()->internal()->ref(GetIsolate()))
+          shared()->wasm_js_function_data()->internal(GetIsolate())->ref())
           ->callable());
 }
 
 wasm::Suspend WasmJSFunction::GetSuspend() const {
   return static_cast<wasm::Suspend>(
       WasmApiFunctionRef::cast(
-          shared()->wasm_js_function_data()->internal()->ref(GetIsolate()))
+          shared()->wasm_js_function_data()->internal(GetIsolate())->ref())
           ->suspend());
 }
 
@@ -2570,7 +2570,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return handle(JSFunction::cast(*value)
                         ->shared()
                         ->wasm_function_data()
-                        ->internal()
+                        ->internal(isolate)
                         ->func_ref(),
                     isolate);
     }
@@ -2673,7 +2673,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
           return {};
         }
         return handle(
-            WasmExternalFunction::cast(*value)->internal()->func_ref(),
+            WasmExternalFunction::cast(*value)->internal(isolate)->func_ref(),
             isolate);
       } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
         if (!WasmJSFunction::cast(*value)->MatchesSignature(
@@ -2684,7 +2684,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
           return {};
         }
         return handle(
-            WasmExternalFunction::cast(*value)->internal()->func_ref(),
+            WasmExternalFunction::cast(*value)->internal(isolate)->func_ref(),
             isolate);
       } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
         if (!WasmCapiFunction::cast(*value)->MatchesSignature(
@@ -2695,7 +2695,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
           return {};
         }
         return handle(
-            WasmExternalFunction::cast(*value)->internal()->func_ref(),
+            WasmExternalFunction::cast(*value)->internal(isolate)->func_ref(),
             isolate);
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         auto wasm_obj = Handle<WasmObject>::cast(value);
@@ -2738,7 +2738,7 @@ Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value) {
     return isolate->factory()->null_value();
   } else if (IsWasmFuncRef(*value)) {
     return i::WasmInternalFunction::GetOrCreateExternal(
-        i::handle(i::WasmFuncRef::cast(*value)->internal(), isolate));
+        i::handle(i::WasmFuncRef::cast(*value)->internal(isolate), isolate));
   } else {
     return value;
   }

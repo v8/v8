@@ -762,6 +762,25 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmFunctionData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+    IterateCodePointer(obj, kWrapperCodeOffset, v,
+                       IndirectPointerMode::kStrong);
+    IterateTrustedPointer(obj, kTrustedInternalOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmInternalFunctionIndirectPointerTag);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
 class WasmExportedFunctionData::BodyDescriptor final
     : public BodyDescriptorBase {
  public:
@@ -787,11 +806,10 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kWasmInternalFunctionIndirectPointerTag, v);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
-    IterateTrustedPointer(obj, kIndirectRefOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kUnknownIndirectPointerTag);
+    IterateProtectedPointer(obj, kProtectedRefOffset, v);
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kCallTargetOffset,
                                           kWasmInternalFunctionCallTargetTag));
@@ -808,9 +826,9 @@ class WasmFuncRef::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // TODO(14564): This will be a trusted pointer when the WasmInternaFunction
-    // moves to the trusted space.
-    IteratePointer(obj, kInternalOffset, v);
+    IterateTrustedPointer(obj, kTrustedInternalOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmInternalFunctionIndirectPointerTag);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1216,8 +1234,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmExceptionPackage);
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return CALL_APPLY(WasmExportedFunctionData);
-    case WASM_INTERNAL_FUNCTION_TYPE:
-      return CALL_APPLY(WasmInternalFunction);
     case WASM_FUNC_REF_TYPE:
       return CALL_APPLY(WasmFuncRef);
     case WASM_JS_FUNCTION_DATA_TYPE:
