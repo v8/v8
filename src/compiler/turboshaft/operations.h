@@ -1405,6 +1405,8 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
+  bool IsCommutative() const { return IsCommutative(kind); }
+
   static bool IsCommutative(Kind kind) {
     switch (kind) {
       case Kind::kAdd:

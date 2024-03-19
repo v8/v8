@@ -160,6 +160,14 @@ class OperationMatcher {
     return false;
   }
 
+  bool MatchIntegralWord32Constant(OpIndex matched, uint32_t constant) const {
+    if (uint64_t value; MatchIntegralWordConstant(
+            matched, WordRepresentation::Word32(), &value)) {
+      return static_cast<uint32_t>(value) == constant;
+    }
+    return false;
+  }
+
   bool MatchIntegralWord64Constant(OpIndex matched, int64_t* constant) const {
     return MatchIntegralWordConstant(matched, WordRepresentation::Word64(),
                                      constant);

@@ -73,6 +73,34 @@ bool IsCompressed(InstructionSelectorT<Adapter>* selector,
   return false;
 }
 
+#ifdef DEBUG
+// {left_idx} and {right_idx} are assumed to be the inputs of a commutative
+// binop. This function checks that {left_idx} is not the only constant input of
+// this binop (since the graph should have been normalized before, putting
+// constants on the right input of binops when possible).
+bool LhsIsNotOnlyConstant(turboshaft::Graph* graph,
+                          turboshaft::OpIndex left_idx,
+                          turboshaft::OpIndex right_idx) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+
+  const Operation& left = graph->Get(left_idx);
+  const Operation& right = graph->Get(right_idx);
+
+  if (right.Is<ConstantOp>()) {
+    // There is a constant on the right.
+    return true;
+  }
+  if (left.Is<ConstantOp>()) {
+    // Constant on the left but not on the right.
+    return false;
+  }
+
+  // Left is not a constant
+  return true;
+}
+
+#endif
+
 }  // namespace
 
 template <typename Adapter>
@@ -247,7 +275,7 @@ TryMatchBaseWithScaledIndexAndDisplacement32(
 base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
-    turboshaft::OpIndex right);
+    turboshaft::OpIndex right, bool is_commutative);
 
 base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
@@ -329,93 +357,114 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
   const WordBinopOp& binop = op.Cast<WordBinopOp>();
   OpIndex left = binop.left();
   OpIndex right = binop.right();
-  return TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(selector,
-                                                                  left, right);
+  return TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
+      selector, left, right, binop.IsCommutative());
 }
 
 base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
-    turboshaft::OpIndex right) {
+    turboshaft::OpIndex right, bool is_commutative) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
 
-  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
-  result.displacement_mode = kPositiveDisplacement;
+  // In the comments of this function, the following letters have the following
+  // meaning:
+  //
+  //   S: scaled index. That is, "OpIndex * constant" or "OpIndex << constant",
+  //      where "constant" is a small power of 2 (1, 2, 4, 8 for the
+  //      multiplication, 0, 1, 2 or 3 for the shift). The "constant" is called
+  //      "scale" in the BaseWithScaledIndexAndDisplacementMatch struct that is
+  //      returned.
+  //
+  //   B: base. Just a regular OpIndex.
+  //
+  //   D: displacement. An integral constant.
 
-  auto OwnedByAddressingOperand = [](OpIndex) {
-    // TODO(nicohartmann@): Consider providing this. For now we just allow
-    // everything to be covered regardless of other uses.
-    return true;
-  };
-
-  // Check (S + ...)
-  if (MatchScaledIndex(selector, left, &result.index, &result.scale, nullptr) &&
-      OwnedByAddressingOperand(left)) {
+  // Helper to check (S + ...)
+  auto match_S_plus = [&selector](OpIndex left, OpIndex right)
+      -> base::Optional<
+          BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
+    BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.displacement_mode = kPositiveDisplacement;
 
-    // Check (S + (... binop ...))
-    if (const WordBinopOp* right_binop =
-            selector->Get(right).TryCast<WordBinopOp>()) {
-      // Check (S + (B - D))
-      if (right_binop->kind == WordBinopOp::Kind::kSub &&
-          OwnedByAddressingOperand(right)) {
-        if (!selector->MatchSignedIntegralConstant(right_binop->right(),
-                                                   &result.displacement)) {
-          return base::nullopt;
-        }
-        result.base = right_binop->left();
-        result.displacement_mode = kNegativeDisplacement;
-        return result;
-      }
-      // Check (S + (... + ...))
-      if (right_binop->kind == WordBinopOp::Kind::kAdd &&
-          OwnedByAddressingOperand(right)) {
-        if (selector->MatchSignedIntegralConstant(right_binop->right(),
-                                                  &result.displacement)) {
-          // (S + (B + D))
-          result.base = right_binop->left();
-        } else if (selector->MatchSignedIntegralConstant(
-                       right_binop->left(), &result.displacement)) {
-          // (S + (D + B))
-          result.base = right_binop->right();
-        } else {
-          // Treat it as (S + B)
-          result.base = right;
-          result.displacement = 0;
-        }
-        return result;
-      }
-    }
+    // Check (S + ...)
+    if (MatchScaledIndex(selector, left, &result.index, &result.scale,
+                         nullptr)) {
+      result.displacement_mode = kPositiveDisplacement;
 
-    // Check (S + D)
-    if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
-      result.base = OpIndex{};
+      // Check (S + (... binop ...))
+      if (const WordBinopOp* right_binop =
+              selector->Get(right).TryCast<WordBinopOp>()) {
+        // Check (S + (B - D))
+        if (right_binop->kind == WordBinopOp::Kind::kSub) {
+          if (!selector->MatchSignedIntegralConstant(right_binop->right(),
+                                                     &result.displacement)) {
+            return base::nullopt;
+          }
+          result.base = right_binop->left();
+          result.displacement_mode = kNegativeDisplacement;
+          return result;
+        }
+        // Check (S + (... + ...))
+        if (right_binop->kind == WordBinopOp::Kind::kAdd) {
+          if (selector->MatchSignedIntegralConstant(right_binop->right(),
+                                                    &result.displacement)) {
+            // (S + (B + D))
+            result.base = right_binop->left();
+          } else if (selector->MatchSignedIntegralConstant(
+                         right_binop->left(), &result.displacement)) {
+            // (S + (D + B))
+            result.base = right_binop->right();
+          } else {
+            // Treat it as (S + B)
+            result.base = right;
+            result.displacement = 0;
+          }
+          return result;
+        }
+      }
+
+      // Check (S + D)
+      if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
+        result.base = OpIndex{};
+        return result;
+      }
+
+      // Treat it as (S + B)
+      result.base = right;
+      result.displacement = 0;
       return result;
     }
 
-    // Treat it as (S + B)
-    result.base = right;
-    result.displacement = 0;
-    return result;
-  }
+    return base::nullopt;
+  };
 
-  // Check ((... + ...) + ...)
-  if (const WordBinopOp* left_add = selector->Get(left).TryCast<WordBinopOp>();
-      left_add && left_add->kind == WordBinopOp::Kind::kAdd &&
-      OwnedByAddressingOperand(left)) {
-    // Check ((S + ...) + ...)
-    if (MatchScaledIndex(selector, left_add->left(), &result.index,
-                         &result.scale, nullptr)) {
+  // Helper to check ((S + ...) + ...)
+  auto match_S_plus_plus = [&selector](turboshaft::OpIndex left,
+                                       turboshaft::OpIndex right,
+                                       turboshaft::OpIndex left_add_left,
+                                       turboshaft::OpIndex left_add_right)
+      -> base::Optional<
+          BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    DCHECK_EQ(selector->Get(left).Cast<WordBinopOp>().kind,
+              WordBinopOp::Kind::kAdd);
+
+    BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+    result.displacement_mode = kPositiveDisplacement;
+
+    if (MatchScaledIndex(selector, left_add_left, &result.index, &result.scale,
+                         nullptr)) {
       result.displacement_mode = kPositiveDisplacement;
       // Check ((S + D) + B)
-      if (selector->MatchSignedIntegralConstant(left_add->right(),
+      if (selector->MatchSignedIntegralConstant(left_add_right,
                                                 &result.displacement)) {
         result.base = right;
         return result;
       }
       // Check ((S + B) + D)
       if (selector->MatchSignedIntegralConstant(right, &result.displacement)) {
-        result.base = left_add->right();
+        result.base = left_add_right;
         return result;
       }
       // Treat it as (B + B) and use index as right B.
@@ -425,10 +474,59 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       DCHECK_EQ(result.displacement, 0);
       return result;
     }
+    return base::nullopt;
+  };
+
+  // Helper to check ((... + ...) + ...)
+  auto match_plus_plus = [&selector, &match_S_plus_plus](OpIndex left,
+                                                         OpIndex right)
+      -> base::Optional<
+          BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
+    BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
+    result.displacement_mode = kPositiveDisplacement;
+
+    // Check ((... + ...) + ...)
+    if (const WordBinopOp* left_add =
+            selector->Get(left).TryCast<WordBinopOp>();
+        left_add && left_add->kind == WordBinopOp::Kind::kAdd) {
+      // Check ((S + ...) + ...)
+      auto maybe_res =
+          match_S_plus_plus(left, right, left_add->left(), left_add->right());
+      if (maybe_res) return maybe_res;
+      // Check ((... + S) + ...)
+      maybe_res =
+          match_S_plus_plus(left, right, left_add->right(), left_add->left());
+      if (maybe_res) return maybe_res;
+    }
+
+    return base::nullopt;
+  };
+
+  // Check (S + ...)
+  auto maybe_res = match_S_plus(left, right);
+  if (maybe_res) return maybe_res;
+
+  if (is_commutative) {
+    // Check (... + S)
+    maybe_res = match_S_plus(right, left);
+    if (maybe_res) {
+      return maybe_res;
+    }
   }
 
-  DCHECK_EQ(result.index, OpIndex{});
-  DCHECK_EQ(result.scale, 0);
+  // Check ((... + ...) + ...)
+  maybe_res = match_plus_plus(left, right);
+  if (maybe_res) return maybe_res;
+
+  if (is_commutative) {
+    // Check (... + (... + ...))
+    maybe_res = match_plus_plus(right, left);
+    if (maybe_res) {
+      return maybe_res;
+    }
+  }
+
+  BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
   result.displacement_mode = kPositiveDisplacement;
 
   // Check (B + D)
@@ -1911,8 +2009,10 @@ namespace {
 
 template <typename Adapter>
 void TryMergeTruncateInt64ToInt32IntoLoad(
-    InstructionSelectorT<Adapter>* selector, Node* node, Node* load) {
-  LoadRepresentation load_rep = LoadRepresentationOf(load->op());
+    InstructionSelectorT<Adapter>* selector, typename Adapter::node_t node,
+    typename Adapter::node_t load) {
+  typename Adapter::LoadView load_view = selector->load_view(load);
+  LoadRepresentation load_rep = load_view.loaded_rep();
   MachineRepresentation rep = load_rep.representation();
   InstructionCode opcode;
   switch (rep) {
@@ -2363,10 +2463,11 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
                     turboshaft::Opmask::kTruncateWord64ToWord32>()) {
       right = change->input();
     }
+    DCHECK(LhsIsNotOnlyConstant(this->turboshaft_graph(), left, right));
 
     // Try to match the Add to a leal pattern
     m = TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(this, left,
-                                                                 right);
+                                                                 right, true);
   }
 
   if (m.has_value()) {
@@ -3266,8 +3367,31 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
 
   node_t value = this->input_at(node, 0);
-  // TODO(nicohartmann): Port this to Turboshaft.
-  if constexpr (Adapter::IsTurbofan) {
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    bool can_cover = false;
+    if (const TaggedBitcastOp* value_op =
+            this->Get(value)
+                .template TryCast<
+                    Opmask::kBitcastTaggedToWordPtrForTagAndSmiBits>()) {
+      can_cover = CanCover(node, value) && CanCover(node, value_op->input());
+      value = value_op->input();
+    } else {
+      can_cover = CanCover(node, value);
+    }
+    if (can_cover) {
+      const Operation& value_op = this->Get(value);
+      if (const ShiftOp * shift;
+          (shift = value_op.TryCast<Opmask::kWord64ShiftRightArithmetic>()) ||
+          (shift = value_op.TryCast<Opmask::kWord64ShiftRightLogical>())) {
+        if (this->MatchIntegralWord32Constant(shift->right(), 32)) {
+          Emit(kX64Shr, g.DefineSameAsFirst(node), g.UseRegister(shift->left()),
+               g.TempImmediate(32));
+          return;
+        }
+      }
+    }
+  } else {
     bool can_cover = false;
     if (value->opcode() == IrOpcode::kBitcastTaggedToWordForTagAndSmiBits) {
       can_cover = CanCover(node, value) && CanCover(value, value->InputAt(0));
@@ -3283,6 +3407,10 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
           if (m.right().Is(32)) {
             if (CanCover(value, value->InputAt(0)) &&
                 TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
+              // Note: this seems only useful for non-pointer-compression 64-bit
+              // builds (since it seems to be useful when loading smis from the
+              // upper 32-bit of a word64), and is thus not ported to
+              // Turboshaft.
               return EmitIdentity(node);
             }
             Emit(kX64Shr, g.DefineSameAsFirst(node),
@@ -3293,6 +3421,8 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
         }
         case IrOpcode::kLoad:
         case IrOpcode::kLoadImmutable: {
+          // Note: in Turboshaft, we shouldn't reach this point, because we'd
+          // have a BitcastTaggedToWord32 instead of a TruncateInt64ToInt32.
           TryMergeTruncateInt64ToInt32IntoLoad(this, node, value);
           return;
         }

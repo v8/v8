@@ -13,6 +13,7 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "test/unittests/test-utils.h"
@@ -32,10 +33,14 @@ namespace v8::internal::compiler::turboshaft {
   V(Word64Sub)                  \
   V(Word32Mul)                  \
   V(Word64Mul)                  \
+  V(Int32MulOverflownBits)      \
+  V(Int64MulOverflownBits)      \
   V(Int32Div)                   \
   V(Int64Div)                   \
   V(Int32Mod)                   \
   V(Int64Mod)                   \
+  V(Uint32MulOverflownBits)     \
+  V(Uint64MulOverflownBits)     \
   V(Uint32Div)                  \
   V(Uint64Div)                  \
   V(Uint32Mod)                  \
@@ -78,6 +83,8 @@ enum class TSUnop { UNOP_LIST(DECL) };
 
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
+  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer>;
+
   TurboshaftInstructionSelectorTest();
   ~TurboshaftInstructionSelectorTest() override;
 
@@ -100,13 +107,11 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     kAllExceptNopInstructions
   };
 
-  class StreamBuilder final : public TSAssembler<> {
-    using Assembler = TSAssembler<>;
-
+  class StreamBuilder final : public BaseAssembler {
    public:
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type)
-        : Assembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->graph(), test->graph(), test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(test->zone(), return_type)) {
       Init();
@@ -114,7 +119,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type)
-        : Assembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->graph(), test->graph(), test->zone()),
           test_(test),
           call_descriptor_(
               MakeCallDescriptor(test->zone(), return_type, parameter0_type)) {
@@ -124,7 +129,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type,
                   MachineType parameter1_type)
-        : Assembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->graph(), test->graph(), test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(
               test->zone(), return_type, parameter0_type, parameter1_type)) {
@@ -134,7 +139,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type, MachineType parameter0_type,
                   MachineType parameter1_type, MachineType parameter2_type)
-        : Assembler(test->graph(), test->graph(), test->zone()),
+        : BaseAssembler(test->graph(), test->graph(), test->zone()),
           test_(test),
           call_descriptor_(MakeCallDescriptor(test->zone(), return_type,
                                               parameter0_type, parameter1_type,
@@ -251,6 +256,19 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           MemoryRepresentation::FromMachineType(type);
       return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep,
                   mem_rep.ToRegisterRepresentation());
+    }
+    OpIndex Load(MachineType type, OpIndex base) {
+      MemoryRepresentation mem_rep =
+          MemoryRepresentation::FromMachineType(type);
+      return Load(base, LoadOp::Kind::RawAligned(), mem_rep);
+    }
+    using Assembler::Store;
+    void Store(MachineRepresentation rep, OpIndex base, OpIndex index,
+               OpIndex value, WriteBarrierKind write_barrier) {
+      MemoryRepresentation mem_rep =
+          MemoryRepresentation::FromMachineRepresentation(rep);
+      Store(base, index, value, StoreOp::Kind::RawAligned(), mem_rep,
+            write_barrier);
     }
     using Assembler::Projection;
     OpIndex Projection(OpIndex input, int index) {

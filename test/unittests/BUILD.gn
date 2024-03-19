@@ -720,7 +720,10 @@ v8_source_set("v8_unittests_sources") {
       "assembler/macro-assembler-x64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
+      sources += [
+        "compiler/x64/instruction-selector-x64-unittest.cc",
+        "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc",
+      ]
     }
     if (v8_enable_webassembly) {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
