@@ -768,7 +768,9 @@ struct NamedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(NamedPropertyXxxCallback)")
   NamedPropertyHandlerConfiguration(
       GenericNamedPropertyGetterCallback getter,
       GenericNamedPropertySetterCallback setter,
@@ -807,7 +809,9 @@ struct NamedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(NamedPropertyXxxCallback)")
   explicit NamedPropertyHandlerConfiguration(
       GenericNamedPropertyGetterCallback getter,
       GenericNamedPropertySetterCallback setter = nullptr,
@@ -845,7 +849,9 @@ struct NamedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(NamedPropertyXxxCallback)")
   NamedPropertyHandlerConfiguration(
       GenericNamedPropertyGetterCallback getter,
       GenericNamedPropertySetterCallback setter,
@@ -907,7 +913,9 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(IndexedPropertyXxxCallbackV2)")
   IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,          //
       IndexedPropertySetterCallback setter,          //
@@ -946,7 +954,9 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(IndexedPropertyXxxCallbackV2)")
   explicit IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = nullptr,
@@ -984,7 +994,9 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  // This variant will be deprecated soon.
+  V8_DEPRECATE_SOON(
+      "Provide interceptor callbacks with new signatures instead "
+      "(IndexedPropertyXxxCallbackV2)")
   IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter,
