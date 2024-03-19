@@ -17,6 +17,9 @@
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 #include "src/base/platform/platform.h"
 #endif
+#if V8_HAS_BECORE_JIT_WRITE_PROTECT
+#include <BrowserEngineCore/BEMemory.h>
+#endif
 
 namespace v8 {
 namespace internal {
@@ -230,6 +233,33 @@ void RwxMemoryWriteScope::SetExecutable() {
   code_space_write_nesting_level_--;
   if (code_space_write_nesting_level_ == 0) {
     base::SetJitWriteProtected(1);
+  }
+}
+
+#elif V8_HAS_BECORE_JIT_WRITE_PROTECT
+
+// static
+bool RwxMemoryWriteScope::IsSupported() {
+  return be_memory_inline_jit_restrict_with_witness_supported() != 0;
+}
+
+// static
+void RwxMemoryWriteScope::SetWritable() {
+  // TODO(sroettger): iOS SDK advises us to not read variables off the heap to
+  // control branching into changing page access. Figure this requirement out.
+  if (code_space_write_nesting_level_ == 0) {
+    be_memory_inline_jit_restrict_rwx_to_rw_with_witness();
+  }
+  code_space_write_nesting_level_++;
+}
+
+// static
+void RwxMemoryWriteScope::SetExecutable() {
+  code_space_write_nesting_level_--;
+  // TODO(sroettger): iOS SDK advises us to not read variables off the heap to
+  // control branching into changing page access. Figure this requirement out.
+  if (code_space_write_nesting_level_ == 0) {
+    be_memory_inline_jit_restrict_rwx_to_rx_with_witness();
   }
 }
 

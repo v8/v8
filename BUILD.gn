@@ -404,9 +404,7 @@ declare_args() {
   # when this is set to 'false', one can run V8 in jitless mode at runtime by
   # passing the `--jitless` flag; but then you miss out on compile-time
   # optimizations.
-  # iOS (non-simulator) does not have executable pages for 3rd party
-  # applications yet so disable jit.
-  v8_jitless = v8_enable_lite_mode || target_is_ios_device
+  v8_jitless = v8_enable_lite_mode
 
   # Enable Sparkplug
   # Sets -DV8_ENABLE_SPARKPLUG.
@@ -6502,7 +6500,6 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-darwin.cc",
-      "src/base/platform/platform-ios.cc",
     ]
   } else if (is_win) {
     # TODO(infra): Add support for cygwin.

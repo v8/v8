@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/code-memory-access.h"
+
 #include "src/common/code-memory-access-inl.h"
 #include "src/utils/allocation.h"
 
@@ -10,9 +12,11 @@ namespace internal {
 
 ThreadIsolation::TrustedData ThreadIsolation::trusted_data_;
 
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT || \
+    V8_HAS_BECORE_JIT_WRITE_PROTECT
 thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT ||
+        // V8_HAS_BECORE_JIT_WRITE_PROTECT
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 

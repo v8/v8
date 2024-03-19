@@ -124,10 +124,12 @@ class V8_NODISCARD RwxMemoryWriteScope {
   V8_INLINE static void SetWritable();
   V8_INLINE static void SetExecutable();
 
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT || \
+    V8_HAS_BECORE_JIT_WRITE_PROTECT
   // This counter is used for supporting scope reentrance.
   V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
+#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT ||
+        // V8_HAS_BECORE_JIT_WRITE_PROTECT
 };
 
 class WritableJitPage;
