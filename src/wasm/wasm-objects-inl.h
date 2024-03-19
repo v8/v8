@@ -234,11 +234,12 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, imported_function_refs,
-                            ProtectedFixedArray, kImportedFunctionRefsOffset)
+                            ProtectedFixedArray,
+                            kProtectedImportedFunctionRefsOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
-                            WasmDispatchTable, kDispatchTable0Offset)
+                            WasmDispatchTable, kProtectedDispatchTable0Offset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
-                            ProtectedFixedArray, kDispatchTablesOffset)
+                            ProtectedFixedArray, kProtectedDispatchTablesOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
 ACCESSORS(WasmTrustedInstanceData, func_refs, Tagged<FixedArray>,

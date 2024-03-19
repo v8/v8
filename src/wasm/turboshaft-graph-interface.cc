@@ -183,9 +183,8 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
     ConstOrV<Word32> func_index,
     V<WasmTrustedInstanceData> trusted_instance_data) {
   // Imported function.
-  V<ProtectedFixedArray> imported_function_refs =
-      V<ProtectedFixedArray>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data, ImportedFunctionRefs));
+  V<ProtectedFixedArray> imported_function_refs = LOAD_PROTECTED_INSTANCE_FIELD(
+      trusted_instance_data, ImportedFunctionRefs, ProtectedFixedArray);
   auto ref = V<HeapObject>::Cast(
       func_index.is_constant()
           ? __ LoadProtectedFixedArrayElement(imported_function_refs,
@@ -6190,12 +6189,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     /* Step 1: Load the indirect function tables for this table. */
     V<WasmDispatchTable> dispatch_table;
     if (table_index == 0) {
-      dispatch_table = V<WasmDispatchTable>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data(), DispatchTable0));
+      dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data(), DispatchTable0, WasmDispatchTable);
     } else {
-      V<ProtectedFixedArray> dispatch_tables =
-          V<ProtectedFixedArray>::Cast(LOAD_PROTECTED_INSTANCE_FIELD(
-              trusted_instance_data(), DispatchTables));
+      V<ProtectedFixedArray> dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data(), DispatchTables, ProtectedFixedArray);
       dispatch_table = V<WasmDispatchTable>::Cast(
           __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
     }

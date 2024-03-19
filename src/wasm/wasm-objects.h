@@ -402,8 +402,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #define FIELD_LIST(V)                                                     \
   /* Often-accessed fields go first to minimize generated code size. */   \
   /* Less than system pointer sized fields come first. */                 \
-  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
-  V(kDispatchTable0Offset, kTaggedSize)                                   \
+  V(kProtectedImportedFunctionRefsOffset, kTaggedSize)                    \
+  V(kProtectedDispatchTable0Offset, kTaggedSize)                          \
   V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
   V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
   /* Optional padding to align system pointer size fields */              \
@@ -433,7 +433,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kTablesOffset, kTaggedSize)                                           \
-  V(kDispatchTablesOffset, kTaggedSize)                                   \
+  V(kProtectedDispatchTablesOffset, kTaggedSize)                          \
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kFuncRefsOffset, kTaggedSize)                                         \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
@@ -480,10 +480,10 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kDataSegmentStartsOffset, "data_segment_starts")                          \
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
-#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V) \
-  V(kDispatchTable0Offset, "dispatch_table0")  \
-  V(kDispatchTablesOffset, "dispatch_tables")  \
-  V(kImportedFunctionRefsOffset, "imported_function_refs")
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)         \
+  V(kProtectedDispatchTable0Offset, "dispatch_table0") \
+  V(kProtectedDispatchTablesOffset, "dispatch_tables") \
+  V(kProtectedImportedFunctionRefsOffset, "imported_function_refs")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
 #define WASM_INSTANCE_FIELD_NAME(_, name) name,

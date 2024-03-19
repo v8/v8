@@ -89,12 +89,13 @@ struct assert_field_size {
       dst, LoadInstanceIntoRegister(pinned, dst),                          \
       WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
 
-#define LOAD_PROTECTED_PTR_INSTANCE_FIELD(dst, name, pinned)               \
-  static_assert(                                                           \
-      WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name) == kTaggedSize,          \
-      "field in WasmTrustedInstanceData does not have the expected size"); \
-  __ LoadProtectedPointer(dst, LoadInstanceIntoRegister(pinned, dst),      \
-                          WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
+#define LOAD_PROTECTED_PTR_INSTANCE_FIELD(dst, name, pinned)                 \
+  static_assert(                                                             \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(Protected##name) == kTaggedSize, \
+      "field in WasmTrustedInstanceData does not have the expected size");   \
+  __ LoadProtectedPointer(                                                   \
+      dst, LoadInstanceIntoRegister(pinned, dst),                            \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(Protected##name));
 
 // Liftoff's code comments are intentionally without source location to keep
 // readability up.

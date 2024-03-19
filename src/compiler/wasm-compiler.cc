@@ -98,6 +98,12 @@ MachineType assert_size(int expected_size, MachineType type) {
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstanceData(), \
       wasm::ObjectAccess::ToTagged(WasmTrustedInstanceData::k##name##Offset))
 
+#define LOAD_PROTECTED_INSTANCE_FIELD(name) \
+  gasm_->LoadProtectedPointerFromObject(    \
+      GetInstanceData(),                    \
+      wasm::ObjectAccess::ToTagged(         \
+          WasmTrustedInstanceData::kProtected##name##Offset));
+
 #define LOAD_INSTANCE_FIELD_NO_ELIMINATION(name, type)                       \
   gasm_->Load(                                                               \
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstanceData(), \
@@ -2869,10 +2875,8 @@ Node* WasmGraphBuilder::BuildImportCall(
     base::Vector<Node*> rets, wasm::WasmCodePosition position, Node* func_index,
     IsReturnCall continuation, Node* frame_state) {
   // Load the imported function refs array from the instance.
-  Node* imported_function_refs = gasm_->LoadProtectedPointerFromObject(
-      GetInstanceData(),
-      wasm::ObjectAccess::ToTagged(
-          WasmTrustedInstanceData::kImportedFunctionRefsOffset));
+  Node* imported_function_refs =
+      LOAD_PROTECTED_INSTANCE_FIELD(ImportedFunctionRefs);
   // Access fixed array at {header_size - tag + func_index * kTaggedSize}.
   Node* func_index_intptr = gasm_->BuildChangeUint32ToUintPtr(func_index);
   Node* ref = gasm_->LoadProtectedFixedArrayElement(imported_function_refs,
@@ -2939,13 +2943,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Load the dispatch table.
   Node* dispatch_table;
   if (table_index == 0) {
-    dispatch_table = gasm_->LoadProtectedPointerFromObject(
-        GetInstanceData(), wasm::ObjectAccess::ToTagged(
-                               WasmTrustedInstanceData::kDispatchTable0Offset));
+    dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTable0);
   } else {
-    Node* dispatch_tables = gasm_->LoadProtectedPointerFromObject(
-        GetInstanceData(), wasm::ObjectAccess::ToTagged(
-                               WasmTrustedInstanceData::kDispatchTablesOffset));
+    Node* dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTables);
     dispatch_table = gasm_->LoadProtectedPointerFromObject(
         dispatch_tables,
         wasm::ObjectAccess::ToTagged(
