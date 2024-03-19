@@ -3337,32 +3337,369 @@ class BodyGen {
   }
 };
 
-enum SigKind { kFunctionSig, kExceptionSig };
-
-template <WasmModuleGenerationOptions options>
-FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
-                         int num_types) {
-  // Generate enough parameters to spill some to the stack.
-  int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
-  int num_returns = sig_kind == kFunctionSig
-                        ? int{data->get<uint8_t>()} % (kMaxReturns + 1)
-                        : 0;
-
-  FunctionSig::Builder builder(zone, num_returns, num_params);
-  for (int i = 0; i < num_returns; ++i) {
-    builder.AddReturn(GetValueType<options>(data, num_types));
-  }
-  for (int i = 0; i < num_params; ++i) {
-    builder.AddParam(GetValueType<options>(data, num_types));
-  }
-  return builder.Build();
-}
-
 WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                               WasmModuleBuilder* builder, ValueType type,
                               const std::vector<uint32_t>& structs,
                               const std::vector<uint32_t>& arrays,
                               uint32_t recursion_depth);
+
+template <WasmModuleGenerationOptions options>
+class ModuleGen {
+ public:
+  explicit ModuleGen(Zone* zone, WasmModuleBuilder* fn, DataRange* module_range,
+                     uint8_t num_functions, uint8_t num_structs,
+                     uint8_t num_arrays)
+      : zone_(zone),
+        builder_(fn),
+        module_range_(module_range),
+        num_functions_(num_functions),
+        num_structs_(num_structs),
+        num_arrays_(num_arrays),
+        num_types_(num_functions + num_structs + num_arrays) {}
+
+  // Puts the types into random recursive groups.
+  std::map<uint8_t, uint8_t> GenerateRandomRecursiveGroups(
+      uint8_t kNumDefaultArrayTypes) {
+    // (Type_index -> end of explicit rec group).
+    std::map<uint8_t, uint8_t> explicit_rec_groups;
+    uint8_t current_type_index = 0;
+
+    // The default array types are each in their own recgroup.
+    for (uint8_t i = 0; i < kNumDefaultArrayTypes; i++) {
+      explicit_rec_groups.emplace(current_type_index, current_type_index);
+      builder_->AddRecursiveTypeGroup(current_type_index++, 1);
+    }
+
+    while (current_type_index < num_types_) {
+      // First, pick a random start for the next group. We allow it to be
+      // beyond the end of types (i.e., we add no further recursive groups).
+      uint8_t group_start = module_range_->get<uint8_t>() %
+                                (num_types_ - current_type_index + 1) +
+                            current_type_index;
+      DCHECK_GE(group_start, current_type_index);
+      current_type_index = group_start;
+      if (group_start < num_types_) {
+        // If we did not reach the end of the types, pick a random group size.
+        uint8_t group_size =
+            module_range_->get<uint8_t>() % (num_types_ - group_start) + 1;
+        DCHECK_LE(group_start + group_size, num_types_);
+        for (uint8_t i = group_start; i < group_start + group_size; i++) {
+          explicit_rec_groups.emplace(i, group_start + group_size - 1);
+        }
+        builder_->AddRecursiveTypeGroup(group_start, group_size);
+        current_type_index += group_size;
+      }
+    }
+    return explicit_rec_groups;
+  }
+
+  // Generates and adds random struct types.
+  void GenerateRandomStructs(
+      const std::map<uint8_t, uint8_t>& explicit_rec_groups,
+      std::vector<uint32_t>& struct_types, uint8_t& current_type_index,
+      uint8_t kNumDefaultArrayTypes) {
+    uint8_t last_struct_type_index = current_type_index + num_structs_;
+    for (; current_type_index < last_struct_type_index; current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
+
+      uint32_t supertype = kNoSuperType;
+      uint8_t num_fields =
+          module_range_->get<uint8_t>() % (kMaxStructFields + 1);
+
+      uint8_t existing_struct_types =
+          current_type_index - kNumDefaultArrayTypes;
+      if (existing_struct_types > 0 && module_range_->get<bool>()) {
+        supertype = module_range_->get<uint8_t>() % existing_struct_types +
+                    kNumDefaultArrayTypes;
+        num_fields += builder_->GetStructType(supertype)->field_count();
+      }
+      StructType::Builder struct_builder(zone_, num_fields);
+
+      // Add all fields from super type.
+      uint32_t field_index = 0;
+      if (supertype != kNoSuperType) {
+        const StructType* parent = builder_->GetStructType(supertype);
+        for (; field_index < parent->field_count(); ++field_index) {
+          // TODO(14034): This could also be any sub type of the supertype's
+          // element type.
+          struct_builder.AddField(parent->field(field_index),
+                                  parent->mutability(field_index));
+        }
+      }
+      for (; field_index < num_fields; field_index++) {
+        // Notes:
+        // - We allow a type to only have non-nullable fields of types that
+        //   are defined earlier. This way we avoid infinite non-nullable
+        //   constructions. Also relevant for arrays and functions.
+        // - On the other hand, nullable fields can be picked up to the end of
+        //   the current recursive group.
+        // - We exclude the non-nullable generic types arrayref, anyref,
+        //   structref, eqref and externref from the fields of structs and
+        //   arrays. This is so that GenerateInitExpr has a way to break a
+        //   recursion between a struct/array field and those types
+        //   ((ref extern) gets materialized through (ref any)).
+        ValueType type = GetValueTypeHelper<options>(
+            module_range_, current_rec_group_end + 1, current_type_index,
+            kIncludeNumericTypes, kIncludePackedTypes,
+            kExcludeSomeGenericsWhenTypeIsNonNullable);
+
+        bool mutability = module_range_->get<bool>();
+        struct_builder.AddField(type, mutability);
+      }
+      StructType* struct_fuz = struct_builder.Build();
+      // TODO(14034): Generate some final types too.
+      uint32_t index = builder_->AddStructType(struct_fuz, false, supertype);
+      struct_types.push_back(index);
+    }
+  }
+
+  // Creates and adds random array types.
+  void GenerateRandomArrays(
+      const std::map<uint8_t, uint8_t>& explicit_rec_groups,
+      std::vector<uint32_t>& array_types, uint8_t& current_type_index) {
+    uint8_t last_struct_type_index = current_type_index + num_structs_;
+    for (; current_type_index < num_structs_ + num_arrays_;
+         current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
+      ValueType type = GetValueTypeHelper<options>(
+          module_range_, current_rec_group_end + 1, current_type_index,
+          kIncludeNumericTypes, kIncludePackedTypes,
+          kExcludeSomeGenericsWhenTypeIsNonNullable);
+      uint32_t supertype = kNoSuperType;
+      if (current_type_index > last_struct_type_index &&
+          module_range_->get<bool>()) {
+        // Do not include the default array types, because they are final.
+        uint8_t existing_array_types =
+            current_type_index - last_struct_type_index;
+        supertype = last_struct_type_index +
+                    (module_range_->get<uint8_t>() % existing_array_types);
+        // TODO(14034): This could also be any sub type of the supertype's
+        // element type.
+        type = builder_->GetArrayType(supertype)->element_type();
+      }
+      ArrayType* array_fuz = zone_->New<ArrayType>(type, true);
+      // TODO(14034): Generate some final types too.
+      uint32_t index = builder_->AddArrayType(array_fuz, false, supertype);
+      array_types.push_back(index);
+    }
+  }
+
+  enum SigKind { kFunctionSig, kExceptionSig };
+
+  FunctionSig* GenerateSig(SigKind sig_kind, int num_types) {
+    // Generate enough parameters to spill some to the stack.
+    int num_params = int{module_range_->get<uint8_t>()} % (kMaxParameters + 1);
+    int num_returns =
+        sig_kind == kFunctionSig
+            ? int{module_range_->get<uint8_t>()} % (kMaxReturns + 1)
+            : 0;
+
+    FunctionSig::Builder builder(zone_, num_returns, num_params);
+    for (int i = 0; i < num_returns; ++i) {
+      builder.AddReturn(GetValueType<options>(module_range_, num_types));
+    }
+    for (int i = 0; i < num_params; ++i) {
+      builder.AddParam(GetValueType<options>(module_range_, num_types));
+    }
+    return builder.Build();
+  }
+
+  // Creates and adds random function signatures.
+  void GenerateRandomFunctionSigs(
+      const std::map<uint8_t, uint8_t>& explicit_rec_groups,
+      std::vector<uint32_t>& function_signatures, uint8_t& current_type_index,
+      bool kIsFinal) {
+    for (; current_type_index < num_types_; current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
+      FunctionSig* sig = GenerateSig(kFunctionSig, current_rec_group_end + 1);
+      uint32_t signature_index = builder_->ForceAddSignature(sig, kIsFinal);
+      function_signatures.push_back(signature_index);
+    }
+  }
+
+  void GenerateRandomExceptions(uint8_t num_exceptions) {
+    for (int i = 0; i < num_exceptions; ++i) {
+      FunctionSig* sig = GenerateSig(kExceptionSig, num_types_);
+      builder_->AddTag(sig);
+    }
+  }
+
+  // Adds the "wasm:js-string" imports to the module.
+  StringImports AddImportedStringImports() {
+    static constexpr uint32_t kArrayI8 = 0;
+    static constexpr uint32_t kArrayI16 = 1;
+    StringImports strings;
+    strings.array_i8 = kArrayI8;
+    strings.array_i16 = kArrayI16;
+    static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
+    static constexpr ValueType kExternRef = kWasmExternRef;
+    static constexpr ValueType kI32 = kWasmI32;
+    static constexpr ValueType kRefA8 = ValueType::Ref(kArrayI8);
+    static constexpr ValueType kRefNullA8 = ValueType::RefNull(kArrayI8);
+    static constexpr ValueType kRefNullA16 = ValueType::RefNull(kArrayI16);
+
+    // Shorthands: "r" = nullable "externref",
+    // "e" = non-nullable "ref extern".
+    static constexpr ValueType kReps_e_i[] = {kRefExtern, kI32};
+    static constexpr ValueType kReps_e_rr[] = {kRefExtern, kExternRef,
+                                               kExternRef};
+    static constexpr ValueType kReps_e_rii[] = {kRefExtern, kExternRef, kI32,
+                                                kI32};
+    static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
+    static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
+    static constexpr ValueType kReps_from_a16[] = {kRefExtern, kRefNullA16,
+                                                   kI32, kI32};
+    static constexpr ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32,
+                                                  kI32};
+    static constexpr ValueType kReps_into_a16[] = {kI32, kExternRef,
+                                                   kRefNullA16, kI32};
+    static constexpr ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8,
+                                                  kI32};
+    static constexpr ValueType kReps_to_a8[] = {kRefA8, kExternRef};
+
+    static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
+    static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
+    static constexpr FunctionSig kSig_e_rr(1, 2, kReps_e_rr);
+    static constexpr FunctionSig kSig_e_rii(1, 3, kReps_e_rii);
+
+    static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
+    static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
+    static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
+    static constexpr FunctionSig kSig_from_a16(1, 3, kReps_from_a16);
+    static constexpr FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
+    static constexpr FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
+    static constexpr FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
+    static constexpr FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
+
+    static constexpr base::Vector<const char> kJsString =
+        base::StaticCharVector("wasm:js-string");
+    static constexpr base::Vector<const char> kTextDecoder =
+        base::StaticCharVector("wasm:text-decoder");
+    static constexpr base::Vector<const char> kTextEncoder =
+        base::StaticCharVector("wasm:text-encoder");
+
+#define STRINGFUNC(name, sig, group) \
+  strings.name = builder_->AddImport(base::CStrVector(#name), &sig, group)
+
+    STRINGFUNC(cast, kSig_e_r, kJsString);
+    STRINGFUNC(test, kSig_i_r, kJsString);
+    STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
+    STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
+    STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
+    STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
+    STRINGFUNC(length, kSig_i_r, kJsString);
+    STRINGFUNC(concat, kSig_e_rr, kJsString);
+    STRINGFUNC(substring, kSig_e_rii, kJsString);
+    STRINGFUNC(equals, kSig_i_rr, kJsString);
+    STRINGFUNC(compare, kSig_i_rr, kJsString);
+    STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
+    STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
+    STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
+    STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
+    STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
+    STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
+
+#undef STRINGFUNC
+
+    return strings;
+  }
+
+  // Creates and adds random tables.
+  void GenerateRandomTables(const std::vector<uint32_t>& array_types,
+                            const std::vector<uint32_t>& struct_types) {
+    int num_tables = module_range_->get<uint8_t>() % kMaxTables + 1;
+    for (int i = 0; i < num_tables; i++) {
+      uint32_t min_size = i == 0
+                              ? num_functions_
+                              : module_range_->get<uint8_t>() % kMaxTableSize;
+      uint32_t max_size =
+          module_range_->get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
+      // Table 0 is always funcref. This guarantees that
+      // - call_indirect has at least one funcref table to work with,
+      // - we have a place to reference all functions in the program, so they
+      //   count as "declared" for ref.func.
+      bool force_funcref = i == 0;
+      ValueType type =
+          force_funcref
+              ? kWasmFuncRef
+              : GetValueTypeHelper<options>(
+                    module_range_, num_types_, num_types_, kExcludeNumericTypes,
+                    kExcludePackedTypes, kAlwaysIncludeAllGenerics);
+      bool use_initializer =
+          !type.is_defaultable() || module_range_->get<bool>();
+      uint32_t table_index =
+          use_initializer
+              ? builder_->AddTable(
+                    type, min_size, max_size,
+                    GenerateInitExpr(zone_, *module_range_, builder_, type,
+                                     struct_types, array_types, 0))
+              : builder_->AddTable(type, min_size, max_size);
+      if (type.is_reference_to(HeapType::kFunc)) {
+        // For function tables, initialize them with functions from the program.
+        // Currently, the fuzzer assumes that every funcref/(ref func) table
+        // contains the functions in the program in the order they are defined.
+        // TODO(11954): Consider generalizing this.
+        WasmModuleBuilder::WasmElemSegment segment(zone_, type, table_index,
+                                                   WasmInitExpr(0));
+        for (int entry_index = 0; entry_index < static_cast<int>(min_size);
+             entry_index++) {
+          segment.entries.emplace_back(
+              WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
+              builder_->NumImportedFunctions() +
+                  (entry_index % num_functions_));
+        }
+        builder_->AddElementSegment(std::move(segment));
+      }
+    }
+  }
+
+  // Creates and adds random globals.
+  std::tuple<std::vector<ValueType>, std::vector<uint8_t>>
+  GenerateRandomGlobals(const std::vector<uint32_t>& array_types,
+                        const std::vector<uint32_t>& struct_types) {
+    int num_globals = module_range_->get<uint8_t>() % (kMaxGlobals + 1);
+    std::vector<ValueType> globals;
+    std::vector<uint8_t> mutable_globals;
+    globals.reserve(num_globals);
+    mutable_globals.reserve(num_globals);
+
+    for (int i = 0; i < num_globals; ++i) {
+      ValueType type = GetValueType<options>(module_range_, num_types_);
+      // 1/8 of globals are immutable.
+      const bool mutability = (module_range_->get<uint8_t>() % 8) != 0;
+      builder_->AddGlobal(type, mutability,
+                          GenerateInitExpr(zone_, *module_range_, builder_,
+                                           type, struct_types, array_types, 0));
+      globals.push_back(type);
+      if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
+    }
+
+    int num_data_segments =
+        module_range_->get<uint8_t>() % kMaxPassiveDataSegments;
+    for (int i = 0; i < num_data_segments; i++) {
+      GeneratePassiveDataSegment(module_range_, builder_);
+    }
+    return {globals, mutable_globals};
+  }
+
+ private:
+  Zone* zone_;
+  WasmModuleBuilder* builder_;
+  DataRange* module_range_;
+  const uint8_t num_functions_;
+  const uint8_t num_structs_;
+  const uint8_t num_arrays_;
+  const uint16_t num_types_;
+};
 
 WasmInitExpr GenerateStructNewInitExpr(Zone* zone, DataRange& range,
                                        WasmModuleBuilder* builder,
@@ -3596,6 +3933,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
       UNREACHABLE();
   }
 }
+
 }  // namespace
 
 template <WasmModuleGenerationOptions options>
@@ -3630,39 +3968,13 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
   uint8_t num_arrays =
       kNumDefaultArrayTypes + module_range.get<uint8_t>() % kMaxArrays;
-  uint16_t num_types = num_functions + num_structs + num_arrays;
 
-  // (Type_index -> end of explicit rec group).
-  std::map<uint8_t, uint8_t> explicit_rec_groups;
-  {
-    uint8_t current_type_index = 0;
-    // The default array types are each in their own recgroup.
-    explicit_rec_groups.emplace(current_type_index, current_type_index);
-    builder.AddRecursiveTypeGroup(current_type_index++, 1);
-    explicit_rec_groups.emplace(current_type_index, current_type_index);
-    builder.AddRecursiveTypeGroup(current_type_index++, 1);
+  ModuleGen<options> gen_module(zone, &builder, &module_range, num_functions,
+                                num_structs, num_arrays);
 
-    while (current_type_index < num_types) {
-      // First, pick a random start for the next group. We allow it to be
-      // beyond the end of types (i.e., we add no further recursive groups).
-      uint8_t group_start =
-          module_range.get<uint8_t>() % (num_types - current_type_index + 1) +
-          current_type_index;
-      DCHECK_GE(group_start, current_type_index);
-      current_type_index = group_start;
-      if (group_start < num_types) {
-        // If we did not reach the end of the types, pick a random group size.
-        uint8_t group_size =
-            module_range.get<uint8_t>() % (num_types - group_start) + 1;
-        DCHECK_LE(group_start + group_size, num_types);
-        for (uint8_t i = group_start; i < group_start + group_size; i++) {
-          explicit_rec_groups.emplace(i, group_start + group_size - 1);
-        }
-        builder.AddRecursiveTypeGroup(group_start, group_size);
-        current_type_index += group_size;
-      }
-    }
-  }
+  // Put the types into random recursive groups.
+  std::map<uint8_t, uint8_t> explicit_rec_groups =
+      gen_module.GenerateRandomRecursiveGroups(kNumDefaultArrayTypes);
 
   // Add default array types.
   static constexpr uint32_t kArrayI8 = 0;
@@ -3676,88 +3988,17 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     array_types.push_back(kArrayI16);
   }
   static_assert(kNumDefaultArrayTypes == kArrayI16 + 1);
-  uint32_t current_type_index = kNumDefaultArrayTypes;
+  uint8_t current_type_index = kNumDefaultArrayTypes;
 
-  // Add random-generated types.
-  uint8_t last_struct_type = current_type_index + num_structs;
-  for (; current_type_index < last_struct_type; current_type_index++) {
-    auto rec_group = explicit_rec_groups.find(current_type_index);
-    uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
-                                        ? rec_group->second
-                                        : current_type_index;
+  // Add randomly generated structs.
+  gen_module.GenerateRandomStructs(explicit_rec_groups, struct_types,
+                                   current_type_index, kNumDefaultArrayTypes);
+  DCHECK_EQ(current_type_index, kNumDefaultArrayTypes + num_structs);
 
-    uint32_t supertype = kNoSuperType;
-    uint8_t num_fields = module_range.get<uint8_t>() % (kMaxStructFields + 1);
-
-    uint8_t existing_struct_types = current_type_index - kNumDefaultArrayTypes;
-    if (existing_struct_types > 0 && module_range.get<bool>()) {
-      supertype = module_range.get<uint8_t>() % existing_struct_types +
-                  kNumDefaultArrayTypes;
-      num_fields += builder.GetStructType(supertype)->field_count();
-    }
-    StructType::Builder struct_builder(zone, num_fields);
-
-    // Add all fields from super type.
-    uint32_t field_index = 0;
-    if (supertype != kNoSuperType) {
-      const StructType* parent = builder.GetStructType(supertype);
-      for (; field_index < parent->field_count(); ++field_index) {
-        // TODO(14034): This could also be any sub type of the supertype's
-        // element type.
-        struct_builder.AddField(parent->field(field_index),
-                                parent->mutability(field_index));
-      }
-    }
-    for (; field_index < num_fields; field_index++) {
-      // Notes:
-      // - We allow a type to only have non-nullable fields of types that
-      //   are defined earlier. This way we avoid infinite non-nullable
-      //   constructions. Also relevant for arrays and functions.
-      // - On the other hand, nullable fields can be picked up to the end of
-      //   the current recursive group.
-      // - We exclude the non-nullable generic types arrayref, anyref,
-      //   structref, eqref and externref from the fields of structs and
-      //   arrays. This is so that GenerateInitExpr has a way to break a
-      //   recursion between a struct/array field and those types
-      //   ((ref extern) gets materialized through (ref any)).
-      ValueType type = GetValueTypeHelper<options>(
-          &module_range, current_rec_group_end + 1, current_type_index,
-          kIncludeNumericTypes, kIncludePackedTypes,
-          kExcludeSomeGenericsWhenTypeIsNonNullable);
-
-      bool mutability = module_range.get<bool>();
-      struct_builder.AddField(type, mutability);
-    }
-    StructType* struct_fuz = struct_builder.Build();
-    // TODO(14034): Generate some final types too.
-    uint32_t index = builder.AddStructType(struct_fuz, false, supertype);
-    struct_types.push_back(index);
-  }
-
-  for (; current_type_index < num_structs + num_arrays; current_type_index++) {
-    auto rec_group = explicit_rec_groups.find(current_type_index);
-    uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
-                                        ? rec_group->second
-                                        : current_type_index;
-    ValueType type = GetValueTypeHelper<options>(
-        &module_range, current_rec_group_end + 1, current_type_index,
-        kIncludeNumericTypes, kIncludePackedTypes,
-        kExcludeSomeGenericsWhenTypeIsNonNullable);
-    uint32_t supertype = kNoSuperType;
-    if (current_type_index > last_struct_type && module_range.get<bool>()) {
-      // Do not include the default array types, because they are final.
-      uint8_t existing_array_types = current_type_index - last_struct_type;
-      supertype = last_struct_type +
-                  (module_range.get<uint8_t>() % existing_array_types);
-      // TODO(14034): This could also be any sub type of the supertype's
-      // element type.
-      type = builder.GetArrayType(supertype)->element_type();
-    }
-    ArrayType* array_fuz = zone->New<ArrayType>(type, true);
-    // TODO(14034): Generate some final types too.
-    uint32_t index = builder.AddArrayType(array_fuz, false, supertype);
-    array_types.push_back(index);
-  }
+  // Add randomly generated arrays.
+  gen_module.GenerateRandomArrays(explicit_rec_groups, array_types,
+                                  current_type_index);
+  DCHECK_EQ(current_type_index, num_structs + num_arrays);
 
   // We keep the signature for the first (main) function constant.
   constexpr bool kIsFinal = true;
@@ -3767,98 +4008,18 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
       builder.ForceAddSignature(&kMainFnSig, kIsFinal));
   current_type_index++;
 
-  for (; current_type_index < num_types; current_type_index++) {
-    auto rec_group = explicit_rec_groups.find(current_type_index);
-    uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
-                                        ? rec_group->second
-                                        : current_type_index;
-    FunctionSig* sig = GenerateSig<options>(zone, &module_range, kFunctionSig,
-                                            current_rec_group_end + 1);
-    uint32_t signature_index = builder.ForceAddSignature(sig, kIsFinal);
-    function_signatures.push_back(signature_index);
-  }
+  // Add randomly generated signatures.
+  gen_module.GenerateRandomFunctionSigs(
+      explicit_rec_groups, function_signatures, current_type_index, kIsFinal);
+  DCHECK_EQ(current_type_index, num_functions + num_structs + num_arrays);
 
+  // Add exceptions.
   int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
-  for (int i = 0; i < num_exceptions; ++i) {
-    FunctionSig* sig =
-        GenerateSig<options>(zone, &module_range, kExceptionSig, num_types);
-    builder.AddTag(sig);
-  }
+  gen_module.GenerateRandomExceptions(num_exceptions);
 
   // Add the "wasm:js-string" imports to the module. They may or may not be
   // used later, but they'll always be available.
-  StringImports strings;
-  strings.array_i16 = kArrayI16;
-  strings.array_i8 = kArrayI8;
-  static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
-  static constexpr ValueType kExternRef = kWasmExternRef;
-  static constexpr ValueType kI32 = kWasmI32;
-  static constexpr ValueType kRefA8 = ValueType::Ref(kArrayI8);
-  static constexpr ValueType kRefNullA8 = ValueType::RefNull(kArrayI8);
-  static constexpr ValueType kRefNullA16 = ValueType::RefNull(kArrayI16);
-
-  // Shorthands: "r" = nullable "externref",
-  // "e" = non-nullable "ref extern".
-  static constexpr ValueType kReps_e_i[] = {kRefExtern, kI32};
-  static constexpr ValueType kReps_e_rr[] = {kRefExtern, kExternRef,
-                                             kExternRef};
-  static constexpr ValueType kReps_e_rii[] = {kRefExtern, kExternRef, kI32,
-                                              kI32};
-  static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
-  static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
-  static constexpr ValueType kReps_from_a16[] = {kRefExtern, kRefNullA16, kI32,
-                                                 kI32};
-  static constexpr ValueType kReps_from_a8[] = {kRefExtern, kRefNullA8, kI32,
-                                                kI32};
-  static constexpr ValueType kReps_into_a16[] = {kI32, kExternRef, kRefNullA16,
-                                                 kI32};
-  static constexpr ValueType kReps_into_a8[] = {kI32, kExternRef, kRefNullA8,
-                                                kI32};
-  static constexpr ValueType kReps_to_a8[] = {kRefA8, kExternRef};
-
-  static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
-  static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
-  static constexpr FunctionSig kSig_e_rr(1, 2, kReps_e_rr);
-  static constexpr FunctionSig kSig_e_rii(1, 3, kReps_e_rii);
-
-  static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
-  static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
-  static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
-  static constexpr FunctionSig kSig_from_a16(1, 3, kReps_from_a16);
-  static constexpr FunctionSig kSig_from_a8(1, 3, kReps_from_a8);
-  static constexpr FunctionSig kSig_into_a16(1, 3, kReps_into_a16);
-  static constexpr FunctionSig kSig_into_a8(1, 3, kReps_into_a8);
-  static constexpr FunctionSig kSig_to_a8(1, 1, kReps_to_a8);
-
-  static constexpr base::Vector<const char> kJsString =
-      base::StaticCharVector("wasm:js-string");
-  static constexpr base::Vector<const char> kTextDecoder =
-      base::StaticCharVector("wasm:text-decoder");
-  static constexpr base::Vector<const char> kTextEncoder =
-      base::StaticCharVector("wasm:text-encoder");
-
-#define STRINGFUNC(name, sig, group) \
-  strings.name = builder.AddImport(base::CStrVector(#name), &sig, group)
-
-  STRINGFUNC(cast, kSig_e_r, kJsString);
-  STRINGFUNC(test, kSig_i_r, kJsString);
-  STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
-  STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
-  STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
-  STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
-  STRINGFUNC(length, kSig_i_r, kJsString);
-  STRINGFUNC(concat, kSig_e_rr, kJsString);
-  STRINGFUNC(substring, kSig_e_rii, kJsString);
-  STRINGFUNC(equals, kSig_i_rr, kJsString);
-  STRINGFUNC(compare, kSig_i_rr, kJsString);
-  STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
-  STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
-  STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
-  STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
-  STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
-  STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
-
-#undef STRINGFUNC
+  StringImports strings = gen_module.AddImportedStringImports();
 
   // Generate function declarations before tables. This will be needed once we
   // have typed-function tables.
@@ -3877,70 +4038,18 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // operations. Generate tables before the globals, so tables don't
   // accidentally use globals in their initializer expressions.
   // Always generate at least one table for call_indirect.
-  int num_tables = module_range.get<uint8_t>() % kMaxTables + 1;
-  for (int i = 0; i < num_tables; i++) {
-    uint32_t min_size =
-        i == 0 ? num_functions : module_range.get<uint8_t>() % kMaxTableSize;
-    uint32_t max_size =
-        module_range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
-    // Table 0 is always funcref. This guarantees that
-    // - call_indirect has at least one funcref table to work with,
-    // - we have a place to reference all functions in the program, so they
-    //   count as "declared" for ref.func.
-    bool force_funcref = i == 0;
-    ValueType type =
-        force_funcref
-            ? kWasmFuncRef
-            : GetValueTypeHelper<options>(
-                  &module_range, num_types, num_types, kExcludeNumericTypes,
-                  kExcludePackedTypes, kAlwaysIncludeAllGenerics);
-    bool use_initializer = !type.is_defaultable() || module_range.get<bool>();
-    uint32_t table_index =
-        use_initializer
-            ? builder.AddTable(
-                  type, min_size, max_size,
-                  GenerateInitExpr(zone, module_range, &builder, type,
-                                   struct_types, array_types, 0))
-            : builder.AddTable(type, min_size, max_size);
-    if (type.is_reference_to(HeapType::kFunc)) {
-      // For function tables, initialize them with functions from the program.
-      // Currently, the fuzzer assumes that every funcref/(ref func) table
-      // contains the functions in the program in the order they are defined.
-      // TODO(11954): Consider generalizing this.
-      WasmModuleBuilder::WasmElemSegment segment(zone, type, table_index,
-                                                 WasmInitExpr(0));
-      for (int entry_index = 0; entry_index < static_cast<int>(min_size);
-           entry_index++) {
-        segment.entries.emplace_back(
-            WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
-            builder.NumImportedFunctions() + (entry_index % num_functions));
-      }
-      builder.AddElementSegment(std::move(segment));
-    }
-  }
+  gen_module.GenerateRandomTables(array_types, struct_types);
 
-  int num_globals = module_range.get<uint8_t>() % (kMaxGlobals + 1);
-  std::vector<ValueType> globals;
-  std::vector<uint8_t> mutable_globals;
-  globals.reserve(num_globals);
-  mutable_globals.reserve(num_globals);
-
-  for (int i = 0; i < num_globals; ++i) {
-    ValueType type = GetValueType<options>(&module_range, num_types);
-    // 1/8 of globals are immutable.
-    const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
-    builder.AddGlobal(type, mutability,
-                      GenerateInitExpr(zone, module_range, &builder, type,
-                                       struct_types, array_types, 0));
-    globals.push_back(type);
-    if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
-  }
+  // Add globals.
+  auto [globals, mutable_globals] =
+      gen_module.GenerateRandomGlobals(array_types, struct_types);
 
   int num_data_segments = module_range.get<uint8_t>() % kMaxPassiveDataSegments;
   for (int i = 0; i < num_data_segments; i++) {
     GeneratePassiveDataSegment(&module_range, &builder);
   }
 
+  // Generate function bodies.
   for (int i = 0; i < num_functions; ++i) {
     WasmFunctionBuilder* f = functions[i];
     // On the last function don't split the DataRange but just use the
@@ -3948,17 +4057,18 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     DataRange function_range = i != num_functions - 1
                                    ? functions_range.split()
                                    : std::move(functions_range);
-    BodyGen<options> gen(f, function_signatures, globals, mutable_globals,
-                         struct_types, array_types, strings, &function_range);
+    BodyGen<options> gen_body(f, function_signatures, globals, mutable_globals,
+                              struct_types, array_types, strings,
+                              &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());
-    gen.InitializeNonDefaultableLocals(&function_range);
-    gen.Generate(return_types, &function_range);
+    gen_body.InitializeNonDefaultableLocals(&function_range);
+    gen_body.Generate(return_types, &function_range);
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
     if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
-        gen.HasSimd()) {
+        gen_body.HasSimd()) {
       return {};
     }
     f->Emit(kExprEnd);
