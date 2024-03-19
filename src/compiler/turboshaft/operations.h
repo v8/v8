@@ -3484,6 +3484,7 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
   }
   auto options() const { return std::tuple{negated, parameters}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
