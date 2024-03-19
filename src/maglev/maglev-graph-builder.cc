@@ -3583,7 +3583,8 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
     InlinedAllocation* object, ValueNode* value, int offset) {
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
-    inlined_value->DependOn(object);
+    graph()->allocations().Union(object, inlined_value);
+    inlined_value->AddNonEscapingUses();
   }
   BuildStoreTaggedField(object, value, offset);
 }
@@ -5790,7 +5791,7 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 namespace {
 void ForceEscapeIfAllocation(ValueNode* value) {
   if (InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    alloc->ForceEscape();
+    alloc->ForceEscaping();
   }
 }
 }  // namespace
@@ -9185,6 +9186,7 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   DCHECK_GE(current_size, 0);
   InlinedAllocation* allocation =
       AddNewNode<InlinedAllocation>({current_allocation_block_}, size, value);
+  graph()->allocations().MakeSet(allocation);
   current_allocation_block_->Add(allocation);
   return allocation;
 }

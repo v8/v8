@@ -4,9 +4,11 @@
 
 #include "src/maglev/maglev-compiler.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <ostream>
 #include <type_traits>
+#include <unordered_map>
 
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
@@ -179,15 +181,7 @@ class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-
-  ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
-    if (!node->HasEscaped()) {
-      node->input(0).node()->remove_use();
-      return ProcessResult::kRemove;
-    }
-    escaped_allocations_.push_back(node);
-    return ProcessResult::kContinue;
-  }
+  void PostProcessGraph(Graph* graph) {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -201,32 +195,7 @@ class AnyUseMarkingProcessor {
         return ProcessResult::kRemove;
       }
     }
-
-    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
-      if (InlinedAllocation* object =
-              node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          // Make sure to remove the uses of the other inputs.
-          for (int i = 1; i < node->input_count(); i++) {
-            DropInputUses(node->Node::input(i));
-          }
-          return ProcessResult::kRemove;
-        }
-      }
-    }
-
     return ProcessResult::kContinue;
-  }
-
-  void PostProcessGraph(Graph* graph) {
-    // Somes escaped allocation might have been marked as non-escaping.
-    // Fix the AllocationBlock usages. They will be removed in the
-    // DeadNodeSweepingProcessor.
-    for (InlinedAllocation* alloc : escaped_allocations_) {
-      if (!alloc->HasEscaped()) {
-        alloc->allocation_block().node()->remove_use();
-      }
-    }
   }
 
  private:
@@ -249,8 +218,6 @@ class AnyUseMarkingProcessor {
     DCHECK(!node->properties().can_lazy_deopt());
     node->mark_unused_inputs_visited();
   }
-
-  std::vector<InlinedAllocation*> escaped_allocations_;
 };
 
 class DeadNodeSweepingProcessor {
@@ -260,9 +227,6 @@ class DeadNodeSweepingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   ProcessResult Process(AllocationBlock* node, const ProcessingState& state) {
-    if (!node->is_used()) return ProcessResult::kRemove;
-    // All non-escaped InlinedAllocations were already removed. We can now set
-    // the offsets of the escaped ones.
     // Note: this need to be done before ValueLocationConstraintProcessor, since
     // it access the allocation offsets.
     int size = 0;
@@ -274,6 +238,9 @@ class DeadNodeSweepingProcessor {
     }
     // ... and update its size.
     node->set_size(size);
+    // If size is zero, then none of the inlined allocations have escaped, we
+    // can remove the allocation block.
+    if (size == 0) return ProcessResult::kRemove;
     return ProcessResult::kContinue;
   }
 
@@ -306,9 +273,9 @@ class DeadNodeSweepingProcessor {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
         if (!object->HasEscaped()) {
-          // We might still have stores that have not been cleared for
-          // allocations that were initially escaping and then became
-          // non-escaping.
+          // This also removes the use of the value to be stored. Unfortunately,
+          // this is too late if this is the last use. We won't get rid of the
+          // node.
           return ProcessResult::kRemove;
         }
       }
@@ -550,6 +517,32 @@ class LiveRangeAndNextUseProcessor {
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
+namespace {
+void EscapeDependentAllocationsIfNeeded(
+    DisjointZoneSet<InlinedAllocation*>& allocations) {
+  // Create a map from root to strongly connected components.
+  std::unordered_map<InlinedAllocation*, std::vector<InlinedAllocation*>>
+      components;
+  for (auto it : allocations.parent()) {
+    InlinedAllocation* root = allocations.Find(it.first);
+    components[root].push_back(it.first);
+  }
+  // If all nodes are not escaping in a strong connected set, then set all of
+  // them as not escaped.
+  for (auto component : components) {
+    auto& elements = component.second;
+    bool are_not_escaping = std::all_of(
+        elements.begin(), elements.end(),
+        [](InlinedAllocation* alloc) { return !alloc->IsEscaping(); });
+    if (are_not_escaping) {
+      for (auto alloc : elements) {
+        alloc->SetHasEscaped(false);
+      }
+    }
+  }
+}
+}  // namespace
+
 // static
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
@@ -628,6 +621,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     GraphMultiProcessor<AnyUseMarkingProcessor> processor;
     processor.ProcessGraph(graph);
   }
+
+  EscapeDependentAllocationsIfNeeded(graph->allocations());
 
   if (v8_flags.print_maglev_graphs) {
     UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());

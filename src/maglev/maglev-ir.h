@@ -4982,35 +4982,20 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   void set_offset(int offset) { offset_ = offset; }
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
+
   void AddNonEscapingUses(int n = 1) { non_escaping_use_count_ += n; }
-  void RemoveNonEscapingUse() { non_escaping_use_count_--; }
-  void ForceEscape() { non_escaping_use_count_ = 0; }
+  bool IsEscaping() const { return use_count_ > non_escaping_use_count_; }
+  void ForceEscaping() { non_escaping_use_count_ = 0; }
 
-  const InlinedAllocation* dependency() const { return dependency_; }
-  void DependOn(InlinedAllocation* dep) {
-    // TODO(victorgomes): Current the escape analysis only works with
-    // initializing stores, we can only have single one directional dependency.
-    DCHECK_NULL(dependency_);
-    dependency_ = dep;
-    non_escaping_use_count_++;
-  }
-
-  bool HasEscaped() const {
-    if (dependency_ && dependency_->HasEscaped()) return true;
-    bool escaped = use_count_ > non_escaping_use_count_;
-    if (escaped && dependency_) {
-      // We are escaping, force dependency to escape as well.
-      dependency_->ForceEscape();
-    }
-    return escaped;
-  }
+  void SetHasEscaped(bool value) { has_escaped_ = value; }
+  bool HasEscaped() const { return has_escaped_; }
 
  private:
   int size_;
   DeoptObject value_;
   int non_escaping_use_count_ = 0;
+  bool has_escaped_ = true;  // Escaped by default.
   int offset_ = -1;  // Set by AllocationBlock.
-  InlinedAllocation* dependency_ = nullptr;
 
   InlinedAllocation* next_ = nullptr;
   InlinedAllocation** next() { return &next_; }
