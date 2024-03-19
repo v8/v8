@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "include/v8-internal.h"
 #include "src/base/iterator.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
@@ -23,7 +24,6 @@
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions-inl.h"
-#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -1830,6 +1830,33 @@ void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(node_t node) {
   node_t projection1 = FindProjection(node, 1);
   if (Adapter::valid(projection1)) {
     MarkAsWord32(projection1);
+  }
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::ConsumeEqualZero(
+    turboshaft::OpIndex* user, turboshaft::OpIndex* value,
+    FlagsContinuation* cont) {
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  while (const ComparisonOp* equal =
+             TryCast<Opmask::kComparisonEqual>(*value)) {
+    if (equal->rep == RegisterRepresentation::Word32()) {
+      if (!MatchIntegralZero(equal->right())) return;
+#ifdef V8_COMPRESS_POINTERS
+    } else if (equal->rep == RegisterRepresentation::Tagged()) {
+      static_assert(RegisterRepresentation::Tagged().MapTaggedToWord() ==
+                    RegisterRepresentation::Word32());
+      if (!MatchSmiZero(equal->right())) return;
+#endif  // V8_COMPRESS_POINTERS
+    } else {
+      return;
+    }
+    if (!CanCover(*user, *value)) return;
+
+    *user = *value;
+    *value = equal->left();
+    cont->Negate();
   }
 }
 

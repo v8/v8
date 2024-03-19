@@ -982,6 +982,9 @@ class InstructionSelectorT final : public Adapter {
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
                                      node_t node);
 
+  void ConsumeEqualZero(turboshaft::OpIndex* user, turboshaft::OpIndex* value,
+                        FlagsContinuation* cont);
+
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================

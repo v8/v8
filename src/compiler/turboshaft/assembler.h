@@ -998,9 +998,15 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
         Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
     if (descriptor->can_throw == CanThrow::kYes) {
+      // TODO(nicohartmann@): Unfortunately, we have many descriptors where
+      // effects are not set consistently with {can_throw}. We should fix those
+      // and reenable this DCHECK.
+      // DCHECK(effects.is_required_when_unused());
+      effects = effects.RequiredWhenUnused();
       has_catch_block = CatchIfInCatchScope(raw_call);
     }
-    return ReduceDidntThrow(raw_call, has_catch_block, &descriptor->out_reps);
+    return ReduceDidntThrow(raw_call, has_catch_block, &descriptor->out_reps,
+                            effects);
   }
 
  private:

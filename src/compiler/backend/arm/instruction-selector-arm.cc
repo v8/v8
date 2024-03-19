@@ -3171,15 +3171,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     node_t user, node_t value, FlagsContinuation* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (const ComparisonOp* equal =
-             this->TryCast<Opmask::kWord32Equal>(value)) {
-    if (!CanCover(user, value)) break;
-    if (!MatchIntegralZero(equal->right())) break;
-
-    user = value;
-    value = equal->left();
-    cont->Negate();
-  }
+  ConsumeEqualZero(&user, &value, cont);
 
   if (CanCover(user, value)) {
     const Operation& value_op = Get(value);

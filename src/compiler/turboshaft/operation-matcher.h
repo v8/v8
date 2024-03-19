@@ -45,6 +45,8 @@ class OperationMatcher {
         return op->float32() == 0;
       case ConstantOp::Kind::kFloat64:
         return op->float64() == 0;
+      case ConstantOp::Kind::kSmi:
+        return op->smi().value() == 0;
       default:
         return false;
     }
@@ -53,6 +55,13 @@ class OperationMatcher {
   bool MatchIntegralZero(OpIndex matched) const {
     int64_t constant;
     return MatchSignedIntegralConstant(matched, &constant) && constant == 0;
+  }
+
+  bool MatchSmiZero(OpIndex matched) const {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kSmi) return false;
+    return op->smi().value() == 0;
   }
 
   bool MatchFloat32Constant(OpIndex matched, float* constant) const {

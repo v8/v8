@@ -5216,15 +5216,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (const ComparisonOp* equal =
-             this->TryCast<Opmask::kWord32Equal>(value)) {
-    if (!CanCover(user, value)) break;
-    if (!MatchIntegralZero(equal->right())) break;
-
-    user = value;
-    value = equal->left();
-    cont->Negate();
-  }
+  ConsumeEqualZero(&user, &value, cont);
 
   // Try to match bit checks to create TBZ/TBNZ instructions.
   // Unlike the switch below, CanCover check is not needed here.

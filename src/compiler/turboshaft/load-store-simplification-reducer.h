@@ -166,8 +166,7 @@ class LoadStoreSimplificationReducer : public Next,
         index = __ IntPtrConstant(offset);
         element_size_log2 = 0;
         offset = 0;
-      }
-      if (element_size_log2 != 0) {
+      } else if (element_size_log2 != 0) {
         index = __ WordPtrShiftLeft(index.value(), element_size_log2);
         element_size_log2 = 0;
       }

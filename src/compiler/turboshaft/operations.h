@@ -3818,7 +3818,7 @@ struct CatchBlockBeginOp : FixedArityOperationT<0, CatchBlockBeginOp> {
 // Since `CopyingPhase` does this automatically, lowering throwing
 // operations into an arbitrary subgraph works automatically.
 struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
-  static constexpr OpEffects effects = OpEffects().RequiredWhenUnused();
+  OpEffects throwing_op_effects;
 
   // If there is a `CheckException` operation with a catch block for
   // `throwing_operation`.
@@ -3826,6 +3826,8 @@ struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
   // This is a pointer to a vector instead of a vector to save a bit of memory,
   // using optimal 16 bytes instead of 24.
   const base::Vector<const RegisterRepresentation>* results_rep;
+
+  OpEffects Effects() const { return throwing_op_effects; }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return *results_rep;
@@ -3840,12 +3842,16 @@ struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
 
   explicit DidntThrowOp(
       OpIndex throwing_operation, bool has_catch_block,
-      const base::Vector<const RegisterRepresentation>* results_rep)
+      const base::Vector<const RegisterRepresentation>* results_rep,
+      OpEffects throwing_op_effects)
       : Base(throwing_operation),
+        throwing_op_effects(throwing_op_effects),
         has_catch_block(has_catch_block),
         results_rep(results_rep) {}
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
-  auto options() const { return std::tuple{}; }
+  auto options() const {
+    return std::tuple{throwing_op_effects, has_catch_block};
+  }
 };
 
 struct TailCallOp : OperationT<TailCallOp> {
@@ -6163,8 +6169,8 @@ struct FindOrderedHashEntryOp
   };
   Kind kind;
 
-  // TODO(tebbi): Can we have more precise effects here?
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().AssumesConsistentHeap().CanReadMemory();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
       case Kind::kFindOrderedHashMapEntry:
@@ -8204,6 +8210,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StoreOp>().Effects();
     case Opcode::kCall:
       return Cast<CallOp>().Effects();
+    case Opcode::kDidntThrow:
+      return Cast<DidntThrowOp>().Effects();
     case Opcode::kTaggedBitcast:
       return Cast<TaggedBitcastOp>().Effects();
     case Opcode::kAtomicRMW:
