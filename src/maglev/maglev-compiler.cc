@@ -247,6 +247,10 @@ class DeadNodeSweepingProcessor {
   ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
     // Remove inlined allocation that became non-escaping.
     if (!node->HasEscaped()) {
+      if (v8_flags.trace_maglev_escape_analysis) {
+        std::cout << "* Removing allocation node "
+                  << PrintNodeLabel(labeller_, node) << std::endl;
+      }
       return ProcessResult::kRemove;
     }
     return ProcessResult::kContinue;
@@ -276,6 +280,11 @@ class DeadNodeSweepingProcessor {
           // This also removes the use of the value to be stored. Unfortunately,
           // this is too late if this is the last use. We won't get rid of the
           // node.
+          if (v8_flags.trace_maglev_escape_analysis) {
+            std::cout << "* Removing store node "
+                      << PrintNodeLabel(labeller_, node) << " to allocation "
+                      << PrintNodeLabel(labeller_, object) << std::endl;
+          }
           return ProcessResult::kRemove;
         }
       }
@@ -536,6 +545,10 @@ void EscapeDependentAllocationsIfNeeded(
         [](InlinedAllocation* alloc) { return !alloc->IsEscaping(); });
     if (are_not_escaping) {
       for (auto alloc : elements) {
+        if (v8_flags.trace_maglev_escape_analysis) {
+          std::cout << "* Allocation " << PrintNodeLabel(labeller_, alloc)
+                    << " has not escaped" << std::endl;
+        }
         alloc->SetHasEscaped(false);
       }
     }
@@ -555,6 +568,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
       v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
       v8_flags.trace_maglev_graph_building ||
+      v8_flags.trace_maglev_escape_analysis ||
       v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(labeller_ = new MaglevGraphLabeller());
   }

@@ -1212,6 +1212,8 @@ DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 DEFINE_BOOL(maglev_escape_analysis, false,
             "avoid inlined allocation of objects that cannot escape")
 
+DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
+
 // TODO(dmercadier): fix and re-enable string builder.
 DEFINE_BOOL_READONLY(turbo_string_builder, false,
                      "use TurboFan fast string builder")
