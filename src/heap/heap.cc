@@ -2587,7 +2587,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
       tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
-  double global_growing_factor = 0;
   double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
       tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
@@ -2597,7 +2596,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
                 this, max_global_memory_size_, embedder_gc_speed,
                 embedder_speed)
           : 0;
-  global_growing_factor = std::max(v8_growing_factor, embedder_growing_factor);
+  double global_growing_factor =
+      std::max(v8_growing_factor, embedder_growing_factor);
 
   size_t old_gen_size = OldGenerationSizeOfObjects();
   size_t new_space_capacity = NewSpaceTargetCapacity();
