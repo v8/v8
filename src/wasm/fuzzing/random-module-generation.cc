@@ -3874,9 +3874,9 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         }
         case HeapType::kEq: {
           uint8_t choice = range.get<uint8_t>() % 3;
-          HeapType::Representation subtype = choice == 0   ? HeapType::kStruct
+          HeapType::Representation subtype = choice == 0   ? HeapType::kI31
                                              : choice == 1 ? HeapType::kArray
-                                                           : HeapType::kI31;
+                                                           : HeapType::kStruct;
 
           return GenerateInitExpr(
               zone, range, builder,
