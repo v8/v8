@@ -323,6 +323,8 @@ namespace internal {
   V(JSNumberFormat)                       \
   V(JSPluralRules)                        \
   V(JSRelativeTimeFormat)                 \
+  V(JSSegmentDataObject)                  \
+  V(JSSegmentDataObjectWithIsWordLike)    \
   V(JSSegmentIterator)                    \
   V(JSSegmenter)                          \
   V(JSSegments)

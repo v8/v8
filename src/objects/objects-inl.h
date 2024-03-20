@@ -372,6 +372,15 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
   return IsJSArray(obj, cage_base);
 }
 
+#if V8_INTL_SUPPORT
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObject) {
+  return IsJSObject(obj, cage_base);
+}
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
+  return IsJSObject(obj, cage_base);
+}
+#endif  // V8_INTL_SUPPORT
+
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // Must be a fixed array.
   if (!IsTrustedFixedArray(obj, cage_base)) return false;

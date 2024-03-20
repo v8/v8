@@ -4036,6 +4036,65 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                          isolate());
         native_context()->set_intl_segment_iterator_map(*segment_iterator_map);
       }
+      {
+        // Set up the maps for SegmentDataObjects, with and without "isWordLike"
+        // property.
+        constexpr int kNumProperties = 3;
+        constexpr int kNumPropertiesWithWordlike = kNumProperties + 1;
+        constexpr int kInstanceSize =
+            JSObject::kHeaderSize + kNumProperties * kTaggedSize;
+        constexpr int kInstanceSizeWithWordlike =
+            JSObject::kHeaderSize + kNumPropertiesWithWordlike * kTaggedSize;
+        Handle<Map> map = factory->NewContextfulMapForCurrentContext(
+            JS_OBJECT_TYPE, kInstanceSize, TERMINAL_FAST_ELEMENTS_KIND,
+            kNumProperties);
+        Handle<Map> map_with_wordlike =
+            factory->NewContextfulMapForCurrentContext(
+                JS_OBJECT_TYPE, kInstanceSizeWithWordlike,
+                TERMINAL_FAST_ELEMENTS_KIND, kNumPropertiesWithWordlike);
+        map->SetConstructor(native_context()->object_function());
+        map_with_wordlike->SetConstructor(native_context()->object_function());
+        map->set_prototype(*isolate_->initial_object_prototype());
+        map_with_wordlike->set_prototype(*isolate_->initial_object_prototype());
+        Map::EnsureDescriptorSlack(isolate_, map, kNumProperties);
+        Map::EnsureDescriptorSlack(isolate_, map_with_wordlike,
+                                   kNumPropertiesWithWordlike);
+        int index = 0;
+        {  // segment
+          Descriptor d =
+              Descriptor::DataField(isolate_, factory->segment_string(),
+                                    index++, NONE, Representation::Tagged());
+          map->AppendDescriptor(isolate_, &d);
+          map_with_wordlike->AppendDescriptor(isolate_, &d);
+        }
+        {  // index
+          Descriptor d =
+              Descriptor::DataField(isolate_, factory->index_string(), index++,
+                                    NONE, Representation::Tagged());
+          map->AppendDescriptor(isolate_, &d);
+          map_with_wordlike->AppendDescriptor(isolate_, &d);
+        }
+        {  // input
+          Descriptor d =
+              Descriptor::DataField(isolate_, factory->input_string(), index++,
+                                    NONE, Representation::Tagged());
+          map->AppendDescriptor(isolate_, &d);
+          map_with_wordlike->AppendDescriptor(isolate_, &d);
+        }
+        DCHECK_EQ(index, kNumProperties);
+        {  // isWordLike
+          Descriptor d =
+              Descriptor::DataField(isolate_, factory->isWordLike_string(),
+                                    index++, NONE, Representation::Tagged());
+          map_with_wordlike->AppendDescriptor(isolate_, &d);
+        }
+        DCHECK_EQ(index, kNumPropertiesWithWordlike);
+        DCHECK(!map->is_dictionary_map());
+        DCHECK(!map_with_wordlike->is_dictionary_map());
+        native_context()->set_intl_segment_data_object_map(*map);
+        native_context()->set_intl_segment_data_object_wordlike_map(
+            *map_with_wordlike);
+      }
     }
   }
 #endif  // V8_INTL_SUPPORT

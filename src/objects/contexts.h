@@ -173,6 +173,9 @@ enum ContextLookupFlags {
     intl_relative_time_format_function)                                        \
   V(INTL_SEGMENTER_FUNCTION_INDEX, JSFunction, intl_segmenter_function)        \
   V(INTL_SEGMENTS_MAP_INDEX, Map, intl_segments_map)                           \
+  V(INTL_SEGMENT_DATA_OBJECT_MAP_INDEX, Map, intl_segment_data_object_map)     \
+  V(INTL_SEGMENT_DATA_OBJECT_WORDLIKE_MAP_INDEX, Map,                          \
+    intl_segment_data_object_wordlike_map)                                     \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
   V(ITERATOR_FILTER_HELPER_MAP_INDEX, Map, iterator_filter_helper_map)         \
   V(ITERATOR_MAP_HELPER_MAP_INDEX, Map, iterator_map_helper_map)               \
