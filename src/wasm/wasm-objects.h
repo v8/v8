@@ -942,8 +942,7 @@ class WasmJSFunctionData
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
-  using BodyDescriptor =
-      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
+  class BodyDescriptor;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(WasmJSFunctionData)
@@ -955,8 +954,7 @@ class WasmCapiFunctionData
  public:
   DECL_PRINTER(WasmCapiFunctionData)
 
-  using BodyDescriptor =
-      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };

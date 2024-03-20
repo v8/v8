@@ -801,6 +801,38 @@ class WasmExportedFunctionData::BodyDescriptor final
   }
 };
 
+class WasmJSFunctionData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    WasmFunctionData::BodyDescriptor::IterateBody<ObjectVisitor>(
+        map, obj, object_size, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
+class WasmCapiFunctionData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    WasmFunctionData::BodyDescriptor::IterateBody<ObjectVisitor>(
+        map, obj, object_size, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
 class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
