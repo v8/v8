@@ -724,7 +724,7 @@ assertOptimized(simple_loop);
   assertEquals(expected_2, f(2));
 }
 
-// Testinf for-in loops.
+// Testing for-in loops.
 {
   function f(o) {
     let s = 0;
@@ -740,4 +740,33 @@ assertOptimized(simple_loop);
   assertEquals(66, f(o));
   %OptimizeFunctionOnNextCall(f);
   assertEquals(66, f(o));
+}
+
+// Testing loops with multiple forward edges.
+{
+  function g() { }
+  %NeverOptimizeFunction(g);
+
+  function multi_pred_loop(x) {
+    let i = 0;
+    if (x == 1) {
+      g();
+    } else {
+      g();
+    }
+    while (i < 5) {
+      i++;
+      // Putting a call in the loop so that it cannot be peeled (because it's
+      // not "trivial" anymore).
+      g();
+    }
+    return i;
+  }
+
+  %PrepareFunctionForOptimization(multi_pred_loop);
+  assertEquals(5, multi_pred_loop(1));
+  assertEquals(5, multi_pred_loop(2));
+  %OptimizeFunctionOnNextCall(multi_pred_loop);
+  assertEquals(5, multi_pred_loop(1));
+  assertEquals(5, multi_pred_loop(2));
 }

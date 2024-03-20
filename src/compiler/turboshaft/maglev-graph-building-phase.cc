@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 
+#include "src/base/small-vector.h"
+#include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
@@ -53,6 +55,12 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
   }
 }
 
+// TODO(dmercadier): use simply .contains once we have access to C++20.
+template <typename K, typename V>
+bool MapContains(ZoneUnorderedMap<K, V> map, K key) {
+  return map.find(key) != map.end();
+}
+
 }  // namespace
 
 class GraphBuilder {
@@ -69,7 +77,8 @@ class GraphBuilder {
         maglev_compilation_unit_(maglev_compilation_unit),
         node_mapping_(temp_zone),
         block_mapping_(temp_zone),
-        regs_to_vars_(temp_zone) {}
+        regs_to_vars_(temp_zone),
+        loop_single_edge_predecessors_(temp_zone) {}
 
   void PreProcessGraph(maglev::Graph* graph) {
     for (maglev::BasicBlock* block : *graph) {
@@ -89,7 +98,25 @@ class GraphBuilder {
       // now.
       __ Goto(Map(block));
     }
+
+#ifdef DEBUG
+    loop_phis_first_input_.clear();
+    loop_phis_first_input_index_ = -1;
+#endif
+
+    if (block->is_loop() && MapContains(loop_single_edge_predecessors_, block)) {
+      EmitLoopSinglePredecessorBlock(block);
+    }
+
     __ Bind(Map(block));
+
+    if (block->is_loop()) {
+      // The "permutation" stuff that comes afterwards in this function doesn't
+      // apply to loops, since loops always have 2 predecessors in Turboshaft,
+      // and in both Turboshaft and Maglev, the backedge is always the last
+      // predecessors, so we never need to reorder phi inputs.
+      return;
+    }
 
     // Because of edge splitting in Maglev, the order of predecessors in the
     // Turboshaft graph is not always the same as in the Maglev graph, which
@@ -107,6 +134,31 @@ class GraphBuilder {
         predecessor_permutation_.push_back(pred_index);
       }
     }
+  }
+
+  void EmitLoopSinglePredecessorBlock(maglev::BasicBlock* block) {
+    DCHECK(block->is_loop());
+    DCHECK(MapContains(loop_single_edge_predecessors_, block));
+    Block* loop_pred = loop_single_edge_predecessors_[block];
+    __ Bind(loop_pred);
+
+    // Now we need to emit Phis (one per loop phi in {block}, which should
+    // contain the same input except for the backedge).
+    loop_phis_first_input_.clear();
+    loop_phis_first_input_index_ = 0;
+    for (maglev::Phi* phi : *block->phis()) {
+      base::SmallVector<OpIndex, 16> inputs;
+      constexpr int kSkipBackedge = 1;
+      for (int i = 0; i < phi->input_count() - kSkipBackedge; i++) {
+        inputs.push_back(Map(phi->input(i)));
+      }
+      loop_phis_first_input_.push_back(
+          __ Phi(base::VectorOf(inputs),
+                 RegisterRepresentationFor(phi->value_representation())));
+    }
+
+    // Actually jumping to the loop.
+    __ Goto(Map(block));
   }
 
   maglev::ProcessResult Process(maglev::Constant* node,
@@ -176,8 +228,29 @@ class GraphBuilder {
       return maglev::ProcessResult::kContinue;
     }
     if (__ current_block()->IsLoop()) {
-      DCHECK_EQ(input_count, 2);
-      SetMap(node, __ PendingLoopPhi(Map(node->input(0)), rep));
+      DCHECK(state.block()->is_loop());
+      OpIndex first_phi_input;
+      if (state.block()->predecessor_count() > 2) {
+        // This loop has multiple forward edge in Maglev, so we should have
+        // created an intermediate block in Turboshaft, which will be the only
+        // predecessor of the Turboshaft loop, and from which we'll find the
+        // first input for this loop phi.
+        DCHECK_EQ(loop_phis_first_input_.size(),
+                  static_cast<size_t>(state.block()->phis()->LengthForTest()));
+        DCHECK_GE(loop_phis_first_input_index_, 0);
+        DCHECK_LT(loop_phis_first_input_index_, loop_phis_first_input_.size());
+        DCHECK(MapContains(loop_single_edge_predecessors_, state.block()));
+        DCHECK_EQ(loop_single_edge_predecessors_[state.block()],
+                  __ current_block()->LastPredecessor());
+        first_phi_input = loop_phis_first_input_[loop_phis_first_input_index_];
+        loop_phis_first_input_index_++;
+      } else {
+        DCHECK_EQ(input_count, 2);
+        DCHECK_EQ(state.block()->predecessor_count(), 2);
+        DCHECK(loop_phis_first_input_.empty());
+        first_phi_input = Map(node->input(0));
+      }
+      SetMap(node, __ PendingLoopPhi(first_phi_input, rep));
     } else {
       DCHECK(!predecessor_permutation_.empty());
       base::SmallVector<OpIndex, 16> inputs;
@@ -537,7 +610,20 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::Jump* node,
                                 const maglev::ProcessingState& state) {
-    __ Goto(Map(node->target()));
+    Block* destination = Map(node->target());
+    if (node->target()->is_loop() && node->target()->predecessor_count() > 2) {
+      // This loop has multiple forward edge in Maglev, so we'll create an extra
+      // block in Turboshaft that will be the only predecessor.
+      auto it = loop_single_edge_predecessors_.find(node->target());
+      if (it != loop_single_edge_predecessors_.end()) {
+        destination = it->second;
+      } else {
+        Block* loop_only_pred = __ NewBlock();
+        loop_single_edge_predecessors_[node->target()] = loop_only_pred;
+        destination = loop_only_pred;
+      }
+    }
+    __ Goto(destination);
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1208,7 +1294,8 @@ class GraphBuilder {
           __ output_graph().Get(phi_index).Cast<PendingLoopPhiOp>();
       __ output_graph().Replace<PhiOp>(
           phi_index,
-          base::VectorOf({pending_phi.first(), Map(maglev_phi -> input(1))}),
+          base::VectorOf(
+              {pending_phi.first(), Map(maglev_phi -> backedge_input())}),
           pending_phi.rep);
     }
   }
@@ -1353,6 +1440,23 @@ class GraphBuilder {
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
+
+  // Maglev loops can have multiple forward edges, while Turboshaft should only
+  // have a single one. When a Maglev loop has multiple forward edge, we create
+  // an additional Turboshaft block before (which we record in
+  // {loop_single_edge_predecessors_}), and jumps to the loop will instead go to
+  // this additional block, which will become the only forward predecessor of
+  // the loop.
+  ZoneUnorderedMap<maglev::BasicBlock*, Block*> loop_single_edge_predecessors_;
+  // When we create an additional loop predecessor for loops that have multiple
+  // forward predecessors, we store the newly created phis in
+  // {loop_phis_first_input_}, so that we can then use them as the first input
+  // of the original loop phis. {loop_phis_first_input_index_} is used as an
+  // index in {loop_phis_first_input_} in VisitPhi so that we know where to find
+  // the first input for the current loop phi.
+  base::SmallVector<OpIndex, 16> loop_phis_first_input_;
+  int loop_phis_first_input_index_ = -1;
+
   V<Context> native_context_ = OpIndex::Invalid();
   base::SmallVector<int, 16> predecessor_permutation_;
 };

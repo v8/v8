@@ -7578,6 +7578,8 @@ class Phi : public ValueNodeT<Phi> {
     DCHECK_NOT_NULL(merge_state);
   }
 
+  Input& backedge_input() { return input(input_count() - 1); }
+
   interpreter::Register owner() const { return owner_; }
   const MergePointInterpreterFrameState* merge_state() const {
     return merge_state_;
