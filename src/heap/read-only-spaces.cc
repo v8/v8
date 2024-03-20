@@ -323,8 +323,7 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
                           std::move(reservation)) {
   allocated_bytes_ = 0;
-  Chunk()->SetFlagsNonExecutable(MemoryChunk::NEVER_EVACUATE |
-                                 MemoryChunk::READ_ONLY_HEAP);
+  Chunk()->SetFlags(MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP);
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {

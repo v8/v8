@@ -4,7 +4,6 @@
 
 #include "src/heap/memory-chunk.h"
 
-#include "src/common/code-memory-access-inl.h"
 #include "src/heap/base-space.h"
 #include "src/heap/large-page.h"
 #include "src/heap/page.h"
@@ -93,79 +92,9 @@ size_t MemoryChunk::Offset(Address addr) const {
   return addr - address();
 }
 
-size_t MemoryChunk::OffsetMaybeOutOfRange(Address addr) const {
-  DCHECK_GE(addr, Metadata()->area_start());
-  return addr - address();
-}
-
 #endif  // DEBUG
 
-void MemoryChunk::SetFlagSlow(Flag flag) {
-  if (executable()) {
-    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
-    SetFlagUnlocked(flag);
-  } else {
-    SetFlagNonExecutable(flag);
-  }
-}
-
-void MemoryChunk::ClearFlagSlow(Flag flag) {
-  if (executable()) {
-    RwxMemoryWriteScope scope("Clear a MemoryChunk flag in executable memory.");
-    ClearFlagUnlocked(flag);
-  } else {
-    ClearFlagNonExecutable(flag);
-  }
-}
-
 Heap* MemoryChunk::GetHeap() { return Metadata()->heap(); }
-
-void MemoryChunk::SetOldGenerationPageFlags(MarkingMode marking_mode,
-                                            bool in_shared_space) {
-  MainThreadFlags flags_to_set = NO_FLAGS;
-  MainThreadFlags flags_to_clear = NO_FLAGS;
-
-  if (marking_mode == MarkingMode::kMajorMarking) {
-    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
-                    MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                    MemoryChunk::INCREMENTAL_MARKING;
-  } else if (in_shared_space) {
-    // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
-    flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-    // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-    flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                      MemoryChunk::INCREMENTAL_MARKING;
-  } else {
-    flags_to_set |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
-    flags_to_clear |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-    if (marking_mode == MarkingMode::kMinorMarking) {
-      flags_to_set |= MemoryChunk::INCREMENTAL_MARKING;
-    } else {
-      flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
-    }
-  }
-
-  if (executable()) {
-    RwxMemoryWriteScope write_scope(
-        "Set old generation flags in executable memory.");
-    SetFlagsUnlocked(flags_to_set, flags_to_set);
-    ClearFlagsUnlocked(flags_to_clear);
-  } else {
-    SetFlagsNonExecutable(flags_to_set, flags_to_set);
-    ClearFlagsNonExecutable(flags_to_clear);
-  }
-}
-
-void MemoryChunk::SetYoungGenerationPageFlags(MarkingMode marking_mode) {
-  SetFlagNonExecutable(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (marking_mode != MarkingMode::kNoMarking) {
-    SetFlagNonExecutable(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-  } else {
-    ClearFlagNonExecutable(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-  }
-}
 
 }  // namespace internal
 }  // namespace v8

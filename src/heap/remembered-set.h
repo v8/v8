@@ -59,7 +59,7 @@ class RememberedSetOperations {
     if (slot_set != nullptr) {
       MemoryChunk* chunk = page->Chunk();
       uintptr_t start_offset = chunk->Offset(start);
-      uintptr_t end_offset = chunk->OffsetMaybeOutOfRange(end);
+      uintptr_t end_offset = chunk->Offset(end);
       DCHECK_LE(start_offset, end_offset);
       slot_set->RemoveRange(static_cast<int>(start_offset),
                             static_cast<int>(end_offset), page->buckets(),
@@ -74,9 +74,8 @@ class RememberedSetOperations {
       // Both 'end' and 'end_bucket' are exclusive limits, so do some index
       // juggling to make sure we get the right bucket even if the end address
       // is at the start of a bucket.
-      size_t end_bucket = SlotSet::BucketForSlot(
-                              chunk->OffsetMaybeOutOfRange(end) - kTaggedSize) +
-                          1;
+      size_t end_bucket =
+          SlotSet::BucketForSlot(chunk->Offset(end) - kTaggedSize) + 1;
       slot_set->Iterate(
           chunk->address(), start_bucket, end_bucket,
           [start, end](MaybeObjectSlot slot) {

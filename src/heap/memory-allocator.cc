@@ -160,19 +160,24 @@ Address MemoryAllocator::AllocateAlignedMemory(
   Address base = reservation.address();
 
   if (executable == EXECUTABLE) {
-    ThreadIsolation::RegisterJitPage(base, chunk_size);
-    if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base,
+    if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base, area_size,
                                                chunk_size)) {
-      ThreadIsolation::UnregisterJitPage(base, chunk_size);
       return HandleAllocationFailure(EXECUTABLE);
     }
   } else {
-    if (!reservation.SetPermissions(base, chunk_size,
-                                    PageAllocator::kReadWrite)) {
+    // No guard page between page header and object area. This allows us to make
+    // all OS pages for both regions readable+writable at once.
+    const size_t commit_size = ::RoundUp(
+        MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space) + area_size,
+        GetCommitPageSize());
+
+    if (reservation.SetPermissions(base, commit_size,
+                                   PageAllocator::kReadWrite)) {
+      UpdateAllocatedSpaceLimits(base, base + commit_size, NOT_EXECUTABLE);
+    } else {
       return HandleAllocationFailure(NOT_EXECUTABLE);
     }
   }
-  UpdateAllocatedSpaceLimits(base, base + chunk_size, executable);
 
   *controller = std::move(reservation);
   return base;
@@ -190,8 +195,31 @@ Address MemoryAllocator::HandleAllocationFailure(Executability executable) {
 }
 
 size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
-                                         AllocationSpace space) {
+                                         AllocationSpace space,
+                                         Executability executable) {
+  if (executable == EXECUTABLE) {
+    //
+    //             Executable
+    // +----------------------------+<- base aligned at MemoryChunk::kAlignment
+    // |           Header           |
+    // +----------------------------+<- base + CodePageGuardStartOffset
+    // |           Guard            |
+    // +----------------------------+<- area_start_
+    // |           Area             |
+    // +----------------------------+<- area_end_ (area_start + area_size)
+    // |   Committed but not used   |
+    // +----------------------------+<- aligned at OS page boundary
+    // |           Guard            |
+    // +----------------------------+<- base + chunk_size
+    //
+
+    return ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInCodePage() +
+                         area_size + MemoryChunkLayout::CodePageGuardSize(),
+                     GetCommitPageSize());
+  }
+
   //
+  //           Non-executable
   // +----------------------------+<- base aligned at MemoryChunk::kAlignment
   // |          Header            |
   // +----------------------------+<- area_start_ (base + area_start_)
@@ -200,6 +228,7 @@ size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
   // |  Committed but not used    |
   // +----------------------------+<- base + chunk_size
   //
+  DCHECK_EQ(executable, NOT_EXECUTABLE);
 
   return ::RoundUp(
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space) + area_size,
@@ -224,7 +253,8 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
 #endif
 
   VirtualMemory reservation;
-  size_t chunk_size = ComputeChunkSize(area_size, space->identity());
+  size_t chunk_size =
+      ComputeChunkSize(area_size, space->identity(), executable);
   DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
   Address base = AllocateAlignedMemory(
@@ -242,14 +272,27 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
 
   if (heap::ShouldZapGarbage()) {
     if (executable == EXECUTABLE) {
+      // Page header and object area is split by guard page. Zap page header
+      // first.
+      heap::ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(),
+                     kZapValue);
+      // Now zap object area.
+      Address code_start =
+          base + MemoryChunkLayout::ObjectPageOffsetInCodePage();
       CodePageMemoryModificationScopeForDebugging memory_write_scope(
           isolate_->heap(), &reservation,
-          base::AddressRegion(base, chunk_size));
-      heap::ZapBlock(base, chunk_size, kZapValue);
+          base::AddressRegion(code_start,
+                              RoundUp(area_size, GetCommitPageSize())));
+      heap::ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
+                     area_size, kZapValue);
     } else {
       DCHECK_EQ(executable, NOT_EXECUTABLE);
       // Zap both page header and object area at once. No guard page in-between.
-      heap::ZapBlock(base, chunk_size, kZapValue);
+      heap::ZapBlock(
+          base,
+          MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity()) +
+              area_size,
+          kZapValue);
     }
   }
 
@@ -278,7 +321,8 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
-    DCHECK_EQ(chunk->ChunkAddress() + chunk->size(), chunk->area_end());
+    DCHECK_EQ(chunk->ChunkAddress() + chunk->size(),
+              chunk->area_end() + MemoryChunkLayout::CodePageGuardSize());
 
     if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !isolate_->jitless()) {
       DCHECK(isolate_->RequiresCodeRange());
@@ -305,13 +349,12 @@ void MemoryAllocator::UnregisterSharedBasicMemoryChunk(
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterBasicMemoryChunk(
-    MemoryChunkMetadata* chunk_metadata, Executability executable) {
-  MemoryChunk* chunk = chunk_metadata->Chunk();
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
-  VirtualMemory* reservation = chunk_metadata->reserved_memory();
+void MemoryAllocator::UnregisterBasicMemoryChunk(MemoryChunkMetadata* chunk,
+                                                 Executability executable) {
+  DCHECK(!chunk->Chunk()->IsFlagSet(MemoryChunk::UNREGISTERED));
+  VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
-      reservation->IsReserved() ? reservation->size() : chunk_metadata->size();
+      reservation->IsReserved() ? reservation->size() : chunk->size();
   DCHECK_GE(size_, static_cast<size_t>(size));
 
   size_ -= size;
@@ -319,14 +362,17 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
 #ifdef DEBUG
-    UnregisterExecutableMemoryChunk(
-        static_cast<MutablePageMetadata*>(chunk_metadata));
+    UnregisterExecutableMemoryChunk(static_cast<MutablePageMetadata*>(chunk));
 #endif  // DEBUG
 
-    ThreadIsolation::UnregisterJitPage(chunk->address(),
-                                       chunk_metadata->size());
+    Address executable_page_start =
+        chunk->ChunkAddress() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+    size_t aligned_area_size =
+        RoundUp(chunk->area_end() - executable_page_start, GetCommitPageSize());
+    ThreadIsolation::UnregisterJitPage(executable_page_start,
+                                       aligned_area_size);
   }
-  chunk->SetFlagSlow(MemoryChunk::UNREGISTERED);
+  chunk->Chunk()->SetFlag(MemoryChunk::UNREGISTERED);
 }
 
 void MemoryAllocator::UnregisterMemoryChunk(MutablePageMetadata* chunk) {
@@ -365,7 +411,7 @@ void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
   isolate_->heap()->RememberUnmappedPage(
       reinterpret_cast<Address>(chunk_metadata),
       chunk->IsEvacuationCandidate());
-  chunk->SetFlagSlow(MemoryChunk::PRE_FREED);
+  chunk->SetFlag(MemoryChunk::PRE_FREED);
 }
 
 void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
@@ -443,13 +489,8 @@ PageMetadata* MemoryAllocator::AllocatePage(
                                 chunk_info->area_start, chunk_info->area_end,
                                 std::move(chunk_info->reservation));
   }
-  MemoryChunk* chunk;
-  if (executable) {
-    RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
-  } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
-  }
+  MemoryChunk* chunk =
+      new (chunk_info->chunk) MemoryChunk(metadata, executable);
 
 #ifdef DEBUG
   if (chunk->executable()) RegisterExecutableMemoryChunk(metadata);
@@ -504,13 +545,8 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(
         isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
         chunk_info->area_end, std::move(chunk_info->reservation), executable);
   }
-  MemoryChunk* chunk;
-  if (executable) {
-    RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
-  } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
-  }
+  MemoryChunk* chunk =
+      new (chunk_info->chunk) MemoryChunk(metadata, executable);
 
 #ifdef DEBUG
   if (chunk->executable()) RegisterExecutableMemoryChunk(metadata);
@@ -568,27 +604,102 @@ base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
 
 bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
                                                             Address start,
+                                                            size_t area_size,
                                                             size_t chunk_size) {
+  const size_t page_size = GetCommitPageSize();
+
+  // The code area starts at an offset on the first page. To calculate the page
+  // aligned size of the area, we have to add that offset and then round up to
+  // commit page size.
+  size_t area_offset = MemoryChunkLayout::ObjectStartOffsetInCodePage() -
+                       MemoryChunkLayout::ObjectPageOffsetInCodePage();
+  size_t aligned_area_size = RoundUp(area_offset + area_size, page_size);
+
   // All addresses and sizes must be aligned to the commit page size.
-  DCHECK(IsAligned(start, GetCommitPageSize()));
-  DCHECK_EQ(0, chunk_size % GetCommitPageSize());
+  DCHECK(IsAligned(start, page_size));
+  DCHECK_EQ(0, chunk_size % page_size);
+
+  const size_t guard_size = MemoryChunkLayout::CodePageGuardSize();
+  const size_t pre_guard_offset = MemoryChunkLayout::CodePageGuardStartOffset();
+  const size_t code_area_offset =
+      MemoryChunkLayout::ObjectPageOffsetInCodePage();
+
+  DCHECK_EQ(pre_guard_offset + guard_size + aligned_area_size + guard_size,
+            chunk_size);
+
+  const Address pre_guard_page = start + pre_guard_offset;
+  const Address code_area = start + code_area_offset;
+  const Address post_guard_page = start + chunk_size - guard_size;
 
   bool jitless = isolate_->jitless();
 
+  ThreadIsolation::RegisterJitPage(code_area, aligned_area_size);
+
   if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
     DCHECK(isolate_->RequiresCodeRange());
-    return vm->RecommitPages(start, chunk_size,
-                             PageAllocator::kReadWriteExecute);
-  } else if (ThreadIsolation::Enabled()) {
-    DCHECK(!jitless);
+    // Commit the header, from start to pre-code guard page.
+    // We have to commit it as executable becase otherwise we'll not be able
+    // to change permissions to anything else.
+    if (vm->RecommitPages(start, pre_guard_offset,
+                          PageAllocator::kReadWriteExecute)) {
+      // Create the pre-code guard page, following the header.
+      if (vm->DiscardSystemPages(pre_guard_page, page_size)) {
+        // Commit the executable code body.
+        if (vm->RecommitPages(code_area, aligned_area_size,
+                              PageAllocator::kReadWriteExecute)) {
+          // Create the post-code guard page.
+          if (vm->DiscardSystemPages(post_guard_page, page_size)) {
+            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size,
+                                       EXECUTABLE);
+            return true;
+          }
 
-    return ThreadIsolation::MakeExecutable(start, chunk_size);
+          vm->DiscardSystemPages(code_area, aligned_area_size);
+        }
+      }
+      vm->DiscardSystemPages(start, pre_guard_offset);
+    }
+
   } else {
-    return vm->SetPermissions(
-        start, chunk_size,
-        jitless ? PageAllocator::kReadWrite
-                : MutablePageMetadata::GetCodeModificationPermission());
+    // Commit the non-executable header, from start to pre-code guard page.
+    if (vm->SetPermissions(start, pre_guard_offset,
+                           PageAllocator::kReadWrite)) {
+      // Create the pre-code guard page, following the header.
+      if (vm->SetPermissions(pre_guard_page, page_size,
+                             PageAllocator::kNoAccess)) {
+        // Commit the executable code body.
+        bool set_permission_successed = false;
+        if (ThreadIsolation::Enabled()) {
+          DCHECK(!jitless);
+          set_permission_successed =
+              ThreadIsolation::MakeExecutable(code_area, aligned_area_size);
+
+        } else {
+          set_permission_successed = vm->SetPermissions(
+              code_area, aligned_area_size,
+              jitless ? PageAllocator::kReadWrite
+                      : MutablePageMetadata::GetCodeModificationPermission());
+        }
+        if (set_permission_successed) {
+          // Create the post-code guard page.
+          if (vm->SetPermissions(post_guard_page, page_size,
+                                 PageAllocator::kNoAccess)) {
+            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size,
+                                       EXECUTABLE);
+            return true;
+          }
+
+          CHECK(vm->SetPermissions(code_area, aligned_area_size,
+                                   PageAllocator::kNoAccess));
+        }
+      }
+      CHECK(vm->SetPermissions(start, pre_guard_offset,
+                               PageAllocator::kNoAccess));
+    }
   }
+
+  ThreadIsolation::UnregisterJitPage(code_area, aligned_area_size);
+  return false;
 }
 
 #if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)

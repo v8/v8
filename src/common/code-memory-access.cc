@@ -395,8 +395,18 @@ void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
 }
 
 void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
-  // TODO(sroettger): merge the write scopes higher up.
   RwxMemoryWriteScope write_scope("Removing executable memory.");
+
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  if (Enabled()) {
+    // Remove the pkey tag in case this page will be reused later for
+    // non-executable memory. This can happen if a JS large page gets freed and
+    // regular pages get allocated in its place.
+    CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+        {address, size}, PageAllocator::Permission::kNoAccess,
+        base::MemoryProtectionKey::kDefaultProtectionKey));
+  }
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
   JitPage* to_delete;
   {
