@@ -387,8 +387,11 @@ void MaglevConcurrentDispatcher::AwaitCompileJobs() {
         [this]() { job_handle_->Join(); });
   }
   // Join kills the job handle, so drop it and post a new one.
+  TaskPriority priority = v8_flags.concurrent_maglev_high_priority_threads
+                              ? TaskPriority::kUserBlocking
+                              : TaskPriority::kUserVisible;
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
+      priority, std::make_unique<JobTask>(this));
   DCHECK(incoming_queue_.IsEmpty());
 }
 
