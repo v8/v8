@@ -928,75 +928,83 @@ struct FastObject {
 // Encoding of a fast allocation site literal value.
 struct FastField {
   FastField() : type(kUninitialized) {}
+  explicit FastField(ValueNode* value)
+      : type(kRuntimeValue), runtime_value(value) {}
   explicit FastField(FastObject object) : type(kObject), object(object) {}
   explicit FastField(Float64 mutable_double_value)
       : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
   explicit FastField(compiler::ObjectRef constant_value)
       : type(kConstant), constant_value(constant_value) {}
 
-  enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
+  enum {
+    kUninitialized,
+    kRuntimeValue,
+    kObject,
+    kMutableDouble,
+    kConstant
+  } type;
 
   bool IsInitialized();
 
   union {
     char uninitialized_marker;
+    ValueNode* runtime_value;
     FastObject object;
     Float64 mutable_double_value;
     compiler::ObjectRef constant_value;
   };
 };
 
-struct FastSloppyArgumentsElements {
-  FastSloppyArgumentsElements(int id, int mapped_count, ValueNode* context,
-                              ArgumentsElements* unmapped_elements)
+struct FastRuntimeUnmappedArgumentsElements {
+  ArgumentsElements* value;
+  ValueNode* length;
+};
+
+enum class FastUnmappedArgumentsElementsType {
+  kRuntimeValue,
+  kStaticValue,
+};
+
+using FastUnmappedArgumentsElements =
+    base::DiscriminatedUnion<FastUnmappedArgumentsElementsType,
+                             FastRuntimeUnmappedArgumentsElements,
+                             FastFixedArray>;
+
+struct FastMappedArgumentsElements {
+  FastMappedArgumentsElements(int id, int mapped_count, ValueNode* context,
+                              FastUnmappedArgumentsElements unmapped_elements)
       : id(id),
         mapped_count(mapped_count),
         context(context),
-        unmapped_elements(unmapped_elements) {}
+        unmapped_elements({unmapped_elements}) {}
   int id;
   int mapped_count;
   ValueNode* context;
-  ArgumentsElements* unmapped_elements;
+  FastUnmappedArgumentsElements unmapped_elements;
 };
+
+enum class FastArgumentsElementsType {
+  kUnmapped,
+  kMapped,
+};
+
+using FastArgumentsElements =
+    base::DiscriminatedUnion<FastArgumentsElementsType,
+                             FastUnmappedArgumentsElements,
+                             FastMappedArgumentsElements>;
 
 struct FastArgumentsObject {
-  enum Type {
-    kDefault,
-    kSloppyWithMappedArguments,
-  };
-
-  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
-                      ArgumentsElements* elements,
-                      base::Optional<ValueNode*> callee_or_rest_length = {})
-      : id(id),
-        type(kDefault),
-        map(map),
-        length(length),
-        elements(elements),
-        callee_or_rest_length(callee_or_rest_length) {}
-
-  FastArgumentsObject(int id, compiler::MapRef map, ValueNode* length,
-                      FastSloppyArgumentsElements sloppy_elements,
-                      ValueNode* callee = {})
-      : id(id),
-        type(kSloppyWithMappedArguments),
-        map(map),
-        length(length),
-        sloppy_elements(sloppy_elements),
-        callee_or_rest_length(callee) {}
+  FastArgumentsObject(int id, compiler::MapRef map,
+                      FastArgumentsElements elements,
+                      base::Optional<ValueNode*> callee = {})
+      : id(id), map(map), elements({elements}), callee(callee) {}
 
   int id;
-  Type type;
   compiler::MapRef map;
-  ValueNode* length;
-  union {
-    ArgumentsElements* elements;
-    FastSloppyArgumentsElements sloppy_elements;
-  };
-  base::Optional<ValueNode*> callee_or_rest_length;
+  FastArgumentsElements elements;
+  base::Optional<ValueNode*> callee;
 };
 
-// Either a fast object, a number or a fast fixed array.
 struct DeoptObject {
   explicit DeoptObject(FastObject object) : type(kObject), object(object) {}
   explicit DeoptObject(FastFixedArray fixed_array)
@@ -1004,16 +1012,22 @@ struct DeoptObject {
   explicit DeoptObject(Float64 number) : type(kNumber), number(number) {}
   explicit DeoptObject(FastArgumentsObject arguments)
       : type(kArguments), arguments(arguments) {}
-  explicit DeoptObject(FastSloppyArgumentsElements sloppy_elements)
-      : type(kSloppyElements), sloppy_elements(sloppy_elements) {}
+  explicit DeoptObject(FastMappedArgumentsElements mapped_elements)
+      : type(kMappedArgumentsElements), mapped_elements(mapped_elements) {}
 
-  enum { kObject, kNumber, kFixedArray, kArguments, kSloppyElements } type;
+  enum {
+    kObject,
+    kNumber,
+    kFixedArray,
+    kArguments,
+    kMappedArgumentsElements
+  } type;
   union {
     FastObject object;
     FastFixedArray fixed_array;
     Float64 number;
     FastArgumentsObject arguments;
-    FastSloppyArgumentsElements sloppy_elements;
+    FastMappedArgumentsElements mapped_elements;
   };
 };
 
