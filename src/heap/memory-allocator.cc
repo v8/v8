@@ -428,18 +428,22 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       PreFreeMemory(chunk_metadata);
       PerformFreeMemory(chunk_metadata);
       break;
-    case FreeMode::kPostpone:
-      PreFreeMemory(chunk_metadata);
-      // Record page to be freed later.
-      queued_pages_to_be_freed_.push_back(chunk_metadata);
-      break;
     case FreeMode::kPool:
       DCHECK_EQ(chunk_metadata->size(),
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
+      if (!v8_flags.minor_ms) {
+        PreFreeMemory(chunk_metadata);
+        // The chunks added to this queue will be cached until memory reducing
+        // GC.
+        pool()->Add(chunk_metadata);
+        break;
+      }
+      [[fallthrough]];
+    case FreeMode::kPostpone:
       PreFreeMemory(chunk_metadata);
-      // The chunks added to this queue will be cached until memory reducing GC.
-      pool()->Add(chunk_metadata);
+      // Record page to be freed later.
+      queued_pages_to_be_freed_.push_back(chunk_metadata);
       break;
   }
 }
