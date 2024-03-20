@@ -6941,6 +6941,20 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+#define FOREACH_SIMD_128_BINARY_SIGN_EXTENSION_OPCODE(V) \
+  V(I16x8ExtMulLowI8x16S)                                \
+  V(I16x8ExtMulHighI8x16S)                               \
+  V(I16x8ExtMulLowI8x16U)                                \
+  V(I16x8ExtMulHighI8x16U)                               \
+  V(I32x4ExtMulLowI16x8S)                                \
+  V(I32x4ExtMulHighI16x8S)                               \
+  V(I32x4ExtMulLowI16x8U)                                \
+  V(I32x4ExtMulHighI16x8U)                               \
+  V(I64x2ExtMulLowI32x4S)                                \
+  V(I64x2ExtMulHighI32x4S)                               \
+  V(I64x2ExtMulLowI32x4U)                                \
+  V(I64x2ExtMulHighI32x4U)
+
 #define FOREACH_SIMD_128_BINARY_BASIC_OPCODE(V) \
   V(I8x16Eq)                                    \
   V(I8x16Ne)                                    \
@@ -7000,10 +7014,6 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(I16x8MaxS)                                  \
   V(I16x8MaxU)                                  \
   V(I16x8RoundingAverageU)                      \
-  V(I16x8ExtMulLowI8x16S)                       \
-  V(I16x8ExtMulHighI8x16S)                      \
-  V(I16x8ExtMulLowI8x16U)                       \
-  V(I16x8ExtMulHighI8x16U)                      \
   V(I32x4Add)                                   \
   V(I32x4Sub)                                   \
   V(I32x4Mul)                                   \
@@ -7012,10 +7022,6 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(I32x4MaxS)                                  \
   V(I32x4MaxU)                                  \
   V(I32x4DotI16x8S)                             \
-  V(I32x4ExtMulLowI16x8S)                       \
-  V(I32x4ExtMulHighI16x8S)                      \
-  V(I32x4ExtMulLowI16x8U)                       \
-  V(I32x4ExtMulHighI16x8U)                      \
   V(I64x2Add)                                   \
   V(I64x2Sub)                                   \
   V(I64x2Mul)                                   \
@@ -7023,10 +7029,6 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(I64x2Ne)                                    \
   V(I64x2GtS)                                   \
   V(I64x2GeS)                                   \
-  V(I64x2ExtMulLowI32x4S)                       \
-  V(I64x2ExtMulHighI32x4S)                      \
-  V(I64x2ExtMulLowI32x4U)                       \
-  V(I64x2ExtMulHighI32x4U)                      \
   V(F32x4Add)                                   \
   V(F32x4Sub)                                   \
   V(F32x4Mul)                                   \
@@ -7048,7 +7050,8 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(F64x2RelaxedMin)                            \
   V(F64x2RelaxedMax)                            \
   V(I16x8RelaxedQ15MulRS)                       \
-  V(I16x8DotI8x16I7x16S)
+  V(I16x8DotI8x16I7x16S)                        \
+  FOREACH_SIMD_128_BINARY_SIGN_EXTENSION_OPCODE(V)
 
 #define FOREACH_SIMD_128_BINARY_SPECIAL_OPCODE(V) \
   V(I8x16Swizzle)                                 \
@@ -7105,6 +7108,20 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd128BinopOp::Kind kind);
 
+#define FOREACH_SIMD_128_UNARY_SIGN_EXTENSION_OPCODE(V) \
+  V(I16x8SConvertI8x16Low)                              \
+  V(I16x8SConvertI8x16High)                             \
+  V(I16x8UConvertI8x16Low)                              \
+  V(I16x8UConvertI8x16High)                             \
+  V(I32x4SConvertI16x8Low)                              \
+  V(I32x4SConvertI16x8High)                             \
+  V(I32x4UConvertI16x8Low)                              \
+  V(I32x4UConvertI16x8High)                             \
+  V(I64x2SConvertI32x4Low)                              \
+  V(I64x2SConvertI32x4High)                             \
+  V(I64x2UConvertI32x4Low)                              \
+  V(I64x2UConvertI32x4High)
+
 #define FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \
   V(S128Not)                                          \
   V(F32x4DemoteF64x2Zero)                             \
@@ -7118,22 +7135,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(I32x4ExtAddPairwiseI16x8U)                        \
   V(I16x8Abs)                                         \
   V(I16x8Neg)                                         \
-  V(I16x8SConvertI8x16Low)                            \
-  V(I16x8SConvertI8x16High)                           \
-  V(I16x8UConvertI8x16Low)                            \
-  V(I16x8UConvertI8x16High)                           \
   V(I32x4Abs)                                         \
   V(I32x4Neg)                                         \
-  V(I32x4SConvertI16x8Low)                            \
-  V(I32x4SConvertI16x8High)                           \
-  V(I32x4UConvertI16x8Low)                            \
-  V(I32x4UConvertI16x8High)                           \
   V(I64x2Abs)                                         \
   V(I64x2Neg)                                         \
-  V(I64x2SConvertI32x4Low)                            \
-  V(I64x2SConvertI32x4High)                           \
-  V(I64x2UConvertI32x4Low)                            \
-  V(I64x2UConvertI32x4High)                           \
   V(F32x4Abs)                                         \
   V(F32x4Neg)                                         \
   V(F32x4Sqrt)                                        \
@@ -7151,7 +7156,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(I32x4RelaxedTruncF32x4S)                          \
   V(I32x4RelaxedTruncF32x4U)                          \
   V(I32x4RelaxedTruncF64x2SZero)                      \
-  V(I32x4RelaxedTruncF64x2UZero)
+  V(I32x4RelaxedTruncF64x2UZero)                      \
+  FOREACH_SIMD_128_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 #define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V)                             \
   V(F32x4Ceil)                                                                \
@@ -7836,14 +7842,23 @@ struct Simd256LoadTransformOp
   V(F32x8Sqrt)                           \
   V(F64x4Sqrt)                           \
   V(I32x8UConvertF32x8)                  \
-  V(F32x8UConvertI32x8)
+  V(F32x8UConvertI32x8)                  \
+  V(I16x16SConvertI8x16)                 \
+  V(I16x16UConvertI8x16)                 \
+  V(I32x8SConvertI16x8)                  \
+  V(I32x8UConvertI16x8)                  \
+  V(I64x4SConvertI32x4)                  \
+  V(I64x4UConvertI32x4)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
+  // clang-format off
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_256_UNARY_OPCODE(DEFINE_KIND)
+    kFirstSignExtensionOp = kI16x16SConvertI8x16,
 #undef DEFINE_KIND
   };
+  // clang-format on
 
   Kind kind;
 
@@ -7855,7 +7870,11 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<RegisterRepresentation::Simd256()>();
+    if (kind >= Kind::kFirstSignExtensionOp) {
+      return MaybeRepVector<RegisterRepresentation::Simd128()>();
+    } else {
+      return MaybeRepVector<RegisterRepresentation::Simd256()>();
+    }
   }
 
   Simd256UnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
@@ -7868,105 +7887,111 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
 };
 std::ostream& operator<<(std::ostream& os, Simd256UnaryOp::Kind kind);
 
-#define FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V) \
-  V(I8x32Eq)                                    \
-  V(I8x32Ne)                                    \
-  V(I8x32GtS)                                   \
-  V(I8x32GtU)                                   \
-  V(I8x32GeS)                                   \
-  V(I8x32GeU)                                   \
-  V(I16x16Eq)                                   \
-  V(I16x16Ne)                                   \
-  V(I16x16GtS)                                  \
-  V(I16x16GtU)                                  \
-  V(I16x16GeS)                                  \
-  V(I16x16GeU)                                  \
-  V(I32x8Eq)                                    \
-  V(I32x8Ne)                                    \
-  V(I32x8GtS)                                   \
-  V(I32x8GtU)                                   \
-  V(I32x8GeS)                                   \
-  V(I32x8GeU)                                   \
-  V(F32x8Eq)                                    \
-  V(F32x8Ne)                                    \
-  V(F32x8Lt)                                    \
-  V(F32x8Le)                                    \
-  V(F64x4Eq)                                    \
-  V(F64x4Ne)                                    \
-  V(F64x4Lt)                                    \
-  V(F64x4Le)                                    \
-  V(S256And)                                    \
-  V(S256AndNot)                                 \
-  V(S256Or)                                     \
-  V(S256Xor)                                    \
-  V(I8x32SConvertI16x16)                        \
-  V(I8x32UConvertI16x16)                        \
-  V(I8x32Add)                                   \
-  V(I8x32AddSatS)                               \
-  V(I8x32AddSatU)                               \
-  V(I8x32Sub)                                   \
-  V(I8x32SubSatS)                               \
-  V(I8x32SubSatU)                               \
-  V(I8x32MinS)                                  \
-  V(I8x32MinU)                                  \
-  V(I8x32MaxS)                                  \
-  V(I8x32MaxU)                                  \
-  V(I8x32RoundingAverageU)                      \
-  V(I16x16SConvertI32x8)                        \
-  V(I16x16UConvertI32x8)                        \
-  V(I16x16Add)                                  \
-  V(I16x16AddSatS)                              \
-  V(I16x16AddSatU)                              \
-  V(I16x16Sub)                                  \
-  V(I16x16SubSatS)                              \
-  V(I16x16SubSatU)                              \
-  V(I16x16Mul)                                  \
-  V(I16x16MinS)                                 \
-  V(I16x16MinU)                                 \
-  V(I16x16MaxS)                                 \
-  V(I16x16MaxU)                                 \
-  V(I16x16RoundingAverageU)                     \
-  V(I32x8Add)                                   \
-  V(I32x8Sub)                                   \
-  V(I32x8Mul)                                   \
-  V(I32x8MinS)                                  \
-  V(I32x8MinU)                                  \
-  V(I32x8MaxS)                                  \
-  V(I32x8MaxU)                                  \
-  V(I32x8DotI16x16S)                            \
-  V(I64x4Add)                                   \
-  V(I64x4Sub)                                   \
-  V(I64x4Mul)                                   \
-  V(I64x4Eq)                                    \
-  V(I64x4Ne)                                    \
-  V(I64x4GtS)                                   \
-  V(I64x4GeS)                                   \
-  V(F32x8Add)                                   \
-  V(F32x8Sub)                                   \
-  V(F32x8Mul)                                   \
-  V(F32x8Div)                                   \
-  V(F32x8Min)                                   \
-  V(F32x8Max)                                   \
-  V(F32x8Pmin)                                  \
-  V(F32x8Pmax)                                  \
-  V(F64x4Add)                                   \
-  V(F64x4Sub)                                   \
-  V(F64x4Mul)                                   \
-  V(F64x4Div)                                   \
-  V(F64x4Min)                                   \
-  V(F64x4Max)                                   \
-  V(F64x4Pmin)                                  \
-  V(F64x4Pmax)
-
 #define FOREACH_SIMD_256_BINARY_OPCODE(V) \
-  FOREACH_SIMD_256_BINARY_BASIC_OPCODE(V)
+  V(I8x32Eq)                              \
+  V(I8x32Ne)                              \
+  V(I8x32GtS)                             \
+  V(I8x32GtU)                             \
+  V(I8x32GeS)                             \
+  V(I8x32GeU)                             \
+  V(I16x16Eq)                             \
+  V(I16x16Ne)                             \
+  V(I16x16GtS)                            \
+  V(I16x16GtU)                            \
+  V(I16x16GeS)                            \
+  V(I16x16GeU)                            \
+  V(I32x8Eq)                              \
+  V(I32x8Ne)                              \
+  V(I32x8GtS)                             \
+  V(I32x8GtU)                             \
+  V(I32x8GeS)                             \
+  V(I32x8GeU)                             \
+  V(F32x8Eq)                              \
+  V(F32x8Ne)                              \
+  V(F32x8Lt)                              \
+  V(F32x8Le)                              \
+  V(F64x4Eq)                              \
+  V(F64x4Ne)                              \
+  V(F64x4Lt)                              \
+  V(F64x4Le)                              \
+  V(S256And)                              \
+  V(S256AndNot)                           \
+  V(S256Or)                               \
+  V(S256Xor)                              \
+  V(I8x32SConvertI16x16)                  \
+  V(I8x32UConvertI16x16)                  \
+  V(I8x32Add)                             \
+  V(I8x32AddSatS)                         \
+  V(I8x32AddSatU)                         \
+  V(I8x32Sub)                             \
+  V(I8x32SubSatS)                         \
+  V(I8x32SubSatU)                         \
+  V(I8x32MinS)                            \
+  V(I8x32MinU)                            \
+  V(I8x32MaxS)                            \
+  V(I8x32MaxU)                            \
+  V(I8x32RoundingAverageU)                \
+  V(I16x16SConvertI32x8)                  \
+  V(I16x16UConvertI32x8)                  \
+  V(I16x16Add)                            \
+  V(I16x16AddSatS)                        \
+  V(I16x16AddSatU)                        \
+  V(I16x16Sub)                            \
+  V(I16x16SubSatS)                        \
+  V(I16x16SubSatU)                        \
+  V(I16x16Mul)                            \
+  V(I16x16MinS)                           \
+  V(I16x16MinU)                           \
+  V(I16x16MaxS)                           \
+  V(I16x16MaxU)                           \
+  V(I16x16RoundingAverageU)               \
+  V(I32x8Add)                             \
+  V(I32x8Sub)                             \
+  V(I32x8Mul)                             \
+  V(I32x8MinS)                            \
+  V(I32x8MinU)                            \
+  V(I32x8MaxS)                            \
+  V(I32x8MaxU)                            \
+  V(I32x8DotI16x16S)                      \
+  V(I64x4Add)                             \
+  V(I64x4Sub)                             \
+  V(I64x4Mul)                             \
+  V(I64x4Eq)                              \
+  V(I64x4Ne)                              \
+  V(I64x4GtS)                             \
+  V(I64x4GeS)                             \
+  V(F32x8Add)                             \
+  V(F32x8Sub)                             \
+  V(F32x8Mul)                             \
+  V(F32x8Div)                             \
+  V(F32x8Min)                             \
+  V(F32x8Max)                             \
+  V(F32x8Pmin)                            \
+  V(F32x8Pmax)                            \
+  V(F64x4Add)                             \
+  V(F64x4Sub)                             \
+  V(F64x4Mul)                             \
+  V(F64x4Div)                             \
+  V(F64x4Min)                             \
+  V(F64x4Max)                             \
+  V(F64x4Pmin)                            \
+  V(F64x4Pmax)                            \
+  V(I64x4ExtMulI32x4S)                    \
+  V(I64x4ExtMulI32x4U)                    \
+  V(I32x8ExtMulI16x8S)                    \
+  V(I32x8ExtMulI16x8U)                    \
+  V(I16x16ExtMulI8x16S)                   \
+  V(I16x16ExtMulI8x16U)
 
 struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
+  // clang-format off
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
     FOREACH_SIMD_256_BINARY_OPCODE(DEFINE_KIND)
+    kFirstSignExtensionOp = kI64x4ExtMulI32x4S,
 #undef DEFINE_KIND
   };
+  // clang-format on
 
   Kind kind;
 
@@ -7978,8 +8003,13 @@ struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<RegisterRepresentation::Simd256(),
-                          RegisterRepresentation::Simd256()>();
+    if (kind >= Kind::kFirstSignExtensionOp) {
+      return MaybeRepVector<RegisterRepresentation::Simd128(),
+                            RegisterRepresentation::Simd128()>();
+    } else {
+      return MaybeRepVector<RegisterRepresentation::Simd256(),
+                            RegisterRepresentation::Simd256()>();
+    }
   }
 
   Simd256BinopOp(OpIndex left, OpIndex right, Kind kind)

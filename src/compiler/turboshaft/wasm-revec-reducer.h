@@ -29,7 +29,7 @@ namespace v8::internal::compiler::turboshaft {
   V(32Splat, 32Splat)               \
   V(64Splat, 64Splat)
 
-#define SIMD256_UNARY_OP(V)                                \
+#define SIMD256_UNARY_SIMPLE_OP(V)                         \
   V(S128Not, S256Not)                                      \
   V(I8x16Abs, I8x32Abs)                                    \
   V(I8x16Neg, I8x32Neg)                                    \
@@ -47,6 +47,14 @@ namespace v8::internal::compiler::turboshaft {
   V(F64x2Sqrt, F64x4Sqrt)                                  \
   V(I32x4UConvertF32x4, I32x8UConvertF32x8)                \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8)
+
+#define SIMD256_UNARY_SIGN_EXTENSION_OP(V)                              \
+  V(I64x2SConvertI32x4Low, I64x4SConvertI32x4, I64x2SConvertI32x4High)  \
+  V(I64x2UConvertI32x4Low, I64x4UConvertI32x4, I64x2UConvertI32x4High)  \
+  V(I32x4SConvertI16x8Low, I32x8SConvertI16x8, I32x4SConvertI16x8High)  \
+  V(I32x4UConvertI16x8Low, I32x8UConvertI16x8, I32x4UConvertI16x8High)  \
+  V(I16x8SConvertI8x16Low, I16x16SConvertI8x16, I16x8SConvertI8x16High) \
+  V(I16x8UConvertI8x16Low, I16x16UConvertI8x16, I16x8UConvertI8x16High)
 
 #define SIMD256_BINOP_SIMPLE_OP(V)                 \
   V(I8x16Eq, I8x32Eq)                              \
@@ -137,6 +145,14 @@ namespace v8::internal::compiler::turboshaft {
   V(F64x2Max, F64x4Max)                            \
   V(F64x2Pmin, F64x4Pmin)                          \
   V(F64x2Pmax, F64x4Pmax)
+
+#define SIMD256_BINOP_SIGN_EXTENSION_OP(V)                           \
+  V(I16x8ExtMulLowI8x16S, I16x16ExtMulI8x16S, I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U, I16x16ExtMulI8x16U, I16x8ExtMulHighI8x16U) \
+  V(I32x4ExtMulLowI16x8S, I32x8ExtMulI16x8S, I32x4ExtMulHighI16x8S)  \
+  V(I32x4ExtMulLowI16x8U, I32x8ExtMulI16x8U, I32x4ExtMulHighI16x8U)  \
+  V(I64x2ExtMulLowI32x4S, I64x4ExtMulI32x4S, I64x2ExtMulHighI32x4S)  \
+  V(I64x2ExtMulLowI32x4U, I64x4ExtMulI32x4U, I64x2ExtMulHighI32x4U)
 
 #define SIMD256_SHIFT_OP(V) \
   V(I16x8Shl, I16x16Shl)    \
@@ -422,8 +438,14 @@ class WasmRevecReducer : public Next {
       // Skip revectorized node.
       if (!og_index.valid()) {
         auto input = analyzer_.GetReduced(unary.input());
-        og_index = __ Simd256Unary(V<Simd256>::Cast(input),
-                                   GetSimd256UnaryKind(unary.kind));
+        if (!input.valid()) {
+          input = __ MapToNewGraph(unary.input());
+          og_index = __ Simd256Unary(V<Simd128>::Cast(input),
+                                     GetSimd256UnaryKind(unary.kind));
+        } else {
+          og_index = __ Simd256Unary(V<Simd256>::Cast(input),
+                                     GetSimd256UnaryKind(unary.kind));
+        }
         pnode->SetRevectorizedNode(og_index);
       }
       return GetExtractOpIfNeeded(pnode, ig_index, og_index);
@@ -439,7 +461,17 @@ class WasmRevecReducer : public Next {
       if (!og_index.valid()) {
         auto left = analyzer_.GetReduced(op.left());
         auto right = analyzer_.GetReduced(op.right());
-        og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+        if (!left.valid() || !right.valid()) {
+          left = __ MapToNewGraph(op.left());
+          right = __ MapToNewGraph(op.right());
+          og_index =
+              __ Simd256Binop(V<Simd128>::Cast(left), V<Simd128>::Cast(right),
+                              GetSimd256BinOpKind(op.kind));
+        } else {
+          og_index =
+              __ Simd256Binop(V<Simd256>::Cast(left), V<Simd256>::Cast(right),
+                              GetSimd256BinOpKind(op.kind));
+        }
         pnode->SetRevectorizedNode(og_index);
       }
       return GetExtractOpIfNeeded(pnode, ig_index, og_index);
@@ -497,8 +529,16 @@ class WasmRevecReducer : public Next {
 #define UNOP_KIND_MAPPING(from, to)   \
   case Simd128UnaryOp::Kind::k##from: \
     return Simd256UnaryOp::Kind::k##to;
-      SIMD256_UNARY_OP(UNOP_KIND_MAPPING)
+      SIMD256_UNARY_SIMPLE_OP(UNOP_KIND_MAPPING)
 #undef UNOP_KIND_MAPPING
+
+#define SIGN_EXTENSION_UNOP_KIND_MAPPING(from_1, to, from_2) \
+  case Simd128UnaryOp::Kind::k##from_1:                      \
+    return Simd256UnaryOp::Kind::k##to;                      \
+  case Simd128UnaryOp::Kind::k##from_2:                      \
+    return Simd256UnaryOp::Kind::k##to;
+      SIMD256_UNARY_SIGN_EXTENSION_OP(SIGN_EXTENSION_UNOP_KIND_MAPPING)
+#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }
@@ -511,6 +551,14 @@ class WasmRevecReducer : public Next {
     return Simd256BinopOp::Kind::k##to;
       SIMD256_BINOP_SIMPLE_OP(BINOP_KIND_MAPPING)
 #undef BINOP_KIND_MAPPING
+
+#define SIGN_EXTENSION_BINOP_KIND_MAPPING(from_1, to, from_2) \
+  case Simd128BinopOp::Kind::k##from_1:                       \
+    return Simd256BinopOp::Kind::k##to;                       \
+  case Simd128BinopOp::Kind::k##from_2:                       \
+    return Simd256BinopOp::Kind::k##to;
+      SIMD256_BINOP_SIGN_EXTENSION_OP(SIGN_EXTENSION_BINOP_KIND_MAPPING)
+#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }

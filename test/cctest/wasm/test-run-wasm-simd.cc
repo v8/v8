@@ -2752,6 +2752,101 @@ WASM_EXEC_TEST(I64x2ExtMulHighI32x4U) {
                                     MulHalf::kHigh);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename S, typename T, typename OpType = T (*)(S, S)>
+void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                        OpType expected_op,
+                        compiler::IrOpcode::Value revec_opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "extended integer multiplication");
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  uint32_t count = 4 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+  // Build fn perform extmul on two 128 bit vectors a and b, store the result in
+  // c:
+  //   simd128 *a,*b,*c;
+  //   *c = *a op_low *b;
+  //   *(c+1) = *a op_high *b;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, revec_opcode,
+      WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+      WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+      WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
+                                            WASM_LOCAL_GET(temp2))),
+      WASM_LOCAL_SET(temp4, WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
+                                            WASM_LOCAL_GET(temp2))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                 WASM_LOCAL_GET(temp4)),
+      WASM_ONE);
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      for (uint32_t i = 0; i < lanes; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes], y);
+      }
+      r.Call(0, 16, 32);
+      T expected = expected_op(x, y);
+      T* output = reinterpret_cast<T*>(memory + lanes * 2);
+      for (uint32_t i = 0; i < lanes; i++) {
+        CHECK_EQ(expected, output[i]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16ExtMulI8x16S) {
+  RunExtMulRevecTest<int8_t, int16_t>(kExprI16x8ExtMulLowI8x16S,
+                                      kExprI16x8ExtMulHighI8x16S, MultiplyLong,
+                                      compiler::IrOpcode::kI16x16ExtMulI8x16S);
+}
+
+TEST(RunWasmTurbofan_I16x16ExtMulI8x16U) {
+  RunExtMulRevecTest<uint8_t, uint16_t>(
+      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U, MultiplyLong,
+      compiler::IrOpcode::kI16x16ExtMulI8x16U);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtMulI16x8S) {
+  RunExtMulRevecTest<int16_t, int32_t>(kExprI32x4ExtMulLowI16x8S,
+                                       kExprI32x4ExtMulHighI16x8S, MultiplyLong,
+                                       compiler::IrOpcode::kI32x8ExtMulI16x8S);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtMulI16x8U) {
+  RunExtMulRevecTest<uint16_t, uint32_t>(
+      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U, MultiplyLong,
+      compiler::IrOpcode::kI32x8ExtMulI16x8U);
+}
+
+TEST(RunWasmTurbofan_I64x4ExtMulI32x4S) {
+  RunExtMulRevecTest<int32_t, int64_t>(kExprI64x2ExtMulLowI32x4S,
+                                       kExprI64x2ExtMulHighI32x4S, MultiplyLong,
+                                       compiler::IrOpcode::kI64x4ExtMulI32x4S);
+}
+
+TEST(RunWasmTurbofan_I64x4ExtMulI32x4U) {
+  RunExtMulRevecTest<uint32_t, uint64_t>(
+      kExprI64x2ExtMulLowI32x4U, kExprI64x2ExtMulHighI32x4U, MultiplyLong,
+      compiler::IrOpcode::kI64x4ExtMulI32x4U);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 namespace {
 // Test add(mul(x, y, z) optimizations.
 template <typename S, typename T>

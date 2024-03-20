@@ -1096,6 +1096,17 @@
 }],  # variant == turboshaft or variant == future
 
 ##############################################################################
+['variant != turboshaft and variant != future', {
+  # Some ops' revectorization support only implemented in turboshaft.
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16U': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8U': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4U': [SKIP],
+}],  # variant != turboshaft and variant != future
+
+##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
 ['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {

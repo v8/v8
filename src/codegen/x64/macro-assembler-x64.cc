@@ -1866,6 +1866,7 @@ void MacroAssembler::I64x4ExtMul(YMMRegister dst, XMMRegister src1,
                                  XMMRegister src2, YMMRegister scratch,
                                  bool is_signed) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
   CpuFeatureScope avx_scope(this, AVX2);
   vpmovzxdq(scratch, src1);
   vpmovzxdq(dst, src2);
@@ -1885,6 +1886,7 @@ void MacroAssembler::I32x8ExtMul(YMMRegister dst, XMMRegister src1,
                                  XMMRegister src2, YMMRegister scratch,
                                  bool is_signed) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
   CpuFeatureScope avx_scope(this, AVX2);
   is_signed ? vpmovsxwd(scratch, src1) : vpmovzxwd(scratch, src1);
   is_signed ? vpmovsxwd(dst, src2) : vpmovzxwd(dst, src2);
@@ -1895,6 +1897,8 @@ void MacroAssembler::I16x16ExtMul(YMMRegister dst, XMMRegister src1,
                                   XMMRegister src2, YMMRegister scratch,
                                   bool is_signed) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX2);
   is_signed ? vpmovsxbw(scratch, src1) : vpmovzxbw(scratch, src1);
   is_signed ? vpmovsxbw(dst, src2) : vpmovzxbw(dst, src2);
   vpmullw(dst, dst, scratch);
