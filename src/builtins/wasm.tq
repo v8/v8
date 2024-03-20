@@ -654,7 +654,7 @@ builtin CallRefIC(vector: FixedArray, index: intptr, funcref: WasmFuncRef):
   UpdateIC(vector, index, funcref);
 
   const internal = funcref.internal;
-  let target = internal.call_target_ptr;
+  let target = internal.call_target;
   if (Signed(target) == IntPtrConstant(0)) {
     target = LoadWasmInternalFunctionInstructionStart(internal);
   }

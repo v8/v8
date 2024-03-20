@@ -561,7 +561,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         WasmFuncRef::cast(*origin)->internal(isolate), isolate};
     internal_function->set_code(*wasm_to_js_wrapper_code);
     // Reset a possibly existing generic wrapper in the call target.
-    internal_function->init_call_target(isolate, 0);
+    internal_function->set_call_target(kNullAddress);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

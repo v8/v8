@@ -1706,7 +1706,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   internal->init_self_indirect_pointer(isolate());
   {
     DisallowGarbageCollection no_gc;
-    internal->init_call_target(isolate(), opt_call_target);
+    internal->set_call_target(opt_call_target);
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
     internal->set_ref(*ref);
     // Default values, will be overwritten by the caller.

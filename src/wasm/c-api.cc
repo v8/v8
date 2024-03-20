@@ -1719,8 +1719,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   PrepareFunctionData(isolate, function_data, sig, module);
   i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(isolate),
                                   isolate);
-  i::Address call_target =
-      function_data->internal(isolate)->call_target(isolate);
+  i::Address call_target = function_data->internal(isolate)->call_target();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);

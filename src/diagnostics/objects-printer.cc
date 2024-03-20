@@ -2511,7 +2511,7 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
   Isolate* isolate = GetIsolateForSandbox(*this);
-  os << "\n - call target: " << reinterpret_cast<void*>(call_target(isolate));
+  os << "\n - call target: " << reinterpret_cast<void*>(call_target());
   os << "\n - ref: " << Brief(ref());
   os << "\n - external: " << Brief(external());
   os << "\n - code: " << Brief(code(isolate));

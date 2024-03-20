@@ -406,18 +406,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             function_data, LoadOp::Kind::TaggedBase(),
             kWasmInternalFunctionIndirectPointerTag,
             WasmFunctionData::kTrustedInternalOffset);
-#ifdef V8_ENABLE_SANDBOX
-        V<Word32> target_handle =
-            __ Load(internal, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::Uint32(),
-                    WasmInternalFunction::kCallTargetOffset);
-        V<WordPtr> callee = __ DecodeExternalPointer(
-            target_handle, kWasmInternalFunctionCallTargetTag);
-#else
         V<WordPtr> callee = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::UintPtr(),
                                     WasmInternalFunction::kCallTargetOffset);
-#endif
         BuildCallWasmFromWrapper(__ phase_zone(), sig_, callee, instance_data,
                                  args, rets);
       }

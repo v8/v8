@@ -6344,18 +6344,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             internal_function, LoadOp::Kind::TaggedBase().Immutable(),
             WasmInternalFunction::kProtectedRefOffset));
 
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> target_handle =
-        __ Load(internal_function, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Uint32(),
-                WasmInternalFunction::kCallTargetOffset);
-    V<WordPtr> target = __ DecodeExternalPointer(
-        target_handle, kWasmInternalFunctionCallTargetTag);
-#else
     V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                                 MemoryRepresentation::UintPtr(),
                                 WasmInternalFunction::kCallTargetOffset);
-#endif
     Label<WordPtr> done(&asm_);
     // For wasm functions, we have a cached handle to a pointer to off-heap
     // code. For WasmJSFunctions we used not to be able to cache this handle

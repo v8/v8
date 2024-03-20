@@ -8122,10 +8122,9 @@ class LiftoffCompiler {
                               wasm::ObjectAccess::ToTagged(
                                   WasmInternalFunction::kProtectedRefOffset));
 
-      __ LoadExternalPointer(
-          target, internal_function,
-          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
-          kWasmInternalFunctionCallTargetTag, temp);
+      __ LoadFullPointer(target, internal_function,
+                         wasm::ObjectAccess::ToTagged(
+                             WasmInternalFunction::kCallTargetOffset));
 
       FREEZE_STATE(frozen);
       Label perform_call;

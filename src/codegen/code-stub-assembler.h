@@ -1324,13 +1324,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(ref);
   }
 
-  TNode<RawPtrT> LoadWasmInternalFunctionCallTargetPtr(
-      TNode<WasmInternalFunction> object) {
-    return LoadExternalPointerFromObject(
-        object, WasmInternalFunction::kCallTargetOffset,
-        kWasmInternalFunctionCallTargetTag);
-  }
-
   TNode<RawPtrT> LoadWasmInternalFunctionInstructionStart(
       TNode<WasmInternalFunction> object) {
 #ifdef V8_ENABLE_SANDBOX

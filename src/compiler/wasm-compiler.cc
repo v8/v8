@@ -3115,10 +3115,9 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
       wasm::ObjectAccess::ToTagged(
           WasmExportedFunctionData::kTrustedInternalOffset),
       kWasmInternalFunctionIndirectPointerTag);
-  // TODO(saelo): should this become a CodePointer instead?
-  return gasm_->BuildLoadExternalPointerFromObject(
-      internal, WasmInternalFunction::kCallTargetOffset,
-      kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
+  return gasm_->LoadFromObject(
+      MachineType::Pointer(), internal,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3159,9 +3158,9 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
   Node* ref = gasm_->LoadProtectedPointerFromObject(
       internal_function,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kProtectedRefOffset));
-  Node* target = gasm_->BuildLoadExternalPointerFromObject(
-      internal_function, WasmInternalFunction::kCallTargetOffset,
-      kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
+  Node* target = gasm_->LoadFromObject(
+      MachineType::Pointer(), internal_function,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
   Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
   gasm_->GotoIfNot(is_null_target, &end_label, target);
   {
@@ -7544,9 +7543,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             wasm::ObjectAccess::ToTagged(
                 WasmFunctionData::kTrustedInternalOffset),
             kWasmInternalFunctionIndirectPointerTag);
-        args[0] = gasm_->BuildLoadExternalPointerFromObject(
-            internal, WasmInternalFunction::kCallTargetOffset,
-            kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
+        args[0] =
+            gasm_->LoadFromObject(MachineType::Pointer(), internal,
+                                  wasm::ObjectAccess::ToTagged(
+                                      WasmInternalFunction::kCallTargetOffset));
         Node* instance_data = gasm_->LoadProtectedPointerFromObject(
             internal, wasm::ObjectAccess::ToTagged(
                           WasmInternalFunction::kProtectedRefOffset));
