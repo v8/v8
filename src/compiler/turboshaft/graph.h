@@ -769,7 +769,13 @@ class Graph {
 
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_emitted) {
-      std::cout << "\nBound: " << block->index() << "\n";
+      std::cout << "\nBound: " << block->index() << " [predecessors: ";
+      auto preds = block->Predecessors();
+      if (preds.size() >= 1) std::cout << preds[0]->index();
+      for (size_t i = 1; i < preds.size(); i++) {
+        std::cout << ", " << preds[i]->index();
+      }
+      std::cout << "]\n";
     }
 #endif
 
