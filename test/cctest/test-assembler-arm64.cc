@@ -16023,6 +16023,34 @@ TEST(scalar_movi) {
   CHECK_EQUAL_64(0, x0);
 }
 
+TEST(neon_pmull) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(PMULL1Q);
+  START();
+
+  __ Movi(v0.V2D(), 0xDECAFC0FFEE);
+  __ Movi(v1.V8H(), 0xBEEF);
+  __ Movi(v2.V8H(), 0xC0DE);
+  __ Movi(v3.V16B(), 42);
+
+  __ Pmull(v0.V8H(), v0.V8B(), v0.V8B());
+  __ Pmull2(v1.V8H(), v1.V16B(), v1.V16B());
+  __ Pmull(v2.V1Q(), v2.V1D(), v2.V1D());
+  __ Pmull2(v3.V1Q(), v3.V2D(), v3.V2D());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x515450, 0x4455500055555454, q0);
+    CHECK_EQUAL_128(0x4554545545545455, 0x4554545545545455, q1);
+    CHECK_EQUAL_128(0x5000515450005154, 0x5000515450005154, q2);
+    CHECK_EQUAL_128(0x444044404440444, 0x444044404440444, q3);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -6404,7 +6404,6 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(I32x4RelaxedTruncF64x2SZero, kArm64I32x4TruncSatF64x2SZero) \
   V(I32x4RelaxedTruncF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
   V(I16x8BitMask, kArm64I16x8BitMask)                           \
-  V(I8x16BitMask, kArm64I8x16BitMask)                           \
   V(S128Not, kArm64S128Not)                                     \
   V(V128AnyTrue, kArm64V128AnyTrue)                             \
   V(I64x2AllTrue, kArm64I64x2AllTrue)                           \
@@ -6690,6 +6689,21 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
   Emit(kArm64I32x4DotI8x16AddS, output, g.UseRegister(this->input_at(node, 0)),
        g.UseRegister(this->input_at(node, 1)),
        g.UseRegister(this->input_at(node, 2)));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16BitMask(node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand temps[1];
+  size_t temp_count = 0;
+
+  if (CpuFeatures::IsSupported(PMULL1Q)) {
+    temps[0] = g.TempSimd128Register();
+    temp_count = 1;
+  }
+
+  Emit(kArm64I8x16BitMask, g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)), temp_count, temps);
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                     \

@@ -3111,7 +3111,13 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  I8x16BitMask(dst.gp(), src.fp());
+  VRegister temp = NoVReg;
+
+  if (CpuFeatures::IsSupported(PMULL1Q)) {
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList{src}).fp();
+  }
+
+  I8x16BitMask(dst.gp(), src.fp(), temp);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,

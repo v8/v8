@@ -2827,7 +2827,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
+      VRegister temp = NoVReg;
+
+      if (CpuFeatures::IsSupported(PMULL1Q)) {
+        temp = i.TempSimd128Register(0);
+      }
+
+      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0), temp);
       break;
     }
     case kArm64S128Const: {
