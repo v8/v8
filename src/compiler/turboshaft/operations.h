@@ -2797,14 +2797,13 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     if (bin_op == BinOp::kCompareExchange) {
-      return InitVectorOf(storage, {RegisterRepresentation::WordPtr(),
-                                    RegisterRepresentation::WordPtr(),
-                                    input_rep.ToRegisterRepresentation(),
-                                    input_rep.ToRegisterRepresentation()});
+      return InitVectorOf(
+          storage, {RegisterRepresentation::WordPtr(),
+                    RegisterRepresentation::WordPtr(), result_rep, result_rep});
     }
-    return InitVectorOf(storage, {RegisterRepresentation::WordPtr(),
-                                  RegisterRepresentation::WordPtr(),
-                                  input_rep.ToRegisterRepresentation()});
+    return InitVectorOf(storage,
+                        {RegisterRepresentation::WordPtr(),
+                         RegisterRepresentation::WordPtr(), result_rep});
   }
 
   V<WordPtr> base() const { return input(0); }

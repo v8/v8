@@ -426,9 +426,9 @@ TEST_P(TurboshaftInstructionSelectorLogicalTest, ShiftByImmediate) {
 
     TRACED_FORRANGE(int, imm, 0, ((type == MachineType::Int32()) ? 31 : 63)) {
       StreamBuilder m(this, type, type, type);
-      m.Return(m.Emit(
-          dpi.op, m.Parameter(0),
-          m.Emit(shift.mi.op, m.Parameter(1), BuildConstant(&m, type, imm))));
+      m.Return(
+          m.Emit(dpi.op, m.Parameter(0),
+                 m.Emit(shift.mi.op, m.Parameter(1), m.Int32Constant(imm))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
@@ -440,10 +440,9 @@ TEST_P(TurboshaftInstructionSelectorLogicalTest, ShiftByImmediate) {
 
     TRACED_FORRANGE(int, imm, 0, ((type == MachineType::Int32()) ? 31 : 63)) {
       StreamBuilder m(this, type, type, type);
-      m.Return(m.Emit(
-          dpi.op,
-          m.Emit(shift.mi.op, m.Parameter(1), BuildConstant(&m, type, imm)),
-          m.Parameter(0)));
+      m.Return(m.Emit(dpi.op,
+                      m.Emit(shift.mi.op, m.Parameter(1), m.Int32Constant(imm)),
+                      m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
@@ -525,9 +524,9 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, ShiftByImmediateOnRight) {
 
     TRACED_FORRANGE(int, imm, 0, ((type == MachineType::Int32()) ? 31 : 63)) {
       StreamBuilder m(this, type, type, type);
-      m.Return(m.Emit(
-          dpi.mi.op, m.Parameter(0),
-          m.Emit(shift.mi.op, m.Parameter(1), BuildConstant(&m, type, imm))));
+      m.Return(
+          m.Emit(dpi.mi.op, m.Parameter(0),
+                 m.Emit(shift.mi.op, m.Parameter(1), m.Word32Constant(imm))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
@@ -565,7 +564,8 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, UnsignedExtendByte) {
   StreamBuilder m(this, type, type, type);
   m.Return(SignExtendAndEmit(
       m, type, dpi.mi.op, m.Parameter(0),
-      m.Word32BitwiseAnd(m.Parameter(1), m.Int32Constant(0xFF))));
+      m.Word32BitwiseAnd(m.Parameter(1, RegisterRepresentation::Word32()),
+                         m.Int32Constant(0xFF))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
@@ -580,7 +580,8 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, UnsignedExtendHalfword) {
   StreamBuilder m(this, type, type, type);
   m.Return(SignExtendAndEmit(
       m, type, dpi.mi.op, m.Parameter(0),
-      m.Word32BitwiseAnd(m.Parameter(1), m.Int32Constant(0xFFFF))));
+      m.Word32BitwiseAnd(m.Parameter(1, RegisterRepresentation::Word32()),
+                         m.Int32Constant(0xFFFF))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
@@ -596,7 +597,8 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, SignedExtendByte) {
   m.Return(SignExtendAndEmit(
       m, type, dpi.mi.op, m.Parameter(0),
       m.Word32ShiftRightArithmetic(
-          m.Word32ShiftLeft(m.Parameter(1), m.Int32Constant(24)),
+          m.Word32ShiftLeft(m.Parameter(1, RegisterRepresentation::Word32()),
+                            m.Int32Constant(24)),
           m.Int32Constant(24))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -613,7 +615,8 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, SignedExtendHalfword) {
   m.Return(SignExtendAndEmit(
       m, type, dpi.mi.op, m.Parameter(0),
       m.Word32ShiftRightArithmetic(
-          m.Word32ShiftLeft(m.Parameter(1), m.Int32Constant(16)),
+          m.Word32ShiftLeft(m.Parameter(1, RegisterRepresentation::Word32()),
+                            m.Int32Constant(16)),
           m.Int32Constant(16))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -627,7 +630,7 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, SignedExtendWord) {
   const AddSub dpi = GetParam();
   const MachineType type = dpi.mi.machine_type;
   if (type != MachineType::Int64()) return;
-  StreamBuilder m(this, type, type, type);
+  StreamBuilder m(this, type, type, MachineType::Int32());
   m.Return(
       m.Emit(dpi.mi.op, m.Parameter(0), m.ChangeInt32ToInt64(m.Parameter(1))));
   Stream s = m.Build();
@@ -827,7 +830,7 @@ TEST_F(TurboshaftInstructionSelectorTest, AddShiftByImmediateOnLeft) {
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                       MachineType::Int64());
       m.Return(
-          m.Word64Add(m.Emit(shift.mi.op, m.Parameter(1), m.Int64Constant(imm)),
+          m.Word64Add(m.Emit(shift.mi.op, m.Parameter(1), m.Int32Constant(imm)),
                       m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -3396,7 +3399,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeInt32ToInt64WithWord32Sar) {
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64SarWithChangeInt32ToInt64) {
   TRACED_FORRANGE(int32_t, imm, -31, 63) {
-    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
     m.Return(m.Word64ShiftRightArithmetic(m.ChangeInt32ToInt64(m.Parameter(0)),
                                           m.Int32Constant(imm)));
     Stream s = m.Build();

@@ -1380,8 +1380,7 @@ class TurboshaftAssemblerOpInterface
                        ShiftRightLogical)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightLogical, ShiftRightLogical, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightLogical, ShiftRightLogical, Word64)
-  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightLogical, Shift, ShiftRightLogical,
-                          WordPtr)
+  DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightLogical, ShiftRightLogical, WordPtr)
   DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftLeft, ShiftLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftLeft, ShiftLeft, Word64)

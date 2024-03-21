@@ -369,12 +369,6 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
   }
   switch (dst_rep.value()) {
     case RegisterRepresentation::Word32():
-      // TODO(mliedtke): Remove this once JS graph building and JS reducers
-      // always produce explicit truncations.
-      // We allow implicit 64- to 32-bit truncation.
-      if (*this == RegisterRepresentation::Word64()) {
-        return true;
-      }
       // We allow implicit tagged -> untagged conversions.
       // Even without pointer compression, we use `Word32And` for Smi-checks on
       // tagged values.

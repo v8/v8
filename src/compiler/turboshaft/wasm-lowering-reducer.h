@@ -926,15 +926,19 @@ class WasmLoweringReducer : public Next {
             : RootIndex::kWasmNull;
     // We load WasmNull as a pointer here and not as a TaggedPointer because
     // WasmNull is stored uncompressed in the IsolateData, and a load of a
-    // TaggedPointer loads compressed pointers. We do not bitcast the WasmNull
-    // to Tagged at the moment because it would increase graph size, which may
-    // affect optimizations negatively. These regressions would be worth it if
-    // there was any benefit of the bitcast. However, the graph validation
-    // currently allows implicit representation changes from `WordPtr` to
-    // `Tagged`.
+    // TaggedPointer loads compressed pointers.
+#if V8_TARGET_BIG_ENDIAN
+    // On big endian a full pointer load is needed as otherwise the wrong half
+    // of the 64 bit address is loaded.
+    return __ BitcastWordPtrToTagged(__ Load(
+        roots, LoadOp::Kind::RawAligned().Immutable(),
+        MemoryRepresentation::UintPtr(), IsolateData::root_slot_offset(index)));
+#else
+    // On little endian a tagged load is enough and saves the bitcast.
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::UintPtr(),
+                   MemoryRepresentation::TaggedPointer(),
                    IsolateData::root_slot_offset(index));
+#endif
   }
 
   V<WordPtr> ChangeSmiToWordPtr(V<Smi> smi) {

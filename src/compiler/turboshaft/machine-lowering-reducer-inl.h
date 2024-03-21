@@ -731,7 +731,7 @@ class MachineLoweringReducer : public Next {
               GOTO_IF_NOT(__ Word64Equal(v64, input), outside_smi_range);
 
               if constexpr (SmiValuesAre32Bits()) {
-                GOTO(done, __ TagSmi(input));
+                GOTO(done, __ TagSmi(v32));
               } else {
                 TagSmiOrOverflow(v32, &outside_smi_range, &done);
               }
@@ -1000,7 +1000,7 @@ class MachineLoweringReducer : public Next {
         __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kLostPrecision,
                            feedback);
         if constexpr (SmiValuesAre32Bits()) {
-          return __ TagSmi(input);
+          return __ TagSmi(i32);
         } else {
           OpIndex test = __ Int32AddCheckOverflow(i32, i32);
           __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
@@ -3206,7 +3206,7 @@ class MachineLoweringReducer : public Next {
     // BigInts have no padding on 64 bit architectures with pointer compression.
 #ifdef BIGINT_NEEDS_PADDING
     __ InitializeField(bigint, AccessBuilder::ForBigIntOptionalPadding(),
-                       __ IntPtrConstant(0));
+                       __ Word32Constant(0));
 #endif
     if (digit.valid()) {
       __ InitializeField(

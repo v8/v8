@@ -929,15 +929,13 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ ConvertJSPrimitiveToUntaggedOrDeopt(
-               Map(node->object_input()),
-               BuildFrameState(node->eager_deopt_info()),
-               ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-                   kNumberOrString,
-               ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
-               CheckForMinusZeroMode::kCheckForMinusZero,
-               node->eager_deopt_info()->feedback_to_update()));
+    OpIndex result = __ ConvertJSPrimitiveToUntaggedOrDeopt(
+        Map(node->object_input()), BuildFrameState(node->eager_deopt_info()),
+        ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumberOrString,
+        ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
+        CheckForMinusZeroMode::kCheckForMinusZero,
+        node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, Is64() ? __ TruncateWord64ToWord32(result) : result);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ChangeInt32ToFloat64* node,
