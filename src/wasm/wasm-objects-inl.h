@@ -200,8 +200,9 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
           Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
-ACCESSORS(WasmTrustedInstanceData, imported_function_targets,
-          Tagged<FixedAddressArray>, kImportedFunctionTargetsOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, imported_function_targets,
+                            TrustedFixedAddressArray,
+                            kProtectedImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, hook_on_function_call_address,

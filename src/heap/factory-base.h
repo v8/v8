@@ -25,8 +25,8 @@ class CoverageInfo;
 class DeoptimizationLiteralArray;
 class DeoptimizationFrameTranslation;
 class FixedArray;
-template <typename T>
-class FixedIntegerArray;
+template <typename T, typename Base>
+class FixedIntegerArrayBase;
 class FreshlyAllocatedBigInt;
 class FunctionLiteral;
 class HeapObject;
@@ -56,8 +56,8 @@ class FactoryBase;
 
 enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
 
-using FixedInt32Array = FixedIntegerArray<int32_t>;
-using FixedUInt32Array = FixedIntegerArray<uint32_t>;
+using FixedInt32Array = FixedIntegerArrayBase<int32_t, ByteArray>;
+using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
 
 // Putting Torque-generated definitions in a superclass allows to shadow them
 // easily when they shouldn't be used and to reference them when they happen to

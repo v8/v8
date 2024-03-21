@@ -2885,12 +2885,12 @@ Node* WasmGraphBuilder::BuildImportCall(
   // Load the target from the imported_targets array at the offset of
   // {func_index}.
   Node* offset = gasm_->IntAdd(
-      gasm_->IntMul(func_index_intptr,
-                    gasm_->IntPtrConstant(kSystemPointerSize)),
+      gasm_->WordShl(func_index_intptr,
+                     gasm_->IntPtrConstant(kSystemPointerSizeLog2)),
       gasm_->IntPtrConstant(
-          wasm::ObjectAccess::ToTagged(FixedAddressArray::kHeaderSize)));
-  Node* imported_targets = LOAD_INSTANCE_FIELD(ImportedFunctionTargets,
-                                               MachineType::TaggedPointer());
+          wasm::ObjectAccess::ToTagged(TrustedFixedAddressArray::kHeaderSize)));
+  Node* imported_targets =
+      LOAD_PROTECTED_INSTANCE_FIELD(ImportedFunctionTargets);
   Node* target = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
                                                 imported_targets, offset);
   args[0] = target;

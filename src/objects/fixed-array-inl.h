@@ -944,72 +944,85 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length) {
   return result;
 }
 
-Address FixedAddressArray::get_sandboxed_pointer(int offset) const {
+template <typename Base>
+Address FixedAddressArrayBase<Base>::get_sandboxed_pointer(int offset) const {
   DCHECK_GE(offset, 0);
-  DCHECK_GT(length(), offset);
-  int actual_offset = offset * sizeof(Address);
+  DCHECK_GT(this->length(), offset);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  return ReadSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base);
+  return this->ReadSandboxedPointerField(
+      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base);
 }
 
-void FixedAddressArray::set_sandboxed_pointer(int offset, Address value) {
+template <typename Base>
+void FixedAddressArrayBase<Base>::set_sandboxed_pointer(int offset,
+                                                        Address value) {
   DCHECK_GE(offset, 0);
-  DCHECK_GT(length(), offset);
-  int actual_offset = offset * sizeof(Address);
+  DCHECK_GT(this->length(), offset);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  WriteSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base, value);
+  this->WriteSandboxedPointerField(
+      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base, value);
 }
 
+template <typename Base>
+template <typename... MoreArgs>
 // static
-Handle<FixedAddressArray> FixedAddressArray::New(Isolate* isolate, int length,
-                                                 AllocationType allocation) {
-  return Handle<FixedAddressArray>::cast(
-      FixedIntegerArray<Address>::New(isolate, length, allocation));
+Handle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
+    Isolate* isolate, int length, MoreArgs&&... more_args) {
+  return Handle<FixedAddressArrayBase>::cast(
+      Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
 }
 
-FixedAddressArray::FixedAddressArray(Address ptr)
-    : FixedIntegerArray<Address>(ptr) {}
+template <typename Base>
+FixedAddressArrayBase<Base>::FixedAddressArrayBase(Address ptr)
+    : Underlying(ptr) {}
 
-CAST_ACCESSOR(FixedAddressArray)
+template <typename Base>
+CAST_ACCESSOR(FixedAddressArrayBase<Base>)
 
-template <typename T>
-FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
-  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
+template <typename T, typename Base>
+FixedIntegerArrayBase<T, Base>::FixedIntegerArrayBase(Address ptr) : Base(ptr) {
+  DCHECK_EQ(Base::length() % sizeof(T), 0);
 }
 
-template <typename T>
-CAST_ACCESSOR(FixedIntegerArray<T>)
+template <typename T, typename Base>
+Tagged<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::cast(
+    Tagged<Object> object) {
+  Tagged<Base> base = Tagged<Base>::cast(object);
+  DCHECK_EQ(0, base->length() % sizeof(T));
+  return FixedIntegerArrayBase<T, Base>{base.ptr()};
+}
 
+template <typename T, typename Base>
+template <typename... MoreArgs>
 // static
-template <typename T>
-Handle<FixedIntegerArray<T>> FixedIntegerArray<T>::New(
-    Isolate* isolate, int length, AllocationType allocation) {
+Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
+    Isolate* isolate, int length, MoreArgs&&... more_args) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<FixedIntegerArray<T>>::cast(
-      isolate->factory()->NewByteArray(byte_length, allocation));
+  return Handle<FixedIntegerArrayBase<T, Base>>::cast(
+      Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
 }
 
-template <typename T>
-T FixedIntegerArray<T>::get(int index) const {
+template <typename T, typename Base>
+T FixedIntegerArrayBase<T, Base>::get(int index) const {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
-  return ReadField<T>(kHeaderSize + index * sizeof(T));
+  return this->template ReadField<T>(Base::kHeaderSize + index * sizeof(T));
 }
 
-template <typename T>
-void FixedIntegerArray<T>::set(int index, T value) {
+template <typename T, typename Base>
+void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
-  WriteField<T>(kHeaderSize + index * sizeof(T), value);
+  this->template WriteField<T>(Base::kHeaderSize + index * sizeof(T), value);
 }
 
-template <typename T>
-int FixedIntegerArray<T>::length() const {
-  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
-  return ByteArray::length() / sizeof(T);
+template <typename T, typename Base>
+int FixedIntegerArrayBase<T, Base>::length() const {
+  DCHECK_EQ(Base::length() % sizeof(T), 0);
+  return Base::length() / sizeof(T);
 }
 
 template <ExternalPointerTag tag>

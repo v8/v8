@@ -358,7 +358,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
   DECL_PROTECTED_POINTER_ACCESSORS(imported_function_refs, ProtectedFixedArray)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
-  DECL_ACCESSORS(imported_function_targets, Tagged<FixedAddressArray>)
+  DECL_PROTECTED_POINTER_ACCESSORS(imported_function_targets,
+                                   TrustedFixedAddressArray)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
@@ -405,7 +406,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kProtectedImportedFunctionRefsOffset, kTaggedSize)                    \
   V(kProtectedDispatchTable0Offset, kTaggedSize)                          \
   V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
-  V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
+  V(kProtectedImportedFunctionTargetsOffset, kTaggedSize)                 \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemory0StartOffset, kSystemPointerSize)                              \
@@ -475,26 +476,26 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kFeedbackVectorsOffset, "feedback_vectors")                               \
   V(kWellKnownImportsOffset, "well_known_imports")                            \
   V(kImportedMutableGlobalsOffset, "imported_mutable_globals")                \
-  V(kImportedFunctionTargetsOffset, "imported_function_targets")              \
   V(kMemoryBasesAndSizesOffset, "memory_bases_and_sizes")                     \
   V(kDataSegmentStartsOffset, "data_segment_starts")                          \
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
-#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)         \
-  V(kProtectedDispatchTable0Offset, "dispatch_table0") \
-  V(kProtectedDispatchTablesOffset, "dispatch_tables") \
-  V(kProtectedImportedFunctionRefsOffset, "imported_function_refs")
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                      \
+  V(kProtectedDispatchTable0Offset, "dispatch_table0")              \
+  V(kProtectedDispatchTablesOffset, "dispatch_tables")              \
+  V(kProtectedImportedFunctionRefsOffset, "imported_function_refs") \
+  V(kProtectedImportedFunctionTargetsOffset, "imported_function_targets")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
 #define WASM_INSTANCE_FIELD_NAME(_, name) name,
 
-  static constexpr std::array<uint16_t, 18> kTaggedFieldOffsets = {
+  static constexpr std::array<uint16_t, 17> kTaggedFieldOffsets = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 18> kTaggedFieldNames = {
+  static constexpr std::array<const char*, 17> kTaggedFieldNames = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
-  static constexpr std::array<uint16_t, 3> kProtectedFieldOffsets = {
+  static constexpr std::array<uint16_t, 4> kProtectedFieldOffsets = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 3> kProtectedFieldNames = {
+  static constexpr std::array<const char*, 4> kProtectedFieldNames = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
 
 #undef WASM_INSTANCE_FIELD_OFFSET

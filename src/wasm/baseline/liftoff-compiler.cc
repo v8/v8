@@ -7775,11 +7775,11 @@ class LiftoffCompiler {
           ObjectAccess::ElementOffsetInProtectedFixedArray(imm.index));
 
       Register imported_targets = target;
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
-                                     pinned);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(imported_targets,
+                                        ImportedFunctionTargets, pinned);
       __ LoadFullPointer(
           target, imported_targets,
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+          wasm::ObjectAccess::ElementOffsetInTaggedTrustedFixedAddressArray(
               imm.index));
 
       __ PrepareCall(&sig, call_descriptor, &target, imported_function_ref);

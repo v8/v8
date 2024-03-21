@@ -1075,15 +1075,15 @@ void ImportedFunctionEntry::set_target(Address new_target) {
 }
 
 // static
-constexpr std::array<uint16_t, 18> WasmTrustedInstanceData::kTaggedFieldOffsets;
+constexpr std::array<uint16_t, 17> WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, 18>
+constexpr std::array<const char*, 17>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 3>
+constexpr std::array<uint16_t, 4>
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 3>
+constexpr std::array<const char*, 4>
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
@@ -1135,8 +1135,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   const WasmModule* module = module_object->module();
 
   int num_imported_functions = module->num_imported_functions;
-  Handle<FixedAddressArray> imported_function_targets =
-      FixedAddressArray::New(isolate, num_imported_functions);
+  Handle<TrustedFixedAddressArray> imported_function_targets =
+      TrustedFixedAddressArray::New(isolate, num_imported_functions);
   Handle<ProtectedFixedArray> imported_function_refs =
       isolate->factory()->NewProtectedFixedArray(num_imported_functions);
   Handle<FixedArray> well_known_imports =

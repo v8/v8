@@ -827,15 +827,18 @@ class TrustedByteArray
   static constexpr int kBytesOffset = Shape::kHeaderSize;
 };
 
-// Convenience class for treating a ByteArray as array of fixed-size integers.
-template <typename T>
-class FixedIntegerArray : public ByteArray {
+// Convenience class for treating a ByteArray / TrustedByteArray as array of
+// fixed-size integers.
+template <typename T, typename Base>
+class FixedIntegerArrayBase : public Base {
   static_assert(std::is_integral<T>::value);
 
  public:
-  static Handle<FixedIntegerArray<T>> New(
-      Isolate* isolate, int length,
-      AllocationType allocation = AllocationType::kYoung);
+  // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
+  template <typename... MoreArgs>
+  static Handle<FixedIntegerArrayBase<T, Base>> New(Isolate* isolate,
+                                                    int length,
+                                                    MoreArgs&&... more_args);
 
   // Get/set the contents of this array.
   T get(int index) const;
@@ -843,42 +846,49 @@ class FixedIntegerArray : public ByteArray {
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
-    return kHeaderSize + index * sizeof(T);
+    return Base::kHeaderSize + index * sizeof(T);
   }
 
   inline int length() const;
 
-  DECL_CAST(FixedIntegerArray<T>)
+  DECL_CAST(FixedIntegerArrayBase<T LITERAL_COMMA Base>)
 
-  OBJECT_CONSTRUCTORS(FixedIntegerArray<T>, ByteArray);
+  OBJECT_CONSTRUCTORS(FixedIntegerArrayBase<T LITERAL_COMMA Base>, Base);
 };
 
-using FixedInt8Array = FixedIntegerArray<int8_t>;
-using FixedUInt8Array = FixedIntegerArray<uint8_t>;
-using FixedInt16Array = FixedIntegerArray<int16_t>;
-using FixedUInt16Array = FixedIntegerArray<uint16_t>;
-using FixedInt32Array = FixedIntegerArray<int32_t>;
-using FixedUInt32Array = FixedIntegerArray<uint32_t>;
-using FixedInt64Array = FixedIntegerArray<int64_t>;
-using FixedUInt64Array = FixedIntegerArray<uint64_t>;
+using FixedInt8Array = FixedIntegerArrayBase<int8_t, ByteArray>;
+using FixedUInt8Array = FixedIntegerArrayBase<uint8_t, ByteArray>;
+using FixedInt16Array = FixedIntegerArrayBase<int16_t, ByteArray>;
+using FixedUInt16Array = FixedIntegerArrayBase<uint16_t, ByteArray>;
+using FixedInt32Array = FixedIntegerArrayBase<int32_t, ByteArray>;
+using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
+using FixedInt64Array = FixedIntegerArrayBase<int64_t, ByteArray>;
+using FixedUInt64Array = FixedIntegerArrayBase<uint64_t, ByteArray>;
 
 // Use with care! Raw addresses on the heap are not safe in combination with
 // the sandbox. Use an ExternalPointerArray instead. However, this can for
 // example be used to store sandboxed pointers, which is safe.
-class FixedAddressArray : public FixedIntegerArray<Address> {
+template <typename Base>
+class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
+  using Underlying = FixedIntegerArrayBase<Address, Base>;
+
  public:
   // Get/set a sandboxed pointer from this array.
   inline Address get_sandboxed_pointer(int offset) const;
   inline void set_sandboxed_pointer(int offset, Address value);
 
-  static inline Handle<FixedAddressArray> New(
-      Isolate* isolate, int length,
-      AllocationType allocation = AllocationType::kYoung);
+  // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
+  template <typename... MoreArgs>
+  static inline Handle<FixedAddressArrayBase> New(Isolate* isolate, int length,
+                                                  MoreArgs&&... more_args);
 
-  DECL_CAST(FixedAddressArray)
+  DECL_CAST(FixedAddressArrayBase<Base>)
 
-  OBJECT_CONSTRUCTORS(FixedAddressArray, FixedIntegerArray<Address>);
+  OBJECT_CONSTRUCTORS(FixedAddressArrayBase<Base>, Underlying);
 };
+
+using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
+using TrustedFixedAddressArray = FixedAddressArrayBase<TrustedByteArray>;
 
 // An array containing external pointers.
 // When the sandbox is off, this will simply contain system-pointer sized words.

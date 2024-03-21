@@ -25,19 +25,21 @@
 
 #define OFFSET_OF(type, field) offsetof(type, field)
 
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
+
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
 // used in defining new arrays, for example.  If you use arraysize on
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
