@@ -1742,8 +1742,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     IF (backed_by_rab_bit) {
       // DataViews with resizable ArrayBuffers can go out of bounds.
       IF (length_tracking) {
-        V<WordPtr> final_length =
-            __ WordPtrSub(buffer_byte_length, view_byte_offset);
+        ScopedVar<WordPtr> final_length(this, 0);
+        IF (LIKELY(__ UintPtrLessThanOrEqual(view_byte_offset,
+                                             buffer_byte_length))) {
+          final_length = __ WordPtrSub(buffer_byte_length, view_byte_offset);
+        }
         DataViewBoundsCheck(decoder, buffer_byte_length, view_byte_offset,
                             op_type);
         GOTO(done_label, final_length);
@@ -1762,8 +1765,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       V<Object> gsab_length_tagged = CallRuntime(
           decoder->zone(), Runtime::kGrowableSharedArrayBufferByteLength,
           {buffer}, __ NoContextConstant());
-      V<WordPtr> gsab_buffer_byte_length = __ WordPtrSub(
-          ChangeTaggedNumberToIntPtr(gsab_length_tagged), view_byte_offset);
+      V<WordPtr> gsab_length = ChangeTaggedNumberToIntPtr(gsab_length_tagged);
+      ScopedVar<WordPtr> gsab_buffer_byte_length(this, 0);
+      IF (LIKELY(__ UintPtrLessThanOrEqual(view_byte_offset, gsab_length))) {
+        gsab_buffer_byte_length = __ WordPtrSub(gsab_length, view_byte_offset);
+      }
       GOTO(done_label, gsab_buffer_byte_length);
     }
     __ Unreachable();
