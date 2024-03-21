@@ -469,14 +469,27 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
   if (name_str->length() == 0) return msg_str;
   if (msg_str->length() == 0) return name_str;
 
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(name_str);
-  builder.AppendCStringLiteral(": ");
+  constexpr const char error_suffix[] = "<a very large string>";
+  constexpr int error_suffix_size = sizeof(error_suffix);
+  int suffix_size = std::min(error_suffix_size, msg_str->length());
 
-  if (builder.Length() + msg_str->length() <= String::kMaxLength) {
-    builder.AppendString(msg_str);
+  IncrementalStringBuilder builder(isolate);
+  if (name_str->length() + suffix_size + 2 /* ": " */ > String::kMaxLength) {
+    constexpr const char connector[] = "... : ";
+    int connector_size = sizeof(connector);
+    Handle<String> truncated_name = isolate->factory()->NewProperSubString(
+        name_str, 0, name_str->length() - error_suffix_size - connector_size);
+    builder.AppendString(truncated_name);
+    builder.AppendCStringLiteral(connector);
+    builder.AppendCStringLiteral(error_suffix);
   } else {
-    builder.AppendCStringLiteral("<a very large string>");
+    builder.AppendString(name_str);
+    builder.AppendCStringLiteral(": ");
+    if (builder.Length() + msg_str->length() <= String::kMaxLength) {
+      builder.AppendString(msg_str);
+    } else {
+      builder.AppendCStringLiteral(error_suffix);
+    }
   }
 
   return builder.Finish().ToHandleChecked();
