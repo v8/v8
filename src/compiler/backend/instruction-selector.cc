@@ -346,12 +346,6 @@ bool InstructionSelectorT<Adapter>::CanCover(node_t user, node_t node) const {
     if (op.Effects().produces.bits() == 0) {
       return this->is_exclusive_user_of(user, node);
     }
-    // If it does produce something outside the {kTurboshaftEffectLevelMask}, it
-    // can never be covered.
-    if ((op.Effects().produces.bits() & ~kTurboshaftEffectLevelMask.bits()) !=
-        0) {
-      return false;
-    }
   } else {
     // 2. Pure {node}s must be owned by the {user}.
     if (node->op()->HasProperty(Operator::kPure)) {
