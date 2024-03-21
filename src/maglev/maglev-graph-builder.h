@@ -424,7 +424,8 @@ class MaglevGraphBuilder {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   template <typename Function>
   bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);
-  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
+  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
+                     NodeType new_node_type);
   bool ShouldEmitInterruptBudgetChecks() {
     if (is_inline()) return false;
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
