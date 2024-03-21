@@ -695,8 +695,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
-      Address opt_call_target, DirectHandle<ExposedTrustedObject> ref,
-      DirectHandle<Map> rtt, int function_index);
+      DirectHandle<ExposedTrustedObject> ref, DirectHandle<Map> rtt,
+      int function_index);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
@@ -720,7 +720,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
-      Address opt_call_target, DirectHandle<JSReceiver> callable,
+      DirectHandle<JSReceiver> callable,
       DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise);

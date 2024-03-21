@@ -1416,41 +1416,29 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       Map::cast(trusted_instance_data->managed_object_maps()->get(sig_index)),
       isolate);
 
-  // Only set the call target if we do not use the generic wasm-to-js wrapper.
-  // The reason is that after wrapper tier-up the call target cannot be set
-  // anymore for imported functions, because the slot in the imported function
-  // table cannot be found anymore. Avoiding setting the call target makes the
-  // wrapper tiers behave more consistently, which can prevent surprising bugs.
-  // Background: the WasmInternalFunction has two fields to store a reference to
-  // wrapper code: 1) the `call_target` field, and 2) the `code` field. In
-  // generated code, we use the `call_target` if it is set, and if it is not
-  // set, the `code` field is used. During wrapper tier-up, only the `code`
-  // field can be updated, not the `call_target` field, because the slot in the
-  // imported function table cannot be found anymore. For the newly created
-  // WasmInternalFunction, this would mean that calls with the generic wrapper
-  // would be done with the `call_target`, but after tier-up, the call with the
-  // optimized wrapper would be done with the 'code' field.
   auto internal_function = isolate->factory()->NewWasmInternalFunction(
-      setup_new_ref_with_generic_wrapper
-          ? 0
-          : trusted_instance_data->GetCallTarget(function_index),
       ref, rtt, function_index);
 
   if (setup_new_ref_with_generic_wrapper) {
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     const wasm::FunctionSig* sig =
         module->signature(module->functions[function_index].sig_index);
+    Tagged<Code> wrapper;
     if (wasm::IsJSCompatibleSignature(sig)) {
       DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        wasm::Suspend::kNoSuspend));
       WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr,
                                                           internal_function);
-      internal_function->set_code(
-          isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm));
+      wrapper = isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm);
     } else {
-      internal_function->set_code(
-          isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig));
+      wrapper = isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig);
     }
+    // Wrapper code does not move, so we store the call target directly in the
+    // internal function.
+    internal_function->set_call_target(wrapper->instruction_start());
+  } else {
+    internal_function->set_call_target(
+        trusted_instance_data->GetCallTarget(function_index));
   }
   Handle<WasmFuncRef> func_ref{WasmFuncRef::cast(internal_function->func_ref()),
                                isolate};
@@ -2340,14 +2328,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
     }
 
-  // WasmJSFunctions use on-heap Code objects as call targets, so we can't
-  // cache the target address, unless the WasmJSFunction wraps a
-  // WasmExportedFunction.
-  Address call_target = kNullAddress;
-  if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
-    call_target = WasmExportedFunction::cast(*callable)->GetWasmCallTarget();
-  }
-
   Factory* factory = isolate->factory();
 
   Handle<Map> rtt;
@@ -2373,8 +2353,16 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
 
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
-      call_target, callable, serialized_sig, wrapper_code, rtt, suspend,
-      wasm::kNoPromise);
+      callable, serialized_sig, wrapper_code, rtt, suspend, wasm::kNoPromise);
+
+  // WasmJSFunctions use on-heap Code objects as call targets, so we can't
+  // cache the target address, unless the WasmJSFunction wraps a
+  // WasmExportedFunction.
+  if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    Address call_target =
+        WasmExportedFunction::cast(*callable)->GetWasmCallTarget();
+    function_data->internal(isolate)->set_call_target(call_target);
+  }
 
   Handle<Code> wasm_to_js_wrapper_code;
   if (!wasm::IsJSCompatibleSignature(sig)) {

@@ -1698,8 +1698,8 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    Address opt_call_target, DirectHandle<ExposedTrustedObject> ref,
-    DirectHandle<Map> rtt, int function_index) {
+    DirectHandle<ExposedTrustedObject> ref, DirectHandle<Map> rtt,
+    int function_index) {
   Tagged<WasmInternalFunction> internal =
       Tagged<WasmInternalFunction>::cast(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize, AllocationType::kTrusted,
@@ -1707,7 +1707,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   internal->init_self_indirect_pointer(isolate());
   {
     DisallowGarbageCollection no_gc;
-    internal->set_call_target(opt_call_target);
+    internal->set_call_target(kNullAddress);
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
     internal->set_ref(*ref);
     // Default values, will be overwritten by the caller.
@@ -1737,15 +1737,14 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    Address opt_call_target, DirectHandle<JSReceiver> callable,
+    DirectHandle<JSReceiver> callable,
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       callable, suspend, undefined_value(), serialized_sig);
 
-  Handle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(opt_call_target, ref, rtt, -1);
+  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, rtt, -1);
   WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(ref, internal);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
@@ -1806,9 +1805,9 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
-  Handle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(call_target, ref, rtt, -1);
+  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, rtt, -1);
   WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(ref, internal);
+  internal->set_call_target(call_target);
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Tagged<WasmCapiFunctionData>::cast(AllocateRawWithImmortalMap(

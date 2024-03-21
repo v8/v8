@@ -2279,9 +2279,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
                   i_isolate);
 
     i::Handle<i::WasmInternalFunction> internal =
-        i_isolate->factory()->NewWasmInternalFunction(
-            trusted_instance_data->GetCallTarget(func_index), ref, rtt,
-            func_index);
+        i_isolate->factory()->NewWasmInternalFunction(ref, rtt, func_index);
+    internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
 
     i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
         i_isolate, trusted_instance_data, internal, func_index,
