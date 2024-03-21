@@ -1443,6 +1443,7 @@ class MaglevFrameTranslationBuilder {
         break;
       case DeoptObject::kArguments:
       case DeoptObject::kMappedArgumentsElements:
+      case DeoptObject::kContext:
         // TODO(victorgomes); Still not supported. Currently we always escape
         // the arguments object.
         UNREACHABLE();

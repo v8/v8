@@ -90,6 +90,16 @@ ValueNode* TryGetParentContext(ValueNode* node) {
     return n->context().node();
   }
 
+  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+    if (alloc->value().type == DeoptObject::kContext) {
+      FastField parent =
+          alloc->value().context.elements[Context::PREVIOUS_INDEX];
+      // Current we always set the parent context as a runtime value.
+      DCHECK_EQ(parent.type, FastField::kRuntimeValue);
+      return parent.runtime_value;
+    }
+  }
+
   if (CallRuntime* n = node->TryCast<CallRuntime>()) {
     switch (n->function_id()) {
       case Runtime::kPushBlockContext:
@@ -9634,6 +9644,26 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
   }
 }
 
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastContext context, AllocationType allocation_type) {
+  SmallZoneVector<ValueNode*, 8> elements(context.length, zone());
+  for (int i = 0; i < context.length; ++i) {
+    elements[i] = BuildAllocateFastObject(context.elements[i], allocation_type);
+  }
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      Context::SizeFor(context.length), allocation_type, DeoptObject(context));
+  // TODO(victorgomes): Add AddNonEscapingUses for the contexts to be elided.
+  AddNewNode<StoreMap>({allocation}, context.map);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetSmiConstant(context.length)}, Context::kLengthOffset);
+  for (int i = 0; i < context.length; ++i) {
+    // TODO(leszeks): Elide the write barrier where possible.
+    BuildInitializeStoreTaggedField(allocation, elements[i],
+                                    Context::OffsetOfElementAt(i));
+  }
+  return allocation;
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
     const compiler::LiteralFeedback& feedback) {
   compiler::AllocationSiteRef site = feedback.value();
@@ -9755,38 +9785,83 @@ void MaglevGraphBuilder::VisitCreateClosure() {
   }
 }
 
+ReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
+    compiler::MapRef map, compiler::ScopeInfoRef scope, int context_length) {
+  const int kContextAllocationLimit = 16;
+  if (context_length > kContextAllocationLimit) {
+    return ReduceResult::Fail();
+  }
+  DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
+  FastContext fast_context(
+      NewObjectId(),
+      broker()->target_native_context().function_context_map(broker()),
+      context_length, zone());
+  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope);
+  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
+    fast_context.elements[i] = FastField(broker()->undefined_value());
+  }
+  ValueNode* result =
+      BuildAllocateFastObject(fast_context, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
+  return result;
+}
+
 void MaglevGraphBuilder::VisitCreateBlockContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   // CreateBlockContext <scope_info_idx>
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(0));
-  SetAccumulator(BuildCallRuntime(Runtime::kPushBlockContext, {scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(0);
+  compiler::MapRef map =
+      broker()->target_native_context().block_context_map(broker());
+  PROCESS_AND_RETURN_IF_DONE(TryBuildInlinedAllocatedContext(
+                                 map, scope_info, scope_info.ContextLength()),
+                             SetAccumulator);
+  // Fallback.
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kPushBlockContext, {GetConstant(scope_info)}));
 }
 
 void MaglevGraphBuilder::VisitCreateCatchContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   // CreateCatchContext <exception> <scope_info_idx>
   ValueNode* exception = LoadRegisterTagged(0);
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kPushCatchContext, {exception, scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
+  FastContext fast_context(
+      NewObjectId(),
+      broker()->target_native_context().catch_context_map(broker()),
+      Context::MIN_CONTEXT_SLOTS + 1, zone());
+  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope_info);
+  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
+  fast_context.elements[Context::THROWN_OBJECT_INDEX] = FastField(exception);
+  SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
 }
 
 void MaglevGraphBuilder::VisitCreateFunctionContext() {
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  compiler::MapRef map =
+      broker()->target_native_context().function_context_map(broker());
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildInlinedAllocatedContext(map, info,
+                                      slot_count + Context::MIN_CONTEXT_SLOTS),
+      SetAccumulator);
+  // Fallback.
   SetAccumulator(AddNewNode<CreateFunctionContext>(
       {GetContext()}, info, slot_count, ScopeType::FUNCTION_SCOPE));
 }
 
 void MaglevGraphBuilder::VisitCreateEvalContext() {
-  // TODO(v8:7700): Update TryGetParentContext if this ever emits its own Node
-  // type.
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  compiler::MapRef map =
+      broker()->target_native_context().eval_context_map(broker());
+  PROCESS_AND_RETURN_IF_DONE(
+      TryBuildInlinedAllocatedContext(map, info,
+                                      slot_count + Context::MIN_CONTEXT_SLOTS),
+      SetAccumulator);
   if (slot_count <= static_cast<uint32_t>(
                         ConstructorBuiltins::MaximumFunctionContextSlots())) {
     SetAccumulator(AddNewNode<CreateFunctionContext>(
@@ -9798,12 +9873,20 @@ void MaglevGraphBuilder::VisitCreateEvalContext() {
 }
 
 void MaglevGraphBuilder::VisitCreateWithContext() {
-  // TODO(v8:7700): Inline allocation when context is small.
   // CreateWithContext <register> <scope_info_idx>
   ValueNode* object = LoadRegisterTagged(0);
-  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  SetAccumulator(
-      BuildCallRuntime(Runtime::kPushWithContext, {object, scope_info}));
+  compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
+  FastContext fast_context(
+      NewObjectId(),
+      broker()->target_native_context().with_context_map(broker()),
+      Context::MIN_CONTEXT_EXTENDED_SLOTS, zone());
+  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope_info);
+  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
+  fast_context.elements[Context::EXTENSION_INDEX] = FastField(object);
+  SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+  // effect clear it.
+  ClearCurrentAllocationBlock();
 }
 
 bool MaglevGraphBuilder::CanAllocateSloppyArgumentElements() {

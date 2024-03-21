@@ -899,6 +899,18 @@ struct FastFixedArray {
   };
 };
 
+struct FastContext {
+  FastContext(int id, compiler::MapRef map, int length, Zone* zone)
+      : id(id),
+        map(map),
+        length(length),
+        elements(zone->AllocateArray<FastField>(length)) {}
+  int id;
+  compiler::MapRef map;
+  int length;
+  FastField* elements;
+};
+
 // Encoding of a fast allocation site boilerplate object.
 struct FastObject {
   FastObject(int id, compiler::MapRef map, Zone* zone, FastFixedArray elements)
@@ -1014,13 +1026,16 @@ struct DeoptObject {
       : type(kArguments), arguments(arguments) {}
   explicit DeoptObject(FastMappedArgumentsElements mapped_elements)
       : type(kMappedArgumentsElements), mapped_elements(mapped_elements) {}
+  explicit DeoptObject(FastContext context)
+      : type(kContext), context(context) {}
 
   enum {
     kObject,
     kNumber,
     kFixedArray,
     kArguments,
-    kMappedArgumentsElements
+    kMappedArgumentsElements,
+    kContext,
   } type;
   union {
     FastObject object;
@@ -1028,6 +1043,7 @@ struct DeoptObject {
     Float64 number;
     FastArgumentsObject arguments;
     FastMappedArgumentsElements mapped_elements;
+    FastContext context;
   };
 };
 

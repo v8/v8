@@ -2053,6 +2053,8 @@ class MaglevGraphBuilder {
                                      AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastArgumentsObject arguments,
                                      AllocationType allocation);
+  ValueNode* BuildAllocateFastObject(FastContext object,
+                                     AllocationType allocation);
 
   ValueNode* GetArgumentsElementsLength(FastUnmappedArgumentsElements elements);
   ValueNode* GetArgumentsElementsLength(FastArgumentsElements elements);
@@ -2068,6 +2070,10 @@ class MaglevGraphBuilder {
 
   bool CanAllocateSloppyArgumentElements();
   bool CanAllocateInlinedArgumentElements();
+
+  ReduceResult TryBuildInlinedAllocatedContext(compiler::MapRef map,
+                                               compiler::ScopeInfoRef scope,
+                                               int context_length);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
