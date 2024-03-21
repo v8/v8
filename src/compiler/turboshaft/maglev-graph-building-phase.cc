@@ -117,13 +117,15 @@ class GraphBuilder {
       // predecessors, so we never need to reorder phi inputs.
       return;
     }
-
-    // Because of edge splitting in Maglev, the order of predecessors in the
-    // Turboshaft graph is not always the same as in the Maglev graph, which
-    // means that Phi inputs will have to be reordered. We thus compute in
-    // {predecessor_permutation_} the Turboshaft predecessors position of each
-    // Maglev predecessor, and we'll use this later when emitting Phis to
-    // reorder their inputs.
+    // Because of edge splitting in Maglev (which happens on Bind rather than on
+    // Goto), predecessors in the Maglev graph are not always ordered by their
+    // position in the graph (ie, block 4 could be the second predecessor and
+    // block 5 the first one). However, since we're processing the graph "in
+    // order" (because that's how the maglev GraphProcessor works), predecessors
+    // in the Turboshaft graph will be ordered by their position in the graph.
+    // We thus compute in {predecessor_permutation_} the Turboshaft predecessors
+    // position of each Maglev predecessor, and we'll use this later when
+    // emitting Phis to reorder their inputs.
     predecessor_permutation_.clear();
     if (block->has_phi()) {
       for (int i = 0; i < block->predecessor_count(); ++i) {
