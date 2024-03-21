@@ -1339,7 +1339,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
 
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
-  page->Chunk()->ClearFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  page->Chunk()->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);

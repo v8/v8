@@ -265,10 +265,8 @@ class MemoryAllocator {
     VirtualMemory reservation;
   };
 
-  // Computes the size of a MemoryChunk from the size of the object_area and
-  // whether the chunk is executable or not.
-  static size_t ComputeChunkSize(size_t area_size, AllocationSpace space,
-                                 Executability executable);
+  // Computes the size of a MemoryChunk from the size of the object_area.
+  static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
   // Internal allocation method for all pages/memory chunks. Returns data about
   // the unintialized memory region.
@@ -298,7 +296,7 @@ class MemoryAllocator {
   // header (RW), guard pages (no access) and the object area (code modification
   // permissions).
   V8_WARN_UNUSED_RESULT bool SetPermissionsOnExecutableMemoryChunk(
-      VirtualMemory* vm, Address start, size_t area_size, size_t reserved_size);
+      VirtualMemory* vm, Address start, size_t reserved_size);
 
   // Disallows any access on memory region owned by given reservation object.
   // Returns true if it succeeded and false otherwise.

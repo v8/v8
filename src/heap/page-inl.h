@@ -24,7 +24,7 @@ void PageMetadata::MarkEvacuationCandidate() {
   DCHECK(!Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  Chunk()->SetFlag(MemoryChunk::EVACUATION_CANDIDATE);
+  Chunk()->SetFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
@@ -34,7 +34,7 @@ void PageMetadata::ClearEvacuationCandidate() {
     DCHECK_NULL(slot_set<OLD_TO_OLD>());
     DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
-  chunk->ClearFlag(MemoryChunk::EVACUATION_CANDIDATE);
+  chunk->ClearFlagSlow(MemoryChunk::EVACUATION_CANDIDATE);
   InitializeFreeListCategories();
 }
 
