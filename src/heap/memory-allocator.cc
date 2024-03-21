@@ -369,17 +369,10 @@ void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
 }
 
 void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
-  MemoryChunk* chunk = chunk_metadata->Chunk();
-  base::Optional<CodePageHeaderModificationScope> rwx_write_scope;
-  if (chunk->executable() == EXECUTABLE) {
-    rwx_write_scope.emplace(
-        "We are going to modify the chunk's header, so ensure we have write "
-        "access to Code page headers");
-  }
+  DCHECK(chunk_metadata->Chunk()->IsFlagSet(MemoryChunk::UNREGISTERED));
+  DCHECK(chunk_metadata->Chunk()->IsFlagSet(MemoryChunk::PRE_FREED));
+  DCHECK(!chunk_metadata->Chunk()->InReadOnlySpace());
 
-  DCHECK(chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
-  DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
-  DCHECK(!chunk->InReadOnlySpace());
   chunk_metadata->ReleaseAllAllocatedMemory();
 
   DeleteMemoryChunk(chunk_metadata);

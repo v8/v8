@@ -134,9 +134,6 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   // Set instruction stream and entrypoint.
   Handle<InstructionStream> istream;
   if (options.instruction_stream.ToHandle(&istream)) {
-    CodePageHeaderModificationScope header_modification_scope(
-        "Setting the instruction_stream can trigger a write to the marking "
-        "bitmap.");
     DCHECK_EQ(options.instruction_start, kNullAddress);
     code->SetInstructionStreamAndInstructionStart(isolate(), *istream);
   } else {

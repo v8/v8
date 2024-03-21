@@ -164,9 +164,6 @@ YoungGenerationRememberedSetsMarkingWorklist::CollectItems(Heap* heap) {
   std::vector<MarkingItem> items;
   int max_remembered_set_count = EstimateMaxNumberOfRemeberedSets(heap);
   items.reserve(max_remembered_set_count);
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Extracting of slot sets requires write access to Code page "
-      "header");
   OldGenerationMemoryChunkIterator::ForAll(
       heap, [&items](MutablePageMetadata* chunk) {
         SlotSet* slot_set = chunk->ExtractSlotSet<OLD_TO_NEW>();
@@ -229,9 +226,6 @@ YoungGenerationRememberedSetsMarkingWorklist::
 
 YoungGenerationRememberedSetsMarkingWorklist::
     ~YoungGenerationRememberedSetsMarkingWorklist() {
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Merging slot sets back to pages requires write access to Code page "
-      "header");
   for (MarkingItem item : remembered_sets_marking_items_) {
     item.MergeAndDeleteRememberedSets();
   }

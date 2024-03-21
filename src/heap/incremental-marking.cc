@@ -264,9 +264,6 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
 };
 
 void IncrementalMarking::MarkRoots() {
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Marking of builtins table entries require write access to Code page "
-      "header");
   if (IsMajorMarking()) {
     IncrementalMarkingRootMarkingVisitor visitor(heap_);
     heap_->IterateRoots(

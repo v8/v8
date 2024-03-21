@@ -543,10 +543,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Modification of Code page header flags requires write "
-      "access");
-
   DCHECK(!sweeper_->sweeping_in_progress());
   for (PageMetadata* p : *space) {
     MemoryChunk* chunk = p->Chunk();
@@ -2167,9 +2163,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   Isolate* const isolate = heap_->isolate();
   const auto start = v8::base::TimeTicks::Now();
   PtrComprCageBase cage_base(isolate);
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Marking of InstructionStream objects require write access to "
-      "Code page headers");
+
   if (parallel_marking_ && UseBackgroundThreadsInCycle()) {
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
         GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
@@ -4223,9 +4217,6 @@ bool Evacuator::RawEvacuatePage(MutablePageMetadata* page) {
       new_to_old_page_visitor_.account_moved_bytes(page->live_bytes());
       break;
     case kObjectsOldToOld: {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Evacuation of objects in Code space requires write "
-          "access for the current worker thread.");
 #if DEBUG
       old_space_visitor_.SetUpAbortEvacuationAtAddress(page);
 #endif  // DEBUG
@@ -4695,8 +4686,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "RememberedSetUpdatingItem::Process");
-    CodePageHeaderModificationScope memory_modification_scope(
-        "Releasing slot sets requires header write access.");
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }

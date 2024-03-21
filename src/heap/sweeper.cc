@@ -401,10 +401,6 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
   // The Scavenger may add already swept pages back.
   if (page->SweepingDone()) return;
 
-  base::Optional<CodePageHeaderModificationScope> code_page_scope;
-  if (page->owner_identity() == CODE_SPACE)
-    code_page_scope.emplace("SweepPage needs to write page flags.");
-
   {
     base::MutexGuard guard(page->mutex());
     DCHECK(!page->SweepingDone());

@@ -12,12 +12,6 @@ namespace internal {
 
 ThreadIsolation::TrustedData ThreadIsolation::trusted_data_;
 
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT || \
-    V8_HAS_BECORE_JIT_WRITE_PROTECT
-thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
-#endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT ||
-        // V8_HAS_BECORE_JIT_WRITE_PROTECT
-
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 
 // static

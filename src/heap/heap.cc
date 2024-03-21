@@ -2687,8 +2687,6 @@ void Heap::MarkCompact() {
   SetGCState(MARK_COMPACT);
 
   PROFILE(isolate_, CodeMovingGCEvent());
-  CodePageHeaderModificationScope code_modification(
-      "MarkCompact needs to access the marking bitmap in the page header");
 
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -6137,13 +6135,8 @@ void Heap::TearDown() {
 
   pretenuring_handler_.reset();
 
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Deletion of CODE_SPACE and CODE_LO_SPACE requires write access to "
-        "Code page headers");
-    for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
-      space_[i].reset();
-    }
+  for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
+    space_[i].reset();
   }
 
   isolate()->read_only_heap()->OnHeapTearDown(this);
@@ -7470,12 +7463,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
                                    GCTracer::Scope::MC_COMPLETE_SWEEPING),
                                TRACE_EVENT_FLAG_FLOW_IN);
       old_space()->RefillFreeList();
-      {
-        CodePageHeaderModificationScope rwx_write_scope(
-            "Updating per-page stats stored in page headers requires write "
-            "access to Code page headers");
-        code_space()->RefillFreeList();
-      }
+      code_space()->RefillFreeList();
       if (shared_space()) {
         shared_space()->RefillFreeList();
       }

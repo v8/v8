@@ -201,14 +201,9 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
     DCHECK(p->Chunk()->IsLargePage());
   }
 
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Modification of InstructionStream page header flags requires write "
-        "access");
-    ActivateSpace(heap->code_space(), marking_mode);
-    for (LargePageMetadata* p : *heap->code_lo_space()) {
-      p->SetOldGenerationPageFlags(marking_mode);
-    }
+  ActivateSpace(heap->code_space(), marking_mode);
+  for (LargePageMetadata* p : *heap->code_lo_space()) {
+    p->SetOldGenerationPageFlags(marking_mode);
   }
 
   if (marking_mode == MarkingMode::kMajorMarking) {
@@ -252,14 +247,9 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
     DCHECK(p->Chunk()->IsLargePage());
   }
 
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Modification of InstructionStream page header flags requires write "
-        "access");
-    DeactivateSpace(heap->code_space());
-    for (LargePageMetadata* p : *heap->code_lo_space()) {
-      p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
-    }
+  DeactivateSpace(heap->code_space());
+  for (LargePageMetadata* p : *heap->code_lo_space()) {
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 
   if (marking_mode == MarkingMode::kMajorMarking) {

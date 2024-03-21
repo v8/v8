@@ -253,11 +253,6 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 //    OS::DiscardSystemPages() instead of using OS::DecommitPages() or setting
 //    permissions to kNoAccess because the latter two are not allowed by the
 //    MacOS (see (2)).
-// 5) since code space page headers are allocated as RWX pages it's also
-//   necessary to switch between W^X modes when updating the data in the
-//   page headers (i.e. when marking, updating stats, wiring pages in
-//   lists, etc.). The new CodePageHeaderModificationScope class is used
-//   in the respective places. On unrelated configurations it's a no-op.
 //
 // This is applicable only to MacOS on ARM64 ("Apple M1"/Apple Silicon) which
 // has a APRR/MAP_JIT machinery for fast W^X permission switching (see

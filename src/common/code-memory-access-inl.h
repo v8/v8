@@ -221,20 +221,10 @@ void WritableFreeSpace::ClearTagged(size_t count) const {
 bool RwxMemoryWriteScope::IsSupported() { return true; }
 
 // static
-void RwxMemoryWriteScope::SetWritable() {
-  if (code_space_write_nesting_level_ == 0) {
-    base::SetJitWriteProtected(0);
-  }
-  code_space_write_nesting_level_++;
-}
+void RwxMemoryWriteScope::SetWritable() { base::SetJitWriteProtected(0); }
 
 // static
-void RwxMemoryWriteScope::SetExecutable() {
-  code_space_write_nesting_level_--;
-  if (code_space_write_nesting_level_ == 0) {
-    base::SetJitWriteProtected(1);
-  }
-}
+void RwxMemoryWriteScope::SetExecutable() { base::SetJitWriteProtected(1); }
 
 #elif V8_HAS_BECORE_JIT_WRITE_PROTECT
 
@@ -278,28 +268,26 @@ bool RwxMemoryWriteScope::IsSupported() {
 void RwxMemoryWriteScope::SetWritable() {
   DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
-  if (code_space_write_nesting_level_ == 0) {
-    DCHECK_NE(
-        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
-        base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
-  }
-  code_space_write_nesting_level_++;
+
+  DCHECK_NE(
+      base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
+      base::MemoryProtectionKey::kNoRestrictions);
+
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
   DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
-  code_space_write_nesting_level_--;
-  if (code_space_write_nesting_level_ == 0) {
-    DCHECK_EQ(
-        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
-        base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
-  }
+
+  DCHECK_EQ(
+      base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
+      base::MemoryProtectionKey::kNoRestrictions);
+
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
 }
 
 #else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !V8_TRY_USE_PKU_JIT_WRITE_PROTECT

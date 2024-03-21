@@ -144,9 +144,6 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
     DCHECK_EQ(0, committed_physical_memory());
     return CommittedMemory();
   }
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Updating high water mark for Code pages requires write access to "
-      "the Code page headers");
   return committed_physical_memory();
 }
 
@@ -279,11 +276,6 @@ void PagedSpaceBase::ResetFreeList() {
 }
 
 void PagedSpaceBase::ShrinkImmortalImmovablePages() {
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace(
-        "ShrinkImmortalImmovablePages writes to the page header.");
-  }
   DCHECK(!heap()->deserialization_complete());
   ResetFreeList();
   for (PageMetadata* page : *this) {
@@ -294,10 +286,6 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
 
 bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
   DCHECK_EQ(!local_heap, origin == AllocationOrigin::kGC);
-  base::Optional<CodePageHeaderModificationScope> optional_scope;
-  if (identity() == CODE_SPACE) {
-    optional_scope.emplace("TryExpand writes to the page header.");
-  }
   const size_t accounted_size =
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(identity());
   if (origin != AllocationOrigin::kGC && identity() != NEW_SPACE) {

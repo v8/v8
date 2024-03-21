@@ -60,10 +60,6 @@ inline void CombinedWriteBarrierInternal(Tagged<HeapObject> host,
 
   // Marking barrier: mark value & record slots when marking is on.
   if (V8_UNLIKELY(is_marking)) {
-    // CodePageHeaderModificationScope is not required because the only case
-    // when a InstructionStream value is stored somewhere is during creation of
-    // a new InstructionStream object which is then stored to
-    // Code's code field and in this case the code space is already unlocked.
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
@@ -167,10 +163,6 @@ inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
 
   // Marking barrier: mark value & record slots when marking is on.
   if (is_marking) {
-    // Currently InstructionStream values are never stored in EphemeronTables.
-    // If this ever changes then the CodePageHeaderModificationScope might be
-    // required here.
-    DCHECK(!IsCodeSpaceObject(heap_object_value));
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), heap_object_value);
   }
 }
@@ -265,10 +257,6 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, ObjectSlot slot,
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
   Tagged<HeapObject> value_heap_object = HeapObject::cast(value);
-  // Currently this marking barrier is never used for InstructionStream values.
-  // If this ever changes then the CodePageHeaderModificationScope might be
-  // required here.
-  DCHECK(!IsCodeSpaceObject(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 
