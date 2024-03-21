@@ -4973,9 +4973,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  // Set up for JSPI
-  if (v8_flags.experimental_wasm_jspi) WasmInitJSPIFeature();
-
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(

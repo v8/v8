@@ -3330,6 +3330,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Create the Suspender object.
   if (enabled_features.has_jspi()) {
+    isolate->WasmInitJSPIFeature();
     InstallSuspenderConstructor(isolate, native_context);
   }
 }
@@ -3363,6 +3364,8 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
 
   // Install JSPI-related features.
   if (isolate->IsWasmJSPIEnabled(context)) {
+    isolate->WasmInitJSPIFeature();
+
     Handle<String> suspender_string = v8_str(isolate, "Suspender");
     if (!JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
              .FromMaybe(true)) {
