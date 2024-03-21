@@ -4404,25 +4404,11 @@ int GetLength(const String::LineEndsVector& vector) {
 }
 
 int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
-}  // namespace
-
-void Script::AddPositionInfoOffset(PositionInfo* info,
-                                   OffsetFlag offset_flag) const {
-  // Add offsets if requested.
-  if (offset_flag == OffsetFlag::kWithOffset) {
-    if (info->line == 0) {
-      info->column += column_offset();
-    }
-    info->line += line_offset();
-  } else {
-    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
-  }
-}
 
 template <typename LineEndsContainer>
-bool Script::GetPositionInfoInternal(
-    const LineEndsContainer& ends, int position, Script::PositionInfo* info,
-    const DisallowGarbageCollection& no_gc) const {
+bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
+                                      int position, Script::PositionInfo* info,
+                                      const DisallowGarbageCollection& no_gc) {
   const int ends_len = GetLength(ends);
   if (ends_len == 0) return false;
 
@@ -4460,6 +4446,31 @@ bool Script::GetPositionInfoInternal(
     info->line_start = GetLineEnd(ends, info->line - 1) + 1;
     info->column = position - info->line_start;
   }
+
+  return true;
+}
+
+}  // namespace
+
+void Script::AddPositionInfoOffset(PositionInfo* info,
+                                   OffsetFlag offset_flag) const {
+  // Add offsets if requested.
+  if (offset_flag == OffsetFlag::kWithOffset) {
+    if (info->line == 0) {
+      info->column += column_offset();
+    }
+    info->line += line_offset();
+  } else {
+    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
+  }
+}
+
+template <typename LineEndsContainer>
+bool Script::GetPositionInfoInternal(
+    const LineEndsContainer& ends, int position, Script::PositionInfo* info,
+    const DisallowGarbageCollection& no_gc) const {
+  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc))
+    return false;
 
   // Line end is position of the linebreak character.
   info->line_end = GetLineEnd(ends, info->line);
@@ -4525,6 +4536,23 @@ bool Script::GetPositionInfoWithLineEnds(
   if (!GetPositionInfoInternal(line_ends, position, info, no_gc)) return false;
 
   AddPositionInfoOffset(info, offset_flag);
+
+  return true;
+}
+
+bool Script::GetLineColumnWithLineEnds(
+    int position, int& line, int& column,
+    const String::LineEndsVector& line_ends) {
+  DisallowGarbageCollection no_gc;
+  PositionInfo info;
+  if (!GetLineEndsContainerPositionInfo(line_ends, position, &info, no_gc)) {
+    line = -1;
+    column = -1;
+    return false;
+  }
+
+  line = info.line;
+  column = info.column;
 
   return true;
 }

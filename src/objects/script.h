@@ -205,6 +205,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static bool GetPositionInfo(Handle<Script> script, int position,
                               PositionInfo* info,
                               OffsetFlag offset_flag = OffsetFlag::kWithOffset);
+  static bool GetLineColumnWithLineEnds(
+      int position, int& line, int& column,
+      const String::LineEndsVector& line_ends);
   V8_EXPORT_PRIVATE bool GetPositionInfo(
       int position, PositionInfo* info,
       OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
