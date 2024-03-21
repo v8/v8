@@ -6172,6 +6172,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       DCHECK(!current_code_reachable_and_ok_);
       return array;
     }
+    // Inputs of type "none" are okay due to implicit upcasting. The stringref
+    // spec doesn't say this explicitly yet, but it's consistent with the rest
+    // of Wasm. (Of course such inputs will trap at runtime.) See:
+    // https://github.com/WebAssembly/stringref/issues/66
+    if (array.type.is_reference_to(HeapType::kNone)) return array;
     if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
       uint32_t ref_index = array.type.ref_index();
       if (VALIDATE(this->module_->has_array(ref_index))) {
