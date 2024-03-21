@@ -556,6 +556,13 @@ class V8_NODISCARD RwxMemoryWriteScopeForTesting final
       const RwxMemoryWriteScopeForTesting&) = delete;
 };
 
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+// Metadata are not protected yet with PTHREAD_JIT_WRITE_PROTECT
+using CFIMetadataWriteScope = NopRwxMemoryWriteScope;
+#else
+using CFIMetadataWriteScope = RwxMemoryWriteScope;
+#endif
+
 }  // namespace internal
 }  // namespace v8
 
