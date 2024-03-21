@@ -606,7 +606,7 @@ class Graph {
     return *ptr;
   }
 
-  void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count.SetToZero(); }
+  void KillOperation(OpIndex i) { Replace<DeadOp>(i); }
 
   Block& StartBlock() { return Get(BlockIndex(0)); }
   const Block& StartBlock() const { return Get(BlockIndex(0)); }
@@ -693,15 +693,6 @@ class Graph {
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
 
-    if (op.IsRequiredWhenUnused()) {
-      // Once the graph is built, an operation with a `saturated_use_count` of 0
-      // is guaranteed to be unused and can be removed. Thus, to avoid removing
-      // operations that never have uses (such as Goto or Branch), we set the
-      // `saturated_use_count` of Operations that are `IsRequiredWhenUnused()`
-      // to 1.
-      op.saturated_use_count.SetToOne();
-    }
-
     DCHECK_EQ(result, Index(op));
 #ifdef DEBUG
     for (OpIndex input : op.inputs()) {
@@ -731,7 +722,9 @@ class Graph {
       OperationBuffer::ReplaceScope replace_scope(&operations_, replaced);
       new_op = &Op::New(this, args...);
     }
-    new_op->saturated_use_count = old_uses;
+    if (!std::is_same_v<Op, DeadOp>) {
+      new_op->saturated_use_count = old_uses;
+    }
     IncrementInputUses(*new_op);
   }
 

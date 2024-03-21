@@ -275,7 +275,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(AtomicRMW)                               \
   V(AtomicWord32Pair)                        \
   V(MemoryBarrier)                           \
-  V(Comment)
+  V(Comment)                                 \
+  V(Dead)
 
 // These are operations used in the frontend and are mostly tied to JS
 // semantics.
@@ -1258,6 +1259,25 @@ V8_EXPORT_PRIVATE bool ValidOpInputRep(
 V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
     base::Optional<size_t> projection_index = {});
+
+// DeadOp is a special operation that can be used by analyzers to mark
+// operations as being dead (typically, it should be used by calling the Graph's
+// KillOperation method, which will Replace the old operation by a DeadOp).
+// CopyingPhase and Analyzers should ignore Dead operations. A Dead operation
+// should never be the input of a non-dead operation.
+struct DeadOp : FixedArityOperationT<0, DeadOp> {
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
 
 struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
 #define GENERIC_BINOP_LIST(V) \
@@ -8279,13 +8299,15 @@ inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
 bool IsUnlikelySuccessor(const Block* block, const Block* successor,
                          const Graph& graph);
 
-// All operations whose `saturated_use_count` is 0 are unused and can be
-// skipped. Analyzers modify the input graph in-place when they want to mark
-// some Operations as removeable. In order to make that work for operations that
-// have no uses such as Goto and Branch, all operations that have the property
-// `IsRequiredWhenUnused()` have a non-zero `saturated_use_count`.
+// Analyzers should skip (= ignore) operations for which ShouldSkipOperation
+// returns true. This happens for:
+//  - DeadOp: this means that a previous Analyzer decided that this operation is
+//    dead.
+//  - Operations that are not RequiredWhenUnused, and whose saturated_use_count
+//    is 0: this corresponds to pure operations that have no uses.
 V8_EXPORT_PRIVATE V8_INLINE bool ShouldSkipOperation(const Operation& op) {
-  return op.saturated_use_count.IsZero();
+  if (op.Is<DeadOp>()) return true;
+  return op.saturated_use_count.IsZero() && !op.IsRequiredWhenUnused();
 }
 
 namespace detail {

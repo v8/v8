@@ -5486,6 +5486,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
       UNREACHABLE_CASE(PendingLoopPhi)
       UNREACHABLE_CASE(Tuple)
+      UNREACHABLE_CASE(Dead)
       UNREACHABLE();
 #undef UNREACHABLE_CASE
   }

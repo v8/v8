@@ -4022,8 +4022,8 @@ class Assembler : public AssemblerData,
   Graph& output_graph() const { return AssemblerData::output_graph; }
   Zone* graph_zone() const { return output_graph().graph_zone(); }
 
-  // Analyzers set Operations' saturated_use_count to zero when they are unused,
-  // and thus need to have a non-const input graph.
+  // When analyzers detect that an operation is dead, they replace its opcode by
+  // kDead in-place, and thus need to have a non-const input graph.
   Graph& modifiable_input_graph() const { return AssemblerData::input_graph; }
 
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
