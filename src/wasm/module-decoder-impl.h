@@ -661,6 +661,11 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else {
         if (tracer_) tracer_->TypeOffset(pc_offset());
+        if (initial_size + 1 > kV8MaxWasmTypes) {
+          errorf(pc(), "Type definition count exceeds maximum %zu",
+                 kV8MaxWasmTypes);
+          return;
+        }
         // Similarly to above, we need to resize types for a group of size 1.
         module_->types.resize(initial_size + 1);
         module_->isorecursive_canonical_type_ids.resize(initial_size + 1);
