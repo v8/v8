@@ -10,6 +10,8 @@
 #include "src/base/optional.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/utils/utils.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 
@@ -23,7 +25,6 @@ class Isolate;
 class PersistentHandles;
 class SharedFunctionInfo;
 class TranslationArrayBuilder;
-class Zone;
 
 namespace compiler {
 class JSHeapBroker;

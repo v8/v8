@@ -14,6 +14,7 @@
 
 #include "include/v8-local-handle.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/common/message-template.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -176,7 +177,7 @@ class MessageHandler {
   static void ReportMessageNoExceptions(Isolate* isolate,
                                         const MessageLocation* loc,
                                         Handle<Object> message_obj,
-                                        v8::Local<v8::Value> api_exception_obj);
+                                        Local<Value> api_exception_obj);
 };
 
 }  // namespace internal
