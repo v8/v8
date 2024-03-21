@@ -146,18 +146,20 @@ enum PropertyAttribute {
 };
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when
- * setting|getting a particular property. See Object and ObjectTemplate's
- * method SetAccessor.
+ * Accessor[Getter|Setter] are used as callback functions when setting|getting
+ * a particular data property. See Object::SetNativeDataProperty and
+ * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorGetterCallback =
+using AccessorGetterCallback V8_DEPRECATE_SOON(
+    "Use AccessorNameGetterCallback signature instead") =
     void (*)(Local<String> property, const PropertyCallbackInfo<Value>& info);
 using AccessorNameGetterCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
-using AccessorSetterCallback = void (*)(Local<String> property,
-                                        Local<Value> value,
-                                        const PropertyCallbackInfo<void>& info);
+using AccessorSetterCallback V8_DEPRECATE_SOON(
+    "Use AccessorNameSetterCallback signature instead") =
+    void (*)(Local<String> property, Local<Value> value,
+             const PropertyCallbackInfo<void>& info);
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);
