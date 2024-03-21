@@ -803,6 +803,8 @@ v8_source_set("v8_unittests_sources") {
     sources += [
       "fuzztest-adapter.h",
       "fuzztest-init-adapter.h",
+      "regexp/regexp-fuzzer.cc",
+      "regexp/regexp-grammar.h",
     ]
 
     deps += [
