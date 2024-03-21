@@ -1956,7 +1956,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void IsolateInBackgroundNotification();
 
-  bool IsIsolateInBackground() { return is_isolate_in_background_; }
+  bool is_backgrounded() { return is_backgrounded_; }
 
   // When efficiency mode is enabled we can favor single core throughput without
   // latency requirements. Any decision based on this flag must be quickly
@@ -1965,27 +1965,28 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // efficiency mode. The decision when to enable efficiency mode is steered by
   // the embedder. Currently the only signal (potentially) being considered is
   // if an isolate is in foreground or background mode.
-  bool UseEfficiencyMode() {
+  bool EfficiencyModeEnabled() {
     if (V8_UNLIKELY(v8_flags.efficiency_mode.value().has_value())) {
       return *v8_flags.efficiency_mode.value();
     }
-    return IsIsolateInBackground();
+    return is_backgrounded();
   }
+
   // This is a temporary api until we use it by default.
-  bool UseEfficiencyModeForTiering() {
-    if (!v8_flags.efficiency_mode_for_tiering_heuristics) return false;
-    return UseEfficiencyMode();
+  bool EfficiencyModeEnabledForTiering() {
+    return v8_flags.efficiency_mode_for_tiering_heuristics &&
+           EfficiencyModeEnabled();
   }
 
   // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
   // saver mode is opt-in by the embedder. As with efficiency mode we must
   // expect that the mode is toggled off again and we should be able to ramp up
   // quickly after that.
-  bool UseBatterySaverMode() {
+  bool BatterySaverModeEnabled() {
     if (V8_UNLIKELY(v8_flags.battery_saver_mode.value().has_value())) {
       return *v8_flags.battery_saver_mode.value();
     }
-    return V8_UNLIKELY(battery_saver_mode_enabled());
+    return V8_UNLIKELY(battery_saver_mode_enabled_);
   }
 
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
@@ -2223,10 +2224,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Called by d8 right before Dispose, if the shell is quitting with a dirty
   // stack.
   void PrepareForSuddenShutdown();
-
-  bool battery_saver_mode_enabled() const {
-    return battery_saver_mode_enabled_;
-  }
 
   void set_battery_saver_mode_enabled(bool battery_saver_mode_enabled) {
     battery_saver_mode_enabled_ = battery_saver_mode_enabled;
@@ -2474,7 +2471,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
-  std::atomic<bool> is_isolate_in_background_ = false;
+  std::atomic<bool> is_backgrounded_ = false;
 
   // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.

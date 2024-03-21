@@ -218,7 +218,7 @@ void OptimizingCompileDispatcher::QueueForOptimization(
   DCHECK(input_queue_.IsAvailable());
   input_queue_.Enqueue(job);
   if (job_handle_->UpdatePriorityEnabled()) {
-    job_handle_->UpdatePriority(isolate_->UseEfficiencyModeForTiering()
+    job_handle_->UpdatePriority(isolate_->EfficiencyModeEnabledForTiering()
                                     ? kEfficiencyTaskPriority
                                     : kTaskPriority);
   }

@@ -517,12 +517,12 @@ bool Heap::HasBeenSetUp() const {
 
 bool Heap::ShouldUseBackgroundThreads() const {
   return !v8_flags.single_threaded_gc_in_background ||
-         !isolate()->IsIsolateInBackground();
+         !isolate()->EfficiencyModeEnabled();
 }
 
 bool Heap::ShouldOptimizeForBattery() const {
   return v8_flags.optimize_gc_for_battery ||
-         isolate()->battery_saver_mode_enabled();
+         isolate()->BatterySaverModeEnabled();
 }
 
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
@@ -3808,7 +3808,7 @@ bool Heap::HasHighFragmentation() {
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size() / 8;
-  return v8_flags.optimize_for_size || isolate()->IsIsolateInBackground() ||
+  return v8_flags.optimize_for_size || isolate()->EfficiencyModeEnabled() ||
          HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
@@ -3845,7 +3845,7 @@ void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
   // 2 pages for the old, code, and map space + 1 page for new space.
   const int kMinCommittedMemory = 7 * PageMetadata::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
-      isolate()->IsIsolateInBackground()) {
+      isolate()->is_backgrounded()) {
     memory_reducer_->NotifyPossibleGarbage();
   }
 }

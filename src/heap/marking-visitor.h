@@ -65,7 +65,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
         code_flushing_increase_(code_flushing_increase),
-        isolate_in_background_(heap->isolate()->IsIsolateInBackground())
+        isolate_in_background_(heap->isolate()->is_backgrounded())
 #ifdef V8_ENABLE_SANDBOX
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),

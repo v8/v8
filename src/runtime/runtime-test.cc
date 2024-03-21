@@ -2110,7 +2110,7 @@ RUNTIME_FUNCTION(Runtime_NotifyIsolateBackground) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
-  if (isolate->UseEfficiencyMode()) {
+  if (isolate->EfficiencyModeEnabled()) {
     return ReadOnlyRoots(isolate).true_value();
   }
   return ReadOnlyRoots(isolate).false_value();

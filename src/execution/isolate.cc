@@ -6246,13 +6246,11 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
 }
 
 void Isolate::IsolateInBackgroundNotification() {
-  is_isolate_in_background_ = true;
+  is_backgrounded_ = true;
   heap()->ActivateMemoryReducerIfNeeded();
 }
 
-void Isolate::IsolateInForegroundNotification() {
-  is_isolate_in_background_ = false;
-}
+void Isolate::IsolateInForegroundNotification() { is_backgrounded_ = false; }
 
 void Isolate::PrintWithTimestamp(const char* format, ...) {
   base::OS::Print("[%d:%p] %8.0f ms: ", base::OS::GetCurrentProcessId(),
