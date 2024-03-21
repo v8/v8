@@ -2352,6 +2352,11 @@ void Shell::InstallConditionalFeatures(
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
+void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  isolate->SetWasmJSPIEnabledCallback([](auto) { return true; });
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -3503,6 +3508,11 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "installConditionalFeatures",
         FunctionTemplate::New(isolate, Shell::InstallConditionalFeatures));
+
+    // Enable JavaScript Promise Integration at runtime, to simulate
+    // Origin Trial behavior.
+    test_template->Set(isolate, "enableJSPI",
+                       FunctionTemplate::New(isolate, Shell::EnableJSPI));
 
     d8_template->Set(isolate, "test", test_template);
   }
