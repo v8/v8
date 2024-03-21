@@ -704,9 +704,9 @@ DEFINE_MAYBE_BOOL(
     "Battery saver tries to conserve overal cpu cycles spent.")
 
 // Flags to experiment with the new efficiency mode
-DEFINE_BOOL(efficiency_mode_for_tiering_heuristics, false,
+DEFINE_BOOL(efficiency_mode_for_tiering_heuristics, true,
             "Use efficiency mode in tiering heuristics.")
-DEFINE_BOOL(efficiency_mode_disable_turbofan, true,
+DEFINE_BOOL(efficiency_mode_disable_turbofan, false,
             "Defer tier-up to turbofan while in efficiency mode.")
 DEFINE_INT(efficiency_mode_delay_turbofan, 15000,
            "Delay tier-up to turbofan to a certain invocation count while in "
