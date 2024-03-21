@@ -46,13 +46,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   enum Header {
     FIELD(uintptr_t, Flags),
     FIELD(MemoryChunkMetadata*, Metadata),
-    kEndOfMetadataPointer,
-    kMemoryChunkHeaderSize =
-        kEndOfMetadataPointer +
-        ((kEndOfMetadataPointer % kMemoryChunkAlignment) == 0
-             ? 0
-             : kMemoryChunkAlignment -
-                   (kEndOfMetadataPointer % kMemoryChunkAlignment)),
   };
   // Note that the order of the fields is performance sensitive. Often accessed
   // fields should be on the same cache line.
@@ -85,20 +78,25 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(size_t, AgeInNewSpace),
     FIELD(MarkingBitmap, MarkingBitmap),
     kEndOfMarkingBitmap,
-    kMutablePageMetadataStart = kSlotSetOffset,
-    kMemoryChunkMetadataSize = kMutablePageMetadataStart,
-    kMutablePageMetadataSize =
+    kMemoryChunkHeaderSize =
         kEndOfMarkingBitmap +
         ((kEndOfMarkingBitmap % kMemoryChunkAlignment) == 0
              ? 0
              : kMemoryChunkAlignment -
                    (kEndOfMarkingBitmap % kMemoryChunkAlignment)),
+    kMemoryChunkHeaderStart = kSlotSetOffset,
+    kBasicMemoryChunkHeaderSize = kMemoryChunkHeaderStart,
+    kBasicMemoryChunkHeaderStart = 0,
   };
 #undef FIELD
 
+  static size_t CodePageGuardStartOffset();
+  static size_t CodePageGuardSize();
   // Code pages have padding on the first page for code alignment, so the
   // ObjectStartOffset will not be page aligned.
+  static intptr_t ObjectPageOffsetInCodePage();
   static intptr_t ObjectStartOffsetInCodePage();
+  static intptr_t ObjectEndOffsetInCodePage();
   static size_t AllocatableMemoryInCodePage();
   static size_t ObjectStartOffsetInDataPage();
   static size_t AllocatableMemoryInDataPage();

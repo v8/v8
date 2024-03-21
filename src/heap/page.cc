@@ -63,7 +63,7 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  chunk->ClearFlagsNonExecutable(MemoryChunk::kAllFlagsMask);
+  chunk->ClearFlags(MemoryChunk::kAllFlagsMask);
   PageMetadata* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page);
   return new_page;
@@ -80,8 +80,8 @@ void PageMetadata::MarkNeverAllocateForTesting() {
   MemoryChunk* chunk = Chunk();
   DCHECK(this->owner_identity() != NEW_SPACE);
   DCHECK(!chunk->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE));
-  chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-  chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
+  chunk->SetFlag(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  chunk->SetFlag(MemoryChunk::NEVER_EVACUATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 

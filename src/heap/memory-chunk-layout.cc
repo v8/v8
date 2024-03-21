@@ -13,17 +13,38 @@
 namespace v8 {
 namespace internal {
 
+size_t MemoryChunkLayout::CodePageGuardStartOffset() {
+  // We are guarding code pages: the first OS page after the header
+  // will be protected as non-writable.
+  return ::RoundUp(MutablePageMetadata::kHeaderSize,
+                   MemoryAllocator::GetCommitPageSize());
+}
+
+size_t MemoryChunkLayout::CodePageGuardSize() {
+  return MemoryAllocator::GetCommitPageSize();
+}
+
 intptr_t MemoryChunkLayout::ObjectStartOffsetInCodePage() {
-  // The instruction stream data (so after the header) should be aligned to
-  // kCodeAlignment.
-  return RoundUp(sizeof(MemoryChunk) + InstructionStream::kHeaderSize,
-                 kCodeAlignment) -
-         InstructionStream::kHeaderSize;
+  // The first page also includes padding for code alignment.
+  return ObjectPageOffsetInCodePage() +
+         InstructionStream::kCodeAlignmentMinusCodeHeader;
+}
+
+intptr_t MemoryChunkLayout::ObjectPageOffsetInCodePage() {
+  // We are guarding code pages: the first OS page after the header
+  // will be protected as non-writable.
+  return CodePageGuardStartOffset() + CodePageGuardSize();
+}
+
+intptr_t MemoryChunkLayout::ObjectEndOffsetInCodePage() {
+  // We are guarding code pages: the last OS page will be protected as
+  // non-writable.
+  return MutablePageMetadata::kPageSize -
+         static_cast<int>(MemoryAllocator::GetCommitPageSize());
 }
 
 size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
-  size_t memory =
-      MutablePageMetadata::kPageSize - ObjectStartOffsetInCodePage();
+  size_t memory = ObjectEndOffsetInCodePage() - ObjectStartOffsetInCodePage();
   return memory;
 }
 
@@ -35,7 +56,7 @@ size_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
 intptr_t MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() {
   return RoundUp(
       sizeof(MemoryChunk) +
-          static_cast<size_t>(MemoryChunkLayout::kMemoryChunkMetadataSize),
+          static_cast<size_t>(MemoryChunkLayout::kBasicMemoryChunkHeaderSize),
       ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 
