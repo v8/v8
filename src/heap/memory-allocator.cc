@@ -437,11 +437,12 @@ PageMetadata* MemoryAllocator::AllocatePage(
                                 std::move(chunk_info->reservation));
   }
   MemoryChunk* chunk;
+  MemoryChunk::MainThreadFlags flags = metadata->InitialFlags(executable);
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
+    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
   } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
+    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
   }
 
 #ifdef DEBUG
@@ -469,7 +470,7 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
                                chunk_info->area_start, chunk_info->area_end,
                                std::move(chunk_info->reservation));
 
-  new (chunk_info->chunk) MemoryChunk(metadata);
+  new (chunk_info->chunk) MemoryChunk(metadata->InitialFlags(), metadata);
   return metadata;
 }
 
@@ -498,11 +499,12 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(
         chunk_info->area_end, std::move(chunk_info->reservation), executable);
   }
   MemoryChunk* chunk;
+  MemoryChunk::MainThreadFlags flags = metadata->InitialFlags(executable);
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
+    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
   } else {
-    chunk = new (chunk_info->chunk) MemoryChunk(metadata, executable);
+    chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);
   }
 
 #ifdef DEBUG

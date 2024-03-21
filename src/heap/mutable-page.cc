@@ -62,6 +62,15 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
 MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
     Executability executable) const {
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
+
+  if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
+    flags |= MemoryChunk::YoungGenerationPageFlags(
+        heap()->incremental_marking()->marking_mode());
+  } else {
+    flags |= MemoryChunk::OldGenerationPageFlags(
+        heap()->incremental_marking()->marking_mode(), InSharedSpace());
+  }
+
   if (executable == EXECUTABLE) {
     flags |= MemoryChunk::IS_EXECUTABLE;
     // Executable chunks are also trusted as they contain machine code and live

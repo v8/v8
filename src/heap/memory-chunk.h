@@ -126,9 +126,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
 
-  explicit MemoryChunk(ReadOnlyPageMetadata* metadata);
-  explicit MemoryChunk(PageMetadata* metadata, Executability executable);
-  explicit MemoryChunk(LargePageMetadata* metadata, Executability executable);
+  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
+      : main_thread_flags_(flags), metadata_(metadata) {}
 
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
@@ -270,6 +269,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE static constexpr bool IsAligned(Address address) {
     return (address & kAlignmentMask) == 0;
   }
+
+  static MainThreadFlags OldGenerationPageFlags(MarkingMode marking_mode,
+                                                bool in_shared_space);
+  static MainThreadFlags YoungGenerationPageFlags(MarkingMode marking_mode);
 
   void SetOldGenerationPageFlags(MarkingMode marking_mode,
                                  bool in_shared_space);

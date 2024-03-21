@@ -35,8 +35,6 @@ PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
   chunk->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
                                           : MemoryChunk::FROM_PAGE);
   PageMetadata* page = PageMetadata::cast(mutable_page);
-  chunk->SetYoungGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   page->list_node().Initialize();
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
@@ -876,9 +874,7 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  chunk->SetFlagsNonExecutable(MemoryChunk::TO_PAGE);
-  chunk->SetYoungGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
+  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   page->ClearLiveness();
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();

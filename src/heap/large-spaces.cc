@@ -128,8 +128,6 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
   LargePageMetadata* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();
-  page->SetOldGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   Tagged<HeapObject> object = page->GetObject();
   if (local_heap->is_main_thread() && identity() != SHARED_LO_SPACE) {
     UpdatePendingObject(object);
@@ -187,6 +185,8 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePageMetadata* page) {
   PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+  chunk->SetOldGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode(), false);
   AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
 }
 
@@ -197,8 +197,6 @@ void LargeObjectSpace::AddPage(LargePageMetadata* page, size_t object_size) {
   page_count_++;
   memory_chunk_list_.PushBack(page);
   page->set_owner(this);
-  page->SetOldGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   ForAll<ExternalBackingStoreType>(
       [this, page](ExternalBackingStoreType type, int index) {
         IncrementExternalBackingStoreBytes(
@@ -379,8 +377,6 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
   Tagged<HeapObject> result = page->GetObject();
   MemoryChunk* chunk = page->Chunk();
-  chunk->SetYoungGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode());
   chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_ms) {

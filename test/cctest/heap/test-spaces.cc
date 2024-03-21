@@ -198,9 +198,6 @@ TEST(MutablePageMetadata) {
         base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
         page_freeing_mode);
 
-    // Modification of pages in code_range_reservation requires write access.
-    RwxMemoryWriteScopeForTesting rwx_write_scope;
-
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
                       EXECUTABLE, PageSize::kLarge, heap->code_lo_space());
 
