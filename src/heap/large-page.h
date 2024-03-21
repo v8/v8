@@ -51,9 +51,6 @@ class LargePageMetadata : public MutablePageMetadata {
   void ClearOutOfLiveRangeSlots(Address free_start);
 
  private:
-  static LargePageMetadata* Initialize(Heap* heap, MutablePageMetadata* chunk,
-                                       Executability executable);
-
   friend class MemoryAllocator;
 };
 

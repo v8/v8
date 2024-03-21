@@ -131,16 +131,13 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
 
   size_t allocatable_memory_area_offset =
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
-  size_t guard_size =
-      (executable == EXECUTABLE) ? MemoryChunkLayout::CodePageGuardSize() : 0;
 
   MutablePageMetadata* memory_chunk =
       memory_allocator->AllocateLargePage(space, area_size, executable);
   size_t reserved_size =
       ((executable == EXECUTABLE))
           ? RoundUp(allocatable_memory_area_offset +
-                        RoundUp(area_size, page_allocator->CommitPageSize()) +
-                        guard_size,
+                        RoundUp(area_size, page_allocator->CommitPageSize()),
                     page_allocator->CommitPageSize())
           : RoundUp(allocatable_memory_area_offset + area_size,
                     page_allocator->CommitPageSize());

@@ -138,11 +138,11 @@ class PageMetadata : public MutablePageMetadata {
 
 // Validate our estimates on the header size.
 static_assert(sizeof(MemoryChunkMetadata) <=
-              MemoryChunkLayout::kBasicMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMemoryChunkMetadataSize);
 static_assert(sizeof(MutablePageMetadata) <=
-              MemoryChunkLayout::kMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMutablePageMetadataSize);
 static_assert(sizeof(PageMetadata) <=
-              MemoryChunkLayout::kMemoryChunkHeaderSize);
+              MemoryChunkLayout::kMutablePageMetadataSize);
 
 }  // namespace internal
 

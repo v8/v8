@@ -20,6 +20,8 @@ class LargePageMetadata;
 template <typename T>
 class Tagged;
 
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
 class V8_EXPORT_PRIVATE MemoryChunk final {
  public:
   // All possible flags that can be set on a page. While the value of flags
@@ -184,19 +186,37 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return GetFlags() & kYoungOrSharedChunkMask;
   }
 
+  void SetFlagSlow(Flag flag);
+  void ClearFlagSlow(Flag flag);
+
   V8_INLINE MainThreadFlags GetFlags() const { return main_thread_flags_; }
-  V8_INLINE void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
-  V8_INLINE void ClearFlag(Flag flag) {
+
+  V8_INLINE void SetFlagUnlocked(Flag flag) { main_thread_flags_ |= flag; }
+  V8_INLINE void ClearFlagUnlocked(Flag flag) {
     main_thread_flags_ = main_thread_flags_.without(flag);
   }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  V8_INLINE void ClearFlags(MainThreadFlags flags) {
+  V8_INLINE void ClearFlagsUnlocked(MainThreadFlags flags) {
     main_thread_flags_ &= ~flags;
   }
-  V8_INLINE void SetFlags(MainThreadFlags flags,
-                          MainThreadFlags mask = kAllFlagsMask) {
+  V8_INLINE void SetFlagsUnlocked(MainThreadFlags flags,
+                                  MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
+  }
+
+  V8_INLINE void SetFlagNonExecutable(Flag flag) {
+    return SetFlagUnlocked(flag);
+  }
+  V8_INLINE void ClearFlagNonExecutable(Flag flag) {
+    return ClearFlagUnlocked(flag);
+  }
+  V8_INLINE void SetFlagsNonExecutable(MainThreadFlags flags,
+                                       MainThreadFlags mask = kAllFlagsMask) {
+    return SetFlagsUnlocked(flags, mask);
+  }
+  V8_INLINE void ClearFlagsNonExecutable(MainThreadFlags flags) {
+    return ClearFlagsUnlocked(flags);
   }
 
   Heap* GetHeap();
@@ -217,7 +237,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE bool InTrustedSpace() const { return IsFlagSet(IS_TRUSTED); }
 
   bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
+  void MarkNeverEvacuate() { SetFlagSlow(NEVER_EVACUATE); }
 
   bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
@@ -251,6 +271,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return (address & kAlignmentMask) == 0;
   }
 
+  void SetOldGenerationPageFlags(MarkingMode marking_mode,
+                                 bool in_shared_space);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+
 #ifdef DEBUG
   bool IsTrusted() const;
 #else
@@ -272,8 +296,12 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef DEBUG
   size_t Offset(Address addr) const;
+  // RememberedSetOperations take an offset to an end address that can be behind
+  // the allocated memory.
+  size_t OffsetMaybeOutOfRange(Address addr) const;
 #else
   size_t Offset(Address addr) const { return addr - address(); }
+  size_t OffsetMaybeOutOfRange(Address addr) const { return Offset(addr); }
 #endif
 
  private:
