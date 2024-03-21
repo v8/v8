@@ -5948,19 +5948,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     TRACE_CANNOT_INLINE("use unsupported expection handlers");
     return false;
   }
-  // TODO(victorgomes): Support inlined allocation of the arguments object.
-  interpreter::BytecodeArrayIterator iterator(bytecode.object());
-  for (; !iterator.done(); iterator.Advance()) {
-    switch (iterator.current_bytecode()) {
-      case interpreter::Bytecode::kCreateMappedArguments:
-      case interpreter::Bytecode::kCreateUnmappedArguments:
-      case interpreter::Bytecode::kCreateRestParameter:
-        TRACE_CANNOT_INLINE("not supported inlined arguments object");
-        return false;
-      default:
-        break;
-    }
-  }
   if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
                         << call_frequency << ") < minimum threshold ("
@@ -9320,7 +9307,7 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
                                   SloppyArgumentsElements::kArgumentsOffset);
   int param_idx_in_ctxt =
       compilation_unit_->shared_function_info().context_parameters_start() +
-      elements.mapped_count - 1;
+      parameter_count_without_receiver() - 1;
   base::Optional<ValueNode*> opt_runtime_length =
       GetArgumentsLengthIfRuntimeValue(elements.unmapped_elements);
   for (int i = 0; i < elements.mapped_count; i++) {
