@@ -51,7 +51,8 @@ Tagged<Object> ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+      JSObject::New(target, new_target, Handle<AllocationSite>::null(),
+                    NewJSObjectType::kAPIWrapper));
   auto array_buffer = Handle<JSArrayBuffer>::cast(result);
   // Ensure that all fields are initialized because BackingStore::Allocate is
   // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer

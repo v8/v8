@@ -178,6 +178,7 @@ namespace internal {
   V(JSMessageObject)                            \
   V(JSModuleNamespace)                          \
   V(JSObject)                                   \
+  V(JSAPIObjectWithEmbedderSlots)               \
   V(JSObjectWithEmbedderSlots)                  \
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \

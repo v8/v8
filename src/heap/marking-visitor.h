@@ -195,12 +195,12 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
-  template <typename T>
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitEmbedderTracingSubclass(Tagged<Map> map, Tagged<T> object);
-  template <typename T>
+  template <typename T, typename TBodyDescriptor>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                       Tagged<T> object);
-  template <typename T>
+  template <typename T, typename TBodyDescriptor>
   int VisitEmbedderTracingSubClassNoEmbedderTracing(Tagged<Map> map,
                                                     Tagged<T> object);
 

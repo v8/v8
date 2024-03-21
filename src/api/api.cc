@@ -6811,7 +6811,7 @@ bool RequiresEmbedderSupportToFreeze(i::InstanceType obj_type) {
 
   return (i::InstanceTypeChecker::IsJSApiObject(obj_type) ||
           i::InstanceTypeChecker::IsJSExternalObject(obj_type) ||
-          i::InstanceTypeChecker::IsJSObjectWithEmbedderSlots(obj_type));
+          i::InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(obj_type));
 }
 
 bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {

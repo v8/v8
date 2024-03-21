@@ -6231,7 +6231,10 @@ v8_source_set("torque_base") {
     ":v8_shared_internal_headers",
   ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":v8_config_headers",
+    ":v8_libbase",
+  ]
 
   # The use of exceptions for Torque in violation of the Chromium style-guide
   # is justified by the fact that it is only used from the non-essential

@@ -23,6 +23,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects.h"
@@ -1373,6 +1374,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            TNode<RawPtrT> value) {
     StoreSandboxedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
                                   value);
+  }
+
+  void InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(
+      TNode<JSAPIObjectWithEmbedderSlots> holder) {
+    auto zero_constant =
+#ifdef V8_ENABLE_SANDBOX
+        Int32Constant(0);
+#else
+        IntPtrConstant(0);
+#endif
+    StoreObjectFieldNoWriteBarrier(
+        holder, JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
+        zero_constant);
   }
 
   // Load value from current parent frame by given offset in bytes.

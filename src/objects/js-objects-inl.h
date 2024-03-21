@@ -39,6 +39,7 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObjectWithEmbedderSlots)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAPIObjectWithEmbedderSlots)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
@@ -298,9 +299,10 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 bool JSObject::MayHaveEmbedderFields(Tagged<Map> map) {
   InstanceType instance_type = map->instance_type();
   // TODO(v8) It'd be nice if all objects with embedder data slots inherited
-  // from JSObjectWithEmbedderSlots, but this is currently not possible due to
-  // instance_type constraints.
+  // from JSObjectJSAPIObjectWithEmbedderSlotsWithEmbedderSlots, but this is
+  // currently not possible due to instance_type constraints.
   return InstanceTypeChecker::IsJSObjectWithEmbedderSlots(instance_type) ||
+         InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(instance_type) ||
          InstanceTypeChecker::IsJSSpecialObject(instance_type);
 }
 
@@ -616,6 +618,13 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
+
+EXTERNAL_POINTER_ACCESSORS(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable,
+                           void*, kCppHeapWrappableOffset,
+                           kExternalObjectValueTag)
+
+EXTERNAL_POINTER_ACCESSORS(JSSpecialObject, cpp_heap_wrappable, void*,
+                           kCppHeapWrappableOffset, kExternalObjectValueTag)
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();

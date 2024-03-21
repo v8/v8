@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include "include/v8config.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"
@@ -45,6 +47,12 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
+#ifdef V8_TARGET_ARCH_64_BIT
+    build_flags_["V8_TARGET_ARCH_64_BIT_AND_NO_V8_ENABLE_SANDBOX"] =
+        !V8_ENABLE_SANDBOX_BOOL;
+#else
+    build_flags_["V8_TARGET_ARCH_64_BIT_AND_NO_V8_ENABLE_SANDBOX"] = false;
+#endif
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;

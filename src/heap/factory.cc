@@ -47,6 +47,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -2764,13 +2765,16 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
 }
 
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
-                                      AllocationType allocation) {
+                                      AllocationType allocation,
+                                      NewJSObjectType new_js_object_type) {
   JSFunction::EnsureHasInitialMap(constructor);
   Handle<Map> map(constructor->initial_map(), isolate());
   // NewJSObjectFromMap does not support creating dictionary mode objects. Need
   // to use NewSlowJSObjectFromMap instead.
   DCHECK(!map->is_dictionary_map());
-  return NewJSObjectFromMap(map, allocation);
+  return NewJSObjectFromMap(map, allocation,
+                            DirectHandle<AllocationSite>::null(),
+                            new_js_object_type);
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithNullProto() {
@@ -2833,7 +2837,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Allocate the global object and initialize it with the backing store.
   Handle<JSGlobalObject> global(
       JSGlobalObject::cast(New(map, AllocationType::kOld)), isolate());
-  InitializeJSObjectFromMap(*global, *dictionary, *map);
+  InitializeJSObjectFromMap(*global, *dictionary, *map,
+                            NewJSObjectType::kAPIWrapper);
 
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
@@ -2851,9 +2856,19 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   return global;
 }
 
+void Factory::InitializeCppHeapWrapper(Tagged<JSObject> obj) {
+  DCHECK(IsWrapperObject(obj));
+  DCHECK(IsJSAPIObjectWithEmbedderSlots(obj) || IsJSSpecialObject(obj));
+  static_assert(JSSpecialObject::kCppHeapWrappableOffset ==
+                JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+  obj->ResetLazilyInitializedExternalPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+}
+
 void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
                                         Tagged<Object> properties,
-                                        Tagged<Map> map) {
+                                        Tagged<Map> map,
+                                        NewJSObjectType new_js_object_type) {
   DisallowGarbageCollection no_gc;
   obj->set_raw_properties_or_hash(properties, kRelaxedStore);
   obj->initialize_elements();
@@ -2865,6 +2880,12 @@ void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
   InitializeJSObjectBody(obj, map, JSObject::kHeaderSize);
+
+  DCHECK_EQ(IsWrapperObject(map),
+            new_js_object_type == NewJSObjectType::kAPIWrapper);
+  if (new_js_object_type == NewJSObjectType::kAPIWrapper) {
+    InitializeCppHeapWrapper(obj);
+  }
 }
 
 void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
@@ -2893,19 +2914,21 @@ void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
 
 Handle<JSObject> Factory::NewJSObjectFromMap(
     DirectHandle<Map> map, AllocationType allocation,
-    DirectHandle<AllocationSite> allocation_site) {
+    DirectHandle<AllocationSite> allocation_site,
+    NewJSObjectType new_js_object_type) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   DCHECK(!InstanceTypeChecker::IsJSFunction(*map));
 
   // Both types of global objects should be allocated using
   // AllocateGlobalObject to be properly initialized.
-  DCHECK(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
+  DCHECK_NE(map->instance_type(), JS_GLOBAL_OBJECT_TYPE);
 
   Tagged<JSObject> js_obj = Tagged<JSObject>::cast(
       AllocateRawWithAllocationSite(map, allocation, allocation_site));
 
-  InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map);
+  InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map,
+                            new_js_object_type);
 
   DCHECK(js_obj->HasFastElements() ||
          (isolate()->bootstrapper()->IsActive() ||
@@ -2921,7 +2944,8 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     DirectHandle<Map> map, int capacity, AllocationType allocation,
-    DirectHandle<AllocationSite> allocation_site) {
+    DirectHandle<AllocationSite> allocation_site,
+    NewJSObjectType new_js_object_type) {
   DCHECK(map->is_dictionary_map());
   Handle<HeapObject> object_properties;
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -2930,7 +2954,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     object_properties = NameDictionary::New(isolate(), capacity);
   }
   Handle<JSObject> js_object =
-      NewJSObjectFromMap(map, allocation, allocation_site);
+      NewJSObjectFromMap(map, allocation, allocation_site, new_js_object_type);
   js_object->set_raw_properties_or_hash(*object_properties, kRelaxedStore);
   return js_object;
 }
@@ -3106,7 +3130,9 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
 Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   Handle<Map> map = isolate()->js_module_namespace_map();
   Handle<JSModuleNamespace> module_namespace(
-      Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map)));
+      Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(
+          map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
+          NewJSObjectType::kAPIWrapper)));
   FieldIndex index = FieldIndex::ForDescriptor(
       *map, InternalIndex(JSModuleNamespace::kToStringTagFieldIndex));
   module_namespace->FastPropertyAtPut(index, read_only_roots().Module_string(),
@@ -3223,8 +3249,9 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
   if (v8_flags.harmony_rab_gsab && backing_store->is_resizable_by_js()) {
     resizable_by_js = ResizableFlag::kResizable;
   }
-  auto result =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
+  auto result = Handle<JSArrayBuffer>::cast(
+      NewJSObjectFromMap(map, allocation, DirectHandle<AllocationSite>::null(),
+                         NewJSObjectType::kAPIWrapper));
   result->Setup(SharedFlag::kNotShared, resizable_by_js,
                 std::move(backing_store), isolate());
   return result;
@@ -3267,8 +3294,9 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   Handle<Map> map(
       isolate()->native_context()->array_buffer_fun()->initial_map(),
       isolate());
-  auto array_buffer =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
+  auto array_buffer = Handle<JSArrayBuffer>::cast(
+      NewJSObjectFromMap(map, allocation, DirectHandle<AllocationSite>::null(),
+                         NewJSObjectType::kAPIWrapper));
   array_buffer->Setup(SharedFlag::kNotShared, resizable,
                       std::move(backing_store), isolate());
   return array_buffer;
@@ -3281,8 +3309,9 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
   Handle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun()->initial_map(),
       isolate());
-  auto result = Handle<JSArrayBuffer>::cast(
-      NewJSObjectFromMap(map, AllocationType::kYoung));
+  auto result = Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(
+      map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
+      NewJSObjectType::kAPIWrapper));
   ResizableFlag resizable = backing_store->is_resizable_by_js()
                                 ? ResizableFlag::kResizable
                                 : ResizableFlag::kNotResizable;
@@ -3360,8 +3389,10 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
     CHECK_LE(byte_offset + byte_length, buffer->GetByteLength());
   }
 
-  Handle<JSArrayBufferView> array_buffer_view = Handle<JSArrayBufferView>::cast(
-      NewJSObjectFromMap(map, AllocationType::kYoung));
+  Handle<JSArrayBufferView> array_buffer_view =
+      Handle<JSArrayBufferView>::cast(NewJSObjectFromMap(
+          map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
+          NewJSObjectType::kAPIWrapper));
   DisallowGarbageCollection no_gc;
   Tagged<JSArrayBufferView> raw = *array_buffer_view;
   raw->set_elements(*elements, SKIP_WRITE_BARRIER);
@@ -3527,8 +3558,9 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
     raw->set_may_have_interesting_properties(true);
     LOG(isolate(), MapDetails(raw));
   }
-  Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
-      NewJSObjectFromMap(map, AllocationType::kOld));
+  Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(NewJSObjectFromMap(
+      map, AllocationType::kOld, DirectHandle<AllocationSite>::null(),
+      NewJSObjectType::kAPIWrapper));
   // Create identity hash early in case there is any JS collection containing
   // a global proxy key and needs to be rehashed after deserialization.
   proxy->GetOrCreateIdentityHash(isolate());
@@ -3566,7 +3598,8 @@ void Factory::ReinitializeJSGlobalProxy(DirectHandle<JSGlobalProxy> object,
   raw->set_map(*map, kReleaseStore);
 
   // Reinitialize the object from the constructor map.
-  InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map);
+  InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map,
+                            NewJSObjectType::kAPIWrapper);
   // Ensure that the object and constructor belongs to the same native context.
   DCHECK_EQ(object->map()->map(), constructor->map()->map());
 }

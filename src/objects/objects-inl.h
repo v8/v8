@@ -29,6 +29,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole-inl.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
@@ -272,6 +273,23 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
   return IsJSObject(obj) && !InWritableSharedSpace(*obj);
+}
+
+bool IsWrapperObject(Tagged<Map> map) {
+  const auto instance_type = map->instance_type();
+  return InstanceTypeChecker::IsJSApiObject(instance_type) ||
+         InstanceTypeChecker::IsJSSpecialApiObject(instance_type) ||
+         InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
+         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
+         InstanceTypeChecker::IsJSDataView(instance_type) ||
+         InstanceTypeChecker::IsJSRabGsabDataView(instance_type) ||
+         InstanceTypeChecker::IsJSGlobalProxy(instance_type) ||
+         InstanceTypeChecker::IsJSGlobalObject(instance_type) ||
+         InstanceTypeChecker::IsJSModuleNamespace(instance_type);
+}
+
+bool IsWrapperObject(Tagged<JSObject> js_obj) {
+  return IsWrapperObject(js_obj->map());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {

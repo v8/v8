@@ -12,6 +12,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/map.h"
@@ -1128,7 +1129,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         V8_ENABLE_SANDBOX_BOOL && slot.tag() != kExternalPointerNullTag;
     OutputExternalReference(value, kSystemPointerSize, sandboxify, slot.tag());
     bytes_processed_so_far_ += kExternalPointerSlotSize;
-
   } else {
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
@@ -1151,7 +1151,12 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsJSSynchronizationPrimitive(instance_type) ||
         // See ContextSerializer::SerializeObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
-         JSObject::cast(host)->GetEmbedderFieldCount() > 0));
+         JSObject::cast(host)->GetEmbedderFieldCount() > 0) ||
+        // API objects with support for embedder fields.
+        InstanceTypeChecker::IsJSApiObject(instance_type) ||
+        InstanceTypeChecker::IsJSGlobalObject(instance_type) ||
+        InstanceTypeChecker::IsJSGlobalProxy(instance_type) ||
+        InstanceTypeChecker::IsJSSpecialApiObject(instance_type));
   }
 }
 

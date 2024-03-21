@@ -18,6 +18,7 @@
 #include "src/objects/all-objects-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-objects.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
@@ -596,8 +597,10 @@ void JSObject::PrintElements(std::ostream& os) {
   os << "\n }\n";
 }
 
-static void JSObjectPrintHeader(std::ostream& os, Tagged<JSObject> obj,
-                                const char* id) {
+namespace {
+
+void JSObjectPrintHeader(std::ostream& os, Tagged<JSObject> obj,
+                         const char* id) {
   Isolate* isolate = obj->GetIsolate();
   obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
@@ -623,8 +626,17 @@ static void JSObjectPrintHeader(std::ostream& os, Tagged<JSObject> obj,
   }
 }
 
-static void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
-                              bool print_elements = true) {
+void JSAPIObjectWithEmbedderSlotsPrintHeader(std::ostream& os,
+                                             Tagged<JSObject> obj,
+                                             const char* id = nullptr) {
+  JSObjectPrintHeader(os, obj, id);
+  os << "\n - cpp_heap_wrappable: "
+     << obj->ReadField<uint32_t>(
+            JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+}
+
+void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
+                       bool print_elements = true) {
   os << "\n - properties: ";
   Tagged<Object> properties_or_hash = obj->raw_properties_or_hash(kRelaxedLoad);
   if (!IsSmi(properties_or_hash)) {
@@ -650,6 +662,8 @@ static void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
     os << "\n }\n";
   }
 }
+
+}  // namespace
 
 void JSObject::JSObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, nullptr);
@@ -1831,7 +1845,7 @@ void JSWeakSet::JSWeakSetPrint(std::ostream& os) {
 }
 
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSArrayBuffer");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSArrayBuffer");
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << byte_length();
   os << "\n - max_byte_length: " << max_byte_length();
@@ -1845,7 +1859,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSTypedArray");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSTypedArray");
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
@@ -2046,12 +2060,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
 }
 
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSGlobalProxy");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalProxy");
   JSObjectPrintBody(os, *this);
 }
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSGlobalObject");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalObject");
   os << "\n - global proxy: " << Brief(global_proxy());
   JSObjectPrintBody(os, *this);
 }

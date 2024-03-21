@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_FACTORY_INL_H_
 #define V8_HEAP_FACTORY_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/factory.h"
 
 // Clients of this interface shouldn't depend on lots of heap internals.
@@ -16,6 +17,7 @@
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/objects/feedback-cell.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-inl.h"
@@ -71,11 +73,15 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
     DirectHandle<Map> map, int number_of_slow_properties,
-    AllocationType allocation, DirectHandle<AllocationSite> allocation_site) {
-  return map->is_dictionary_map()
-             ? NewSlowJSObjectFromMap(map, number_of_slow_properties,
-                                      allocation, allocation_site)
-             : NewJSObjectFromMap(map, allocation, allocation_site);
+    AllocationType allocation, DirectHandle<AllocationSite> allocation_site,
+    NewJSObjectType new_js_object_type) {
+  auto js_object =
+      map->is_dictionary_map()
+          ? NewSlowJSObjectFromMap(map, number_of_slow_properties, allocation,
+                                   allocation_site, new_js_object_type)
+          : NewJSObjectFromMap(map, allocation, allocation_site,
+                               new_js_object_type);
+  return js_object;
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map) {

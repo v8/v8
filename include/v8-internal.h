@@ -647,6 +647,13 @@ class Internals {
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
+#ifdef V8_ENABLE_SANDBOX
+  static const int kJSAPIObjectWithEmbedderSlotsHeaderSize =
+      kJSObjectHeaderSize + kApiTaggedSize;
+#else   // !V8_ENABLE_SANDBOX
+  static const int kJSAPIObjectWithEmbedderSlotsHeaderSize =
+      kJSObjectHeaderSize + kApiSystemPointerSize;
+#endif  // !V8_ENABLE_SANDBOX
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;

@@ -7,8 +7,10 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/strings.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
@@ -93,7 +95,9 @@ struct IndexedDebugProxy {
                                  bool make_map_non_extensible = true) {
     auto object_map = GetOrCreateDebugProxyMap(isolate, kId, &T::CreateTemplate,
                                                make_map_non_extensible);
-    auto object = isolate->factory()->NewJSObjectFromMap(object_map);
+    auto object = isolate->factory()->NewFastOrSlowJSObjectFromMap(
+        object_map, 0, AllocationType::kYoung,
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
     object->SetEmbedderField(kProviderField, *provider);
     return object;
   }
@@ -549,7 +553,9 @@ class ContextProxyPrototype {
   static Handle<JSObject> Create(Isolate* isolate) {
     auto object_map =
         GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate);
-    return isolate->factory()->NewJSObjectFromMap(object_map);
+    return isolate->factory()->NewJSObjectFromMap(
+        object_map, AllocationType::kYoung,
+        DirectHandle<AllocationSite>::null(), NewJSObjectType::kAPIWrapper);
   }
 
  private:

@@ -342,11 +342,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
-      Handle<AllocationSite> site);
+      Handle<AllocationSite> site,
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
 
-  static MaybeHandle<JSObject> NewWithMap(Isolate* isolate,
-                                          Handle<Map> initial_map,
-                                          Handle<AllocationSite> site);
+  static MaybeHandle<JSObject> NewWithMap(
+      Isolate* isolate, Handle<Map> initial_map, Handle<AllocationSite> site,
+      NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
 
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
@@ -976,6 +977,19 @@ class JSObjectWithEmbedderSlots
   TQ_OBJECT_CONSTRUCTORS(JSObjectWithEmbedderSlots)
 };
 
+// An abstract superclass for JSObjects that may contain EmbedderDataSlots and
+// are used as API wrapper objects.
+class JSAPIObjectWithEmbedderSlots
+    : public TorqueGeneratedJSAPIObjectWithEmbedderSlots<
+          JSAPIObjectWithEmbedderSlots, JSObject> {
+ public:
+  class BodyDescriptor;
+
+  DECL_EXTERNAL_POINTER_ACCESSORS(cpp_heap_wrappable, void*)
+
+  TQ_OBJECT_CONSTRUCTORS(JSAPIObjectWithEmbedderSlots)
+};
+
 // An abstract superclass for JSObjects that may have elements while having an
 // empty fixed array as elements backing store. It doesn't carry any
 // functionality but allows function classes to be identified in the type
@@ -992,12 +1006,13 @@ class JSCustomElementsObject
 // access. It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
 // These may also contain EmbedderDataSlots, but can't currently inherit from
-// JSObjectWithEmbedderSlots due to instance_type constraints.
+// JSAPIObjectWithEmbedderSlots due to instance_type constraints.
 class JSSpecialObject
     : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
                                             JSCustomElementsObject> {
  public:
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
+  DECL_EXTERNAL_POINTER_ACCESSORS(cpp_heap_wrappable, void*)
+
   TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
 };
 
