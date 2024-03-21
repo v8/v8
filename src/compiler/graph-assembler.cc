@@ -670,8 +670,17 @@ class ArrayBufferViewAccessBuilder {
           AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
           UseInfo::Word());
 
-      return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
-                          a.ChangeUint32ToUintPtr(element_size));
+      return a
+          .MachineSelectIf<UintPtrT>(
+              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+          .Then([&]() {
+            // length = floor((byte_length - byte_offset) / element_size)
+            return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
+                                a.ChangeUint32ToUintPtr(element_size));
+          })
+          .Else([&]() { return a.UintPtrConstant(0); })
+          .ExpectTrue()
+          .Value();
     };
 
     return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
@@ -791,7 +800,17 @@ class ArrayBufferViewAccessBuilder {
       TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
           AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
           UseInfo::Word());
-      return RoundDownToElementSize(a.UintPtrSub(byte_length, byte_offset));
+
+      return a
+          .MachineSelectIf<UintPtrT>(
+              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+          .Then([&]() {
+            return RoundDownToElementSize(
+                a.UintPtrSub(byte_length, byte_offset));
+          })
+          .Else([&]() { return a.UintPtrConstant(0); })
+          .ExpectTrue()
+          .Value();
     };
 
     return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
