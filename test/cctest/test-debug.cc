@@ -1951,6 +1951,18 @@ TEST(DebugStepLinear) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountLinear) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){a=1;b=1;c=1;}", "foo");
+
+  // Run foo to allow it to get optimized.
+  CompileRun("a=0; b=0; c=0; foo();");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -1958,6 +1970,7 @@ TEST(DebugStepLinear) {
 
   SetBreakPoint(foo, 3);
   break_point_hit_count = 0;
+  v8::Local<v8::Context> context = env.local();
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Without stepping only active break points are hit.
@@ -1966,7 +1979,6 @@ TEST(DebugStepLinear) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test of the stepping mechanism for keyed load in a loop.
 TEST(DebugStepKeyedLoadLoop) {
@@ -2190,6 +2202,26 @@ TEST(DebugStepLinearMixedICs) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountLinearMixedICs) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() {};"
+                      "function foo() {"
+                      "  var x;"
+                      "  var index='name';"
+                      "  var y = {};"
+                      "  a=1;b=2;x=a;y[index]=3;x=y[index];bar();}",
+                      "foo");
+
+  // Run functions to allow them to get optimized.
+  CompileRun("a=0; b=0; bar(); foo();");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2205,7 +2237,6 @@ TEST(DebugStepLinearMixedICs) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 TEST(DebugStepDeclarations) {
   LocalContext env;
@@ -2787,6 +2818,17 @@ TEST(DebugStepNatives) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountNatives) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){debugger;Math.sin(1);}", "foo");
+
+  v8::Local<v8::Context> context = env.local();
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2828,12 +2870,26 @@ TEST(DebugStepFunctionApply) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+// Test that step in works with function.apply.
+TEST(DebugCountFunctionApply) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(){ debugger; bar.apply(this, [1,2,3]); }",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   break_point_hit_count = 0;
+  v8::Local<v8::Context> context = env.local();
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // Without stepping only the debugger statement is hit.
@@ -2842,7 +2898,6 @@ TEST(DebugStepFunctionApply) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test that step in works with function.call.
 TEST(DebugStepFunctionCall) {
@@ -2883,6 +2938,26 @@ TEST(DebugStepFunctionCall) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountFunctionCall) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+                      "function foo(a){ debugger;"
+                      "                 if (a) {"
+                      "                   bar.call(this, 1, 2, 3);"
+                      "                 } else {"
+                      "                   bar.call(this, 0);"
+                      "                 }"
+                      "}",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2897,7 +2972,6 @@ TEST(DebugStepFunctionCall) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Test that step in works with Function.call.apply.
 TEST(DebugStepFunctionCallApply) {
@@ -2928,6 +3002,24 @@ TEST(DebugStepFunctionCallApply) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(DebugCountFunctionCallApply) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = env.local();
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() { }"
+                      "function foo(){ debugger;"
+                      "                Function.call.apply(bar);"
+                      "                Function.call.apply(Function.call, "
+                      "[Function.call, bar]);"
+                      "}",
+                      "foo");
 
   // Register a debug event listener which just counts.
   DebugEventCounter delegate;
@@ -2942,7 +3034,6 @@ TEST(DebugStepFunctionCallApply) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
   CheckDebuggerUnloaded();
 }
-
 
 // Tests that breakpoint will be hit if it's set in script.
 TEST(PauseInScript) {
