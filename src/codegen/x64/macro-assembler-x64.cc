@@ -1760,20 +1760,21 @@ void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vpaddq(dst, dst, tmp2);
 }
 
-#define DEFINE_ISPLAT(name, suffix, instr_mov)               \
-  void MacroAssembler::name(YMMRegister dst, Register src) { \
-    ASM_CODE_COMMENT(this);                                  \
-    DCHECK(CpuFeatures::IsSupported(AVX2));                  \
-    CpuFeatureScope avx2_scope(this, AVX2);                  \
-    instr_mov(dst, src);                                     \
-    vpbroadcast##suffix(dst, dst);                           \
-  }                                                          \
-                                                             \
-  void MacroAssembler::name(YMMRegister dst, Operand src) {  \
-    ASM_CODE_COMMENT(this);                                  \
-    DCHECK(CpuFeatures::IsSupported(AVX2));                  \
-    CpuFeatureScope avx2_scope(this, AVX2);                  \
-    vpbroadcast##suffix(dst, src);                           \
+#define DEFINE_ISPLAT(name, suffix, instr_mov)                               \
+  void MacroAssembler::name(YMMRegister dst, Register src) {                 \
+    ASM_CODE_COMMENT(this);                                                  \
+    DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2)); \
+    CpuFeatureScope avx_scope(this, AVX);                                    \
+    CpuFeatureScope avx2_scope(this, AVX2);                                  \
+    instr_mov(dst, src);                                                     \
+    vpbroadcast##suffix(dst, dst);                                           \
+  }                                                                          \
+                                                                             \
+  void MacroAssembler::name(YMMRegister dst, Operand src) {                  \
+    ASM_CODE_COMMENT(this);                                                  \
+    DCHECK(CpuFeatures::IsSupported(AVX2));                                  \
+    CpuFeatureScope avx2_scope(this, AVX2);                                  \
+    vpbroadcast##suffix(dst, src);                                           \
   }
 
 MACRO_ASM_X64_ISPLAT_LIST(DEFINE_ISPLAT)

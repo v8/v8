@@ -141,7 +141,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd256Unary)                            \
   V(Simd256Binop)                            \
   V(Simd256Shift)                            \
-  V(Simd256Ternary)
+  V(Simd256Ternary)                          \
+  V(Simd256Splat)
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -8163,6 +8164,56 @@ struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind);
+
+#define FOREACH_SIMD_256_SPLAT_OPCODE(V) \
+  V(I8x32)                               \
+  V(I16x16)                              \
+  V(I32x8)                               \
+  V(I64x4)                               \
+  V(F32x8)                               \
+  V(F64x4)
+
+struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_SPLAT_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    switch (kind) {
+      case Kind::kI8x32:
+      case Kind::kI16x16:
+      case Kind::kI32x8:
+        return MaybeRepVector<RegisterRepresentation::Word32()>();
+      case Kind::kI64x4:
+        return MaybeRepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF32x8:
+        return MaybeRepVector<RegisterRepresentation::Float32()>();
+      case Kind::kF64x4:
+        return MaybeRepVector<RegisterRepresentation::Float64()>();
+    }
+  }
+
+  Simd256SplatOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind);
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {

@@ -3861,6 +3861,10 @@ class TurboshaftAssemblerOpInterface
                             V<Simd256> third, Simd256TernaryOp::Kind kind) {
     return ReduceIfReachableSimd256Ternary(first, second, third, kind);
   }
+
+  V<Simd256> Simd256Splat(OpIndex input, Simd256SplatOp::Kind kind) {
+    return ReduceIfReachableSimd256Splat(input, kind);
+  }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   V<WasmTrustedInstanceData> WasmInstanceParameter() {

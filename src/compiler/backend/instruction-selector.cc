@@ -4439,6 +4439,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16Splat(node);
     case IrOpcode::kI8x32Splat:
       return MarkAsSimd256(node), VisitI8x32Splat(node);
+    case IrOpcode::kF32x8Splat:
+      return MarkAsSimd256(node), VisitF32x8Splat(node);
+    case IrOpcode::kF64x4Splat:
+      return MarkAsSimd256(node), VisitF64x4Splat(node);
     case IrOpcode::kI64x4ExtMulI32x4S:
       return MarkAsSimd256(node), VisitI64x4ExtMulI32x4S(node);
     case IrOpcode::kI64x4ExtMulI32x4U:
@@ -5521,6 +5525,17 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     return Visit##kind(node);
         FOREACH_SIMD_256_TERNARY_OPCODE(VISIT_SIMD_256_TERNARY)
 #undef VISIT_SIMD_256_UNARY
+      }
+    }
+    case Opcode::kSimd256Splat: {
+      const Simd256SplatOp& splat = op.Cast<Simd256SplatOp>();
+      MarkAsSimd256(node);
+      switch (splat.kind) {
+#define VISIT_SIMD_SPLAT(kind)        \
+  case Simd256SplatOp::Kind::k##kind: \
+    return Visit##kind##Splat(node);
+        FOREACH_SIMD_256_SPLAT_OPCODE(VISIT_SIMD_SPLAT)
+#undef VISIT_SIMD_SPLAT
       }
     }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

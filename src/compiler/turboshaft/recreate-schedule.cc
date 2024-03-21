@@ -1889,6 +1889,15 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256TernaryOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd256SplatOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd256SplatOp::Kind::k##kind: \
+    return AddNode(machine.kind##Splat(), {GetNode(op.input())});
+    FOREACH_SIMD_256_SPLAT_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {

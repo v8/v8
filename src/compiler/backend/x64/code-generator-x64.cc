@@ -3228,12 +3228,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL32: {
             // F32x8Splat
-            __ F32x8Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            __ F32x8Splat(i.OutputSimd256Register(), i.InputFloatRegister(0));
             break;
           }
           case kL64: {
             // F64X4Splat
-            __ F64x4Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            __ F64x4Splat(i.OutputSimd256Register(), i.InputDoubleRegister(0));
             break;
           }
           default:

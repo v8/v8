@@ -3375,9 +3375,17 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
     data.BeginPhaseKind("V8.WasmOptimization");
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-    if (v8_flags.experimental_wasm_revectorize && detected->has_simd() &&
-        !env->enabled_features.has_memory64()) {
-      pipeline.Run<turboshaft::WasmRevecPhase>();
+    {
+      bool cpu_feature_support = false;
+#ifdef V8_TARGET_ARCH_X64
+      if (CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2)) {
+        cpu_feature_support = true;
+      }
+#endif
+      if (v8_flags.experimental_wasm_revectorize && cpu_feature_support &&
+          detected->has_simd() && !env->enabled_features.has_memory64()) {
+        pipeline.Run<turboshaft::WasmRevecPhase>();
+      }
     }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
     const bool uses_wasm_gc_features = detected->has_gc() ||

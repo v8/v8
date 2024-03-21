@@ -166,6 +166,14 @@ namespace v8::internal::compiler::turboshaft {
 
 #define SIMD256_TERNARY_OP(V) V(S128Select, S256Select)
 
+#define SIMD256_SPLAT_OP(V) \
+  V(I8x16, I8x32)           \
+  V(I16x8, I16x16)          \
+  V(I32x4, I32x8)           \
+  V(I64x2, I64x4)           \
+  V(F32x4, F32x8)           \
+  V(F64x2, F64x4)
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 class NodeGroup {
@@ -546,6 +554,23 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphSimd128Ternary(ig_index, ternary);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Simd128Splat)(OpIndex ig_index,
+                                           const Simd128SplatOp& op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      OpIndex og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        og_index = __ Simd256Splat(__ MapToNewGraph(op.input()),
+                                   Get256SplatOpKindFrom128(op.kind));
+
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+
+    return Next::ReduceInputGraphSimd128Splat(ig_index, op);
+  }
+
  private:
   static Simd256UnaryOp::Kind GetSimd256UnaryKind(
       Simd128UnaryOp::Kind simd128_kind) {
@@ -621,6 +646,18 @@ class WasmRevecReducer : public Next {
     return Simd256LoadTransformOp::TransformKind::k##to;
       SIMD256_LOADTRANSFORM_OP(TRANSFORM_KIND_MAPPING)
 #undef TRANSFORM_KIND_MAPPING
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static Simd256SplatOp::Kind Get256SplatOpKindFrom128(
+      Simd128SplatOp::Kind kind) {
+    switch (kind) {
+#define SPLAT_KIND_MAPPING(from, to)  \
+  case Simd128SplatOp::Kind::k##from: \
+    return Simd256SplatOp::Kind::k##to;
+      SIMD256_SPLAT_OP(SPLAT_KIND_MAPPING)
       default:
         UNREACHABLE();
     }

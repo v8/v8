@@ -307,6 +307,7 @@ bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
     CASE(Simd128Binop)
     CASE(Simd128Shift)
     CASE(Simd128Ternary)
+    CASE(Simd128Splat)
     default:
       return true;
   }
@@ -587,6 +588,15 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           return nullptr;
         }
       }
+    }
+
+    case Opcode::kSimd128Splat: {
+      if (op0.input(0) != op1.input(0)) {
+        TRACE("Failed due to different splat input!\n");
+        return nullptr;
+      }
+      PackNode* pnode = NewPackNode(node_group);
+      return pnode;
     }
 
     default:
