@@ -410,8 +410,8 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
                                  : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
     sweeper_->RawSweep(
         page, free_space_treatment_mode, sweeping_mode,
-        identity == NEW_SPACE
-            ? sweeper_->minor_sweeping_state_.should_reduce_memory()
+        v8_flags.minor_ms
+            ? false
             : sweeper_->major_sweeping_state_.should_reduce_memory(),
         false /* is_promoted_page */);
     sweeper_->AddSweptPage(page, identity);
@@ -593,11 +593,9 @@ void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPage(
       const FreeSpaceTreatmentMode free_space_treatment_mode =
           heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
                                    : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
-      sweeper_->RawSweep(static_cast<PageMetadata*>(page),
-                         free_space_treatment_mode,
-                         SweepingMode::kLazyOrConcurrent,
-                         sweeper_->minor_sweeping_state_.should_reduce_memory(),
-                         true /* is_promoted_page */);
+      sweeper_->RawSweep(
+          static_cast<PageMetadata*>(page), free_space_treatment_mode,
+          SweepingMode::kLazyOrConcurrent, false, true /* is_promoted_page */);
       sweeper_->AddSweptPage(PageMetadata::cast(page), OLD_SPACE);
       DCHECK(page->SweepingDone());
     }
