@@ -3845,11 +3845,12 @@ _v8_internal_Expand_StackTrace(i::Isolate* isolate) {
 
     if (frame->is_java_script()) {
       i::JavaScriptFrame::cast(frame)->GetFunctions(&details.functions);
-    }
-
-    int exprcount = frame->ComputeExpressionsCount();
-    for (int i = 0; i < exprcount; i++) {
-      details.expressions.push_back(frame->GetExpression(i));
+      if (!frame->is_optimized()) {
+        int exprcount = frame->ComputeExpressionsCount();
+        for (int i = 0; i < exprcount; i++) {
+          details.expressions.push_back(frame->GetExpression(i));
+        }
+      }
     }
 
     i::HandleScope scope(isolate);
