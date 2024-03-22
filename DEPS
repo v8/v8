@@ -230,11 +230,11 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '9ead20bdbf0ecc33219d25fd3a426876c54d126e',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '0c02157621782572403132d1033230f050099118',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '414f69504d30d0848b69f6453ea7fb5e88004cb4',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '06fb6e1b129d426b0f543e0e77890295175f012a',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -278,9 +278,9 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '344117638c8ff7e239044fd0fa7085839fc03021',
   },
   'third_party/fuzztest':
-    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'daea7ab861050a6445f59758f09cc3173f5add76',
+    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + '19bfa07857d17d7dbc728b23d392688a9a485eae',
   'third_party/fuzztest/src':
-    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'bddcd9f77ba0a81a99ce50bcadf5149efe545df0',
+    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '7c116cf2a16352306a37b41453be1bb27293202b',
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'eff443c6ef5eb6ab598bfaae27f9427fdb4f6af7',
   'third_party/icu':
