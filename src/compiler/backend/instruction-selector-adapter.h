@@ -16,6 +16,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/use-map.h"
 
 
@@ -1329,15 +1330,15 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
 
   bool is_truncate_word64_to_word32(node_t node) const {
-    if (auto change_op = graph_->Get(node).TryCast<turboshaft::ChangeOp>()) {
-      if (change_op->kind == turboshaft::ChangeOp::Kind::kTruncate) {
-        DCHECK_EQ(change_op->from,
-                  turboshaft::RegisterRepresentation::Word64());
-        DCHECK_EQ(change_op->to, turboshaft::RegisterRepresentation::Word32());
-        return true;
-      }
+    return graph_->Get(node).Is<turboshaft::Opmask::kTruncateWord64ToWord32>();
+  }
+  node_t remove_truncate_word64_to_word32(node_t node) const {
+    if (const turboshaft::ChangeOp* change =
+            graph_->Get(node)
+                .TryCast<turboshaft::Opmask::kTruncateWord64ToWord32>()) {
+      return change->input();
     }
-    return false;
+    return node;
   }
 
   bool is_stack_slot(node_t node) const {

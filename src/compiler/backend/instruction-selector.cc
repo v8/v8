@@ -388,6 +388,54 @@ bool InstructionSelectorT<Adapter>::IsOnlyUserOfNodeInSameBlock(
   return true;
 }
 
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    turboshaft::OpIndex node, size_t projection_index) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const turboshaft::Graph* graph = this->turboshaft_graph();
+  // Projections are always emitted right after the operation.
+  for (OpIndex next = graph->NextIndex(node); next.valid();
+       next = graph->NextIndex(next)) {
+    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
+    if (projection == nullptr) break;
+    DCHECK(!projection->saturated_use_count.IsZero());
+    if (projection->saturated_use_count.IsOne()) {
+      // If the projection has a single use, it is the following tuple, so we
+      // don't return it, since there is no point in emitting it.
+      DCHECK(turboshaft_uses(next).size() == 1 &&
+             graph->Get(turboshaft_uses(next)[0]).Is<TupleOp>());
+      continue;
+    }
+    if (projection->index == projection_index) return next;
+  }
+
+  // If there is no Projection with index {projection_index} following the
+  // operation, then there shouldn't be any such Projection in the graph. We
+  // verify this in Debug mode.
+#ifdef DEBUG
+  for (OpIndex use : turboshaft_uses(node)) {
+    if (const ProjectionOp* projection =
+            this->Get(use).TryCast<ProjectionOp>()) {
+      DCHECK_EQ(projection->input(), node);
+      if (projection->index == projection_index) {
+        // If we found the projection, it should have a single use: a Tuple
+        // (which doesn't count as a regular use since it is just an artifact of
+        // the Turboshaft graph).
+        DCHECK(turboshaft_uses(use).size() == 1 &&
+               graph->Get(turboshaft_uses(use)[0]).Is<TupleOp>());
+      }
+    }
+  }
+#endif  // DEBUG
+  return OpIndex::Invalid();
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::UpdateRenames(Instruction* instruction) {
   for (size_t i = 0; i < instruction->InputCount(); i++) {

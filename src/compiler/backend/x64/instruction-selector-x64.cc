@@ -2451,18 +2451,9 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
     turboshaft::OpIndex left = add.left();
     turboshaft::OpIndex right = add.right();
     // No need to truncate the values before Int32Add.
-    if (const turboshaft::ChangeOp* change =
-            this->Get(left)
-                .template TryCast<
-                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
-      left = change->input();
-    }
-    if (const turboshaft::ChangeOp* change =
-            this->Get(right)
-                .template TryCast<
-                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
-      right = change->input();
-    }
+    left = this->remove_truncate_word64_to_word32(left);
+    right = this->remove_truncate_word64_to_word32(right);
+
     DCHECK(LhsIsNotOnlyConstant(this->turboshaft_graph(), left, right));
 
     // Try to match the Add to a leal pattern
@@ -3649,42 +3640,6 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
 template <typename Adapter>
 bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
   return true;
-}
-
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    turboshaft::OpIndex node, size_t projection_index) {
-  using namespace turboshaft;  // NOLINT(build/namespaces)
-  const turboshaft::Graph* graph = this->turboshaft_graph();
-  // Projections are always emitted right after the operation.
-  for (OpIndex next = graph->NextIndex(node); next.valid();
-       next = graph->NextIndex(next)) {
-    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
-    if (projection == nullptr) break;
-    if (projection->index == projection_index) return next;
-  }
-
-  // If there is no Projection with index {projection_index} following the
-  // operation, then there shouldn't be any such Projection in the graph. We
-  // verify this in Debug mode.
-#ifdef DEBUG
-  for (OpIndex use : turboshaft_uses(node)) {
-    if (const ProjectionOp* projection =
-            this->Get(use).TryCast<ProjectionOp>()) {
-      DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) {
-        UNREACHABLE();
-      }
-    }
-  }
-#endif  // DEBUG
-  return OpIndex::Invalid();
 }
 
 namespace {

@@ -3478,43 +3478,6 @@ void InstructionSelectorT<Adapter>::VisitI64x2ExtMulHighI32x4U(node_t node) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  using namespace turboshaft;  // NOLINT(build/namespaces)
-  const turboshaft::Graph* graph = this->turboshaft_graph();
-  // Projections are always emitted right after the operation.
-  for (OpIndex next = graph->NextIndex(node); next.valid();
-       next = graph->NextIndex(next)) {
-    const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
-    if (projection == nullptr) break;
-    if (projection->index == projection_index) return next;
-  }
-
-  // If there is no Projection with index {projection_index} following the
-  // operation, then there shouldn't be any such Projection in the graph. We
-  // verify this in Debug mode.
-#ifdef DEBUG
-  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
-    if (const turboshaft::ProjectionOp* projection =
-            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
-      DCHECK_EQ(projection->input(), node);
-      if (projection->index == projection_index) {
-        UNREACHABLE();
-      }
-    }
-  }
-#endif  // DEBUG
-  return turboshaft::OpIndex::Invalid();
-}
-
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 template <typename Adapter>
@@ -5218,6 +5181,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
   // Try to combine with comparisons against 0 by simply inverting the branch.
   ConsumeEqualZero(&user, &value, cont);
 
+  // Remove Word64->Word32 truncation.
+  if (this->is_truncate_word64_to_word32(value) && CanCover(user, value)) {
+    user = value;
+    value = this->remove_truncate_word64_to_word32(value);
+  }
+
   // Try to match bit checks to create TBZ/TBNZ instructions.
   // Unlike the switch below, CanCover check is not needed here.
   // If there are several uses of the given operation, we will generate a TBZ
@@ -5637,7 +5606,7 @@ void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     OpIndex ovf = FindProjection(node, 1);
-    if (ovf.valid()) {
+    if (ovf.valid() && IsUsed(ovf)) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
       return VisitBinop(this, node, RegisterRepresentation::Word32(),
                         kArm64Add32, kArithmeticImm, &cont);

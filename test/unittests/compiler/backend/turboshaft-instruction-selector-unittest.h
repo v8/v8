@@ -237,6 +237,15 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     // selector test had.
     V<Word32> Int32Constant(int32_t c) { return Word32Constant(c); }
     V<Word64> Int64Constant(int64_t c) { return Word64Constant(c); }
+    V<Word32> Word32BinaryNot(V<Word32> a) {
+      return Word32Equal(a, Word32Constant(0));
+    }
+    V<Word32> Word32NotEqual(V<Word32> a, V<Word32> b) {
+      return Word32BinaryNot(Word32Equal(a, b));
+    }
+    V<Word32> Word64NotEqual(V<Word64> a, V<Word64> b) {
+      return Word32BinaryNot(Word64Equal(a, b));
+    }
     using Assembler::Parameter;
     OpIndex Parameter(int index) {
       return Parameter(index, RegisterRepresentation::FromMachineType(
