@@ -90,6 +90,16 @@ constexpr auto ConcatArrays(std::array<T, N>... array) {
   return result;
 }
 
+template <bool predicate, typename T, size_t kSize1, size_t kSize2>
+constexpr auto AppendArrayIf(std::array<T, kSize1> array1,
+                             std::array<T, kSize2> array2) {
+  if constexpr (!predicate) {
+    return array1;
+  } else {
+    return ConcatArrays(array1, array2);
+  }
+}
+
 class DataRange {
   // data_ is used for general random values for fuzzing.
   base::Vector<const uint8_t> data_;
@@ -209,55 +219,76 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              Generics include_generics,
                              IncludeS128 include_s128 = kIncludeS128) {
   // Create and fill a vector of potential types to choose from.
+  // TODO(evih): Change `types` into a SmallVector.
   std::vector<ValueType> types;
-  // Non wasm-gc types.
+
+  // Numeric non-wasmGC types.
   if (include_numeric_types == kIncludeNumericTypes) {
     // Many "general-purpose" instructions return i32, so give that a higher
     // probability (such as 3x).
     types.insert(types.end(),
                  {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
+
+    // SIMD type.
     if (ShouldGenerateSIMD(options) && include_s128 == kIncludeS128) {
       types.push_back(kWasmS128);
     }
-    if (include_packed_types == kIncludePackedTypes) {
+  }
+
+  // The MVP types: apart from numeric types, contains only the non-nullable
+  // funcRef. We don't add externRef, because for externRef globals we generate
+  // initialiser expressions where we need wasmGC types. Also, externRef is not
+  // really useful for the MVP fuzzer, as there is nothing that we could
+  // generate.
+  types.push_back(kWasmFuncRef);
+
+  // WasmGC types (including user-defined types).
+  // Decide if the return type will be nullable or not.
+  const bool nullable =
+      ShouldGenerateWasmGC(options) ? data->get<bool>() : false;
+
+  if (ShouldGenerateWasmGC(options)) {
+    types.push_back(kWasmI31Ref);
+
+    if (include_numeric_types == kIncludeNumericTypes &&
+        include_packed_types == kIncludePackedTypes) {
       types.insert(types.end(), {kWasmI8, kWasmI16});
     }
-  }
-  // Decide if the return type will be nullable or not.
-  const bool nullable = data->get<bool>();
 
-  types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef});
-  if (nullable) {
-    types.insert(types.end(),
-                 {kWasmNullRef, kWasmNullExternRef, kWasmNullFuncRef});
-  }
-  if (nullable || include_generics == kAlwaysIncludeAllGenerics) {
-    types.insert(types.end(), {kWasmStructRef, kWasmArrayRef, kWasmAnyRef,
-                               kWasmEqRef, kWasmExternRef});
+    if (nullable) {
+      types.insert(types.end(),
+                   {kWasmNullRef, kWasmNullExternRef, kWasmNullFuncRef});
+    }
+    if (nullable || include_generics == kAlwaysIncludeAllGenerics) {
+      types.insert(types.end(), {kWasmStructRef, kWasmArrayRef, kWasmAnyRef,
+                                 kWasmEqRef, kWasmExternRef});
+    }
   }
 
   // The last index of user-defined types allowed is different based on the
-  // nullability of the output.
+  // nullability of the output. User-defined types are function signatures or
+  // structs and arrays (in case of wasmGC).
   const uint32_t num_user_defined_types =
       nullable ? num_nullable_types : num_non_nullable_types;
 
   // Conceptually, user-defined types are added to the end of the list. Pick a
   // random one among them.
-  uint32_t id = data->get<uint8_t>() % (types.size() + num_user_defined_types);
+  uint32_t chosen_id =
+      data->get<uint8_t>() % (types.size() + num_user_defined_types);
 
   Nullability nullability = nullable ? kNullable : kNonNullable;
 
-  if (id >= types.size()) {
+  if (chosen_id >= types.size()) {
     // Return user-defined type.
-    return ValueType::RefMaybeNull(id - static_cast<uint32_t>(types.size()),
-                                   nullability);
+    return ValueType::RefMaybeNull(
+        chosen_id - static_cast<uint32_t>(types.size()), nullability);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
-  if (types[id].is_reference()) {
-    return ValueType::RefMaybeNull(types[id].heap_type(), nullability);
+  if (types[chosen_id].is_reference()) {
+    return ValueType::RefMaybeNull(types[chosen_id].heap_type(), nullability);
   }
   // Otherwise, just return the picked type.
-  return types[id];
+  return types[chosen_id];
 }
 
 template <WasmModuleGenerationOptions options>
@@ -2131,7 +2162,7 @@ class BodyGen {
     GeneratorRecursionScope rec_scope(this);
     if (recursion_limit_reached() || data->size() == 0) return;
 
-    constexpr auto alternatives =
+    constexpr auto mvp_alternatives =
         CreateArray(&BodyGen::sequence<kVoid, kVoid>,
                     &BodyGen::sequence<kVoid, kVoid, kVoid, kVoid>,
                     &BodyGen::sequence<kVoid, kVoid, kVoid, kVoid, kVoid, kVoid,
@@ -2176,28 +2207,30 @@ class BodyGen {
                     &BodyGen::throw_or_rethrow,  //
                     &BodyGen::try_block<kVoid>,  //
 
-                    &BodyGen::struct_set,       //
-                    &BodyGen::array_set,        //
-                    &BodyGen::array_copy,       //
-                    &BodyGen::array_fill,       //
-                    &BodyGen::array_init_data,  //
-                    &BodyGen::array_init_elem,  //
-
                     &BodyGen::table_set,    //
                     &BodyGen::table_fill,   //
                     &BodyGen::table_copy);  //
 
-    if constexpr (ShouldGenerateSIMD(options)) {
-      constexpr auto simd_alternatives = CreateArray(
-          &BodyGen::memop<kExprS128StoreMem, kS128>,
-          &BodyGen::simd_lane_memop<kExprS128Store8Lane, 16, kS128>,
-          &BodyGen::simd_lane_memop<kExprS128Store16Lane, 8, kS128>,
-          &BodyGen::simd_lane_memop<kExprS128Store32Lane, 4, kS128>,
-          &BodyGen::simd_lane_memop<kExprS128Store64Lane, 2, kS128>);
-      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
-    } else {
-      GenerateOneOf(alternatives, data);
-    }
+    auto constexpr simd_alternatives =
+        CreateArray(&BodyGen::memop<kExprS128StoreMem, kS128>,
+                    &BodyGen::simd_lane_memop<kExprS128Store8Lane, 16, kS128>,
+                    &BodyGen::simd_lane_memop<kExprS128Store16Lane, 8, kS128>,
+                    &BodyGen::simd_lane_memop<kExprS128Store32Lane, 4, kS128>,
+                    &BodyGen::simd_lane_memop<kExprS128Store64Lane, 2, kS128>);
+
+    auto constexpr wasmGC_alternatives =
+        CreateArray(&BodyGen::struct_set,        //
+                    &BodyGen::array_set,         //
+                    &BodyGen::array_copy,        //
+                    &BodyGen::array_fill,        //
+                    &BodyGen::array_init_data,   //
+                    &BodyGen::array_init_elem);  //
+
+    constexpr auto alternatives = AppendArrayIf<ShouldGenerateWasmGC(options)>(
+        AppendArrayIf<ShouldGenerateSIMD(options)>(mvp_alternatives,
+                                                   simd_alternatives),
+        wasmGC_alternatives);
+    GenerateOneOf(alternatives, data);
   }
 
   void GenerateI32(DataRange* data) {
@@ -2213,7 +2246,7 @@ class BodyGen {
       return;
     }
 
-    constexpr auto alternatives = CreateArray(
+    constexpr auto mvp_alternatives = CreateArray(
         &BodyGen::i32_const<1>,  //
         &BodyGen::i32_const<2>,  //
         &BodyGen::i32_const<3>,  //
@@ -2337,50 +2370,52 @@ class BodyGen {
         &BodyGen::call_ref<kI32>,       //
         &BodyGen::try_block<kI32>,      //
 
-        &BodyGen::i31_get,
-
-        &BodyGen::struct_get<kI32>,  //
-        &BodyGen::array_get<kI32>,   //
-        &BodyGen::array_len,         //
-
-        &BodyGen::ref_is_null,                 //
-        &BodyGen::ref_eq,                      //
-        &BodyGen::ref_test<kExprRefTest>,      //
-        &BodyGen::ref_test<kExprRefTestNull>,  //
-
-        &BodyGen::string_test,               //
-        &BodyGen::string_charcodeat,         //
-        &BodyGen::string_codepointat,        //
-        &BodyGen::string_length,             //
-        &BodyGen::string_equals,             //
-        &BodyGen::string_compare,            //
-        &BodyGen::string_intocharcodearray,  //
-        &BodyGen::string_intoutf8array,      //
-        &BodyGen::string_measureutf8,        //
-
         &BodyGen::table_size,   //
         &BodyGen::table_grow);  //
 
-    if constexpr (ShouldGenerateSIMD(options)) {
-      constexpr auto simd_alternatives =
-          CreateArray(&BodyGen::op_with_prefix<kExprV128AnyTrue, kS128>,
-                      &BodyGen::op_with_prefix<kExprI8x16AllTrue, kS128>,
-                      &BodyGen::op_with_prefix<kExprI8x16BitMask, kS128>,
-                      &BodyGen::op_with_prefix<kExprI16x8AllTrue, kS128>,
-                      &BodyGen::op_with_prefix<kExprI16x8BitMask, kS128>,
-                      &BodyGen::op_with_prefix<kExprI32x4AllTrue, kS128>,
-                      &BodyGen::op_with_prefix<kExprI32x4BitMask, kS128>,
-                      &BodyGen::op_with_prefix<kExprI64x2AllTrue, kS128>,
-                      &BodyGen::op_with_prefix<kExprI64x2BitMask, kS128>,
-                      &BodyGen::simd_lane_op<kExprI8x16ExtractLaneS, 16, kS128>,
-                      &BodyGen::simd_lane_op<kExprI8x16ExtractLaneU, 16, kS128>,
-                      &BodyGen::simd_lane_op<kExprI16x8ExtractLaneS, 8, kS128>,
-                      &BodyGen::simd_lane_op<kExprI16x8ExtractLaneU, 8, kS128>,
-                      &BodyGen::simd_lane_op<kExprI32x4ExtractLane, 4, kS128>);
-      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
-    } else {
-      GenerateOneOf(alternatives, data);
-    }
+    auto constexpr simd_alternatives =
+        CreateArray(&BodyGen::op_with_prefix<kExprV128AnyTrue, kS128>,
+                    &BodyGen::op_with_prefix<kExprI8x16AllTrue, kS128>,
+                    &BodyGen::op_with_prefix<kExprI8x16BitMask, kS128>,
+                    &BodyGen::op_with_prefix<kExprI16x8AllTrue, kS128>,
+                    &BodyGen::op_with_prefix<kExprI16x8BitMask, kS128>,
+                    &BodyGen::op_with_prefix<kExprI32x4AllTrue, kS128>,
+                    &BodyGen::op_with_prefix<kExprI32x4BitMask, kS128>,
+                    &BodyGen::op_with_prefix<kExprI64x2AllTrue, kS128>,
+                    &BodyGen::op_with_prefix<kExprI64x2BitMask, kS128>,
+                    &BodyGen::simd_lane_op<kExprI8x16ExtractLaneS, 16, kS128>,
+                    &BodyGen::simd_lane_op<kExprI8x16ExtractLaneU, 16, kS128>,
+                    &BodyGen::simd_lane_op<kExprI16x8ExtractLaneS, 8, kS128>,
+                    &BodyGen::simd_lane_op<kExprI16x8ExtractLaneU, 8, kS128>,
+                    &BodyGen::simd_lane_op<kExprI32x4ExtractLane, 4, kS128>);
+
+    auto constexpr wasmGC_alternatives =
+        CreateArray(&BodyGen::i31_get,                     //
+                                                           //
+                    &BodyGen::struct_get<kI32>,            //
+                    &BodyGen::array_get<kI32>,             //
+                    &BodyGen::array_len,                   //
+                                                           //
+                    &BodyGen::ref_is_null,                 //
+                    &BodyGen::ref_eq,                      //
+                    &BodyGen::ref_test<kExprRefTest>,      //
+                    &BodyGen::ref_test<kExprRefTestNull>,  //
+                                                           //
+                    &BodyGen::string_test,                 //
+                    &BodyGen::string_charcodeat,           //
+                    &BodyGen::string_codepointat,          //
+                    &BodyGen::string_length,               //
+                    &BodyGen::string_equals,               //
+                    &BodyGen::string_compare,              //
+                    &BodyGen::string_intocharcodearray,    //
+                    &BodyGen::string_intoutf8array,        //
+                    &BodyGen::string_measureutf8);         //
+
+    constexpr auto alternatives = AppendArrayIf<ShouldGenerateWasmGC(options)>(
+        AppendArrayIf<ShouldGenerateSIMD(options)>(mvp_alternatives,
+                                                   simd_alternatives),
+        wasmGC_alternatives);
+    GenerateOneOf(alternatives, data);
   }
 
   void GenerateI64(DataRange* data) {
@@ -2390,7 +2425,7 @@ class BodyGen {
       return;
     }
 
-    constexpr auto alternatives = CreateArray(
+    constexpr auto mvp_alternatives = CreateArray(
         &BodyGen::i64_const<1>,  //
         &BodyGen::i64_const<2>,  //
         &BodyGen::i64_const<3>,  //
@@ -2490,18 +2525,20 @@ class BodyGen {
         &BodyGen::call<kI64>,           //
         &BodyGen::call_indirect<kI64>,  //
         &BodyGen::call_ref<kI64>,       //
-        &BodyGen::try_block<kI64>,      //
+        &BodyGen::try_block<kI64>);     //
 
-        &BodyGen::struct_get<kI64>,  //
-        &BodyGen::array_get<kI64>);  //
+    auto constexpr simd_alternatives =
+        CreateArray(&BodyGen::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>);
 
-    if constexpr (ShouldGenerateSIMD(options)) {
-      constexpr auto simd_alternatives =
-          CreateArray(&BodyGen::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>);
-      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
-    } else {
-      GenerateOneOf(alternatives, data);
-    }
+    auto constexpr wasmGC_alternatives =
+        CreateArray(&BodyGen::struct_get<kI64>,  //
+                    &BodyGen::array_get<kI64>);  //
+
+    constexpr auto alternatives = AppendArrayIf<ShouldGenerateWasmGC(options)>(
+        AppendArrayIf<ShouldGenerateSIMD(options)>(mvp_alternatives,
+                                                   simd_alternatives),
+        wasmGC_alternatives);
+    GenerateOneOf(alternatives, data);
   }
 
   void GenerateF32(DataRange* data) {
@@ -2511,7 +2548,7 @@ class BodyGen {
       return;
     }
 
-    constexpr auto alternatives = CreateArray(
+    constexpr auto mvp_alternatives = CreateArray(
         &BodyGen::sequence<kF32, kVoid>, &BodyGen::sequence<kVoid, kF32>,
         &BodyGen::sequence<kVoid, kF32, kVoid>,
 
@@ -2557,18 +2594,20 @@ class BodyGen {
         &BodyGen::call<kF32>,           //
         &BodyGen::call_indirect<kF32>,  //
         &BodyGen::call_ref<kF32>,       //
-        &BodyGen::try_block<kF32>,      //
+        &BodyGen::try_block<kF32>);     //
 
-        &BodyGen::struct_get<kF32>,  //
-        &BodyGen::array_get<kF32>);  //
+    auto constexpr simd_alternatives =
+        CreateArray(&BodyGen::simd_lane_op<kExprF32x4ExtractLane, 4, kS128>);
 
-    if constexpr (ShouldGenerateSIMD(options)) {
-      constexpr auto simd_alternatives =
-          CreateArray(&BodyGen::simd_lane_op<kExprF32x4ExtractLane, 4, kS128>);
-      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
-    } else {
-      GenerateOneOf(alternatives, data);
-    }
+    auto constexpr wasmGC_alternatives =
+        CreateArray(&BodyGen::struct_get<kF32>,  //
+                    &BodyGen::array_get<kF32>);  //
+
+    constexpr auto alternatives = AppendArrayIf<ShouldGenerateWasmGC(options)>(
+        AppendArrayIf<ShouldGenerateSIMD(options)>(mvp_alternatives,
+                                                   simd_alternatives),
+        wasmGC_alternatives);
+    GenerateOneOf(alternatives, data);
   }
 
   void GenerateF64(DataRange* data) {
@@ -2578,7 +2617,7 @@ class BodyGen {
       return;
     }
 
-    constexpr auto alternatives = CreateArray(
+    constexpr auto mvp_alternatives = CreateArray(
         &BodyGen::sequence<kF64, kVoid>, &BodyGen::sequence<kVoid, kF64>,
         &BodyGen::sequence<kVoid, kF64, kVoid>,
 
@@ -2624,18 +2663,20 @@ class BodyGen {
         &BodyGen::call<kF64>,           //
         &BodyGen::call_indirect<kF64>,  //
         &BodyGen::call_ref<kF64>,       //
-        &BodyGen::try_block<kF64>,      //
+        &BodyGen::try_block<kF64>);     //
 
-        &BodyGen::struct_get<kF64>,  //
-        &BodyGen::array_get<kF64>);  //
+    auto constexpr simd_alternatives =
+        CreateArray(&BodyGen::simd_lane_op<kExprF64x2ExtractLane, 2, kS128>);
 
-    if constexpr (ShouldGenerateSIMD(options)) {
-      constexpr auto simd_alternatives =
-          CreateArray(&BodyGen::simd_lane_op<kExprF64x2ExtractLane, 2, kS128>);
-      GenerateOneOf(ConcatArrays(alternatives, simd_alternatives), data);
-    } else {
-      GenerateOneOf(alternatives, data);
-    }
+    auto constexpr wasmGC_alternatives =
+        CreateArray(&BodyGen::struct_get<kF64>,  //
+                    &BodyGen::array_get<kF64>);  //
+
+    constexpr auto alternatives = AppendArrayIf<ShouldGenerateWasmGC(options)>(
+        AppendArrayIf<ShouldGenerateSIMD(options)>(mvp_alternatives,
+                                                   simd_alternatives),
+        wasmGC_alternatives);
+    GenerateOneOf(alternatives, data);
   }
 
   void GenerateS128(DataRange* data) {
@@ -3145,7 +3186,7 @@ class BodyGen {
           return;
         }
         // ~80% chance of string.
-        if (choice < 230) {
+        if (choice < 230 && ShouldGenerateWasmGC(options)) {
           uint8_t subchoice = choice % 7;
           switch (subchoice) {
             case 0:
@@ -3177,9 +3218,10 @@ class BodyGen {
         }
         return;
       default:
-        // Indexed type.
+        // Indexed type (i.e. user-defined type).
         DCHECK(type.is_index());
-        if (type.ref_index() == string_imports_.array_i8 &&
+        if (ShouldGenerateWasmGC(options) &&
+            type.ref_index() == string_imports_.array_i8 &&
             data->get<uint8_t>() < 32) {
           // 1/8th chance, fits the number of remaining alternatives (7) well.
           return string_toutf8array(data);
@@ -3515,6 +3557,10 @@ class ModuleGen {
       const std::map<uint8_t, uint8_t>& explicit_rec_groups,
       std::vector<uint32_t>& function_signatures, uint8_t& current_type_index,
       bool kIsFinal) {
+    // Recursive groups consist of recursive types that came with the WasmGC
+    // proposal.
+    DCHECK_IMPLIES(!ShouldGenerateWasmGC(options), explicit_rec_groups.empty());
+
     for (; current_type_index < num_types_; current_type_index++) {
       auto rec_group = explicit_rec_groups.find(current_type_index);
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
@@ -3949,56 +3995,70 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   DataRange module_range(data);
   DataRange functions_range = module_range.split();
   std::vector<uint32_t> function_signatures;
-  std::vector<uint32_t> array_types;
-  std::vector<uint32_t> struct_types;
-
-  // Add struct and array types first so that we get a chance to generate
-  // these types in function signatures.
-  // Currently, `BodyGen` assumes this order for struct/array/signature
-  // definitions.
 
   static_assert(kMaxFunctions >= 1, "need min. 1 function");
   uint8_t num_functions = 1 + (module_range.get<uint8_t>() % kMaxFunctions);
 
-  // We need at least one struct and one array in order to support
-  // WasmInitExpr for abstract types.
+  // In case of WasmGC expressions:
+  // Add struct and array types first so that we get a chance to generate
+  // these types in function signatures.
+  // Currently, `BodyGen` assumes this order for struct/array/signature
+  // definitions.
+  // Otherwise, for non-WasmGC we can't use structs/arrays.
+  uint8_t num_structs = 0;
+  uint8_t num_arrays = 0;
+  std::vector<uint32_t> array_types;
+  std::vector<uint32_t> struct_types;
+
+  // In case of WasmGC expressions:
   // We always add two default array types with mutable i8 and i16 elements,
   // respectively.
-  constexpr uint8_t kNumDefaultArrayTypes = 2;
-  uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
-  uint8_t num_arrays =
-      kNumDefaultArrayTypes + module_range.get<uint8_t>() % kMaxArrays;
+  constexpr uint8_t kNumDefaultArrayTypesForWasmGC = 2;
+  if constexpr (ShouldGenerateWasmGC(options)) {
+    // We need at least one struct and one array in order to support
+    // WasmInitExpr for abstract types.
+    num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
+    num_arrays = kNumDefaultArrayTypesForWasmGC +
+                 module_range.get<uint8_t>() % kMaxArrays;
+  }
 
   ModuleGen<options> gen_module(zone, &builder, &module_range, num_functions,
                                 num_structs, num_arrays);
 
-  // Put the types into random recursive groups.
-  std::map<uint8_t, uint8_t> explicit_rec_groups =
-      gen_module.GenerateRandomRecursiveGroups(kNumDefaultArrayTypes);
+  uint8_t current_type_index = 0;
+  // In case of WasmGC expressions, we create recursive groups for the recursive
+  // types.
+  std::map<uint8_t, uint8_t> explicit_rec_groups;
+  if constexpr (ShouldGenerateWasmGC(options)) {
+    // Put the types into random recursive groups.
+    explicit_rec_groups = gen_module.GenerateRandomRecursiveGroups(
+        kNumDefaultArrayTypesForWasmGC);
 
-  // Add default array types.
-  static constexpr uint32_t kArrayI8 = 0;
-  static constexpr uint32_t kArrayI16 = 1;
-  {
-    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
-    CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
-    array_types.push_back(kArrayI8);
-    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
-    CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
-    array_types.push_back(kArrayI16);
+    // Add default array types.
+    static constexpr uint32_t kArrayI8 = 0;
+    static constexpr uint32_t kArrayI16 = 1;
+    {
+      ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1);
+      CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
+      array_types.push_back(kArrayI8);
+      ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1);
+      CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
+      array_types.push_back(kArrayI16);
+    }
+    static_assert(kNumDefaultArrayTypesForWasmGC == kArrayI16 + 1);
+    current_type_index = kNumDefaultArrayTypesForWasmGC;
+
+    // Add randomly generated structs.
+    gen_module.GenerateRandomStructs(explicit_rec_groups, struct_types,
+                                     current_type_index,
+                                     kNumDefaultArrayTypesForWasmGC);
+    DCHECK_EQ(current_type_index, kNumDefaultArrayTypesForWasmGC + num_structs);
+
+    // Add randomly generated arrays.
+    gen_module.GenerateRandomArrays(explicit_rec_groups, array_types,
+                                    current_type_index);
+    DCHECK_EQ(current_type_index, num_structs + num_arrays);
   }
-  static_assert(kNumDefaultArrayTypes == kArrayI16 + 1);
-  uint8_t current_type_index = kNumDefaultArrayTypes;
-
-  // Add randomly generated structs.
-  gen_module.GenerateRandomStructs(explicit_rec_groups, struct_types,
-                                   current_type_index, kNumDefaultArrayTypes);
-  DCHECK_EQ(current_type_index, kNumDefaultArrayTypes + num_structs);
-
-  // Add randomly generated arrays.
-  gen_module.GenerateRandomArrays(explicit_rec_groups, array_types,
-                                  current_type_index);
-  DCHECK_EQ(current_type_index, num_structs + num_arrays);
 
   // We keep the signature for the first (main) function constant.
   constexpr bool kIsFinal = true;
@@ -4017,9 +4077,12 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
   gen_module.GenerateRandomExceptions(num_exceptions);
 
+  // In case of WasmGC expressions:
   // Add the "wasm:js-string" imports to the module. They may or may not be
   // used later, but they'll always be available.
-  StringImports strings = gen_module.AddImportedStringImports();
+  StringImports strings = ShouldGenerateWasmGC(options)
+                              ? gen_module.AddImportedStringImports()
+                              : StringImports();
 
   // Generate function declarations before tables. This will be needed once we
   // have typed-function tables.
