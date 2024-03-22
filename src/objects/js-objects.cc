@@ -50,6 +50,7 @@
 #include "src/objects/js-display-names.h"
 #include "src/objects/js-duration-format.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-iterator-helpers-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -2490,6 +2491,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSPrimitiveWrapper::kHeaderSize;
     case JS_DATE_TYPE:
       return JSDate::kHeaderSize;
+    case JS_DISPOSABLE_STACK_TYPE:
+      return JSDisposableStack::kHeaderSize;
     case JS_ARRAY_TYPE:
       return JSArray::kHeaderSize;
     case JS_ARRAY_BUFFER_TYPE:

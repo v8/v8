@@ -3185,7 +3185,7 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   int begin = position();
   int end = end_position();
   bool was_added = false;
-  DCHECK(IsConstVariableMode(mode));
+  DCHECK(IsImmutableLexicalOrPrivateVariableMode(mode));
   Variable* var =
       scope->DeclarePrivateName(name, mode, is_static_flag, &was_added);
   if (!was_added) {

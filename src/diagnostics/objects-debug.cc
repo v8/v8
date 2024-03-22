@@ -51,6 +51,7 @@
 #include "src/objects/js-display-names-inl.h"
 #include "src/objects/js-duration-format-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-iterator-helpers-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -1595,6 +1596,13 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsCondition(*this));
   CHECK(InAnySharedSpace(*this));
   JSObjectVerify(isolate);
+}
+
+void JSDisposableStack::JSDisposableStackVerify(Isolate* isolate) {
+  CHECK(IsJSDisposableStack(*this));
+  JSObjectVerify(isolate);
+  CHECK_EQ(length() % 2, 0);
+  CHECK_GE(stack()->capacity(), length());
 }
 
 void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {

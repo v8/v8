@@ -760,38 +760,39 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kmatch_symbol = 0x5f29;
   static constexpr Tagged_t ksearch_symbol = 0x5f51;
   static constexpr Tagged_t kunscopables_symbol = 0x5f7d;
-  static constexpr Tagged_t khas_instance_symbol = 0x5fad;
-  static constexpr Tagged_t kto_string_tag_symbol = 0x5fdd;
-  static constexpr Tagged_t kconstructor_string = 0x6055;
-  static constexpr Tagged_t knext_string = 0x606d;
-  static constexpr Tagged_t kresolve_string = 0x607d;
-  static constexpr Tagged_t kthen_string = 0x6091;
-  static constexpr Tagged_t kvalueOf_string = 0x60a1;
-  static constexpr Tagged_t kiterator_symbol = 0x60b5;
-  static constexpr Tagged_t kmatch_all_symbol = 0x60c5;
-  static constexpr Tagged_t kreplace_symbol = 0x60d5;
-  static constexpr Tagged_t kspecies_symbol = 0x60e5;
-  static constexpr Tagged_t ksplit_symbol = 0x60f5;
-  static constexpr Tagged_t kto_primitive_symbol = 0x6105;
-  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x6115;
-  static constexpr Tagged_t kEmptySlowElementDictionary = 0x6125;
-  static constexpr Tagged_t kEmptySymbolTable = 0x6149;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x6165;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x6179;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x618d;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x6199;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x61b9;
-  static constexpr Tagged_t kNativeScopeInfo = 0x61dd;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x61f5;
-  static constexpr Tagged_t kEmptyExternalPointerArray = 0x620d;
-  static constexpr Tagged_t kWasmNullPadding = 0x6215;
+  static constexpr Tagged_t kdispose_symbol = 0x5fad;
+  static constexpr Tagged_t khas_instance_symbol = 0x5fd9;
+  static constexpr Tagged_t kto_string_tag_symbol = 0x6009;
+  static constexpr Tagged_t kconstructor_string = 0x6081;
+  static constexpr Tagged_t knext_string = 0x6099;
+  static constexpr Tagged_t kresolve_string = 0x60a9;
+  static constexpr Tagged_t kthen_string = 0x60bd;
+  static constexpr Tagged_t kvalueOf_string = 0x60cd;
+  static constexpr Tagged_t kiterator_symbol = 0x60e1;
+  static constexpr Tagged_t kmatch_all_symbol = 0x60f1;
+  static constexpr Tagged_t kreplace_symbol = 0x6101;
+  static constexpr Tagged_t kspecies_symbol = 0x6111;
+  static constexpr Tagged_t ksplit_symbol = 0x6121;
+  static constexpr Tagged_t kto_primitive_symbol = 0x6131;
+  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x6141;
+  static constexpr Tagged_t kEmptySlowElementDictionary = 0x6151;
+  static constexpr Tagged_t kEmptySymbolTable = 0x6175;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x6191;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x61a5;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x61b9;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x61c5;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x61e5;
+  static constexpr Tagged_t kNativeScopeInfo = 0x6209;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x6221;
+  static constexpr Tagged_t kEmptyExternalPointerArray = 0x6239;
+  static constexpr Tagged_t kWasmNullPadding = 0x6241;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
   static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
   static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
 };
 
-static constexpr std::array<Tagged_t, 760> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 761> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -1455,6 +1456,7 @@ static constexpr std::array<Tagged_t, 760> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kmatch_symbol,
     StaticReadOnlyRoot::ksearch_symbol,
     StaticReadOnlyRoot::kunscopables_symbol,
+    StaticReadOnlyRoot::kdispose_symbol,
     StaticReadOnlyRoot::khas_instance_symbol,
     StaticReadOnlyRoot::kto_string_tag_symbol,
     StaticReadOnlyRoot::kPromiseFulfillReactionJobTaskMap,

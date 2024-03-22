@@ -1080,7 +1080,7 @@ class PreParser : public ParserBase<PreParser> {
                                        ClassScope* scope, VariableMode mode,
                                        IsStaticFlag is_static_flag,
                                        bool* was_added) {
-    DCHECK(IsConstVariableMode(mode));
+    DCHECK(IsImmutableLexicalOrPrivateVariableMode(mode));
     return scope->DeclarePrivateName(name, mode, is_static_flag, was_added);
   }
 

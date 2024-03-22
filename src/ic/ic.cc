@@ -512,7 +512,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
         // compiler inlining for all 'const' variables declared in REPL mode.
         if (nexus()->ConfigureLexicalVarMode(
                 lookup_result.context_index, lookup_result.slot_index,
-                (lookup_result.mode == VariableMode::kConst &&
+                (IsImmutableLexicalVariableMode(lookup_result.mode) &&
                  !lookup_result.is_repl_mode))) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
@@ -1715,7 +1715,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     DisableGCMole no_gcmole;
     Tagged<Context> script_context =
         script_contexts->get(lookup_result.context_index);
-    if (lookup_result.mode == VariableMode::kConst) {
+    if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
@@ -1744,7 +1744,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(
               lookup_result.context_index, lookup_result.slot_index,
-              lookup_result.mode == VariableMode::kConst)) {
+              IsImmutableLexicalVariableMode(lookup_result.mode))) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
@@ -3032,7 +3032,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   if (script_contexts->Lookup(name, &lookup_result)) {
     Handle<Context> script_context =
         handle(script_contexts->get(lookup_result.context_index), isolate);
-    if (lookup_result.mode == VariableMode::kConst) {
+    if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }

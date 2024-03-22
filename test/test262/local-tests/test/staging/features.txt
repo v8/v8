@@ -109,6 +109,10 @@ promise-with-resolvers
 # https://github.com/tc39/proposal-set-methods
 set-methods
 
+# Explicit Resource Management
+# https://github.com/tc39/proposal-explicit-resource-management
+explicit-resource-management
+
 ## Standard language features
 #
 # Language features that have been included in a published version of the

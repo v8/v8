@@ -159,6 +159,7 @@ namespace internal {
   V(JSDataView)                                 \
   V(JSDataViewOrRabGsabDataView)                \
   V(JSDate)                                     \
+  V(JSDisposableStack)                          \
   V(JSError)                                    \
   V(JSExternalObject)                           \
   V(JSFinalizationRegistry)                     \

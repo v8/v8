@@ -1075,26 +1075,6 @@ TEST_F(DeclsTest, TestUsing) {
                   EXPECT_ERROR);
     context.Check("{for(using {x} = {x:5}; x < 10 ; i++) {\n console.log(x);}}",
                   EXPECT_ERROR);
-    context.Check("{ using x = 1;}", EXPECT_RESULT, Undefined(isolate()));
-    context.Check(
-        "let label = \"1\"; \n switch (label) { \n case 1: \n using x = 1; }",
-        EXPECT_RESULT, Undefined(isolate()));
-    context.Check("for(let i = 0; i < 3; i++){\n using x = 1 + i;}",
-                  EXPECT_RESULT, Undefined(isolate()));
-    context.Check("for(let i in [1, 2]){\n using x = 1 + i;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("for(let i of [1, 2]){\n using x = 1 + i;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("function testUsing(){\n using x = 1;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("async function testUsing(){\n using x = 1;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("function* gen(){\n using x = 1; \n yield x;}", EXPECT_RESULT,
-                  Undefined(isolate()));
-    context.Check("async function* gen(){\n using x = 1; \n yield await x;}",
-                  EXPECT_RESULT, Undefined(isolate()));
-    context.Check("class test {\n static { \n using x = 1;} \n }",
-                  EXPECT_RESULT, Undefined(isolate()));
   }
 }
 

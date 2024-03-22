@@ -1789,6 +1789,25 @@ void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+std::ostream& operator<<(std::ostream& os, DisposableStackState state) {
+  switch (state) {
+    case DisposableStackState::kPending:
+      return os << "Pending";
+    case DisposableStackState::kDisposed:
+      return os << "Disposed";
+  }
+  UNREACHABLE();
+}
+
+void JSDisposableStack::JSDisposableStackPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSDisposableStack");
+  os << "\n - stack: " << Brief(stack());
+  os << "\n - status (including state and length): " << status();
+  os << "\n - length: " << length();
+  os << "\n - state: " << state();
+  JSObjectPrintBody(os, *this);
+}
+
 void JSIteratorHelper::JSIteratorHelperPrintHeader(std::ostream& os,
                                                    const char* helper_name) {
   JSObjectPrintHeader(os, *this, helper_name);

@@ -13,6 +13,7 @@
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/js-atomics-synchronization.h'
+#include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-iterator-helpers.h'
@@ -558,6 +559,7 @@ type NumberOrUndefined = Number|Undefined;
 
 extern macro ConstructorStringConstant(): String;
 extern macro DefaultStringConstant(): String;
+extern macro DisposeSymbolConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro ErrorStringConstant(): String;
 extern macro ErrorsStringConstant(): String;

@@ -50,6 +50,7 @@ class FunctionTemplateInfo;
 class Isolate;
 class JSArrayBufferView;
 class JSDataView;
+class JSDisposableStack;
 class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
@@ -689,6 +690,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSWrappedFunction> NewJSWrappedFunction(
       DirectHandle<NativeContext> creation_context,
       DirectHandle<Object> target);
+
+  Handle<JSDisposableStack> NewJSDisposableStack();
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(

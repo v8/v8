@@ -4210,8 +4210,8 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       // using [no LineTerminator here] [lookahead ≠ await] BindingList[?In,
       // ?Yield, ?Await, ~Pattern] ;
       Consume(Token::kUsing);
-      DCHECK_NE(var_context, kStatement);
       DCHECK(v8_flags.js_explicit_resource_management);
+      DCHECK_NE(var_context, kStatement);
       DCHECK(is_using_allowed());
       DCHECK(peek() != Token::kAwait);
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());

@@ -535,7 +535,8 @@
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, unscopables_symbol, Symbol.unscopables)
+  V(_, unscopables_symbol, Symbol.unscopables)            \
+  V(_, dispose_symbol, Symbol.dispose)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
 // them to produce an undefined value when a load results in a failed access

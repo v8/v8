@@ -55,6 +55,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-regexp-inl.h"
@@ -3167,6 +3168,16 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
          map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
+}
+
+Handle<JSDisposableStack> Factory::NewJSDisposableStack() {
+  Handle<NativeContext> native_context = isolate()->native_context();
+  Handle<Map> map(native_context->js_disposable_stack_map(), isolate());
+  Handle<JSDisposableStack> disposable_stack(
+      Handle<JSDisposableStack>::cast(NewJSObjectFromMap(map)));
+
+  JSDisposableStack::Initialize(isolate(), disposable_stack);
+  return disposable_stack;
 }
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(

@@ -1391,6 +1391,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_BOUND_FUNCTION_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATE_TYPE:
+    case JS_DISPOSABLE_STACK_TYPE:
     case JS_ERROR_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:

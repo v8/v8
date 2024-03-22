@@ -69,6 +69,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
@@ -6135,6 +6136,15 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
     DCHECK_EQ(max_entries * values_per_entry, count);
   }
   return isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+void JSDisposableStack::Initialize(Isolate* isolate,
+                                   Handle<JSDisposableStack> disposable_stack) {
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(0);
+  disposable_stack->set_stack(*array);
+  disposable_stack->set_status(0);
+  disposable_stack->set_length(0);
+  disposable_stack->set_state(DisposableStackState::kPending);
 }
 
 void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {

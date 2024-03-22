@@ -44,6 +44,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization.h"
+#include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-iterator-helpers.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
@@ -3022,6 +3023,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                     factory->to_string_tag_symbol());
     InstallConstant(isolate_, symbol_fun, "unscopables",
                     factory->unscopables_symbol());
+    InstallConstant(isolate_, symbol_fun, "dispose", factory->dispose_symbol());
 
     // Setup %SymbolPrototype%.
     Handle<JSObject> prototype(JSObject::cast(symbol_fun->instance_prototype()),
@@ -5784,6 +5786,22 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   InstallError(isolate(), global, factory->SuppressedError_string(),
                Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
                Builtin::kSuppressedErrorConstructor, 3);
+
+  // -- D i s p o s a b l e S t a c k
+  Handle<JSObject> disposable_stack_prototype =
+      factory->NewJSObject(isolate()->object_function(), AllocationType::kOld);
+
+  native_context()->set_initial_disposable_stack_prototype(
+      *disposable_stack_prototype);
+
+  Handle<Map> js_disposable_stack_map =
+      factory->NewContextfulMapForCurrentContext(
+          JS_DISPOSABLE_STACK_TYPE, JSDisposableStack::kHeaderSize);
+  Map::SetPrototype(isolate(), js_disposable_stack_map,
+                    disposable_stack_prototype);
+  js_disposable_stack_map->SetConstructor(native_context()->object_function());
+  native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
+  LOG(isolate(), MapDetails(*js_disposable_stack_map));
 }
 
 void Genesis::InitializeGlobal_js_float16array() {

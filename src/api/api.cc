@@ -6992,8 +6992,8 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
       // If not they could be replaced to bypass freezing.
       i::Tagged<i::ScopeInfo> scope_info = i::Context::cast(obj)->scope_info();
       for (auto it : i::ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
-        if (scope_info->ContextLocalMode(it->index()) !=
-            i::VariableMode::kConst) {
+        if (!IsImmutableLexicalVariableMode(
+                scope_info->ContextLocalMode(it->index()))) {
           DCHECK(!error_.has_value());
           error_ = ErrorInfo{i::MessageTemplate::kCannotDeepFreezeValue,
                              i::handle(it->name(), isolate_)};
