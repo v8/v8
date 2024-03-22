@@ -3017,7 +3017,7 @@ TEST(InternalFieldsSubclassing) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   for (int nof_embedder_fields = 0;
-       nof_embedder_fields < i::JSObject::kMaxEmbedderFields;
+       nof_embedder_fields < i::JSObject::kMaxJSApiObjectEmbedderFields;
        nof_embedder_fields++) {
     Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
     Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
@@ -3050,7 +3050,7 @@ TEST(InternalFieldsSubclassing) {
               .FromJust());
     // Create various levels of subclasses to stress instance size calculation.
     const int kMaxNofProperties =
-        i::JSObject::kMaxInObjectProperties -
+        i::JSObject::kMaxJSApiObjectInObjectProperties -
         nof_embedder_fields * i::kEmbedderDataSlotSizeInTaggedSlots;
     // Select only a few values to speed up the test.
     int sizes[] = {0,

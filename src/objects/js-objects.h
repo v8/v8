@@ -907,6 +907,14 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                     kMaxEmbedderFields * kEmbedderDataSlotSizeInTaggedSlots <=
                 kMaxInstanceSize);
 
+  static constexpr int kMaxJSApiObjectInObjectProperties =
+      (kMaxInstanceSize - kHeaderSize - kExternalPointerSlotSize) >>
+      kTaggedSizeLog2;
+  static constexpr int kMaxJSApiObjectEmbedderFields =
+      (kMaxFirstInobjectPropertyOffset - kHeaderSize -
+       kExternalPointerSlotSize) /
+      kEmbedderDataSlotSize;
+
   class BodyDescriptor;
 
   class FastBodyDescriptor;
