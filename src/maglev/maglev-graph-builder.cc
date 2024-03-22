@@ -10583,6 +10583,7 @@ void MaglevGraphBuilder::VisitForInNext() {
           AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>({receiver_map, cache_type});
       auto* key = AddNewNode<LoadFixedArrayElement>({cache_array, index});
+      EnsureType(key, NodeType::kInternalizedString);
       SetAccumulator(key);
 
       current_for_in_state.receiver = receiver;
