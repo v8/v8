@@ -4296,6 +4296,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         WasmModuleGenerationOptions::kGenerateSIMD>(
         Zone*, base::Vector<const uint8_t> data);
 
+// Explicit template instantiation for kGenerateWasmGC.
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    base::Vector<uint8_t> GenerateRandomWasmModule<
+        WasmModuleGenerationOptions::kGenerateWasmGC>(
+        Zone*, base::Vector<const uint8_t> data);
+
 // Explicit template instantiation for kGenerateAll.
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     base::Vector<uint8_t> GenerateRandomWasmModule<
