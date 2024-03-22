@@ -673,17 +673,17 @@ class WeakVisitor : public JSVisitor {
                                 const HeapObjectHeader& weak_container_header)
         : weak_visitor_(weak_visitor),
           prev_weak_container_header_(
-              *weak_visitor_.current_weak_container_header_) {
+              weak_visitor_.current_weak_container_header_) {
       weak_visitor_.current_weak_container_header_ = &weak_container_header;
     }
     ~WeakContainerScope() {
       weak_visitor_.current_weak_container_header_ =
-          &prev_weak_container_header_;
+          prev_weak_container_header_;
     }
 
    private:
     WeakVisitor& weak_visitor_;
-    const HeapObjectHeader& prev_weak_container_header_;
+    const HeapObjectHeader* prev_weak_container_header_;
   };
 
   CppGraphBuilderImpl& graph_builder_;
