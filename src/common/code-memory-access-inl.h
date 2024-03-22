@@ -235,22 +235,12 @@ bool RwxMemoryWriteScope::IsSupported() {
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
-  // TODO(sroettger): iOS SDK advises us to not read variables off the heap to
-  // control branching into changing page access. Figure this requirement out.
-  if (code_space_write_nesting_level_ == 0) {
-    be_memory_inline_jit_restrict_rwx_to_rw_with_witness();
-  }
-  code_space_write_nesting_level_++;
+  be_memory_inline_jit_restrict_rwx_to_rw_with_witness();
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
-  code_space_write_nesting_level_--;
-  // TODO(sroettger): iOS SDK advises us to not read variables off the heap to
-  // control branching into changing page access. Figure this requirement out.
-  if (code_space_write_nesting_level_ == 0) {
-    be_memory_inline_jit_restrict_rwx_to_rx_with_witness();
-  }
+  be_memory_inline_jit_restrict_rwx_to_rx_with_witness();
 }
 
 #elif V8_HAS_PKU_JIT_WRITE_PROTECT

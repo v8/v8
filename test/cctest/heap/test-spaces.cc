@@ -182,7 +182,9 @@ TEST(MutablePageMetadata) {
         base::PageFreeingMode::kMakeInaccessible;
 
     // On MacOS on ARM64 the code range reservation must be committed as RWX.
-    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
+    if ((V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+         V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT) &&
+        !jitless) {
       page_freeing_mode = base::PageFreeingMode::kDiscard;
       void* base = reinterpret_cast<void*>(code_range_reservation.address());
       CHECK(page_allocator->SetPermissions(base, code_range_size,

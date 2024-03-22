@@ -75,6 +75,7 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     // changed anymore.
     protection_reconfiguration_is_allowed_ =
         !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
+        !V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT &&
         protection_reconfiguration_is_allowed_;
   }
 

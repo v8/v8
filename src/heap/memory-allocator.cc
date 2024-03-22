@@ -280,7 +280,9 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
     DCHECK_EQ(chunk->ChunkAddress() + chunk->size(), chunk->area_end());
 
-    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !isolate_->jitless()) {
+    if ((V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+         V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT) &&
+        !isolate_->jitless()) {
       DCHECK(isolate_->RequiresCodeRange());
       reservation->DiscardSystemPages(chunk->area_end(), page_size);
     } else {
@@ -570,7 +572,9 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
 
   bool jitless = isolate_->jitless();
 
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
+  if ((V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+       V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT) &&
+      !jitless) {
     DCHECK(isolate_->RequiresCodeRange());
     return vm->RecommitPages(start, chunk_size,
                              PageAllocator::kReadWriteExecute);

@@ -2549,7 +2549,8 @@ class CodePageMemoryModificationScopeForDebugging {
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || \
+    V8_HEAP_USE_PKU_JIT_WRITE_PROTECT || V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT
   RwxMemoryWriteScope rwx_write_scope_;
 #endif
 };
