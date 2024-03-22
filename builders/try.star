@@ -176,7 +176,7 @@ try_builder(
 try_builder(
     name = "v8_linux64_gcc_light_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
     # TODO(https://crbug.com/v8/13005): Block branch CQ as soon as M105 is
     # extended stable.
     cq_branch_properties = CQ.EXP_100_PERCENT,
@@ -358,7 +358,7 @@ try_builder(
 try_builder(
     name = "v8_win64_msvc_light_compile_rel",
     bucket = "try",
-    cq_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
