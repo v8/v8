@@ -6188,8 +6188,10 @@ struct FindOrderedHashEntryOp
   };
   Kind kind;
 
-  static constexpr OpEffects effects =
-      OpEffects().CanDependOnChecks().AssumesConsistentHeap().CanReadMemory();
+  // TODO(dmercadier): try using
+  // OpEffects().CanDependOnChecks().AssumesConsistentHeap().CanReadMemory().CanAllocate()
+  // (which we're not currently using because we wanted to play it safe).
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
       case Kind::kFindOrderedHashMapEntry:

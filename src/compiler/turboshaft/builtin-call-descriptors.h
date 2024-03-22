@@ -198,11 +198,12 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    // TODO(chromium:1489500, nicohartmann@): We can probably relax this to
-    // base_effects.AssumesConsistentHeap().CanReadMemory() but for now we go
-    // with stronger effects until we better understand the recent crashes.
-    static constexpr OpEffects kEffects =
-        base_effects.AssumesConsistentHeap().CanReadMemory();
+    // TODO(chromium:1489500, nicohartmann@, dmercadier@): We can probably relax
+    // this to
+    // base_effects.AssumesConsistentHeap().CanReadMemory().CanAllocate() but
+    // for now we go with stronger effects until we better understand the recent
+    // crashes.
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
   using FindOrderedHashMapEntry =
       FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
