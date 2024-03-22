@@ -1014,7 +1014,7 @@ class MachineLoweringReducer : public Next {
             input, static_cast<uint64_t>(Smi::kMaxValue));
         __ DeoptimizeIfNot(check, frame_state, DeoptimizeReason::kLostPrecision,
                            feedback);
-        return __ TagSmi(input);
+        return __ TagSmi(__ TruncateWord64ToWord32(input));
       }
     }
 
