@@ -4746,6 +4746,13 @@ v8_header_set("v8_internal_headers") {
     }
   }
 
+  frameworks = []
+  if (is_ios) {
+    frameworks += [
+      "BrowserEngineKit.framework",
+    ]
+  }
+
   public_deps = [
     ":torque_runtime_support",
     ":v8_flags",
