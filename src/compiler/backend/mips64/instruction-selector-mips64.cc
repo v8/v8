@@ -1701,19 +1701,6 @@ void InstructionSelectorT<Adapter>::VisitUint64Mod(node_t node) {
   VisitRRR(this, kMips64DmodU, node);
 }
 
-template <>
-Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
-    Node* node, size_t projection_index) {
-  return NodeProperties::FindProjection(node, projection_index);
-}
-
-template <>
-TurboshaftAdapter::node_t
-InstructionSelectorT<TurboshaftAdapter>::FindProjection(
-    node_t node, size_t projection_index) {
-  UNIMPLEMENTED();
-}
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat32ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDS, node);
