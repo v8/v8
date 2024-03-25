@@ -3213,6 +3213,7 @@ filegroup(
         "src/compiler/turboshaft/graph-visualizer.h",
         "src/compiler/turboshaft/js-generic-lowering-reducer.h",
         "src/compiler/turboshaft/index.h",
+        "src/compiler/turboshaft/instruction-selection-normalization-reducer.h",
         "src/compiler/turboshaft/instruction-selection-phase.cc",
         "src/compiler/turboshaft/instruction-selection-phase.h",
         "src/compiler/turboshaft/late-escape-analysis-reducer.cc",
