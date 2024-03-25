@@ -83,7 +83,6 @@ luci.cq_group(
             "refs/branch-heads/.+",
         ],
     ),
-    tree_status_host = "v8-status.appspot.com",
     retry_config = cq.retry_config(
         single_quota = 2,
         global_quota = 4,
