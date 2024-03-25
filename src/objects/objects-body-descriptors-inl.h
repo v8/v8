@@ -1309,7 +1309,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     UNREACHABLE();
   }
   if (InstanceTypeChecker::IsJSApiObject(type)) {
-    return CALL_APPLY(JSObject);
+    return CALL_APPLY(JSAPIObjectWithEmbedderSlots);
   }
 
   switch (type) {
