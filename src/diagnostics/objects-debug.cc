@@ -1392,9 +1392,23 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
-  Tagged<Object> self =
-      RawIndirectPointerField(kSelfIndirectPointerOffset, tag).load(isolate);
+  IndirectPointerSlot slot =
+      RawIndirectPointerField(kSelfIndirectPointerOffset, tag);
+  Tagged<Object> self = slot.load(isolate);
   CHECK_EQ(self, *this);
+  // If the object is in the read-only space, the self indirect pointer entry
+  // must be in the read-only segment, and vice versa.
+  if (tag == kCodeIndirectPointerTag) {
+    CodePointerTable::Space* space =
+        IsolateForSandbox(isolate).GetCodePointerTableSpaceFor(slot.address());
+    // During snapshot creation, the code pointer space of the read-only heap is
+    // not marked as an internal read-only space.
+    bool is_space_read_only =
+        space == isolate->read_only_heap()->code_pointer_space();
+    CHECK_EQ(is_space_read_only, InReadOnlySpace(*this));
+  } else {
+    CHECK(!InReadOnlySpace(*this));
+  }
 #endif
 }
 

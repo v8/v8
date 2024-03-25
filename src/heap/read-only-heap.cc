@@ -170,7 +170,10 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   InitFromIsolate(isolate);
 
 #ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+  if (v8_flags.verify_heap) {
+    HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+    HeapVerifier::VerifyHeap(isolate->heap());
+  }
 #endif
 }
 

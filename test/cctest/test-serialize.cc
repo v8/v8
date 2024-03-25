@@ -535,10 +535,11 @@ static void SerializeCustomContext(
     base::Vector<const uint8_t>* context_blob_out) {
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  v8::Global<v8::Context> env;
   {
     v8::Isolate::Scope isolate_scope(isolate);
 
-    v8::Persistent<v8::Context> env;
     {
       HandleScope scope(i_isolate);
       env.Reset(isolate, v8::Context::New(isolate));
@@ -591,7 +592,9 @@ static void SerializeCustomContext(
     i::Tagged<i::Context> raw_context =
         i::Context::cast(*v8::Utils::OpenPersistent(env));
 
-    env.Reset();
+    // On purpose we do not reset the global context here --- env.Reset() --- so
+    // that it is found below, during heap verification at the GC before isolate
+    // disposal.
 
     SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
     DisallowGarbageCollection no_gc;
@@ -643,6 +646,13 @@ static void SerializeCustomContext(
     *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
     *shared_space_blob_out = WritePayload(shared_space_snapshot.RawData());
   }
+
+  // At this point, the heap must be in a consistent state and this GC must not
+  // crash, even with the live handle to the global environment.
+  heap::InvokeMajorGC(i_isolate->heap());
+  // We reset the global context, before isolate disposal.
+  env.Reset();
+
   isolate->Dispose();
 }
 
