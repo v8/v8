@@ -337,6 +337,8 @@ using kSimd128I32x4ExtAddPairwiseI16x8S =
     Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S>;
 using kSimd128I32x4ExtAddPairwiseI16x8U =
     Simd128UnaryMask::For<Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U>;
+using kSimd128ReverseBytes =
+    Simd128UnaryMask::For<Simd128UnaryOp::Kind::kSimd128ReverseBytes>;
 
 #define SIMD_SIGN_EXTENSION_UNARY_MASK(kind) \
   using kSimd128##kind = Simd128UnaryMask::For<Simd128UnaryOp::Kind::k##kind>;

@@ -34,8 +34,11 @@ struct LoadStoreSimplificationConfiguration {
   static constexpr bool kNeedsUntaggedBase = false;
   // s390x supports *(base + index + displacement), element_size isn't
   // supported.
-  static constexpr int32_t kMinOffset = std::numeric_limits<int32_t>::min() + 1;
-  static constexpr int32_t kMaxOffset = std::numeric_limits<int32_t>::max();
+  static constexpr int32_t kDisplacementBits = 20;  // 20 bit signed integer.
+  static constexpr int32_t kMinOffset =
+      -(static_cast<int32_t>(1) << (kDisplacementBits - 1));
+  static constexpr int32_t kMaxOffset =
+      (static_cast<int32_t>(1) << (kDisplacementBits - 1)) - 1;
   static constexpr int kMaxElementSizeLog2 = 0;
 #else
   static constexpr bool kNeedsUntaggedBase = false;
@@ -184,7 +187,7 @@ class LoadStoreSimplificationReducer : public Next,
   // been replaced.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||  \
-    defined(V8_TARGET_ARCH_PPC64)
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
   bool lowering_enabled_ =
       (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
       (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
