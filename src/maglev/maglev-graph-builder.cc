@@ -4225,6 +4225,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       switch (result.kind()) {
         case ReduceResult::kDoneWithValue:
           subgraph.set(ret_val, result.value());
+          subgraph.Goto(&done);
           break;
         case ReduceResult::kDoneWithAbort:
           break;
@@ -4240,7 +4241,6 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
         default:
           UNREACHABLE();
       }
-      subgraph.Goto(&done);
 
       if (check_next_map.has_value()) {
         subgraph.Bind(&*check_next_map);
