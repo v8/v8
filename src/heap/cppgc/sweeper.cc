@@ -465,7 +465,11 @@ class SweepFinalizer final {
       SetMemoryInaccessible(header, size);
     };
 #if defined(CPPGC_CAGED_HEAP)
+#if defined(CPPGC_POINTER_COMPRESSION)
+    const uint64_t cage_base = CageBaseGlobal::Get();
+#else
     const uint64_t cage_base = CagedHeapBase::GetBase();
+#endif
     HeapObjectHeader* next_unfinalized = nullptr;
 
     for (auto* unfinalized_header = page_state->unfinalized_objects_head;
