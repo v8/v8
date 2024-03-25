@@ -117,8 +117,7 @@ class Sweeper::MajorSweeperJob final : public JobTask {
         concurrent_sweepers(
             sweeper_->major_sweeping_state_.concurrent_sweepers()),
         tracer_(isolate->heap()->tracer()),
-        trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  tracer_->CurrentEpoch(GCTracer::Scope::MC_SWEEP)) {
+        trace_id_(sweeper_->major_sweeping_state_.background_trace_id()) {
     DCHECK_LE(concurrent_sweepers.size(), kMaxTasks);
   }
 
@@ -139,8 +138,6 @@ class Sweeper::MajorSweeperJob final : public JobTask {
             (sweeper_->ConcurrentMajorSweepingPageCount() + kPagePerTask - 1) /
                 kPagePerTask);
   }
-
-  uint64_t trace_id() const { return trace_id_; }
 
  private:
   void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
@@ -183,8 +180,7 @@ class Sweeper::MinorSweeperJob final : public JobTask {
         concurrent_sweepers(
             sweeper_->minor_sweeping_state_.concurrent_sweepers()),
         tracer_(isolate->heap()->tracer()),
-        trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  tracer_->CurrentEpoch(GCTracer::Scope::MINOR_MS_SWEEP)) {
+        trace_id_(sweeper_->minor_sweeping_state_.background_trace_id()) {
     DCHECK_LE(concurrent_sweepers.size(), kMaxTasks);
   }
 
@@ -205,8 +201,6 @@ class Sweeper::MinorSweeperJob final : public JobTask {
             (sweeper_->ConcurrentMinorSweepingPageCount() + kPagePerTask - 1) /
                 kPagePerTask);
   }
-
-  uint64_t trace_id() const { return trace_id_; }
 
  private:
   void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
@@ -270,10 +264,12 @@ void Sweeper::SweepingState<scope>::InitializeSweeping() {
   should_reduce_memory_ = (scope != Sweeper::SweepingScope::kMinor) &&
                           sweeper_->heap_->ShouldReduceMemory();
   trace_id_ =
-      reinterpret_cast<uint64_t>(sweeper_) ^
-      sweeper_->heap_->tracer()->CurrentEpoch(
-          scope == SweepingScope::kMajor ? GCTracer::Scope::MC_SWEEP
-                                         : GCTracer::Scope::MINOR_MS_SWEEP);
+      (reinterpret_cast<uint64_t>(sweeper_) ^
+       sweeper_->heap_->tracer()->CurrentEpoch(
+           scope == SweepingScope::kMajor ? GCTracer::Scope::MC_SWEEP
+                                          : GCTracer::Scope::MINOR_MS_SWEEP))
+      << 1;
+  background_trace_id_ = trace_id_ + 1;
 }
 
 template <Sweeper::SweepingScope scope>
@@ -282,6 +278,7 @@ void Sweeper::SweepingState<scope>::StartSweeping() {
   DCHECK(!in_progress_);
   DCHECK(concurrent_sweepers_.empty());
   DCHECK_NE(0, trace_id_);
+  DCHECK_NE(0, background_trace_id_);
   in_progress_ = true;
 }
 
@@ -297,8 +294,8 @@ void Sweeper::SweepingState<scope>::StartConcurrentSweeping() {
         scope == SweepingScope::kMinor
             ? GCTracer::Scope::MINOR_MS_SWEEP_START_JOBS
             : GCTracer::Scope::MC_SWEEP_START_JOBS;
-    TRACE_GC_WITH_FLOW(sweeper_->heap_->tracer(), scope_id, job->trace_id(),
-                       TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_WITH_FLOW(sweeper_->heap_->tracer(), scope_id,
+                       background_trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
     DCHECK_IMPLIES(v8_flags.minor_ms, concurrent_sweepers_.empty());
     int max_concurrent_sweeper_count =
         std::min(SweeperJob::kMaxTasks,
