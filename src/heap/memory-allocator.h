@@ -73,7 +73,6 @@ class MemoryAllocator {
     void ReleasePooledChunks();
 
     size_t NumberOfCommittedChunks() const;
-    int NumberOfChunks() const;
     size_t CommittedBufferedMemory() const;
 
    private:

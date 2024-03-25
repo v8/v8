@@ -805,7 +805,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "pool_chunks=%d\n",
+          "pool_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           young_gc_while_full_gc_,
@@ -839,7 +839,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfChunks());
+          heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
@@ -1024,7 +1024,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
-          "pool_chunks=%d "
+          "pool_chunks=%zu "
           "compaction_speed=%.f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -1107,7 +1107,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfChunks(),
+          heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
           CompactionSpeedInBytesPerMillisecond());
       break;
     case Event::Type::START:

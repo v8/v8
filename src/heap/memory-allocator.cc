@@ -98,11 +98,6 @@ size_t MemoryAllocator::Pool::NumberOfCommittedChunks() const {
   return pooled_chunks_.size();
 }
 
-int MemoryAllocator::Pool::NumberOfChunks() const {
-  base::MutexGuard guard(&mutex_);
-  return static_cast<int>(pooled_chunks_.size());
-}
-
 size_t MemoryAllocator::Pool::CommittedBufferedMemory() const {
   return NumberOfCommittedChunks() * PageMetadata::kPageSize;
 }

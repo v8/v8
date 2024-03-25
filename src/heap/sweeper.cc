@@ -323,11 +323,6 @@ void Sweeper::SweepingState<scope>::FinishSweeping() {
   // Sweeping jobs were already joined.
   DCHECK(!HasValidJob());
 
-  // Discard all pooled pages on memory-reducing GCs.
-  if (should_reduce_memory_) {
-    sweeper_->heap_->memory_allocator()->pool()->ReleasePooledChunks();
-  }
-
   concurrent_sweepers_.clear();
   in_progress_ = false;
 }
@@ -769,8 +764,16 @@ void Sweeper::EnsureMajorCompleted() {
         ThreadKind::kMain,
         GetTraceIdForFlowEvent(GCTracer::Scope::MC_COMPLETE_SWEEPING),
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    // Discard all pooled pages on memory-reducing GCs.
+    if (major_sweeping_state_.should_reduce_memory()) {
+      heap_->memory_allocator()->pool()->ReleasePooledChunks();
+    }
     FinishMajorJobs();
     major_sweeping_state_.FinishSweeping();
+    // Sweeping should not add pages to the pool.
+    DCHECK_IMPLIES(
+        major_sweeping_state_.should_reduce_memory(),
+        heap_->memory_allocator()->pool()->NumberOfCommittedChunks() == 0);
   }
 }
 
@@ -799,6 +802,7 @@ void Sweeper::FinishMinorJobs() {
 void Sweeper::EnsureMinorCompleted() {
   if (!minor_sweeping_in_progress()) return;
 
+  DCHECK(!minor_sweeping_state_.should_reduce_memory());
   FinishMinorJobs();
   minor_sweeping_state_.FinishSweeping();
 
