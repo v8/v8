@@ -24,7 +24,6 @@ namespace v8::internal::wasm::fuzzing {
 enum WasmModuleGenerationOptions : uint32_t {
   kMVP = 0u,
   kGenerateSIMD = 1u << 0,
-  // TODO(evih): Implement separation of wasmGC expression generation.
   kGenerateWasmGC = 1u << 1,
   // Useful combinations.
   kGenerateAll = kGenerateSIMD | kGenerateWasmGC
