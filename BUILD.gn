@@ -7356,6 +7356,7 @@ group("v8_fuzzers") {
       ":v8_simple_multi_return_fuzzer",
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
+      ":v8_simple_wasm_compile_all_fuzzer",
       ":v8_simple_wasm_compile_fuzzer",
       ":v8_simple_wasm_compile_simd_fuzzer",
       ":v8_simple_wasm_compile_wasmgc_fuzzer",
@@ -7748,6 +7749,13 @@ if (v8_enable_webassembly) {
     sources = [
       "test/common/wasm/test-signatures.h",
       "test/fuzzer/wasm-code.cc",
+    ]
+  }
+
+  v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
+    sources = [
+      "test/common/wasm/test-signatures.h",
+      "test/fuzzer/wasm-compile-all.cc",
     ]
   }
 
