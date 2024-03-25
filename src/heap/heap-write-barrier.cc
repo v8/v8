@@ -63,13 +63,6 @@ void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap,
   }
 }
 
-// static
-void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap, void* object) {
-  if (auto* cpp_heap = heap->cpp_heap()) {
-    CppHeap::From(cpp_heap)->WriteBarrier(object);
-  }
-}
-
 void WriteBarrier::MarkingSlow(Tagged<InstructionStream> host,
                                RelocInfo* reloc_info,
                                Tagged<HeapObject> value) {

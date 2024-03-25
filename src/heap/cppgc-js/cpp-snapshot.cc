@@ -10,7 +10,6 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
 #include "include/v8-cppgc.h"
-#include "include/v8-internal.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
@@ -381,27 +380,18 @@ class StateStorage final {
 
 void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
                                  v8::Local<v8::Value> v8_value) {
-  if (!v8_value->IsObject()) {
-    return nullptr;
-  }
+  if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
   if (!IsJSObject(*v8_object) ||
-      !JSObject::cast(*v8_object)->MayHaveEmbedderFields()) {
+      !JSObject::cast(*v8_object)->MayHaveEmbedderFields())
     return nullptr;
-  }
 
   Tagged<JSObject> js_object = JSObject::cast(*v8_object);
 
   const auto maybe_info =
       WrappableInfo::From(isolate, js_object, cpp_heap.wrapper_descriptor());
-  if (maybe_info.has_value()) {
-    // Wrappers with 2 embedder fields.
-    return maybe_info->instance;
-  }
-  // Wrapper using cpp_heap_wrappable field.
-  return JSAPIObjectWithEmbedderSlots::unchecked_cast(*js_object)
-      ->GetCppHeapWrappable<kAnyExternalPointerTag>(isolate);
+  return maybe_info.has_value() ? maybe_info->instance : nullptr;
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also

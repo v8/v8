@@ -995,11 +995,6 @@ class JSAPIObjectWithEmbedderSlots
 
   DECL_EXTERNAL_POINTER_ACCESSORS(cpp_heap_wrappable, void*)
 
-  template <ExternalPointerTag tag>
-  V8_INLINE void SetCppHeapWrappable(IsolateForSandbox isolate, void*);
-  template <ExternalPointerTag tag>
-  V8_INLINE void* GetCppHeapWrappable(IsolateForSandbox isolate) const;
-
   TQ_OBJECT_CONSTRUCTORS(JSAPIObjectWithEmbedderSlots)
 };
 

@@ -791,12 +791,6 @@ Address HeapObject::ReadExternalPointerField(size_t offset,
 }
 
 template <ExternalPointerTag tag>
-Address HeapObject::TryReadExternalPointerField(
-    size_t offset, IsolateForSandbox isolate) const {
-  return i::TryReadExternalPointerField<tag>(field_address(offset), isolate);
-}
-
-template <ExternalPointerTag tag>
 void HeapObject::WriteExternalPointerField(size_t offset,
                                            IsolateForSandbox isolate,
                                            Address value) {

@@ -49,7 +49,6 @@ class CppMarkingState final {
   inline void MarkAndPush(const EmbedderDataSnapshot&);
   inline void MarkAndPush(const EmbedderDataSlot type_slot,
                           const EmbedderDataSlot instance_slot);
-  inline void MarkAndPush(void* instance);
 
   bool IsLocalEmpty() {
     return marking_state_.marking_worklist().IsLocalEmpty();

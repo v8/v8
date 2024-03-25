@@ -42,11 +42,6 @@ void CppMarkingState::MarkAndPush(const EmbedderDataSlot type_slot,
   }
 }
 
-void CppMarkingState::MarkAndPush(void* instance) {
-  marking_state_.MarkAndPush(
-      cppgc::internal::HeapObjectHeader::FromObject(instance));
-}
-
 }  // namespace internal
 }  // namespace v8
 

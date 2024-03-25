@@ -478,30 +478,17 @@ template <typename T, typename TBodyDescriptor>
 inline int MarkingVisitorBase<ConcreteVisitor>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Tagged<Map> map,
                                                     Tagged<T> object) {
-  const int size =
-      VisitEmbedderTracingSubClassNoEmbedderTracing<T, TBodyDescriptor>(map,
-                                                                        object);
-  if (size == 0) {
-    return 0;
-  }
-  if (!local_marking_worklists_->SupportsExtractWrapper()) {
-    return size;
-  }
-  // Process embedder fields
+  const bool requires_snapshot =
+      local_marking_worklists_->SupportsExtractWrapper();
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  if (local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot)) {
+  const bool valid_snapshot =
+      requires_snapshot &&
+      local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot);
+  const int size =
+      concrete_visitor()->template VisitJSObjectSubclass<T, TBodyDescriptor>(
+          map, object);
+  if (size && valid_snapshot) {
     local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
-  }
-  // Process dedicated wrappable field.
-  // TODO(mlippautz): This currently derefs an external pointer field with an
-  // arbitrary tag.
-  void* cpp_heap_wrappable =
-      JSAPIObjectWithEmbedderSlots::unchecked_cast(object)
-          ->template GetCppHeapWrappable<kAnyExternalPointerTag>(
-              heap_->isolate());
-  if (cpp_heap_wrappable) {
-    local_marking_worklists_->cpp_marking_state()->MarkAndPush(
-        cpp_heap_wrappable);
   }
   return size;
 }

@@ -869,15 +869,6 @@ void CppHeap::WriteBarrier(Tagged<JSObject> js_object) {
       ->MarkAndPush(type_slot, instance_slot);
 }
 
-void CppHeap::WriteBarrier(void* object) {
-  isolate()
-      ->heap()
-      ->mark_compact_collector()
-      ->local_marking_worklists()
-      ->cpp_marking_state()
-      ->MarkAndPush(object);
-}
-
 namespace {
 
 void RecordEmbedderSpeed(GCTracer* tracer, base::TimeDelta marking_time,
