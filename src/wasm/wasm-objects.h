@@ -535,7 +535,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
       uint32_t count) V8_WARN_UNUSED_RESULT;
 
-  // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
 
   // Read a WasmFuncRef from the func_refs FixedArray. Returns true on success
@@ -845,7 +844,11 @@ class WasmFunctionData
 
   DECL_PRINTER(WasmFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmFunctionData>,
+      WithStrongCodePointer<kWrapperCodeOffset>,
+      WithStrongTrustedPointer<kTrustedInternalOffset,
+                               kWasmInternalFunctionIndirectPointerTag>>;
 
   using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
   using PromiseField = base::BitField<wasm::Promise, 1, 1>;
@@ -868,7 +871,10 @@ class WasmExportedFunctionData
   DECL_PRINTER(WasmExportedFunctionData)
   DECL_VERIFIER(WasmExportedFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor = StackedBodyDescriptor<
+      SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
+                             FixedBodyDescriptorFor<WasmExportedFunctionData>>,
+      WithExternalPointer<kSigOffset, kWasmExportedFunctionDataSignatureTag>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
@@ -900,7 +906,8 @@ class WasmApiFunctionRef
   static void SetInternalFunctionAsCallOrigin(
       Handle<WasmApiFunctionRef> ref, Handle<WasmInternalFunction> internal);
 
-  class BodyDescriptor;
+  using BodyDescriptor = FixedExposedTrustedObjectBodyDescriptor<
+      WasmApiFunctionRef, kWasmApiFunctionRefIndirectPointerTag>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
 };
@@ -922,7 +929,11 @@ class WasmInternalFunction
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
 
-  class BodyDescriptor;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedExposedTrustedObjectBodyDescriptor<
+          WasmInternalFunction, kWasmInternalFunctionIndirectPointerTag>,
+      WithProtectedPointer<kProtectedRefOffset>,
+      WithStrongCodePointer<kCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
 };
@@ -933,7 +944,10 @@ class WasmFuncRef : public TorqueGeneratedWasmFuncRef<WasmFuncRef, HeapObject> {
 
   DECL_PRINTER(WasmFuncRef)
 
-  class BodyDescriptor;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmFuncRef>,
+      WithStrongTrustedPointer<kTrustedInternalOffset,
+                               kWasmInternalFunctionIndirectPointerTag>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmFuncRef)
 };
@@ -948,7 +962,9 @@ class WasmJSFunctionData
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor =
+      SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
+                             FixedBodyDescriptorFor<WasmJSFunctionData>>;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(WasmJSFunctionData)
@@ -960,7 +976,9 @@ class WasmCapiFunctionData
  public:
   DECL_PRINTER(WasmCapiFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor =
+      SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
+                             FixedBodyDescriptorFor<WasmCapiFunctionData>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };
@@ -1196,7 +1214,9 @@ class WasmContinuationObject
 
   DECL_PRINTER(WasmContinuationObject)
 
-  class BodyDescriptor;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmContinuationObject>,
+      WithExternalPointer<kJmpbufOffset, kWasmContinuationJmpbufTag>>;
 
  private:
   static Handle<WasmContinuationObject> New(
@@ -1236,7 +1256,8 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 #else
   static constexpr int kSize = kTaggedSize;
 #endif
-  class BodyDescriptor;
+
+  using BodyDescriptor = FixedBodyDescriptorFor<WasmNull>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmNull)
 };
