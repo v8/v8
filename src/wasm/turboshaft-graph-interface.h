@@ -73,6 +73,8 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   template <typename T>
   using V = compiler::turboshaft::V<T>;
+  template <typename T>
+  using ScopedVar = compiler::turboshaft::ScopedVariable<T, Assembler>;
 
   using ValidationTag = Decoder::FullValidationTag;
   using FullDecoder =
