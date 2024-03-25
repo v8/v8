@@ -755,12 +755,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
           DCHECK_EQ(Asm().output_graph().Get(replacement_idx).outputs_rep()[0],
                     RegisterRepresentation::Word32());
         } else {
-          DCHECK(
-              Asm()
-                  .output_graph()
-                  .Get(replacement_idx)
-                  .outputs_rep()[0]
-                  .AllowImplicitRepresentationChangeTo(load.outputs_rep()[0]));
+          DCHECK(Asm()
+                     .output_graph()
+                     .Get(replacement_idx)
+                     .outputs_rep()[0]
+                     .AllowImplicitRepresentationChangeTo(
+                         load.outputs_rep()[0],
+                         Asm().output_graph().IsCreatedFromTurbofan()));
         }
         return replacement_idx;
       } else if (replacement.IsTaggedLoadToInt32Load()) {

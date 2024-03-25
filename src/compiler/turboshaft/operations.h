@@ -1254,6 +1254,7 @@ base::Vector<const MaybeRegisterRepresentation> MaybeRepVector() {
   return base::VectorOf(rep_array);
 }
 
+#if DEBUG
 V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_rep,
@@ -1261,6 +1262,7 @@ V8_EXPORT_PRIVATE bool ValidOpInputRep(
 V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
     base::Optional<size_t> projection_index = {});
+#endif  // DEBUG
 
 // DeadOp is a special operation that can be used by analyzers to mark
 // operations as being dead (typically, it should be used by calling the Graph's

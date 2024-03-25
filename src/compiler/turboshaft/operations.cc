@@ -96,6 +96,7 @@ void TailCallOp::PrintOptions(std::ostream& os) const {
   os << '[' << *descriptor->descriptor << ']';
 }
 
+#if DEBUG
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
@@ -124,7 +125,8 @@ bool ValidOpInputRep(
     return false;
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
-    if (input_rep.AllowImplicitRepresentationChangeTo(expected_rep)) {
+    if (input_rep.AllowImplicitRepresentationChangeTo(
+            expected_rep, graph.IsCreatedFromTurbofan())) {
       return true;
     }
   }
@@ -141,6 +143,7 @@ bool ValidOpInputRep(const Graph& graph, OpIndex input,
                      base::Optional<size_t> projection_index) {
   return ValidOpInputRep(graph, input, {expected_rep}, projection_index);
 }
+#endif  // DEBUG
 
 const char* OpcodeName(Opcode opcode) {
 #define OPCODE_NAME(Name) #Name,

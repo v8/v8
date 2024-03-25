@@ -580,6 +580,8 @@ class Graph {
     dominator_tree_depth_ = 0;
 #ifdef DEBUG
     block_type_refinement_.Reset();
+    // Do not reset of graph_created_from_turbofan_ as it is propagated along
+    // the phases.
 #endif
   }
 
@@ -1016,6 +1018,7 @@ class Graph {
       companion_ = graph_zone_->New<Graph>(graph_zone_, operations_.size());
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
+      if (IsCreatedFromTurbofan()) companion_->SetCreatedFromTurbofan();
 #endif  // DEBUG
     }
     return *companion_;
@@ -1050,6 +1053,9 @@ class Graph {
   bool BelongsToThisGraph(OpIndex idx) const {
     return idx.generation_mod2() == generation_mod2();
   }
+
+  void SetCreatedFromTurbofan() { graph_created_from_turbofan_ = true; }
+  bool IsCreatedFromTurbofan() const { return graph_created_from_turbofan_; }
 #endif  // DEBUG
 
  private:
@@ -1131,6 +1137,7 @@ class Graph {
   GrowingOpIndexSidetable<Type> operation_types_;
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
+  bool graph_created_from_turbofan_ = false;
 #endif
 
   Graph* companion_ = nullptr;

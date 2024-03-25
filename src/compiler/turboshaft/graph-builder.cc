@@ -2274,7 +2274,11 @@ OpIndex GraphBuilder::Process(
 
 base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* phase_zone,
                                          Linkage* linkage) {
-  return GraphBuilder{phase_zone, *schedule, linkage}.Run();
+  GraphBuilder builder{phase_zone, *schedule, linkage};
+#if DEBUG
+  PipelineData::Get().graph().SetCreatedFromTurbofan();
+#endif
+  return builder.Run();
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
