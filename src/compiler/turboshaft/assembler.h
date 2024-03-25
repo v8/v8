@@ -3816,6 +3816,10 @@ class TurboshaftAssemblerOpInterface
 
   // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC
+  V<Simd256> Simd256Constant(const uint8_t value[kSimd256Size]) {
+    return ReduceIfReachableSimd256Constant(value);
+  }
+
   OpIndex Simd256Extract128Lane(V<Simd256> source, uint8_t lane) {
     return ReduceIfReachableSimd256Extract128Lane(source, lane);
   }

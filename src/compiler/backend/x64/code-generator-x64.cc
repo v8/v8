@@ -1293,12 +1293,20 @@ void SetupSimdImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
 
 void SetupSimd256ImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
                                      YMMRegister reg, XMMRegister scratch) {
-  assembler->Move(reg, make_uint64(imms[3], imms[2]),
-                  make_uint64(imms[1], imms[0]));
-  assembler->Move(scratch, make_uint64(imms[7], imms[6]),
-                  make_uint64(imms[5], imms[4]));
-  CpuFeatureScope avx_scope(assembler, AVX2);
-  assembler->vinserti128(reg, reg, scratch, uint8_t{1});
+  bool is_splat = std::all_of(imms, imms + kSimd256Size,
+                              [imms](uint32_t v) { return v == imms[0]; });
+  if (is_splat) {
+    assembler->Move(scratch, imms[0]);
+    CpuFeatureScope avx_scope(assembler, AVX2);
+    assembler->vpbroadcastd(reg, scratch);
+  } else {
+    assembler->Move(reg, make_uint64(imms[3], imms[2]),
+                    make_uint64(imms[1], imms[0]));
+    assembler->Move(scratch, make_uint64(imms[7], imms[6]),
+                    make_uint64(imms[5], imms[4]));
+    CpuFeatureScope avx_scope(assembler, AVX2);
+    assembler->vinserti128(reg, reg, scratch, uint8_t{1});
+  }
 }
 
 }  // namespace

@@ -1387,6 +1387,45 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitS256Const(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
+  uint32_t val[kUint32Immediates];
+  if constexpr (Adapter::IsTurboshaft) {
+    const turboshaft::Simd256ConstantOp& constant =
+        this->Get(node).template Cast<turboshaft::Simd256ConstantOp>();
+    memcpy(val, constant.value, kSimd256Size);
+  } else {
+    memcpy(val, S256ImmediateParameterOf(node->op()).data(), kSimd256Size);
+  }
+  // If all bytes are zeros or ones, avoid emitting code for generic constants
+  bool all_zeros = std::all_of(std::begin(val), std::end(val),
+                               [](uint32_t v) { return v == 0; });
+  // It's should not happen for Turboshaft, IsZero is checked earlier in
+  // instruction selector
+  DCHECK_IMPLIES(Adapter::IsTurboshaft, !all_zeros);
+  bool all_ones = std::all_of(std::begin(val), std::end(val),
+                              [](uint32_t v) { return v == UINT32_MAX; });
+  InstructionOperand dst = g.DefineAsRegister(node);
+  if (all_zeros) {
+    Emit(kX64SZero | VectorLengthField::encode(kV256), dst);
+  } else if (all_ones) {
+    Emit(kX64SAllOnes | VectorLengthField::encode(kV256), dst);
+  } else {
+    Emit(kX64S256Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
+         g.UseImmediate(val[2]), g.UseImmediate(val[3]), g.UseImmediate(val[4]),
+         g.UseImmediate(val[5]), g.UseImmediate(val[6]),
+         g.UseImmediate(val[7]));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitS256Zero(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  Emit(kX64SZero | VectorLengthField::encode(kV256), g.DefineAsRegister(node));
+}
+
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitSimd256LoadTransform(
     Node* node) {
@@ -5588,45 +5627,10 @@ void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitS256Const(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitS256Const(node_t node) {
-  X64OperandGeneratorT<TurbofanAdapter> g(this);
-  static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
-  uint32_t val[kUint32Immediates];
-  memcpy(val, S256ImmediateParameterOf(node->op()).data(), kSimd256Size);
-  // If all bytes are zeros or ones, avoid emitting code for generic constants
-  bool all_zeros = std::all_of(std::begin(val), std::end(val),
-                               [](uint32_t v) { return v == 0; });
-  bool all_ones = std::all_of(std::begin(val), std::end(val),
-                              [](uint32_t v) { return v == UINT32_MAX; });
-  InstructionOperand dst = g.DefineAsRegister(node);
-  if (all_zeros) {
-    Emit(kX64SZero | VectorLengthField::encode(kV256), dst);
-  } else if (all_ones) {
-    Emit(kX64SAllOnes | VectorLengthField::encode(kV256), dst);
-  } else {
-    Emit(kX64S256Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
-         g.UseImmediate(val[2]), g.UseImmediate(val[3]), g.UseImmediate(val[4]),
-         g.UseImmediate(val[5]), g.UseImmediate(val[6]),
-         g.UseImmediate(val[7]));
-  }
-}
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   Emit(kX64SZero | VectorLengthField::encode(kV128), g.DefineAsRegister(node));
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS256Zero(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
-  Emit(kX64SZero | VectorLengthField::encode(kV256), g.DefineAsRegister(node));
 }
 // Name, LaneSize, VectorLength
 #define SIMD_INT_TYPES_FOR_SPLAT(V) \

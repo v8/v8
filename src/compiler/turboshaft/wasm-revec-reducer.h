@@ -351,6 +351,30 @@ class WasmRevecReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  V<Simd128> REDUCE_INPUT_GRAPH(Simd128Constant)(
+      V<Simd128> ig_index, const Simd128ConstantOp& constant_op) {
+    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      V<Simd256> og_index = pnode->RevectorizedNode();
+      // Skip revectorized node.
+      if (!og_index.valid()) {
+        NodeGroup inputs = pnode->Nodes();
+        const Simd128ConstantOp& op0 =
+            __ input_graph().Get(inputs[0]).template Cast<Simd128ConstantOp>();
+        const Simd128ConstantOp& op1 =
+            __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
+        uint8_t value[kSimd256Size] = {};
+        memcpy(value, op0.value, kSimd128Size);
+        memcpy(value + kSimd128Size, op1.value, kSimd128Size);
+
+        og_index = __ Simd256Constant(value);
+
+        pnode->SetRevectorizedNode(og_index);
+      }
+      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+    return Next::ReduceInputGraphSimd128Constant(ig_index, constant_op);
+  }
+
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
       V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {

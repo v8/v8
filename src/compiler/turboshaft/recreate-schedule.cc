@@ -1818,6 +1818,10 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ShuffleOp& op) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+Node* ScheduleBuilder::ProcessOperation(const Simd256ConstantOp& op) {
+  return AddNode(machine.S256Const(op.value), {});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
   const Operator* o = machine.ExtractF128(op.lane);
   return AddNode(o, {GetNode(op.input())});

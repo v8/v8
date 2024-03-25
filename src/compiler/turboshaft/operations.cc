@@ -1469,12 +1469,13 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
 }
 
 namespace {
-void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
+template <size_t size>
+void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
   os << "0x" << std::hex << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
-  for (int i = 0; i < kSimd128Size; i++) {
+  for (int i = 0; i < size; i++) {
 #else
-  for (int i = kSimd128Size - 1; i >= 0; i--) {
+  for (int i = size - 1; i >= 0; i--) {
 #endif
     os << std::setw(2) << static_cast<int>(value[i]);
   }
@@ -1483,7 +1484,7 @@ void PrintSimd128Value(std::ostream& os, const uint8_t value[kSimd128Size]) {
 }  // namespace
 
 void Simd128ConstantOp::PrintOptions(std::ostream& os) const {
-  PrintSimd128Value(os, value);
+  PrintSimdValue(os, value);
 }
 
 std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind) {
@@ -1643,10 +1644,14 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 }
 
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
-  PrintSimd128Value(os, shuffle);
+  PrintSimdValue(os, shuffle);
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
+  PrintSimdValue(os, value);
+}
+
 void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";

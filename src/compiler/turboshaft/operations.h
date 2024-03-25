@@ -135,6 +135,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
+  V(Simd256Constant)                         \
   V(Simd256Extract128Lane)                   \
   V(Simd256LoadTransform)                    \
   V(Simd256Unary)                            \
@@ -7764,6 +7765,36 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
 };
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
+  static constexpr uint8_t kZero[kSimd256Size] = {};
+  uint8_t value[kSimd256Size];
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit Simd256ConstantOp(const uint8_t incoming_value[kSimd256Size])
+      : Base() {
+    std::copy(incoming_value, incoming_value + kSimd256Size, value);
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validate.
+  }
+
+  bool IsZero() const { return std::memcmp(kZero, value, kSimd256Size) == 0; }
+
+  auto options() const { return std::tuple{value}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
 struct Simd256Extract128LaneOp
     : FixedArityOperationT<1, Simd256Extract128LaneOp> {
   uint8_t lane;

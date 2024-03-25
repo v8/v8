@@ -4196,7 +4196,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4DotI8x16I7x16AddS(node);
 
       // SIMD256
-#if V8_TARGET_ARCH_X64
+#if defined(V8_TARGET_ARCH_X64) && defined(V8_ENABLE_WASM_SIMD256_REVEC)
     case IrOpcode::kF64x4Min:
       return MarkAsSimd256(node), VisitF64x4Min(node);
     case IrOpcode::kF64x4Max:
@@ -4471,7 +4471,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI8x32Shuffle(node);
     case IrOpcode::kExtractF128:
       return MarkAsSimd128(node), VisitExtractF128(node);
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 && V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
@@ -5465,6 +5465,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 
     // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC
+    case Opcode::kSimd256Constant: {
+      const Simd256ConstantOp& constant = op.Cast<Simd256ConstantOp>();
+      MarkAsSimd256(node);
+      if (constant.IsZero()) return VisitS256Zero(node);
+      return VisitS256Const(node);
+    }
     case Opcode::kSimd256Extract128Lane: {
       MarkAsSimd128(node);
       return VisitExtractF128(node);

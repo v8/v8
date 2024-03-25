@@ -438,6 +438,11 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   int value_in_count = op0.input_count;
 
   switch (op0.opcode) {
+    case Opcode::kSimd128Constant: {
+      PackNode* p = NewPackNode(node_group);
+      return p;
+    }
+
     case Opcode::kSimd128LoadTransform: {
       const Simd128LoadTransformOp& transform_op =
           op0.Cast<Simd128LoadTransformOp>();
