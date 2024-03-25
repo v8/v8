@@ -144,12 +144,14 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
+        barrier = BARRIER.NONE,
     ),
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
+        barrier = BARRIER.NONE,
     ),
 )
 
