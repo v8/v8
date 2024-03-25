@@ -3753,6 +3753,7 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
           // with kWord64 can also reach this line.
         case MachineRepresentation::kTaggedSigned:
         case MachineRepresentation::kTagged:
+        case MachineRepresentation::kTaggedPointer:
           opcode = kArm64Ldrsw;
           immediate_mode = kLoadStoreImm32;
           break;
@@ -3803,6 +3804,7 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
           // with kWord64 can also reach this line.
         case MachineRepresentation::kTaggedSigned:
         case MachineRepresentation::kTagged:
+        case MachineRepresentation::kTaggedPointer:
           opcode = kArm64Ldrsw;
           immediate_mode = kLoadStoreImm32;
           break;
