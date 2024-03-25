@@ -466,6 +466,29 @@ class GraphBuilder {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::BuiltinStringFromCharCode* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ConvertCharCodeToString(Map(node->code_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::BuiltinStringPrototypeCharCodeOrCodePointAt* node,
+      const maglev::ProcessingState& state) {
+    if (node->mode() == maglev::BuiltinStringPrototypeCharCodeOrCodePointAt::
+                            Mode::kCharCodeAt) {
+      SetMap(node, __ StringCharCodeAt(
+                       Map(node->string_input()),
+                       __ ChangeUint32ToUintPtr(Map(node->index_input()))));
+    } else {
+      DCHECK_EQ(node->mode(),
+                maglev::BuiltinStringPrototypeCharCodeOrCodePointAt::Mode::
+                    kCodePointAt);
+      SetMap(node, __ StringCodePointAt(
+                       Map(node->string_input()),
+                       __ ChangeUint32ToUintPtr(Map(node->index_input()))));
+    }
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {

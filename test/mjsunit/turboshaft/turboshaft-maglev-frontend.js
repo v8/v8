@@ -617,6 +617,16 @@ assertOptimized(simple_loop);
   let str = "abcdefghi";
   assertEquals(false, string_cmp(str + "azeazeaze", "abc", 4));
   assertUnoptimized(string_cmp);
+
+  function string_char_code(s, c) {
+    return String.fromCharCode(73) + s.charCodeAt(1) + s.codePointAt(1);
+  }
+
+  %PrepareFunctionForOptimization(string_char_code);
+  assertEquals("I5530474565", string_char_code("a\u{12345}c", 1));
+  %OptimizeFunctionOnNextCall(string_char_code);
+  assertEquals("I5530474565", string_char_code("a\u{12345}c", 1));
+  assertOptimized(string_char_code);
 }
 
 // Testing generic builtins

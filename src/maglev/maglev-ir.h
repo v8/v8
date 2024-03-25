@@ -6135,6 +6135,8 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
 
   auto options() const { return std::tuple{mode_}; }
 
+  Mode mode() const { return mode_; }
+
  private:
   Mode mode_;
 };
