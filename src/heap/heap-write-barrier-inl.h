@@ -351,6 +351,23 @@ void WriteBarrier::CombinedBarrierFromInternalFields(Tagged<JSObject> host,
 }
 
 // static
+void WriteBarrier::MarkingFromCppHeapWrappable(Tagged<JSObject> host,
+                                               void* value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  if (V8_LIKELY(!IsMarking(host))) {
+    return;
+  }
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (marking_barrier->is_minor()) {
+    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMS is
+    // active. Once Oilpan uses a generational GC with incremental marking and
+    // unified heap, this barrier will be needed again.
+    return;
+  }
+  MarkingSlowFromCppHeapWrappable(marking_barrier->heap(), value);
+}
+
+// static
 void WriteBarrier::GenerationalBarrierFromInternalFields(Tagged<JSObject> host,
                                                          void* value) {
   GenerationalBarrierFromInternalFields(host, 1, &value);
