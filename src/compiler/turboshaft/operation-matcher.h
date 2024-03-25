@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_OPERATION_MATCHER_H_
 #define V8_COMPILER_TURBOSHAFT_OPERATION_MATCHER_H_
 
+#include <limits>
+
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -445,13 +447,25 @@ class OperationMatcher {
     return false;
   }
 
-  bool MatchPowerOfTwoWord32Constant(OpIndex matched, int32_t* divisor) const {
-    int32_t cst;
-    if (MatchIntegralWord32Constant(matched, &cst)) {
-      if (base::bits::IsPowerOfTwo(cst)) {
-        *divisor = cst;
+  bool MatchPowerOfTwoWordConstant(OpIndex matched, int64_t* ret_cst,
+                                   WordRepresentation rep) const {
+    int64_t loc_cst;
+    if (MatchIntegralWordConstant(matched, rep, &loc_cst)) {
+      if (base::bits::IsPowerOfTwo(loc_cst)) {
+        *ret_cst = loc_cst;
         return true;
       }
+    }
+    return false;
+  }
+
+  bool MatchPowerOfTwoWord32Constant(OpIndex matched, int32_t* divisor) const {
+    int64_t cst;
+    if (MatchPowerOfTwoWordConstant(matched, &cst,
+                                    WordRepresentation::Word32())) {
+      DCHECK_LE(cst, std::numeric_limits<int32_t>().max());
+      *divisor = static_cast<int32_t>(cst);
+      return true;
     }
     return false;
   }

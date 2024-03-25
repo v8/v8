@@ -44,8 +44,8 @@ class InstructionSelectionNormalizationReducer : public Next {
 
     // Transforming multiplications by power of two constants into shifts
     if (kind == WordBinopOp::Kind::kMul) {
-      int32_t cst;
-      if (__ matcher().MatchPowerOfTwoWord32Constant(right, &cst) &&
+      int64_t cst;
+      if (__ matcher().MatchPowerOfTwoWordConstant(right, &cst, rep) &&
           cst < rep.bit_width()) {
         return __ ShiftLeft(left, base::bits::WhichPowerOfTwo(cst), rep);
       }
