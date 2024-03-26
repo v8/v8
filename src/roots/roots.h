@@ -158,6 +158,7 @@ class RootVisitor;
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
   V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
+  V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
   V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \

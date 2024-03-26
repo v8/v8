@@ -509,6 +509,19 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
 }
 
 template <typename Impl>
+Handle<SharedFunctionInfoWrapper>
+FactoryBase<Impl>::NewSharedFunctionInfoWrapper(
+    Handle<SharedFunctionInfo> sfi) {
+  Tagged<Map> map = read_only_roots().shared_function_info_wrapper_map();
+  Tagged<SharedFunctionInfoWrapper> wrapper = SharedFunctionInfoWrapper::cast(
+      NewWithImmortalMap(map, AllocationType::kTrusted));
+
+  wrapper->set_shared_info(*sfi);
+
+  return handle(wrapper, isolate());
+}
+
+template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);

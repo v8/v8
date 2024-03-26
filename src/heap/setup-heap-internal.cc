@@ -763,6 +763,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
                  interpreter_data)
+    ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
+                 SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)
 
     ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, DictionaryTemplateInfo::kSize,
                  dictionary_template_info)

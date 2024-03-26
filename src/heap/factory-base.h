@@ -249,6 +249,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
       DirectHandle<SharedFunctionInfo> other);
 
+  Handle<SharedFunctionInfoWrapper> NewSharedFunctionInfoWrapper(
+      Handle<SharedFunctionInfo> sfi);
+
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
   Handle<UncompiledDataWithoutPreparseData>

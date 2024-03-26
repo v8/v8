@@ -1278,6 +1278,11 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   }
 }
 
+void SharedFunctionInfoWrapper::SharedFunctionInfoWrapperVerify(
+    Isolate* isolate) {
+  Object::VerifyPointer(isolate, shared_info());
+}
+
 void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSGlobalProxyVerify(*this, isolate);
   CHECK(map()->is_access_check_needed());

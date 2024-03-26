@@ -1157,6 +1157,12 @@ bool SharedFunctionInfo::are_properties_final() const {
   return bit && is_class_constructor();
 }
 
+CAST_ACCESSOR(SharedFunctionInfoWrapper)
+OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWrapper, TrustedObject)
+
+ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,
+          kSharedInfoOffset)
+
 }  // namespace internal
 }  // namespace v8
 
