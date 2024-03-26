@@ -6,6 +6,7 @@
 
 #include "src/base/iterator.h"
 #include "src/base/vector.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/logging/counters.h"
@@ -980,21 +981,18 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
                                         Handle<JSReceiver> callable,
                                         wasm::Suspend suspend,
                                         const wasm::FunctionSig* sig) {
-  Address wrapper;
+  Address wrapper_entry;
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
         UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-    wrapper = isolate->builtins()
-                  ->code(Builtin::kWasmToJsWrapperAsm)
-                  ->instruction_start();
+    wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   } else {
-    wrapper = isolate->builtins()
-                  ->code(Builtin::kWasmToJsWrapperInvalidSig)
-                  ->instruction_start();
+    wrapper_entry =
+        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
   }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
-            instance_object_->ptr(), index_, callable->ptr(), wrapper);
+            instance_object_->ptr(), index_, callable->ptr(), wrapper_entry);
   Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
       callable, suspend, instance_object_,
       wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
@@ -1003,7 +1001,8 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       instance_object_->trusted_data(isolate);
   trusted_instance_data->imported_function_refs()->set(index_, *ref);
-  trusted_instance_data->imported_function_targets()->set(index_, wrapper);
+  trusted_instance_data->imported_function_targets()->set(index_,
+                                                          wrapper_entry);
 }
 
 void ImportedFunctionEntry::SetWasmToJs(
@@ -1423,19 +1422,20 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     Handle<WasmApiFunctionRef> wafr = Handle<WasmApiFunctionRef>::cast(ref);
     const wasm::FunctionSig* sig =
         module->signature(module->functions[function_index].sig_index);
-    Tagged<Code> wrapper;
+    Address wrapper_entry;
     if (wasm::IsJSCompatibleSignature(sig)) {
       DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        wasm::Suspend::kNoSuspend));
       WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(wafr,
                                                           internal_function);
-      wrapper = isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm);
+      wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
     } else {
-      wrapper = isolate->builtins()->code(Builtin::kWasmToJsWrapperInvalidSig);
+      wrapper_entry =
+          Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
     }
     // Wrapper code does not move, so we store the call target directly in the
     // internal function.
-    internal_function->set_call_target(wrapper->instruction_start());
+    internal_function->set_call_target(wrapper_entry);
   } else {
     internal_function->set_call_target(
         trusted_instance_data->GetCallTarget(function_index));
@@ -1620,9 +1620,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   if (wasm_code) {
     call_target = wasm_code->instruction_start();
   } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
-    call_target = isolate->builtins()
-                      ->code(Builtin::kWasmToJsWrapperAsm)
-                      ->instruction_start();
+    call_target = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   } else {
     wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
@@ -2360,13 +2358,11 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     function_data->internal(isolate)->set_call_target(call_target);
   } else if (!wasm::IsJSCompatibleSignature(sig)) {
     function_data->internal(isolate)->set_call_target(
-        isolate->builtin_entry_table()[Builtins::ToInt(
-            Builtin::kWasmToJsWrapperInvalidSig)]);
+        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate));
   } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        suspend)) {
     function_data->internal(isolate)->set_call_target(
-        isolate->builtin_entry_table()[Builtins::ToInt(
-            Builtin::kWasmToJsWrapperAsm)]);
+        Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
   } else {
     int expected_arity = parameter_count - suspend;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -2383,8 +2379,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     // signature instead of compiling a new one for every instantiation.
     if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
       function_data->internal(isolate)->set_call_target(
-          isolate->builtin_entry_table()[Builtins::ToInt(
-              Builtin::kWasmToJsWrapperAsm)]);
+          Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
     } else {
       // The Code object can be moved during compaction, so do not store a
       // call_target directly but load the target from the code object at
