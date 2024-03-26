@@ -192,14 +192,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   inline AllocationSpace owner_identity() const;
 
   static PageAllocator::Permission GetCodeModificationPermission() {
-    DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
-           !V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT);
-    // On MacOS on ARM64 RWX permissions are allowed to be set only when
-    // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
-    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
-                   !V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT && !v8_flags.jitless
-               ? PageAllocator::kReadWriteExecute
-               : PageAllocator::kReadWrite;
+    return v8_flags.jitless ? PageAllocator::kReadWrite
+                            : PageAllocator::kReadWriteExecute;
   }
 
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }

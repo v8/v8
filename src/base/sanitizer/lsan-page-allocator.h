@@ -5,6 +5,8 @@
 #ifndef V8_BASE_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
 #define V8_BASE_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
 
+#include <set>
+
 #include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
@@ -66,6 +68,9 @@ class V8_BASE_EXPORT LsanPageAllocator : public v8::PageAllocator {
   v8::PageAllocator* const page_allocator_;
   const size_t allocate_page_size_;
   const size_t commit_page_size_;
+#if defined(LEAK_SANITIZER)
+  std::set<void*> not_registered_regions_;
+#endif
 };
 
 }  // namespace base

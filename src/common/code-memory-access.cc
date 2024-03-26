@@ -439,14 +439,7 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
 bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
   DCHECK(Enabled());
 
-  CFIMetadataWriteScope write_scope("ThreadIsolation::MakeExecutable");
-
-  // TODO(sroettger): need to make sure that the memory is zero-initialized.
-  // maybe map over it with MAP_FIXED, or call MADV_DONTNEED, or fall back to
-  // memset.
-
-  // Check that the range is inside a tracked jit page.
-  JitPageReference jit_page = LookupJitPage(address, size);
+  // TODO(sroettger): ensure that this can only happen at prcoess startup.
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   return base::MemoryProtectionKey::SetPermissionsAndKey(

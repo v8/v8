@@ -134,7 +134,6 @@ static void InitializeVM() {
       AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
                       ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \
   Decoder<DispatchingDecoderVisitor>* decoder =                               \
       new Decoder<DispatchingDecoderVisitor>();                               \
   Simulator simulator(decoder);                                               \
@@ -191,7 +190,6 @@ static void InitializeVM() {
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;            \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
@@ -199,7 +197,6 @@ static void InitializeVM() {
   RegisterDump core;
 
 #define RESET()                                                \
-  rw_buffer_scope.emplace(*owned_buf);                         \
   __ Reset();                                                  \
   __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
@@ -216,7 +213,6 @@ static void InitializeVM() {
 #define RUN()                                                  \
   {                                                            \
     /* Reset the scope and thus make the buffer executable. */ \
-    rw_buffer_scope.reset();                                   \
     auto f = GeneratedCode<void>::FromCode(isolate, *code);    \
     f.Call();                                                  \
   }
@@ -15799,7 +15795,6 @@ TEST(pool_size) {
 
   // This test does not execute any code. It only tests that the size of the
   // pools is read correctly from the RelocInfo.
-  rw_buffer_scope.emplace(*owned_buf);
 
   Label exit;
   __ b(&exit);
