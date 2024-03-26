@@ -45,6 +45,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
 
@@ -2682,7 +2683,7 @@ class TurboshaftAssemblerOpInterface
     Return(Word32Constant(0), base::VectorOf({result}));
   }
 
-  OpIndex Call(OpIndex callee, OpIndex frame_state,
+  OpIndex Call(OpIndex callee, OptionalOpIndex frame_state,
                base::Vector<const OpIndex> arguments,
                const TSCallDescriptor* descriptor,
                OpEffects effects = OpEffects().CanCallAnything()) {
@@ -3023,6 +3024,20 @@ class TurboshaftAssemblerOpInterface
     return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
   }
+  V<Context> CallBuiltin_FastNewFunctionContextFunction(
+      Isolate* isolate, OpIndex frame_state, V<Context> context,
+      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::FastNewFunctionContextFunction>(
+        isolate, frame_state, context, {scope_info, resolve(slot_count)});
+  }
+  V<Context> CallBuiltin_FastNewFunctionContextEval(
+      Isolate* isolate, OpIndex frame_state, V<Context> context,
+      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count) {
+    return CallBuiltin<
+        typename BuiltinCallDescriptor::FastNewFunctionContextEval>(
+        isolate, frame_state, context, {scope_info, resolve(slot_count)});
+  }
   V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::Typeof>(isolate,
                                                                {object});
@@ -3128,6 +3143,14 @@ class TurboshaftAssemblerOpInterface
                                            V<HeapObject> heap_object) {
     return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
         isolate, context, {heap_object});
+  }
+  void CallRuntime_ThrowAccessedUninitializedVariable(Isolate* isolate,
+                                                      OpIndex frame_state,
+                                                      V<Context> context,
+                                                      V<Object> object) {
+    CallRuntime<
+        typename RuntimeCallDescriptor::ThrowAccessedUninitializedVariable>(
+        isolate, frame_state, context, {object});
   }
 
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,

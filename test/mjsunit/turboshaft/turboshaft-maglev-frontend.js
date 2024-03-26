@@ -270,6 +270,26 @@ assertOptimized(simple_loop);
   assertOptimized(f);
 }
 
+// Unconditional deopt
+{
+  function deopt(x) {
+    if (x) { return 42; }
+    else {
+      // We won't gather feedback for this during feedback collection, so
+      // Maglev will generate an unconditional deopt for this branch.
+      return x + 17;
+    }
+  }
+
+  %PrepareFunctionForOptimization(deopt);
+  assertEquals(42, deopt(1));
+  %OptimizeFunctionOnNextCall(deopt);
+  assertEquals(42, deopt(1));
+  assertOptimized(deopt);
+  assertEquals(17, deopt(0));
+  assertUnoptimized(deopt);
+}
+
 // Lazy deopt during JS function call
 {
   %NeverOptimizeFunction(h);
@@ -779,4 +799,44 @@ assertOptimized(simple_loop);
   %OptimizeFunctionOnNextCall(multi_pred_loop);
   assertEquals(5, multi_pred_loop(1));
   assertEquals(5, multi_pred_loop(2));
+}
+
+// Testing reference error if hole
+{
+  function ref_err_if_hole(x) {
+    switch (x) {
+      case 0:
+        let v = 17;
+      case 1:
+        return v;
+    }
+  }
+
+  %PrepareFunctionForOptimization(ref_err_if_hole);
+  assertEquals(17, ref_err_if_hole(0));
+  %OptimizeFunctionOnNextCall(ref_err_if_hole);
+  assertEquals(17, ref_err_if_hole(0));
+
+  assertThrows(() => ref_err_if_hole(1), ReferenceError,
+               "Cannot access 'v' before initialization");
+  assertOptimized(ref_err_if_hole);
+}
+
+// Testing `eval()`, which tests ArgumentsLength, ArgumentsElements,
+// CreateFunctionContext and CallRuntime.
+{
+  function f_eval() {
+    let i = 0.1;
+    eval();
+    if (i) {
+      const c = {};
+      eval();
+    }
+  }
+
+  %PrepareFunctionForOptimization(f_eval);
+  f_eval();
+  f_eval();
+  %OptimizeFunctionOnNextCall(f_eval);
+  f_eval();
 }

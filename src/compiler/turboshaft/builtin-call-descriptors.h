@@ -439,6 +439,24 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocate();
   };
 
+  template <Builtin B>
+  struct CreateFunctionContext : public Descriptor<CreateFunctionContext<B>> {
+    static constexpr auto kFunction = B;
+    using arguments_t = std::tuple<V<ScopeInfo>, V<Word32>>;
+    using results_t = std::tuple<V<Context>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocate();
+  };
+
+  using FastNewFunctionContextFunction =
+      CreateFunctionContext<Builtin::kFastNewFunctionContextFunction>;
+  using FastNewFunctionContextEval =
+      CreateFunctionContext<Builtin::kFastNewFunctionContextEval>;
+
   struct Typeof : public Descriptor<Typeof> {
     static constexpr auto kFunction = Builtin::kTypeof;
     using arguments_t = std::tuple<V<Object>>;

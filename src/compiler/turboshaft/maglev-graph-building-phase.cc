@@ -7,6 +7,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
@@ -88,6 +89,20 @@ class GraphBuilder {
     // Constants are not in a block in Maglev but are in Turboshaft. We bind a
     // block now, so that Constants can then be emitted.
     __ Bind(__ NewBlock());
+
+    if (maglev_compilation_unit_->bytecode()
+            .incoming_new_target_or_generator_register()
+            .is_valid()) {
+      // The Maglev graph might contain a RegisterInput for
+      // kJavaScriptCallNewTargetRegister later in the graph, which in
+      // Turboshaft is represented as a Parameter. We create this Parameter
+      // here, because the Instruction Selector tends to be unhappy when
+      // Parameters are defined late in the graph.
+      int new_target_index = Linkage::GetJSCallNewTargetParamIndex(
+          maglev_compilation_unit_->parameter_count());
+      new_target_param_ = __ Parameter(
+          new_target_index, RegisterRepresentation::Tagged(), "%new.target");
+    }
   }
 
   void PostProcessGraph(maglev::Graph* graph) {}
@@ -104,7 +119,8 @@ class GraphBuilder {
     loop_phis_first_input_index_ = -1;
 #endif
 
-    if (block->is_loop() && MapContains(loop_single_edge_predecessors_, block)) {
+    if (block->is_loop() &&
+        MapContains(loop_single_edge_predecessors_, block)) {
       EmitLoopSinglePredecessorBlock(block);
     }
 
@@ -192,6 +208,13 @@ class GraphBuilder {
     SetMap(node, __ SmiConstant(node->value()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::TaggedIndexConstant* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): should this really be a SmiConstant, or rather a
+    // Word32Constant?
+    SetMap(node, __ SmiConstant(node->value().ptr()));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::InitialValue* node,
                                 const maglev::ProcessingState& state) {
@@ -210,6 +233,16 @@ class GraphBuilder {
     }
     SetMap(node,
            __ Parameter(index, RegisterRepresentation::Tagged(), debug_name));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::RegisterInput* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK(maglev_compilation_unit_->bytecode()
+               .incoming_new_target_or_generator_register()
+               .is_valid());
+    DCHECK_EQ(node->input(), kJavaScriptCallNewTargetRegister);
+    DCHECK(new_target_param_.valid());
+    SetMap(node, new_target_param_);
     return maglev::ProcessResult::kContinue;
   }
 
@@ -325,6 +358,70 @@ class GraphBuilder {
                          TSCallDescriptor::Create(
                              call_descriptor, CanThrow::kYes, graph_zone())));
 
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CallRuntime* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    auto c_entry_stub = __ CEntryStubConstant(
+        isolate_->GetMainThreadIsolateUnsafe(), node->ReturnCount());
+
+    CallDescriptor* call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph_zone(), node->function_id(), node->num_args(),
+        Operator::kNoProperties, CallDescriptor::kNeedsFrameState);
+
+    base::SmallVector<OpIndex, 16> arguments;
+    for (int i = 0; i < node->num_args(); i++) {
+      arguments.push_back(Map(node->arg(i)));
+    }
+
+    arguments.push_back(
+        __ ExternalConstant(ExternalReference::Create(node->function_id())));
+    arguments.push_back(__ Word32Constant(node->num_args()));
+
+    arguments.push_back(Map(node->context()));
+
+    OptionalOpIndex frame_state = OpIndex::Invalid();
+    if (call_descriptor->NeedsFrameState()) {
+      frame_state = BuildFrameState(node->lazy_deopt_info());
+    }
+
+    SetMap(node, __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
+                         TSCallDescriptor::Create(
+                             call_descriptor, CanThrow::kYes, graph_zone())));
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ThrowReferenceErrorIfHole* node,
+                                const maglev::ProcessingState& state) {
+    IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
+      OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+      __ CallRuntime_ThrowAccessedUninitializedVariable(
+          isolate_->GetMainThreadIsolateUnsafe(), frame_state, native_context(),
+          __ HeapConstant(node->name().object()));
+      // ThrowAccessedUninitializedVariable should not return.
+      __ Unreachable();
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CreateFunctionContext* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Context> context = Map(node->context());
+    V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
+    if (node->scope_type() == FUNCTION_SCOPE) {
+      SetMap(node, __ CallBuiltin_FastNewFunctionContextFunction(
+                       isolate_->GetMainThreadIsolateUnsafe(), frame_state,
+                       context, scope_info, node->slot_count()));
+    } else {
+      DCHECK_EQ(node->scope_type(), EVAL_SCOPE);
+      SetMap(node, __ CallBuiltin_FastNewFunctionContextEval(
+                       isolate_->GetMainThreadIsolateUnsafe(), frame_state,
+                       context, scope_info, node->slot_count()));
+    }
     return maglev::ProcessResult::kContinue;
   }
 
@@ -487,6 +584,19 @@ class GraphBuilder {
                        Map(node->string_input()),
                        __ ChangeUint32ToUintPtr(Map(node->index_input()))));
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::ArgumentsLength* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ArgumentsLength());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ArgumentsElements* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ NewArgumentsElements(Map(node->arguments_count_input()),
+                                         node->type(),
+                                         node->formal_parameter_count()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -754,6 +864,11 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::UnsafeSmiUntag* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ UntagSmi(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeSmiTag* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ TagSmi(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1083,6 +1198,14 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Deopt* node,
+                                const maglev::ProcessingState& state) {
+    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    __ Deoptimize(frame_state, node->reason(),
+                  node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::SetPendingMessage* node,
                                 const maglev::ProcessingState& state) {
     __ StoreMessage(
@@ -1128,13 +1251,17 @@ class GraphBuilder {
               maglev::DeoptFrame::FrameType::kInterpretedFrame);
     maglev::InterpretedDeoptFrame& frame =
         lazy_deopt_info->top_frame().as_interpreted();
-    // TODO(dmercadier): handle cases where the following DCHECK doesn't hold
-    // (ie, cases where the return value is not the accumulator, and where there
-    // are multiple return values).
-    DCHECK(lazy_deopt_info->result_location() ==
-               interpreter::Register::virtual_accumulator() &&
-           lazy_deopt_info->result_size() == 1);
-    return BuildFrameState(frame, OutputFrameStateCombine::PokeAt(0), true);
+    if (lazy_deopt_info->result_size() == 1) {
+      DCHECK_EQ(lazy_deopt_info->result_location(),
+                interpreter::Register::virtual_accumulator());
+      return BuildFrameState(frame, OutputFrameStateCombine::PokeAt(0), true);
+    } else if (lazy_deopt_info->result_size() == 0) {
+      return BuildFrameState(frame, OutputFrameStateCombine::Ignore(), true);
+    } else {
+      // TODO(dmercadier): handle cases where the lazy deopt has multiple return
+      // values.
+      UNIMPLEMENTED();
+    }
   }
 
   OpIndex BuildFrameState(maglev::InterpretedDeoptFrame& frame,
@@ -1231,6 +1358,7 @@ class GraphBuilder {
     bool swap_inputs = false;
     switch (operation) {
       case ::Operation::kEqual:
+      case ::Operation::kStrictEqual:
         kind = ComparisonOp::Kind::kEqual;
         break;
       case ::Operation::kLessThan:
@@ -1483,6 +1611,7 @@ class GraphBuilder {
   int loop_phis_first_input_index_ = -1;
 
   V<Context> native_context_ = OpIndex::Invalid();
+  V<Object> new_target_param_ = OpIndex::Invalid();
   base::SmallVector<int, 16> predecessor_permutation_;
 };
 

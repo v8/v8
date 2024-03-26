@@ -151,6 +151,19 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
+
+  struct ThrowAccessedUninitializedVariable
+      : public Descriptor<ThrowAccessedUninitializedVariable> {
+    static constexpr auto kFunction =
+        Runtime::kThrowAccessedUninitializedVariable;
+    using arguments_t = std::tuple<V<Object>>;
+    // Doesn't actually return something, but the actual runtime call descriptor
+    // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft
