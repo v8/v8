@@ -1126,7 +1126,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         result = __ Word32Constant(0);
         break;
       case MachineRepresentation::kWord8:
-        // No need to change endianness for byte size, return original node
+        // No need to change endianness for byte size, return original node.
         return node;
       case MachineRepresentation::kSimd128:
         DCHECK(ReverseBytesSupported(value_size_in_bytes));
@@ -1205,26 +1205,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     // We need to sign or zero extend the value.
-    if (memtype.IsSigned()) {
+    // Values with size >= 32-bits may need to be sign/zero extended after
+    // calling this function.
+    if (value_size_in_bits < 32) {
       DCHECK(!is_float);
-      if (value_size_in_bits < 32) {
-        // Perform sign extension using following trick
-        // result = (x << machine_width - type_width) >> (machine_width -
-        // type_width)
-        if (wasmtype == wasm::kWasmI64) {
-          int shift_bit_count = 64 - value_size_in_bits;
-          result = __ Word64ShiftRightArithmeticShiftOutZeros(
-              __ Word64ShiftLeft(__ ChangeInt32ToInt64(result),
-                                 shift_bit_count),
-              shift_bit_count);
-        } else if (wasmtype == wasm::kWasmI32) {
-          int shift_bit_count = 32 - value_size_in_bits;
-          result = __ Word32ShiftRightArithmeticShiftOutZeros(
-              __ Word32ShiftLeft(result, shift_bit_count), shift_bit_count);
-        }
+      int shift_bit_count = 32 - value_size_in_bits;
+      result = __ Word32ShiftLeft(result, shift_bit_count);
+      if (memtype.IsSigned()) {
+        result =
+            __ Word32ShiftRightArithmeticShiftOutZeros(result, shift_bit_count);
+      } else {
+        result = __ Word32ShiftRightLogical(result, shift_bit_count);
       }
-    } else if (wasmtype == wasm::kWasmI64 && value_size_in_bits < 64) {
-      result = __ ChangeUint32ToUint64(result);
     }
 
     return result;
@@ -3268,11 +3260,23 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);
+    RegisterRepresentation loaded_value_rep = info.result_rep;
+#if V8_TARGET_BIG_ENDIAN
+    // Do not sign-extend / zero-extend the value to 64 bits as the bytes need
+    // to be reversed first to keep little-endian load / store semantics. Still
+    // extend for 1 byte loads as it doesn't require reversing any bytes.
+    bool needs_zero_extension_64 = false;
+    if (info.result_rep == RegisterRepresentation::Word64() &&
+        info.input_rep.SizeInBytes() < 8 && info.input_rep.SizeInBytes() != 1) {
+      needs_zero_extension_64 = true;
+      loaded_value_rep = RegisterRepresentation::Word32();
+    }
+#endif
     result->op = __ Load(MemBuffer(imm.memory->index, imm.offset), index,
                          access_kind == MemoryAccessKind::kProtected
                              ? LoadOp::Kind::Protected().Atomic()
                              : LoadOp::Kind::RawAligned().Atomic(),
-                         info.input_rep, info.result_rep);
+                         info.input_rep, loaded_value_rep);
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.
@@ -3283,6 +3287,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                                             : wasm::kWasmI64;
     result->op = BuildChangeEndiannessLoad(
         result->op, info.input_rep.ToMachineType(), wasm_type);
+
+    if (needs_zero_extension_64) {
+      result->op = __ ChangeUint32ToUint64(result->op);
+    }
 #endif
   }
 
