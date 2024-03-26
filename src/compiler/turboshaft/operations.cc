@@ -1476,9 +1476,9 @@ template <size_t size>
 void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
   os << "0x" << std::hex << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < static_cast<int>(size); i++) {
 #else
-  for (int i = size - 1; i >= 0; i--) {
+  for (int i = static_cast<int>(size) - 1; i >= 0; i--) {
 #endif
     os << std::setw(2) << static_cast<int>(value[i]);
   }
