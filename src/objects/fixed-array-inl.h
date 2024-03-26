@@ -414,6 +414,9 @@ void FixedArrayBase::set_length(int value, ReleaseStoreTag tag) {
 CAST_ACCESSOR(WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, WeakFixedArray::Super)
 
+CAST_ACCESSOR(TrustedWeakFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(TrustedWeakFixedArray, TrustedWeakFixedArray::Super)
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 template <class D, class S, class P>
@@ -821,6 +824,22 @@ Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
                capacity);
+  return result;
+}
+
+template <class IsolateT>
+Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
+                                                         int capacity) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  TrustedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedWeakFixedArray> result = Handle<TrustedWeakFixedArray>::cast(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }
 

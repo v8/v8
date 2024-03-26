@@ -805,6 +805,13 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   }
 }
 
+void TrustedWeakFixedArray::TrustedWeakFixedArrayVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  for (int i = 0; i < length(); i++) {
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
+  }
+}
+
 void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));

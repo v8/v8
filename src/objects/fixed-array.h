@@ -548,6 +548,45 @@ class WeakFixedArray
   static constexpr int kLengthOffset = Shape::kCapacityOffset;
 };
 
+class TrustedWeakFixedArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kTrustedWeakFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// A WeakFixedArray in trusted space and with a unique instance type.
+class TrustedWeakFixedArray
+    : public TaggedArrayBase<TrustedWeakFixedArray,
+                             TrustedWeakFixedArrayShape> {
+  using Super =
+      TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape>;
+  OBJECT_CONSTRUCTORS(TrustedWeakFixedArray, Super);
+
+ public:
+  template <class IsolateT>
+  static inline Handle<TrustedWeakFixedArray> New(IsolateT* isolate,
+                                                  int capacity);
+
+  DECL_CAST(TrustedWeakFixedArray)
+  DECL_PRINTER(TrustedWeakFixedArray)
+  DECL_VERIFIER(TrustedWeakFixedArray)
+
+  class BodyDescriptor;
+
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
+};
+
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
 // adding more elements. length() returns the number of elements in the list and
 // capacity() returns the allocated size. The number of elements is stored at

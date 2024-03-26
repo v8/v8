@@ -1321,6 +1321,13 @@ void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   os << "\n";
 }
 
+void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
+  PrintHeader(os, "TrustedWeakFixedArray");
+  os << "\n - length: " << length() << "\n";
+  PrintWeakArrayElements(os, this);
+  os << "\n";
+}
+
 void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
   PrintHeader(os, "WeakArrayList");
   os << "\n - capacity: " << capacity();

@@ -269,6 +269,15 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 }
 
 template <typename Impl>
+Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
+    int length) {
+  // TODO(saelo): Move this check to TrustedWeakFixedArray::New once we have a
+  // RO trusted space.
+  if (length == 0) return empty_trusted_weak_fixed_array();
+  return TrustedWeakFixedArray::New(isolate(), length);
+}
+
+template <typename Impl>
 Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
                                                   AllocationType allocation) {
   return ByteArray::New(isolate(), length, allocation);
