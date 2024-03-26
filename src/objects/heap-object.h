@@ -305,10 +305,11 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
   // Same as `ReadExternalPointerField()` with returning kNullAddress on
-  // encountering a 0-handle (instead of crashing).
+  // encountering a 0-handle (instead of crashing). Will use the
+  // CppHeapPointerTable for access.
   template <ExternalPointerTag tag>
-  inline Address TryReadExternalPointerField(size_t offset,
-                                             IsolateForSandbox isolate) const;
+  inline Address TryReadCppHeapPointerField(size_t offset,
+                                            IsolateForSandbox isolate) const;
   template <ExternalPointerTag tag>
   inline void WriteExternalPointerField(size_t offset,
                                         IsolateForSandbox isolate,
@@ -319,6 +320,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       size_t offset, IsolateForSandbox isolate, Address value);
 
   inline void ResetLazilyInitializedExternalPointerField(size_t offset);
+
+  template <ExternalPointerTag tag>
+  inline void WriteLazilyInitializedCppHeapPointerField(
+      size_t offset, IsolateForSandbox isolate, Address value);
 
   //
   // Indirect pointers.

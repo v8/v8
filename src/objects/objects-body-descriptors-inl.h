@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include "include/v8-internal.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
 #include "src/ic/handler-configuration.h"
@@ -119,10 +120,10 @@ class JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor
     static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffsetEnd +
                       1 ==
                   JSAPIObjectWithEmbedderSlots::kHeaderSize);
-    v->VisitExternalPointer(
+    v->VisitCppHeapPointer(
         obj, obj->RawExternalPointerField(
                  JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
-                 kExternalObjectValueTag));
+                 kAnyExternalPointerTag));
   }
 
   template <typename ConcreteType, typename ObjectVisitor>

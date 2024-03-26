@@ -83,8 +83,8 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
 }
 
 template <ExternalPointerTag tag>
-V8_INLINE Address TryReadExternalPointerField(Address field_address,
-                                              IsolateForSandbox isolate) {
+V8_INLINE Address TryReadCppHeapPointerField(Address field_address,
+                                             IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
   static_assert(tag != kExternalPointerNullTag);
   // Handles may be written to objects from other threads so the handle needs
@@ -97,9 +97,31 @@ V8_INLINE Address TryReadExternalPointerField(Address field_address,
   if (handle == 0) {
     return kNullAddress;
   }
-  return isolate.GetExternalPointerTableFor(tag).Get(handle, tag);
+  return isolate.GetCppHeapPointerTable().Get(handle, tag);
 #else
   return ReadMaybeUnalignedValue<Address>(field_address);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <ExternalPointerTag tag>
+V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
+    Address field_address, IsolateForSandbox isolate, Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(tag != kExternalPointerNullTag);
+  // See comment above for why this uses a Relaxed_Load and Release_Store.
+  ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+  if (handle == kNullExternalPointerHandle) {
+    // Field has not been initialized yet.
+    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+        isolate.GetCppHeapPointerTableSpace(), value, tag);
+    base::AsAtomic32::Release_Store(location, handle);
+  } else {
+    table.Set(handle, value, tag);
+  }
+#else
+  WriteMaybeUnalignedValue<Address>(field_address, value);
 #endif  // V8_ENABLE_SANDBOX
 }
 

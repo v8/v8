@@ -60,6 +60,15 @@ TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTable() {
 TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpace() {
   return isolate_->heap()->trusted_pointer_space();
 }
+
+ExternalPointerTable& IsolateForSandbox::GetCppHeapPointerTable() {
+  return isolate_->cpp_heap_pointer_table();
+}
+
+ExternalPointerTable::Space* IsolateForSandbox::GetCppHeapPointerTableSpace() {
+  return isolate_->heap()->cpp_heap_pointer_space();
+}
+
 #endif  // V8_ENABLE_SANDBOX
 
 }  // namespace internal

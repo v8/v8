@@ -791,9 +791,9 @@ Address HeapObject::ReadExternalPointerField(size_t offset,
 }
 
 template <ExternalPointerTag tag>
-Address HeapObject::TryReadExternalPointerField(
+Address HeapObject::TryReadCppHeapPointerField(
     size_t offset, IsolateForSandbox isolate) const {
-  return i::TryReadExternalPointerField<tag>(field_address(offset), isolate);
+  return i::TryReadCppHeapPointerField<tag>(field_address(offset), isolate);
 }
 
 template <ExternalPointerTag tag>
@@ -812,6 +812,13 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
 
 void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
   i::ResetLazilyInitializedExternalPointerField(field_address(offset));
+}
+
+template <ExternalPointerTag tag>
+void HeapObject::WriteLazilyInitializedCppHeapPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value) {
+  i::WriteLazilyInitializedCppHeapPointerField<tag>(field_address(offset),
+                                                    isolate, value);
 }
 
 void HeapObject::InitSelfIndirectPointerField(size_t offset,

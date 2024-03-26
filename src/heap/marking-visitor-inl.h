@@ -16,6 +16,7 @@
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
@@ -180,6 +181,27 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
                                            : heap_->external_pointer_space();
   table->Mark(space, handle, slot.address());
 #endif  // V8_ENABLE_SANDBOX
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
+    Tagged<HeapObject> host, ExternalPointerSlot slot) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullExternalPointerHandle) {
+    return;
+  }
+  ExternalPointerTable* table = cpp_heap_pointer_table_;
+  ExternalPointerTable::Space* space = heap_->cpp_heap_pointer_space();
+  table->Mark(space, handle, slot.address());
+#endif  // V8_ENABLE_SANDBOX
+  if (void* cpp_heap_wrappable =
+          JSApiWrapper(JSObject::cast(host))
+              .GetCppHeapWrappable<kAnyExternalPointerTag>(heap_->isolate())) {
+    local_marking_worklists_->cpp_marking_state()->MarkAndPush(
+        cpp_heap_wrappable);
+  }
 }
 
 template <typename ConcreteVisitor>
@@ -491,17 +513,6 @@ inline int MarkingVisitorBase<ConcreteVisitor>::
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   if (local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot)) {
     local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
-  }
-  // Process dedicated wrappable field.
-  // TODO(mlippautz): This currently derefs an external pointer field with an
-  // arbitrary tag.
-  void* cpp_heap_wrappable =
-      JSAPIObjectWithEmbedderSlots::unchecked_cast(object)
-          ->template GetCppHeapWrappable<kAnyExternalPointerTag>(
-              heap_->isolate());
-  if (cpp_heap_wrappable) {
-    local_marking_worklists_->cpp_marking_state()->MarkAndPush(
-        cpp_heap_wrappable);
   }
   return size;
 }

@@ -15,6 +15,8 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/keys.h"
@@ -619,32 +621,28 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
-EXTERNAL_POINTER_ACCESSORS(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable,
-                           void*, kCppHeapWrappableOffset,
-                           kExternalObjectValueTag)
-
-EXTERNAL_POINTER_ACCESSORS(JSSpecialObject, cpp_heap_wrappable, void*,
-                           kCppHeapWrappableOffset, kExternalObjectValueTag)
-
-template <ExternalPointerTag tag>
-void* JSAPIObjectWithEmbedderSlots::GetCppHeapWrappable(
-    IsolateForSandbox isolate) const {
-  return reinterpret_cast<void*>(
-      TryReadExternalPointerField<tag>(kCppHeapWrappableOffset, isolate));
+JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
+  DCHECK(IsJSAPIObjectWithEmbedderSlots(object) || IsJSSpecialObject(object));
 }
 
 template <ExternalPointerTag tag>
-void JSAPIObjectWithEmbedderSlots::SetCppHeapWrappable(
-    IsolateForSandbox isolate, void* instance) {
+void* JSApiWrapper::GetCppHeapWrappable(IsolateForSandbox isolate) const {
+  return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField<tag>(
+      kCppHeapWrappableOffset, isolate));
+}
+
+template <ExternalPointerTag tag>
+void JSApiWrapper::SetCppHeapWrappable(IsolateForSandbox isolate,
+                                       void* instance) {
   if (instance == nullptr) {
-    ResetLazilyInitializedExternalPointerField(
+    object_->ResetLazilyInitializedExternalPointerField(
         JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
     return;
   }
-  WriteLazilyInitializedExternalPointerField<tag>(
+  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance));
-  WriteBarrier::MarkingFromCppHeapWrappable(*this, instance);
+  WriteBarrier::MarkingFromCppHeapWrappable(object_, instance);
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {

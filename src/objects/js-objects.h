@@ -993,13 +993,6 @@ class JSAPIObjectWithEmbedderSlots
  public:
   class BodyDescriptor;
 
-  DECL_EXTERNAL_POINTER_ACCESSORS(cpp_heap_wrappable, void*)
-
-  template <ExternalPointerTag tag>
-  V8_INLINE void SetCppHeapWrappable(IsolateForSandbox isolate, void*);
-  template <ExternalPointerTag tag>
-  V8_INLINE void* GetCppHeapWrappable(IsolateForSandbox isolate) const;
-
   TQ_OBJECT_CONSTRUCTORS(JSAPIObjectWithEmbedderSlots)
 };
 
@@ -1024,9 +1017,26 @@ class JSSpecialObject
     : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
                                             JSCustomElementsObject> {
  public:
-  DECL_EXTERNAL_POINTER_ACCESSORS(cpp_heap_wrappable, void*)
-
   TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
+};
+
+// Helper union that doesn't actually exist as type. Use by value.
+class JSApiWrapper {
+ public:
+  V8_INLINE explicit JSApiWrapper(Tagged<JSObject> object);
+
+  template <ExternalPointerTag tag>
+  V8_INLINE void SetCppHeapWrappable(IsolateForSandbox isolate, void*);
+  template <ExternalPointerTag tag>
+  V8_INLINE void* GetCppHeapWrappable(IsolateForSandbox isolate) const;
+
+ private:
+  static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==
+                JSSpecialObject::kCppHeapWrappableOffset);
+  static constexpr int kCppHeapWrappableOffset =
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset;
+
+  Tagged<JSObject> object_;
 };
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial

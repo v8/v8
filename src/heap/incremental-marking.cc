@@ -317,6 +317,7 @@ void IncrementalMarking::StartMarkingMajor() {
 
 #ifdef V8_COMPRESS_POINTERS
   heap_->external_pointer_space()->StartCompactingIfNeeded();
+  heap_->cpp_heap_pointer_space()->StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
 
   major_collector_->StartMarking();

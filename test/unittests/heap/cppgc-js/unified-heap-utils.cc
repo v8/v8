@@ -143,6 +143,8 @@ v8::Local<v8::Object> NewWrapperHelper::CreateWrapper(
       function->NewInstance(context).ToLocalChecked();
   SetWrappableConnection(context->GetIsolate(), instance, wrappable_object);
   CHECK(!instance.IsEmpty());
+  CHECK_EQ(wrappable_object,
+           ReadWrappablePointer(context->GetIsolate(), instance));
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
   CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map()->instance_type());
   return scope.Escape(instance);
@@ -161,8 +163,8 @@ void NewWrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
                                               v8::Local<v8::Object> api_object,
                                               void* instance) {
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
-  JSAPIObjectWithEmbedderSlots::unchecked_cast(*js_obj)
-      ->SetCppHeapWrappable<kExternalObjectValueTag>(
+  JSApiWrapper(JSObject::cast(*js_obj))
+      .SetCppHeapWrappable<kExternalObjectValueTag>(
           reinterpret_cast<i::Isolate*>(isolate), instance);
 }
 
@@ -170,8 +172,8 @@ void NewWrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
 void* NewWrapperHelper::ReadWrappablePointer(v8::Isolate* isolate,
                                              v8::Local<v8::Object> api_object) {
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
-  return JSAPIObjectWithEmbedderSlots::unchecked_cast(*js_obj)
-      ->GetCppHeapWrappable<kExternalObjectValueTag>(
+  return JSApiWrapper(JSObject::cast(*js_obj))
+      .GetCppHeapWrappable<kExternalObjectValueTag>(
           reinterpret_cast<i::Isolate*>(isolate));
 }
 

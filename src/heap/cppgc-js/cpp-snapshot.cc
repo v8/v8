@@ -400,8 +400,8 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
     return maybe_info->instance;
   }
   // Wrapper using cpp_heap_wrappable field.
-  return JSAPIObjectWithEmbedderSlots::unchecked_cast(*js_object)
-      ->GetCppHeapWrappable<kAnyExternalPointerTag>(isolate);
+  return JSApiWrapper(*js_object)
+      .GetCppHeapWrappable<kAnyExternalPointerTag>(isolate);
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also
