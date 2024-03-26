@@ -35,6 +35,13 @@ SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
 
 namespace {
 
+// Sandbox.base
+void SandboxGetBase(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  double sandbox_base = GetProcessWideSandbox()->base();
+  info.GetReturnValue().Set(v8::Number::New(isolate, sandbox_base));
+}
 // Sandbox.byteLength
 void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
@@ -348,6 +355,7 @@ void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
   Handle<JSObject> sandbox = isolate->factory()->NewJSObject(
       isolate->object_function(), AllocationType::kOld);
 
+  InstallGetter(isolate, sandbox, SandboxGetBase, "base");
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
   InstallFunction(isolate, sandbox, SandboxGetAddressOf, "getAddressOf", 1);
