@@ -155,9 +155,11 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
                               ->code(Builtin::kWasmToJsWrapperAsm)
                               ->instruction_start();
   int result = 0;
-  int import_count = trusted_data->imported_function_targets()->length();
+  Tagged<WasmDispatchTable> dispatch_table =
+      trusted_data->dispatch_table_for_imports();
+  int import_count = dispatch_table->length();
   for (int i = 0; i < import_count; ++i) {
-    if (trusted_data->imported_function_targets()->get(i) == wrapper_start) {
+    if (dispatch_table->target(i) == wrapper_start) {
       ++result;
     }
   }

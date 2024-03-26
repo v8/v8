@@ -2274,7 +2274,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
             ? trusted_instance_data
             : i::handle(
                   i::ExposedTrustedObject::cast(
-                      trusted_instance_data->imported_function_refs()->get(
+                      trusted_instance_data->dispatch_table_for_imports()->ref(
                           func_index)),
                   i_isolate);
 

@@ -1727,7 +1727,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   i::Handle<i::Object> object_ref = instance;
   if (function_index < static_cast<int>(module->num_imported_functions)) {
     object_ref = i::handle(
-        instance->trusted_data(isolate)->imported_function_refs()->get(
+        instance->trusted_data(isolate)->dispatch_table_for_imports()->ref(
             function_index),
         isolate);
     if (IsWasmApiFunctionRef(*object_ref)) {

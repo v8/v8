@@ -442,9 +442,9 @@ void WasmTableObject::UpdateDispatchTables(
   Handle<ExposedTrustedObject> call_ref =
       func->imported
           // The function in the target instance was imported. Use its imports
-          // table, which contains a tuple needed by the import wrapper.
+          // table to look up the ref.
           ? handle(ExposedTrustedObject::cast(
-                       target_instance_data->imported_function_refs()->get(
+                       target_instance_data->dispatch_table_for_imports()->ref(
                            func->func_index)),
                    isolate)
           // For wasm functions, just pass the target instance data.
@@ -964,13 +964,13 @@ FunctionTargetAndRef::FunctionTargetAndRef(
   if (target_func_index <
       static_cast<int>(
           trusted_target_instance_data->module()->num_imported_functions)) {
-    // The function in the target instance was imported. Use its imports table,
-    // which contains a tuple needed by the import wrapper.
-    ref_ =
-        handle(ExposedTrustedObject::cast(
-                   trusted_target_instance_data->imported_function_refs()->get(
-                       target_func_index)),
-               isolate);
+    // The function in the target instance was imported. Load the ref from the
+    // dispatch table for imports.
+    ref_ = handle(
+        ExposedTrustedObject::cast(
+            trusted_target_instance_data->dispatch_table_for_imports()->ref(
+                target_func_index)),
+        isolate);
   } else {
     // The function in the target instance was not imported.
   }
@@ -1000,9 +1000,9 @@ void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       instance_object_->trusted_data(isolate);
-  trusted_instance_data->imported_function_refs()->set(index_, *ref);
-  trusted_instance_data->imported_function_targets()->set(index_,
-                                                          wrapper_entry);
+
+  trusted_instance_data->dispatch_table_for_imports()->SetForImport(
+      index_, *ref, wrapper_entry);
 }
 
 void ImportedFunctionEntry::SetWasmToJs(
@@ -1022,11 +1022,10 @@ void ImportedFunctionEntry::SetWasmToJs(
   // be accessed.
   ref->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
   DisallowGarbageCollection no_gc;
-  Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      instance_object_->trusted_data(isolate);
-  trusted_instance_data->imported_function_refs()->set(index_, *ref);
-  trusted_instance_data->imported_function_targets()->set(
-      index_, wasm_to_js_wrapper->instruction_start());
+  Tagged<WasmDispatchTable> dispatch_table =
+      instance_object_->trusted_data(isolate)->dispatch_table_for_imports();
+  dispatch_table->SetForImport(index_, *ref,
+                               wasm_to_js_wrapper->instruction_start());
 }
 
 void ImportedFunctionEntry::SetWasmToWasm(
@@ -1035,12 +1034,11 @@ void ImportedFunctionEntry::SetWasmToWasm(
             ", target=0x%" PRIxPTR "}\n",
             instance_object_->ptr(), index_, target_instance_data.ptr(),
             call_target);
+  Isolate* isolate = instance_object_->GetIsolate();
   DisallowGarbageCollection no_gc;
-  Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      instance_object_->trusted_data(instance_object_->GetIsolate());
-  trusted_instance_data->imported_function_refs()->set(index_,
-                                                       target_instance_data);
-  trusted_instance_data->imported_function_targets()->set(index_, call_target);
+  Tagged<WasmDispatchTable> dispatch_table =
+      instance_object_->trusted_data(isolate)->dispatch_table_for_imports();
+  dispatch_table->SetForImport(index_, target_instance_data, call_target);
 }
 
 // Returns an empty Tagged<Object>() if no callable is available, a JSReceiver
@@ -1057,20 +1055,20 @@ Tagged<JSReceiver> ImportedFunctionEntry::callable() {
 
 Tagged<Object> ImportedFunctionEntry::object_ref() {
   return instance_object_->trusted_data(instance_object_->GetIsolate())
-      ->imported_function_refs()
-      ->get(index_);
+      ->dispatch_table_for_imports()
+      ->ref(index_);
 }
 
 Address ImportedFunctionEntry::target() {
   return instance_object_->trusted_data(instance_object_->GetIsolate())
-      ->imported_function_targets()
-      ->get(index_);
+      ->dispatch_table_for_imports()
+      ->target(index_);
 }
 
 void ImportedFunctionEntry::set_target(Address new_target) {
   return instance_object_->trusted_data(instance_object_->GetIsolate())
-      ->imported_function_targets()
-      ->set(index_, new_target);
+      ->dispatch_table_for_imports()
+      ->SetTarget(index_, new_target);
 }
 
 // static
@@ -1079,10 +1077,10 @@ constexpr std::array<uint16_t, 17> WasmTrustedInstanceData::kTaggedFieldOffsets;
 constexpr std::array<const char*, 17>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 4>
+constexpr std::array<uint16_t, 3>
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 4>
+constexpr std::array<const char*, 3>
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
@@ -1134,10 +1132,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   const WasmModule* module = module_object->module();
 
   int num_imported_functions = module->num_imported_functions;
-  Handle<TrustedFixedAddressArray> imported_function_targets =
-      TrustedFixedAddressArray::New(isolate, num_imported_functions);
-  Handle<ProtectedFixedArray> imported_function_refs =
-      isolate->factory()->NewProtectedFixedArray(num_imported_functions);
+  Handle<WasmDispatchTable> dispatch_table_for_imports =
+      isolate->factory()->NewWasmDispatchTable(num_imported_functions);
   Handle<FixedArray> well_known_imports =
       isolate->factory()->NewFixedArray(num_imported_functions);
 
@@ -1186,14 +1182,13 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     ReadOnlyRoots ro_roots{isolate};
     Tagged<FixedArray> empty_fixed_array = ro_roots.empty_fixed_array();
 
-    trusted_data->set_imported_function_targets(*imported_function_targets);
+    trusted_data->set_dispatch_table_for_imports(*dispatch_table_for_imports);
     trusted_data->set_imported_mutable_globals(*imported_mutable_globals);
     trusted_data->set_dispatch_table0(*empty_dispatch_table);
     trusted_data->set_dispatch_tables(*empty_protected_fixed_array);
     trusted_data->set_data_segment_starts(*data_segment_starts);
     trusted_data->set_data_segment_sizes(*data_segment_sizes);
     trusted_data->set_element_segments(empty_fixed_array);
-    trusted_data->set_imported_function_refs(*imported_function_refs);
     trusted_data->set_new_allocation_limit_address(
         isolate->heap()->NewSpaceAllocationLimitAddress());
     trusted_data->set_new_allocation_top_address(
@@ -1287,7 +1282,7 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
 Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   wasm::NativeModule* native_module = module_object()->native_module();
   if (func_index < native_module->num_imported_functions()) {
-    return imported_function_targets()->get(func_index);
+    return dispatch_table_for_imports()->target(func_index);
   }
   return jump_table_start() +
          JumpTableOffset(native_module->module(), func_index);
@@ -1394,7 +1389,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       function_index >= static_cast<int>(module->num_imported_functions)
           ? trusted_instance_data
           : handle(ExposedTrustedObject::cast(
-                       trusted_instance_data->imported_function_refs()->get(
+                       trusted_instance_data->dispatch_table_for_imports()->ref(
                            function_index)),
                    isolate);
 
@@ -1825,6 +1820,21 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
                             UPDATE_WRITE_BARRIER);
   WriteField<Address>(offset + kTargetBias, call_target);
   WriteField<int>(offset + kSigBias, sig_id);
+}
+
+void WasmDispatchTable::SetForImport(int index,
+                                     Tagged<ExposedTrustedObject> ref,
+                                     Address call_target) {
+  DCHECK_LT(index, length());
+  DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
+  DCHECK_NE(kNullAddress, call_target);
+  const int offset = OffsetOf(index);
+  WriteProtectedPointerField(offset + kRefBias, TrustedObject::cast(ref));
+  CONDITIONAL_WRITE_BARRIER(*this, offset + kRefBias, ref,
+                            UPDATE_WRITE_BARRIER);
+  WriteField<Address>(offset + kTargetBias, call_target);
+  // Leave the signature untouched, it is unused for imports.
+  DCHECK_EQ(-1, ReadField<int>(offset + kSigBias));
 }
 
 void WasmDispatchTable::Clear(int index) {

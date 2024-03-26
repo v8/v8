@@ -182,29 +182,33 @@ std::pair<V<WordPtr>, V<HeapObject>>
 WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
     ConstOrV<Word32> func_index,
     V<WasmTrustedInstanceData> trusted_instance_data) {
-  // Imported function.
-  V<ProtectedFixedArray> imported_function_refs = LOAD_PROTECTED_INSTANCE_FIELD(
-      trusted_instance_data, ImportedFunctionRefs, ProtectedFixedArray);
-  auto ref = V<HeapObject>::Cast(
-      func_index.is_constant()
-          ? __ LoadProtectedFixedArrayElement(imported_function_refs,
-                                              func_index.constant_value())
-          : __ LoadProtectedFixedArrayElement(
-                imported_function_refs,
-                __ ChangeUint32ToUintPtr(func_index.value())));
-  V<TrustedFixedAddressArray> imported_targets = LOAD_PROTECTED_INSTANCE_FIELD(
-      trusted_instance_data, ImportedFunctionTargets, TrustedFixedAddressArray);
-  V<WordPtr> target =
-      func_index.is_constant()
-          ? __ Load(imported_targets, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::UintPtr(),
-                    TrustedFixedAddressArray::OffsetOfElementAt(
-                        func_index.constant_value()))
-          : __
-            Load(imported_targets, __ ChangeUint32ToUintPtr(func_index.value()),
-                 LoadOp::Kind::TaggedBase(), MemoryRepresentation::UintPtr(),
-                 TrustedFixedAddressArray::OffsetOfElementAt(0),
-                 kSystemPointerSizeLog2);
+  V<WasmDispatchTable> dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(
+      trusted_instance_data, DispatchTableForImports, WasmDispatchTable);
+  // Handle constant indexes specially to reduce graph size, even though later
+  // optimization would optimize this to the same result.
+  if (func_index.is_constant()) {
+    int offset = WasmDispatchTable::OffsetOf(func_index.constant_value());
+    V<WordPtr> target = __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
+                                MemoryRepresentation::UintPtr(),
+                                offset + WasmDispatchTable::kTargetBias);
+    V<ExposedTrustedObject> ref = V<ExposedTrustedObject>::Cast(
+        __ LoadProtectedPointerField(dispatch_table, LoadOp::Kind::TaggedBase(),
+                                     offset + WasmDispatchTable::kRefBias));
+    return {target, ref};
+  }
+
+  V<WordPtr> dispatch_table_entry_offset =
+      __ WordPtrMul(__ ChangeUint32ToUintPtr(func_index.value()),
+                    WasmDispatchTable::kEntrySize);
+  V<WordPtr> target = __ Load(
+      dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
+      MemoryRepresentation::UintPtr(),
+      WasmDispatchTable::kEntriesOffset + WasmDispatchTable::kTargetBias);
+  V<ExposedTrustedObject> ref =
+      V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+          dispatch_table, dispatch_table_entry_offset,
+          LoadOp::Kind::TaggedBase(),
+          WasmDispatchTable::kEntriesOffset + WasmDispatchTable::kRefBias, 0));
   return {target, ref};
 }
 

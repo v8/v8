@@ -200,9 +200,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
           Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
-PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, imported_function_targets,
-                            TrustedFixedAddressArray,
-                            kProtectedImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, hook_on_function_call_address,
@@ -234,13 +231,13 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
                    Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
-PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, imported_function_refs,
-                            ProtectedFixedArray,
-                            kProtectedImportedFunctionRefsOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
                             WasmDispatchTable, kProtectedDispatchTable0Offset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
                             ProtectedFixedArray, kProtectedDispatchTablesOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table_for_imports,
+                            WasmDispatchTable,
+                            kProtectedDispatchTableForImportsOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
 ACCESSORS(WasmTrustedInstanceData, func_refs, Tagged<FixedArray>,

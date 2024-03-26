@@ -7765,22 +7765,21 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
-      // Load the ref object (either a WasmTrustedInstanceData or a
-      // WasmApiFunctionRef).
-      Register imported_function_refs = imported_function_ref;
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(imported_function_refs,
-                                        ImportedFunctionRefs, pinned);
-      __ LoadProtectedPointer(
-          imported_function_ref, imported_function_refs,
-          ObjectAccess::ElementOffsetInProtectedFixedArray(imm.index));
+      {
+        SCOPED_CODE_COMMENT("Load ref and target for imported function");
+        Register dispatch_table = target;
+        LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table,
+                                          DispatchTableForImports, pinned);
+        __ LoadProtectedPointer(
+            imported_function_ref, dispatch_table,
+            ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
+                                   WasmDispatchTable::kRefBias));
 
-      Register imported_targets = target;
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(imported_targets,
-                                        ImportedFunctionTargets, pinned);
-      __ LoadFullPointer(
-          target, imported_targets,
-          wasm::ObjectAccess::ElementOffsetInTaggedTrustedFixedAddressArray(
-              imm.index));
+        __ LoadFullPointer(
+            target, dispatch_table,
+            ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
+                                   WasmDispatchTable::kTargetBias));
+      }
 
       __ PrepareCall(&sig, call_descriptor, &target, imported_function_ref);
       if (tail_call) {

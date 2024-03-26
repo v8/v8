@@ -2875,24 +2875,25 @@ Node* WasmGraphBuilder::BuildImportCall(
     base::Vector<Node*> rets, wasm::WasmCodePosition position, Node* func_index,
     IsReturnCall continuation, Node* frame_state) {
   // Load the imported function refs array from the instance.
-  Node* imported_function_refs =
-      LOAD_PROTECTED_INSTANCE_FIELD(ImportedFunctionRefs);
+  Node* dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(DispatchTableForImports);
   // Access fixed array at {header_size - tag + func_index * kTaggedSize}.
   Node* func_index_intptr = gasm_->BuildChangeUint32ToUintPtr(func_index);
-  Node* ref = gasm_->LoadProtectedFixedArrayElement(imported_function_refs,
-                                                    func_index_intptr);
+  Node* dispatch_table_entry_offset = gasm_->IntMul(
+      func_index_intptr, gasm_->IntPtrConstant(WasmDispatchTable::kEntrySize));
+  Node* ref = gasm_->LoadProtectedPointerFromObject(
+      dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                        WasmDispatchTable::kEntriesOffset +
+                        WasmDispatchTable::kRefBias))));
 
-  // Load the target from the imported_targets array at the offset of
-  // {func_index}.
-  Node* offset = gasm_->IntAdd(
-      gasm_->WordShl(func_index_intptr,
-                     gasm_->IntPtrConstant(kSystemPointerSizeLog2)),
-      gasm_->IntPtrConstant(
-          wasm::ObjectAccess::ToTagged(TrustedFixedAddressArray::kHeaderSize)));
-  Node* imported_targets =
-      LOAD_PROTECTED_INSTANCE_FIELD(ImportedFunctionTargets);
-  Node* target = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
-                                                imported_targets, offset);
+  Node* target = gasm_->LoadFromObject(
+      MachineType::Pointer(), dispatch_table,
+      gasm_->IntAdd(dispatch_table_entry_offset,
+                    gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                        WasmDispatchTable::kEntriesOffset +
+                        WasmDispatchTable::kTargetBias))));
+
   args[0] = target;
 
   switch (continuation) {
