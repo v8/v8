@@ -693,6 +693,11 @@ bool TryMatchLoadStoreShift(Arm64OperandGeneratorT<TurboshaftAdapter>* g,
                             InstructionOperand* shift_immediate_op) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   if (!selector->CanCover(node, index)) return false;
+  if (const ChangeOp* change =
+          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
+      change && selector->CanCover(index, change->input())) {
+    index = change->input();
+  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
   if (shift == nullptr) return false;
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;

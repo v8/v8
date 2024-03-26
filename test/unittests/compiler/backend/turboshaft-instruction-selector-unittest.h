@@ -13,6 +13,7 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -58,10 +59,35 @@ namespace v8::internal::compiler::turboshaft {
   V(Int32SubCheckOverflow)      \
   V(Int64SubCheckOverflow)      \
   V(Word32Equal)                \
+  V(Word64Equal)                \
+  V(Word32NotEqual)             \
+  V(Word64NotEqual)             \
   V(Int32LessThan)              \
   V(Int32LessThanOrEqual)       \
   V(Uint32LessThan)             \
-  V(Uint32LessThanOrEqual)
+  V(Uint32LessThanOrEqual)      \
+  V(Int32GreaterThanOrEqual)    \
+  V(Int32GreaterThan)           \
+  V(Uint32GreaterThanOrEqual)   \
+  V(Uint32GreaterThan)          \
+  V(Int64LessThan)              \
+  V(Int64LessThanOrEqual)       \
+  V(Uint64LessThan)             \
+  V(Uint64LessThanOrEqual)      \
+  V(Int64GreaterThanOrEqual)    \
+  V(Int64GreaterThan)           \
+  V(Uint64GreaterThanOrEqual)   \
+  V(Uint64GreaterThan)          \
+  V(Float64Add)                 \
+  V(Float64Sub)                 \
+  V(Float64Mul)                 \
+  V(Float64Div)                 \
+  V(Float64Equal)               \
+  V(Float64LessThan)            \
+  V(Float64LessThanOrEqual)     \
+  V(Float32Equal)               \
+  V(Float32LessThan)            \
+  V(Float32LessThanOrEqual)
 
 #define UNOP_LIST(V)          \
   V(ChangeFloat32ToFloat64)   \
@@ -83,7 +109,8 @@ enum class TSUnop { UNOP_LIST(DECL) };
 
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
-  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer>;
+  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer,
+                                    InstructionSelectionNormalizationReducer>;
 
   TurboshaftInstructionSelectorTest();
   ~TurboshaftInstructionSelectorTest() override;
@@ -211,6 +238,12 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           "iselect-test-call");
     }
 
+    static const TSCallDescriptor* MakeSimpleTSCallDescriptor(
+        Zone* zone, MachineSignature* msig) {
+      return TSCallDescriptor::Create(MakeSimpleCallDescriptor(zone, msig),
+                                      CanThrow::kYes, zone);
+    }
+
     CallDescriptor* call_descriptor() { return call_descriptor_; }
 
     OpIndex Emit(TSUnop op, OpIndex input) {
@@ -233,23 +266,62 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       }
     }
 
+    template <typename T>
+    V<T> Emit(TSBinop op, OpIndex left, OpIndex right) {
+      OpIndex result = Emit(op, left, right);
+      DCHECK_EQ(Get(result).outputs_rep().size(), 1);
+      DCHECK_EQ(Get(result).outputs_rep()[0], v_traits<T>::rep);
+      return V<T>::Cast(result);
+    }
+
     // Some helpers to have the same interface as the Turbofan instruction
     // selector test had.
     V<Word32> Int32Constant(int32_t c) { return Word32Constant(c); }
     V<Word64> Int64Constant(int64_t c) { return Word64Constant(c); }
-    V<Word32> Word32BinaryNot(V<Word32> a) {
-      return Word32Equal(a, Word32Constant(0));
-    }
+    V<Word32> Word32BinaryNot(V<Word32> a) { return Word32Equal(a, 0); }
+    V<Word32> Word32BitwiseNot(V<Word32> a) { return Word32BitwiseXor(a, -1); }
+    V<Word64> Word64BitwiseNot(V<Word64> a) { return Word64BitwiseXor(a, -1); }
     V<Word32> Word32NotEqual(V<Word32> a, V<Word32> b) {
       return Word32BinaryNot(Word32Equal(a, b));
     }
     V<Word32> Word64NotEqual(V<Word64> a, V<Word64> b) {
       return Word32BinaryNot(Word64Equal(a, b));
     }
+    V<Word32> Int32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+      return Int32LessThanOrEqual(b, a);
+    }
+    V<Word32> Uint32GreaterThanOrEqual(V<Word32> a, V<Word32> b) {
+      return Uint32LessThanOrEqual(b, a);
+    }
+    V<Word32> Int32GreaterThan(V<Word32> a, V<Word32> b) {
+      return Int32LessThan(b, a);
+    }
+    V<Word32> Uint32GreaterThan(V<Word32> a, V<Word32> b) {
+      return Uint32LessThan(b, a);
+    }
+    V<Word32> Int64GreaterThanOrEqual(V<Word64> a, V<Word64> b) {
+      return Int64LessThanOrEqual(b, a);
+    }
+    V<Word32> Uint64GreaterThanOrEqual(V<Word64> a, V<Word64> b) {
+      return Uint64LessThanOrEqual(b, a);
+    }
+    V<Word32> Int64GreaterThan(V<Word64> a, V<Word64> b) {
+      return Int64LessThan(b, a);
+    }
+    V<Word32> Uint64GreaterThan(V<Word64> a, V<Word64> b) {
+      return Uint64LessThan(b, a);
+    }
     using Assembler::Parameter;
     OpIndex Parameter(int index) {
       return Parameter(index, RegisterRepresentation::FromMachineType(
                                   call_descriptor()->GetParameterType(index)));
+    }
+    template <typename T>
+    V<T> Parameter(int index) {
+      RegisterRepresentation rep = RegisterRepresentation::FromMachineType(
+          call_descriptor()->GetParameterType(index));
+      DCHECK_EQ(rep, v_traits<T>::rep);
+      return Parameter(index, rep);
     }
     using Assembler::Phi;
     template <typename... Args,
@@ -288,6 +360,9 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       }
       DCHECK_LT(index, input_op.outputs_rep().size());
       return Projection(input, index, input_op.outputs_rep()[index]);
+    }
+    V<Undefined> UndefinedConstant() {
+      return HeapConstant(test_->isolate_->factory()->undefined_value());
     }
 
    private:

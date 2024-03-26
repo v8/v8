@@ -54,6 +54,19 @@ class InstructionSelectionNormalizationReducer : public Next {
     return Next::ReduceWordBinop(left, right, kind, rep);
   }
 
+  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
+                             ComparisonOp::Kind kind,
+                             RegisterRepresentation rep) {
+    if (ComparisonOp::IsCommutative(kind)) {
+      if (!IsSimpleConstant(right) && IsSimpleConstant(left)) {
+        std::swap(left, right);
+      } else if (!IsComplexConstant(right) && IsComplexConstant(left)) {
+        std::swap(left, right);
+      }
+    }
+    return Next::ReduceComparison(left, right, kind, rep);
+  }
+
  private:
   // Return true if {index} is a literal ConsantOp.
   bool IsSimpleConstant(OpIndex index) {
