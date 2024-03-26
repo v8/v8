@@ -135,7 +135,7 @@ struct WrapperCompilationInfo {
       wasm::ImportCallKind import_kind;
       int expected_arity;
       wasm::Suspend suspend;
-    } import_info;
+    } wasm_js_info;
   };
 };
 

@@ -285,14 +285,20 @@ void WasmGraphBuilderBase::BuildModifyThreadInWasmFlag(Zone* zone,
 OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
                                     ExternalReference ref,
                                     std::initializer_list<OpIndex> args) {
+  return WasmGraphBuilderBase::CallC(sig, __ ExternalConstant(ref), args);
+}
+
+OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
+                                    OpIndex function,
+                                    std::initializer_list<OpIndex> args) {
   DCHECK_LE(sig->return_count(), 1);
   DCHECK_EQ(sig->parameter_count(), args.size());
   const CallDescriptor* call_descriptor =
       compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
   const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
       call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-  return __ Call(__ ExternalConstant(ref), OpIndex::Invalid(),
-                 base::VectorOf(args), ts_call_descriptor);
+  return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
+                 ts_call_descriptor);
 }
 
 class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {

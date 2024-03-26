@@ -57,6 +57,7 @@
 #include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/late-escape-analysis.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
@@ -2955,8 +2956,12 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  WasmCallKind call_kind =
+      wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION
+          ? WasmCallKind::kWasmImportWrapper
+          : WasmCallKind::kWasmCapiFunction;
   CallDescriptor* call_descriptor =
-      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmImportWrapper);
+      GetWasmCallDescriptor(&zone, sig, call_kind);
   if (!Is64()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }

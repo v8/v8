@@ -106,6 +106,8 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args);
+  OpIndex CallC(const MachineSignature* sig, OpIndex function,
+                std::initializer_list<OpIndex> args);
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 OpIndex arg) {
     return CallC(sig, ref, {arg});

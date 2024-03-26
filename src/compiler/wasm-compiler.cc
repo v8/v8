@@ -8624,7 +8624,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
         env->module, sig,
         wasm::WrapperCompilationInfo{
             .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-            .import_info = {kind, expected_arity, suspend}},
+            .wasm_js_info = {kind, expected_arity, suspend}},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
   auto compile_with_turbofan = [&]() {
@@ -8679,30 +8679,43 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
                                            const wasm::FunctionSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmCapiFunction");
-
-  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-
-  SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
-
-  WasmWrapperGraphBuilder builder(
-      &zone, mcgraph, sig, native_module->module(),
-      WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_positions,
-      StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
-
-  builder.BuildCapiCallWrapper();
-
-  // Run the compiler pipeline to generate machine code.
-  CallDescriptor* call_descriptor =
-      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmCapiFunction);
-  if (mcgraph->machine()->Is32()) {
-    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
-  }
-
   const char* debug_name = "WasmCapiCall";
-  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
-      WasmStubAssemblerOptions(), source_positions);
+
+  auto compile_with_turboshaft = [&]() {
+    return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
+        native_module->module(), sig,
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION, {}},
+        debug_name, WasmStubAssemblerOptions(), nullptr);
+  };
+
+  auto compile_with_turbofan = [&]() {
+    Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME,
+              kCompressGraphZone);
+
+    SourcePositionTable* source_positions = nullptr;
+    MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
+
+    WasmWrapperGraphBuilder builder(
+        &zone, mcgraph, sig, native_module->module(),
+        WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_positions,
+        StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
+
+    builder.BuildCapiCallWrapper();
+
+    // Run the compiler pipeline to generate machine code.
+    CallDescriptor* call_descriptor =
+        GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmCapiFunction);
+    if (mcgraph->machine()->Is32()) {
+      call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
+    }
+
+    return Pipeline::GenerateCodeForWasmNativeStub(
+        call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
+        WasmStubAssemblerOptions(), source_positions);
+  };
+  wasm::WasmCompilationResult result = v8_flags.turboshaft_wasm_wrappers
+                                           ? compile_with_turboshaft()
+                                           : compile_with_turbofan();
   wasm::WasmCode* published_code;
   {
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
@@ -8786,7 +8799,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
             isolate, sig,
             wasm::WrapperCompilationInfo{
                 .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
-                .import_info = {kind, expected_arity, suspend}},
+                .wasm_js_info = {kind, expected_arity, suspend}},
             nullptr, std::move(name_buffer), WasmAssemblerOptions());
 
     // Compile the wrapper
