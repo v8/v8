@@ -4473,9 +4473,12 @@ void SourceGroup::ExecuteInThread() {
         InspectorClient inspector_client(isolate, global_context,
                                          Shell::options.enable_inspector);
         {
-          Local<Context> context = global_context.Get(isolate);
-          Context::Scope context_scope(context);
+          // We cannot use a Context::Scope here, as it keeps a local handle to
+          // the context and SourceGroup::Execute may execute a non-nestable
+          // task, e.g. a stackless GC.
+          global_context.Get(isolate)->Enter();
           Execute(isolate);
+          global_context.Get(isolate)->Exit();
         }
         Shell::FinishExecuting(isolate, global_context);
       }
@@ -5260,8 +5263,12 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
                                    options.enable_inspector);
   bool success = true;
   {
-    Context::Scope context_scope(global_context.Get(isolate));
+    // We cannot use a Context::Scope here, as it keeps a local handle to the
+    // context and SourceGroup::Execute may execute a non-nestable task, e.g. a
+    // stackless GC.
+    global_context.Get(isolate)->Enter();
     if (!options.isolate_sources[0].Execute(isolate)) success = false;
+    global_context.Get(isolate)->Exit();
   }
   if (!FinishExecuting(isolate, global_context)) success = false;
   WriteLcovData(isolate, options.lcov_file);
@@ -5379,8 +5386,13 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
 bool Shell::FinishExecuting(Isolate* isolate, const Global<Context>& context) {
   if (!CompleteMessageLoop(isolate)) return false;
   HandleScope scope(isolate);
-  Context::Scope context_scope(context.Get(isolate));
-  return HandleUnhandledPromiseRejections(isolate);
+  // We cannot use a Context::Scope here, as it keeps a local handle to the
+  // context and HandleUnhandledPromiseRejections may execute a non-nestable
+  // task, e.g. a stackless GC.
+  context.Get(isolate)->Enter();
+  bool result = HandleUnhandledPromiseRejections(isolate);
+  context.Get(isolate)->Exit();
+  return result;
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
