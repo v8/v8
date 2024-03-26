@@ -43,6 +43,7 @@
 #include "src/heap/marking-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-measurement-inl.h"
@@ -754,6 +755,9 @@ void MarkCompactCollector::Finish() {
         sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MC_SWEEP),
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
+    // Delay releasing empty new space pages and dead new large object pages
+    // until after pointer updating is done because dead old space objects may
+    // have slots pointing to these pages and will need to be updated.
     DCHECK_IMPLIES(!v8_flags.minor_ms,
                    empty_new_space_pages_to_be_swept_.empty());
     if (!empty_new_space_pages_to_be_swept_.empty()) {
@@ -5416,17 +5420,30 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   }
 }
 
+namespace {
+bool CanHaveOldToNewRefs(LargeObjectSpace* space) {
+  if (space->identity() == LO_SPACE) return true;
+  return false;
+}
+}  // namespace
+
 void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
+  // Delay releasing dead large object pages until after pointer updating is
+  // done because dead old space objects may have old-to-new slots (which
+  // were possibly later overriden with old-to-old references) that are
+  // pointing to these pages and will need to be updated.
+  const MemoryAllocator::FreeMode free_mode =
+      CanHaveOldToNewRefs(space) ? MemoryAllocator::FreeMode::kPostpone
+                                 : MemoryAllocator::FreeMode::kImmediately;
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
-      heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kPostpone,
-                                      current);
+      heap_->memory_allocator()->Free(free_mode, current);
 
       continue;
     }
