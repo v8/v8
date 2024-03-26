@@ -588,9 +588,12 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
 void BaselineAssembler::IncrementSmi(MemOperand lhs) {
   Register scratch = ip;
   if (SmiValuesAre31Bits()) {
-    __ LoadS32(scratch, lhs);
+    DCHECK(COMPRESS_POINTERS_BOOL);
+    DCHECK(lhs.rb() == fp || lhs.rx() == fp);
+    MemOperand addr = MemOperand(lhs.rx(), lhs.rb(), lhs.offset() + stack_bias);
+    __ LoadS32(scratch, addr);
     __ AddU32(scratch, Operand(Smi::FromInt(1)));
-    __ StoreU32(scratch, lhs);
+    __ StoreU32(scratch, addr);
   } else {
     __ SmiUntag(scratch, lhs);
     __ AddU64(scratch, Operand(1));
