@@ -2320,14 +2320,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   int parameter_count = static_cast<int>(sig->parameter_count());
   Handle<PodArray<wasm::ValueType>> serialized_sig =
       wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig);
-  Handle<Code> wrapper_code;
-    if (wasm::IsJSCompatibleSignature(sig)) {
-      wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToJSWrapper);
-    } else {
-      wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
-    }
-
   Factory* factory = isolate->factory();
 
   Handle<Map> rtt;
@@ -2352,26 +2344,29 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     canonical_rtts->Set(canonical_type_index, MakeWeak(*rtt));
   }
 
-  Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
-      callable, serialized_sig, wrapper_code, rtt, suspend, wasm::kNoPromise);
+  Handle<Code> js_to_js_wrapper_code =
+      wasm::IsJSCompatibleSignature(sig)
+          ? isolate->builtins()->code_handle(Builtin::kJSToJSWrapper)
+          : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
-  // WasmJSFunctions use on-heap Code objects as call targets, so we can't
-  // cache the target address, unless the WasmJSFunction wraps a
-  // WasmExportedFunction.
+  Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
+      callable, serialized_sig, js_to_js_wrapper_code, rtt, suspend,
+      wasm::kNoPromise);
+
+  // Now set the call_target or code object for calls from Wasm.
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     Address call_target =
         WasmExportedFunction::cast(*callable)->GetWasmCallTarget();
     function_data->internal(isolate)->set_call_target(call_target);
-  }
-
-  Handle<Code> wasm_to_js_wrapper_code;
-  if (!wasm::IsJSCompatibleSignature(sig)) {
-    wasm_to_js_wrapper_code =
-        isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperInvalidSig);
+  } else if (!wasm::IsJSCompatibleSignature(sig)) {
+    function_data->internal(isolate)->set_call_target(
+        isolate->builtin_entry_table()[Builtins::ToInt(
+            Builtin::kWasmToJsWrapperInvalidSig)]);
   } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        suspend)) {
-    wasm_to_js_wrapper_code =
-        isolate->builtins()->code_handle(Builtin::kWasmToJsWrapperAsm);
+    function_data->internal(isolate)->set_call_target(
+        isolate->builtin_entry_table()[Builtins::ToInt(
+            Builtin::kWasmToJsWrapperAsm)]);
   } else {
     int expected_arity = parameter_count - suspend;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -2387,15 +2382,20 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
     // signature instead of compiling a new one for every instantiation.
     if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
-      wasm_to_js_wrapper_code = handle(
-          isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm), isolate);
+      function_data->internal(isolate)->set_call_target(
+          isolate->builtin_entry_table()[Builtins::ToInt(
+              Builtin::kWasmToJsWrapperAsm)]);
     } else {
-      wasm_to_js_wrapper_code = compiler::CompileWasmToJSWrapper(
-                                    isolate, sig, kind, expected_arity, suspend)
-                                    .ToHandleChecked();
+      // The Code object can be moved during compaction, so do not store a
+      // call_target directly but load the target from the code object at
+      // runtime.
+      Handle<Code> wrapper_code =
+          compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
+                                           suspend)
+              .ToHandleChecked();
+      function_data->internal(isolate)->set_code(*wrapper_code);
     }
   }
-  function_data->internal(isolate)->set_code(*wasm_to_js_wrapper_code);
 
   Handle<String> name = factory->Function_string();
   if (IsJSFunction(*callable)) {
