@@ -92,9 +92,8 @@ v8_builder(
     service_account = V8_AUTOROLL_ACCOUNT,
     properties = {
         "config": {
+            "allowed_lag": 7,
             "allowed_gap": 150,
-            "allowed_lag": 4,
-            "project": "v8",
             "source_url": "https://chromium.googlesource.com/v8/v8",
             "status_url": "https://v8-status.appspot.com",
             "monkeypatch_rev_map": {
@@ -125,8 +124,6 @@ v8_builder(
         "repo": "https://chromium.googlesource.com/v8/v8",
         "ref": "refs/heads/lkgr",
         "lkgr_status_gs_path": "chromium-v8/lkgr-status",
-        # 10x9 h is the allowed lag in low commit periods (e.g. weekends)
-        "allowed_lag": 4,
         "src_ref": "refs/heads/main",
     },
     schedule = "2/6 * * * *",
