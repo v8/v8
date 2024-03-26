@@ -176,16 +176,15 @@ TEST(MutablePageMetadata) {
     VirtualMemory code_range_reservation(
         page_allocator, code_range_size, nullptr,
         MemoryChunk::GetAlignmentForAllocation(),
-        jitless ? PageAllocator::Permission::kNoAccess
-                : PageAllocator::Permission::kNoAccessWillJitLater);
+        jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable);
 
-    base::PageInitializationMode page_initialization_mode =
-        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized;
     base::PageFreeingMode page_freeing_mode =
         base::PageFreeingMode::kMakeInaccessible;
 
-    if (!jitless) {
-      page_initialization_mode = base::PageInitializationMode::kRecommitOnly;
+    // On MacOS on ARM64 the code range reservation must be committed as RWX.
+    if ((V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+         V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT) &&
+        !jitless) {
       page_freeing_mode = base::PageFreeingMode::kDiscard;
       void* base = reinterpret_cast<void*>(code_range_reservation.address());
       CHECK(page_allocator->SetPermissions(base, code_range_size,
@@ -198,7 +197,8 @@ TEST(MutablePageMetadata) {
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::GetAlignmentForAllocation(),
-        page_initialization_mode, page_freeing_mode);
+        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+        page_freeing_mode);
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
                       EXECUTABLE, PageSize::kLarge, heap->code_lo_space());

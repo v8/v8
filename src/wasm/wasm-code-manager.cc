@@ -1885,6 +1885,8 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() {
 #endif  // V8_OS_WIN64
 
 void WasmCodeManager::Commit(base::AddressRegion region) {
+  // TODO(v8:8462): Remove eager commit once perf supports remapping.
+  if (v8_flags.perf_prof) return;
   DCHECK(IsAligned(region.begin(), CommitPageSize()));
   DCHECK(IsAligned(region.size(), CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
@@ -1906,12 +1908,32 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
       break;
     }
   }
+  // Allocate with RWX permissions; this will be restricted via PKU if
+  // available and enabled.
+  PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
-  TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
-             region.begin(), region.end());
-  bool success = GetPlatformPageAllocator()->RecommitPages(
-      reinterpret_cast<void*>(region.begin()), region.size(),
-      PageAllocator::kReadWriteExecute);
+  bool success = false;
+  if (MemoryProtectionKeysEnabled()) {
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+    TRACE_HEAP(
+        "Setting rwx permissions and memory protection key for 0x%" PRIxPTR
+        ":0x%" PRIxPTR "\n",
+        region.begin(), region.end());
+    if (ThreadIsolation::Enabled()) {
+      success = ThreadIsolation::MakeExecutable(region.begin(), region.size());
+    } else {
+      success = base::MemoryProtectionKey::SetPermissionsAndKey(
+          region, permission, RwxMemoryWriteScope::memory_protection_key());
+    }
+#else
+    UNREACHABLE();
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+  } else {
+    TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+               region.begin(), region.end());
+    success = SetPermissions(GetPlatformPageAllocator(), region.begin(),
+                             region.size(), permission);
+  }
 
   if (V8_UNLIKELY(!success)) {
     auto oom_detail = base::FormattedString{} << "region size: "
@@ -1923,6 +1945,8 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 }
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
+  // TODO(v8:8462): Remove this once perf supports remapping.
+  if (v8_flags.perf_prof) return;
   PageAllocator* allocator = GetPlatformPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
@@ -1959,31 +1983,18 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!v8_flags.jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
-                    PageAllocator::Permission::kNoAccessWillJitLater);
+                    JitPermission::kMapAsJittable);
   if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
-  if (MemoryProtectionKeysEnabled()) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    if (ThreadIsolation::Enabled()) {
-      CHECK(ThreadIsolation::MakeExecutable(mem.address(), mem.size()));
-    } else {
-      CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
-          mem.region(), PageAllocator::kReadWriteExecute,
-          RwxMemoryWriteScope::memory_protection_key()));
-    }
-#else
-    UNREACHABLE();
-#endif
-  } else {
-    CHECK(SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
-                         PageAllocator::kReadWriteExecute));
-  }
-  page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
-                                     mem.size());
 
   ThreadIsolation::RegisterJitPage(mem.address(), mem.size());
 
+  // TODO(v8:8462): Remove eager commit once perf supports remapping.
+  if (v8_flags.perf_prof) {
+    SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+                   PageAllocator::kReadWriteExecute);
+  }
   return mem;
 }
 
@@ -2487,9 +2498,12 @@ void WasmCodeManager::FreeNativeModule(
   }
 
   DCHECK(IsAligned(committed_size, CommitPageSize()));
-  [[maybe_unused]] size_t old_committed =
-      total_committed_code_space_.fetch_sub(committed_size);
-  DCHECK_LE(committed_size, old_committed);
+  // TODO(v8:8462): Remove this once perf supports remapping.
+  if (!v8_flags.perf_prof) {
+    [[maybe_unused]] size_t old_committed =
+        total_committed_code_space_.fetch_sub(committed_size);
+    DCHECK_LE(committed_size, old_committed);
+  }
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {

@@ -131,8 +131,7 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
                                 PageType page_type) {
   int flags = MAP_ANONYMOUS;
   flags |= (page_type == PageType::kShared) ? MAP_SHARED : MAP_PRIVATE;
-  if (access == OS::MemoryPermission::kNoAccess ||
-      access == OS::MemoryPermission::kNoAccessWillJitLater) {
+  if (access == OS::MemoryPermission::kNoAccess) {
 #if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
     flags |= MAP_NORESERVE;
 #endif  // !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
@@ -145,8 +144,7 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
   // hardened runtime/memory protection is enabled, which is optional (via code
   // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
   // https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon.
-  if (access == OS::MemoryPermission::kNoAccessWillJitLater ||
-      access == OS::MemoryPermission::kReadWriteExecute) {
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
     flags |= MAP_JIT;
   }
 #endif  // V8_OS_DARWIN
@@ -541,8 +539,10 @@ bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
 #if defined(V8_OS_DARWIN)
   while (madvise(address, size, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
   }
-#endif  // defined(V8_OS_DARWIN)
   return true;
+#else
+  return SetPermissions(address, size, access);
+#endif  // defined(V8_OS_DARWIN)
 }
 
 // static

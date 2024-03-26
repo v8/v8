@@ -38,13 +38,10 @@ struct PtrComprCageReservationParams
     // If external code space is not enabled then executable pages (e.g. copied
     // builtins, and JIT pages) will fall under the pointer compression range.
     // Under Fuchsia that means the entire range must be allocated as JITtable.
-    permissions = PageAllocator::Permission::kNoAccessWillJitLater;
+    jit = JitPermission::kMapAsJittable;
 #else
-    permissions = PageAllocator::Permission::kNoAccess;
+    jit = JitPermission::kNoJit;
 #endif
-    page_initialization_mode =
-        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized;
-    page_freeing_mode = base::PageFreeingMode::kMakeInaccessible;
   }
 };
 #endif  // V8_COMPRESS_POINTERS

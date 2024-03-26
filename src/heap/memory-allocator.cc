@@ -141,12 +141,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
   v8::PageAllocator* page_allocator = this->page_allocator(space);
   DCHECK_LT(area_size, chunk_size);
 
-  PageAllocator::Permission permissions =
-      executable == EXECUTABLE
-          ? MutablePageMetadata::GetCodeModificationPermission()
-          : PageAllocator::kReadWrite;
-  VirtualMemory reservation(page_allocator, chunk_size, hint, alignment,
-                            permissions);
+  VirtualMemory reservation(page_allocator, chunk_size, hint, alignment);
   if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
 
   // We cannot use the last chunk in the address space because we would
@@ -158,8 +153,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     CHECK(reserved_chunk_at_virtual_memory_limit_);
 
     // Retry reserve virtual memory.
-    reservation =
-        VirtualMemory(page_allocator, chunk_size, hint, alignment, permissions);
+    reservation = VirtualMemory(page_allocator, chunk_size, hint, alignment);
     if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
   }
 
@@ -167,8 +161,17 @@ Address MemoryAllocator::AllocateAlignedMemory(
 
   if (executable == EXECUTABLE) {
     ThreadIsolation::RegisterJitPage(base, chunk_size);
+    if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base,
+                                               chunk_size)) {
+      ThreadIsolation::UnregisterJitPage(base, chunk_size);
+      return HandleAllocationFailure(EXECUTABLE);
+    }
+  } else {
+    if (!reservation.SetPermissions(base, chunk_size,
+                                    PageAllocator::kReadWrite)) {
+      return HandleAllocationFailure(NOT_EXECUTABLE);
+    }
   }
-
   UpdateAllocatedSpaceLimits(base, base + chunk_size, executable);
 
   *controller = std::move(reservation);
@@ -563,15 +566,23 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   DCHECK(IsAligned(start, GetCommitPageSize()));
   DCHECK_EQ(0, chunk_size % GetCommitPageSize());
 
-  if (isolate_->RequiresCodeRange()) {
-    // The pages of the code range are already mapped RWX, we just need to
-    // recommit them.
+  bool jitless = isolate_->jitless();
+
+  if ((V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+       V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT) &&
+      !jitless) {
+    DCHECK(isolate_->RequiresCodeRange());
     return vm->RecommitPages(start, chunk_size,
                              PageAllocator::kReadWriteExecute);
+  } else if (ThreadIsolation::Enabled()) {
+    DCHECK(!jitless);
+
+    return ThreadIsolation::MakeExecutable(start, chunk_size);
   } else {
     return vm->SetPermissions(
         start, chunk_size,
-        MutablePageMetadata::GetCodeModificationPermission());
+        jitless ? PageAllocator::kReadWrite
+                : MutablePageMetadata::GetCodeModificationPermission());
   }
 }
 
