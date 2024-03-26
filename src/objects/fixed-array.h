@@ -972,36 +972,29 @@ class ExternalPointerArray : public FixedArrayBase {
   OBJECT_CONSTRUCTORS(ExternalPointerArray, FixedArrayBase);
 };
 
-// Wrapper class for ByteArray which can store arbitrary C++ classes, as long
-// as they can be copied with memcpy.
-template <class T>
-class PodArray : public ByteArray {
+template <class T, class Super>
+class PodArrayBase : public Super {
  public:
-  static Handle<PodArray<T>> New(
-      Isolate* isolate, int length,
-      AllocationType allocation = AllocationType::kYoung);
-  static Handle<PodArray<T>> New(
-      LocalIsolate* isolate, int length,
-      AllocationType allocation = AllocationType::kOld);
-
   void copy_out(int index, T* result, int length) {
-    MemCopy(result, AddressOfElementAt(index * sizeof(T)), length * sizeof(T));
+    MemCopy(result, Super::AddressOfElementAt(index * sizeof(T)),
+            length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
-    MemCopy(AddressOfElementAt(index * sizeof(T)), buffer, length * sizeof(T));
+    MemCopy(Super::AddressOfElementAt(index * sizeof(T)), buffer,
+            length * sizeof(T));
   }
 
   bool matches(const T* buffer, int length) {
     DCHECK_LE(length, this->length());
-    return memcmp(begin(), buffer, length * sizeof(T)) == 0;
+    return memcmp(Super::begin(), buffer, length * sizeof(T)) == 0;
   }
 
   bool matches(int offset, const T* buffer, int length) {
     DCHECK_LE(offset, this->length());
     DCHECK_LE(offset + length, this->length());
-    return memcmp(begin() + sizeof(T) * offset, buffer, length * sizeof(T)) ==
-           0;
+    return memcmp(Super::begin() + sizeof(T) * offset, buffer,
+                  length * sizeof(T)) == 0;
   }
 
   T get(int index) {
@@ -1013,9 +1006,34 @@ class PodArray : public ByteArray {
   void set(int index, const T& value) { copy_in(index, &value, 1); }
 
   inline int length() const;
-  DECL_CAST(PodArray<T>)
 
-  OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
+  OBJECT_CONSTRUCTORS(PodArrayBase, Super);
+};
+
+// Wrapper class for ByteArray which can store arbitrary C++ classes, as long
+// as they can be copied with memcpy.
+template <class T>
+class PodArray : public PodArrayBase<T, ByteArray> {
+ public:
+  static Handle<PodArray<T>> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+  static Handle<PodArray<T>> New(
+      LocalIsolate* isolate, int length,
+      AllocationType allocation = AllocationType::kOld);
+
+  DECL_CAST(PodArray<T>)
+  OBJECT_CONSTRUCTORS(PodArray<T>, PodArrayBase<T, ByteArray>);
+};
+
+template <class T>
+class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
+ public:
+  static Handle<TrustedPodArray<T>> New(Isolate* isolate, int length);
+  static Handle<TrustedPodArray<T>> New(LocalIsolate* isolate, int length);
+
+  DECL_CAST(TrustedPodArray<T>)
+  OBJECT_CONSTRUCTORS(TrustedPodArray<T>, PodArrayBase<T, TrustedByteArray>);
 };
 
 }  // namespace internal

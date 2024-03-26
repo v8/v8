@@ -1066,11 +1066,13 @@ Handle<ExternalPointerArray> ExternalPointerArray::New(
   return isolate->factory()->NewExternalPointerArray(length, allocation);
 }
 
-template <class T>
-PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
+template <class T, class Super>
+int PodArrayBase<T, Super>::length() const {
+  return Super::length() / sizeof(T);
+}
 
-template <class T>
-CAST_ACCESSOR(PodArray<T>)
+template <class T, class Super>
+PodArrayBase<T, Super>::PodArrayBase(Address ptr) : Super(ptr) {}
 
 // static
 template <class T>
@@ -1093,9 +1095,37 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 }
 
 template <class T>
-int PodArray<T>::length() const {
-  return ByteArray::length() / sizeof(T);
+PodArray<T>::PodArray(Address ptr) : PodArrayBase<T, ByteArray>(ptr) {}
+
+template <class T>
+CAST_ACCESSOR(PodArray<T>)
+
+// static
+template <class T>
+Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
+                                                   int length) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Handle<TrustedPodArray<T>>::cast(
+      isolate->factory()->NewTrustedByteArray(byte_length));
 }
+
+// static
+template <class T>
+Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
+                                                   int length) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Handle<TrustedPodArray<T>>::cast(
+      isolate->factory()->NewTrustedByteArray(byte_length));
+}
+
+template <class T>
+TrustedPodArray<T>::TrustedPodArray(Address ptr)
+    : PodArrayBase<T, TrustedByteArray>(ptr) {}
+
+template <class T>
+CAST_ACCESSOR(TrustedPodArray<T>)
 
 }  // namespace internal
 }  // namespace v8
