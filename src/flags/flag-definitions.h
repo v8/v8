@@ -1436,9 +1436,9 @@ DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_BOOL(wasm_native_module_cache_enabled, true,
             "enable the native module cache")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_wasm_wrappers,
-    "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
+DEFINE_BOOL(turboshaft_wasm_wrappers, false,
+            "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
+DEFINE_IMPLICATION(turboshaft_wasm, turboshaft_wasm_wrappers)
 // The actual value used at runtime is clamped to kV8MaxWasmMemory{32,64}Pages.
 DEFINE_UINT(wasm_max_mem_pages, kMaxUInt32,
             "maximum number of 64KiB memory pages per wasm memory")
