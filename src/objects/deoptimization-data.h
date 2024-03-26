@@ -18,7 +18,7 @@ namespace internal {
 
 // This class holds data required during deoptimization. It does not have its
 // own instance type.
-class DeoptimizationLiteralArray : public WeakFixedArray {
+class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
  public:
   // Getters for literals. These include runtime checks that the pointer was not
   // cleared, if the literal was held weakly.
@@ -35,7 +35,7 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
 
   DECL_CAST(DeoptimizationLiteralArray)
 
-  OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, WeakFixedArray);
+  OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, TrustedWeakFixedArray);
 };
 
 // The DeoptimizationFrameTranslation is the on-heap representation of
@@ -43,7 +43,7 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
 // DeoptimizationFrameTranslationBuilder. The translation specifies how to
 // transform an optimized frame back into one or more unoptimized frames.
 enum class TranslationOpcode;
-class DeoptimizationFrameTranslation : public ByteArray {
+class DeoptimizationFrameTranslation : public TrustedByteArray {
  public:
   DECL_CAST(DeoptimizationFrameTranslation)
 
@@ -65,13 +65,16 @@ class DeoptimizationFrameTranslation : public ByteArray {
   static constexpr int kDeoptimizationFrameTranslationElementSize = kInt32Size;
 #endif  // V8_USE_ZLIB
 
+  inline uint32_t get_int(int offset) const;
+  inline void set_int(int offset, uint32_t value);
+
 #ifdef ENABLE_DISASSEMBLER
   void PrintFrameTranslation(
       std::ostream& os, int index,
       Tagged<DeoptimizationLiteralArray> literal_array) const;
 #endif
 
-  OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, ByteArray);
+  OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, TrustedByteArray);
 };
 
 class DeoptimizationFrameTranslation::Iterator {
@@ -123,7 +126,7 @@ class DeoptimizationFrameTranslation::Iterator {
 // the literal array will contain these functions.
 //
 // It can be empty.
-class DeoptimizationData : public TrustedFixedArray {
+class DeoptimizationData : public ProtectedFixedArray {
  public:
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
@@ -132,7 +135,7 @@ class DeoptimizationData : public TrustedFixedArray {
   static const int kOsrBytecodeOffsetIndex = 3;
   static const int kOsrPcOffsetIndex = 4;
   static const int kOptimizationIdIndex = 5;
-  static const int kSharedFunctionInfoIndex = 6;
+  static const int kSharedFunctionInfoWrapperIndex = 6;
   static const int kInliningPositionsIndex = 7;
   static const int kDeoptExitStartIndex = 8;
   static const int kEagerDeoptCountIndex = 9;
@@ -162,13 +165,16 @@ class DeoptimizationData : public TrustedFixedArray {
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, Tagged<PodArray<InliningPosition>>)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfoWrapper, Tagged<Object>)
+  DECL_ELEMENT_ACCESSORS(InliningPositions,
+                         Tagged<TrustedPodArray<InliningPosition>>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(EagerDeoptCount, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(LazyDeoptCount, Tagged<Smi>)
 
 #undef DECL_ELEMENT_ACCESSORS
+
+  inline Tagged<Object> SharedFunctionInfo() const;
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
@@ -228,7 +234,7 @@ class DeoptimizationData : public TrustedFixedArray {
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
-  OBJECT_CONSTRUCTORS(DeoptimizationData, TrustedFixedArray);
+  OBJECT_CONSTRUCTORS(DeoptimizationData, ProtectedFixedArray);
 };
 
 }  // namespace internal

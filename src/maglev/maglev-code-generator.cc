@@ -1843,6 +1843,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   Handle<DeoptimizationFrameTranslation> translations =
       frame_translation_builder_.ToFrameTranslation(local_isolate->factory());
+
+  Handle<SharedFunctionInfoWrapper> sfi_wrapper =
+      local_isolate->factory()->NewSharedFunctionInfoWrapper(
+          code_gen_state_.compilation_info()
+              ->toplevel_compilation_unit()
+              ->shared_function_info()
+              .object());
+
   {
     DisallowGarbageCollection no_gc;
     Tagged<DeoptimizationData> raw_data = *data;
@@ -1856,11 +1864,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
     raw_data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
     raw_data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
-
-    raw_data->SetSharedFunctionInfo(*code_gen_state_.compilation_info()
-                                         ->toplevel_compilation_unit()
-                                         ->shared_function_info()
-                                         .object());
+    raw_data->SetSharedFunctionInfoWrapper(*sfi_wrapper);
   }
 
   int inlined_functions_size =
@@ -1868,9 +1872,9 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   Handle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
           deopt_literals_.size() + inlined_functions_size + 1);
-  Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size,
-                                      AllocationType::kOld);
+  Handle<TrustedPodArray<InliningPosition>> inlining_positions =
+      TrustedPodArray<InliningPosition>::New(local_isolate,
+                                             inlined_functions_size);
 
   DisallowGarbageCollection no_gc;
 

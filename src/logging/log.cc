@@ -1399,7 +1399,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   msg << V8FileLogger::kNext;
   int maxInlinedId = -1;
   if (hasInlined) {
-    Tagged<PodArray<InliningPosition>> inlining_positions =
+    Tagged<TrustedPodArray<InliningPosition>> inlining_positions =
         DeoptimizationData::cast(
             Handle<Code>::cast(code)->deoptimization_data())
             ->InliningPositions();

@@ -317,14 +317,14 @@ template <typename Impl>
 Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
   return Handle<DeoptimizationLiteralArray>::cast(
-      NewWeakFixedArray(length, AllocationType::kOld));
+      NewTrustedWeakFixedArray(length));
 }
 
 template <typename Impl>
 Handle<DeoptimizationFrameTranslation>
 FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
   return Handle<DeoptimizationFrameTranslation>::cast(
-      NewByteArray(length, AllocationType::kOld));
+      NewTrustedByteArray(length));
 }
 
 template <typename Impl>

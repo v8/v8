@@ -108,7 +108,6 @@ PROTECTED_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline, Code,
                             kInterpreterTrampolineOffset)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info,
                           Tagged<Object>, kNameOrScopeInfoOffset)
