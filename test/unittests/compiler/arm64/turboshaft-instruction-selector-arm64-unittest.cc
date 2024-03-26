@@ -1965,7 +1965,7 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          ::testing::ValuesIn(kShiftInstructions));
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
-  TRACED_FORRANGE(int64_t, x, 32, 63) {
+  TRACED_FORRANGE(int32_t, x, 32, 63) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
     OpIndex const p0 = m.Parameter(0);
     OpIndex const n =
@@ -1983,7 +1983,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64ShlWithChangeUint32ToUint64) {
-  TRACED_FORRANGE(int64_t, x, 32, 63) {
+  TRACED_FORRANGE(int32_t, x, 32, 63) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Uint32());
     OpIndex const p0 = m.Parameter(0);
     OpIndex const n =
@@ -2017,7 +2017,7 @@ TEST_F(TurboshaftInstructionSelectorTest, TruncateWord64ToWord32WithWord64Sar) {
 
 TEST_F(TurboshaftInstructionSelectorTest,
        TruncateWord64ToWord32WithWord64ShiftRightLogical) {
-  TRACED_FORRANGE(int64_t, x, 32, 63) {
+  TRACED_FORRANGE(int32_t, x, 32, 63) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
     OpIndex const p = m.Parameter(0);
     OpIndex const t = m.TruncateWord64ToWord32(
@@ -4906,7 +4906,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
        Word64AndWithImmediateWithWord64ShiftRightLogical) {
   // The available shift operand range is `0 <= imm < 64`, but we also test
   // that immediates outside this range are handled properly (modulo-64).
-  TRACED_FORRANGE(int64_t, shift, -64, 127) {
+  TRACED_FORRANGE(int32_t, shift, -64, 127) {
     int64_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (uint64_t{1} << width) - 1;
@@ -4923,7 +4923,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
       EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int64_t, shift, -64, 127) {
+  TRACED_FORRANGE(int32_t, shift, -64, 127) {
     int64_t lsb = shift & 0x3F;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (uint64_t{1} << width) - 1;
