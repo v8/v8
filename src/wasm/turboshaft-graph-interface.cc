@@ -3100,19 +3100,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       OpType op_type;
       // Initialize with a default value, to allow constexpr constructors.
       Binop bin_op = Binop::kAdd;
-      RegisterRepresentation result_rep;
-      MemoryRepresentation input_rep;
+      RegisterRepresentation in_out_rep;
+      MemoryRepresentation memory_rep;
 
-      constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation result_rep,
-                             MemoryRepresentation input_rep)
+      constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation in_out_rep,
+                             MemoryRepresentation memory_rep)
           : op_type(kBinop),
             bin_op(bin_op),
-            result_rep(result_rep),
-            input_rep(input_rep) {}
+            in_out_rep(in_out_rep),
+            memory_rep(memory_rep) {}
 
-      constexpr AtomicOpInfo(OpType op_type, RegisterRepresentation result_rep,
-                             MemoryRepresentation input_rep)
-          : op_type(op_type), result_rep(result_rep), input_rep(input_rep) {}
+      constexpr AtomicOpInfo(OpType op_type, RegisterRepresentation in_out_rep,
+                             MemoryRepresentation memory_rep)
+          : op_type(op_type), in_out_rep(in_out_rep), memory_rep(memory_rep) {}
 
       static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
         switch (opcode) {
@@ -3214,7 +3214,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;
     std::tie(index, bounds_check_result) =
-        BoundsCheckMem(imm.memory, info.input_rep, args[0].op, imm.offset,
+        BoundsCheckMem(imm.memory, info.memory_rep, args[0].op, imm.offset,
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
                        compiler::AlignmentCheck::kYes);
     // MemoryAccessKind::kUnaligned is impossible due to explicit aligment
@@ -3228,46 +3228,47 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (info.bin_op == Binop::kCompareExchange) {
         result->op = __ AtomicCompareExchange(
             MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
-            args[2].op, info.result_rep, info.input_rep, access_kind);
+            args[2].op, info.in_out_rep, info.memory_rep, access_kind);
         return;
       }
       result->op = __ AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
-                                args[1].op, info.bin_op, info.result_rep,
-                                info.input_rep, access_kind);
+                                args[1].op, info.bin_op, info.in_out_rep,
+                                info.memory_rep, access_kind);
       return;
     }
     if (info.op_type == kStore) {
       OpIndex value = args[1].op;
-      if (info.result_rep == RegisterRepresentation::Word64() &&
-          info.input_rep != MemoryRepresentation::Uint64()) {
+      if (info.in_out_rep == RegisterRepresentation::Word64() &&
+          info.memory_rep != MemoryRepresentation::Uint64()) {
         value = __ TruncateWord64ToWord32(value);
       }
 #ifdef V8_TARGET_BIG_ENDIAN
       // Reverse the value bytes before storing.
-      DCHECK(info.result_rep == RegisterRepresentation::Word32() ||
-             info.result_rep == RegisterRepresentation::Word64());
+      DCHECK(info.in_out_rep == RegisterRepresentation::Word32() ||
+             info.in_out_rep == RegisterRepresentation::Word64());
       wasm::ValueType wasm_type =
-          info.result_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+          info.in_out_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
                                                               : wasm::kWasmI64;
       value = BuildChangeEndiannessStore(
-          value, info.input_rep.ToMachineType().representation(), wasm_type);
+          value, info.memory_rep.ToMachineType().representation(), wasm_type);
 #endif
       __ Store(MemBuffer(imm.memory->index, imm.offset), index, value,
                access_kind == MemoryAccessKind::kProtected
                    ? LoadOp::Kind::Protected().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
-               info.input_rep, compiler::kNoWriteBarrier);
+               info.memory_rep, compiler::kNoWriteBarrier);
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);
-    RegisterRepresentation loaded_value_rep = info.result_rep;
+    RegisterRepresentation loaded_value_rep = info.in_out_rep;
 #if V8_TARGET_BIG_ENDIAN
     // Do not sign-extend / zero-extend the value to 64 bits as the bytes need
     // to be reversed first to keep little-endian load / store semantics. Still
     // extend for 1 byte loads as it doesn't require reversing any bytes.
     bool needs_zero_extension_64 = false;
-    if (info.result_rep == RegisterRepresentation::Word64() &&
-        info.input_rep.SizeInBytes() < 8 && info.input_rep.SizeInBytes() != 1) {
+    if (info.in_out_rep == RegisterRepresentation::Word64() &&
+        info.memory_rep.SizeInBytes() < 8 &&
+        info.memory_rep.SizeInBytes() != 1) {
       needs_zero_extension_64 = true;
       loaded_value_rep = RegisterRepresentation::Word32();
     }
@@ -3276,17 +3277,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          access_kind == MemoryAccessKind::kProtected
                              ? LoadOp::Kind::Protected().Atomic()
                              : LoadOp::Kind::RawAligned().Atomic(),
-                         info.input_rep, loaded_value_rep);
+                         info.memory_rep, loaded_value_rep);
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.
-    DCHECK(info.result_rep == RegisterRepresentation::Word32() ||
-           info.result_rep == RegisterRepresentation::Word64());
+    DCHECK(info.in_out_rep == RegisterRepresentation::Word32() ||
+           info.in_out_rep == RegisterRepresentation::Word64());
     wasm::ValueType wasm_type =
-        info.result_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+        info.in_out_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
                                                             : wasm::kWasmI64;
     result->op = BuildChangeEndiannessLoad(
-        result->op, info.input_rep.ToMachineType(), wasm_type);
+        result->op, info.memoy_rep.ToMachineType(), wasm_type);
 
     if (needs_zero_extension_64) {
       result->op = __ ChangeUint32ToUint64(result->op);

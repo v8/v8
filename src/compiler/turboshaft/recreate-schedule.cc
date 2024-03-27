@@ -993,9 +993,10 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   V(Exchange)            \
   V(CompareExchange)
 
-  AtomicOpParameters param(op.input_rep.ToMachineType(), op.memory_access_kind);
+  AtomicOpParameters param(op.memory_rep.ToMachineType(),
+                           op.memory_access_kind);
   const Operator* node_op;
-  if (op.result_rep == RegisterRepresentation::Word32()) {
+  if (op.in_out_rep == RegisterRepresentation::Word32()) {
     switch (op.bin_op) {
 #define CASE(Name)                               \
   case AtomicRMWOp::BinOp::k##Name:              \
@@ -1005,7 +1006,7 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
 #undef CASE
     }
   } else {
-    DCHECK_EQ(op.result_rep, RegisterRepresentation::Word64());
+    DCHECK_EQ(op.in_out_rep, RegisterRepresentation::Word64());
     switch (op.bin_op) {
 #define CASE(Name)                               \
   case AtomicRMWOp::BinOp::k##Name:              \

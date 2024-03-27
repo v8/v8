@@ -2138,12 +2138,12 @@ class TurboshaftAssemblerOpInterface
 
   OpIndex AtomicRMW(V<WordPtr> base, V<WordPtr> index, OpIndex value,
                     AtomicRMWOp::BinOp bin_op,
-                    RegisterRepresentation result_rep,
-                    MemoryRepresentation input_rep,
+                    RegisterRepresentation in_out_rep,
+                    MemoryRepresentation memory_rep,
                     MemoryAccessKind memory_access_kind) {
     DCHECK_NE(bin_op, AtomicRMWOp::BinOp::kCompareExchange);
     return ReduceIfReachableAtomicRMW(base, index, value, OpIndex::Invalid(),
-                                      bin_op, result_rep, input_rep,
+                                      bin_op, in_out_rep, memory_rep,
                                       memory_access_kind);
   }
 

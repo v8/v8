@@ -2808,8 +2808,8 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     kCompareExchange
   };
   BinOp bin_op;
-  RegisterRepresentation result_rep;
-  MemoryRepresentation input_rep;
+  RegisterRepresentation in_out_rep;
+  MemoryRepresentation memory_rep;
   MemoryAccessKind memory_access_kind;
   OpEffects Effects() const {
     OpEffects effects =
@@ -2821,7 +2821,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&result_rep, 1);
+    return base::VectorOf(&in_out_rep, 1);
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -2829,11 +2829,11 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
     if (bin_op == BinOp::kCompareExchange) {
       return InitVectorOf(
           storage, {RegisterRepresentation::WordPtr(),
-                    RegisterRepresentation::WordPtr(), result_rep, result_rep});
+                    RegisterRepresentation::WordPtr(), in_out_rep, in_out_rep});
     }
     return InitVectorOf(storage,
                         {RegisterRepresentation::WordPtr(),
-                         RegisterRepresentation::WordPtr(), result_rep});
+                         RegisterRepresentation::WordPtr(), in_out_rep});
   }
 
   V<WordPtr> base() const { return input<WordPtr>(0); }
@@ -2849,12 +2849,12 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
 
   AtomicRMWOp(OpIndex base, OpIndex index, OpIndex value,
               OptionalOpIndex expected, BinOp bin_op,
-              RegisterRepresentation result_rep, MemoryRepresentation input_rep,
-              MemoryAccessKind kind)
+              RegisterRepresentation in_out_rep,
+              MemoryRepresentation memory_rep, MemoryAccessKind kind)
       : Base(3 + expected.valid()),
         bin_op(bin_op),
-        result_rep(result_rep),
-        input_rep(input_rep),
+        in_out_rep(in_out_rep),
+        memory_rep(memory_rep),
         memory_access_kind(kind) {
     input(0) = base;
     input(1) = index;
@@ -2867,7 +2867,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
-              mapper.Map(expected()), bin_op, result_rep, input_rep,
+              mapper.Map(expected()), bin_op, in_out_rep, memory_rep,
               memory_access_kind);
   }
 
@@ -2885,7 +2885,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   void PrintOptions(std::ostream& os) const;
 
   auto options() const {
-    return std::tuple{bin_op, result_rep, input_rep, memory_access_kind};
+    return std::tuple{bin_op, in_out_rep, memory_rep, memory_access_kind};
   }
 };
 DEFINE_MULTI_SWITCH_INTEGRAL(AtomicRMWOp::BinOp, 8)

@@ -2965,7 +2965,7 @@ MachineType AtomicOpType(InstructionSelectorT<TurboshaftAdapter>* selector,
                          turboshaft::OpIndex node) {
   const turboshaft::AtomicRMWOp& atomic_op =
       selector->Get(node).template Cast<turboshaft::AtomicRMWOp>();
-  return atomic_op.input_rep.ToMachineType();
+  return atomic_op.memory_rep.ToMachineType();
 }
 
 MachineType AtomicOpType(InstructionSelectorT<TurbofanAdapter>* selector,

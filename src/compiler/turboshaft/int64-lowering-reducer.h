@@ -333,16 +333,16 @@ class Int64LoweringReducer : public Next {
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,
                             OptionalOpIndex expected, AtomicRMWOp::BinOp bin_op,
-                            RegisterRepresentation result_rep,
-                            MemoryRepresentation input_rep,
+                            RegisterRepresentation in_out_rep,
+                            MemoryRepresentation memory_rep,
                             MemoryAccessKind kind) {
-    if (result_rep != RegisterRepresentation::Word64()) {
+    if (in_out_rep != RegisterRepresentation::Word64()) {
       return Next::ReduceAtomicRMW(base, index, value, expected, bin_op,
-                                   result_rep, input_rep, kind);
+                                   in_out_rep, memory_rep, kind);
     }
     auto [value_low, value_high] = Unpack(value);
-    if (input_rep == MemoryRepresentation::Int64() ||
-        input_rep == MemoryRepresentation::Uint64()) {
+    if (memory_rep == MemoryRepresentation::Int64() ||
+        memory_rep == MemoryRepresentation::Uint64()) {
       if (bin_op == AtomicRMWOp::BinOp::kCompareExchange) {
         auto [expected_low, expected_high] = Unpack(expected.value());
         return __ AtomicWord32PairCompareExchange(
@@ -360,7 +360,7 @@ class Int64LoweringReducer : public Next {
     }
     return __ Tuple(Next::ReduceAtomicRMW(
                         base, index, value_low, new_expected, bin_op,
-                        RegisterRepresentation::Word32(), input_rep, kind),
+                        RegisterRepresentation::Word32(), memory_rep, kind),
                     __ Word32Constant(0));
   }
 

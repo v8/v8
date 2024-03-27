@@ -5149,16 +5149,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = kAtomicExchangeInt8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicExchangeUint8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
     opcode = kAtomicExchangeInt16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = kAtomicExchangeUint16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+             atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = kAtomicExchangeWord32;
   } else {
     UNREACHABLE();
@@ -5192,13 +5192,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicExchangeUint8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = kAtomicExchangeUint16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = kAtomicExchangeWord32;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
     opcode = kX64Word64AtomicExchangeUint64;
   } else {
     UNREACHABLE();
@@ -5236,16 +5236,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = kAtomicCompareExchangeInt8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicCompareExchangeUint8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
     opcode = kAtomicCompareExchangeInt16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = kAtomicCompareExchangeUint16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+             atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = kAtomicCompareExchangeWord32;
   } else {
     UNREACHABLE();
@@ -5280,13 +5280,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicCompareExchangeUint8;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = kAtomicCompareExchangeUint16;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = kAtomicCompareExchangeWord32;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
     opcode = kX64Word64AtomicCompareExchangeUint64;
   } else {
     UNREACHABLE();
@@ -5302,16 +5302,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicBinaryOperation(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = int8_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = uint8_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
     opcode = int16_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = uint16_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-             atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+             atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = word32_op;
   } else {
     UNREACHABLE();
@@ -5364,13 +5364,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicBinaryOperation(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
   ArchOpcode opcode;
-  if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+  if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = uint8_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
     opcode = uint16_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
     opcode = uint32_op;
-  } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+  } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
     opcode = word64_op;
   } else {
     UNREACHABLE();

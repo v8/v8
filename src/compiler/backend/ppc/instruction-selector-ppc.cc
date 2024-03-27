@@ -2961,16 +2961,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = kAtomicExchangeInt8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kPPC_AtomicExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = kAtomicExchangeInt16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kPPC_AtomicExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+               atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kPPC_AtomicExchangeWord32;
     } else {
       UNREACHABLE();
@@ -3000,13 +3000,13 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kPPC_AtomicExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kPPC_AtomicExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kPPC_AtomicExchangeWord32;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
       opcode = kPPC_AtomicExchangeWord64;
     } else {
       UNREACHABLE();
@@ -3064,16 +3064,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
   ArchOpcode opcode;
   if constexpr (Adapter::IsTurboshaft) {
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = kAtomicCompareExchangeInt8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kPPC_AtomicCompareExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = kAtomicCompareExchangeInt16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kPPC_AtomicCompareExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32() ||
-               atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32() ||
+               atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kPPC_AtomicCompareExchangeWord32;
     } else {
       UNREACHABLE();
@@ -3104,13 +3104,13 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = kPPC_AtomicCompareExchangeUint8;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = kPPC_AtomicCompareExchangeUint16;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = kPPC_AtomicCompareExchangeWord32;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
       opcode = kPPC_AtomicCompareExchangeWord64;
     } else {
       UNREACHABLE();
@@ -3151,21 +3151,21 @@ void VisitAtomicBinaryOperation(InstructionSelectorT<Adapter>* selector,
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const AtomicRMWOp& atomic_op =
         selector->Get(node).template Cast<AtomicRMWOp>();
-    if (atomic_op.input_rep == MemoryRepresentation::Int8()) {
+    if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
       opcode = int8_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint8()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
       opcode = uint8_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int16()) {
       opcode = int16_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint16()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint16()) {
       opcode = uint16_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int32()) {
       opcode = int32_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint32()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint32()) {
       opcode = uint32_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Int64()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Int64()) {
       opcode = int64_op;
-    } else if (atomic_op.input_rep == MemoryRepresentation::Uint64()) {
+    } else if (atomic_op.memory_rep == MemoryRepresentation::Uint64()) {
       opcode = uint64_op;
     } else {
       UNREACHABLE();

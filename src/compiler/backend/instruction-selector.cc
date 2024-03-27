@@ -5284,9 +5284,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return MarkAsFloat64(node), VisitBitcastWord32PairToFloat64(node);
     case Opcode::kAtomicRMW: {
       const AtomicRMWOp& atomic_op = op.Cast<AtomicRMWOp>();
-      MarkAsRepresentation(atomic_op.input_rep.ToRegisterRepresentation(),
+      MarkAsRepresentation(atomic_op.memory_rep.ToRegisterRepresentation(),
                            node);
-      if (atomic_op.result_rep == Rep::Word32()) {
+      if (atomic_op.in_out_rep == Rep::Word32()) {
         switch (atomic_op.bin_op) {
           case AtomicRMWOp::BinOp::kAdd:
             return VisitWord32AtomicAdd(node);
@@ -5304,7 +5304,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
             return VisitWord32AtomicCompareExchange(node);
         }
       } else {
-        DCHECK_EQ(atomic_op.result_rep, Rep::Word64());
+        DCHECK_EQ(atomic_op.in_out_rep, Rep::Word64());
         switch (atomic_op.bin_op) {
           case AtomicRMWOp::BinOp::kAdd:
             return VisitWord64AtomicAdd(node);
