@@ -265,7 +265,15 @@ class PropertyCallbackInfo {
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
+  V8_DEPRECATE_SOON(
+      "This is a temporary workaround to ease migration of Chromium bindings "
+      "code to the new interceptors Api")
+  explicit PropertyCallbackInfo(const PropertyCallbackInfo<void>& info)
+      : PropertyCallbackInfo(info.args_) {}
+
  private:
+  template <typename U>
+  friend class PropertyCallbackInfo;
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
