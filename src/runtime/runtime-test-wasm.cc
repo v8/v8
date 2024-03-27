@@ -565,6 +565,11 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmNull) {
+  HandleScope scope(isolate);
+  return ReadOnlyRoots(isolate).wasm_null();
+}
+
 RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

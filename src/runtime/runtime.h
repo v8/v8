@@ -726,7 +726,8 @@ namespace internal {
   F(WasmTierUpFunction, 1, 1)                              \
   F(WasmTraceEnter, 0, 1)                                  \
   F(WasmTraceExit, 1, 1)                                   \
-  F(WasmTraceMemory, 1, 1)
+  F(WasmTraceMemory, 1, 1)                                 \
+  F(WasmNull, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
   F(JSFinalizationRegistryRegisterWeakCellWithUnregisterToken, 4, 1) \
