@@ -39,6 +39,8 @@ class JSSynchronizationPrimitive
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
   class BodyDescriptor;
 
+  Tagged<Object> NumWaitersForTesting(Isolate* requester);
+
   TQ_OBJECT_CONSTRUCTORS(JSSynchronizationPrimitive)
   inline void SetNullWaiterQueueHead();
 
@@ -74,6 +76,9 @@ class JSSynchronizationPrimitive
   inline StateT SetWaiterQueueHead(Isolate* requester,
                                    WaiterQueueNode* waiter_head,
                                    StateT new_state);
+
+  static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
+                                         StateT& expected);
 
   using TorqueGeneratedJSSynchronizationPrimitive<
       JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject>::state;
@@ -230,8 +235,6 @@ class JSAtomicsMutex
                                           WaiterQueueNode* timed_out_waiter);
 
   static bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
-  static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
-                                         StateT& expected);
   static void UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
                                             StateT new_state);
 
@@ -296,8 +299,6 @@ class JSAtomicsCondition
                                            Handle<JSAtomicsCondition> cv,
                                            uint32_t count);
 
-  Tagged<Object> NumWaitersForTesting(Isolate* isolate);
-
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsCondition)
 
  private:
@@ -305,9 +306,6 @@ class JSAtomicsCondition
   friend class WaiterQueueNode;
 
   static constexpr StateT kEmptyState = 0;
-
-  static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
-                                         StateT& expected);
 
   using DequeueAction = std::function<WaiterQueueNode*(WaiterQueueNode**)>;
   static WaiterQueueNode* DequeueExplicit(Isolate* requester,

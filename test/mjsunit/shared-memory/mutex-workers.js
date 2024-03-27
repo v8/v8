@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-struct
+// Flags: --harmony-struct --allow-natives-syntax
 
 "use strict";
 
@@ -40,6 +40,44 @@ if (this.Worker) {
 
   worker1.terminate();
   worker2.terminate();
+})();
+
+(function TestMutexWaiters() {
+  let workerScript = `onmessage = function(msg) {
+         let mutex = msg.mutex;
+         let box = msg.box;
+         Atomics.Mutex.lock(mutex, function() {
+          while(!Atomics.load(box, 'isDone')) {}
+         });
+         postMessage("done");
+       };
+       postMessage("started");`;
+
+  let worker1 = new Worker(workerScript, {type: 'string'});
+  let worker2 = new Worker(workerScript, {type: 'string'});
+  let worker3 = new Worker(workerScript, {type: 'string'});
+  assertEquals('started', worker1.getMessage());
+  assertEquals('started', worker2.getMessage());
+  assertEquals('started', worker3.getMessage());
+
+  let Box = new SharedStructType(['isDone']);
+  let box = new Box();
+  box.isDone = false;
+  let mutex = new Atomics.Mutex();
+  let msg = {mutex, box};
+  worker1.postMessage(msg);
+  worker2.postMessage(msg);
+  worker3.postMessage(msg);
+  while (%AtomicsSynchronizationPrimitiveNumWaitersForTesting(mutex) !== 2) {}
+  box.isDone = true;
+  assertEquals('done', worker1.getMessage());
+  assertEquals('done', worker2.getMessage());
+  assertEquals('done', worker3.getMessage());
+  assertEquals(0, %AtomicsSynchronizationPrimitiveNumWaitersForTesting(mutex));
+
+  worker1.terminate();
+  worker2.terminate();
+  worker3.terminate();
 })();
 
 (function TestTimeout() {

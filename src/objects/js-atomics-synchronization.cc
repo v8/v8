@@ -231,22 +231,54 @@ class V8_NODISCARD WaiterQueueNode final {
 }  // namespace detail
 
 // static
+bool JSSynchronizationPrimitive::TryLockWaiterQueueExplicit(
+    std::atomic<StateT>* state, StateT& expected) {
+  // Try to acquire the queue lock.
+  expected = IsWaiterQueueLockedField::update(expected, false);
+  return state->compare_exchange_weak(
+      expected, IsWaiterQueueLockedField::update(expected, true),
+      std::memory_order_acquire, std::memory_order_relaxed);
+}
+
+Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
+    Isolate* requester) {
+  DisallowGarbageCollection no_gc;
+  std::atomic<StateT>* state = AtomicStatePtr();
+  StateT current_state = state->load(std::memory_order_relaxed);
+
+  // There are no waiters.
+  if (!HasWaitersField::decode(current_state)) return Smi::FromInt(0);
+
+  int num_waiters;
+  {
+    // Take the queue lock.
+    while (!TryLockWaiterQueueExplicit(state, current_state)) {
+      YIELD_PROCESSOR;
+    }
+
+    // Get the waiter queue head.
+    WaiterQueueNode* waiter_head = DestructivelyGetWaiterQueueHead(requester);
+    num_waiters = WaiterQueueNode::LengthFromHead(waiter_head);
+
+    // Release the queue lock and reinstall the same queue head by creating a
+    // new state.
+    DCHECK_EQ(state->load(),
+              IsWaiterQueueLockedField::update(current_state, true));
+    StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
+    new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
+    state->store(new_state, std::memory_order_release);
+  }
+
+  return Smi::FromInt(num_waiters);
+}
+
+// static
 bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
                                      StateT& expected) {
   // Try to lock a possibly contended mutex.
   expected = IsLockedField::update(expected, false);
   return state->compare_exchange_weak(
       expected, IsLockedField::update(expected, true),
-      std::memory_order_acquire, std::memory_order_relaxed);
-}
-
-// static
-bool JSAtomicsMutex::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
-                                                StateT& expected) {
-  // Try to acquire the queue lock.
-  expected = IsWaiterQueueLockedField::update(expected, false);
-  return state->compare_exchange_weak(
-      expected, IsWaiterQueueLockedField::update(expected, true),
       std::memory_order_acquire, std::memory_order_relaxed);
 }
 
@@ -451,16 +483,6 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
 }
 
 // static
-bool JSAtomicsCondition::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
-                                                    StateT& expected) {
-  // Try to acquire the queue lock.
-  expected = IsWaiterQueueLockedField::update(expected, false);
-  return state->compare_exchange_weak(
-      expected, IsWaiterQueueLockedField::update(expected, true),
-      std::memory_order_acquire, std::memory_order_relaxed);
-}
-
-// static
 bool JSAtomicsCondition::WaitFor(Isolate* requester,
                                  Handle<JSAtomicsCondition> cv,
                                  Handle<JSAtomicsMutex> mutex,
@@ -585,37 +607,6 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
     return 1;
   }
   return old_head->NotifyAllInList();
-}
-
-Tagged<Object> JSAtomicsCondition::NumWaitersForTesting(Isolate* requester) {
-  DisallowGarbageCollection no_gc;
-  std::atomic<StateT>* state = AtomicStatePtr();
-  StateT current_state = state->load(std::memory_order_relaxed);
-
-  // There are no waiters.
-  if (!HasWaitersField::decode(current_state)) return Smi::FromInt(0);
-
-  int num_waiters;
-  {
-    // Take the queue lock.
-    while (!TryLockWaiterQueueExplicit(state, current_state)) {
-      YIELD_PROCESSOR;
-    }
-
-    // Get the waiter queue head.
-    WaiterQueueNode* waiter_head = DestructivelyGetWaiterQueueHead(requester);
-    num_waiters = WaiterQueueNode::LengthFromHead(waiter_head);
-
-    // Release the queue lock and reinstall the same queue head by creating a
-    // new state.
-    DCHECK_EQ(state->load(),
-              IsWaiterQueueLockedField::update(current_state, true));
-    StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
-    new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
-    state->store(new_state, std::memory_order_release);
-  }
-
-  return Smi::FromInt(num_waiters);
 }
 
 }  // namespace internal
