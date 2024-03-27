@@ -9792,10 +9792,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
     return ReduceResult::Fail();
   }
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-  FastContext fast_context(
-      NewObjectId(),
-      broker()->target_native_context().function_context_map(broker()),
-      context_length, zone());
+  FastContext fast_context(NewObjectId(), map, context_length, zone());
   fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope);
   fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
   for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
