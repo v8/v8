@@ -140,7 +140,7 @@ struct GraphBuilder {
   }
 
   void BuildFrameStateData(FrameStateData::Builder* builder,
-                           FrameState frame_state) {
+                           compiler::FrameState frame_state) {
     if (frame_state.outer_frame_state()->opcode() != IrOpcode::kStart) {
       builder->AddParentFrameState(Map(frame_state.outer_frame_state()));
     }
@@ -1212,7 +1212,7 @@ OpIndex GraphBuilder::Process(
 
       OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
-        FrameState frame_state{
+        compiler::FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         frame_state_idx = Map(frame_state);
       }
@@ -1266,7 +1266,7 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kFrameState: {
-      FrameState frame_state{node};
+      compiler::FrameState frame_state{node};
       FrameStateData::Builder builder;
       BuildFrameStateData(&builder, frame_state);
       if (builder.Inputs().size() >
@@ -1923,11 +1923,11 @@ OpIndex GraphBuilder::Process(
         // 2) the embedder requested fallback possibility via providing options
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
-        V<Object> slow_call_result =
+        V<Object> slow_call_result = V<Object>::Cast(
             __ Call(slow_call_callee, dominating_frame_state,
                     base::VectorOf(slow_call_arguments),
                     TSCallDescriptor::Create(params.descriptor(),
-                                             CanThrow::kYes, __ graph_zone()));
+                                             CanThrow::kYes, __ graph_zone())));
         GOTO(done, slow_call_result);
       }
 

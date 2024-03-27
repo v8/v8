@@ -995,10 +995,11 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
-                       base::Vector<const OpIndex> arguments,
-                       const TSCallDescriptor* descriptor, OpEffects effects) {
-    OpIndex raw_call =
+  V<Any> REDUCE(Call)(V<CallTarget> callee,
+                      OptionalV<turboshaft::FrameState> frame_state,
+                      base::Vector<const OpIndex> arguments,
+                      const TSCallDescriptor* descriptor, OpEffects effects) {
+    V<Any> raw_call =
         Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
     if (descriptor->can_throw == CanThrow::kYes) {
@@ -1194,43 +1195,49 @@ class TurboshaftAssemblerOpInterface
   // Methods to be used by the reducers to reducer operations with the whole
   // reducer stack.
 
-  V<Object> GenericBinop(V<Object> left, V<Object> right, OpIndex frame_state,
-                         OpIndex context, GenericBinopOp::Kind kind) {
+  V<Object> GenericBinop(V<Object> left, V<Object> right,
+                         V<turboshaft::FrameState> frame_state,
+                         V<Context> context, GenericBinopOp::Kind kind) {
     return ReduceIfReachableGenericBinop(left, right, frame_state, context,
                                          kind);
   }
-#define DECL_GENERIC_BINOP(Name)                                  \
-  V<Object> Generic##Name(V<Object> left, V<Object> right,        \
-                          OpIndex frame_state, OpIndex context) { \
-    return GenericBinop(left, right, frame_state, context,        \
-                        GenericBinopOp::Kind::k##Name);           \
+#define DECL_GENERIC_BINOP(Name)                                 \
+  V<Object> Generic##Name(V<Object> left, V<Object> right,       \
+                          V<turboshaft::FrameState> frame_state, \
+                          V<Context> context) {                  \
+    return GenericBinop(left, right, frame_state, context,       \
+                        GenericBinopOp::Kind::k##Name);          \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP)
 #undef DECL_GENERIC_BINOP
 
-  V<Object> GenericUnop(V<Object> input, OpIndex frame_state, OpIndex context,
-                        GenericUnopOp::Kind kind) {
+  V<Object> GenericUnop(V<Object> input, V<turboshaft::FrameState> frame_state,
+                        V<Context> context, GenericUnopOp::Kind kind) {
     return ReduceIfReachableGenericUnop(input, frame_state, context, kind);
   }
-#define DECL_GENERIC_UNOP(Name)                                 \
-  V<Object> Generic##Name(V<Object> input, OpIndex frame_state, \
-                          OpIndex context) {                    \
-    return GenericUnop(input, frame_state, context,             \
-                       GenericUnopOp::Kind::k##Name);           \
+#define DECL_GENERIC_UNOP(Name)                                  \
+  V<Object> Generic##Name(V<Object> input,                       \
+                          V<turboshaft::FrameState> frame_state, \
+                          V<Context> context) {                  \
+    return GenericUnop(input, frame_state, context,              \
+                       GenericUnopOp::Kind::k##Name);            \
   }
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
 #undef DECL_GENERIC_UNOP
 
-  V<Object> ToNumberOrNumeric(V<Object> input, OpIndex frame_state,
-                              OpIndex context, Object::Conversion kind) {
+  V<Object> ToNumberOrNumeric(V<Object> input,
+                              V<turboshaft::FrameState> frame_state,
+                              V<Context> context, Object::Conversion kind) {
     return ReduceIfReachableToNumberOrNumeric(input, frame_state, context,
                                               kind);
   }
-  V<Object> ToNumber(V<Object> input, OpIndex frame_state, OpIndex context) {
+  V<Object> ToNumber(V<Object> input, V<turboshaft::FrameState> frame_state,
+                     V<Context> context) {
     return ToNumberOrNumeric(input, frame_state, context,
                              Object::Conversion::kToNumber);
   }
-  V<Object> ToNumeric(V<Object> input, OpIndex frame_state, OpIndex context) {
+  V<Object> ToNumeric(V<Object> input, V<turboshaft::FrameState> frame_state,
+                      V<Context> context) {
     return ToNumberOrNumeric(input, frame_state, context,
                              Object::Conversion::kToNumeric);
   }
@@ -1592,7 +1599,7 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_MULTI_REP_UNARY_V
 
   OpIndex WordBinopDeoptOnOverflow(OpIndex left, OpIndex right,
-                                   OpIndex frame_state,
+                                   V<turboshaft::FrameState> frame_state,
                                    WordBinopDeoptOnOverflowOp::Kind kind,
                                    WordRepresentation rep,
                                    FeedbackSource feedback,
@@ -1600,16 +1607,16 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableWordBinopDeoptOnOverflow(left, right, frame_state,
                                                      kind, rep, feedback, mode);
   }
-#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type)             \
-  OpIndex rep_type##operation##DeoptOnOverflow(                               \
-      ConstOrV<rep_type> left, ConstOrV<rep_type> right, OpIndex frame_state, \
-      FeedbackSource feedback,                                                \
-      CheckForMinusZeroMode mode =                                            \
-          CheckForMinusZeroMode::kDontCheckForMinusZero) {                    \
-    return WordBinopDeoptOnOverflow(                                          \
-        resolve(left), resolve(right), frame_state,                           \
-        WordBinopDeoptOnOverflowOp::Kind::k##operation,                       \
-        WordRepresentation::rep_type(), feedback, mode);                      \
+#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type)     \
+  OpIndex rep_type##operation##DeoptOnOverflow(                       \
+      ConstOrV<rep_type> left, ConstOrV<rep_type> right,              \
+      V<turboshaft::FrameState> frame_state, FeedbackSource feedback, \
+      CheckForMinusZeroMode mode =                                    \
+          CheckForMinusZeroMode::kDontCheckForMinusZero) {            \
+    return WordBinopDeoptOnOverflow(                                  \
+        resolve(left), resolve(right), frame_state,                   \
+        WordBinopDeoptOnOverflowOp::Kind::k##operation,               \
+        WordRepresentation::rep_type(), feedback, mode);              \
   }
 
   DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedAdd, Word32)
@@ -1748,7 +1755,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex ConvertUntaggedToJSPrimitiveOrDeopt(
-      OpIndex input, OpIndex frame_state,
+      OpIndex input, V<turboshaft::FrameState> frame_state,
       ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
       ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
@@ -1766,14 +1773,15 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex ConvertJSPrimitiveToUntaggedOrDeopt(
-      V<Object> object, OpIndex frame_state,
+      V<Object> object, V<turboshaft::FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind to_kind,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
     return ReduceIfReachableConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
   }
-  V<Word32> CheckedSmiUntag(V<Object> object, OpIndex frame_state,
+  V<Word32> CheckedSmiUntag(V<Object> object,
+                            V<turboshaft::FrameState> frame_state,
                             const FeedbackSource& feedback) {
     return ConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state,
@@ -1790,7 +1798,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   OpIndex TruncateJSPrimitiveToUntaggedOrDeopt(
-      V<Object> object, OpIndex frame_state,
+      V<Object> object, V<turboshaft::FrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
           input_requirement,
@@ -1906,9 +1914,9 @@ class TurboshaftAssemblerOpInterface
   }
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
   // Wasm.
-  V<Object> CEntryStubConstant(Isolate* isolate, int result_size,
-                               ArgvMode argv_mode = ArgvMode::kStack,
-                               bool builtin_exit_frame = false) {
+  V<Code> CEntryStubConstant(Isolate* isolate, int result_size,
+                             ArgvMode argv_mode = ArgvMode::kStack,
+                             bool builtin_exit_frame = false) {
     if (argv_mode != ArgvMode::kStack) {
       return HeapConstant(CodeFactory::CEntry(isolate, result_size, argv_mode,
                                               builtin_exit_frame));
@@ -2089,7 +2097,7 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_CHANGE_V
 #undef DECL_TRY_CHANGE_V
 
-  OpIndex ChangeOrDeopt(OpIndex input, OpIndex frame_state,
+  OpIndex ChangeOrDeopt(OpIndex input, V<turboshaft::FrameState> frame_state,
                         ChangeOrDeoptOp::Kind kind,
                         CheckForMinusZeroMode minus_zero_mode,
                         const FeedbackSource& feedback) {
@@ -2097,14 +2105,16 @@ class TurboshaftAssemblerOpInterface
                                           minus_zero_mode, feedback);
   }
 
-  V<Word32> ChangeFloat64ToInt32OrDeopt(V<Float64> input, OpIndex frame_state,
+  V<Word32> ChangeFloat64ToInt32OrDeopt(V<Float64> input,
+                                        V<turboshaft::FrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
     return ChangeOrDeopt(input, frame_state,
                          ChangeOrDeoptOp::Kind::kFloat64ToInt32,
                          minus_zero_mode, feedback);
   }
-  V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input, OpIndex frame_state,
+  V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input,
+                                        V<turboshaft::FrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
     return ChangeOrDeopt(input, frame_state,
@@ -2692,27 +2702,30 @@ class TurboshaftAssemblerOpInterface
     Return(Word32Constant(0), base::VectorOf({result}));
   }
 
-  OpIndex Call(OpIndex callee, OptionalOpIndex frame_state,
-               base::Vector<const OpIndex> arguments,
-               const TSCallDescriptor* descriptor,
-               OpEffects effects = OpEffects().CanCallAnything()) {
+  V<Any> Call(V<CallTarget> callee,
+              OptionalV<turboshaft::FrameState> frame_state,
+              base::Vector<const OpIndex> arguments,
+              const TSCallDescriptor* descriptor,
+              OpEffects effects = OpEffects().CanCallAnything()) {
     return ReduceIfReachableCall(callee, frame_state, arguments, descriptor,
                                  effects);
   }
-  OpIndex Call(OpIndex callee, std::initializer_list<OpIndex> arguments,
-               const TSCallDescriptor* descriptor,
-               OpEffects effects = OpEffects().CanCallAnything()) {
-    return Call(callee, OpIndex::Invalid(), base::VectorOf(arguments),
-                descriptor, effects);
+  V<Any> Call(V<CallTarget> callee, std::initializer_list<OpIndex> arguments,
+              const TSCallDescriptor* descriptor,
+              OpEffects effects = OpEffects().CanCallAnything()) {
+    return Call(callee, OptionalV<turboshaft::FrameState>::Nullopt(),
+                base::VectorOf(arguments), descriptor, effects);
   }
 
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, OpIndex frame_state, OpIndex context,
+  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
+              V<Context> context,
               const typename Descriptor::arguments_t& args) {
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
@@ -2723,20 +2736,21 @@ class TurboshaftAssemblerOpInterface
               std::forward<decltype(as)>(as)..., context};
         },
         args);
-    return CallBuiltinImpl(
+    return result_t::Cast(CallBuiltinImpl(
         isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
-        Descriptor::kEffects);
+        Descriptor::kEffects));
   }
 
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, OpIndex context,
+  CallBuiltin(Isolate* isolate, V<Context> context,
               const typename Descriptor::arguments_t& args) {
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     DCHECK(context.valid());
     auto arguments = std::apply(
@@ -2746,20 +2760,21 @@ class TurboshaftAssemblerOpInterface
               std::forward<decltype(as)>(as)..., context};
         },
         args);
-    return CallBuiltinImpl(
-        isolate, Descriptor::kFunction, OpIndex::Invalid(),
-        base::VectorOf(arguments),
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Descriptor::kFunction,
+        OptionalV<turboshaft::FrameState>::Nullopt(), base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
-        Descriptor::kEffects);
+        Descriptor::kEffects));
   }
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, OpIndex frame_state,
+  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
               const typename Descriptor::arguments_t& args) {
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     DCHECK(frame_state.valid());
     auto arguments = std::apply(
@@ -2768,18 +2783,19 @@ class TurboshaftAssemblerOpInterface
               std::forward<decltype(as)>(as)...};
         },
         args);
-    return CallBuiltinImpl(
+    return result_t::Cast(CallBuiltinImpl(
         isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
-        Descriptor::kEffects);
+        Descriptor::kEffects));
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
   CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     auto arguments = std::apply(
         [](auto&&... as) {
@@ -2788,12 +2804,12 @@ class TurboshaftAssemblerOpInterface
               std::forward<decltype(as)>(as)...};
         },
         args);
-    return CallBuiltinImpl(
-        isolate, Descriptor::kFunction, OpIndex::Invalid(),
-        base::VectorOf(arguments),
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Descriptor::kFunction,
+        OptionalV<turboshaft::FrameState>::Nullopt(), base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
-        Descriptor::kEffects);
+        Descriptor::kEffects));
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2804,8 +2820,9 @@ class TurboshaftAssemblerOpInterface
   WasmCallBuiltinThroughJumptable(
       const typename Descriptor::arguments_t& args) {
     static_assert(!Descriptor::kNeedsFrameState);
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     auto arguments = std::apply(
         [](auto&&... as) {
@@ -2816,20 +2833,23 @@ class TurboshaftAssemblerOpInterface
         args);
     V<WordPtr> call_target =
         RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
-    return Call(call_target, OpIndex::Invalid(), base::VectorOf(arguments),
-                Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
-                                   Asm().output_graph().graph_zone()),
-                Descriptor::kEffects);
+    return result_t::Cast(
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                                Asm().output_graph().graph_zone()),
+             Descriptor::kEffects));
   }
 
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsContext,
                    detail::index_type_for_t<typename Descriptor::results_t>>
   WasmCallBuiltinThroughJumptable(
-      OpIndex context, const typename Descriptor::arguments_t& args) {
+      V<Context> context, const typename Descriptor::arguments_t& args) {
     static_assert(!Descriptor::kNeedsFrameState);
+    using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+      return result_t::Invalid();
     }
     DCHECK(context.valid());
     auto arguments = std::apply(
@@ -2841,35 +2861,38 @@ class TurboshaftAssemblerOpInterface
         args);
     V<WordPtr> call_target =
         RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
-    return Call(call_target, OpIndex::Invalid(), base::VectorOf(arguments),
-                Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
-                                   Asm().output_graph().graph_zone()),
-                Descriptor::kEffects);
+    return result_t::Cast(
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                                Asm().output_graph().graph_zone()),
+             Descriptor::kEffects));
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  OpIndex CallBuiltinImpl(Isolate* isolate, Builtin builtin,
-                          OptionalOpIndex frame_state,
-                          base::Vector<const OpIndex> arguments,
-                          const TSCallDescriptor* desc, OpEffects effects) {
+  V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
+                         OptionalV<turboshaft::FrameState> frame_state,
+                         base::Vector<const OpIndex> arguments,
+                         const TSCallDescriptor* desc, OpEffects effects) {
     Callable callable = Builtins::CallableFor(isolate, builtin);
-    return Call(HeapConstant(callable.code()), frame_state.value_or_invalid(),
-                arguments, desc, effects);
+    return Call(HeapConstant(callable.code()), frame_state, arguments, desc,
+                effects);
   }
 
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                         \
-  V<Object> CallBuiltin_##Name(Isolate* isolate, OpIndex frame_state, \
-                               V<Context> context, V<Object> lhs,     \
-                               V<Object> rhs) {                       \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(         \
-        isolate, frame_state, context, {lhs, rhs});                   \
+#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                  \
+  V<Object> CallBuiltin_##Name(                                \
+      Isolate* isolate, V<turboshaft::FrameState> frame_state, \
+      V<Context> context, V<Object> lhs, V<Object> rhs) {      \
+    return CallBuiltin<typename BuiltinCallDescriptor::Name>(  \
+        isolate, frame_state, context, {lhs, rhs});            \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
 #undef DECL_GENERIC_BINOP_BUILTIN_CALL
 
 #define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                          \
-  V<Object> CallBuiltin_##Name(Isolate* isolate, OpIndex frame_state, \
+  V<Object> CallBuiltin_##Name(Isolate* isolate,                      \
+                               V<turboshaft::FrameState> frame_state, \
                                V<Context> context, V<Object> input) { \
     return CallBuiltin<typename BuiltinCallDescriptor::Name>(         \
         isolate, frame_state, context, {input});                      \
@@ -2877,12 +2900,14 @@ class TurboshaftAssemblerOpInterface
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
 #undef DECL_GENERIC_UNOP_BUILTIN_CALL
 
-  V<Number> CallBuiltin_ToNumber(Isolate* isolate, OpIndex frame_state,
+  V<Number> CallBuiltin_ToNumber(Isolate* isolate,
+                                 V<turboshaft::FrameState> frame_state,
                                  V<Context> context, V<Object> input) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToNumber>(
         isolate, frame_state, context, {input});
   }
-  V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate, OpIndex frame_state,
+  V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate,
+                                   V<turboshaft::FrameState> frame_state,
                                    V<Context> context, V<Object> input) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToNumeric>(
         isolate, frame_state, context, {input});
@@ -3054,7 +3079,8 @@ class TurboshaftAssemblerOpInterface
 
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, OpIndex frame_state, OpIndex context,
+  CallRuntime(Isolate* isolate, V<turboshaft::FrameState> frame_state,
+              V<Context> context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -3068,7 +3094,7 @@ class TurboshaftAssemblerOpInterface
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, OpIndex context,
+  CallRuntime(Isolate* isolate, V<Context> context,
               const typename Descriptor::arguments_t& args) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -3082,8 +3108,9 @@ class TurboshaftAssemblerOpInterface
 
   template <typename Ret, typename Args>
   Ret CallRuntimeImpl(Isolate* isolate, Runtime::FunctionId function,
-                      const TSCallDescriptor* desc, OpIndex frame_state,
-                      OpIndex context, const Args& args) {
+                      const TSCallDescriptor* desc,
+                      V<turboshaft::FrameState> frame_state, V<Context> context,
+                      const Args& args) {
     const int result_size = Runtime::FunctionForId(function)->result_size;
     constexpr size_t kMaxNumArgs = 6;
     const size_t argc = std::tuple_size_v<Args>;
@@ -3104,8 +3131,8 @@ class TurboshaftAssemblerOpInterface
       Call(CEntryStubConstant(isolate, result_size), frame_state,
            base::VectorOf(inputs), desc);
     } else {
-      return Call(CEntryStubConstant(isolate, result_size), frame_state,
-                  base::VectorOf(inputs), desc);
+      return Ret::Cast(Call(CEntryStubConstant(isolate, result_size),
+                            frame_state, base::VectorOf(inputs), desc));
     }
   }
 
@@ -3135,9 +3162,9 @@ class TurboshaftAssemblerOpInterface
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
-  V<Object> CallRuntime_TerminateExecution(Isolate* isolate,
-                                           OpIndex frame_state,
-                                           V<Context> context) {
+  V<Object> CallRuntime_TerminateExecution(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
         isolate, frame_state, context, {});
   }
@@ -3167,19 +3194,20 @@ class TurboshaftAssemblerOpInterface
     ReduceIfReachableTailCall(callee, arguments, descriptor);
   }
 
-  OpIndex FrameState(base::Vector<const OpIndex> inputs, bool inlined,
-                     const FrameStateData* data) {
+  V<FrameState> FrameState(base::Vector<const OpIndex> inputs, bool inlined,
+                           const FrameStateData* data) {
     return ReduceIfReachableFrameState(inputs, inlined, data);
   }
-  void DeoptimizeIf(V<Word32> condition, OpIndex frame_state,
+  void DeoptimizeIf(V<Word32> condition, V<turboshaft::FrameState> frame_state,
                     const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, false, parameters);
   }
-  void DeoptimizeIfNot(V<Word32> condition, OpIndex frame_state,
+  void DeoptimizeIfNot(V<Word32> condition,
+                       V<turboshaft::FrameState> frame_state,
                        const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, true, parameters);
   }
-  void DeoptimizeIf(V<Word32> condition, OpIndex frame_state,
+  void DeoptimizeIf(V<Word32> condition, V<turboshaft::FrameState> frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
@@ -3189,7 +3217,8 @@ class TurboshaftAssemblerOpInterface
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIf(condition, frame_state, params);
   }
-  void DeoptimizeIfNot(V<Word32> condition, OpIndex frame_state,
+  void DeoptimizeIfNot(V<Word32> condition,
+                       V<turboshaft::FrameState> frame_state,
                        DeoptimizeReason reason,
                        const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3200,11 +3229,12 @@ class TurboshaftAssemblerOpInterface
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIfNot(condition, frame_state, params);
   }
-  void Deoptimize(OpIndex frame_state, const DeoptimizeParameters* parameters) {
+  void Deoptimize(V<turboshaft::FrameState> frame_state,
+                  const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimize(frame_state, parameters);
   }
-  void Deoptimize(OpIndex frame_state, DeoptimizeReason reason,
-                  const FeedbackSource& feedback) {
+  void Deoptimize(V<turboshaft::FrameState> frame_state,
+                  DeoptimizeReason reason, const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
     }
@@ -3215,11 +3245,12 @@ class TurboshaftAssemblerOpInterface
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  void TrapIf(V<Word32> condition, OptionalOpIndex frame_state,
-              TrapId trap_id) {
+  void TrapIf(V<Word32> condition,
+              OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableTrapIf(condition, frame_state, false, trap_id);
   }
-  void TrapIfNot(V<Word32> condition, OptionalOpIndex frame_state,
+  void TrapIfNot(V<Word32> condition,
+                 OptionalV<turboshaft::FrameState> frame_state,
                  TrapId trap_id) {
     ReduceIfReachableTrapIf(condition, frame_state, true, trap_id);
   }
@@ -3324,7 +3355,7 @@ class TurboshaftAssemblerOpInterface
     return GotoIfNot(condition.condition(), if_false, condition.hint());
   }
 
-  OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
+  OpIndex CallBuiltin(Builtin builtin, V<turboshaft::FrameState> frame_state,
                       base::Vector<OpIndex> arguments, CanThrow can_throw,
                       Isolate* isolate) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3409,15 +3440,16 @@ class TurboshaftAssemblerOpInterface
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
 
-  V<Object> BigIntBinop(V<Object> left, V<Object> right, OpIndex frame_state,
+  V<Object> BigIntBinop(V<Object> left, V<Object> right,
+                        V<turboshaft::FrameState> frame_state,
                         BigIntBinopOp::Kind kind) {
     return ReduceIfReachableBigIntBinop(left, right, frame_state, kind);
   }
-#define BIGINT_BINOP(kind)                                \
-  V<Object> BigInt##kind(V<Object> left, V<Object> right, \
-                         OpIndex frame_state) {           \
-    return BigIntBinop(left, right, frame_state,          \
-                       BigIntBinopOp::Kind::k##kind);     \
+#define BIGINT_BINOP(kind)                                        \
+  V<Object> BigInt##kind(V<Object> left, V<Object> right,         \
+                         V<turboshaft::FrameState> frame_state) { \
+    return BigIntBinop(left, right, frame_state,                  \
+                       BigIntBinopOp::Kind::k##kind);             \
   }
   BIGINT_BINOP(Add)
   BIGINT_BINOP(Sub)
@@ -3588,7 +3620,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableCompareMaps(heap_object, maps);
   }
 
-  void CheckMaps(V<HeapObject> heap_object, OpIndex frame_state,
+  void CheckMaps(V<HeapObject> heap_object,
+                 V<turboshaft::FrameState> frame_state,
                  const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                  const FeedbackSource& feedback) {
     ReduceIfReachableCheckMaps(heap_object, frame_state, maps, flags, feedback);
@@ -3598,13 +3631,14 @@ class TurboshaftAssemblerOpInterface
     ReduceIfReachableAssumeMap(heap_object, maps);
   }
 
-  V<Object> CheckedClosure(V<Object> input, OpIndex frame_state,
+  V<Object> CheckedClosure(V<Object> input,
+                           V<turboshaft::FrameState> frame_state,
                            Handle<FeedbackCell> feedback_cell) {
     return ReduceIfReachableCheckedClosure(input, frame_state, feedback_cell);
   }
 
   void CheckEqualsInternalizedString(V<Object> expected, V<Object> value,
-                                     OpIndex frame_state) {
+                                     V<turboshaft::FrameState> frame_state) {
     ReduceIfReachableCheckEqualsInternalizedString(expected, value,
                                                    frame_state);
   }
@@ -3642,7 +3676,7 @@ class TurboshaftAssemblerOpInterface
 
   V<Object> MaybeGrowFastElements(V<Object> object, V<Object> elements,
                                   V<Word32> index, V<Word32> elements_length,
-                                  OpIndex frame_state,
+                                  V<turboshaft::FrameState> frame_state,
                                   GrowFastElementsMode mode,
                                   const FeedbackSource& feedback) {
     return ReduceIfReachableMaybeGrowFastElements(
@@ -3673,7 +3707,7 @@ class TurboshaftAssemblerOpInterface
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
   V<Object> SpeculativeNumberBinop(V<Object> left, V<Object> right,
-                                   OpIndex frame_state,
+                                   V<turboshaft::FrameState> frame_state,
                                    SpeculativeNumberBinopOp::Kind kind) {
     return ReduceIfReachableSpeculativeNumberBinop(left, right, frame_state,
                                                    kind);

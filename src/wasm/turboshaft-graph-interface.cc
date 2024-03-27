@@ -170,12 +170,13 @@ V<BigInt> WasmGraphBuilderBase::BuildChangeInt64ToBigInt(
   const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
       call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
   if constexpr (Is64()) {
-    return __ Call(target, {input}, ts_call_descriptor);
+    return V<BigInt>::Cast(__ Call(target, {input}, ts_call_descriptor));
   }
   V<Word32> low_word = __ TruncateWord64ToWord32(input);
   V<Word32> high_word = __ TruncateWord64ToWord32(__ ShiftRightLogical(
       input, __ Word32Constant(32), WordRepresentation::Word64()));
-  return __ Call(target, {low_word, high_word}, ts_call_descriptor);
+  return V<BigInt>::Cast(
+      __ Call(target, {low_word, high_word}, ts_call_descriptor));
 }
 
 std::pair<V<WordPtr>, V<HeapObject>>

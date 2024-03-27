@@ -169,7 +169,7 @@ class OptionalOpIndex : protected OpIndex {
   constexpr OptionalOpIndex(OpIndex other)  // NOLINT(runtime/explicit)
       : OpIndex(other) {}
 
-  static constexpr OptionalOpIndex Invalid() {
+  static constexpr OptionalOpIndex Nullopt() {
     return OptionalOpIndex{OpIndex::Invalid()};
   }
 
@@ -223,6 +223,8 @@ using Simd128 = WordWithBits<128>;
 using Simd256 = WordWithBits<256>;
 
 struct Compressed : public Any {};
+struct InternalTag : public Any {};
+struct FrameState : public InternalTag {};
 
 // A Union type for untagged values. For Tagged types use `UnionT` for now.
 // TODO(nicohartmann@): We should think about a more uniform solution some day.
@@ -239,7 +241,7 @@ template <>
 struct v_traits<Any> {
   static constexpr bool is_abstract_tag = true;
   static constexpr auto rep = nullrep;
-  static constexpr bool allows_representation(RegisterRepresentation rep) {
+  static constexpr bool allows_representation(RegisterRepresentation) {
     return true;
   }
 
@@ -389,11 +391,21 @@ struct v_traits<Union<Ts...>> {
             ...)> {};
 };
 
+template <typename T>
+struct v_traits<T, std::enable_if_t<std::is_base_of_v<InternalTag, T>>> {
+  static constexpr auto rep = MaybeRegisterRepresentation::None();
+
+  template <typename U>
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_same_v<T, U>> {};
+};
+
 using Word = Union<Word32, Word64>;
 using Float = Union<Float32, Float64>;
 using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
 using NumberOrString = UnionT<Number, String>;
 using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
+using CallTarget = Union<WordPtr, Code>;
 
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
@@ -456,6 +468,16 @@ class OptionalV : public OptionalOpIndex {
             typename = std::enable_if_t<
                 v_traits<T>::template implicitly_constructible_from<U>::value>>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+
+  static OptionalV Nullopt() { return OptionalV(OptionalOpIndex::Nullopt()); }
+
+  constexpr V<T> value() const {
+    DCHECK(has_value());
+    return V<T>::Cast(OptionalOpIndex::value());
+  }
+  constexpr V<T> value_or_invalid() const {
+    return V<T>::Cast(OptionalOpIndex::value_or_invalid());
+  }
 
   template <typename U>
   static OptionalV<T> Cast(OptionalV<U> index) {

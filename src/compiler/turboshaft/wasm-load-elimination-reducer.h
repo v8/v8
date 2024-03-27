@@ -224,7 +224,7 @@ class WasmMemoryContentTable
 
   OpIndex FindImpl(OpIndex object, int offset, uint32_t type_index,
                    uint8_t size, bool mutability,
-                   OptionalOpIndex index = OptionalOpIndex::Invalid()) {
+                   OptionalOpIndex index = OptionalOpIndex::Nullopt()) {
     WasmMemoryAddress mem{object, offset, type_index, size, mutability};
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();

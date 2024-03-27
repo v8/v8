@@ -126,9 +126,9 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
-  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
-                       base::Vector<const OpIndex> arguments,
-                       const TSCallDescriptor* descriptor, OpEffects effects) {
+  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+                      base::Vector<const OpIndex> arguments,
+                      const TSCallDescriptor* descriptor, OpEffects effects) {
     const bool is_tail_call = false;
     return LowerCall(callee, frame_state, arguments, descriptor, effects,
                      is_tail_call);
@@ -644,10 +644,10 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(low_node, high_node);
   }
 
-  OpIndex LowerCall(OpIndex callee, OptionalOpIndex frame_state,
-                    base::Vector<const OpIndex> arguments,
-                    const TSCallDescriptor* descriptor, OpEffects effects,
-                    bool is_tail_call) {
+  V<Any> LowerCall(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+                   base::Vector<const OpIndex> arguments,
+                   const TSCallDescriptor* descriptor, OpEffects effects,
+                   bool is_tail_call) {
     // Iterate over the call descriptor to skip lowering if the signature does
     // not contain an i64.
     const CallDescriptor* call_descriptor = descriptor->descriptor;

@@ -301,7 +301,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Object> callee = Map(node->closure());
     base::SmallVector<OpIndex, 16> arguments;
     arguments.push_back(Map(node->receiver()));
@@ -320,7 +320,8 @@ class GraphBuilder {
     const CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
         graph_zone(), false, 1 + node->num_args(),
         CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
-    SetMap(node, __ Call(callee, frame_state, base::VectorOf(arguments),
+    SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
+                         base::VectorOf(arguments),
                          TSCallDescriptor::Create(descriptor, CanThrow::kYes,
                                                   graph_zone())));
 
@@ -330,7 +331,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     Callable callable = Builtins::CallableFor(
         isolate_->GetMainThreadIsolateUnsafe(), node->builtin());
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
@@ -428,7 +429,7 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::CheckMaps* node,
                                 const maglev::ProcessingState& state) {
     Label<> done(this);
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
       OpIndex is_smi = __ IsSmi(Map(node->receiver_input()));
       if (AnyMapIsHeapNumber(node->maps())) {
@@ -451,7 +452,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckValue* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     __ DeoptimizeIfNot(__ TaggedEqual(Map(node->target_input()),
                                       __ HeapConstant(node->value().object())),
                        frame_state, DeoptimizeReason::kWrongValue,
@@ -460,7 +461,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckString* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     ObjectIsOp::InputAssumptions input_assumptions =
         node->check_type() == maglev::CheckType::kCheckHeapObject
             ? ObjectIsOp::InputAssumptions::kNone
@@ -483,7 +484,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckDynamicValue* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     __ DeoptimizeIfNot(
         __ TaggedEqual(Map(node->first_input()), Map(node->second_input())),
         frame_state, DeoptimizeReason::kWrongValue,
@@ -493,7 +494,7 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     bool negate_result = false;
     V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
                                         node->condition(), &negate_result);
@@ -556,7 +557,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckedInternalizedString* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     SetMap(node, __ CheckedInternalizedString(
                      Map(node->object_input()), frame_state,
                      node->check_type() == maglev::CheckType::kCheckHeapObject,
@@ -636,7 +637,7 @@ class GraphBuilder {
   maglev::ProcessResult Process(
       maglev::LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
       const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     V<Float64> result = __ LoadFixedDoubleArrayElement(
         Map(node->elements_input()),
         __ ChangeInt32ToIntPtr(Map(node->index_input())));
@@ -876,7 +877,7 @@ class GraphBuilder {
                                     minus_zero_mode)                           \
   maglev::ProcessResult Process(maglev::Int32##MaglevName##WithOverflow* node, \
                                 const maglev::ProcessingState& state) {        \
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());           \
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());     \
     SetMap(node,                                                               \
            __ Word32##TurboshaftName##DeoptOnOverflow(                         \
                Map(node->left_input()), Map(node->right_input()), frame_state, \
@@ -1009,7 +1010,7 @@ class GraphBuilder {
 #define PROCESS_GENERIC_BINOP(Name)                                            \
   maglev::ProcessResult Process(maglev::Generic##Name* node,                   \
                                 const maglev::ProcessingState& state) {        \
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());            \
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());      \
     SetMap(node,                                                               \
            __ Generic##Name(Map(node->left_input()), Map(node->right_input()), \
                             frame_state, native_context()));                   \
@@ -1021,7 +1022,7 @@ class GraphBuilder {
 #define PROCESS_GENERIC_UNOP(Name)                                         \
   maglev::ProcessResult Process(maglev::Generic##Name* node,               \
                                 const maglev::ProcessingState& state) {    \
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());        \
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());  \
     SetMap(node, __ Generic##Name(Map(node->operand_input()), frame_state, \
                                   native_context()));                      \
     return maglev::ProcessResult::kContinue;                               \
@@ -1031,7 +1032,7 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::ToNumberOrNumeric* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     SetMap(node, __ ToNumberOrNumeric(Map(node->value_input()), frame_state,
                                       native_context(), node->mode()));
     return maglev::ProcessResult::kContinue;
@@ -1237,7 +1238,7 @@ class GraphBuilder {
   Zone* graph_zone() { return Asm().output_graph().graph_zone(); }
 
  private:
-  OpIndex BuildFrameState(maglev::EagerDeoptInfo* eager_deopt_info) {
+  V<FrameState> BuildFrameState(maglev::EagerDeoptInfo* eager_deopt_info) {
     // TODO(dmercadier): handle other FrameTypes.
     DCHECK_EQ(eager_deopt_info->top_frame().type(),
               maglev::DeoptFrame::FrameType::kInterpretedFrame);
@@ -1246,7 +1247,7 @@ class GraphBuilder {
     return BuildFrameState(frame, OutputFrameStateCombine::Ignore(), true);
   }
 
-  OpIndex BuildFrameState(maglev::LazyDeoptInfo* lazy_deopt_info) {
+  V<FrameState> BuildFrameState(maglev::LazyDeoptInfo* lazy_deopt_info) {
     DCHECK_EQ(lazy_deopt_info->top_frame().type(),
               maglev::DeoptFrame::FrameType::kInterpretedFrame);
     maglev::InterpretedDeoptFrame& frame =
@@ -1264,8 +1265,9 @@ class GraphBuilder {
     }
   }
 
-  OpIndex BuildFrameState(maglev::InterpretedDeoptFrame& frame,
-                          OutputFrameStateCombine combine, bool is_topmost) {
+  V<FrameState> BuildFrameState(maglev::InterpretedDeoptFrame& frame,
+                                OutputFrameStateCombine combine,
+                                bool is_topmost) {
     FrameStateData::Builder builder;
 
     if (frame.parent() != nullptr) {

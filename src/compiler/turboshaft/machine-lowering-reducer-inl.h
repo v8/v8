@@ -1290,8 +1290,8 @@ class MachineLoweringReducer : public Next {
             OpIndex callee = __ ExternalConstant(
                 ExternalReference::string_to_array_index_function());
             // NOTE: String::ToArrayIndex() currently returns int32_t.
-            V<WordPtr> index =
-                __ ChangeInt32ToIntPtr(__ Call(callee, {object}, ts_desc));
+            V<WordPtr> index = __ ChangeInt32ToIntPtr(
+                V<Word32>::Cast(__ Call(callee, {object}, ts_desc)));
             __ DeoptimizeIf(__ WordPtrEqual(index, -1), frame_state,
                             DeoptimizeReason::kNotAnArrayIndex, feedback);
             GOTO(done, index);
@@ -2952,11 +2952,11 @@ class MachineLoweringReducer : public Next {
           ExternalReference::try_string_to_index_or_lookup_existing());
       OpIndex isolate_ptr =
           __ ExternalConstant(ExternalReference::isolate_address(isolate_));
-      V<String> value_internalized = __ Call(
+      V<String> value_internalized = V<String>::Cast(__ Call(
           try_string_to_index_or_lookup_existing, {isolate_ptr, value},
           TSCallDescriptor::Create(Linkage::GetSimplifiedCDescriptor(
                                        __ graph_zone(), builder.Build()),
-                                   CanThrow::kNo, __ graph_zone()));
+                                   CanThrow::kNo, __ graph_zone())));
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),

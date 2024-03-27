@@ -3719,9 +3719,10 @@ struct CallOp : OperationT<CallOp> {
     return descriptor->descriptor->NeedsFrameState();
   }
 
-  OpIndex callee() const { return input(0); }
-  OptionalOpIndex frame_state() const {
-    return HasFrameState() ? input(1) : OpIndex::Invalid();
+  V<CallTarget> callee() const { return input<CallTarget>(0); }
+  OptionalV<FrameState> frame_state() const {
+    return HasFrameState() ? input<FrameState>(1)
+                           : OptionalV<FrameState>::Nullopt();
   }
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(1 + HasFrameState(), input_count);
@@ -3730,7 +3731,7 @@ struct CallOp : OperationT<CallOp> {
   V8_EXPORT_PRIVATE bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
                                       StackCheckKind kind) const;
 
-  CallOp(OpIndex callee, OptionalOpIndex frame_state,
+  CallOp(V<CallTarget> callee, OptionalV<FrameState> frame_state,
          base::Vector<const OpIndex> arguments,
          const TSCallDescriptor* descriptor, OpEffects effects)
       : Base(1 + frame_state.valid() + arguments.size()),
@@ -3747,8 +3748,8 @@ struct CallOp : OperationT<CallOp> {
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    OpIndex mapped_callee = mapper.Map(callee());
-    OptionalOpIndex mapped_frame_state = mapper.Map(frame_state());
+    V<CallTarget> mapped_callee = mapper.Map(callee());
+    OptionalV<FrameState> mapped_frame_state = mapper.Map(frame_state());
     auto mapped_arguments = mapper.template Map<16>(arguments());
     return fn(mapped_callee, mapped_frame_state,
               base::VectorOf(mapped_arguments), descriptor, Effects());
@@ -3760,7 +3761,8 @@ struct CallOp : OperationT<CallOp> {
     }
   }
 
-  static CallOp& New(Graph* graph, OpIndex callee, OptionalOpIndex frame_state,
+  static CallOp& New(Graph* graph, V<CallTarget> callee,
+                     OptionalV<FrameState> frame_state,
                      base::Vector<const OpIndex> arguments,
                      const TSCallDescriptor* descriptor, OpEffects effects) {
     return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,

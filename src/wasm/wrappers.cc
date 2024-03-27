@@ -82,7 +82,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       if (!trap_handler::IsTrapHandlerEnabled()) return;
 
       thread_in_wasm_flag_address_ =
-          asm_.Load(asm_.LoadRootRegister(), OptionalOpIndex::Invalid(),
+          asm_.Load(asm_.LoadRootRegister(), OptionalOpIndex::Nullopt(),
                     LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
                     RegisterRepresentation::WordPtr(),
                     Isolate::thread_in_wasm_flag_address_offset());
@@ -444,7 +444,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   void BuildJSToWasmWrapper(
       bool is_import, bool do_conversion = true,
       compiler::turboshaft::OptionalOpIndex frame_state =
-          compiler::turboshaft::OptionalOpIndex::Invalid(),
+          compiler::turboshaft::OptionalOpIndex::Nullopt(),
       bool set_in_wasm_flag = true) {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 

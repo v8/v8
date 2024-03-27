@@ -330,7 +330,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   template <bool can_be_invalid = false>
   OptionalOpIndex MapToNewGraph(OptionalOpIndex old_index,
                                 int predecessor_index = -1) {
-    if (!old_index.has_value()) return OptionalOpIndex::Invalid();
+    if (!old_index.has_value()) return OptionalOpIndex::Nullopt();
     return MapToNewGraph<can_be_invalid>(old_index.value(), predecessor_index);
   }
 
