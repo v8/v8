@@ -3287,7 +3287,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         info.in_out_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
                                                             : wasm::kWasmI64;
     result->op = BuildChangeEndiannessLoad(
-        result->op, info.memoy_rep.ToMachineType(), wasm_type);
+        result->op, info.memory_rep.ToMachineType(), wasm_type);
 
     if (needs_zero_extension_64) {
       result->op = __ ChangeUint32ToUint64(result->op);
