@@ -4055,6 +4055,8 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
     "src/sandbox/code-pointer.h",
+    "src/sandbox/compactible-external-entity-table-inl.h",
+    "src/sandbox/compactible-external-entity-table.h",
     "src/sandbox/external-entity-table-inl.h",
     "src/sandbox/external-entity-table.h",
     "src/sandbox/external-pointer-inl.h",
@@ -4752,9 +4754,7 @@ v8_header_set("v8_internal_headers") {
 
   frameworks = []
   if (is_ios) {
-    frameworks += [
-      "BrowserEngineKit.framework",
-    ]
+    frameworks += [ "BrowserEngineKit.framework" ]
   }
 
   public_deps = [

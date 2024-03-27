@@ -5,7 +5,7 @@
 #ifndef V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 
-#include "src/sandbox/external-entity-table-inl.h"
+#include "src/sandbox/compactible-external-entity-table-inl.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
 
@@ -230,42 +230,6 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   at(index).Mark();
 }
 
-void ExternalPointerTable::MaybeCreateEvacuationEntry(Space* space,
-                                                      uint32_t index,
-                                                      Address handle_location) {
-  // Check if the entry should be evacuated for table compaction.
-  // The current value of the start of the evacuation area is cached in a local
-  // variable here as it otherwise may be changed by another marking thread
-  // while this method runs, causing non-optimal behaviour (for example, the
-  // allocation of an evacuation entry _after_ the entry that is evacuated).
-  uint32_t start_of_evacuation_area =
-      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
-  if (index >= start_of_evacuation_area) {
-    DCHECK(space->IsCompacting());
-    uint32_t new_index = AllocateEntryBelow(space, start_of_evacuation_area);
-    if (new_index) {
-      DCHECK_LT(new_index, start_of_evacuation_area);
-      DCHECK(space->Contains(new_index));
-      // Even though the new entry will only be accessed during sweeping, this
-      // still needs to be an atomic write as another thread may attempt (and
-      // fail) to allocate the same table entry, thereby causing a read from
-      // this memory location. Without an atomic store here, TSan would then
-      // complain about a data race.
-      at(new_index).MakeEvacuationEntry(handle_location);
-    } else {
-      // In this case, the application has allocated a sufficiently large
-      // number of entries from the freelist so that new entries would now be
-      // allocated inside the area that is being compacted. While it would be
-      // possible to shrink that area and continue compacting, we probably do
-      // not want to put more pressure on the freelist and so instead simply
-      // abort compaction here. Entries that have already been visited will
-      // still be compacted during Sweep, but there is no guarantee that any
-      // blocks at the end of the table will now be completely free.
-      space->AbortCompacting(start_of_evacuation_area);
-    }
-  }
-}
-
 // static
 bool ExternalPointerTable::IsValidHandle(ExternalPointerHandle handle) {
   uint32_t index = handle >> kExternalPointerIndexShift;
@@ -303,37 +267,6 @@ ExternalPointerHandle ExternalPointerTable::IndexToHandle(uint32_t index) {
   return handle;
 }
 
-void ExternalPointerTable::Space::StartCompacting(
-    uint32_t start_of_evacuation_area) {
-  DCHECK_EQ(invalidated_fields_.size(), 0);
-  start_of_evacuation_area_.store(start_of_evacuation_area,
-                                  std::memory_order_relaxed);
-}
-
-void ExternalPointerTable::Space::StopCompacting() {
-  start_of_evacuation_area_.store(kNotCompactingMarker,
-                                  std::memory_order_relaxed);
-}
-
-void ExternalPointerTable::Space::AbortCompacting(
-    uint32_t start_of_evacuation_area) {
-  uint32_t compaction_aborted_marker =
-      start_of_evacuation_area | kCompactionAbortedMarker;
-  DCHECK_NE(compaction_aborted_marker, kNotCompactingMarker);
-  start_of_evacuation_area_.store(compaction_aborted_marker,
-                                  std::memory_order_relaxed);
-}
-
-bool ExternalPointerTable::Space::IsCompacting() {
-  return start_of_evacuation_area_.load(std::memory_order_relaxed) !=
-         kNotCompactingMarker;
-}
-
-bool ExternalPointerTable::Space::CompactingWasAborted() {
-  auto value = start_of_evacuation_area_.load(std::memory_order_relaxed);
-  return (value & kCompactionAbortedMarker) == kCompactionAbortedMarker;
-}
-
 void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
     Address field_address) {
 #ifdef DEBUG
@@ -341,22 +274,7 @@ void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
       reinterpret_cast<ExternalPointerHandle*>(field_address));
   DCHECK(Contains(HandleToIndex(handle)));
 #endif
-  if (IsCompacting()) {
-    base::MutexGuard guard(&invalidated_fields_mutex_);
-    invalidated_fields_.push_back(field_address);
-  }
-}
-
-bool ExternalPointerTable::Space::FieldWasInvalidated(
-    Address field_address) const {
-  invalidated_fields_mutex_.AssertHeld();
-  return std::find(invalidated_fields_.begin(), invalidated_fields_.end(),
-                   field_address) != invalidated_fields_.end();
-}
-
-void ExternalPointerTable::Space::ClearInvalidatedFields() {
-  invalidated_fields_mutex_.AssertHeld();
-  invalidated_fields_.clear();
+  AddInvalidatedField(field_address);
 }
 
 }  // namespace internal

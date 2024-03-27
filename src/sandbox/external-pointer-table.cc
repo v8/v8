@@ -177,41 +177,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   return num_live_entries;
 }
 
-void ExternalPointerTable::Space::StartCompactingIfNeeded() {
-  // Take the lock so that we can be sure that no other thread modifies the
-  // segments set concurrently.
-  base::MutexGuard guard(&mutex_);
-
-  // This method may be executed while other threads allocate entries from the
-  // freelist. In that case, this method may use incorrect data to determine if
-  // table compaction is necessary. That's fine however since in the worst
-  // case, compaction will simply be aborted right away if the freelist became
-  // too small.
-  uint32_t num_free_entries = freelist_length();
-  uint32_t num_total_entries = capacity();
-
-  // Current (somewhat arbitrary) heuristic: need compacting if the space is
-  // more than 1MB in size, is at least 10% empty, and if at least one segment
-  // can be freed after successful compaction.
-  double free_ratio = static_cast<double>(num_free_entries) /
-                      static_cast<double>(num_total_entries);
-  uint32_t num_segments_to_evacuate =
-      (num_free_entries / 2) / kEntriesPerSegment;
-
-  uint32_t space_size = num_total_entries * kEntrySize;
-  bool should_compact = (space_size >= 1 * MB) && (free_ratio >= 0.10) &&
-                        (num_segments_to_evacuate >= 1);
-
-  if (should_compact) {
-    // If we're compacting, attempt to free up the last N segments so that they
-    // can be decommitted afterwards.
-    Segment first_segment_to_evacuate =
-        *std::prev(segments_.end(), num_segments_to_evacuate);
-    uint32_t start_of_evacuation_area = first_segment_to_evacuate.first_entry();
-    StartCompacting(start_of_evacuation_area);
-  }
-}
-
 bool ExternalPointerTable::TryResolveEvacuationEntryDuringSweeping(
     uint32_t new_index, ExternalPointerHandle* handle_location,
     uint32_t start_of_evacuation_area) {
