@@ -34,14 +34,28 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline TrustedPointerTable& GetTrustedPointerTable();
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpace();
 
-  inline ExternalPointerTable& GetCppHeapPointerTable();
-  inline ExternalPointerTable::Space* GetCppHeapPointerTableSpace();
 #endif  // V8_ENABLE_SANDBOX
 
  private:
 #ifdef V8_ENABLE_SANDBOX
   Isolate* const isolate_;
 #endif  // V8_ENABLE_SANDBOX
+};
+
+class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
+ public:
+  template <typename IsolateT>
+  IsolateForPointerCompression(IsolateT* isolate);  // NOLINT(runtime/explicit)
+
+#ifdef V8_COMPRESS_POINTERS
+  inline ExternalPointerTable& GetCppHeapPointerTable();
+  inline ExternalPointerTable::Space* GetCppHeapPointerTableSpace();
+#endif  // V8_COMPRESS_POINTERS
+
+ private:
+#ifdef V8_COMPRESS_POINTERS
+  Isolate* const isolate_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 }  // namespace internal

@@ -375,6 +375,62 @@ class ExternalPointerSlot
 #endif  // V8_ENABLE_SANDBOX
 };
 
+// Similar to ExternalPointerSlot with the difference that it refers to an
+// `CppHeapPointer_t` which has different sizing and alignment than
+// `ExternalPointer_t`.
+class CppHeapPointerSlot
+    : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
+                      /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
+ public:
+  CppHeapPointerSlot()
+      : SlotBase(kNullAddress)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_(kExternalPointerNullTag)
+#endif
+  {
+  }
+
+  CppHeapPointerSlot(Address ptr, ExternalPointerTag tag)
+      : SlotBase(ptr)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_(tag)
+#endif
+  {
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+
+  // When V8 runs with pointer compression, the slots here store a handle to an
+  // entry in a dedicated ExternalPointerTable that is only used for CppHeap
+  // references. These methods allow access to the underlying handle while the
+  // load/store methods below resolve the handle to the real pointer. Handles
+  // should generally be accessed atomically as they may be accessed from other
+  // threads, for example GC marking threads.
+  inline CppHeapPointerHandle Relaxed_LoadHandle() const;
+  inline void Relaxed_StoreHandle(CppHeapPointerHandle handle) const;
+  inline void Release_StoreHandle(CppHeapPointerHandle handle) const;
+
+#endif  // V8_COMPRESS_POINTERS
+
+  inline Address try_load(IsolateForPointerCompression isolate) const;
+  inline void store(IsolateForPointerCompression isolate, Address value) const;
+  inline void reset() const;
+
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerTag tag() const { return tag_; }
+#else
+  ExternalPointerTag tag() const { return kExternalPointerNullTag; }
+#endif  // V8_COMPRESS_POINTERS
+
+ private:
+#ifdef V8_COMPRESS_POINTERS
+  // The tag associated with this slot.
+  ExternalPointerTag tag_;
+#endif  // V8_COMPRESS_POINTERS
+};
+
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing
 // an IndirectPointerHandle, i.e. an index to an entry in a pointer table which
 // contains the "real" pointer to the referenced HeapObject. These slots are

@@ -96,7 +96,8 @@ class NewWrapperHelper {
 
   // Resets the connection of a wrapper (JS) to its wrappable (C++), meaning
   // that the wrappable object is not longer kept alive by the wrapper object.
-  static void ResetWrappableConnection(v8::Local<v8::Object> api_object);
+  static void ResetWrappableConnection(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> api_object);
 
   // Sets up the connection of a wrapper (JS) to its wrappable (C++). Does not
   // emit any possibly needed write barrier.

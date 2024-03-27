@@ -7,9 +7,11 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
+#include "src/objects/slots.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate-inl.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -83,46 +85,47 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
 }
 
 template <ExternalPointerTag tag>
-V8_INLINE Address TryReadCppHeapPointerField(Address field_address,
-                                             IsolateForSandbox isolate) {
-#ifdef V8_ENABLE_SANDBOX
+V8_INLINE Address TryReadCppHeapPointerField(
+    Address field_address, IsolateForPointerCompression isolate) {
+  CppHeapPointerSlot slot(field_address, tag);
+#ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
   // be reordered before the load of the handle due to the data dependency
   // between the two loads and therefore use relaxed memory ordering, but
   // technically we should use memory_order_consume here.
-  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
-  ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+  CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
   if (handle == 0) {
     return kNullAddress;
   }
   return isolate.GetCppHeapPointerTable().Get(handle, tag);
-#else
-  return ReadMaybeUnalignedValue<Address>(field_address);
-#endif  // V8_ENABLE_SANDBOX
+#else   // !V8_COMPRESS_POINTERS
+  return slot.try_load(isolate);
+#endif  // !V8_COMPRESS_POINTERS
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
-    Address field_address, IsolateForSandbox isolate, Address value) {
-#ifdef V8_ENABLE_SANDBOX
+    Address field_address, IsolateForPointerCompression isolate,
+    Address value) {
+  CppHeapPointerSlot slot(field_address, tag);
+#ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
   // See comment above for why this uses a Relaxed_Load and Release_Store.
   ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
-  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
-  ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  if (handle == kNullExternalPointerHandle) {
+  const CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullCppHeapPointerHandle) {
     // Field has not been initialized yet.
-    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+    const CppHeapPointerHandle new_handle = table.AllocateAndInitializeEntry(
         isolate.GetCppHeapPointerTableSpace(), value, tag);
-    base::AsAtomic32::Release_Store(location, handle);
+    slot.Release_StoreHandle(new_handle);
   } else {
     table.Set(handle, value, tag);
   }
-#else
-  WriteMaybeUnalignedValue<Address>(field_address, value);
-#endif  // V8_ENABLE_SANDBOX
+#else   // !V8_COMPRESS_POINTERS
+  slot.store(isolate, value);
+#endif  // !V8_COMPRESS_POINTERS
 }
 
 template <ExternalPointerTag tag>

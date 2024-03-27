@@ -1379,11 +1379,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(
       TNode<JSAPIObjectWithEmbedderSlots> holder) {
     auto zero_constant =
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
         Int32Constant(0);
-#else
+#else   // !V8_COMPRESS_POINTERS
         IntPtrConstant(0);
-#endif
+#endif  // !V8_COMPRESS_POINTERS
     StoreObjectFieldNoWriteBarrier(
         holder, JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
         zero_constant);

@@ -53,7 +53,7 @@ extern class JSObjectWithEmbedderSlots extends JSObject {}
 // objects.
 @abstract
 extern class JSAPIObjectWithEmbedderSlots extends JSObject {
-  cpp_heap_wrappable: ExternalPointer;
+  cpp_heap_wrappable: CppHeapPointer;
 }
 
 @abstract
@@ -67,7 +67,7 @@ extern class JSCustomElementsObject extends JSObject {}
 @lowestInstanceTypeWithinParentClassRange
 extern class JSSpecialObject extends JSCustomElementsObject {
   // Mirror the same class hierarchy as with JSAPIObjectWithEmbedderSlots.
-  cpp_heap_wrappable: ExternalPointer;
+  cpp_heap_wrappable: CppHeapPointer;
 }
 
 macro GetDerivedMap(

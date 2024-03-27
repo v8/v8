@@ -132,7 +132,7 @@ class ReferenceSummarizerMarkingVisitor
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override {}
   void VisitCppHeapPointer(Tagged<HeapObject> host,
-                           ExternalPointerSlot slot) override {}
+                           CppHeapPointerSlot slot) override {}
 
  private:
   ReferenceSummarizerMarkingState* marking_state_;

@@ -301,6 +301,26 @@ using ExternalPointer_t = Address;
 constexpr ExternalPointer_t kNullExternalPointer = 0;
 constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 
+// See `ExternalPointerHandle` for the main documentation. The difference to
+// `ExternalPointerHandle` is that the handle does not represent an arbitrary
+// external pointer but always refers to an object managed by `CppHeap`. The
+// handles are using in combination with a dedicated table for `CppHeap`
+// references.
+using CppHeapPointerHandle = uint32_t;
+
+// The actual pointer to objects located on the `CppHeap`. When pointer
+// compression is enabled these pointers are stored as `CppHeapPointerHandle`.
+// In non-compressed configurations the pointers are simply stored as raw
+// pointers.
+#ifdef V8_COMPRESS_POINTERS
+using CppHeapPointer_t = CppHeapPointerHandle;
+#else
+using CppHeapPointer_t = Address;
+#endif
+
+constexpr CppHeapPointer_t kNullCppHeapPointer = 0;
+constexpr CppHeapPointerHandle kNullCppHeapPointerHandle = 0;
+
 //
 // External Pointers.
 //
@@ -647,13 +667,13 @@ class Internals {
 
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
+  static const int kJSAPIObjectWithEmbedderSlotsHeaderSize =
+      kJSObjectHeaderSize + kApiInt32Size;
+#else   // !V8_COMPRESS_POINTERS
   static const int kJSAPIObjectWithEmbedderSlotsHeaderSize =
       kJSObjectHeaderSize + kApiTaggedSize;
-#else   // !V8_ENABLE_SANDBOX
-  static const int kJSAPIObjectWithEmbedderSlotsHeaderSize =
-      kJSObjectHeaderSize + kApiSystemPointerSize;
-#endif  // !V8_ENABLE_SANDBOX
+#endif  // !V8_COMPRESS_POINTERS
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;

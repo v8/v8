@@ -64,8 +64,7 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 extern class JSArrayBufferView extends JSAPIObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
   bit_field: JSArrayBufferViewFlags;  // 32bit
-  @if(V8_TARGET_ARCH_64_BIT_AND_NO_V8_ENABLE_SANDBOX)
-  optional_padding: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   // A BoundedSize if the sandbox is enabled
   raw_byte_offset: uintptr;
   // A BoundedSize if the sandbox is enabled

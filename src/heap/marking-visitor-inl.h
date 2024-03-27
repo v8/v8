@@ -19,6 +19,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
+#include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
@@ -185,22 +186,20 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
-    Tagged<HeapObject> host, ExternalPointerSlot slot) {
-#ifdef V8_ENABLE_SANDBOX
+    Tagged<HeapObject> host, CppHeapPointerSlot slot) {
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   if (handle == kNullExternalPointerHandle) {
     return;
   }
   ExternalPointerTable* table = cpp_heap_pointer_table_;
   ExternalPointerTable::Space* space = heap_->cpp_heap_pointer_space();
   table->Mark(space, handle, slot.address());
-#endif  // V8_ENABLE_SANDBOX
-  if (void* cpp_heap_wrappable =
-          JSApiWrapper(JSObject::cast(host))
-              .GetCppHeapWrappable<kAnyExternalPointerTag>(heap_->isolate())) {
+#endif  // V8_COMPRESS_POINTERS
+  if (auto cpp_heap_pointer = slot.try_load(heap_->isolate())) {
     local_marking_worklists_->cpp_marking_state()->MarkAndPush(
-        cpp_heap_wrappable);
+        reinterpret_cast<void*>(cpp_heap_pointer));
   }
 }
 

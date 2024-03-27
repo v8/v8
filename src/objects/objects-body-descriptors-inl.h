@@ -121,7 +121,7 @@ class JSAPIObjectWithEmbedderSlotsOrJSSpecialObjectBodyDescriptor
                       1 ==
                   JSAPIObjectWithEmbedderSlots::kHeaderSize);
     v->VisitCppHeapPointer(
-        obj, obj->RawExternalPointerField(
+        obj, obj->RawCppHeapPointerField(
                  JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
                  kAnyExternalPointerTag));
   }

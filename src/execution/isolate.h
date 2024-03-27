@@ -2724,6 +2724,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class GlobalSafepoint;
   friend class TestSerializer;
   friend class SharedHeapNoClientsTest;
+  friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
 };
 

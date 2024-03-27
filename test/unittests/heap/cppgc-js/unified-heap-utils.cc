@@ -152,10 +152,11 @@ v8::Local<v8::Object> NewWrapperHelper::CreateWrapper(
 
 // static
 void NewWrapperHelper::ResetWrappableConnection(
-    v8::Local<v8::Object> api_object) {
+    v8::Isolate* isolate, v8::Local<v8::Object> api_object) {
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*api_object);
-  js_obj->ResetLazilyInitializedExternalPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+  JSApiWrapper(JSObject::cast(*js_obj))
+      .SetCppHeapWrappable<kExternalObjectValueTag>(
+          reinterpret_cast<i::Isolate*>(isolate), nullptr);
 }
 
 // static

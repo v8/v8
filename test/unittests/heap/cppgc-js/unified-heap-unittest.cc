@@ -90,7 +90,7 @@ TEST_F(UnifiedHeapTest, NewWrapper_FindingV8ToCppReference) {
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   NewWrapperHelper::ResetWrappableConnection(
-      v8::Utils::ToLocal(handle_api_object));
+      v8_isolate(), v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
@@ -127,7 +127,7 @@ TEST_F(UnifiedHeapTest, NewWrapper_WriteBarrierV8ToCppReference) {
   // as root.
   Global<v8::Object> global(v8_isolate(), api_object);
   Wrappable::destructor_callcount = 0;
-  NewWrapperHelper::ResetWrappableConnection(api_object);
+  NewWrapperHelper::ResetWrappableConnection(v8_isolate(), api_object);
   SimulateIncrementalMarking();
   NewWrapperHelper::SetWrappableConnection(
       v8_isolate(), v8::Utils::ToLocal(handle_api_object), wrappable);

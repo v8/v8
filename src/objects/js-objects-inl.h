@@ -626,16 +626,17 @@ JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
 }
 
 template <ExternalPointerTag tag>
-void* JSApiWrapper::GetCppHeapWrappable(IsolateForSandbox isolate) const {
+void* JSApiWrapper::GetCppHeapWrappable(
+    IsolateForPointerCompression isolate) const {
   return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField<tag>(
       kCppHeapWrappableOffset, isolate));
 }
 
 template <ExternalPointerTag tag>
-void JSApiWrapper::SetCppHeapWrappable(IsolateForSandbox isolate,
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
                                        void* instance) {
   if (instance == nullptr) {
-    object_->ResetLazilyInitializedExternalPointerField(
+    object_->ResetLazilyInitializedCppHeapPointerField(
         JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
     return;
   }

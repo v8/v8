@@ -2858,7 +2858,7 @@ void Factory::InitializeCppHeapWrapper(Tagged<JSObject> obj) {
   DCHECK(IsJSAPIObjectWithEmbedderSlots(obj) || IsJSSpecialObject(obj));
   static_assert(JSSpecialObject::kCppHeapWrappableOffset ==
                 JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
-  obj->ResetLazilyInitializedExternalPointerField(
+  obj->ResetLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
 }
 

@@ -241,6 +241,8 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+type CppHeapPointer
+    generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
 type IndirectPointer
     generates 'TNode<IndirectPointerHandleT>'
     constexpr 'IndirectPointerHandle';
