@@ -289,8 +289,9 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
     Handle<WasmTrustedInstanceData> target_instance_data(
         exported_function->instance()->trusted_data(isolate), isolate);
     int func_index = exported_function->function_index();
-    auto* wasm_function =
-        &target_instance_data->module()->functions[func_index];
+    const WasmModule* module = target_instance_data->module();
+    SBXCHECK_LT(func_index, module->functions.size());
+    auto* wasm_function = module->functions.data() + func_index;
     UpdateDispatchTables(isolate, table, entry_index, wasm_function,
                          target_instance_data);
   } else if (WasmJSFunction::IsWasmJSFunction(*external)) {
@@ -486,11 +487,10 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
                                            Handle<WasmTableObject> table,
                                            int entry_index,
                                            Handle<WasmJSFunction> function) {
-  // We simply need to update the IFTs for each instance that imports
-  // this table.
   Handle<FixedArray> uses(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
+  // Update the dispatch table for each instance that imports this table.
   for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
     int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     Handle<WasmTrustedInstanceData> trusted_instance_data(
@@ -506,8 +506,6 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     Handle<WasmCapiFunction> capi_function) {
-  // We simply need to update the IFTs for each instance that imports
-  // this table.
   Handle<FixedArray> uses(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
@@ -516,6 +514,7 @@ void WasmTableObject::UpdateDispatchTables(
   wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
       capi_function->GetSerializedSignature(), &reps);
 
+  // Update the dispatch table for each instance that imports this table.
   for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
     int table_index = Smi::cast(uses->get(i + TableUses::kIndexOffset)).value();
     Handle<WasmTrustedInstanceData> trusted_instance_data(
@@ -1281,6 +1280,7 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
 
 Address WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   wasm::NativeModule* native_module = module_object()->native_module();
+  SBXCHECK_LT(func_index, native_module->num_functions());
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);
   }
@@ -1811,7 +1811,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
     return;
   }
 
-  DCHECK_LT(index, length());
+  SBXCHECK_LT(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
   DCHECK_EQ(ref == Smi::zero(), call_target == kNullAddress);
   const int offset = OffsetOf(index);
@@ -1825,7 +1825,7 @@ void WasmDispatchTable::Set(int index, Tagged<Object> ref, Address call_target,
 void WasmDispatchTable::SetForImport(int index,
                                      Tagged<ExposedTrustedObject> ref,
                                      Address call_target) {
-  DCHECK_LT(index, length());
+  SBXCHECK_LT(index, length());
   DCHECK(IsWasmApiFunctionRef(ref) || IsWasmTrustedInstanceData(ref));
   DCHECK_NE(kNullAddress, call_target);
   const int offset = OffsetOf(index);
@@ -1838,7 +1838,7 @@ void WasmDispatchTable::SetForImport(int index,
 }
 
 void WasmDispatchTable::Clear(int index) {
-  DCHECK_LT(index, length());
+  SBXCHECK_LT(index, length());
   const int offset = OffsetOf(index);
   ClearProtectedPointerField(offset + kRefBias);
   WriteField<Address>(offset + kTargetBias, kNullAddress);
@@ -1846,7 +1846,7 @@ void WasmDispatchTable::Clear(int index) {
 }
 
 void WasmDispatchTable::SetTarget(int index, Address call_target) {
-  DCHECK_LT(index, length());
+  SBXCHECK_LT(index, length());
   const int offset = OffsetOf(index) + kTargetBias;
   WriteField<Address>(offset, call_target);
 }
