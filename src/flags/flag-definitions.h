@@ -638,6 +638,7 @@ DEFINE_IMPLICATION(trace_maglev_inlining_verbose, trace_maglev_inlining)
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
+DEFINE_WEAK_IMPLICATION(trace_deopt_verbose, print_maglev_deopt_verbose)
 DEFINE_BOOL(print_maglev_graph, false, "print the final maglev graph")
 DEFINE_BOOL(print_maglev_graphs, false, "print maglev graph across all phases")
 DEFINE_BOOL(trace_maglev_phi_untagging, false, "trace maglev phi untagging")
