@@ -201,36 +201,33 @@ bool DataRange::get() {
   return get<uint8_t>() % 2;
 }
 
-enum NumericTypes { kIncludeNumericTypes, kExcludeNumericTypes };
-enum PackedTypes { kIncludePackedTypes, kExcludePackedTypes };
-enum Generics {
-  kAlwaysIncludeAllGenerics,
-  kExcludeSomeGenericsWhenTypeIsNonNullable
-};
-enum IncludeS128 { kIncludeS128 = 1, kExcludeS128 = 0 };
+enum class IncludeNumericTypes : bool { kTrue = true, kFalse = false };
+enum class IncludePackedTypes : bool { kTrue = true, kFalse = false };
+enum class IncludeAllGenerics : bool { kTrue = true, kFalse = false };
+enum class IncludeS128 : bool { kTrue = true, kFalse = false };
 
 // Chooses one `ValueType` randomly based on `options` and the enums specified
 // above.
 template <WasmModuleGenerationOptions options>
 ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              uint32_t num_non_nullable_types,
-                             NumericTypes include_numeric_types,
-                             PackedTypes include_packed_types,
-                             Generics include_generics,
-                             IncludeS128 include_s128 = kIncludeS128) {
+                             IncludeNumericTypes include_numeric_types,
+                             IncludePackedTypes include_packed_types,
+                             IncludeAllGenerics include_all_generics,
+                             IncludeS128 include_s128 = IncludeS128::kTrue) {
   // Create and fill a vector of potential types to choose from.
   // TODO(evih): Change `types` into a SmallVector.
   std::vector<ValueType> types;
 
   // Numeric non-wasmGC types.
-  if (include_numeric_types == kIncludeNumericTypes) {
+  if (static_cast<bool>(include_numeric_types)) {
     // Many "general-purpose" instructions return i32, so give that a higher
     // probability (such as 3x).
     types.insert(types.end(),
                  {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
 
     // SIMD type.
-    if (ShouldGenerateSIMD(options) && include_s128 == kIncludeS128) {
+    if (ShouldGenerateSIMD(options) && static_cast<bool>(include_s128)) {
       types.push_back(kWasmS128);
     }
   }
@@ -250,8 +247,8 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   if (ShouldGenerateWasmGC(options)) {
     types.push_back(kWasmI31Ref);
 
-    if (include_numeric_types == kIncludeNumericTypes &&
-        include_packed_types == kIncludePackedTypes) {
+    if (static_cast<bool>(include_numeric_types) &&
+        static_cast<bool>(include_packed_types)) {
       types.insert(types.end(), {kWasmI8, kWasmI16});
     }
 
@@ -259,7 +256,7 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
       types.insert(types.end(),
                    {kWasmNullRef, kWasmNullExternRef, kWasmNullFuncRef});
     }
-    if (nullable || include_generics == kAlwaysIncludeAllGenerics) {
+    if (nullable || static_cast<bool>(include_all_generics)) {
       types.insert(types.end(), {kWasmStructRef, kWasmArrayRef, kWasmAnyRef,
                                  kWasmEqRef, kWasmExternRef});
     }
@@ -293,9 +290,9 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
 
 template <WasmModuleGenerationOptions options>
 ValueType GetValueType(DataRange* data, uint32_t num_types) {
-  return GetValueTypeHelper<options>(data, num_types, num_types,
-                                     kIncludeNumericTypes, kExcludePackedTypes,
-                                     kAlwaysIncludeAllGenerics);
+  return GetValueTypeHelper<options>(
+      data, num_types, num_types, IncludeNumericTypes::kTrue,
+      IncludePackedTypes::kFalse, IncludeAllGenerics::kTrue);
 }
 
 void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
@@ -3485,8 +3482,8 @@ class ModuleGen {
         //   ((ref extern) gets materialized through (ref any)).
         ValueType type = GetValueTypeHelper<options>(
             module_range_, current_rec_group_end + 1, current_type_index,
-            kIncludeNumericTypes, kIncludePackedTypes,
-            kExcludeSomeGenericsWhenTypeIsNonNullable);
+            IncludeNumericTypes::kTrue, IncludePackedTypes::kTrue,
+            IncludeAllGenerics::kFalse);
 
         bool mutability = module_range_->get<bool>();
         struct_builder.AddField(type, mutability);
@@ -3511,8 +3508,8 @@ class ModuleGen {
                                           : current_type_index;
       ValueType type = GetValueTypeHelper<options>(
           module_range_, current_rec_group_end + 1, current_type_index,
-          kIncludeNumericTypes, kIncludePackedTypes,
-          kExcludeSomeGenericsWhenTypeIsNonNullable);
+          IncludeNumericTypes::kTrue, IncludePackedTypes::kTrue,
+          IncludeAllGenerics::kFalse);
       uint32_t supertype = kNoSuperType;
       if (current_type_index > last_struct_type_index &&
           module_range_->get<bool>()) {
@@ -3678,8 +3675,9 @@ class ModuleGen {
           force_funcref
               ? kWasmFuncRef
               : GetValueTypeHelper<options>(
-                    module_range_, num_types_, num_types_, kExcludeNumericTypes,
-                    kExcludePackedTypes, kAlwaysIncludeAllGenerics);
+                    module_range_, num_types_, num_types_,
+                    IncludeNumericTypes::kFalse, IncludePackedTypes::kFalse,
+                    IncludeAllGenerics::kTrue);
       bool use_initializer =
           !type.is_defaultable() || module_range_->get<bool>();
       uint32_t table_index =
@@ -4195,8 +4193,8 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     for (; field_index < num_fields; field_index++) {
       ValueType type = GetValueTypeHelper<options>(
           &module_range, current_type_index, current_type_index,
-          kIncludeNumericTypes, kIncludePackedTypes,
-          kExcludeSomeGenericsWhenTypeIsNonNullable);
+          IncludeNumericTypes::kTrue, IncludePackedTypes::kTrue,
+          IncludeAllGenerics::kFalse);
 
       bool mutability = module_range.get<bool>();
       struct_builder.AddField(type, mutability);
@@ -4209,8 +4207,8 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   for (; current_type_index < num_structs + num_arrays; current_type_index++) {
     ValueType type = GetValueTypeHelper<options>(
         &module_range, current_type_index, current_type_index,
-        kIncludeNumericTypes, kIncludePackedTypes,
-        kExcludeSomeGenericsWhenTypeIsNonNullable);
+        IncludeNumericTypes::kTrue, IncludePackedTypes::kTrue,
+        IncludeAllGenerics::kFalse);
     uint32_t supertype = kNoSuperType;
     if (current_type_index > last_struct_type && module_range.get<bool>()) {
       uint8_t existing_array_types = current_type_index - last_struct_type;
@@ -4229,8 +4227,8 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   for (; current_type_index < num_types; current_type_index++) {
     ValueType return_type = GetValueTypeHelper<options>(
         &module_range, num_types - num_globals, num_types - num_globals,
-        kIncludeNumericTypes, kExcludePackedTypes, kAlwaysIncludeAllGenerics,
-        kExcludeS128);
+        IncludeNumericTypes::kTrue, IncludePackedTypes::kFalse,
+        IncludeAllGenerics::kTrue, IncludeS128::kFalse);
     globals.push_back(return_type);
     // Create a new function signature for each global. These functions will be
     // used to compare against the initializer value of the global.
