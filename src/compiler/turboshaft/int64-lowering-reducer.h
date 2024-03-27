@@ -194,22 +194,24 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values));
   }
 
-  OpIndex REDUCE(WordUnary)(OpIndex input, WordUnaryOp::Kind kind,
+  V<Word> REDUCE(WordUnary)(V<Word> input, WordUnaryOp::Kind kind,
                             WordRepresentation rep) {
     if (rep == RegisterRepresentation::Word64()) {
+      V<Word64> input_w64 = V<Word64>::Cast(input);
       switch (kind) {
         case WordUnaryOp::Kind::kCountLeadingZeros:
-          return LowerClz(input);
+          return LowerClz(input_w64);
         case WordUnaryOp::Kind::kCountTrailingZeros:
-          return LowerCtz(input);
+          return LowerCtz(input_w64);
         case WordUnaryOp::Kind::kPopCount:
-          return LowerPopCount(input);
+          return LowerPopCount(input_w64);
         case WordUnaryOp::Kind::kSignExtend8:
-          return LowerSignExtend(__ Word32SignExtend8(Unpack(input).first));
+          return LowerSignExtend(__ Word32SignExtend8(Unpack(input_w64).first));
         case WordUnaryOp::Kind::kSignExtend16:
-          return LowerSignExtend(__ Word32SignExtend16(Unpack(input).first));
+          return LowerSignExtend(
+              __ Word32SignExtend16(Unpack(input_w64).first));
         case WordUnaryOp::Kind::kReverseBytes: {
-          auto [low, high] = Unpack(input);
+          auto [low, high] = Unpack(input_w64);
           V<Word32> reversed_low = __ Word32ReverseBytes(low);
           V<Word32> reversed_high = __ Word32ReverseBytes(high);
           return __ Tuple(reversed_high, reversed_low);

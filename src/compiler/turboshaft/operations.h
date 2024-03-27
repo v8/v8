@@ -1003,6 +1003,10 @@ struct OperationT : Operation {
 
   V8_INLINE OpIndex& input(size_t i) { return derived_this().inputs()[i]; }
   V8_INLINE OpIndex input(size_t i) const { return derived_this().inputs()[i]; }
+  template <typename T>
+  V8_INLINE V<T> input(size_t i) const {
+    return V<T>::Cast(derived_this().inputs()[i]);
+  }
 
   static size_t StorageSlotCount(size_t input_count) {
     // The operation size in bytes is:
@@ -1321,10 +1325,10 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<Object> left() const { return input(0); }
-  V<Object> right() const { return input(1); }
+  V<Object> left() const { return input<Object>(0); }
+  V<Object> right() const { return input<Object>(1); }
   OpIndex frame_state() const { return input(2); }
-  V<Context> context() const { return input(3); }
+  V<Context> context() const { return input<Context>(3); }
 
   GenericBinopOp(V<Object> left, V<Object> right, OpIndex frame_state,
                  V<Context> context, Kind kind)
@@ -1359,9 +1363,9 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<Object> input() const { return Base::input(0); }
+  V<Object> input() const { return Base::input<Object>(0); }
   OpIndex frame_state() const { return Base::input(1); }
-  V<Context> context() const { return Base::input(2); }
+  V<Context> context() const { return Base::input<Context>(2); }
 
   GenericUnopOp(V<Object> input, OpIndex frame_state, V<Context> context,
                 Kind kind)
@@ -1385,9 +1389,9 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<Object> input() const { return Base::input(0); }
+  V<Object> input() const { return Base::input<Object>(0); }
   OpIndex frame_state() const { return Base::input(1); }
-  V<Context> context() const { return Base::input(2); }
+  V<Context> context() const { return Base::input<Context>(2); }
 
   ToNumberOrNumericOp(V<Object> input, OpIndex frame_state, V<Context> context,
                       Object::Conversion kind)
@@ -1714,11 +1718,11 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
     return InputsRepFactory::SingleRep(rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Word> input() const { return Base::input<Word>(0); }
 
   V8_EXPORT_PRIVATE static bool IsSupported(Kind kind, WordRepresentation rep);
 
-  explicit WordUnaryOp(OpIndex input, Kind kind, WordRepresentation rep)
+  explicit WordUnaryOp(V<Word> input, Kind kind, WordRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
@@ -2832,8 +2836,8 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
                          RegisterRepresentation::WordPtr(), result_rep});
   }
 
-  V<WordPtr> base() const { return input(0); }
-  V<WordPtr> index() const { return input(1); }
+  V<WordPtr> base() const { return input<WordPtr>(0); }
+  V<WordPtr> index() const { return input<WordPtr>(1); }
   OpIndex value() const { return input(2); }
   OptionalOpIndex expected() const {
     return (input_count == 4) ? input(3) : OpIndex::Invalid();
@@ -2962,23 +2966,25 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
     return base::VectorOf(storage);
   }
 
-  V<WordPtr> base() const { return input(0); }
+  V<WordPtr> base() const { return input<WordPtr>(0); }
   OptionalV<WordPtr> index() const {
-    return HasIndex() ? input(1) : OpIndex::Invalid();
+    return HasIndex() ? input<WordPtr>(1) : V<WordPtr>::Invalid();
   }
   OptionalV<Word32> value_low() const {
-    return kind != Kind::kLoad ? input(1 + HasIndex()) : OpIndex::Invalid();
+    return kind != Kind::kLoad ? input<Word32>(1 + HasIndex())
+                               : V<Word32>::Invalid();
   }
   OptionalV<Word32> value_high() const {
-    return kind != Kind::kLoad ? input(2 + HasIndex()) : OpIndex::Invalid();
+    return kind != Kind::kLoad ? input<Word32>(2 + HasIndex())
+                               : V<Word32>::Invalid();
   }
   OptionalV<Word32> expected_low() const {
-    return kind == Kind::kCompareExchange ? input(3 + HasIndex())
-                                          : OpIndex::Invalid();
+    return kind == Kind::kCompareExchange ? input<Word32>(3 + HasIndex())
+                                          : V<Word32>::Invalid();
   }
   OptionalV<Word32> expected_high() const {
-    return kind == Kind::kCompareExchange ? input(4 + HasIndex())
-                                          : OpIndex::Invalid();
+    return kind == Kind::kCompareExchange ? input<Word32>(4 + HasIndex())
+                                          : V<Word32>::Invalid();
   }
 
   void Validate(const Graph& graph) const {}
@@ -4738,10 +4744,10 @@ struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<Object> value() const { return Base::input(0); }
-  V<Object> native_context() const { return Base::input(1); }
+  V<Object> value() const { return Base::input<Object>(0); }
+  V<Object> native_context() const { return Base::input<Object>(1); }
   OptionalV<Object> global_proxy() const {
-    return input_count > 2 ? Base::input(2) : OpIndex::Invalid();
+    return input_count > 2 ? Base::input<Object>(2) : V<Object>::Invalid();
   }
 
   ConvertJSPrimitiveToObjectOp(V<Object> value, V<Object> native_context,
@@ -6465,9 +6471,9 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Object> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input<Object>(0); }
   OptionalV<Object> rtt() const {
-    return input_count > 1 ? input(1) : OpIndex::Invalid();
+    return input_count > 1 ? input<Object>(1) : V<Object>::Invalid();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6512,9 +6518,9 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
     return fn(mapper.Map(object()), mapper.Map(rtt()), config);
   }
 
-  V<Object> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input<Object>(0); }
   OptionalV<Object> rtt() const {
-    return input_count > 1 ? input(1) : OpIndex::Invalid();
+    return input_count > 1 ? input<Object>(1) : V<Object>::Invalid();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6550,7 +6556,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   explicit WasmTypeAnnotationOp(OpIndex value, wasm::ValueType type)
       : Base(value), type(type) {}
 
-  V<Object> value() const { return Base::input(0); }
+  V<Object> value() const { return Base::input<Object>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6578,7 +6584,7 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
 
   explicit AnyConvertExternOp(V<Object> object) : Base(object) {}
 
-  V<Object> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input<Object>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6599,7 +6605,7 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
 
   explicit ExternConvertAnyOp(V<Object> object) : Base(object) {}
 
-  V<Object> object() const { return Base::input(0); }
+  V<Object> object() const { return Base::input<Object>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6825,8 +6831,8 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                                const wasm::ArrayType* array_type)
       : Base(rtt, length), array_type(array_type) {}
 
-  V<Map> rtt() const { return Base::input(0); }
-  V<Word32> length() const { return Base::input(1); }
+  V<Map> rtt() const { return Base::input<Map>(0); }
+  V<Word32> length() const { return Base::input<Word32>(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6852,7 +6858,7 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
   explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type)
       : Base(rtt), struct_type(struct_type) {}
 
-  V<Map> rtt() const { return Base::input(0); }
+  V<Map> rtt() const { return Base::input<Map>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -7879,8 +7885,8 @@ struct Simd256LoadTransformOp
         transform_kind(transform_kind),
         offset(offset) {}
 
-  V<WordPtr> base() const { return input(0); }
-  V<WordPtr> index() const { return input(1); }
+  V<WordPtr> base() const { return input<WordPtr>(0); }
+  V<WordPtr> index() const { return input<WordPtr>(1); }
 
   void Validate(const Graph& graph) { DCHECK(!load_kind.tagged_base); }
 
@@ -8122,8 +8128,8 @@ struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
   Simd256ShiftOp(V<Simd256> input, V<Word32> shift, Kind kind)
       : Base(input, shift), kind(kind) {}
 
-  V<Simd256> input() const { return Base::input(0); }
-  V<Word32> shift() const { return Base::input(1); }
+  V<Simd256> input() const { return Base::input<Simd256>(0); }
+  V<Word32> shift() const { return Base::input<Word32>(1); }
 
   void Validate(const Graph& graph) const {}
 
@@ -8159,9 +8165,9 @@ struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
                    Kind kind)
       : Base(first, second, third), kind(kind) {}
 
-  V<Simd256> first() const { return input(0); }
-  V<Simd256> second() const { return input(1); }
-  V<Simd256> third() const { return input(2); }
+  V<Simd256> first() const { return input<Simd256>(0); }
+  V<Simd256> second() const { return input<Simd256>(1); }
+  V<Simd256> third() const { return input<Simd256>(2); }
 
   void Validate(const Graph& graph) const {}
 

@@ -664,20 +664,22 @@ class ScopedVariable : Variable {
   V<T> Get() const { return assembler_.GetVariable(*this); }
 
   void operator=(value_type new_value) { Set(new_value); }
-  template <typename U, typename = std::enable_if_t<v_traits<
-                            T>::template implicitly_convertible_to<U>::value>>
+  template <typename U,
+            typename = std::enable_if_t<
+                v_traits<U>::template implicitly_constructible_from<T>::value>>
   operator V<U>() const {
     return Get();
   }
-  template <typename U, typename = std::enable_if_t<v_traits<
-                            T>::template implicitly_convertible_to<U>::value>>
+  template <typename U,
+            typename = std::enable_if_t<
+                v_traits<U>::template implicitly_constructible_from<T>::value>>
   operator OptionalV<U>() const {
     return Get();
   }
   template <typename U,
             typename = std::enable_if_t<
                 const_or_v_exists_v<U> &&
-                v_traits<T>::template implicitly_convertible_to<U>::value>>
+                v_traits<U>::template implicitly_constructible_from<T>::value>>
   operator ConstOrV<U>() const {
     return Get();
   }
@@ -1499,6 +1501,11 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachable##operation(input, operation##Op::Kind::k##kind, \
                                         rep);                                \
   }
+#define DECL_MULTI_REP_UNARY_V(name, operation, rep_type, kind, tag)         \
+  V<tag> name(V<tag> input, rep_type rep) {                                  \
+    return ReduceIfReachable##operation(input, operation##Op::Kind::k##kind, \
+                                        rep);                                \
+  }
 #define DECL_SINGLE_REP_UNARY_V(name, operation, kind, tag)         \
   V<tag> name(ConstOrV<tag> input) {                                \
     return ReduceIfReachable##operation(                            \
@@ -1552,35 +1559,37 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_UNARY_V(Float64Atanh, FloatUnary, Atanh, Float64)
   DECL_SINGLE_REP_UNARY_V(Float64Cbrt, FloatUnary, Cbrt, Float64)
 
-  DECL_MULTI_REP_UNARY(WordReverseBytes, WordUnary, WordRepresentation,
-                       ReverseBytes)
+  DECL_MULTI_REP_UNARY_V(WordReverseBytes, WordUnary, WordRepresentation,
+                         ReverseBytes, Word)
   DECL_SINGLE_REP_UNARY_V(Word32ReverseBytes, WordUnary, ReverseBytes, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64ReverseBytes, WordUnary, ReverseBytes, Word64)
-  DECL_MULTI_REP_UNARY(WordCountLeadingZeros, WordUnary, WordRepresentation,
-                       CountLeadingZeros)
+  DECL_MULTI_REP_UNARY_V(WordCountLeadingZeros, WordUnary, WordRepresentation,
+                         CountLeadingZeros, Word)
   DECL_SINGLE_REP_UNARY_V(Word32CountLeadingZeros, WordUnary, CountLeadingZeros,
                           Word32)
   DECL_SINGLE_REP_UNARY_V(Word64CountLeadingZeros, WordUnary, CountLeadingZeros,
                           Word64)
-  DECL_MULTI_REP_UNARY(WordCountTrailingZeros, WordUnary, WordRepresentation,
-                       CountTrailingZeros)
+  DECL_MULTI_REP_UNARY_V(WordCountTrailingZeros, WordUnary, WordRepresentation,
+                         CountTrailingZeros, Word)
   DECL_SINGLE_REP_UNARY_V(Word32CountTrailingZeros, WordUnary,
                           CountTrailingZeros, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64CountTrailingZeros, WordUnary,
                           CountTrailingZeros, Word64)
-  DECL_MULTI_REP_UNARY(WordPopCount, WordUnary, WordRepresentation, PopCount)
+  DECL_MULTI_REP_UNARY_V(WordPopCount, WordUnary, WordRepresentation, PopCount,
+                         Word)
   DECL_SINGLE_REP_UNARY_V(Word32PopCount, WordUnary, PopCount, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64PopCount, WordUnary, PopCount, Word64)
-  DECL_MULTI_REP_UNARY(WordSignExtend8, WordUnary, WordRepresentation,
-                       SignExtend8)
+  DECL_MULTI_REP_UNARY_V(WordSignExtend8, WordUnary, WordRepresentation,
+                         SignExtend8, Word)
   DECL_SINGLE_REP_UNARY_V(Word32SignExtend8, WordUnary, SignExtend8, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64SignExtend8, WordUnary, SignExtend8, Word64)
-  DECL_MULTI_REP_UNARY(WordSignExtend16, WordUnary, WordRepresentation,
-                       SignExtend16)
+  DECL_MULTI_REP_UNARY_V(WordSignExtend16, WordUnary, WordRepresentation,
+                         SignExtend16, Word)
   DECL_SINGLE_REP_UNARY_V(Word32SignExtend16, WordUnary, SignExtend16, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64SignExtend16, WordUnary, SignExtend16, Word64)
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
+#undef DECL_MULTI_REP_UNARY_V
 
   OpIndex WordBinopDeoptOnOverflow(OpIndex left, OpIndex right,
                                    OpIndex frame_state,

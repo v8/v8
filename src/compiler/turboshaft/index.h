@@ -17,6 +17,8 @@
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
 
+#define TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V 1
+
 namespace v8::internal::compiler::turboshaft {
 
 namespace detail {
@@ -213,6 +215,11 @@ using Simd256 = WordWithBits<256>;
 
 struct Compressed : public Any {};
 
+// A Union type for untagged values. For Tagged types use `UnionT` for now.
+// TODO(nicohartmann@): We should think about a more uniform solution some day.
+template <typename...>
+struct Union : public Any {};
+
 // Traits classes `v_traits<T>` to provide additional T-specific information for
 // V<T> and ConstOrV<T>. If you need to provide non-default conversion behavior
 // for a specific type, specialize the corresponding v_traits<>.
@@ -228,8 +235,7 @@ struct v_traits<Any> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_same_v<U, Any>> {};
+  struct implicitly_constructible_from : std::true_type {};
 };
 
 template <>
@@ -241,8 +247,8 @@ struct v_traits<Compressed> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Compressed>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Compressed, U>> {};
 };
 
 template <>
@@ -255,8 +261,8 @@ struct v_traits<Word32> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Word32>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Word32, U>> {};
 };
 
 template <>
@@ -269,8 +275,8 @@ struct v_traits<Word64> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Word64>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Word64, U>> {};
 };
 
 template <>
@@ -283,8 +289,8 @@ struct v_traits<Float32> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Float32>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Float32, U>> {};
 };
 
 template <>
@@ -297,8 +303,8 @@ struct v_traits<Float64> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Float64>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Float64, U>> {};
 };
 
 template <>
@@ -312,8 +318,8 @@ struct v_traits<Simd128> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Simd128>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Simd128, U>> {};
 };
 
 template <>
@@ -327,8 +333,8 @@ struct v_traits<Simd256> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Simd256>> {};
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_base_of_v<Simd256, U>> {};
 };
 
 template <typename T>
@@ -340,9 +346,8 @@ struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   }
 
   template <typename U>
-  struct implicitly_convertible_to
-      : std::bool_constant<std::is_same_v<U, Any> || is_subtype<T, U>::value> {
-  };
+  struct implicitly_constructible_from
+      : std::bool_constant<is_subtype<U, T>::value> {};
 };
 
 template <typename T1, typename T2>
@@ -358,12 +363,25 @@ struct v_traits<UnionT<T1, T2>,
   }
 
   template <typename U>
-  struct implicitly_convertible_to
+  struct implicitly_constructible_from
       : std::bool_constant<(
-            v_traits<T1>::template implicitly_convertible_to<U>::value ||
-            v_traits<T2>::template implicitly_convertible_to<U>::value)> {};
+            v_traits<T1>::template implicitly_constructible_from<U>::value ||
+            v_traits<T2>::template implicitly_constructible_from<U>::value)> {};
 };
 
+template <typename... Ts>
+struct v_traits<Union<Ts...>> {
+  static constexpr auto rep = MaybeRegisterRepresentation::None();
+
+  template <typename U>
+  struct implicitly_constructible_from
+      : std::bool_constant<(
+            v_traits<Ts>::template implicitly_constructible_from<U>::value ||
+            ...)> {};
+};
+
+using Word = Union<Word32, Word64>;
+using Float = Union<Float32, Float64>;
 using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
 using NumberOrString = UnionT<Number, String>;
 using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
@@ -379,17 +397,16 @@ class V : public OpIndex {
   static constexpr auto rep = v_traits<type>::rep;
   constexpr V() : OpIndex() {}
 
-  // V<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
-  V(U index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
-
   // V<T> is implicitly constructible from V<U> iff
-  // `v_traits<U>::implicitly_convertible_to<T>::value`. This is typically the
-  // case if T == U or T is a subclass of U. Different types may specify
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
   // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U, typename = std::enable_if_t<v_traits<
-                            U>::template implicitly_convertible_to<T>::value>>
+  template <typename U,
+            typename = std::enable_if_t<
+                v_traits<T>::template implicitly_constructible_from<U>::value>>
   V(V<U> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
+
+  static V Invalid() { return V<T>(OpIndex::Invalid()); }
 
   template <typename U>
   static V<T> Cast(V<U> index) {
@@ -400,6 +417,14 @@ class V : public OpIndex {
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return v_traits<T>::allows_representation(rep);
   }
+
+#if !defined(TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V)
+
+ protected:
+#endif
+  // V<T> is implicitly constructible from plain OpIndex.
+  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  V(U index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
 template <typename T>
@@ -409,22 +434,18 @@ class OptionalV : public OptionalOpIndex {
   static constexpr auto rep = v_traits<type>::rep;
   constexpr OptionalV() : OptionalOpIndex() {}
 
-  // OptionalV<T> is implicitly constructible from plain OptionalOpIndex.
-  template <typename U,
-            typename = std::enable_if_t<std::is_same_v<U, OptionalOpIndex> ||
-                                        std::is_same_v<U, OpIndex>>>
-  OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
-
   // OptionalV<T> is implicitly constructible from OptionalV<U> iff
-  // `v_traits<U>::implicitly_convertible_to<T>::value`. This is typically the
-  // case if T == U or T is a subclass of U. Different types may specify
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
   // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U, typename = std::enable_if_t<v_traits<
-                            U>::template implicitly_convertible_to<T>::value>>
+  template <typename U,
+            typename = std::enable_if_t<
+                v_traits<T>::template implicitly_constructible_from<U>::value>>
   OptionalV(OptionalV<U> index)  // NOLINT(runtime/explicit)
       : OptionalOpIndex(index) {}
-  template <typename U, typename = std::enable_if_t<v_traits<
-                            U>::template implicitly_convertible_to<T>::value>>
+  template <typename U,
+            typename = std::enable_if_t<
+                v_traits<T>::template implicitly_constructible_from<U>::value>>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 
   template <typename U>
@@ -434,6 +455,16 @@ class OptionalV : public OptionalOpIndex {
   static OptionalV<T> Cast(OptionalOpIndex index) {
     return OptionalV<T>(index);
   }
+
+#if !defined(TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V)
+
+ protected:
+#endif
+  // OptionalV<T> is implicitly constructible from plain OptionalOpIndex.
+  template <typename U,
+            typename = std::enable_if_t<std::is_same_v<U, OptionalOpIndex> ||
+                                        std::is_same_v<U, OpIndex>>>
+  OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
 // ConstOrV<> is a generalization of V<> that allows constexpr values
@@ -461,11 +492,6 @@ class ConstOrV {
   ConstOrV(constant_type value)  // NOLINT(runtime/explicit)
       : constant_value_(value), value_() {}
 
-  // ConstOrV<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
-  ConstOrV(U index)  // NOLINT(runtime/explicit)
-      : constant_value_(), value_(index) {}
-
   // ConstOrV<T> is implicitly constructible from V<U> iff V<T> is
   // constructible from V<U>.
   template <typename U,
@@ -482,6 +508,15 @@ class ConstOrV {
     DCHECK(!is_constant());
     return value_;
   }
+
+#if !defined(TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V)
+
+ protected:
+#endif
+  // ConstOrV<T> is implicitly constructible from plain OpIndex.
+  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  ConstOrV(U index)  // NOLINT(runtime/explicit)
+      : constant_value_(), value_(index) {}
 
  private:
   base::Optional<constant_type> constant_value_;

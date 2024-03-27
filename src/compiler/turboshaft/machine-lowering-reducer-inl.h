@@ -1052,7 +1052,8 @@ class MachineLoweringReducer : public Next {
                   __ UntagSmi(V<Smi>::Cast(object)));
           V<Number> number =
               __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
-          GOTO_IF(__ ObjectIsSmi(number), done, __ UntagSmi(number));
+          GOTO_IF(__ ObjectIsSmi(number), done,
+                  __ UntagSmi(V<Smi>::Cast(number)));
           V<Float64> f64 = __ template LoadField<Float64>(
               V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
           GOTO(done, __ JSTruncateFloat64ToWord32(f64));
@@ -1128,7 +1129,7 @@ class MachineLoweringReducer : public Next {
           V<Number> number =
               __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
           GOTO_IF(__ ObjectIsSmi(number), done,
-                  __ ChangeInt32ToFloat64(__ UntagSmi(number)));
+                  __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(number))));
           V<Float64> f64 = __ template LoadField<Float64>(
               V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
           GOTO(done, f64);

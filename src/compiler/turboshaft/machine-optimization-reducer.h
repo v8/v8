@@ -491,7 +491,7 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceFloatUnary(input, kind, rep);
   }
 
-  OpIndex REDUCE(WordUnary)(OpIndex input, WordUnaryOp::Kind kind,
+  V<Word> REDUCE(WordUnary)(V<Word> input, WordUnaryOp::Kind kind,
                             WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceWordUnary(input, kind, rep);

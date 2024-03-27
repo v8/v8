@@ -117,14 +117,14 @@
   CONCAT(CHECK_Reduce, operation) =                                           \
       (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning(   \
            std::is_same_v<operation##Op, operation##Op>),                     \
-       OpIndex{});                                                            \
+       decltype(CONCAT(CHECK_Reduce, operation)){});                          \
   template <class... Args>                                                    \
   decltype(CONCAT(CHECK_Reduce, operation)) Reduce##operation(Args... args) { \
     if (v8_flags.turboshaft_trace_intermediate_reductions) {                  \
       base::SmallVector<OperationStorageSlot, 32> storage;                    \
       operation##Op* op = CreateOperation<operation##Op>(storage, args...);   \
       PrintF("%*s", Asm().intermediate_tracing_depth(), "");                  \
-      std::cout << "[" << ReducerName() << "]: reducing " << *op << "\n";       \
+      std::cout << "[" << ReducerName() << "]: reducing " << *op << "\n";     \
     }                                                                         \
     Asm().intermediate_tracing_depth()++;                                     \
     decltype(CONCAT(CHECK_Reduce, operation)) result =                        \
@@ -138,14 +138,14 @@
   CONCAT(CHECK_ReduceInputGraph, operation) =                                  \
       (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning(    \
            std::is_same_v<operation##Op, operation##Op>),                      \
-       OpIndex{});                                                             \
+       decltype(CONCAT(CHECK_ReduceInputGraph, operation)){});                 \
   decltype(CONCAT(                                                             \
       CHECK_ReduceInputGraph,                                                  \
       operation)) ReduceInputGraph##operation(OpIndex ig_index,                \
                                               const operation##Op& op) {       \
     if (v8_flags.turboshaft_trace_intermediate_reductions) {                   \
       PrintF("%*s", Asm().intermediate_tracing_depth(), "");                   \
-      std::cout << "[" << ReducerName() << "]: @input-reducing " << op << "\n"; \
+      std::cout << "[" << ReducerName() << "]: @input-reducing " << op << "\n";\
     }                                                                          \
     Asm().intermediate_tracing_depth()++;                                      \
     decltype(CONCAT(CHECK_ReduceInputGraph, operation)) result =               \
