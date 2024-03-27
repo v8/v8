@@ -89,6 +89,19 @@ Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map) {
                                       PropertyDictionary::kInitialCapacity);
 }
 
+template <ExternalPointerTag tag>
+Handle<Foreign> Factory::NewForeign(Address addr,
+                                    AllocationType allocation_type) {
+  // Statically ensure that it is safe to allocate foreigns in paged spaces.
+  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = *foreign_map();
+  Tagged<Foreign> foreign = Tagged<Foreign>::cast(
+      AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
+  DisallowGarbageCollection no_gc;
+  foreign->init_foreign_address<tag>(isolate(), addr);
+  return handle(foreign, isolate());
+}
+
 Handle<Object> Factory::NewURIError() {
   return NewError(isolate()->uri_error_function(),
                   MessageTemplate::kURIMalformed);

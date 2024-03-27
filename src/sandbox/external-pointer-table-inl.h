@@ -63,6 +63,12 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
   return old_payload.Untag(tag);
 }
 
+ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
+  auto payload = payload_.load(std::memory_order_relaxed);
+  DCHECK(payload.ContainsExternalPointer());
+  return payload.ExtractTag();
+}
+
 void ExternalPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   // The next freelist entry is stored in the lower bits of the entry.
   static_assert(kMaxExternalPointers <= std::numeric_limits<uint32_t>::max());
@@ -165,6 +171,12 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
   DCHECK_NE(kNullExternalPointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
   return at(index).ExchangeExternalPointer(value, tag);
+}
+
+ExternalPointerTag ExternalPointerTable::GetTag(
+    ExternalPointerHandle handle) const {
+  uint32_t index = HandleToIndex(handle);
+  return at(index).GetExternalPointerTag();
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(

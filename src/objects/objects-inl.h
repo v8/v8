@@ -315,7 +315,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableApiObject) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNonNullForeign) {
   return IsForeign(obj, cage_base) &&
-         Foreign::cast(obj)->foreign_address() != kNullAddress;
+         Foreign::cast(obj)->foreign_address_unchecked() != kNullAddress;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {

@@ -442,6 +442,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
+  template <ExternalPointerTag tag>
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 

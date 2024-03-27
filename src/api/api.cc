@@ -10498,7 +10498,8 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   i::Handle<i::ArrayList> list = i_isolate->factory()->message_listeners();
   i::Handle<i::FixedArray> listener = i_isolate->factory()->NewFixedArray(3);
   i::Handle<i::Foreign> foreign =
-      i_isolate->factory()->NewForeign(FUNCTION_ADDR(that));
+      i_isolate->factory()->NewForeign<internal::kGenericForeignTag>(
+          FUNCTION_ADDR(that));
   listener->set(0, *foreign);
   listener->set(1, data.IsEmpty()
                        ? i::ReadOnlyRoots(i_isolate).undefined_value()
@@ -10521,7 +10522,8 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
     }
     i::Tagged<i::FixedArray> listener = i::FixedArray::cast(listeners->get(i));
     i::Tagged<i::Foreign> callback_obj = i::Foreign::cast(listener->get(0));
-    if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
+    if (callback_obj->foreign_address<internal::kGenericForeignTag>() ==
+        FUNCTION_ADDR(that)) {
       listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
     }
   }

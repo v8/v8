@@ -1595,18 +1595,6 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   return handle(microtask, isolate());
 }
 
-Handle<Foreign> Factory::NewForeign(Address addr,
-                                    AllocationType allocation_type) {
-  // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
-  Tagged<Map> map = *foreign_map();
-  Tagged<Foreign> foreign = Tagged<Foreign>::cast(
-      AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
-  DisallowGarbageCollection no_gc;
-  foreign->init_foreign_address(isolate(), addr);
-  return handle(foreign, isolate());
-}
-
 #if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent,
@@ -3229,8 +3217,8 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
 
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
-  Handle<Foreign> evaluation_steps_foreign =
-      NewForeign(reinterpret_cast<Address>(evaluation_steps));
+  Handle<Foreign> evaluation_steps_foreign = NewForeign<kGenericForeignTag>(
+      reinterpret_cast<Address>(evaluation_steps));
 
   Tagged<SyntheticModule> module = Tagged<SyntheticModule>::cast(
       New(synthetic_module_map(), AllocationType::kOld));

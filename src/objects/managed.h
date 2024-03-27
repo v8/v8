@@ -103,8 +103,8 @@ class Managed : public Foreign {
   // Internally this {Foreign} object stores a pointer to a new
   // std::shared_ptr<CppType>.
   std::shared_ptr<CppType>* GetSharedPtrPtr() {
-    auto destructor =
-        reinterpret_cast<ManagedPtrDestructor*>(foreign_address());
+    auto destructor = reinterpret_cast<ManagedPtrDestructor*>(
+        foreign_address<kGenericManagedTag>());
     return reinterpret_cast<std::shared_ptr<CppType>*>(
         destructor->shared_ptr_ptr_);
   }

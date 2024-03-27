@@ -61,6 +61,10 @@ struct ExternalPointerTableEntry {
   // returned pointer will be invalid.
   inline Address ExchangeExternalPointer(Address value, ExternalPointerTag tag);
 
+  // Load the tag of the external pointer stored in this entry.
+  // This entry must be an external pointer entry.
+  inline ExternalPointerTag GetExternalPointerTag() const;
+
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
   inline void MakeFreelistEntry(uint32_t next_entry_index);
@@ -116,6 +120,11 @@ struct ExternalPointerTableEntry {
 
     bool HasMarkBitSet() const {
       return (encoded_word_ & kExternalPointerMarkBit) != 0;
+    }
+
+    ExternalPointerTag ExtractTag() const {
+      return static_cast<ExternalPointerTag>(
+          (encoded_word_ & kExternalPointerTagMask) | kExternalPointerMarkBit);
     }
 
     bool ContainsFreelistLink() const {
@@ -300,6 +309,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   // This method is atomic and can be called from background threads.
   inline Address Exchange(ExternalPointerHandle handle, Address value,
                           ExternalPointerTag tag);
+
+  // Retrieves the tag used for the entry referenced by the given handle.
+  //
+  // This method is atomic and can be called from background threads.
+  inline ExternalPointerTag GetTag(ExternalPointerHandle handle) const;
 
   // Allocates a new entry in the given space. The caller must provide the
   // initial value and tag for the entry.
