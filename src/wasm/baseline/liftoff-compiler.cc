@@ -356,6 +356,77 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   FATAL("Liftoff bailout should not happen. Cause: %s\n", detail);
 }
 
+class TempRegisterScope {
+ public:
+  LiftoffRegister Acquire(RegClass rc) {
+    LiftoffRegList candidates = free_temps_ & GetCacheRegList(rc);
+    DCHECK(!candidates.is_empty());
+    return free_temps_.clear(candidates.GetFirstRegSet());
+  }
+
+  void Return(LiftoffRegister&& temp) {
+    DCHECK(!free_temps_.has(temp));
+    free_temps_.set(temp);
+  }
+
+  void Return(Register&& temp) {
+    Return(LiftoffRegister{temp});
+    temp = no_reg;
+  }
+
+  LiftoffRegList AddTempRegisters(int count, RegClass rc,
+                                  LiftoffAssembler* lasm,
+                                  LiftoffRegList pinned) {
+    LiftoffRegList temps;
+    pinned |= free_temps_;
+    for (int i = 0; i < count; ++i) {
+      temps.set(lasm->GetUnusedRegister(rc, pinned | temps));
+    }
+    free_temps_ |= temps;
+    return temps;
+  }
+
+ private:
+  LiftoffRegList free_temps_;
+};
+
+class ScopedTempRegister {
+ public:
+  ScopedTempRegister(TempRegisterScope& temp_scope, RegClass rc)
+      : reg_(temp_scope.Acquire(rc)), temp_scope_(&temp_scope) {}
+
+  ScopedTempRegister(const ScopedTempRegister&) = delete;
+
+  ScopedTempRegister(ScopedTempRegister&& other) V8_NOEXCEPT
+      : reg_(other.reg_),
+        temp_scope_(other.temp_scope_) {
+    other.temp_scope_ = nullptr;
+  }
+
+  ScopedTempRegister& operator=(const ScopedTempRegister&) = delete;
+
+  ~ScopedTempRegister() {
+    if (temp_scope_) Reset();
+  }
+
+  LiftoffRegister reg() const {
+    DCHECK_NOT_NULL(temp_scope_);
+    return reg_;
+  }
+
+  Register gp_reg() const { return reg().gp(); }
+
+  void Reset() {
+    DCHECK_NOT_NULL(temp_scope_);
+    temp_scope_->Return(std::move(reg_));
+    temp_scope_ = nullptr;
+  }
+
+ private:
+  LiftoffRegister reg_;
+  TempRegisterScope* temp_scope_;
+};
+
 class LiftoffCompiler {
  public:
   using ValidationTag = Decoder::NoValidationTag;
@@ -7835,15 +7906,10 @@ class LiftoffCompiler {
     Register index = __ PeekToRegister(0, {}).gp();
 
     LiftoffRegList pinned{index};
-    // Get all temporary registers unconditionally up front.
-    // We do not use temporary registers directly; instead we rename them as
-    // appropriate in each scope they are used.
-    Register tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp3 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    TempRegisterScope temps;
+    pinned |= temps.AddTempRegisters(3, kGpReg, &asm_, pinned);
 
-    Register dispatch_table = tmp1;
-    // tmp1: dispatch_table; tmp2: unused; tmp3: unused
+    Register dispatch_table = temps.Acquire(kGpReg).gp();
     if (imm.table_imm.index == 0) {
       // Load the dispatch table directly.
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table, DispatchTable0, pinned);
@@ -7861,14 +7927,13 @@ class LiftoffCompiler {
     const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
     {
       CODE_COMMENT("Check index is in-bounds");
-      Register table_size = tmp2;
-      // tmp1: dispatch_table; tmp2: table_size; tmp3: unused
+      ScopedTempRegister table_size{temps, kGpReg};
       // Bounds check against the table size: Compare against the dispatch table
       // size, or a constant if the size is statically known.
       bool needs_dynamic_size =
           !table.has_maximum_size || table.maximum_size != table.initial_size;
       if (needs_dynamic_size) {
-        __ Load(LiftoffRegister(table_size), dispatch_table, no_reg,
+        __ Load(table_size.reg(), dispatch_table, no_reg,
                 wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset),
                 LoadType::kI32Load);
       }
@@ -7879,7 +7944,7 @@ class LiftoffCompiler {
         FREEZE_STATE(trapping);
         if (needs_dynamic_size) {
           __ emit_cond_jump(kUnsignedGreaterThanEqual, out_of_bounds_label,
-                            kI32, index, table_size, trapping);
+                            kI32, index, table_size.reg().gp(), trapping);
         } else {
           int static_table_size = table.initial_size;
           __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
@@ -7893,8 +7958,7 @@ class LiftoffCompiler {
     //                        size_t{index} * kElementSize
     // TODO(clemensb): Produce better code for this (via more specialized
     // platform-specific methods?).
-    Register dispatch_table_entry = tmp3;
-    // tmp1: dispatch_table; tmp2: unused; tmp3: dispatch_table_entry
+    Register dispatch_table_entry = temps.Acquire(kGpReg).gp();
     __ emit_u32_to_uintptr(dispatch_table_entry, index);
     __ emit_ptrsize_muli(dispatch_table_entry, dispatch_table_entry,
                          WasmDispatchTable::kEntrySize);
@@ -7905,8 +7969,7 @@ class LiftoffCompiler {
         ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset));
 
     // After this, we do not need the dispatch table any more.
-    dispatch_table = no_reg;
-    // tmp1: unused; tmp2: unused; tmp3: dispatch_table_entry
+    temps.Return(std::move(dispatch_table));
 
     bool needs_type_check = !EquivalentTypes(
         table.type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
@@ -7919,11 +7982,10 @@ class LiftoffCompiler {
     if (needs_type_check || needs_null_check) {
       CODE_COMMENT(needs_type_check ? "Check signature"
                                     : "Check for null entry");
-      Register real_sig_id = tmp1;
-      // tmp1: real_sig_id; tmp2: unused; tmp3: dispatch_table_entry
+      ScopedTempRegister real_sig_id{temps, kGpReg};
 
       // Load the signature from the dispatch table.
-      __ Load(LiftoffRegister(real_sig_id), dispatch_table_entry, no_reg,
+      __ Load(real_sig_id.reg(), dispatch_table_entry, no_reg,
               WasmDispatchTable::kSigBias, LoadType::kI32Load);
 
       // Compare against expected signature.
@@ -7939,34 +8001,32 @@ class LiftoffCompiler {
         DCHECK(needs_null_check);
         // Only check for -1 (nulled table entry).
         FREEZE_STATE(frozen);
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
-                               frozen);
+        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id.gp_reg(),
+                               -1, frozen);
       } else if (!decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
-        __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id,
+        __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
                                canonical_sig_id, frozen);
         if (needs_null_check) {
-          __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
-                                 frozen);
+          __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label,
+                                 real_sig_id.gp_reg(), -1, frozen);
         }
-        Register real_rtt = tmp2;
-        // tmp1: real_sig_id; tmp2: real_rtt; tmp3: dispatch_table_entry
+        ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
-            real_rtt, kRootRegister,
+            real_rtt.gp_reg(), kRootRegister,
             IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
-        __ LoadTaggedPointer(real_rtt, real_rtt, real_sig_id,
-                             ObjectAccess::ToTagged(WeakArrayList::kHeaderSize),
-                             nullptr, true);
+        __ LoadTaggedPointer(
+            real_rtt.gp_reg(), real_rtt.gp_reg(), real_sig_id.gp_reg(),
+            ObjectAccess::ToTagged(WeakArrayList::kHeaderSize), nullptr, true);
         // real_sig_id is not used any more.
-        real_sig_id = no_reg;
-        // tmp1: unused; tmp2: real_rtt; tmp3: dispatch_table_entry
+        real_sig_id.Reset();
         // Remove the weak reference tag.
         if constexpr (kSystemPointerSize == 4) {
-          __ emit_i32_andi(real_rtt, real_rtt,
+          __ emit_i32_andi(real_rtt.gp_reg(), real_rtt.gp_reg(),
                            static_cast<int32_t>(~kWeakHeapObjectMask));
         } else {
-          __ emit_i64_andi(LiftoffRegister(real_rtt), LiftoffRegister(real_rtt),
+          __ emit_i64_andi(real_rtt.reg(), real_rtt.reg(),
                            static_cast<int64_t>(~kWeakHeapObjectMask));
         }
         // Constant-time subtyping check: load exactly one candidate RTT from
@@ -7974,43 +8034,42 @@ class LiftoffCompiler {
         // Step 1: load the WasmTypeInfo.
         constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
             Map::kConstructorOrBackPointerOrNativeContextOffset);
-        Register type_info = real_rtt;
-        // tmp1: unused; tmp2: type_info; tmp3: dispatch_table_entry
-        __ LoadTaggedPointer(type_info, real_rtt, no_reg, kTypeInfoOffset);
+        ScopedTempRegister type_info{std::move(real_rtt)};
+        __ LoadTaggedPointer(type_info.gp_reg(), type_info.gp_reg(), no_reg,
+                             kTypeInfoOffset);
         // Step 2: check the list's length if needed.
         uint32_t rtt_depth =
             GetSubtypingDepth(decoder->module_, imm.sig_imm.index);
         if (rtt_depth >= kMinimumSupertypeArraySize) {
-          LiftoffRegister list_length(tmp1);
-          // tmp1: list_length; tmp2: type_info; tmp3: dispatch_table_entry
+          ScopedTempRegister list_length{temps, kGpReg};
           int offset =
               ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
-          __ LoadSmiAsInt32(list_length, type_info, offset);
+          __ LoadSmiAsInt32(list_length.reg(), type_info.gp_reg(), offset);
           __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, sig_mismatch_label,
-                                 list_length.gp(), rtt_depth, frozen);
+                                 list_length.gp_reg(), rtt_depth, frozen);
         }
         // Step 3: load the candidate list slot, and compare it.
-        Register maybe_match = type_info;
-        // tmp1: unused; tmp2: maybe_match; tmp3: dispatch_table_entry
+        ScopedTempRegister maybe_match{std::move(type_info)};
         __ LoadTaggedPointer(
-            maybe_match, type_info, no_reg,
+            maybe_match.gp_reg(), maybe_match.gp_reg(), no_reg,
             ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                    rtt_depth * kTaggedSize));
-        Register formal_rtt = tmp1;
-        // tmp1: formal_rtt; tmp2: maybe_match; tmp3: dispatch_table_entry
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt, ManagedObjectMaps, pinned);
+        ScopedTempRegister formal_rtt{temps, kGpReg};
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt.gp_reg(), ManagedObjectMaps,
+                                       pinned);
         __ LoadTaggedPointer(
-            formal_rtt, formal_rtt, no_reg,
+            formal_rtt.gp_reg(), formal_rtt.gp_reg(), no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                 imm.sig_imm.index));
-        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRtt, formal_rtt,
-                          maybe_match, frozen);
+        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRtt,
+                          formal_rtt.gp_reg(), maybe_match.gp_reg(), frozen);
 
         __ bind(&success_label);
       } else {
         FREEZE_STATE(trapping);
-        __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch_label, real_sig_id,
-                               canonical_sig_id, trapping);
+        __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch_label,
+                               real_sig_id.gp_reg(), canonical_sig_id,
+                               trapping);
       }
     } else {
       __ DropValues(1);
@@ -8021,8 +8080,8 @@ class LiftoffCompiler {
 
       // The first parameter will be either a WasmTrustedInstanceData or a
       // WasmApiFunctionRef.
-      Register first_param = tmp1;
-      Register target = tmp2;
+      Register first_param = temps.Acquire(kGpReg).gp();
+      Register target = temps.Acquire(kGpReg).gp();
 
       // Load ref and target from the dispatch table.
       __ LoadProtectedPointer(first_param, dispatch_table_entry,
