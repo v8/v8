@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
@@ -1506,13 +1507,15 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count, reg_kind);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
-  auto load = this->load_view(node);
-  bool traps_on_null;
-  if (load.is_protected(&traps_on_null)) {
-    if (traps_on_null) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    } else {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (this->is_load(node)) {
+    auto load = this->load_view(node);
+    bool traps_on_null;
+    if (load.is_protected(&traps_on_null)) {
+      if (traps_on_null) {
+        code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+      } else {
+        code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      }
     }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
@@ -2239,7 +2242,23 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Support the same cases as Turbofan.
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    // TODO(nicohartmann,dmercadier): Port the Int64ScaleMatcher part of the
+    // Turbofan version. This is used in the builtin pipeline.
+    const ShiftOp& shift = this->Get(node).template Cast<ShiftOp>();
+    OpIndex left = shift.left();
+    OpIndex right = shift.right();
+    int32_t cst;
+    if ((this->Get(left).template Is<Opmask::kChangeUint32ToUint64>() ||
+         this->Get(left).template Is<Opmask::kChangeInt32ToInt64>()) &&
+        this->MatchIntegralWord32Constant(right, &cst) &&
+        base::IsInRange(cst, 32, 63)) {
+      // There's no need to sign/zero-extend to 64-bit if we shift out the
+      // upper 32 bits anyway.
+      Emit(kX64Shl, g.DefineSameAsFirst(node),
+           g.UseRegister(this->Get(left).input(0)), g.UseImmediate(right));
+      return;
+    }
   } else {
     Int64ScaleMatcher m(node, true);
     if (m.matches()) {
@@ -2310,15 +2329,73 @@ inline AddressingMode AddDisplacementToAddressingMode(AddressingMode mode) {
   UNREACHABLE();
 }
 
+// {node} should be a right shift. If its input is a 64-bit Load and {node}
+// shifts it to the right by 32 bits, then this function emits a 32-bit Load of
+// the high bits only (allowing 1. to load fewer bits and 2. to get rid of the
+// shift).
 template <typename T>
-bool TryMatchLoadWord64AndShiftRight(
+bool TryEmitLoadForLoadWord64AndShiftRight(
     InstructionSelectorT<TurboshaftAdapter>* selector, T node,
     InstructionCode opcode) {
-  // TODO(nicohartmann@): Implement for Turboshaft.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  DCHECK(selector->Get(node).template Cast<ShiftOp>().IsRightShift());
+  const ShiftOp& shift = selector->Get(node).template Cast<ShiftOp>();
+  X64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  if (selector->CanCover(node, shift.left()) &&
+      selector->Get(shift.left()).Is<LoadOp>() &&
+      selector->MatchIntegralWord32Constant(shift.right(), 32)) {
+    DCHECK_EQ(selector->GetEffectLevel(node),
+              selector->GetEffectLevel(shift.left()));
+    // Just load and sign-extend the interesting 4 bytes instead. This happens,
+    // for example, when we're loading and untagging SMIs.
+    auto m =
+        TryMatchBaseWithScaledIndexAndDisplacement64(selector, shift.left());
+    if (m.has_value() &&
+        (m->displacement == 0 || g.ValueFitsIntoImmediate(m->displacement))) {
+#ifdef V8_IS_TSAN
+      // On TSAN builds we require one scratch register. Because of this we also
+      // have to modify the inputs to take into account possible aliasing and
+      // use UseUniqueRegister which is not required for non-TSAN builds.
+      InstructionOperand temps[] = {g.TempRegister()};
+      size_t temp_count = arraysize(temps);
+      auto reg_kind = OperandGeneratorT<
+          TurboshaftAdapter>::RegisterUseKind::kUseUniqueRegister;
+#else
+      InstructionOperand* temps = nullptr;
+      size_t temp_count = 0;
+      auto reg_kind =
+          OperandGeneratorT<TurboshaftAdapter>::RegisterUseKind::kUseRegister;
+#endif  // V8_IS_TSAN
+      size_t input_count = 0;
+      InstructionOperand inputs[3];
+      AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+          shift.left(), inputs, &input_count, reg_kind);
+      if (m->displacement == 0) {
+        // Make sure that the addressing mode indicates the presence of an
+        // immediate displacement. It seems that we never use M1 and M2, but we
+        // handle them here anyways.
+        mode = AddDisplacementToAddressingMode(mode);
+        inputs[input_count++] =
+            ImmediateOperand(ImmediateOperand::INLINE_INT32, 4);
+      } else {
+        // In the case that the base address was zero, the displacement will be
+        // in a register and replacing it with an immediate is not allowed. This
+        // usually only happens in dead code anyway.
+        if (!inputs[input_count - 1].IsImmediate()) return false;
+        inputs[input_count - 1] =
+            ImmediateOperand(ImmediateOperand::INLINE_INT32,
+                             static_cast<int32_t>(m->displacement) + 4);
+      }
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionCode code = opcode | AddressingModeField::encode(mode);
+      selector->Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
+      return true;
+    }
+  }
   return false;
 }
 
-bool TryMatchLoadWord64AndShiftRight(
+bool TryEmitLoadForLoadWord64AndShiftRight(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     InstructionCode opcode) {
   DCHECK(IrOpcode::kWord64Sar == node->opcode() ||
@@ -2382,7 +2459,7 @@ bool TryMatchLoadWord64AndShiftRight(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
-  if (TryMatchLoadWord64AndShiftRight(this, node, kX64Movl)) return;
+  if (TryEmitLoadForLoadWord64AndShiftRight(this, node, kX64Movl)) return;
   VisitWord64Shift(this, node, kX64Shr);
 }
 
@@ -2409,7 +2486,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
-  if (TryMatchLoadWord64AndShiftRight(this, node, kX64Movsxlq)) return;
+  if (TryEmitLoadForLoadWord64AndShiftRight(this, node, kX64Movsxlq)) return;
   VisitWord64Shift(this, node, kX64Sar);
 }
 
@@ -3416,6 +3493,14 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
           (shift = value_op.TryCast<Opmask::kWord64ShiftRightArithmetic>()) ||
           (shift = value_op.TryCast<Opmask::kWord64ShiftRightLogical>())) {
         if (this->MatchIntegralWord32Constant(shift->right(), 32)) {
+          if (CanCover(value, shift->left()) &&
+              TryEmitLoadForLoadWord64AndShiftRight(this, value, kX64Movl)) {
+            // We just defined and emitted a 32-bit Load for {value} (the upper
+            // 32 bits only since it was getting shifted by 32 bits to the right
+            // afterwards); we now define {node} as a rename of {value} without
+            // needing to do a truncation.
+            return EmitIdentity(node);
+          }
           Emit(kX64Shr, g.DefineSameAsFirst(node), g.UseRegister(shift->left()),
                g.TempImmediate(32));
           return;
@@ -3437,11 +3522,7 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
           Int64BinopMatcher m(value);
           if (m.right().Is(32)) {
             if (CanCover(value, value->InputAt(0)) &&
-                TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
-              // Note: this seems only useful for non-pointer-compression 64-bit
-              // builds (since it seems to be useful when loading smis from the
-              // upper 32-bit of a word64), and is thus not ported to
-              // Turboshaft.
+                TryEmitLoadForLoadWord64AndShiftRight(this, value, kX64Movl)) {
               return EmitIdentity(node);
             }
             Emit(kX64Shr, g.DefineSameAsFirst(node),

@@ -343,6 +343,11 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           MemoryRepresentation::FromMachineType(type);
       return Load(base, LoadOp::Kind::RawAligned(), mem_rep);
     }
+    OpIndex LoadImmutable(MachineType type, OpIndex base, OpIndex index) {
+      MemoryRepresentation mem_rep =
+          MemoryRepresentation::FromMachineType(type);
+      return Load(base, index, LoadOp::Kind::RawAligned().Immutable(), mem_rep);
+    }
     using Assembler::Store;
     void Store(MachineRepresentation rep, OpIndex base, OpIndex index,
                OpIndex value, WriteBarrierKind write_barrier) {
@@ -364,6 +369,31 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     V<Undefined> UndefinedConstant() {
       return HeapConstant(test_->isolate_->factory()->undefined_value());
     }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+
+#define DECL_SPLAT(Name)                                       \
+  V<Simd128> Name##Splat(OpIndex input) {                      \
+    return Simd128Splat(input, Simd128SplatOp::Kind::k##Name); \
+  }
+    FOREACH_SIMD_128_SPLAT_OPCODE(DECL_SPLAT)
+#undef DECL_SPLAT
+
+#define DECL_SIMD128_BINOP(Name)                                     \
+  V<Simd128> Name(OpIndex left, OpIndex right) {                     \
+    return Simd128Binop(left, right, Simd128BinopOp::Kind::k##Name); \
+  }
+    FOREACH_SIMD_128_BINARY_OPCODE(DECL_SIMD128_BINOP)
+#undef DECL_SIMD128_BINOP
+
+#define DECL_SIMD128_UNOP(Name)                                \
+  V<Simd128> Name(OpIndex input) {                             \
+    return Simd128Unary(input, Simd128UnaryOp::Kind::k##Name); \
+  }
+    FOREACH_SIMD_128_UNARY_OPCODE(DECL_SIMD128_UNOP)
+#undef DECL_SIMD128_UNOP
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
    private:
     template <typename... ParamT>

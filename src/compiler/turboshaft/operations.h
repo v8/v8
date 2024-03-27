@@ -1813,6 +1813,8 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
+  bool IsRightShift() const { return IsRightShift(kind); }
+
   static bool IsRightShift(Kind kind) {
     switch (kind) {
       case Kind::kShiftRightArithmeticShiftOutZeros:
