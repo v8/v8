@@ -8405,15 +8405,66 @@ V8_EXPORT_PRIVATE V8_INLINE bool ShouldSkipOperation(const Operation& op) {
 }
 
 namespace detail {
-// Computes the number of inputs of an operation, ignoring non-OpIndex inputs
-// (which are always inlined in the operation) and `base::Vector<OpIndex>`
-// inputs.
-template <typename T>
+// Defining `input_count` to compute the number of OpIndex inputs of an
+// operation.
+
+// There is one overload for each possible type of parameters for all
+// Operations rather than a default generic overload, so that we don't
+// accidentally forget some types (eg, if a new Operation takes its inputs as a
+// std::vector<OpIndex>, we shouldn't count this as "0 inputs because it's
+// neither raw OpIndex nor base::Vector<OpIndex>", which a generic overload
+// might do).
+
+// Base case
+constexpr size_t input_count() { return 0; }
+
+// All parameters that are not OpIndex and should thus not count towards the
+// "input_count" of the operations.
+template <typename T, typename = std::enable_if_t<std::is_enum_v<T> ||
+                                                  std::is_integral_v<T> ||
+                                                  std::is_floating_point_v<T>>>
 constexpr size_t input_count(T) {
   return 0;
 }
-constexpr size_t input_count() { return 0; }
+template <typename T>
+constexpr size_t input_count(const MaybeHandle<T>) {
+  return 0;
+}
+template <typename T>
+constexpr size_t input_count(const Handle<T>) {
+  return 0;
+}
+template <typename T>
+constexpr size_t input_count(const base::Flags<T>) {
+  return 0;
+}
+constexpr size_t input_count(const Block*) { return 0; }
+constexpr size_t input_count(const TSCallDescriptor*) { return 0; }
+constexpr size_t input_count(const char*) { return 0; }
+constexpr size_t input_count(const DeoptimizeParameters*) { return 0; }
+constexpr size_t input_count(const FastApiCallParameters*) { return 0; }
+constexpr size_t input_count(const FrameStateData*) { return 0; }
+constexpr size_t input_count(const base::Vector<SwitchOp::Case>) { return 0; }
+constexpr size_t input_count(LoadOp::Kind) { return 0; }
+constexpr size_t input_count(RegisterRepresentation) { return 0; }
+constexpr size_t input_count(MemoryRepresentation) { return 0; }
+constexpr size_t input_count(OpEffects) { return 0; }
+inline size_t input_count(const ElementsTransition) { return 0; }
+inline size_t input_count(const FeedbackSource) { return 0; }
+inline size_t input_count(const ZoneRefSet<Map>) { return 0; }
+inline size_t input_count(ConstantOp::Storage) { return 0; }
+inline size_t input_count(Type) { return 0; }
+#ifdef V8_ENABLE_WEBASSEMBLY
+constexpr size_t input_count(const wasm::WasmGlobal*) { return 0; }
+constexpr size_t input_count(const wasm::StructType*) { return 0; }
+constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
+constexpr size_t input_count(wasm::ValueType) { return 0; }
+constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
+#endif
+
+// All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)
 constexpr size_t input_count(OpIndex) { return 1; }
+constexpr size_t input_count(OptionalOpIndex) { return 1; }
 constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
   return inputs.size();
 }
@@ -8422,10 +8473,16 @@ constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
 template <typename Op, typename... Args>
 Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
                     Args... args) {
-  size_t size = Operation::StorageSlotCount(
-      Op::opcode, (0 + ... + detail::input_count(args)));
+  size_t input_count = (0 + ... + detail::input_count(args));
+  size_t size = Operation::StorageSlotCount(Op::opcode, input_count);
   storage.resize_no_init(size);
-  return new (storage.data()) Op(args...);
+  Op* op = new (storage.data()) Op(args...);
+  // Checking that the {input_count} we computed is at least the actual
+  // input_count of the operation. {input_count} could be greater in the case of
+  // OptionalOpIndex: they count for 1 input when computing {input_count} here,
+  // but in Operations, they only count for 1 input when they are valid.
+  DCHECK_GE(input_count, op->input_count);
+  return op;
 }
 
 }  // namespace v8::internal::compiler::turboshaft
