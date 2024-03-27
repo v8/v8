@@ -7276,8 +7276,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
 
   OpIndex WasmPositionToOpIndex(WasmCodePosition position, int inlining_id) {
-    return OpIndex(PositionField::encode(position) |
-                   InliningIdField::encode(inlining_id));
+    return OpIndex::FromOffset(PositionField::encode(position) |
+                               InliningIdField::encode(inlining_id));
   }
 
   SourcePosition OpIndexToSourcePosition(OpIndex index) {

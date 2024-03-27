@@ -36,9 +36,18 @@ class ConstOrV;
 // Compared to `Operation*`, it is more memory efficient (32bit) and stable when
 // the operations buffer is re-allocated.
 class OpIndex {
- public:
+ protected:
+  // We make this constructor protected so that integers are not easily
+  // convertible to OpIndex. FromOffset should be used instead to create an
+  // OpIndex from an offset.
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
     DCHECK(CheckInvariants());
+  }
+  friend class OperationBuffer;
+
+ public:
+  static constexpr OpIndex FromOffset(uint32_t offset) {
+    return OpIndex(offset);
   }
   constexpr OpIndex() : offset_(std::numeric_limits<uint32_t>::max()) {}
   template <typename T, typename C>
