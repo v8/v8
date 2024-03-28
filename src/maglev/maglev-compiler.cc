@@ -515,12 +515,6 @@ class LiveRangeAndNextUseProcessor {
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
     DCHECK(!node->Is<Identity>());
-    if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      if (!alloc->HasEscaped()) {
-        // No need to mark use. The allocation has survived as a deopt input.
-        return;
-      }
-    }
 
     node->record_next_use(use_id, input);
 

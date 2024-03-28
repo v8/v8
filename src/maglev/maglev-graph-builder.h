@@ -2029,9 +2029,13 @@ class MaglevGraphBuilder {
   inline void AddDeoptUse(ValueNode* node) {
     if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
       AddNonEscapingUses(alloc, 1);
+      AddDeoptUse(alloc->value());
     }
     node->add_use();
   }
+
+  void AddDeoptUse(FastContext obj);
+  void AddDeoptUse(DeoptObject obj);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(

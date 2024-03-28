@@ -901,15 +901,25 @@ struct FastFixedArray {
 };
 
 struct FastContext {
-  FastContext(int id, compiler::MapRef map, int length, Zone* zone)
+  FastContext(int id, compiler::MapRef map, int length,
+              compiler::ScopeInfoRef scope_info, ValueNode* previous_context,
+              base::Optional<ValueNode*> extension = {})
       : id(id),
         map(map),
         length(length),
-        elements(zone->AllocateArray<FastField>(length)) {}
+        scope_info(scope_info),
+        previous_context(previous_context),
+        extension(extension) {
+    DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
+    DCHECK_IMPLIES(extension.has_value(),
+                   length >= Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  }
   int id;
   compiler::MapRef map;
   int length;
-  FastField* elements;
+  compiler::ScopeInfoRef scope_info;
+  ValueNode* previous_context;
+  base::Optional<ValueNode*> extension;
 };
 
 // Encoding of a fast allocation site boilerplate object.
@@ -948,6 +958,10 @@ struct FastField {
       : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
   explicit FastField(compiler::ObjectRef constant_value)
       : type(kConstant), constant_value(constant_value) {}
+
+  // TODO(victorgomes): The runtime value is not needed, it is currently only
+  // used for the FastArguments of inlined function. We could point to the
+  // inlined arguments frame instead.
 
   enum {
     kUninitialized,
@@ -1400,6 +1414,8 @@ class DeoptFrame {
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
   inline bool IsJsFrame() const;
 
+  size_t GetInputLocationsArraySize() const;
+
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
@@ -1590,7 +1606,8 @@ inline bool DeoptFrame::IsJsFrame() const {
 class DeoptInfo {
  protected:
   DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-            compiler::FeedbackSource feedback_to_update);
+            compiler::FeedbackSource feedback_to_update,
+            size_t input_locations_size);
 
  public:
   DeoptFrame& top_frame() { return top_frame_; }
@@ -1623,7 +1640,8 @@ class EagerDeoptInfo : public DeoptInfo {
  public:
   EagerDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                  compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update) {}
+      : DeoptInfo(zone, top_frame, feedback_to_update,
+                  top_frame.GetInputLocationsArraySize()) {}
 
   DeoptimizeReason reason() const { return reason_; }
   void set_reason(DeoptimizeReason reason) { reason_ = reason; }
@@ -1637,7 +1655,8 @@ class LazyDeoptInfo : public DeoptInfo {
   LazyDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                 interpreter::Register result_location, int result_size,
                 compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update),
+      : DeoptInfo(zone, top_frame, feedback_to_update,
+                  top_frame.GetInputLocationsArraySize()),
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |

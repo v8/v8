@@ -1359,6 +1359,34 @@ class MaglevFrameTranslationBuilder {
     }
   }
 
+  void BuildFastContext(FastContext context,
+                        const InputLocation*& input_location) {
+    int dup_id = GetDuplicatedId(context.id);
+    if (dup_id != kNotDuplicated) {
+      translation_array_builder_->DuplicateObject(dup_id);
+      return;
+    }
+    translation_array_builder_->BeginCapturedObject(context.length + 2);
+    translation_array_builder_->StoreLiteral(
+        GetDeoptLiteral(*context.map.object()));
+    translation_array_builder_->StoreLiteral(
+        GetDeoptLiteral(Smi::FromInt(context.length)));
+    translation_array_builder_->StoreLiteral(
+        GetDeoptLiteral(context.scope_info));
+    BuildDeoptFrameSingleValue(context.previous_context, input_location);
+    if (context.extension.has_value()) {
+      BuildDeoptFrameSingleValue(context.extension.value(), input_location);
+    }
+    int idx = context.extension.has_value()
+                  ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                  : Context::MIN_CONTEXT_SLOTS;
+    Tagged<Undefined> undefined =
+        ReadOnlyRoots(local_isolate_).undefined_value();
+    for (; idx < context.length; ++idx) {
+      translation_array_builder_->StoreLiteral(GetDeoptLiteral(undefined));
+    }
+  }
+
   void BuildFieldValue(const FastField value) {
     switch (value.type) {
       case FastField::kUninitialized:
@@ -1366,8 +1394,7 @@ class MaglevFrameTranslationBuilder {
             ReadOnlyRoots(local_isolate_).one_pointer_filler_map()));
         break;
       case FastField::kRuntimeValue:
-        // TODO(victorgomes); Still not supported. Currently we always escape
-        // the arguments object.
+        // TODO(victorgomes): This FastField type should be removed.
         UNREACHABLE();
       case FastField::kObject:
         BuildFastObject(value.object);
@@ -1433,7 +1460,8 @@ class MaglevFrameTranslationBuilder {
     }
   }
 
-  void BuildDeoptObject(const DeoptObject value) {
+  void BuildDeoptObject(const DeoptObject value,
+                        const InputLocation*& input_location) {
     switch (value.type) {
       case DeoptObject::kObject:
         BuildFastObject(value.object);
@@ -1443,12 +1471,14 @@ class MaglevFrameTranslationBuilder {
         break;
       case DeoptObject::kArguments:
       case DeoptObject::kMappedArgumentsElements:
-      case DeoptObject::kContext:
         // TODO(victorgomes); Still not supported. Currently we always escape
         // the arguments object.
         UNREACHABLE();
       case DeoptObject::kNumber:
         BuildHeapNumber(value.number);
+        break;
+      case DeoptObject::kContext:
+        BuildFastContext(value.context, input_location);
         break;
     }
   }
@@ -1458,8 +1488,7 @@ class MaglevFrameTranslationBuilder {
     DCHECK(!value->Is<Identity>());
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       if (!alloc->HasEscaped()) {
-        BuildDeoptObject(alloc->value());
-        input_location++;
+        BuildDeoptObject(alloc->value(), input_location);
         return;
       }
     }

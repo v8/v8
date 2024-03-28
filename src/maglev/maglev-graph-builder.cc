@@ -92,11 +92,7 @@ ValueNode* TryGetParentContext(ValueNode* node) {
 
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
     if (alloc->value().type == DeoptObject::kContext) {
-      FastField parent =
-          alloc->value().context.elements[Context::PREVIOUS_INDEX];
-      // Current we always set the parent context as a runtime value.
-      DCHECK_EQ(parent.type, FastField::kRuntimeValue);
-      return parent.runtime_value;
+      return alloc->value().context.previous_context;
     }
   }
 
@@ -9235,6 +9231,29 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
   allocation->AddNonEscapingUses(use_count);
 }
 
+void MaglevGraphBuilder::AddDeoptUse(FastContext context) {
+  AddDeoptUse(context.previous_context);
+  if (context.extension.has_value()) {
+    AddDeoptUse(context.extension.value());
+  }
+}
+
+void MaglevGraphBuilder::AddDeoptUse(DeoptObject value) {
+  switch (value.type) {
+    case DeoptObject::kObject:
+    case DeoptObject::kFixedArray:
+    case DeoptObject::kArguments:
+    case DeoptObject::kMappedArgumentsElements:
+    case DeoptObject::kNumber:
+      // TODO(victorgomes); Either we do not support elision or it doesn't
+      // contain any runtime value.
+      break;
+    case DeoptObject::kContext:
+      AddDeoptUse(value.context);
+      break;
+  }
+}
+
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastObject object, AllocationType allocation_type) {
   SmallZoneVector<ValueNode*, 8> properties(object.inobject_properties, zone());
@@ -9663,20 +9682,29 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
 
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastContext context, AllocationType allocation_type) {
-  SmallZoneVector<ValueNode*, 8> elements(context.length, zone());
-  for (int i = 0; i < context.length; ++i) {
-    elements[i] = BuildAllocateFastObject(context.elements[i], allocation_type);
-  }
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
       Context::SizeFor(context.length), allocation_type, DeoptObject(context));
-  // TODO(victorgomes): Add AddNonEscapingUses for the contexts to be elided.
+  AddNonEscapingUses(allocation, context.length + 2);
   AddNewNode<StoreMap>({allocation}, context.map);
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetSmiConstant(context.length)}, Context::kLengthOffset);
-  for (int i = 0; i < context.length; ++i) {
-    // TODO(leszeks): Elide the write barrier where possible.
-    BuildInitializeStoreTaggedField(allocation, elements[i],
-                                    Context::OffsetOfElementAt(i));
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetConstant(context.scope_info)},
+      Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
+  BuildInitializeStoreTaggedField(
+      allocation, context.previous_context,
+      Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+  if (context.extension.has_value()) {
+    BuildInitializeStoreTaggedField(
+        allocation, context.extension.value(),
+        Context::OffsetOfElementAt(Context::EXTENSION_INDEX));
+  }
+  int idx = context.extension.has_value() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                          : Context::MIN_CONTEXT_SLOTS;
+  ValueNode* undefined = GetConstant(broker()->undefined_value());
+  for (; idx < context.length; ++idx) {
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({allocation, undefined},
+                                               Context::OffsetOfElementAt(idx));
   }
   return allocation;
 }
@@ -9809,12 +9837,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
     return ReduceResult::Fail();
   }
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-  FastContext fast_context(NewObjectId(), map, context_length, zone());
-  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope);
-  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
-    fast_context.elements[i] = FastField(broker()->undefined_value());
-  }
+  FastContext fast_context(NewObjectId(), map, context_length, scope,
+                           GetContext());
   ValueNode* result =
       BuildAllocateFastObject(fast_context, AllocationType::kYoung);
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
@@ -9843,10 +9867,7 @@ void MaglevGraphBuilder::VisitCreateCatchContext() {
   FastContext fast_context(
       NewObjectId(),
       broker()->target_native_context().catch_context_map(broker()),
-      Context::MIN_CONTEXT_SLOTS + 1, zone());
-  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope_info);
-  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
-  fast_context.elements[Context::THROWN_OBJECT_INDEX] = FastField(exception);
+      Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
   SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
@@ -9893,10 +9914,7 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
   FastContext fast_context(
       NewObjectId(),
       broker()->target_native_context().with_context_map(broker()),
-      Context::MIN_CONTEXT_EXTENDED_SLOTS, zone());
-  fast_context.elements[Context::SCOPE_INFO_INDEX] = FastField(scope_info);
-  fast_context.elements[Context::PREVIOUS_INDEX] = FastField(GetContext());
-  fast_context.elements[Context::EXTENSION_INDEX] = FastField(object);
+      Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
   SetAccumulator(BuildAllocateFastObject(fast_context, AllocationType::kYoung));
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.

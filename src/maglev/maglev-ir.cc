@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "src/base/bounds.h"
+#include "src/base/logging.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -155,7 +156,6 @@ namespace {
 // Print
 // ---
 
-namespace {
 bool IsStoreToNonEscapedObject(const NodeBase* node) {
   switch (node->opcode()) {
     case Opcode::kStoreMap:
@@ -172,7 +172,6 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
       return false;
   }
 }
-}  // namespace
 
 void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                  const NodeBase* node) {
@@ -277,31 +276,47 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
-size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
-  static constexpr int kClosureSize = 1;
-  static constexpr int kReceiverSize = 1;
-  static constexpr int kContextSize = 1;
+size_t GetInputLocationArraySizeFor(ValueNode* value);
+
+size_t GetInputLocationArraySizeFor(FastContext& obj) {
+  return obj.extension.has_value() ? 2 : 1;
+}
+
+size_t GetInputLocationArraySizeFor(DeoptObject& obj) {
+  switch (obj.type) {
+    case DeoptObject::kObject:
+    case DeoptObject::kNumber:
+    case DeoptObject::kFixedArray:
+    case DeoptObject::kArguments:
+    case DeoptObject::kMappedArgumentsElements:
+      return 0;
+    case DeoptObject::kContext:
+      return GetInputLocationArraySizeFor(obj.context);
+  }
+}
+
+size_t GetInputLocationArraySizeFor(ValueNode* value) {
+  if (value == nullptr) return 1;
+  if (InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
+    return GetInputLocationArraySizeFor(alloc->value()) + 1;
+  }
+  return 1;
+}
+
+size_t GetInputLocationArraySizeFor(base::Vector<ValueNode*> array) {
   size_t size = 0;
-  const DeoptFrame* frame = &top_frame;
-  do {
-    switch (frame->type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        size += kClosureSize + frame->as_interpreted().frame_state()->size(
-                                   frame->as_interpreted().unit());
-        break;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += kClosureSize + frame->as_inlined_arguments().arguments().size();
-        break;
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        size += kReceiverSize + kContextSize;
-        break;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        size +=
-            frame->as_builtin_continuation().parameters().size() + kContextSize;
-        break;
-    }
-    frame = frame->parent();
-  } while (frame != nullptr);
+  for (ValueNode* value : array) {
+    size += GetInputLocationArraySizeFor(value);
+  }
+  return size;
+}
+
+size_t GetInputLocationArraySizeFor(const MaglevCompilationUnit& unit,
+                                    const CompactInterpreterFrameState* frame) {
+  size_t size = 0;
+  frame->ForEachValue(unit, [&size](ValueNode* value, interpreter::Register) {
+    size += GetInputLocationArraySizeFor(value);
+  });
   return size;
 }
 
@@ -345,6 +360,41 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
+size_t DeoptFrame::GetInputLocationsArraySize() const {
+  size_t size = 0;
+  const DeoptFrame* frame = this;
+  do {
+    switch (frame->type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        size +=
+            GetInputLocationArraySizeFor(frame->as_interpreted().closure()) +
+            GetInputLocationArraySizeFor(frame->as_interpreted().unit(),
+                                         frame->as_interpreted().frame_state());
+        break;
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        size += GetInputLocationArraySizeFor(
+                    frame->as_inlined_arguments().closure()) +
+                GetInputLocationArraySizeFor(
+                    frame->as_inlined_arguments().arguments());
+        break;
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+        size +=
+            GetInputLocationArraySizeFor(
+                frame->as_construct_stub().receiver()) +
+            GetInputLocationArraySizeFor(frame->as_construct_stub().context());
+        break;
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        size += GetInputLocationArraySizeFor(
+                    frame->as_builtin_continuation().parameters()) +
+                GetInputLocationArraySizeFor(
+                    frame->as_builtin_continuation().context());
+        break;
+    }
+    frame = frame->parent();
+  } while (frame != nullptr);
+  return size;
+}
+
 bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
 #ifdef DEBUG
   // (Ab)use static locals to call CheckToBooleanOnAllRoots once, on first
@@ -372,13 +422,14 @@ bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node) {
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-                     compiler::FeedbackSource feedback_to_update)
+                     compiler::FeedbackSource feedback_to_update,
+                     size_t input_locations_size)
     : top_frame_(top_frame),
       feedback_to_update_(feedback_to_update),
-      input_locations_(zone->AllocateArray<InputLocation>(
-          GetInputLocationsArraySize(top_frame))) {
+      input_locations_(
+          zone->AllocateArray<InputLocation>(input_locations_size)) {
   // Initialise InputLocations so that they correctly don't have a next use id.
-  for (size_t i = 0; i < GetInputLocationsArraySize(top_frame); ++i) {
+  for (size_t i = 0; i < input_locations_size; ++i) {
     new (&input_locations_[i]) InputLocation();
   }
 }
