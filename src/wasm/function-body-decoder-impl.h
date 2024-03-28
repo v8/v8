@@ -3301,7 +3301,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       ++i;
     }
     CALL_INTERFACE_IF_OK_AND_REACHABLE(TryTable, try_block);
-    return 2 + try_table_iterator.length();
+    return 1 + block_imm.length + try_table_iterator.length();
   }
 
   DECODE(ThrowRef) {
