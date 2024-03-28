@@ -2282,6 +2282,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     auto [new_graph, new_schedule] =
         pipeline_.Run<turboshaft::RecreateSchedulePhase>(&linkage);
     data_.set_graph(new_graph);
+    data_.set_node_origins(
+        data_.graph_zone()->New<NodeOriginTable>(data_.graph()));
     data_.set_schedule(new_schedule);
     TraceSchedule(data_.info(), &data_, data_.schedule(),
                   turboshaft::RecreateSchedulePhase::phase_name());
@@ -3045,6 +3047,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       auto [new_graph, new_schedule] =
           pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
       data.set_graph(new_graph);
+      data.set_node_origins(
+          data.graph_zone()->New<NodeOriginTable>(data.graph()));
       data.set_schedule(new_schedule);
       TraceSchedule(data.info(), &data, data.schedule(),
                     turboshaft::RecreateSchedulePhase::phase_name());

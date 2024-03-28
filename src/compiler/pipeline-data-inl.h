@@ -269,6 +269,9 @@ class PipelineData {
   }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
+  void set_node_origins(NodeOriginTable* node_origins) {
+    node_origins_ = node_origins;
+  }
   MachineOperatorBuilder* machine() const { return machine_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   CommonOperatorBuilder* common() const { return common_; }
