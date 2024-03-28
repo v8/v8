@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <array>
 
+#include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/base/vector.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -225,8 +225,7 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              IncludeAllGenerics include_all_generics,
                              IncludeS128 include_s128 = kIncludeS128) {
   // Create and fill a vector of potential types to choose from.
-  // TODO(evih): Change `types` into a SmallVector.
-  std::vector<ValueType> types;
+  base::SmallVector<ValueType, 32> types;
 
   // Numeric non-wasmGC types.
   if (include_numeric_types) {
