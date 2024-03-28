@@ -465,11 +465,17 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
     YIELD_PROCESSOR;
   }
 
-  // Get the waiter queue head, which is guaranteed to be non-null because the
-  // unlock fast path uses a strong CAS which does not allow spurious
-  // failure. This is unlike the lock fast path, which uses a weak CAS.
-  DCHECK(HasWaitersField::decode(current_state));
+  if (!HasWaitersField::decode(current_state)) {
+    // All waiters were removed while waiting for the queue lock, possibly by
+    // timing out. Release both the lock and the queue lock.
+    StateT new_state = IsWaiterQueueLockedField::update(
+        IsLockedField::update(current_state, false), false);
+    state->store(new_state, std::memory_order_release);
+    return;
+  }
+
   WaiterQueueNode* waiter_head = DestructivelyGetWaiterQueueHead(requester);
+  DCHECK_NOT_NULL(waiter_head);
   WaiterQueueNode* old_head = WaiterQueueNode::Dequeue(&waiter_head);
 
   // Release both the lock and the queue lock, and install the new waiter queue

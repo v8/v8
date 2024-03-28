@@ -129,4 +129,44 @@ if (this.Worker) {
   worker1.terminate();
   worker2.terminate();
 })();
+
+(function TestUnlockWhileTimingOut() {
+  // Racy version of the timeout test, where the worker holding the lock might
+  // unlock it while the other worker is timing out and cleaning its waiter from
+  // the queue.
+  let workerLockScript = `onmessage = function(msg) {
+      let {mutex, box} = msg;
+      Atomics.Mutex.lock(mutex, function() {
+        while (!Atomics.load(box, 'isDone')) {}
+      });
+      postMessage("done");
+    }
+    postMessage("started");`;
+
+  let timedOutWorkerScript = `onmessage = function(msg) {
+      let {mutex} = msg;
+      let result = Atomics.Mutex.lockWithTimeout(mutex, function() {}, 0);
+      postMessage("done");
+    }
+    postMessage("started");`;
+
+  let workerLock = new Worker(workerLockScript, {type: 'string'});
+  let timedOutWorker = new Worker(timedOutWorkerScript, {type: 'string'});
+  assertEquals('started', workerLock.getMessage());
+  assertEquals('started', timedOutWorker.getMessage());
+
+  let Box = new SharedStructType(['isDone']);
+  let box = new Box();
+  box.isDone = false;
+  let mutex = new Atomics.Mutex;
+
+  workerLock.postMessage({mutex, box});
+  timedOutWorker.postMessage({mutex});
+  box.isDone = true;
+  assertEquals('done', workerLock.getMessage());
+  assertEquals('done', timedOutWorker.getMessage());
+  assertEquals(0, %AtomicsSynchronizationPrimitiveNumWaitersForTesting(mutex));
+  assertTrue(Atomics.Mutex.tryLock(mutex, function() {}).success);
+})();
+
 }
