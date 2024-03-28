@@ -1696,13 +1696,15 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else {
-        auto constant = constant_view(input_at(value, 1)).int64_value();
-        if (constant <= 63 && constant >= 32) {
-          // After smi untagging no need for truncate. Combine sequence.
-          Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-               g.UseRegister(input_at(value, 0)),
-               g.UseImmediate(input_at(value, 1)));
-          return;
+        auto constant = constant_view(input_at(value, 1));
+        if (constant.is_int64()) {
+          if (constant.int64_value() <= 63 && constant.int64_value() >= 32) {
+            // After smi untagging no need for truncate. Combine sequence.
+            Emit(kRiscvSar64, g.DefineSameAsFirst(node),
+                 g.UseRegister(input_at(value, 0)),
+                 g.UseImmediate(input_at(value, 1)));
+            return;
+          }
         }
       }
     }
