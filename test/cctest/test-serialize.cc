@@ -536,8 +536,8 @@ static void SerializeCustomContext(
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  v8::Global<v8::Context> env;
   {
+    v8::Global<v8::Context> env;
     v8::Isolate::Scope isolate_scope(isolate);
 
     {
@@ -588,70 +588,72 @@ static void SerializeCustomContext(
       v8::Local<v8::Context>::New(isolate, env)->Exit();
     }
 
-    HandleScope scope(i_isolate);
-    i::Tagged<i::Context> raw_context =
-        i::Context::cast(*v8::Utils::OpenPersistent(env));
+    {
+      HandleScope scope(i_isolate);
+      i::Tagged<i::Context> raw_context =
+          i::Context::cast(*v8::Utils::OpenPersistent(env));
 
-    // On purpose we do not reset the global context here --- env.Reset() --- so
-    // that it is found below, during heap verification at the GC before isolate
-    // disposal.
+      // On purpose we do not reset the global context here --- env.Reset() ---
+      // so that it is found below, during heap verification at the GC before
+      // isolate disposal.
 
-    SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
-    DisallowGarbageCollection no_gc;
+      SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+      DisallowGarbageCollection no_gc;
 
-    if (i_isolate->heap()->read_only_space()->writable()) {
-      // Promote objects from mutable heap spaces to read-only space prior to
-      // serialization. Objects can be promoted if a) they are themselves
-      // immutable-after-deserialization and b) all objects in the transitive
-      // object graph also satisfy condition a).
-      ReadOnlyPromotion::Promote(i_isolate, safepoint, no_gc);
-      // When creating the snapshot from scratch, we are responsible for sealing
-      // the RO heap here. Note we cannot delegate the responsibility e.g. to
-      // Isolate::Init since it should still be possible to allocate into RO
-      // space after the Isolate has been initialized, for example as part of
-      // Context creation.
-      i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
+      if (i_isolate->heap()->read_only_space()->writable()) {
+        // Promote objects from mutable heap spaces to read-only space prior to
+        // serialization. Objects can be promoted if a) they are themselves
+        // immutable-after-deserialization and b) all objects in the transitive
+        // object graph also satisfy condition a).
+        ReadOnlyPromotion::Promote(i_isolate, safepoint, no_gc);
+        // When creating the snapshot from scratch, we are responsible for
+        // sealing the RO heap here. Note we cannot delegate the responsibility
+        // e.g. to Isolate::Init since it should still be possible to allocate
+        // into RO space after the Isolate has been initialized, for example as
+        // part of Context creation.
+        i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
+      }
+
+      SnapshotByteSink read_only_sink;
+      ReadOnlySerializer read_only_serializer(
+          i_isolate, Snapshot::kDefaultSerializerFlags);
+      read_only_serializer.Serialize();
+
+      SharedHeapSerializer shared_space_serializer(
+          i_isolate, Snapshot::kDefaultSerializerFlags);
+
+      SnapshotByteSink startup_sink;
+      StartupSerializer startup_serializer(i_isolate,
+                                           Snapshot::kDefaultSerializerFlags,
+                                           &shared_space_serializer);
+      startup_serializer.SerializeStrongReferences(no_gc);
+
+      SnapshotByteSink context_sink;
+      ContextSerializer context_serializer(
+          i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+          v8::SerializeInternalFieldsCallback());
+      context_serializer.Serialize(&raw_context, no_gc);
+
+      startup_serializer.SerializeWeakReferencesAndDeferred();
+
+      shared_space_serializer.FinalizeSerialization();
+
+      SnapshotData read_only_snapshot(&read_only_serializer);
+      SnapshotData shared_space_snapshot(&shared_space_serializer);
+      SnapshotData startup_snapshot(&startup_serializer);
+      SnapshotData context_snapshot(&context_serializer);
+
+      *context_blob_out = WritePayload(context_snapshot.RawData());
+      *startup_blob_out = WritePayload(startup_snapshot.RawData());
+      *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
+      *shared_space_blob_out = WritePayload(shared_space_snapshot.RawData());
     }
 
-    SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(i_isolate,
-                                            Snapshot::kDefaultSerializerFlags);
-    read_only_serializer.Serialize();
-
-    SharedHeapSerializer shared_space_serializer(
-        i_isolate, Snapshot::kDefaultSerializerFlags);
-
-    SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(
-        i_isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
-    startup_serializer.SerializeStrongReferences(no_gc);
-
-    SnapshotByteSink context_sink;
-    ContextSerializer context_serializer(
-        i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
-    context_serializer.Serialize(&raw_context, no_gc);
-
-    startup_serializer.SerializeWeakReferencesAndDeferred();
-
-    shared_space_serializer.FinalizeSerialization();
-
-    SnapshotData read_only_snapshot(&read_only_serializer);
-    SnapshotData shared_space_snapshot(&shared_space_serializer);
-    SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData context_snapshot(&context_serializer);
-
-    *context_blob_out = WritePayload(context_snapshot.RawData());
-    *startup_blob_out = WritePayload(startup_snapshot.RawData());
-    *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
-    *shared_space_blob_out = WritePayload(shared_space_snapshot.RawData());
+    // At this point, the heap must be in a consistent state and this GC must
+    // not crash, even with the live handle to the global environment.
+    heap::InvokeMajorGC(i_isolate->heap());
+    // We reset the global context, before isolate disposal.
   }
-
-  // At this point, the heap must be in a consistent state and this GC must not
-  // crash, even with the live handle to the global environment.
-  heap::InvokeMajorGC(i_isolate->heap());
-  // We reset the global context, before isolate disposal.
-  env.Reset();
 
   isolate->Dispose();
 }
