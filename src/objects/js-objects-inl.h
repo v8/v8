@@ -622,7 +622,7 @@ EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
 JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
-  DCHECK(IsJSAPIObjectWithEmbedderSlots(object) || IsJSSpecialObject(object));
+  DCHECK(IsJSApiWrapperObject(object));
 }
 
 template <ExternalPointerTag tag>

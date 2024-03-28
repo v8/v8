@@ -278,21 +278,14 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   return IsJSObject(obj) && !InWritableSharedSpace(*obj);
 }
 
-bool IsWrapperObject(Tagged<Map> map) {
-  const auto instance_type = map->instance_type();
-  return InstanceTypeChecker::IsJSApiObject(instance_type) ||
-         InstanceTypeChecker::IsJSSpecialApiObject(instance_type) ||
-         InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
-         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
-         InstanceTypeChecker::IsJSDataView(instance_type) ||
-         InstanceTypeChecker::IsJSRabGsabDataView(instance_type) ||
-         InstanceTypeChecker::IsJSGlobalProxy(instance_type) ||
-         InstanceTypeChecker::IsJSGlobalObject(instance_type) ||
-         InstanceTypeChecker::IsJSModuleNamespace(instance_type);
+bool IsJSApiWrapperObject(Tagged<Map> map) {
+  const InstanceType instance_type = map->instance_type();
+  return InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(instance_type) ||
+         InstanceTypeChecker::IsJSSpecialObject(instance_type);
 }
 
-bool IsWrapperObject(Tagged<JSObject> js_obj) {
-  return IsWrapperObject(js_obj->map());
+bool IsJSApiWrapperObject(Tagged<JSObject> js_obj) {
+  return IsJSApiWrapperObject(js_obj->map());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {

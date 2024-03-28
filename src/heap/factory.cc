@@ -2842,7 +2842,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 }
 
 void Factory::InitializeCppHeapWrapper(Tagged<JSObject> obj) {
-  DCHECK(IsWrapperObject(obj));
+  DCHECK(IsJSApiWrapperObject(obj));
   DCHECK(IsJSAPIObjectWithEmbedderSlots(obj) || IsJSSpecialObject(obj));
   static_assert(JSSpecialObject::kCppHeapWrappableOffset ==
                 JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
@@ -2866,7 +2866,7 @@ void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
   // for example, JSArray::JSArrayVerify).
   InitializeJSObjectBody(obj, map, JSObject::kHeaderSize);
 
-  DCHECK_EQ(IsWrapperObject(map),
+  DCHECK_EQ(IsJSApiWrapperObject(map),
             new_js_object_type == NewJSObjectType::kAPIWrapper);
   if (new_js_object_type == NewJSObjectType::kAPIWrapper) {
     InitializeCppHeapWrapper(obj);

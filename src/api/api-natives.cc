@@ -441,7 +441,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   const auto new_js_object_type =
       constructor->has_initial_map() &&
-              IsWrapperObject(constructor->initial_map())
+              IsJSApiWrapperObject(constructor->initial_map())
           ? NewJSObjectType::kAPIWrapper
           : NewJSObjectType::kNoAPIWrapper;
   Handle<JSObject> object;

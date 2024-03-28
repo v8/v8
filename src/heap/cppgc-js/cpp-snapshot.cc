@@ -23,6 +23,7 @@
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
@@ -398,6 +399,10 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
   if (maybe_info.has_value()) {
     // Wrappers with 2 embedder fields.
     return maybe_info->instance;
+  }
+  // Not every object that can have embedder fields is actually a JSApiWrapper.
+  if (!IsJSApiWrapperObject(*js_object)) {
+    return nullptr;
   }
   // Wrapper using cpp_heap_wrappable field.
   return JSApiWrapper(*js_object)
