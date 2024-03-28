@@ -3194,8 +3194,9 @@ class TurboshaftAssemblerOpInterface
     ReduceIfReachableTailCall(callee, arguments, descriptor);
   }
 
-  V<FrameState> FrameState(base::Vector<const OpIndex> inputs, bool inlined,
-                           const FrameStateData* data) {
+  V<turboshaft::FrameState> FrameState(base::Vector<const OpIndex> inputs,
+                                       bool inlined,
+                                       const FrameStateData* data) {
     return ReduceIfReachableFrameState(inputs, inlined, data);
   }
   void DeoptimizeIf(V<Word32> condition, V<turboshaft::FrameState> frame_state,
