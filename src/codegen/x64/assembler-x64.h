@@ -1122,6 +1122,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
+  // Used for JCC erratum performance mitigation.
+  void aligned_j(Condition cc, Label* L,
+                 Label::Distance distance = Label::kFar) {
+    DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
+    const int kInstLength = distance == Label::kFar ? 6 : 2;
+    AlignForJCCErratum(kInstLength);
+    j(cc, L, distance);
+  }
   void j(Condition cc, Address entry, RelocInfo::Mode rmode);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 

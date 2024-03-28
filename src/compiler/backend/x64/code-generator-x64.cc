@@ -6779,17 +6779,24 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       branch->fallthru ? Label::kNear : Label::kFar;
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  if (branch->condition == kUnorderedEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
-  } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
-  }
-  __ j(FlagsConditionToCondition(branch->condition), tlabel);
-
-  if (!branch->fallthru) {
-    if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+  if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+    if (branch->condition == kUnorderedEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ aligned_j(FlagsConditionToCondition(branch->condition), tlabel);
+    if (!branch->fallthru) {
       __ aligned_jmp(flabel, flabel_distance);
-    } else {
+    }
+  } else {
+    if (branch->condition == kUnorderedEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ j(FlagsConditionToCondition(branch->condition), tlabel);
+    if (!branch->fallthru) {
       __ jmp(flabel, flabel_distance);
     }
   }
@@ -6802,12 +6809,21 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
   Label nodeopt;
-  if (branch->condition == kUnorderedEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
-  } else if (branch->condition == kUnorderedNotEqual) {
-    __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+  if (CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION)) {
+    if (branch->condition == kUnorderedEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ aligned_j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ aligned_j(FlagsConditionToCondition(branch->condition), tlabel);
+  } else {
+    if (branch->condition == kUnorderedEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), flabel, flabel_distance);
+    } else if (branch->condition == kUnorderedNotEqual) {
+      __ j(FlagsConditionToCondition(kIsNaN), tlabel);
+    }
+    __ j(FlagsConditionToCondition(branch->condition), tlabel);
   }
-  __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
   if (v8_flags.deopt_every_n_times > 0) {
     ExternalReference counter =
