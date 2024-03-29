@@ -1600,8 +1600,8 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
-  int expected_arity = -1;
+  int expected_arity =
+      static_cast<int>(sig->parameter_count()) - resolved.suspend();
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
     expected_arity = Handle<JSFunction>::cast(callable)
                          ->shared()
