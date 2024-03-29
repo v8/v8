@@ -80,6 +80,20 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   //   them from a (Torque?) builtin without calling into C++.
   // - Implement compiler support for escape-analyzing the JSSegmentDataObject
   //   and avoid allocating it when possible.
+
+  // TODO(v8:14681): We StackCheck here to break execution in the event of an
+  // interrupt. Ordinarily in JS loops, this stack check should already be
+  // occuring, however some loops implemented within CodeStubAssembler and
+  // Torque builtins do not currently implement these checks. A preferable
+  // solution which would benefit other iterators implemented in C++ include:
+  //   1) Performing the stack check in CEntry, which would provide a solution
+  //   for all methods implemented in C++.
+  //
+  //   2) Rewriting the loop to include an outer loop, which performs periodic
+  //   stack checks every N loop bodies (where N is some arbitrary heuristic
+  //   selected to allow short loop counts to run with few interruptions).
+  STACK_CHECK(isolate, MaybeHandle<JSReceiver>());
+
   Factory* factory = isolate->factory();
   icu::BreakIterator* icu_break_iterator =
       segment_iterator->icu_break_iterator()->raw();
