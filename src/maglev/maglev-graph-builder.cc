@@ -4299,7 +4299,7 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
         auto& alternative =
             known_node_aspects().GetOrCreateInfoFor(object)->alternative();
         return alternative.get_or_set_int32(
-            [&]() { return AddNewNode<UnsafeSmiUntag>({object}); });
+            [&]() { return BuildSmiUntag(object); });
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
