@@ -242,6 +242,7 @@ class MergePointInterpreterFrameState;
   V(UncheckedNumberOrOddballToFloat64)              \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
+  V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
   V(StringAt)                                       \
@@ -4010,6 +4011,22 @@ class HoleyFloat64ToMaybeNanFloat64
   Input& input() { return Node::input(0); }
 
   int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
+
+ public:
+  explicit HoleyFloat64IsHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

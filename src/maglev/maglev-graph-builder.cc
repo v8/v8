@@ -2196,6 +2196,23 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
   if (!InstanceTypeChecker::IsReferenceComparable(type)) return false;
 
+  // If the constant is the undefined value, we can compare it
+  // against holey floats.
+  if (maybe_constant->IsUndefined()) {
+    ValueNode* holey_float = nullptr;
+    if (left->properties().value_representation() ==
+        ValueRepresentation::kHoleyFloat64) {
+      holey_float = left;
+    } else if (right->properties().value_representation() ==
+               ValueRepresentation::kHoleyFloat64) {
+      holey_float = right;
+    }
+    if (holey_float) {
+      SetAccumulator(AddNewNode<HoleyFloat64IsHole>({holey_float}));
+      return true;
+    }
+  }
+
   if (left->properties().value_representation() !=
           ValueRepresentation::kTagged ||
       right->properties().value_representation() !=
@@ -10296,6 +10313,11 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(
             // TODO(leszeks): Could we use the current known_node_info of the
             // value node instead of the check_type of TestUndetectable?
             node->Cast<TestUndetectable>()->check_type(), true_target,
+            false_target);
+        break;
+      case Opcode::kHoleyFloat64IsHole:
+        block = FinishBlock<BranchIfFloat64IsHole>(
+            {node->Cast<HoleyFloat64IsHole>()->input().node()}, true_target,
             false_target);
         break;
 

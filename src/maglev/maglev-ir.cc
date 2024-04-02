@@ -6117,6 +6117,25 @@ void BranchIfFloat64IsHole::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void HoleyFloat64IsHole::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64IsHole::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done, if_not_hole;
+  __ JumpIfNotHoleNan(value, scratch, &if_not_hole, Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ Jump(&done);
+  __ bind(&if_not_hole);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
+}
+
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
