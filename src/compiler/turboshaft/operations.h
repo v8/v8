@@ -4397,9 +4397,9 @@ struct ConvertUntaggedToJSPrimitiveOp
     return InputsRepFactory::SingleRep(input_rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Untagged> input() const { return Base::input<Untagged>(0); }
 
-  ConvertUntaggedToJSPrimitiveOp(OpIndex input, JSPrimitiveKind kind,
+  ConvertUntaggedToJSPrimitiveOp(V<Untagged> input, JSPrimitiveKind kind,
                                  RegisterRepresentation input_rep,
                                  InputInterpretation input_interpretation,
                                  CheckForMinusZeroMode minus_zero_mode)
@@ -4479,11 +4479,11 @@ struct ConvertUntaggedToJSPrimitiveOrDeoptOp
     return InputsRepFactory::SingleRep(input_rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
   ConvertUntaggedToJSPrimitiveOrDeoptOp(
-      OpIndex input, OpIndex frame_state, JSPrimitiveKind kind,
+      V<Untagged> input, V<FrameState> frame_state, JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
       InputInterpretation input_interpretation, const FeedbackSource& feedback)
       : Base(input, frame_state),
@@ -4549,9 +4549,9 @@ struct ConvertJSPrimitiveToUntaggedOp
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<JSPrimitive> input() const { return Base::input<JSPrimitive>(0); }
 
-  ConvertJSPrimitiveToUntaggedOp(OpIndex input, UntaggedKind kind,
+  ConvertJSPrimitiveToUntaggedOp(V<JSPrimitive> input, UntaggedKind kind,
                                  InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
   void Validate(const Graph& graph) const {
@@ -4607,10 +4607,11 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<Object> input() const { return Base::input<Object>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  ConvertJSPrimitiveToUntaggedOrDeoptOp(OpIndex input, OpIndex frame_state,
+  ConvertJSPrimitiveToUntaggedOrDeoptOp(V<Object> input,
+                                        V<FrameState> frame_state,
                                         JSPrimitiveKind from_kind,
                                         UntaggedKind to_kind,
                                         CheckForMinusZeroMode minus_zero_mode,
@@ -4746,14 +4747,15 @@ struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<Object> value() const { return Base::input<Object>(0); }
-  V<Object> native_context() const { return Base::input<Object>(1); }
-  OptionalV<Object> global_proxy() const {
-    return input_count > 2 ? Base::input<Object>(2) : V<Object>::Invalid();
+  V<JSPrimitive> value() const { return Base::input<JSPrimitive>(0); }
+  V<Context> native_context() const { return Base::input<Context>(1); }
+  OptionalV<JSGlobalProxy> global_proxy() const {
+    return input_count > 2 ? Base::input<JSGlobalProxy>(2)
+                           : OptionalV<JSGlobalProxy>::Nullopt();
   }
 
-  ConvertJSPrimitiveToObjectOp(V<Object> value, V<Object> native_context,
-                               OptionalV<Object> global_proxy,
+  ConvertJSPrimitiveToObjectOp(V<JSPrimitive> value, V<Context> native_context,
+                               OptionalV<JSGlobalProxy> global_proxy,
                                ConvertReceiverMode mode)
       : Base(2 + global_proxy.valid()), mode(mode) {
     input(0) = value;
@@ -4763,10 +4765,9 @@ struct ConvertJSPrimitiveToObjectOp : OperationT<ConvertJSPrimitiveToObjectOp> {
     }
   }
 
-  static ConvertJSPrimitiveToObjectOp& New(Graph* graph, V<Object> value,
-                                           V<Object> native_context,
-                                           OptionalV<Object> global_proxy,
-                                           ConvertReceiverMode mode) {
+  static ConvertJSPrimitiveToObjectOp& New(
+      Graph* graph, V<JSPrimitive> value, V<Context> native_context,
+      OptionalV<JSGlobalProxy> global_proxy, ConvertReceiverMode mode) {
     return Base::New(graph, 2 + global_proxy.valid(), value, native_context,
                      global_proxy, mode);
   }

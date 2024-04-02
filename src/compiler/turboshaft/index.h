@@ -359,6 +359,11 @@ struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   template <typename U>
   struct implicitly_constructible_from
       : std::bool_constant<is_subtype<U, T>::value> {};
+  template <typename... Us>
+  struct implicitly_constructible_from<Union<Us...>>
+      : std::bool_constant<(
+            v_traits<T>::template implicitly_constructible_from<Us>::value &&
+            ...)> {};
 };
 
 template <typename T1, typename T2>
@@ -378,17 +383,45 @@ struct v_traits<UnionT<T1, T2>,
       : std::bool_constant<(
             v_traits<T1>::template implicitly_constructible_from<U>::value ||
             v_traits<T2>::template implicitly_constructible_from<U>::value)> {};
+  template <typename U1, typename U2>
+  struct implicitly_constructible_from<UnionT<U1, U2>>
+      : std::bool_constant<(implicitly_constructible_from<U1>::value &&
+                            implicitly_constructible_from<U2>::value)> {};
 };
+
+namespace detail {
+template <typename T, bool>
+struct RepresentationForUnionBase {
+  static constexpr auto rep = MaybeRegisterRepresentation::None();
+};
+template <typename T>
+struct RepresentationForUnionBase<T, true> {
+  static constexpr auto rep = v_traits<T>::rep;
+};
+template <typename T>
+struct RepresentationForUnion {};
+template <typename T, typename... Ts>
+struct RepresentationForUnion<Union<T, Ts...>>
+    : RepresentationForUnionBase<T, ((v_traits<T>::rep == v_traits<Ts>::rep) &&
+                                     ...)> {};
+}  // namespace detail
 
 template <typename... Ts>
 struct v_traits<Union<Ts...>> {
-  static constexpr auto rep = MaybeRegisterRepresentation::None();
+  static constexpr auto rep = detail::RepresentationForUnion<Union<Ts...>>::rep;
+  static constexpr bool allows_representation(RegisterRepresentation r) {
+    return (v_traits<Ts>::allows_representation(r) || ...);
+  }
 
   template <typename U>
   struct implicitly_constructible_from
       : std::bool_constant<(
             v_traits<Ts>::template implicitly_constructible_from<U>::value ||
             ...)> {};
+  template <typename... Us>
+  struct implicitly_constructible_from<Union<Us...>>
+      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
+  };
 };
 
 template <typename T>
@@ -402,9 +435,15 @@ struct v_traits<T, std::enable_if_t<std::is_base_of_v<InternalTag, T>>> {
 
 using Word = Union<Word32, Word64>;
 using Float = Union<Float32, Float64>;
+using Untagged = Union<Word, Float>;
 using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
 using NumberOrString = UnionT<Number, String>;
 using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
+
+using NonBigIntPrimitive = Union<Symbol, PlainPrimitive>;
+using Primitive = Union<BigInt, NonBigIntPrimitive>;
+using Numeric = Union<Number, BigInt>;
+using JSPrimitive = Union<Numeric, String, Symbol, Boolean, Null, Undefined>;
 using CallTarget = Union<WordPtr, Code>;
 
 // V<> represents an SSA-value that is parameterized with the type of the value.

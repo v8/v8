@@ -1722,8 +1722,8 @@ class TurboshaftAssemblerOpInterface
         Convert(input, ConvertOp::Kind::kString, ConvertOp::Kind::kNumber));
   }
 
-  V<Object> ConvertUntaggedToJSPrimitive(
-      OpIndex input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind,
+  V<JSPrimitive> ConvertUntaggedToJSPrimitive(
+      V<Untagged> input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
       ConvertUntaggedToJSPrimitiveOp::InputInterpretation input_interpretation,
       CheckForMinusZeroMode minus_zero_mode) {
@@ -1754,8 +1754,8 @@ class TurboshaftAssemblerOpInterface
         minus_zero_mode));
   }
 
-  OpIndex ConvertUntaggedToJSPrimitiveOrDeopt(
-      OpIndex input, V<turboshaft::FrameState> frame_state,
+  V<JSPrimitive> ConvertUntaggedToJSPrimitiveOrDeopt(
+      V<Untagged> input, V<turboshaft::FrameState> frame_state,
       ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
       ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
@@ -1765,14 +1765,15 @@ class TurboshaftAssemblerOpInterface
         input, frame_state, kind, input_rep, input_interpretation, feedback);
   }
 
-  OpIndex ConvertJSPrimitiveToUntagged(
-      V<Object> object, ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind,
+  V<Untagged> ConvertJSPrimitiveToUntagged(
+      V<JSPrimitive> primitive,
+      ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind,
       ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
-    return ReduceIfReachableConvertJSPrimitiveToUntagged(object, kind,
+    return ReduceIfReachableConvertJSPrimitiveToUntagged(primitive, kind,
                                                          input_assumptions);
   }
 
-  OpIndex ConvertJSPrimitiveToUntaggedOrDeopt(
+  V<Untagged> ConvertJSPrimitiveToUntaggedOrDeopt(
       V<Object> object, V<turboshaft::FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind to_kind,
@@ -1783,11 +1784,11 @@ class TurboshaftAssemblerOpInterface
   V<Word32> CheckedSmiUntag(V<Object> object,
                             V<turboshaft::FrameState> frame_state,
                             const FeedbackSource& feedback) {
-    return ConvertJSPrimitiveToUntaggedOrDeopt(
+    return V<Word32>::Cast(ConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state,
         ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi,
         ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32,
-        CheckForMinusZeroMode::kDontCheckForMinusZero, feedback);
+        CheckForMinusZeroMode::kDontCheckForMinusZero, feedback));
   }
 
   OpIndex TruncateJSPrimitiveToUntagged(
@@ -1807,18 +1808,18 @@ class TurboshaftAssemblerOpInterface
         object, frame_state, kind, input_requirement, feedback);
   }
 
-  V<Object> ConvertJSPrimitiveToObject(V<Object> value,
-                                       V<Object> native_context,
-                                       OptionalV<Object> global_proxy,
+  V<Object> ConvertJSPrimitiveToObject(V<JSPrimitive> value,
+                                       V<Context> native_context,
+                                       OptionalV<JSGlobalProxy> global_proxy,
                                        ConvertReceiverMode mode) {
     return ReduceIfReachableConvertJSPrimitiveToObject(value, native_context,
                                                        global_proxy, mode);
   }
-  V<Object> ConvertJSPrimitiveToObject(V<Object> value,
-                                       V<Object> native_context,
+  V<Object> ConvertJSPrimitiveToObject(V<JSPrimitive> value,
+                                       V<Context> native_context,
                                        ConvertReceiverMode mode) {
-    return ConvertJSPrimitiveToObject(value, native_context, OpIndex::Invalid(),
-                                      mode);
+    return ConvertJSPrimitiveToObject(
+        value, native_context, OptionalV<JSGlobalProxy>::Nullopt(), mode);
   }
 
   V<Word32> Word32Constant(uint32_t value) {
@@ -3054,7 +3055,7 @@ class TurboshaftAssemblerOpInterface
                                                                   {object});
   }
   V<Object> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
-                                 V<Object> object) {
+                                 V<JSPrimitive> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
   }
