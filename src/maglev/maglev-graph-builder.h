@@ -2051,6 +2051,8 @@ class MaglevGraphBuilder {
                                      AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastArgumentsElements elements,
                                      AllocationType allocation);
+  ValueNode* BuildAllocateFastObject(
+      FastInlinedUnmappedArgumentsElements elements, AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastUnmappedArgumentsElements elements,
                                      AllocationType allocation);
   ValueNode* BuildAllocateFastObject(FastMappedArgumentsElements elements,

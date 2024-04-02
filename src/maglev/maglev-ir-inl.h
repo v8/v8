@@ -94,6 +94,7 @@ void DeepForDeoptObject(DeoptObject object, InputLocation*& input_location,
     case DeoptObject::kFixedArray:
     case DeoptObject::kArguments:
     case DeoptObject::kMappedArgumentsElements:
+    case DeoptObject::kInlinedUnmappedArgumentsElements:
     case DeoptObject::kNumber:
       // TODO(victorgomes); Either we do not support elision or it doesn't
       // contain any runtime value.

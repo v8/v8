@@ -289,6 +289,7 @@ size_t GetInputLocationArraySizeFor(DeoptObject& obj) {
     case DeoptObject::kFixedArray:
     case DeoptObject::kArguments:
     case DeoptObject::kMappedArgumentsElements:
+    case DeoptObject::kInlinedUnmappedArgumentsElements:
       return 0;
     case DeoptObject::kContext:
       return GetInputLocationArraySizeFor(obj.context);

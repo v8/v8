@@ -9244,6 +9244,7 @@ void MaglevGraphBuilder::AddDeoptUse(DeoptObject value) {
     case DeoptObject::kFixedArray:
     case DeoptObject::kArguments:
     case DeoptObject::kMappedArgumentsElements:
+    case DeoptObject::kInlinedUnmappedArgumentsElements:
     case DeoptObject::kNumber:
       // TODO(victorgomes); Either we do not support elision or it doesn't
       // contain any runtime value.
@@ -9312,13 +9313,57 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
 }
 
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
+    FastInlinedUnmappedArgumentsElements elements,
+    AllocationType allocation_type) {
+  // Inlined unmapped arguments is simply a fixed array.
+  if (elements.length() == 0) {
+    return GetRootConstant(RootIndex::kEmptyFixedArray);
+  }
+  // Before allocating the fixed array, be sure all the arguments are tagged. If
+  // we have a node that can allocate (for instance Float64ToTagged), we don't
+  // want to emit it just before a store to the arguments elements, otherwise
+  // the allocation of the elements will not be complete before a possible GC.
+  SmallZoneVector<ValueNode*, 8> tagged_values(
+      elements.unmapped_argument_count(), zone());
+  for (int i = 0; i < elements.unmapped_argument_count(); ++i) {
+    tagged_values[i] = GetInlinedTaggedArgument(elements.start_index + i + 1);
+  }
+  InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
+      FixedArray::SizeFor(elements.length()), allocation_type,
+      DeoptObject(elements));
+  AddNewNode<StoreMap>(
+      {allocation},
+      MakeRefAssumeMemoryFence(broker(),
+                               local_isolate()->factory()->fixed_array_map()));
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {allocation, GetSmiConstant(elements.length())},
+      FixedArray::kLengthOffset);
+  int index = 0;
+  if (elements.type == CreateArgumentsType::kMappedArguments) {
+    // Prefill with holes until start_index.
+    for (; index < elements.start_index; index++) {
+      ValueNode* the_hole = GetConstant(broker()->the_hole_value());
+      AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+          {allocation, the_hole}, Context::OffsetOfElementAt(index));
+    }
+  }
+  // Fill the remaining with the unmapped arguments.
+  for (int i = 0; i < elements.unmapped_argument_count(); i++, index++) {
+    // TODO(leszeks): Elide the write barrier where possible.
+    BuildInitializeStoreTaggedField(allocation, tagged_values[i],
+                                    FixedArray::OffsetOfElementAt(index));
+  }
+  EnsureType(allocation, NodeType::kJSReceiver);
+  return allocation;
+}
+
+ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastUnmappedArgumentsElements elements, AllocationType allocation) {
-  switch (elements.tag()) {
-    case FastUnmappedArgumentsElementsType::kRuntimeValue:
-      return elements.get<FastRuntimeUnmappedArgumentsElements>().value;
-    case FastUnmappedArgumentsElementsType::kStaticValue:
-      return BuildAllocateFastObject(elements.get<FastFixedArray>(),
-                                     allocation);
+  switch (elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return elements.main().value;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
+      return BuildAllocateFastObject(elements.inlined(), allocation);
   }
 }
 
@@ -9326,11 +9371,10 @@ namespace {
 // Returns the arguments length if the unmapped elements if a runtime value.
 base::Optional<ValueNode*> GetArgumentsLengthIfRuntimeValue(
     FastUnmappedArgumentsElements unmapped_elements) {
-  switch (unmapped_elements.tag()) {
-    case FastUnmappedArgumentsElementsType::kRuntimeValue:
-      return unmapped_elements.get<FastRuntimeUnmappedArgumentsElements>()
-          .length;
-    case FastUnmappedArgumentsElementsType::kStaticValue:
+  switch (unmapped_elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return unmapped_elements.main().length;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
       return {};
   }
 }
@@ -9426,40 +9470,22 @@ ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
 FastUnmappedArgumentsElements
 MaglevGraphBuilder::BuildUnmappedArgumentsElements() {
   if (is_inline()) {
-    if (argument_count_without_receiver() == 0) {
-      return FastUnmappedArgumentsElements(FastFixedArray());
-    }
-    FastFixedArray elements(NewObjectId(), argument_count_without_receiver(),
-                            zone());
-    for (int i = 0; i < argument_count_without_receiver(); i++) {
-      elements.values[i] = FastField(GetInlinedTaggedArgument(i + 1));
-    }
-    return FastUnmappedArgumentsElements{std::move(elements)};
+    return FastUnmappedArgumentsElements(argument_count_without_receiver());
   } else {
     ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
     EnsureType(length, NodeType::kSmi);
     ArgumentsElements* elements = AddNewNode<ArgumentsElements>(
         {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
         parameter_count_without_receiver());
-    FastRuntimeUnmappedArgumentsElements runtime_value{elements, length};
-    return FastUnmappedArgumentsElements{std::move(runtime_value)};
+    return FastUnmappedArgumentsElements(elements, length);
   }
 }
 
 FastUnmappedArgumentsElements MaglevGraphBuilder::BuildRestParameterElements() {
   if (is_inline()) {
-    int start_index = parameter_count_without_receiver();
-    int num_elements =
-        std::max(0, argument_count_without_receiver() - start_index);
-    if (num_elements == 0) {
-      return FastUnmappedArgumentsElements(FastFixedArray());
-    }
-    FastFixedArray elements(NewObjectId(), num_elements, zone());
-    for (int i = 0; i < num_elements; i++) {
-      elements.values[i] =
-          FastField(GetInlinedTaggedArgument(i + start_index + 1));
-    }
-    return FastUnmappedArgumentsElements{std::move(elements)};
+    return FastUnmappedArgumentsElements(CreateArgumentsType::kRestParameter,
+                                         parameter_count_without_receiver(),
+                                         argument_count_without_receiver());
   } else {
     ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
     EnsureType(length, NodeType::kSmi);
@@ -9469,8 +9495,7 @@ FastUnmappedArgumentsElements MaglevGraphBuilder::BuildRestParameterElements() {
     ValueNode* rest_length =
         AddNewNode<RestLength>({}, parameter_count_without_receiver());
     EnsureType(rest_length, NodeType::kSmi);
-    FastRuntimeUnmappedArgumentsElements runtime_value{elements, rest_length};
-    return FastUnmappedArgumentsElements{std::move(runtime_value)};
+    return FastUnmappedArgumentsElements(elements, rest_length);
   }
 }
 
@@ -9486,55 +9511,31 @@ FastMappedArgumentsElements MaglevGraphBuilder::BuildMappedArgumentsElements() {
   // unmapped arguments are simply accessed via this fixed array. See
   // SloppyArgumentsElements in src/object/arguments.h.
   if (is_inline()) {
-    if (argument_count_without_receiver() == 0) {
-      return FastMappedArgumentsElements(
-          NewObjectId(), 0, GetContext(),
-          FastUnmappedArgumentsElements(FastFixedArray()));
-    }
     int mapped_count = std::min(param_count, argument_count_without_receiver());
-    FastFixedArray unmapped_elements(NewObjectId(),
-                                     argument_count_without_receiver(), zone());
-    for (int i = 0; i < mapped_count; i++) {
-      unmapped_elements.values[i] =
-          FastField(GetConstant(broker()->the_hole_value()));
-    }
-    for (int i = mapped_count; i < argument_count_without_receiver(); i++) {
-      unmapped_elements.values[i] = FastField(GetInlinedTaggedArgument(i + 1));
-    }
     return FastMappedArgumentsElements(
         NewObjectId(), mapped_count, GetContext(),
-        FastUnmappedArgumentsElements(std::move(unmapped_elements)));
+        FastUnmappedArgumentsElements(CreateArgumentsType::kMappedArguments,
+                                      mapped_count,
+                                      argument_count_without_receiver()));
   } else {
     ArgumentsLength* length = AddNewNode<ArgumentsLength>({});
     EnsureType(length, NodeType::kSmi);
     ArgumentsElements* unmapped_elements = AddNewNode<ArgumentsElements>(
         {GetTaggedValue(length)}, CreateArgumentsType::kMappedArguments,
         param_count);
-    FastRuntimeUnmappedArgumentsElements runtime_unmapped_elements{
-        unmapped_elements, length};
     return FastMappedArgumentsElements(
         NewObjectId(), param_count, GetContext(),
-        FastUnmappedArgumentsElements{std::move(runtime_unmapped_elements)});
+        FastUnmappedArgumentsElements(unmapped_elements, length));
   }
 }
 
 ValueNode* MaglevGraphBuilder::GetArgumentsElementsLength(
     FastUnmappedArgumentsElements elements) {
-  switch (elements.tag()) {
-    case FastUnmappedArgumentsElementsType::kRuntimeValue:
-      return elements.get<FastRuntimeUnmappedArgumentsElements>().length;
-    case FastUnmappedArgumentsElementsType::kStaticValue: {
-      FastFixedArray fixed_array = elements.get<FastFixedArray>();
-      switch (fixed_array.type) {
-        case FastFixedArray::kEmpty:
-          return GetInt32Constant(0);
-        case FastFixedArray::kTagged:
-          return GetInt32Constant(fixed_array.length);
-        default:
-          // The argument elements array are either empty or tagged.
-          UNREACHABLE();
-      }
-    }
+  switch (elements.type()) {
+    case FastUnmappedArgumentsElements::kMainFunction:
+      return elements.main().length;
+    case FastUnmappedArgumentsElements::kInlinedFunction:
+      return GetInt32Constant(elements.inlined().length());
   }
 }
 
@@ -9598,8 +9599,6 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
 ValueNode* MaglevGraphBuilder::BuildAllocateFastObject(
     FastField value, AllocationType allocation_type) {
   switch (value.type) {
-    case FastField::kRuntimeValue:
-      return value.runtime_value;
     case FastField::kObject:
       return BuildAllocateFastObject(value.object, allocation_type);
     case FastField::kMutableDouble: {

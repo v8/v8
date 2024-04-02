@@ -1393,9 +1393,6 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreLiteral(GetDeoptLiteral(
             ReadOnlyRoots(local_isolate_).one_pointer_filler_map()));
         break;
-      case FastField::kRuntimeValue:
-        // TODO(victorgomes): This FastField type should be removed.
-        UNREACHABLE();
       case FastField::kObject:
         BuildFastObject(value.object);
         break;
@@ -1471,6 +1468,7 @@ class MaglevFrameTranslationBuilder {
         break;
       case DeoptObject::kArguments:
       case DeoptObject::kMappedArgumentsElements:
+      case DeoptObject::kInlinedUnmappedArgumentsElements:
         // TODO(victorgomes); Still not supported. Currently we always escape
         // the arguments object.
         UNREACHABLE();

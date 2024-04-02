@@ -951,21 +951,14 @@ struct FastObject {
 // Encoding of a fast allocation site literal value.
 struct FastField {
   FastField() : type(kUninitialized) {}
-  explicit FastField(ValueNode* value)
-      : type(kRuntimeValue), runtime_value(value) {}
   explicit FastField(FastObject object) : type(kObject), object(object) {}
   explicit FastField(Float64 mutable_double_value)
       : type(kMutableDouble), mutable_double_value(mutable_double_value) {}
   explicit FastField(compiler::ObjectRef constant_value)
       : type(kConstant), constant_value(constant_value) {}
 
-  // TODO(victorgomes): The runtime value is not needed, it is currently only
-  // used for the FastArguments of inlined function. We could point to the
-  // inlined arguments frame instead.
-
   enum {
     kUninitialized,
-    kRuntimeValue,
     kObject,
     kMutableDouble,
     kConstant
@@ -975,7 +968,6 @@ struct FastField {
 
   union {
     char uninitialized_marker;
-    ValueNode* runtime_value;
     FastObject object;
     Float64 mutable_double_value;
     compiler::ObjectRef constant_value;
@@ -987,15 +979,62 @@ struct FastRuntimeUnmappedArgumentsElements {
   ValueNode* length;
 };
 
-enum class FastUnmappedArgumentsElementsType {
-  kRuntimeValue,
-  kStaticValue,
+struct FastInlinedUnmappedArgumentsElements {
+  CreateArgumentsType type;
+  int start_index;
+  int argument_count_without_receiver;
+
+  // Number of arguments to be copied.
+  int unmapped_argument_count() const {
+    return argument_count_without_receiver - start_index;
+  }
+
+  // The total length of the fixed array representing the arguments elements. In
+  // the case of kMappedArguments, it counts the hole values that are stored up
+  // to {start_index}.
+  int length() const {
+    if (type == CreateArgumentsType::kRestParameter) {
+      return std::max(0, argument_count_without_receiver - start_index);
+    }
+    return argument_count_without_receiver;
+  }
 };
 
-using FastUnmappedArgumentsElements =
-    base::DiscriminatedUnion<FastUnmappedArgumentsElementsType,
-                             FastRuntimeUnmappedArgumentsElements,
-                             FastFixedArray>;
+struct FastUnmappedArgumentsElements {
+  enum Type {
+    kMainFunction,
+    kInlinedFunction,
+  };
+
+  using Data =
+      base::DiscriminatedUnion<Type, FastRuntimeUnmappedArgumentsElements,
+                               FastInlinedUnmappedArgumentsElements>;
+
+  FastUnmappedArgumentsElements(ArgumentsElements* value, ValueNode* length)
+      : data(FastRuntimeUnmappedArgumentsElements{value, length}) {}
+
+  explicit FastUnmappedArgumentsElements(int argument_count_without_receiver)
+      : data(FastInlinedUnmappedArgumentsElements{
+            CreateArgumentsType::kUnmappedArguments, 0,
+            argument_count_without_receiver}) {}
+
+  FastUnmappedArgumentsElements(CreateArgumentsType type, int start_index,
+                                int argument_count_without_receiver)
+      : data(FastInlinedUnmappedArgumentsElements{
+            type, start_index, argument_count_without_receiver}) {}
+
+  Type type() { return data.tag(); }
+
+  const FastRuntimeUnmappedArgumentsElements& main() const {
+    return data.get<FastRuntimeUnmappedArgumentsElements>();
+  }
+
+  const FastInlinedUnmappedArgumentsElements& inlined() const {
+    return data.get<FastInlinedUnmappedArgumentsElements>();
+  }
+
+  Data data;
+};
 
 struct FastMappedArgumentsElements {
   FastMappedArgumentsElements(int id, int mapped_count, ValueNode* context,
@@ -1041,6 +1080,9 @@ struct DeoptObject {
       : type(kArguments), arguments(arguments) {}
   explicit DeoptObject(FastMappedArgumentsElements mapped_elements)
       : type(kMappedArgumentsElements), mapped_elements(mapped_elements) {}
+  explicit DeoptObject(FastInlinedUnmappedArgumentsElements elements)
+      : type(kInlinedUnmappedArgumentsElements),
+        inlined_unmapped_elements(elements) {}
   explicit DeoptObject(FastContext context)
       : type(kContext), context(context) {}
 
@@ -1050,6 +1092,7 @@ struct DeoptObject {
     kFixedArray,
     kArguments,
     kMappedArgumentsElements,
+    kInlinedUnmappedArgumentsElements,
     kContext,
   } type;
   union {
@@ -1058,6 +1101,7 @@ struct DeoptObject {
     Float64 number;
     FastArgumentsObject arguments;
     FastMappedArgumentsElements mapped_elements;
+    FastInlinedUnmappedArgumentsElements inlined_unmapped_elements;
     FastContext context;
   };
 };
