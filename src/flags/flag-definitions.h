@@ -2531,22 +2531,44 @@ DEFINE_BOOL(
 //
 // Sandbox-related flags.
 //
+#ifdef V8_ENABLE_SANDBOX
+DEFINE_BOOL(sandbox_testing, false,
+            "Enable sandbox testing mode. Useful for demonstrating and "
+            "validating sandbox bypasses. This exposes the memory corruption "
+            "API and enables the sandbox crash filter to filter out crashes "
+            "that do not represent a sandbox bypass")
+#else
+DEFINE_BOOL_READONLY(
+    sandbox_testing, false,
+    "Enable sandbox testing mode. Useful for demonstrating and validating "
+    "sandbox bypasses. This exposes the memory corruption API and enables the "
+    "sandbox crash filter to filter out crashes that do not represent a "
+    "sandbox bypass")
+#endif
+
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-// Sandbox fuzzing mode requires the memory corruption API to be enabled at
-// compile-time.
+// Sandbox fuzzing mode requires the memory corruption API.
 DEFINE_BOOL(sandbox_fuzzing, false,
             "Enable sandbox fuzzing mode. This exposes the memory corruption "
-            "API and enables the sandbox crash filter.")
+            "API and enables the sandbox crash filter, causing all crashes "
+            "that are not sandbox violations to be ignored.")
 #else
-DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
-                     "Enable sandbox fuzzing mode. This exposes the memory "
-                     "corruption API and enables the sandbox crash filter.")
+DEFINE_BOOL_READONLY(
+    sandbox_fuzzing, false,
+    "Enable sandbox fuzzing mode. This exposes the memory corruption API and "
+    "enables the sandbox crash filter, causing all crashes that are not "
+    "sandbox violations to be ignored.")
 #endif
 
 // Sandbox testing mode requires soft abort so that DCHECKs are skipped over
 // and other fatal errors lead to normal process termination as they do not
 // represent sandbox violations.
+DEFINE_IMPLICATION(sandbox_testing, soft_abort)
 DEFINE_IMPLICATION(sandbox_fuzzing, soft_abort)
+
+// Only one of these can be enabled.
+DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
+DEFINE_NEG_IMPLICATION(sandbox_testing, sandbox_fuzzing)
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on

@@ -5921,8 +5921,10 @@ int Shell::Main(int argc, char* argv[]) {
   // Note: this must happen before the Wasm trap handler is installed, so that
   // the wasm trap handler is invoked first (and can handle Wasm OOB accesses),
   // then forwards all "real" crashes to the sandbox crash filter.
-  if (i::v8_flags.sandbox_fuzzing) {
-    i::SandboxTesting::Mode mode = i::SandboxTesting::Mode::kForFuzzing;
+  if (i::v8_flags.sandbox_testing || i::v8_flags.sandbox_fuzzing) {
+    i::SandboxTesting::Mode mode = i::v8_flags.sandbox_testing
+                                       ? i::SandboxTesting::Mode::kForTesting
+                                       : i::SandboxTesting::Mode::kForFuzzing;
     i::SandboxTesting::Enable(mode);
   }
 #endif  // V8_ENABLE_SANDBOX
