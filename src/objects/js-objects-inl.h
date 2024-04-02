@@ -632,6 +632,12 @@ void* JSApiWrapper::GetCppHeapWrappable(
       kCppHeapWrappableOffset, isolate));
 }
 
+void* JSApiWrapper::GetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                        ExternalPointerTag tag) const {
+  return reinterpret_cast<void*>(object_->TryReadCppHeapPointerField(
+      kCppHeapWrappableOffset, isolate, tag));
+}
+
 template <ExternalPointerTag tag>
 void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
                                        void* instance) {
@@ -643,6 +649,19 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
   object_->WriteLazilyInitializedCppHeapPointerField<tag>(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance));
+  WriteBarrier::MarkingFromCppHeapWrappable(object_, instance);
+}
+
+void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
+                                       void* instance, ExternalPointerTag tag) {
+  if (instance == nullptr) {
+    object_->ResetLazilyInitializedCppHeapPointerField(
+        JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+    return;
+  }
+  object_->WriteLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
+      reinterpret_cast<Address>(instance), tag);
   WriteBarrier::MarkingFromCppHeapWrappable(object_, instance);
 }
 

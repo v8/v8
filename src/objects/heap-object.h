@@ -311,6 +311,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline Address TryReadCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate) const;
+  inline Address TryReadCppHeapPointerField(
+      size_t offset, IsolateForPointerCompression isolate,
+      ExternalPointerTag tag) const;
   template <ExternalPointerTag tag>
   inline void WriteExternalPointerField(size_t offset,
                                         IsolateForSandbox isolate,
@@ -326,6 +329,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value);
+  inline void WriteLazilyInitializedCppHeapPointerField(
+      size_t offset, IsolateForPointerCompression isolate, Address value,
+      ExternalPointerTag tag);
 
   //
   // Indirect pointers.

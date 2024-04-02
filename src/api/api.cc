@@ -6298,6 +6298,24 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                                                             values);
 }
 
+// static
+void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
+                         CppHeapPointerTag tag) {
+  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(
+                             reinterpret_cast<i::Address>(wrapper_obj))))
+      .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
+                           static_cast<i::ExternalPointerTag>(tag));
+}
+
+// static
+void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
+                      CppHeapPointerTag tag, void* wrappable) {
+  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(
+                             reinterpret_cast<i::Address>(wrapper_obj))))
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
+                           static_cast<i::ExternalPointerTag>(tag));
+}
+
 // --- E n v i r o n m e n t ---
 
 void v8::V8::InitializePlatform(Platform* platform) {

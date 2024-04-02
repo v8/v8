@@ -7,6 +7,7 @@
 #include "include/v8-internal.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
+#include "include/v8-sandbox.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
@@ -15,29 +16,6 @@
 #include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 namespace {
-
-// TODO(chromium:328117814): Replace the following enclosed helpers that are
-// using internals with proper V8 API calls.
-//
-// -----------------------------------------------------------------------------
-
-void SetCppHeapPointer(v8::Isolate* isolate, v8::Local<v8::Object> js_wrapper,
-                       void* cpp_wrappable) {
-  auto obj = v8::Utils::OpenDirectHandle(*js_wrapper);
-  i::JSApiWrapper(i::JSObject::cast(*obj))
-      .SetCppHeapWrappable<v8::internal::kExternalObjectValueTag>(
-          reinterpret_cast<i::Isolate*>(isolate), cpp_wrappable);
-}
-
-void* GetCppHeapPointer(v8::Isolate* isolate,
-                        v8::Local<v8::Object> js_wrapper) {
-  auto obj = v8::Utils::OpenDirectHandle(*js_wrapper);
-  return i::JSApiWrapper(i::JSObject::cast(*obj))
-      .GetCppHeapWrappable<v8::internal::kExternalObjectValueTag>(
-          reinterpret_cast<i::Isolate*>(isolate));
-}
-
-// -----------------------------------------------------------------------------
 
 v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
@@ -274,14 +252,16 @@ class NewBindings : public BindingsBenchmarkBase<NewBindings> {
                                              WrapperTypeInfo* info,
                                              WrappableBase* wrappable) {
     // Set V8 to C++ reference.
-    SetCppHeapPointer(isolate, v8_wrapper, wrappable);
+    v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, v8_wrapper,
+                                                         wrappable);
     // Set C++ to V8 reference.
     wrappable->SetWrapper(isolate, v8_wrapper);
   }
 
   template <typename T>
   static V8_INLINE T* Unwrap(v8::Isolate* isolate, v8::Local<v8::Object> thiz) {
-    return reinterpret_cast<T*>(GetCppHeapPointer(isolate, thiz));
+    return v8::Object::Unwrap<v8::CppHeapPointerTag::kDefaultTag, T>(isolate,
+                                                                     thiz);
   }
 
   static void SetupContextTemplate(

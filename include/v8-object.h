@@ -5,10 +5,12 @@
 #ifndef INCLUDE_V8_OBJECT_H_
 #define INCLUDE_V8_OBJECT_H_
 
+#include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-maybe.h"              // NOLINT(build/include_directory)
 #include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
 #include "v8-primitive.h"          // NOLINT(build/include_directory)
+#include "v8-sandbox.h"            // NOLINT(build/include_directory)
 #include "v8-traced-handle.h"      // NOLINT(build/include_directory)
 #include "v8-value.h"              // NOLINT(build/include_directory)
 #include "v8config.h"              // NOLINT(build/include_directory)
@@ -528,7 +530,50 @@ class V8_EXPORT Object : public Value {
                                          void* values[]);
 
   /**
-   * HasOwnProperty() is like JavaScript's Object.prototype.hasOwnProperty().
+   * Unwraps a JS wrapper object.
+   *
+   * \param tag The tag for retrieving the wrappable instance. Must match the
+   * tag that has been used for a previous `Wrap()` operation.
+   * \param isolate The Isolate for the `wrapper` object.
+   * \param wrapper The JS wrapper object that should be unwrapped.
+   * \returns the C++ wrappable instance, or nullptr if the JS object has never
+   * been wrapped.
+   */
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper);
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper);
+  template <CppHeapPointerTag tag, typename T = void>
+  static V8_INLINE T* Unwrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper);
+
+  /**
+   * Wraps a JS wrapper with a C++ instance.
+   *
+   * \param tag The pointer tag that should be used for storing this object.
+   * Future `Unwrap()` operations must provide a matching tag.
+   * \param isolate The Isolate for the `wrapper` object.
+   * \param wrapper The JS wrapper object.
+   * \param wrappable The C++ object instance that is wrapped by the JS object.
+   */
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const v8::Local<v8::Object>& wrapper,
+                             void* wrappable);
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const PersistentBase<Object>& wrapper,
+                             void* wrappable);
+  template <CppHeapPointerTag tag>
+  static V8_INLINE void Wrap(v8::Isolate* isolate,
+                             const BasicTracedReference<Object>& wrapper,
+                             void* wrappable);
+
+  /**
+   * HasOwnProperty() is like JavaScript's
+   * Object.prototype.hasOwnProperty().
    *
    * See also v8::Object::Has() and v8::Object::HasRealNamedProperty().
    */
@@ -731,6 +776,11 @@ class V8_EXPORT Object : public Value {
   bool IsCodeLike(Isolate* isolate) const;
 
  private:
+  static void* Unwrap(v8::Isolate* isolate, internal::Address wrapper_obj,
+                      CppHeapPointerTag tag);
+  static void Wrap(v8::Isolate* isolate, internal::Address wrapper_obj,
+                   CppHeapPointerTag tag, void* wrappable);
+
   Object();
   static void CheckCast(Value* obj);
   Local<Data> SlowGetInternalField(int index);
@@ -808,6 +858,73 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   }
 #endif
   return SlowGetAlignedPointerFromInternalField(index);
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<tag, T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<tag, T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize);
+#else   // defined(V8_ENABLE_CHECKS)
+
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag, typename T>
+T* Object::Unwrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+#if !defined(V8_ENABLE_CHECKS)
+  return internal::ReadCppHeapPointerField<tag, T>(
+      isolate, obj, internal::Internals::kJSObjectHeaderSize);
+#else   // defined(V8_ENABLE_CHECKS)
+  return reinterpret_cast<T*>(Unwrap(isolate, obj, tag));
+#endif  // defined(V8_ENABLE_CHECKS)
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
+                  void* wrappable) {
+  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
+                  void* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
+}
+
+// static
+template <CppHeapPointerTag tag>
+void Object::Wrap(v8::Isolate* isolate,
+                  const BasicTracedReference<Object>& wrapper,
+                  void* wrappable) {
+  auto obj =
+      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
+  Wrap(isolate, obj, tag, wrappable);
 }
 
 Private* Private::Cast(Data* data) {

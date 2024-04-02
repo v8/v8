@@ -7,7 +7,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate-inl.h"
@@ -105,6 +105,27 @@ V8_INLINE Address TryReadCppHeapPointerField(
 #endif  // !V8_COMPRESS_POINTERS
 }
 
+V8_INLINE Address TryReadCppHeapPointerField(
+    Address field_address, IsolateForPointerCompression isolate,
+    ExternalPointerTag tag) {
+  CppHeapPointerSlot slot(field_address, tag);
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  // Handles may be written to objects from other threads so the handle needs
+  // to be loaded atomically. We assume that the load from the table cannot
+  // be reordered before the load of the handle due to the data dependency
+  // between the two loads and therefore use relaxed memory ordering, but
+  // technically we should use memory_order_consume here.
+  CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == 0) {
+    return kNullAddress;
+  }
+  return isolate.GetCppHeapPointerTable().Get(handle, tag);
+#else   // !V8_COMPRESS_POINTERS
+  return slot.try_load(isolate);
+#endif  // !V8_COMPRESS_POINTERS
+}
+
 template <ExternalPointerTag tag>
 V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
     Address field_address, IsolateForPointerCompression isolate,
@@ -112,6 +133,28 @@ V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
   CppHeapPointerSlot slot(field_address, tag);
 #ifdef V8_COMPRESS_POINTERS
   static_assert(tag != kExternalPointerNullTag);
+  // See comment above for why this uses a Relaxed_Load and Release_Store.
+  ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
+  const CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullCppHeapPointerHandle) {
+    // Field has not been initialized yet.
+    const CppHeapPointerHandle new_handle = table.AllocateAndInitializeEntry(
+        isolate.GetCppHeapPointerTableSpace(), value, tag);
+    slot.Release_StoreHandle(new_handle);
+  } else {
+    table.Set(handle, value, tag);
+  }
+#else   // !V8_COMPRESS_POINTERS
+  slot.store(isolate, value);
+#endif  // !V8_COMPRESS_POINTERS
+}
+
+V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
+    Address field_address, IsolateForPointerCompression isolate, Address value,
+    ExternalPointerTag tag) {
+  CppHeapPointerSlot slot(field_address, tag);
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK_NE(tag, kExternalPointerNullTag);
   // See comment above for why this uses a Relaxed_Load and Release_Store.
   ExternalPointerTable& table = isolate.GetCppHeapPointerTable();
   const CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
