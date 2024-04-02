@@ -642,5 +642,15 @@ void OldSpace::ReleasePage(PageMetadata* page) {
   ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
 }
 
+// -----------------------------------------------------------------------------
+// SharedSpace implementation
+
+void SharedSpace::ReleasePage(PageMetadata* page) {
+  // Old-to-new slots in old objects may be overwritten with references to
+  // shared objects. Postpone releasing empty pages so that updating old-to-new
+  // slots in dead old objects may access the dead shared objects.
+  ReleasePageImpl(page, MemoryAllocator::FreeMode::kPostpone);
+}
+
 }  // namespace internal
 }  // namespace v8

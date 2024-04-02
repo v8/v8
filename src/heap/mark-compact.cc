@@ -5424,8 +5424,15 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 }
 
 namespace {
-bool CanHaveOldToNewRefs(LargeObjectSpace* space) {
+bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
+  // Delay releasing dead old large object pages until after pointer updating is
+  // done because dead old space objects may have old-to-new slots (which
+  // were possibly later overriden with old-to-old references) that are
+  // pointing to these pages and will need to be updated.
   if (space->identity() == LO_SPACE) return true;
+  // Old-to-new slots may also point to shared spaces. Delay releasing so that
+  // updating slots in dead old objects can access the dead shared objects.
+  if (space->identity() == SHARED_LO_SPACE) return true;
   return false;
 }
 }  // namespace
@@ -5433,13 +5440,10 @@ bool CanHaveOldToNewRefs(LargeObjectSpace* space) {
 void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
-  // Delay releasing dead large object pages until after pointer updating is
-  // done because dead old space objects may have old-to-new slots (which
-  // were possibly later overriden with old-to-old references) that are
-  // pointing to these pages and will need to be updated.
   const MemoryAllocator::FreeMode free_mode =
-      CanHaveOldToNewRefs(space) ? MemoryAllocator::FreeMode::kPostpone
-                                 : MemoryAllocator::FreeMode::kImmediately;
+      ShouldPostponeFreeingEmptyPages(space)
+          ? MemoryAllocator::FreeMode::kPostpone
+          : MemoryAllocator::FreeMode::kImmediately;
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     Tagged<HeapObject> object = current->GetObject();
