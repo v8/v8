@@ -3341,6 +3341,46 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 }
 
+namespace {
+bool CanInstallTypeReflection(Isolate* isolate, Handle<NativeContext> context) {
+  Handle<JSObject> webassembly(context->wasm_webassembly_object(), isolate);
+
+  Handle<String> function_string = v8_str(isolate, "Function");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly, function_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+
+  Handle<String> type_string = v8_str(isolate, "type");
+#define INSTANCE_PROTO_HANDLE(Name) \
+  handle(JSObject::cast(context->Name()->instance_prototype()), isolate)
+
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_table_constructor), type_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_global_constructor), type_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_memory_constructor), type_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+  if (JSObject::HasRealNamedProperty(
+          isolate, INSTANCE_PROTO_HANDLE(wasm_tag_constructor), type_string)
+          .FromMaybe(true)) {
+    return false;
+  }
+#undef INSTANCE_PROTO_HANDLE
+
+  return true;
+}
+}  // namespace
+
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<NativeContext> context) {
@@ -3379,9 +3419,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     }
 
     // Install Wasm type reflection features (if not already done).
-    Handle<String> function_string = v8_str(isolate, "Function");
-    if (!JSObject::HasRealNamedProperty(isolate, webassembly, function_string)
-             .FromMaybe(true)) {
+    if (CanInstallTypeReflection(isolate, context)) {
       InstallTypeReflection(isolate, context);
     }
   }
@@ -3401,6 +3439,7 @@ void WasmJs::InstallSuspenderConstructor(Isolate* isolate,
 // static
 void WasmJs::InstallTypeReflection(Isolate* isolate,
                                    Handle<NativeContext> context) {
+  DCHECK(CanInstallTypeReflection(isolate, context));
   Handle<JSObject> webassembly(context->wasm_webassembly_object(), isolate);
 
 #define INSTANCE_PROTO_HANDLE(Name) \
