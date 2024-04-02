@@ -570,6 +570,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
   void SweepPage(BasePage& page) { Traverse(page); }
 
+  // Returns true if out of work. This implies that sweeping is done only if
+  // `sweeping_mode` is kAll.
   bool SweepWithDeadline(v8::base::TimeDelta max_duration,
                          MutatorThreadSweepingMode sweeping_mode) {
     DCHECK(platform_);
@@ -583,12 +585,11 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
         return false;
       }
 
-      if (sweeping_mode == MutatorThreadSweepingMode::kOnlyFinalizers)
-        return false;
-
-      // Help out the concurrent sweeper.
-      if (!SweepSpaceWithDeadline(&state, deadline)) {
-        return false;
+      if (sweeping_mode != MutatorThreadSweepingMode::kOnlyFinalizers) {
+        // Help out the concurrent sweeper.
+        if (!SweepSpaceWithDeadline(&state, deadline)) {
+          return false;
+        }
       }
     }
     return true;
@@ -1041,7 +1042,6 @@ class Sweeper::SweeperImpl final {
 
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
-    bool sweep_complete;
     {
       StatsCollector::EnabledScope stats_scope(
           stats_collector_, StatsCollector::kIncrementalSweep);
@@ -1053,14 +1053,17 @@ class Sweeper::SweeperImpl final {
             stats_collector_, internal_scope_id, "max_duration_ms",
             max_duration.InMillisecondsF(), "sweeping_mode",
             ToString(sweeping_mode));
-        sweep_complete = sweeper.SweepWithDeadline(max_duration, sweeping_mode);
+        bool sweep_complete =
+            sweeper.SweepWithDeadline(max_duration, sweeping_mode);
+        if (!sweep_complete ||
+            sweeping_mode != MutatorThreadSweepingMode::kAll) {
+          return sweep_complete;
+        }
       }
-      if (sweep_complete) {
-        FinalizeSweep();
-      }
+      FinalizeSweep();
     }
-    if (sweep_complete) NotifyDone();
-    return sweep_complete;
+    NotifyDone();
+    return true;
   }
 
   void AddMutatorThreadSweepingObserver(
@@ -1113,35 +1116,51 @@ class Sweeper::SweeperImpl final {
     explicit IncrementalSweepTask(SweeperImpl& sweeper)
         : sweeper_(sweeper), handle_(Handle::NonEmptyTag{}) {}
 
-    static Handle Post(SweeperImpl& sweeper, cppgc::TaskRunner* runner) {
+    static Handle Post(SweeperImpl& sweeper, cppgc::TaskRunner* runner,
+                       std::optional<v8::base::TimeDelta> delay) {
       auto task = std::make_unique<IncrementalSweepTask>(sweeper);
       auto handle = task->GetHandle();
-      runner->PostTask(std::move(task));
+      if (delay.has_value()) {
+        runner->PostDelayedTask(std::move(task), delay->InSecondsF());
+      } else {
+        runner->PostTask(std::move(task));
+      }
+
       return handle;
     }
+
+    Handle GetHandle() const { return handle_; }
 
    private:
     void Run() override {
       if (handle_.IsCanceled()) return;
 
-      if (!sweeper_.PerformSweepOnMutatorThread(
-              v8::base::TimeDelta::FromMilliseconds(5),
-              StatsCollector::kSweepInTask,
-              sweeper_.IsConcurrentSweepingDone()
-                  ? MutatorThreadSweepingMode::kAll
-                  : MutatorThreadSweepingMode::kOnlyFinalizers)) {
+      MutatorThreadSweepingMode sweeping_mode =
+          sweeper_.IsConcurrentSweepingDone()
+              ? MutatorThreadSweepingMode::kAll
+              : MutatorThreadSweepingMode::kOnlyFinalizers;
+      bool sweep_complete = sweeper_.PerformSweepOnMutatorThread(
+          v8::base::TimeDelta::FromMilliseconds(5),
+          StatsCollector::kSweepInTask, sweeping_mode);
+      if (sweep_complete) {
+        if (sweeping_mode != MutatorThreadSweepingMode::kAll) {
+          // Throttle incremental sweeping while the concurrent Job is doing
+          // progress.
+          sweeper_.ScheduleIncrementalSweeping(
+              v8::base::TimeDelta::FromMilliseconds(5));
+        }
+      } else {
         sweeper_.ScheduleIncrementalSweeping();
       }
     }
-
-    Handle GetHandle() const { return handle_; }
 
     SweeperImpl& sweeper_;
     // TODO(chromium:1056170): Change to CancelableTask.
     Handle handle_;
   };
 
-  void ScheduleIncrementalSweeping() {
+  void ScheduleIncrementalSweeping(
+      std::optional<v8::base::TimeDelta> delay = {}) {
     DCHECK(platform_);
     DCHECK_GE(config_.sweeping_type,
               SweepingConfig::SweepingType::kIncremental);
@@ -1150,7 +1169,7 @@ class Sweeper::SweeperImpl final {
     if (!runner) return;
 
     incremental_sweeper_handle_ =
-        IncrementalSweepTask::Post(*this, runner.get());
+        IncrementalSweepTask::Post(*this, runner.get(), delay);
   }
 
   void ScheduleConcurrentSweeping() {
