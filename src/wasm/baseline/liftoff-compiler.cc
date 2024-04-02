@@ -7903,37 +7903,43 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
-    Register index = __ PeekToRegister(0, {}).gp();
+    LiftoffRegList pinned;
+    VarState index_slot = __ cache_state() -> stack_state.back();
+    const bool is_static_index = index_slot.is_const();
+    Register index_reg =
+        is_static_index
+            ? no_reg
+            : pinned.set(__ LoadToRegister(index_slot, pinned).gp());
 
-    LiftoffRegList pinned{index};
     TempRegisterScope temps;
     pinned |= temps.AddTempRegisters(3, kGpReg, &asm_, pinned);
 
-    Register dispatch_table = temps.Acquire(kGpReg).gp();
+    ScopedTempRegister dispatch_table{temps, kGpReg};
     if (imm.table_imm.index == 0) {
       // Load the dispatch table directly.
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table, DispatchTable0, pinned);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table.gp_reg(), DispatchTable0,
+                                        pinned);
     } else {
       // Load the dispatch table from the ProtectedFixedArray of all dispatch
       // tables.
-      Register indir_func_tables = dispatch_table;
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(indir_func_tables, DispatchTables,
+      Register dispatch_tables = dispatch_table.gp_reg();
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_tables, DispatchTables,
                                         pinned);
-      __ LoadProtectedPointer(dispatch_table, indir_func_tables,
+      __ LoadProtectedPointer(dispatch_table.gp_reg(), dispatch_tables,
                               ObjectAccess::ElementOffsetInProtectedFixedArray(
                                   imm.table_imm.index));
     }
 
     const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
     {
-      CODE_COMMENT("Check index is in-bounds");
+      SCOPED_CODE_COMMENT("Check index is in-bounds");
       ScopedTempRegister table_size{temps, kGpReg};
       // Bounds check against the table size: Compare against the dispatch table
       // size, or a constant if the size is statically known.
       bool needs_dynamic_size =
           !table.has_maximum_size || table.maximum_size != table.initial_size;
       if (needs_dynamic_size) {
-        __ Load(table_size.reg(), dispatch_table, no_reg,
+        __ Load(table_size.reg(), dispatch_table.gp_reg(), no_reg,
                 wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset),
                 LoadType::kI32Load);
       }
@@ -7943,33 +7949,57 @@ class LiftoffCompiler {
       {
         FREEZE_STATE(trapping);
         if (needs_dynamic_size) {
-          __ emit_cond_jump(kUnsignedGreaterThanEqual, out_of_bounds_label,
-                            kI32, index, table_size.reg().gp(), trapping);
+          if (is_static_index) {
+            __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, out_of_bounds_label,
+                                   table_size.gp_reg(), index_slot.i32_const(),
+                                   trapping);
+          } else {
+            __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label, kI32,
+                              table_size.gp_reg(), index_reg, trapping);
+          }
         } else {
-          int static_table_size = table.initial_size;
-          __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
-                                 index, static_table_size, trapping);
+          uint32_t static_table_size = table.initial_size;
+          if (!is_static_index) {
+            __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual,
+                                   out_of_bounds_label, index_reg,
+                                   static_table_size, trapping);
+          } else if (static_cast<uint32_t>(index_slot.i32_const()) >=
+                     static_table_size) {
+            __ emit_jump(out_of_bounds_label);
+          }
         }
       }
     }
 
-    // Get a direct pointer to the dispatch table element.
-    // dispatch_table_entry = dispatch_table + kEntriesOffset +
-    //                        size_t{index} * kElementSize
-    // TODO(clemensb): Produce better code for this (via more specialized
-    // platform-specific methods?).
-    Register dispatch_table_entry = temps.Acquire(kGpReg).gp();
-    __ emit_u32_to_uintptr(dispatch_table_entry, index);
-    __ emit_ptrsize_muli(dispatch_table_entry, dispatch_table_entry,
-                         WasmDispatchTable::kEntrySize);
-    __ emit_ptrsize_add(dispatch_table_entry, dispatch_table_entry,
-                        dispatch_table);
-    __ emit_ptrsize_addi(
-        dispatch_table_entry, dispatch_table_entry,
-        ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset));
+    // If the function index is dynamic, compute a pointer to the dispatch table
+    // entry. Otherwise remember the static offset from the dispatch table to
+    // add it to later loads from that table.
+    ScopedTempRegister dispatch_table_base{std::move(dispatch_table)};
+    int dispatch_table_offset = 0;
+    if (is_static_index) {
+      dispatch_table_offset = wasm::ObjectAccess::ToTagged(
+          WasmDispatchTable::OffsetOf(index_slot.i32_const()));
+    } else {
+      // TODO(clemensb): Produce better code for this (via more specialized
+      // platform-specific methods?).
 
-    // After this, we do not need the dispatch table any more.
-    temps.Return(std::move(dispatch_table));
+      Register entry_offset = index_reg;
+      // After this computation we don't need the index register any more. If
+      // there is no other user we can overwrite it.
+      bool index_reg_still_used =
+          __ cache_state() -> get_use_count(LiftoffRegister{index_reg}) > 1;
+      if (index_reg_still_used) entry_offset = temps.Acquire(kGpReg).gp();
+
+      __ emit_u32_to_uintptr(entry_offset, index_reg);
+      index_reg = no_reg;
+      __ emit_ptrsize_muli(entry_offset, entry_offset,
+                           WasmDispatchTable::kEntrySize);
+      __ emit_ptrsize_add(dispatch_table_base.gp_reg(),
+                          dispatch_table_base.gp_reg(), entry_offset);
+      if (index_reg_still_used) temps.Return(std::move(entry_offset));
+      dispatch_table_offset =
+          wasm::ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset);
+    }
 
     bool needs_type_check = !EquivalentTypes(
         table.type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
@@ -7980,13 +8010,14 @@ class LiftoffCompiler {
     // so this shares most code. For the null check we then only check if the
     // stored signature is != -1.
     if (needs_type_check || needs_null_check) {
-      CODE_COMMENT(needs_type_check ? "Check signature"
-                                    : "Check for null entry");
+      SCOPED_CODE_COMMENT(needs_type_check ? "Check signature"
+                                           : "Check for null entry");
       ScopedTempRegister real_sig_id{temps, kGpReg};
 
       // Load the signature from the dispatch table.
-      __ Load(real_sig_id.reg(), dispatch_table_entry, no_reg,
-              WasmDispatchTable::kSigBias, LoadType::kI32Load);
+      __ Load(real_sig_id.reg(), dispatch_table_base.gp_reg(), no_reg,
+              dispatch_table_offset + WasmDispatchTable::kSigBias,
+              LoadType::kI32Load);
 
       // Compare against expected signature.
       // Since Liftoff code is never serialized (hence not reused across
@@ -8076,7 +8107,7 @@ class LiftoffCompiler {
     }
 
     {
-      CODE_COMMENT("Execute indirect call");
+      SCOPED_CODE_COMMENT("Execute indirect call");
 
       // The first parameter will be either a WasmTrustedInstanceData or a
       // WasmApiFunctionRef.
@@ -8084,10 +8115,11 @@ class LiftoffCompiler {
       Register target = temps.Acquire(kGpReg).gp();
 
       // Load ref and target from the dispatch table.
-      __ LoadProtectedPointer(first_param, dispatch_table_entry,
-                              WasmDispatchTable::kRefBias);
-      __ Load(LiftoffRegister(target), dispatch_table_entry, no_reg,
-              WasmDispatchTable::kTargetBias,
+      __ LoadProtectedPointer(
+          first_param, dispatch_table_base.gp_reg(),
+          dispatch_table_offset + WasmDispatchTable::kRefBias);
+      __ Load(LiftoffRegister(target), dispatch_table_base.gp_reg(), no_reg,
+              dispatch_table_offset + WasmDispatchTable::kTargetBias,
               LoadType::ForValueKind(kIntPtrKind));
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
