@@ -5365,6 +5365,14 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   Protectors::InvalidateNoElements(this);
 }
 
+void Isolate::UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
+                                             Handle<Object> new_prototype) {
+  UpdateNoElementsProtectorOnSetPrototype(object);
+  UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
+  UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
+  UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(object, new_prototype);
+}
+
 void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
     Handle<JSObject> object) {
   // Setting the __proto__ of TypedArray constructor could change TypedArray's
@@ -5394,12 +5402,16 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
 }
 
 void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-    Handle<JSObject> object) {
+    Handle<JSObject> object, Handle<Object> new_prototype) {
   if (!Protectors::IsStringWrapperToPrimitiveIntact(this)) {
     return;
   }
 
-  if (IsStringWrapper(*object)) {
+  // We can have a custom @@toPrimitive on a string wrapper also if we subclass
+  // String and the subclass (or one of its subclasses) defines its own
+  // @@toPrimive. Thus we invalidate the protector whenever we detect
+  // subclassing String - it should be reasonably rare.
+  if (IsStringWrapper(*object) || IsStringWrapper(*new_prototype)) {
     Protectors::InvalidateStringWrapperToPrimitive(this);
   }
 }

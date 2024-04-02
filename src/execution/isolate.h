@@ -1570,6 +1570,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnSetLength(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+
+  void UpdateProtectorsOnSetPrototype(Handle<JSObject> object,
+                                      Handle<Object> new_prototype);
+
   void UpdateNoElementsProtectorOnSetPrototype(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
@@ -1581,7 +1585,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
-      Handle<JSObject> object);
+      Handle<JSObject> object, Handle<Object> new_prototype);
 
   // Returns true if array is the initial array prototype in any native context.
   inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);
