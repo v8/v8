@@ -693,7 +693,16 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
     if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
-      wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+      if (!trusted_data->module_object()->native_module()->HasCodeWithTier(
+              func_index, wasm::ExecutionTier::kTurbofan)) {
+        wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+      }
+      // We call this function when the tiering budget runs out, so reset that
+      // budget to appropriately delay the next call.
+      int array_index =
+          wasm::declared_function_index(trusted_data->module(), func_index);
+      trusted_data->tiering_budget_array()[array_index] =
+          v8_flags.wasm_tiering_budget;
     } else {
       wasm::TriggerTierUp(isolate, trusted_data, func_index);
     }
