@@ -1227,6 +1227,8 @@ STREAM_TEST(TestIncrementalCaching) {
   FLAG_VALUE_SCOPE(wasm_tier_up, false);
   constexpr int threshold = 10;  // 10 bytes
   FlagScope<int> caching_threshold(&v8_flags.wasm_caching_threshold, threshold);
+  FlagScope<int> hard_caching_threshold(&v8_flags.wasm_caching_hard_threshold,
+                                        threshold);
   StreamTester tester(isolate);
   int call_cache_counter = 0;
   tester.stream()->SetMoreFunctionsCanBeSerializedCallback(

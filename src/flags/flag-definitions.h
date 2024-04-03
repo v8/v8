@@ -1464,16 +1464,16 @@ DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
 DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmFunctions,
            "maximum number of wasm functions supported in a module")
 DEFINE_INT(
-    wasm_caching_threshold, 1'000'000,
+    wasm_caching_threshold, 1'000,
     "the amount of wasm top tier code that triggers the next caching event")
 // Note: wasm_caching_hard_threshold should always be larger than
 // wasm_caching_threshold. If wasm_caching_timeout_ms is 0, the hard threshold
 // will be ignored.
-DEFINE_INT(wasm_caching_hard_threshold, 10'000'000,
+DEFINE_INT(wasm_caching_hard_threshold, 1'000'000,
            "the amount of wasm top tier code that triggers caching "
            "immediately, ignoring the --wasm-caching-timeout-ms")
 DEFINE_INT(
-    wasm_caching_timeout_ms, 0,
+    wasm_caching_timeout_ms, 2000,
     "only trigger caching if no new code was compiled within this timeout (0 "
     "to disable this logic and only use --wasm-caching-threshold)")
 DEFINE_BOOL(trace_wasm_compilation_times, false,
