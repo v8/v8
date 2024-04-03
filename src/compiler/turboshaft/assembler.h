@@ -3481,10 +3481,10 @@ class TurboshaftAssemblerOpInterface
                             BigIntComparisonOp::Kind::kLessThanOrEqual);
   }
 
-  V<Object> BigIntUnary(V<Object> input, BigIntUnaryOp::Kind kind) {
+  V<BigInt> BigIntUnary(V<BigInt> input, BigIntUnaryOp::Kind kind) {
     return ReduceIfReachableBigIntUnary(input, kind);
   }
-  V<Object> BigIntNegate(V<Object> input) {
+  V<BigInt> BigIntNegate(V<BigInt> input) {
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 

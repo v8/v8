@@ -75,11 +75,19 @@ struct GraphBuilder {
   AssemblerT& Asm() { return assembler; }
 
  private:
+  template <typename T>
+  V<T> Map(Node* old_node) {
+    V<T> result = V<T>::Cast(op_mapping.Get(old_node));
+    DCHECK(__ output_graph().IsValid(result));
+    return result;
+  }
+
   OpIndex Map(Node* old_node) {
     OpIndex result = op_mapping.Get(old_node);
     DCHECK(__ output_graph().IsValid(result));
     return result;
   }
+
   Block* Map(BasicBlock* block) {
     Block* result = block_mapping[block->rpo_number()].block;
     DCHECK_NOT_NULL(result);
@@ -1646,7 +1654,7 @@ OpIndex GraphBuilder::Process(
                                       Map(node->InputAt(1)));
 
     case IrOpcode::kBigIntNegate:
-      return __ BigIntNegate(Map(node->InputAt(0)));
+      return __ BigIntNegate(Map<BigInt>(node->InputAt(0)));
 
     case IrOpcode::kLoadRootRegister:
       // Inlined usage of wasm root register operation in JS.

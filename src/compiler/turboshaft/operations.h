@@ -5073,15 +5073,16 @@ struct BigIntUnaryOp : FixedArityOperationT<1, BigIntUnaryOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<BigInt> input() const { return Base::input<BigInt>(0); }
 
-  BigIntUnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+  BigIntUnaryOp(V<BigInt> input, Kind kind) : Base(input), kind(kind) {}
 
   void Validate(const Graph& graph) const {
   }
 
   auto options() const { return std::tuple{kind}; }
 };
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            BigIntUnaryOp::Kind kind);
 

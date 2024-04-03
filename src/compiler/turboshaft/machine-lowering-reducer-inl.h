@@ -2078,7 +2078,7 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  V<Object> REDUCE(BigIntUnary)(V<Object> input, BigIntUnaryOp::Kind kind) {
+  V<BigInt> REDUCE(BigIntUnary)(V<BigInt> input, BigIntUnaryOp::Kind kind) {
     DCHECK_EQ(kind, BigIntUnaryOp::Kind::kNegate);
     return CallBuiltinForBigIntOp(Builtin::kBigIntUnaryMinus, {input});
   }
