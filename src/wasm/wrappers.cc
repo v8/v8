@@ -1364,7 +1364,7 @@ void BuildWasmWrapper(AccountingAllocator* allocator,
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(graph, graph, &zone);
   WasmWrapperTSGraphBuilder builder(&zone, assembler, module, sig,
-                                    StubCallMode::kCallBuiltinPointer);
+                                    wrapper_info.stub_mode);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
     builder.BuildJSToWasmWrapper(wrapper_info.is_import);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {

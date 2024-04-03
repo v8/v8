@@ -8447,8 +8447,10 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
         isolate, sig,
-        wasm::WrapperCompilationInfo{.code_kind = CodeKind::JS_TO_WASM_FUNCTION,
-                                     .is_import = is_import},
+        wasm::WrapperCompilationInfo{
+            .code_kind = CodeKind::JS_TO_WASM_FUNCTION,
+            .stub_mode = StubCallMode::kCallBuiltinPointer,
+            .is_import = is_import},
         module, std::move(debug_name), WasmAssemblerOptions());
   } else {
     std::unique_ptr<Zone> zone = std::make_unique<Zone>(
@@ -8624,6 +8626,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
         env->module, sig,
         wasm::WrapperCompilationInfo{
             .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
+            .stub_mode = StubCallMode::kCallWasmRuntimeStub,
             .wasm_js_info = {kind, expected_arity, suspend}},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
@@ -8684,7 +8687,9 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         native_module->module(), sig,
-        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION, {}},
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION,
+                                     StubCallMode::kCallWasmRuntimeStub,
+                                     {}},
         debug_name, WasmStubAssemblerOptions(), nullptr);
   };
 
@@ -8799,6 +8804,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
             isolate, sig,
             wasm::WrapperCompilationInfo{
                 .code_kind = CodeKind::WASM_TO_JS_FUNCTION,
+                .stub_mode = StubCallMode::kCallBuiltinPointer,
                 .wasm_js_info = {kind, expected_arity, suspend}},
             nullptr, std::move(name_buffer), WasmAssemblerOptions());
 
