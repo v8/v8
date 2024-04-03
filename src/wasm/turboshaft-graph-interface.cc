@@ -3525,30 +3525,33 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {
-    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
-                              initial_value.op);
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
+                              V<Word32>::Cast(length.op),
+                              V<Any>::Cast(initial_value.op));
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, Value* result) {
-    OpIndex initial_value = DefaultValue(imm.array_type->element_type());
-    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
-                              initial_value);
+    V<Any> initial_value = DefaultValue(imm.array_type->element_type());
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
+                              V<Word32>::Cast(length.op), initial_value);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
     BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    result->op = __ ArrayGet(array_obj.op, index.op, imm.array_type, is_signed);
+    result->op =
+        __ ArrayGet(V<WasmArray>::Cast(array_obj.op), V<Word32>::Cast(index.op),
+                    imm.array_type, is_signed);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
     BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    __ ArraySet(array_obj.op, index.op, value.op,
-                imm.array_type->element_type());
+    __ ArraySet(V<WasmArray>::Cast(array_obj.op), V<Word32>::Cast(index.op),
+                V<Any>::Cast(value.op), imm.array_type->element_type());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
@@ -3571,6 +3574,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                    : compiler::kWithoutNullCheck);
 
     ValueType element_type = src_imm.array_type->element_type();
+    V<WasmArray> src_array = V<WasmArray>::Cast(src.op);
+    V<WasmArray> dst_array = V<WasmArray>::Cast(dst.op);
 
     IF_NOT (__ Word32Equal(length.op, 0)) {
       // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
@@ -3608,7 +3613,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         MachineSignature sig(0, 6, arg_types);
 
         CallC(&sig, ExternalReference::wasm_array_copy(),
-              {trusted_instance_data(), dst.op, dst_index.op, src.op,
+              {trusted_instance_data(), dst_array, dst_index.op, src_array,
                src_index.op, length.op});
       } ELSE {
         V<Word32> src_end_index =
@@ -3622,9 +3627,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           ScopedVar<Word32> dst_index_loop(this, dst_end_index);
 
           WHILE(__ Word32Constant(1)) {
-            OpIndex value =
-                __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
-            __ ArraySet(dst.op, dst_index_loop, value, element_type);
+            V<Any> value = __ ArrayGet(src_array, src_index_loop,
+                                       src_imm.array_type, true);
+            __ ArraySet(dst_array, dst_index_loop, value, element_type);
 
             IF_NOT (__ Uint32LessThan(src_index.op, src_index_loop)) BREAK;
 
@@ -3636,9 +3641,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           ScopedVar<Word32> dst_index_loop(this, dst_index.op);
 
           WHILE(__ Word32Constant(1)) {
-            OpIndex value =
-                __ ArrayGet(src.op, src_index_loop, src_imm.array_type, true);
-            __ ArraySet(dst.op, dst_index_loop, value, element_type);
+            V<Any> value = __ ArrayGet(src_array, src_index_loop,
+                                       src_imm.array_type, true);
+            __ ArraySet(dst_array, dst_index_loop, value, element_type);
 
             IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
 
@@ -3659,8 +3664,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                array.type.is_nullable()
                                    ? compiler::kWithNullCheck
                                    : compiler::kWithoutNullCheck);
-    ArrayFillImpl(array.op, index.op, value.op, length.op, imm.array_type,
-                  emit_write_barrier);
+    ArrayFillImpl(V<WasmArray>::Cast(array.op), V<Word32>::Cast(index.op),
+                  V<Any>::Cast(value.op), V<Word32>::Cast(length.op),
+                  imm.array_type, emit_write_barrier);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -3672,7 +3678,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Initialize the array header.
     V<Map> rtt =
         __ RttCanon(instance_cache_.managed_object_maps(), array_imm.index);
-    V<HeapObject> array = __ WasmAllocateArray(rtt, element_count, type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
@@ -4899,7 +4905,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     block_phis_.erase(block_phis_it);
   }
 
-  OpIndex DefaultValue(ValueType type) {
+  V<Any> DefaultValue(ValueType type) {
     switch (type.kind()) {
       case kI8:
       case kI16:
@@ -6871,7 +6877,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return result_op;
   }
 
-  void BoundsCheckArray(V<HeapObject> array, V<Word32> index,
+  void BoundsCheckArray(V<WasmArray> array, V<Word32> index,
                         ValueType array_type) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
@@ -6886,7 +6892,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  void BoundsCheckArrayWithLength(V<HeapObject> array, V<Word32> index,
+  void BoundsCheckArrayWithLength(V<WasmArray> array, V<Word32> index,
                                   V<Word32> length,
                                   compiler::CheckForNull null_check) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
@@ -6935,11 +6941,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,
-                             const ArrayType* array_type, OpIndex length,
-                             OpIndex initial_value) {
+                             const ArrayType* array_type, V<Word32> length,
+                             V<Any> initial_value) {
     // Initialize the array header.
     V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), index);
-    V<HeapObject> array = __ WasmAllocateArray(rtt, length, array_type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, false);
@@ -6970,7 +6976,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return s128_op && s128_op->IsZero();
   }
 
-  void ArrayFillImpl(V<HeapObject> array, OpIndex index, OpIndex value,
+  void ArrayFillImpl(V<WasmArray> array, V<Word32> index, V<Any> value,
                      OpIndex length, const wasm::ArrayType* type,
                      bool emit_write_barrier) {
     wasm::ValueType element_type = type->element_type();

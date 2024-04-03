@@ -306,8 +306,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(ArrayLength)(OpIndex op_idx,
-                                          const ArrayLengthOp& array_length) {
+  V<Word32> REDUCE_INPUT_GRAPH(ArrayLength)(V<Word32> op_idx,
+                                            const ArrayLengthOp& array_length) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphArrayLength(op_idx, array_length);
     }

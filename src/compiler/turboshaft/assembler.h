@@ -3787,22 +3787,22 @@ class TurboshaftAssemblerOpInterface
                                null_check);
   }
 
-  OpIndex ArrayGet(V<HeapObject> array, V<Word32> index,
-                   const wasm::ArrayType* array_type, bool is_signed) {
+  V<Any> ArrayGet(V<WasmArray> array, V<Word32> index,
+                  const wasm::ArrayType* array_type, bool is_signed) {
     return ReduceIfReachableArrayGet(array, index, array_type, is_signed);
   }
 
-  void ArraySet(V<HeapObject> array, V<Word32> index, OpIndex value,
+  void ArraySet(V<WasmArray> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type) {
     ReduceIfReachableArraySet(array, index, value, element_type);
   }
 
-  V<Word32> ArrayLength(V<HeapObject> array, CheckForNull null_check) {
+  V<Word32> ArrayLength(V<WasmArray> array, CheckForNull null_check) {
     return ReduceIfReachableArrayLength(array, null_check);
   }
 
-  V<HeapObject> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
-                                  const wasm::ArrayType* array_type) {
+  V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
+                                 const wasm::ArrayType* array_type) {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 

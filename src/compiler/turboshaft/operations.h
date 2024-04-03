@@ -38,6 +38,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #endif
 
 namespace v8::internal {
@@ -6733,12 +6734,12 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  ArrayGetOp(OpIndex array, OpIndex index, const wasm::ArrayType* array_type,
-             bool is_signed)
+  ArrayGetOp(V<WasmArray> array, V<Word32> index,
+             const wasm::ArrayType* array_type, bool is_signed)
       : Base(array, index), is_signed(is_signed), array_type(array_type) {}
 
-  OpIndex array() const { return input(0); }
-  OpIndex index() const { return input(1); }
+  V<WasmArray> array() const { return input<WasmArray>(0); }
+  V<Word32> index() const { return input<Word32>(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(array_type->element_type()), 1);
@@ -6766,13 +6767,13 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
           .CanDependOnChecks()
           .CanWriteMemory();
 
-  ArraySetOp(OpIndex array, OpIndex index, OpIndex value,
+  ArraySetOp(V<WasmArray> array, V<Word32> index, V<Any> value,
              wasm::ValueType element_type)
       : Base(array, index, value), element_type(element_type) {}
 
-  OpIndex array() const { return input(0); }
-  OpIndex index() const { return input(1); }
-  OpIndex value() const { return input(2); }
+  V<WasmArray> array() const { return input<WasmArray>(0); }
+  V<Word32> index() const { return input<Word32>(1); }
+  V<Any> value() const { return input<Any>(2); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -6804,10 +6805,10 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
     return result;
   }
 
-  explicit ArrayLengthOp(OpIndex array, CheckForNull null_check)
+  explicit ArrayLengthOp(V<WasmArray> array, CheckForNull null_check)
       : Base(array), null_check(null_check) {}
 
-  OpIndex array() const { return input(0); }
+  V<WasmArray> array() const { return input<WasmArray>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
