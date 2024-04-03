@@ -559,52 +559,55 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
                                  base::Optional<base::TimeDelta> timeout) {
   DisallowGarbageCollection no_gc;
 
-  // Allocate a waiter queue node on-stack, since this thread is going to sleep
-  // and will be blocked anyway.
-  WaiterQueueNode this_waiter(requester);
-
-  {
-    // The state pointer should not be used outside of this block as a shared GC
-    // may reallocate it after waiting.
-    std::atomic<StateT>* state = cv->AtomicStatePtr();
-
-    // Try to acquire the queue lock, which is itself a spinlock.
-    StateT current_state = state->load(std::memory_order_relaxed);
-    WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
-
-    // With the queue lock held, enqueue the requester onto the waiter queue.
-    this_waiter.should_wait = true;
-    WaiterQueueNode* waiter_head =
-        cv->DestructivelyGetWaiterQueueHead(requester);
-    WaiterQueueNode::Enqueue(&waiter_head, &this_waiter);
-
-    // Release the queue lock and install the new waiter queue head.
-    DCHECK_EQ(state->load(),
-              IsWaiterQueueLockedField::update(current_state, true));
-    StateT new_state =
-        cv->SetWaiterQueueHead(requester, waiter_head, current_state);
-    waiter_queue_lock_guard.set_new_state(new_state);
-  }
-
-  // Release the mutex and wait for another thread to wake us up, reacquiring
-  // the mutex upon wakeup.
-  mutex->Unlock(requester);
   bool rv;
-  if (timeout) {
-    rv = this_waiter.WaitFor(*timeout);
-    if (!rv) {
-      // If timed out, remove ourself from the waiter list, which is usually
-      // done by the thread performing the notifying.
+  {
+    // Allocate a waiter queue node on-stack, since this thread is going to
+    // sleep and will be blocked anyway.
+    WaiterQueueNode this_waiter(requester);
+
+    {
+      // The state pointer should not be used outside of this block as a shared
+      // GC may reallocate it after waiting.
       std::atomic<StateT>* state = cv->AtomicStatePtr();
-      DequeueExplicit(requester, cv, state, [&](WaiterQueueNode** waiter_head) {
-        return WaiterQueueNode::DequeueMatching(
-            waiter_head,
-            [&](WaiterQueueNode* node) { return node == &this_waiter; });
-      });
+
+      // Try to acquire the queue lock, which is itself a spinlock.
+      StateT current_state = state->load(std::memory_order_relaxed);
+      WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+
+      // With the queue lock held, enqueue the requester onto the waiter queue.
+      this_waiter.should_wait = true;
+      WaiterQueueNode* waiter_head =
+          cv->DestructivelyGetWaiterQueueHead(requester);
+      WaiterQueueNode::Enqueue(&waiter_head, &this_waiter);
+
+      // Release the queue lock and install the new waiter queue head.
+      DCHECK_EQ(state->load(),
+                IsWaiterQueueLockedField::update(current_state, true));
+      StateT new_state =
+          cv->SetWaiterQueueHead(requester, waiter_head, current_state);
+      waiter_queue_lock_guard.set_new_state(new_state);
     }
-  } else {
-    this_waiter.Wait();
-    rv = true;
+
+    // Release the mutex and wait for another thread to wake us up, reacquiring
+    // the mutex upon wakeup.
+    mutex->Unlock(requester);
+    if (timeout) {
+      rv = this_waiter.WaitFor(*timeout);
+      if (!rv) {
+        // If timed out, remove ourself from the waiter list, which is usually
+        // done by the thread performing the notifying.
+        std::atomic<StateT>* state = cv->AtomicStatePtr();
+        DequeueExplicit(
+            requester, cv, state, [&](WaiterQueueNode** waiter_head) {
+              return WaiterQueueNode::DequeueMatching(
+                  waiter_head,
+                  [&](WaiterQueueNode* node) { return node == &this_waiter; });
+            });
+      }
+    } else {
+      this_waiter.Wait();
+      rv = true;
+    }
   }
   JSAtomicsMutex::Lock(requester, mutex);
   return rv;
@@ -648,30 +651,34 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
                                     Handle<JSAtomicsCondition> cv,
                                     uint32_t count) {
   std::atomic<StateT>* state = cv->AtomicStatePtr();
+  uint32_t num_notified_waiters = 0;
 
   // Dequeue count waiters.
-  WaiterQueueNode* old_head =
-      DequeueExplicit(requester, cv, state, [=](WaiterQueueNode** waiter_head) {
-        if (count == 1) {
-          return WaiterQueueNode::Dequeue(waiter_head);
-        }
-        if (count == kAllWaiters) {
-          WaiterQueueNode* rv = *waiter_head;
-          *waiter_head = nullptr;
-          return rv;
-        }
-        return WaiterQueueNode::Split(waiter_head, count);
-      });
+  DequeueExplicit(requester, cv, state,
+                  [=, &num_notified_waiters](
+                      WaiterQueueNode** waiter_head) -> WaiterQueueNode* {
+                    WaiterQueueNode* old_head;
+                    if (count == 1) {
+                      old_head = WaiterQueueNode::Dequeue(waiter_head);
+                      if (!old_head) return nullptr;
+                      num_notified_waiters = 1;
+                      old_head->Notify();
+                      return old_head;
+                    }
+                    if (count == kAllWaiters) {
+                      old_head = *waiter_head;
+                      *waiter_head = nullptr;
+                    } else {
+                      old_head = WaiterQueueNode::Split(waiter_head, count);
+                    }
+                    if (!old_head) return old_head;
+                    // Notify while holding the queue lock to avoid notifying
+                    // waiters that have been deleted in other threads.
+                    num_notified_waiters = old_head->NotifyAllInList();
+                    return old_head;
+                  });
 
-  // No waiters.
-  if (old_head == nullptr) return 0;
-
-  // Notify the waiters.
-  if (count == 1) {
-    old_head->Notify();
-    return 1;
-  }
-  return old_head->NotifyAllInList();
+  return num_notified_waiters;
 }
 
 }  // namespace internal
