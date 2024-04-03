@@ -18,6 +18,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -30,7 +31,9 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/js-array-buffer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -60,6 +63,19 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
 template <typename K, typename V>
 bool MapContains(ZoneUnorderedMap<K, V> map, K key) {
   return map.find(key) != map.end();
+}
+
+int ElementsKindSize(ElementsKind element_kind) {
+  switch (element_kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
 }
 
 }  // namespace
@@ -193,6 +209,11 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Constant* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Word32Constant(node->value()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Uint32Constant* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Word32Constant(node->value()));
     return maglev::ProcessResult::kContinue;
@@ -423,6 +444,43 @@ class GraphBuilder {
                        isolate_->GetMainThreadIsolateUnsafe(), frame_state,
                        context, scope_info, node->slot_count()));
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Construct* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    Callable callable = Builtins::CallableFor(
+        isolate_->GetMainThreadIsolateUnsafe(), Builtin::kConstruct);
+    const CallInterfaceDescriptor& descriptor = callable.descriptor();
+    CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+        graph_zone(), descriptor, node->num_args(),
+        CallDescriptor::kNeedsFrameState);
+    V<Code> stub_code = __ HeapConstant(callable.code());
+    base::SmallVector<OpIndex, 16> arguments;
+
+    arguments.push_back(Map(node->function()));
+    arguments.push_back(Map(node->new_target()));
+    arguments.push_back(__ Word32Constant(node->num_args()));
+
+    for (auto arg : node->args()) {
+      arguments.push_back(Map(arg));
+    }
+
+#ifdef DEBUG
+    CallInterfaceDescriptor inter_descr =
+        Builtins::CallInterfaceDescriptorFor(Builtin::kConstruct);
+    DCHECK(inter_descr.HasContextParameter());
+#endif
+
+    arguments.push_back(Map(node->context()));
+
+    SetMap(node, __ Call(stub_code, frame_state, base::VectorOf(arguments),
+                         TSCallDescriptor::Create(
+                             call_descriptor, CanThrow::kYes, graph_zone())));
+
     return maglev::ProcessResult::kContinue;
   }
 
@@ -741,6 +799,85 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFieldByIndex(Map(node->object_input()),
                                      Map(node->index_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LoadTypedArrayLength* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): consider loading the raw length instead of the byte
+    // length. This is not currently done because the raw length field might be
+    // removed soon.
+    V<WordPtr> length =
+        __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
+                              AccessBuilder::ForJSTypedArrayByteLength());
+
+    int element_size = ElementsKindSize(node->elements_kind());
+    if (element_size > 1) {
+      DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
+      length = __ WordPtrShiftRightLogical(
+          length, base::bits::CountTrailingZeros(element_size));
+    }
+    SetMap(node, length);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckTypedArrayBounds* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIfNot(
+        __ UintPtrLessThan(__ ChangeUint32ToUintPtr(Map(node->index_input())),
+                           Map(node->length_input())),
+        BuildFrameState(node->eager_deopt_info()),
+        DeoptimizeReason::kOutOfBounds,
+        node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LoadUnsignedIntTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                     Map<Word32>(node->index_input()),
+                                     node->elements_kind()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadSignedIntTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                     Map<Word32>(node->index_input()),
+                                     node->elements_kind()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadDoubleTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK_EQ(node->elements_kind(),
+              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Float> value = V<Float>::Cast(BuildTypedArrayLoad(
+        Map<JSTypedArray>(node->object_input()),
+        Map<Word32>(node->index_input()), node->elements_kind()));
+    if (node->elements_kind() == FLOAT32_ELEMENTS) {
+      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
+    }
+    SetMap(node, value);
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::StoreIntTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                         Map<Word32>(node->index_input()),
+                         Map<Untagged>(node->value_input()),
+                         node->elements_kind());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreDoubleTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK_EQ(node->elements_kind(),
+              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Float> value = Map<Float>(node->value_input());
+    if (node->elements_kind() == FLOAT32_ELEMENTS) {
+      value = __ TruncateFloat64ToFloat32(Map(node->value_input()));
+    }
+    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                         Map<Word32>(node->index_input()), value,
+                         node->elements_kind());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1076,6 +1213,11 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ConvertInt32ToNumber(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::Uint32ToNumber* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ConvertUint32ToNumber(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64ToTagged* node,
@@ -1441,6 +1583,31 @@ class GraphBuilder {
         __ HeapConstant(Handle<HeapObject>::cast(isolate_->root_handle(root))));
   }
 
+  std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(
+      V<JSTypedArray> typed_array) {
+    V<WordPtr> data_pointer = __ LoadField<WordPtr>(
+        typed_array, AccessBuilder::ForJSTypedArrayExternalPointer());
+    V<Object> base_pointer = __ LoadField<Object>(
+        typed_array, AccessBuilder::ForJSTypedArrayBasePointer());
+    return {data_pointer, base_pointer};
+  }
+  V<Untagged> BuildTypedArrayLoad(V<JSTypedArray> typed_array, V<Word32> index,
+                                  ElementsKind kind) {
+    auto [data_pointer, base_pointer] =
+        GetTypedArrayDataAndBasePointers(typed_array);
+    return __ LoadTypedElement(typed_array, base_pointer, data_pointer,
+                               __ ChangeUint32ToUintPtr(index),
+                               GetArrayTypeFromElementsKind(kind));
+  }
+  void BuildTypedArrayStore(V<JSTypedArray> typed_array, V<Word32> index,
+                            V<Untagged> value, ElementsKind kind) {
+    auto [data_pointer, base_pointer] =
+        GetTypedArrayDataAndBasePointers(typed_array);
+    __ StoreTypedElement(typed_array, base_pointer, data_pointer,
+                         __ ChangeUint32ToUintPtr(index), value,
+                         GetArrayTypeFromElementsKind(kind));
+  }
+
   void FixLoopPhis(maglev::BasicBlock* loop) {
     DCHECK(loop->is_loop());
     for (maglev::Phi* maglev_phi : *loop->phis()) {
@@ -1565,6 +1732,10 @@ class GraphBuilder {
     GraphBuilder& builder_;
   };
 
+  template <typename T>
+  V<T> Map(const maglev::Input input) {
+    return V<T>::Cast(Map(input.node()));
+  }
   OpIndex Map(const maglev::Input input) { return Map(input.node()); }
   OpIndex Map(const maglev::NodeBase* node) {
     DCHECK(node_mapping_[node].valid());

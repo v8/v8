@@ -5585,7 +5585,7 @@ void Construct::GenerateCode(MaglevAssembler* masm,
       num_args(),          // actual arguments count
       feedback().index(),  // feedback slot
       feedback().vector,   // feedback vector
-      base::make_iterator_range(args_begin(), args_end())  // args
+      args()               // args
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

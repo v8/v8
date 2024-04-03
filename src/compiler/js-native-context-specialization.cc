@@ -3187,24 +3187,6 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
   return Replace(receiver);
 }
 
-namespace {
-
-ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
-  switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                           \
-  case RAB_GSAB_##TYPE##_ELEMENTS:                \
-    return kExternal##Type##Array;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    default:
-      break;
-  }
-  UNREACHABLE();
-}
-
-}  // namespace
-
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,

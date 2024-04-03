@@ -5893,6 +5893,8 @@ class LoadTypedArrayLength
 
   auto options() const { return std::tuple{elements_kind_}; }
 
+  ElementsKind elements_kind() const { return elements_kind_; }
+
  private:
   ElementsKind elements_kind_;
 };
@@ -6861,6 +6863,8 @@ class LoadDoubleDataViewElement
                                                                        \
     auto options() const { return std::tuple{elements_kind_}; }        \
                                                                        \
+    ElementsKind elements_kind() const { return elements_kind_; }      \
+                                                                       \
    private:                                                            \
     ElementsKind elements_kind_;                                       \
   };
@@ -6902,6 +6906,8 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
     void SetValueLocationConstraints();                                    \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+                                                                           \
+    ElementsKind elements_kind() const { return elements_kind_; }          \
                                                                            \
    private:                                                                \
     ElementsKind elements_kind_;                                           \
@@ -7907,6 +7913,7 @@ class Construct : public ValueNodeT<Construct> {
   }
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+  auto args() { return base::make_iterator_range(args_begin(), args_end()); }
 
   compiler::FeedbackSource feedback() const { return feedback_; }
 

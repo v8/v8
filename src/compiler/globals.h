@@ -126,6 +126,20 @@ size_t hash_value(MemoryAccessKind);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
 
+inline ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+  case RAB_GSAB_##TYPE##_ELEMENTS:                \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
