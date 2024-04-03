@@ -276,38 +276,10 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
-size_t GetInputLocationArraySizeFor(ValueNode* value);
-
-size_t GetInputLocationArraySizeFor(FastContext& obj) {
-  return obj.extension.has_value() ? 2 : 1;
-}
-
-size_t GetInputLocationArraySizeFor(DeoptObject& obj) {
-  switch (obj.type) {
-    case DeoptObject::kObject:
-    case DeoptObject::kNumber:
-    case DeoptObject::kFixedArray:
-    case DeoptObject::kArguments:
-    case DeoptObject::kMappedArgumentsElements:
-    case DeoptObject::kInlinedUnmappedArgumentsElements:
-      return 0;
-    case DeoptObject::kContext:
-      return GetInputLocationArraySizeFor(obj.context);
-  }
-}
-
-size_t GetInputLocationArraySizeFor(ValueNode* value) {
-  if (value == nullptr) return 1;
-  if (InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    return GetInputLocationArraySizeFor(alloc->value()) + 1;
-  }
-  return 1;
-}
-
 size_t GetInputLocationArraySizeFor(base::Vector<ValueNode*> array) {
   size_t size = 0;
   for (ValueNode* value : array) {
-    size += GetInputLocationArraySizeFor(value);
+    size += value->GetInputLocationsArraySize();
   }
   return size;
 }
@@ -316,7 +288,9 @@ size_t GetInputLocationArraySizeFor(const MaglevCompilationUnit& unit,
                                     const CompactInterpreterFrameState* frame) {
   size_t size = 0;
   frame->ForEachValue(unit, [&size](ValueNode* value, interpreter::Register) {
-    size += GetInputLocationArraySizeFor(value);
+    if (value != nullptr) {
+      size += value->GetInputLocationsArraySize();
+    }
   });
   return size;
 }
@@ -361,6 +335,23 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
+size_t FastContext::GetInputLocationsArraySize() const {
+  size_t size = previous_context->GetInputLocationsArraySize();
+  if (extension.has_value()) {
+    size += extension.value()->GetInputLocationsArraySize();
+  }
+  return size;
+}
+
+size_t ValueNode::GetInputLocationsArraySize() const {
+  if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
+    // The input location size for an InlinedAllocation is either 1 when
+    // escaped, or GetInputLocationsArraySize when captured.
+    return std::max<size_t>(alloc->value().GetInputLocationsArraySize(), 1);
+  }
+  return 1;
+}
+
 size_t DeoptFrame::GetInputLocationsArraySize() const {
   size_t size = 0;
   const DeoptFrame* frame = this;
@@ -368,27 +359,30 @@ size_t DeoptFrame::GetInputLocationsArraySize() const {
     switch (frame->type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
         size +=
-            GetInputLocationArraySizeFor(frame->as_interpreted().closure()) +
+            frame->as_interpreted().closure()->GetInputLocationsArraySize() +
             GetInputLocationArraySizeFor(frame->as_interpreted().unit(),
                                          frame->as_interpreted().frame_state());
         break;
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += GetInputLocationArraySizeFor(
-                    frame->as_inlined_arguments().closure()) +
+        size += frame->as_inlined_arguments()
+                    .closure()
+                    ->GetInputLocationsArraySize() +
                 GetInputLocationArraySizeFor(
                     frame->as_inlined_arguments().arguments());
         break;
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         size +=
-            GetInputLocationArraySizeFor(
-                frame->as_construct_stub().receiver()) +
-            GetInputLocationArraySizeFor(frame->as_construct_stub().context());
+            frame->as_construct_stub()
+                .receiver()
+                ->GetInputLocationsArraySize() +
+            frame->as_construct_stub().context()->GetInputLocationsArraySize();
         break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         size += GetInputLocationArraySizeFor(
                     frame->as_builtin_continuation().parameters()) +
-                GetInputLocationArraySizeFor(
-                    frame->as_builtin_continuation().context());
+                frame->as_builtin_continuation()
+                    .context()
+                    ->GetInputLocationsArraySize();
         break;
     }
     frame = frame->parent();
