@@ -448,6 +448,8 @@ StoreImpl::~StoreImpl() {
 }
 
 struct ManagedData {
+  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmManagedDataTag;
+
   ManagedData(void* info, void (*finalizer)(void*))
       : info(info), finalizer(finalizer) {}
 
@@ -1402,6 +1404,8 @@ Func::~Func() = default;
 auto Func::copy() const -> own<Func> { return impl(this)->copy(); }
 
 struct FuncData {
+  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmFuncDataTag;
+
   Store* store;
   own<FuncType> type;
   enum Kind { kCallback, kCallbackWithEnv } kind;

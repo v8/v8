@@ -14,6 +14,41 @@
 namespace v8 {
 namespace internal {
 
+// Mechanism for associating an ExternalPointerTag with a C++ type that is
+// referenced via a Managed. Every such C++ type must have a unique
+// ExternalPointerTag to ensure type-safe access to the external object.
+//
+// This mechanism supports two ways of associating tags with types:
+//
+// 1. By adding a 'static constexpr ExternalPointerTag kManagedTag` field to
+//    the C++ class (preferred for C++ types defined in V8 code):
+//
+//      class MyCppClass {
+//       public:
+//        static constexpr ExternalPointerTag kManagedTag = kMyCppClassTag;
+//        ...;
+//
+// 2. Through the ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED macro, which uses
+//    template specialization (necessary for C++ types defined outside of V8):
+//
+//      ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(MyCppClass, kMyCppClassTag)
+//
+//    Note that the struct created by this macro must be visible when the
+//    Managed<CppType> is used. In particular, there may be issues if the
+//    CppType is only forward declared and the respective header isn't included.
+//    Note also that this macro must be used inside the v8::internal namespace.
+//
+template <typename CppType>
+struct TagForManaged {
+  static constexpr ExternalPointerTag value = CppType::kManagedTag;
+};
+
+#define ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED(CppType, Tag) \
+  template <>                                                 \
+  struct TagForManaged<CppType> {                             \
+    static constexpr ExternalPointerTag value = Tag;          \
+  };
+
 // Implements a doubly-linked lists of destructors for the isolate.
 struct ManagedPtrDestructor {
   // Estimated size of external memory associated with the managed object.
@@ -103,8 +138,9 @@ class Managed : public Foreign {
   // Internally this {Foreign} object stores a pointer to a new
   // std::shared_ptr<CppType>.
   std::shared_ptr<CppType>* GetSharedPtrPtr() {
-    auto destructor = reinterpret_cast<ManagedPtrDestructor*>(
-        foreign_address<kGenericManagedTag>());
+    static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
+    auto destructor =
+        reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
     return reinterpret_cast<std::shared_ptr<CppType>*>(
         destructor->shared_ptr_ptr_);
   }

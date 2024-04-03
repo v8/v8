@@ -724,6 +724,8 @@ class ModuleEmbedderData {
   };
 
  public:
+  static constexpr i::ExternalPointerTag kManagedTag = i::kGenericManagedTag;
+
   explicit ModuleEmbedderData(Isolate* isolate)
       : module_to_specifier_map(10, ModuleGlobalHash(isolate)),
         json_module_to_parsed_json_map(

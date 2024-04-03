@@ -6978,6 +6978,7 @@ void HeapTester::UncommitUnusedMemory(Heap* heap) {
 
 class DeleteNative {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
   static void Deleter(void* arg) {
     delete reinterpret_cast<DeleteNative*>(arg);
   }

@@ -184,6 +184,8 @@ class SerializationDataQueue {
 
 class Worker : public std::enable_shared_from_this<Worker> {
  public:
+  static constexpr i::ExternalPointerTag kManagedTag = i::kGenericManagedTag;
+
   explicit Worker(const char* script);
   ~Worker();
 

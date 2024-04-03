@@ -438,23 +438,41 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // External pointers using these tags are kept in a per-Isolate external
 // pointer table and can only be accessed when this Isolate is active.
 #define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V)             \
-  V(kGenericForeignTag,                         TAG(10)) \
-  V(kGenericManagedTag,                         TAG(11)) \
-  V(kNativeContextMicrotaskQueueTag,            TAG(12)) \
-  V(kEmbedderDataSlotPayloadTag,                TAG(13)) \
+  V(kNativeContextMicrotaskQueueTag,            TAG(10)) \
+  V(kEmbedderDataSlotPayloadTag,                TAG(11)) \
 /* This tag essentially stands for a `void*` pointer in the V8 API, and */ \
 /* it is the Embedder's responsibility to ensure type safety (against */   \
 /* substitution) and lifetime validity of these objects. */                \
-  V(kExternalObjectValueTag,                    TAG(14)) \
-  V(kFunctionTemplateInfoCallbackTag,           TAG(15)) \
-  V(kAccessorInfoGetterTag,                     TAG(16)) \
-  V(kAccessorInfoSetterTag,                     TAG(17)) \
-  V(kWasmInternalFunctionCallTargetTag,         TAG(18)) \
-  V(kWasmTypeInfoNativeTypeTag,                 TAG(19)) \
-  V(kWasmExportedFunctionDataSignatureTag,      TAG(20)) \
-  V(kWasmContinuationJmpbufTag,                 TAG(21)) \
-  V(kWasmIndirectFunctionTargetTag,             TAG(22)) \
-  V(kArrayBufferExtensionTag,                   TAG(23))
+  V(kExternalObjectValueTag,                    TAG(12)) \
+  V(kFunctionTemplateInfoCallbackTag,           TAG(13)) \
+  V(kAccessorInfoGetterTag,                     TAG(14)) \
+  V(kAccessorInfoSetterTag,                     TAG(15)) \
+  V(kWasmInternalFunctionCallTargetTag,         TAG(16)) \
+  V(kWasmTypeInfoNativeTypeTag,                 TAG(17)) \
+  V(kWasmExportedFunctionDataSignatureTag,      TAG(18)) \
+  V(kWasmContinuationJmpbufTag,                 TAG(19)) \
+  V(kWasmIndirectFunctionTargetTag,             TAG(20)) \
+  V(kArrayBufferExtensionTag,                   TAG(21)) \
+  /* Foreigns */ \
+  V(kGenericForeignTag,                         TAG(30)) \
+  /* Managed */ \
+  V(kGenericManagedTag,                         TAG(40)) \
+  V(kWasmWasmStreamingTag,                      TAG(41)) \
+  V(kWasmFuncDataTag,                           TAG(42)) \
+  V(kWasmManagedDataTag,                        TAG(43)) \
+  V(kWasmNativeModuleTag,                       TAG(44)) \
+  V(kWasmStackMemoryTag,                        TAG(45)) \
+  V(kIcuBreakIteratorTag,                       TAG(46)) \
+  V(kIcuUnicodeStringTag,                       TAG(47)) \
+  V(kIcuListFormatterTag,                       TAG(48)) \
+  V(kIcuLocaleTag,                              TAG(49)) \
+  V(kIcuSimpleDateFormatTag,                    TAG(50)) \
+  V(kIcuDateIntervalFormatTag,                  TAG(51)) \
+  V(kIcuRelativeDateTimeFormatterTag,           TAG(52)) \
+  V(kIcuLocalizedNumberFormatterTag,            TAG(53)) \
+  V(kIcuPluralRulesTag,                         TAG(54)) \
+  V(kIcuCollatorTag,                            TAG(55)) \
+  V(kDisplayNamesInternalTag,                   TAG(56))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \
