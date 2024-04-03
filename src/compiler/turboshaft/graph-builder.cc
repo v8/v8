@@ -675,23 +675,17 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kBitcastWordToTagged:
       return __ BitcastWordPtrToTagged(Map(node->InputAt(0)));
     case IrOpcode::kNumberIsFinite:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFinite,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kFinite);
     case IrOpcode::kNumberIsInteger:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kInteger,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kInteger);
     case IrOpcode::kNumberIsSafeInteger:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kSafeInteger,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kSafeInteger);
     case IrOpcode::kNumberIsFloat64Hole:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kFloat64Hole,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kFloat64Hole);
     case IrOpcode::kNumberIsMinusZero:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kMinusZero,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kMinusZero);
     case IrOpcode::kNumberIsNaN:
-      return __ FloatIs(Map(node->InputAt(0)), NumericKind::kNaN,
-                        FloatRepresentation::Float64());
+      return __ Float64Is(Map(node->InputAt(0)), NumericKind::kNaN);
     case IrOpcode::kObjectIsMinusZero:
       return __ ObjectIsNumericValue(Map(node->InputAt(0)),
                                      NumericKind::kMinusZero,

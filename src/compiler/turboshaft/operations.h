@@ -190,7 +190,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(CheckEqualsInternalizedString)              \
   V(CheckMaps)                                  \
   V(CompareMaps)                                \
-  V(FloatIs)                                    \
+  V(Float64Is)                                  \
   V(ObjectIs)                                   \
   V(ObjectIsNumericValue)                       \
   V(Float64SameValue)                           \
@@ -1002,7 +1002,9 @@ struct OperationT : Operation {
   }
 
   V8_INLINE OpIndex& input(size_t i) { return derived_this().inputs()[i]; }
-  V8_INLINE OpIndex input(size_t i) const { return derived_this().inputs()[i]; }
+  // TODO(chromium:331100916): remove this V<Any> overload once all users use
+  // the more specific V<T> overload.
+  V8_INLINE V<Any> input(size_t i) const { return derived_this().inputs()[i]; }
   template <typename T>
   V8_INLINE V<T> input(size_t i) const {
     return V<T>::Cast(derived_this().inputs()[i]);
@@ -1526,8 +1528,8 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
     return InputsRepFactory::PairOf(rep);
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  V<Float> left() const { return input<Float>(0); }
+  V<Float> right() const { return input<Float>(1); }
 
   static bool IsCommutative(Kind kind) {
     switch (kind) {
@@ -1545,7 +1547,8 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
     }
   }
 
-  FloatBinopOp(OpIndex left, OpIndex right, Kind kind, FloatRepresentation rep)
+  FloatBinopOp(V<Float> left, V<Float> right, Kind kind,
+               FloatRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
@@ -1776,11 +1779,11 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
     return InputsRepFactory::SingleRep(rep);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Float> input() const { return Base::input<Float>(0); }
 
   V8_EXPORT_PRIVATE static bool IsSupported(Kind kind, FloatRepresentation rep);
 
-  explicit FloatUnaryOp(OpIndex input, Kind kind, FloatRepresentation rep)
+  explicit FloatUnaryOp(V<Float> input, Kind kind, FloatRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
@@ -3970,7 +3973,7 @@ struct ReturnOp : OperationT<ReturnOp> {
   }
 
   // Number of additional stack slots to be removed.
-  V<Word32> pop_count() const { return input(0); }
+  V<Word32> pop_count() const { return input<Word32>(0); }
 
   base::Vector<const OpIndex> return_values() const {
     return inputs().SubVector(1, input_count);
@@ -4269,12 +4272,11 @@ enum class NumericKind : uint8_t {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, NumericKind kind);
 
-struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
+struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
   NumericKind kind;
-  FloatRepresentation input_rep;
 
-  FloatIsOp(OpIndex input, NumericKind kind, FloatRepresentation input_rep)
-      : Base(input), kind(kind), input_rep(input_rep) {}
+  Float64IsOp(V<Float64> input, NumericKind kind) : Base(input), kind(kind) {}
+
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
@@ -4282,14 +4284,13 @@ struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InputsRepFactory::SingleRep(input_rep);
+    return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Float64> input() const { return Base::input<Float64>(0); }
 
-  void Validate(const Graph& graph) const {
-  }
-  auto options() const { return std::tuple{kind, input_rep}; }
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
 };
 
 struct ObjectIsNumericValueOp
@@ -5956,13 +5957,12 @@ struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
                           MaybeRegisterRepresentation::Float64()>();
   }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
+  V<Float64> left() const { return Base::input<Float64>(0); }
+  V<Float64> right() const { return Base::input<Float64>(1); }
 
-  Float64SameValueOp(OpIndex left, OpIndex right) : Base(left, right) {}
+  Float64SameValueOp(V<Float64> left, V<Float64> right) : Base(left, right) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };

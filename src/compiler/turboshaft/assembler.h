@@ -1248,6 +1248,12 @@ class TurboshaftAssemblerOpInterface
                                         operation##Op::Kind::k##kind, rep); \
   }
 
+#define DECL_MULTI_REP_BINOP_V(name, operation, rep_type, kind, tag)        \
+  V<tag> name(V<tag> left, V<tag> right, rep_type rep) {                    \
+    return ReduceIfReachable##operation(left, right,                        \
+                                        operation##Op::Kind::k##kind, rep); \
+  }
+
 #define DECL_SINGLE_REP_BINOP_V(name, operation, kind, tag)            \
   V<tag> name(ConstOrV<tag> left, ConstOrV<tag> right) {               \
     return ReduceIfReachable##operation(resolve(left), resolve(right), \
@@ -1338,22 +1344,22 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Int64MulCheckOverflow, OverflowCheckedBinop,
                           SignedMul, Word64)
 
-  DECL_MULTI_REP_BINOP(FloatAdd, FloatBinop, FloatRepresentation, Add)
+  DECL_MULTI_REP_BINOP_V(FloatAdd, FloatBinop, FloatRepresentation, Add, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Add, FloatBinop, Add, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Add, FloatBinop, Add, Float64)
-  DECL_MULTI_REP_BINOP(FloatMul, FloatBinop, FloatRepresentation, Mul)
+  DECL_MULTI_REP_BINOP_V(FloatMul, FloatBinop, FloatRepresentation, Mul, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Mul, FloatBinop, Mul, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Mul, FloatBinop, Mul, Float64)
-  DECL_MULTI_REP_BINOP(FloatSub, FloatBinop, FloatRepresentation, Sub)
+  DECL_MULTI_REP_BINOP_V(FloatSub, FloatBinop, FloatRepresentation, Sub, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Sub, FloatBinop, Sub, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Sub, FloatBinop, Sub, Float64)
-  DECL_MULTI_REP_BINOP(FloatDiv, FloatBinop, FloatRepresentation, Div)
+  DECL_MULTI_REP_BINOP_V(FloatDiv, FloatBinop, FloatRepresentation, Div, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Div, FloatBinop, Div, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Div, FloatBinop, Div, Float64)
-  DECL_MULTI_REP_BINOP(FloatMin, FloatBinop, FloatRepresentation, Min)
+  DECL_MULTI_REP_BINOP_V(FloatMin, FloatBinop, FloatRepresentation, Min, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Min, FloatBinop, Min, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Min, FloatBinop, Min, Float64)
-  DECL_MULTI_REP_BINOP(FloatMax, FloatBinop, FloatRepresentation, Max)
+  DECL_MULTI_REP_BINOP_V(FloatMax, FloatBinop, FloatRepresentation, Max, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Max, FloatBinop, Max, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Max, FloatBinop, Max, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Mod, FloatBinop, Mod, Float64)
@@ -1494,8 +1500,8 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_SINGLE_REP_BINOP_V
 #undef DECL_MULTI_REP_BINOP
 
-  OpIndex FloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
-                     FloatRepresentation rep) {
+  V<Float> FloatUnary(V<Float> input, FloatUnaryOp::Kind kind,
+                      FloatRepresentation rep) {
     return ReduceIfReachableFloatUnary(input, kind, rep);
   }
   V<Float64> Float64Unary(V<Float64> input, FloatUnaryOp::Kind kind) {
@@ -1519,32 +1525,35 @@ class TurboshaftAssemblerOpInterface
         resolve(input), operation##Op::Kind::k##kind, V<tag>::rep); \
   }
 
-  DECL_MULTI_REP_UNARY(FloatAbs, FloatUnary, FloatRepresentation, Abs)
+  DECL_MULTI_REP_UNARY_V(FloatAbs, FloatUnary, FloatRepresentation, Abs, Float)
   DECL_SINGLE_REP_UNARY_V(Float32Abs, FloatUnary, Abs, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64Abs, FloatUnary, Abs, Float64)
-  DECL_MULTI_REP_UNARY(FloatNegate, FloatUnary, FloatRepresentation, Negate)
+  DECL_MULTI_REP_UNARY_V(FloatNegate, FloatUnary, FloatRepresentation, Negate,
+                         Float)
   DECL_SINGLE_REP_UNARY_V(Float32Negate, FloatUnary, Negate, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64Negate, FloatUnary, Negate, Float64)
   DECL_SINGLE_REP_UNARY_V(Float64SilenceNaN, FloatUnary, SilenceNaN, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundDown, FloatUnary, FloatRepresentation,
-                       RoundDown)
+  DECL_MULTI_REP_UNARY_V(FloatRoundDown, FloatUnary, FloatRepresentation,
+                         RoundDown, Float)
   DECL_SINGLE_REP_UNARY_V(Float32RoundDown, FloatUnary, RoundDown, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64RoundDown, FloatUnary, RoundDown, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundUp, FloatUnary, FloatRepresentation, RoundUp)
+  DECL_MULTI_REP_UNARY_V(FloatRoundUp, FloatUnary, FloatRepresentation, RoundUp,
+                         Float)
   DECL_SINGLE_REP_UNARY_V(Float32RoundUp, FloatUnary, RoundUp, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64RoundUp, FloatUnary, RoundUp, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundToZero, FloatUnary, FloatRepresentation,
-                       RoundToZero)
+  DECL_MULTI_REP_UNARY_V(FloatRoundToZero, FloatUnary, FloatRepresentation,
+                         RoundToZero, Float)
   DECL_SINGLE_REP_UNARY_V(Float32RoundToZero, FloatUnary, RoundToZero, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64RoundToZero, FloatUnary, RoundToZero, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundTiesEven, FloatUnary, FloatRepresentation,
-                       RoundTiesEven)
+  DECL_MULTI_REP_UNARY_V(FloatRoundTiesEven, FloatUnary, FloatRepresentation,
+                         RoundTiesEven, Float)
   DECL_SINGLE_REP_UNARY_V(Float32RoundTiesEven, FloatUnary, RoundTiesEven,
                           Float32)
   DECL_SINGLE_REP_UNARY_V(Float64RoundTiesEven, FloatUnary, RoundTiesEven,
                           Float64)
   DECL_SINGLE_REP_UNARY_V(Float64Log, FloatUnary, Log, Float64)
-  DECL_MULTI_REP_UNARY(FloatSqrt, FloatUnary, FloatRepresentation, Sqrt)
+  DECL_MULTI_REP_UNARY_V(FloatSqrt, FloatUnary, FloatRepresentation, Sqrt,
+                         Float)
   DECL_SINGLE_REP_UNARY_V(Float32Sqrt, FloatUnary, Sqrt, Float32)
   DECL_SINGLE_REP_UNARY_V(Float64Sqrt, FloatUnary, Sqrt, Float64)
   DECL_SINGLE_REP_UNARY_V(Float64Exp, FloatUnary, Exp, Float64)
@@ -1681,20 +1690,18 @@ class TurboshaftAssemblerOpInterface
                     ObjectIsOp::InputAssumptions::kNone);
   }
 
-  V<Word32> FloatIs(OpIndex input, NumericKind kind,
-                    FloatRepresentation input_rep) {
-    return ReduceIfReachableFloatIs(input, kind, input_rep);
+  V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
+    return ReduceIfReachableFloat64Is(input, kind);
   }
   V<Word32> Float64IsNaN(V<Float64> input) {
-    return FloatIs(input, NumericKind::kNaN, FloatRepresentation::Float64());
+    return Float64Is(input, NumericKind::kNaN);
   }
   V<Word32> Float64IsHole(V<Float64> input) {
-    return FloatIs(input, NumericKind::kFloat64Hole,
-                   FloatRepresentation::Float64());
+    return Float64Is(input, NumericKind::kFloat64Hole);
   }
   // Float64IsSmi returns true if {input} is an integer in smi range.
   V<Word32> Float64IsSmi(V<Float64> input) {
-    return FloatIs(input, NumericKind::kSmi, FloatRepresentation::Float64());
+    return Float64Is(input, NumericKind::kSmi);
   }
 
   OpIndex ObjectIsNumericValue(OpIndex input, NumericKind kind,
@@ -3659,7 +3666,7 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSameValue(left, right, mode);
   }
 
-  V<Word32> Float64SameValue(OpIndex left, OpIndex right) {
+  V<Word32> Float64SameValue(V<Float64> left, V<Float64> right) {
     return ReduceIfReachableFloat64SameValue(left, right);
   }
 

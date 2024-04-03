@@ -482,9 +482,7 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word32> REDUCE(FloatIs)(V<Float64> value, NumericKind kind,
-                            FloatRepresentation input_rep) {
-    DCHECK_EQ(input_rep, FloatRepresentation::Float64());
+  V<Word32> REDUCE(Float64Is)(V<Float64> value, NumericKind kind) {
     switch (kind) {
       case NumericKind::kFloat64Hole: {
         Label<Word32> done(this);
@@ -593,7 +591,7 @@ class MachineLoweringReducer : public Next {
 
     V<Float64> value = __ template LoadField<Float64>(
         input, AccessBuilder::ForHeapNumberValue());
-    GOTO(done, __ FloatIs(value, kind, input_rep));
+    GOTO(done, __ Float64Is(value, kind));
 
     BIND(done, result);
     return result;
@@ -2688,8 +2686,8 @@ class MachineLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  OpIndex REDUCE(FloatUnary)(OpIndex input, FloatUnaryOp::Kind kind,
-                             FloatRepresentation rep) {
+  V<Float> REDUCE(FloatUnary)(V<Float> input, FloatUnaryOp::Kind kind,
+                              FloatRepresentation rep) {
     LABEL_BLOCK(no_change) { return Next::ReduceFloatUnary(input, kind, rep); }
     switch (kind) {
       case FloatUnaryOp::Kind::kRoundUp:
@@ -2701,6 +2699,7 @@ class MachineLoweringReducer : public Next {
           goto no_change;
         }
         DCHECK_EQ(rep, FloatRepresentation::Float64());
+        V<Float64> input_f64 = V<Float64>::Cast(input);
         if (FloatUnaryOp::IsSupported(kind, rep)) {
           // If we have a fast machine operation for this, we can just keep it.
           goto no_change;
@@ -2734,19 +2733,20 @@ class MachineLoweringReducer : public Next {
 
           Label<Float64> done(this);
 
-          IF (LIKELY(__ Float64LessThan(0.0, input))) {
-            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
-                    input);
+          IF (LIKELY(__ Float64LessThan(0.0, input_f64))) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input_f64)),
+                    done, input_f64);
             V<Float64> temp1 =
-                __ Float64Sub(__ Float64Add(two_52, input), two_52);
-            GOTO_IF_NOT(__ Float64LessThan(temp1, input), done, temp1);
+                __ Float64Sub(__ Float64Add(two_52, input_f64), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(temp1, input_f64), done, temp1);
             GOTO(done, __ Float64Add(temp1, 1.0));
-          } ELSE IF (UNLIKELY(__ Float64Equal(input, 0.0))) {
-            GOTO(done, input);
-          } ELSE IF (UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52))) {
-            GOTO(done, input);
+          } ELSE IF (UNLIKELY(__ Float64Equal(input_f64, 0.0))) {
+            GOTO(done, input_f64);
+          } ELSE IF (UNLIKELY(
+                        __ Float64LessThanOrEqual(input_f64, minus_two_52))) {
+            GOTO(done, input_f64);
           } ELSE {
-            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp1 = __ Float64Sub(-0.0, input_f64);
             V<Float64> temp2 =
                 __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
             GOTO_IF_NOT(__ Float64LessThan(temp1, temp2), done,
@@ -2784,19 +2784,20 @@ class MachineLoweringReducer : public Next {
 
           Label<Float64> done(this);
 
-          IF (LIKELY(__ Float64LessThan(0.0, input))) {
-            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
-                    input);
+          IF (LIKELY(__ Float64LessThan(0.0, input_f64))) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input_f64)),
+                    done, input_f64);
             V<Float64> temp1 =
-                __ Float64Sub(__ Float64Add(two_52, input), two_52);
-            GOTO_IF_NOT(__ Float64LessThan(input, temp1), done, temp1);
+                __ Float64Sub(__ Float64Add(two_52, input_f64), two_52);
+            GOTO_IF_NOT(__ Float64LessThan(input_f64, temp1), done, temp1);
             GOTO(done, __ Float64Sub(temp1, 1.0));
-          } ELSE IF (UNLIKELY(__ Float64Equal(input, 0.0))) {
-            GOTO(done, input);
-          } ELSE IF (UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52))) {
-            GOTO(done, input);
+          } ELSE IF (UNLIKELY(__ Float64Equal(input_f64, 0.0))) {
+            GOTO(done, input_f64);
+          } ELSE IF (UNLIKELY(
+                        __ Float64LessThanOrEqual(input_f64, minus_two_52))) {
+            GOTO(done, input_f64);
           } ELSE {
-            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp1 = __ Float64Sub(-0.0, input_f64);
             V<Float64> temp2 =
                 __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
             GOTO_IF_NOT(__ Float64LessThan(temp2, temp1), done,
@@ -2824,8 +2825,8 @@ class MachineLoweringReducer : public Next {
 
           Label<Float64> done(this);
 
-          V<Float64> value = __ Float64RoundDown(input);
-          V<Float64> temp1 = __ Float64Sub(input, value);
+          V<Float64> value = __ Float64RoundDown(input_f64);
+          V<Float64> temp1 = __ Float64Sub(input_f64, value);
           GOTO_IF(__ Float64LessThan(temp1, 0.5), done, value);
           GOTO_IF(__ Float64LessThan(0.5, temp1), done,
                   __ Float64Add(value, 1.0));
@@ -2863,21 +2864,22 @@ class MachineLoweringReducer : public Next {
 
           Label<Float64> done(this);
 
-          IF (__ Float64LessThan(0.0, input)) {
-            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input)), done,
-                    input);
+          IF (__ Float64LessThan(0.0, input_f64)) {
+            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(two_52, input_f64)),
+                    done, input_f64);
 
             V<Float64> temp1 =
-                __ Float64Sub(__ Float64Add(two_52, input), two_52);
-            GOTO_IF(__ Float64LessThan(input, temp1), done,
+                __ Float64Sub(__ Float64Add(two_52, input_f64), two_52);
+            GOTO_IF(__ Float64LessThan(input_f64, temp1), done,
                     __ Float64Sub(temp1, 1.0));
             GOTO(done, temp1);
           } ELSE {
-            GOTO_IF(UNLIKELY(__ Float64Equal(input, 0.0)), done, input);
-            GOTO_IF(UNLIKELY(__ Float64LessThanOrEqual(input, minus_two_52)),
-                    done, input);
+            GOTO_IF(UNLIKELY(__ Float64Equal(input_f64, 0.0)), done, input_f64);
+            GOTO_IF(
+                UNLIKELY(__ Float64LessThanOrEqual(input_f64, minus_two_52)),
+                done, input_f64);
 
-            V<Float64> temp1 = __ Float64Sub(-0.0, input);
+            V<Float64> temp1 = __ Float64Sub(-0.0, input_f64);
             V<Float64> temp2 =
                 __ Float64Sub(__ Float64Add(two_52, temp1), two_52);
 
@@ -3001,7 +3003,7 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  V<Word32> REDUCE(Float64SameValue)(OpIndex left, OpIndex right) {
+  V<Word32> REDUCE(Float64SameValue)(V<Float64> left, V<Float64> right) {
     Label<Word32> done(this);
 
     IF (__ Float64Equal(left, right)) {

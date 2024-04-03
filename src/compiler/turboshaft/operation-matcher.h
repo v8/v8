@@ -333,20 +333,20 @@ class OperationMatcher {
     return true;
   }
 
-  bool MatchFloatUnary(OpIndex matched, OpIndex* input, FloatUnaryOp::Kind kind,
-                       FloatRepresentation rep) const {
+  bool MatchFloatUnary(OpIndex matched, V<Float>* input,
+                       FloatUnaryOp::Kind kind, FloatRepresentation rep) const {
     const FloatUnaryOp* op = TryCast<FloatUnaryOp>(matched);
     if (!op || op->kind != kind || op->rep != rep) return false;
     *input = op->input();
     return true;
   }
 
-  bool MatchFloatRoundDown(OpIndex matched, OpIndex* input,
+  bool MatchFloatRoundDown(OpIndex matched, V<Float>* input,
                            FloatRepresentation rep) const {
     return MatchFloatUnary(matched, input, FloatUnaryOp::Kind::kRoundDown, rep);
   }
 
-  bool MatchFloatBinary(OpIndex matched, OpIndex* left, OpIndex* right,
+  bool MatchFloatBinary(OpIndex matched, V<Float>* left, V<Float>* right,
                         FloatBinopOp::Kind kind,
                         FloatRepresentation rep) const {
     const FloatBinopOp* op = TryCast<FloatBinopOp>(matched);
@@ -356,7 +356,7 @@ class OperationMatcher {
     return true;
   }
 
-  bool MatchFloatSub(OpIndex matched, OpIndex* left, OpIndex* right,
+  bool MatchFloatSub(OpIndex matched, V<Float>* left, V<Float>* right,
                      FloatRepresentation rep) const {
     return MatchFloatBinary(matched, left, right, FloatBinopOp::Kind::kSub,
                             rep);

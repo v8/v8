@@ -354,8 +354,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceTaggedBitcast(input, from, to, kind);
   }
 
-  OpIndex REDUCE(FloatUnary)(OpIndex input, FloatUnaryOp::Kind kind,
-                             FloatRepresentation rep) {
+  V<Float> REDUCE(FloatUnary)(V<Float> input, FloatUnaryOp::Kind kind,
+                              FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceFloatUnary(input, kind, rep);
     }
@@ -535,8 +535,9 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceWordUnary(input, kind, rep);
   }
 
-  OpIndex REDUCE(FloatBinop)(OpIndex lhs, OpIndex rhs, FloatBinopOp::Kind kind,
-                             FloatRepresentation rep) {
+  V<Float> REDUCE(FloatBinop)(V<Float> lhs, V<Float> rhs,
+                              FloatBinopOp::Kind kind,
+                              FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceFloatBinop(lhs, rhs, kind, rep);
     }
@@ -697,7 +698,7 @@ class MachineOptimizationReducer : public Next {
     if (!signalling_nan_possible && kind == Kind::kSub &&
         matcher.MatchFloat(lhs, -0.0)) {
       // -0.0 - round_down(-0.0 - y) => round_up(y)
-      if (OpIndex a, b, c;
+      if (V<Float> a, b, c;
           FloatUnaryOp::IsSupported(FloatUnaryOp::Kind::kRoundUp, rep) &&
           matcher.MatchFloatRoundDown(rhs, &a, rep) &&
           matcher.MatchFloatSub(a, &b, &c, rep) &&
