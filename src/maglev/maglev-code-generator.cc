@@ -1013,7 +1013,8 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       return deopt_frame.as_construct_stub().source_position();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      return SourcePosition::Unknown();
+      DCHECK_NOT_NULL(deopt_frame.parent());
+      return GetSourcePosition(*deopt_frame.parent());
   }
 }
 compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
