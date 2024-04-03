@@ -39,8 +39,10 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   SBit OutputSBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
+      case kFlags_conditional_branch:
       case kFlags_deoptimize:
       case kFlags_set:
+      case kFlags_conditional_set:
       case kFlags_trap:
       case kFlags_select:
         return SetCC;
@@ -3677,6 +3679,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Condition cc = FlagsConditionToCondition(condition);
   __ mov(reg, Operand(0));
   __ mov(reg, Operand(1), LeaveCC, cc);
+}
+
+void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+  UNREACHABLE();
+}
+
+void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
+                                                  BranchInfo* branch) {
+  UNREACHABLE();
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {

@@ -709,16 +709,18 @@ CodeGenerator::MoveType::Type CodeGenerator::MoveType::InferSwap(
 }
 
 RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
+                                           FlagsCondition condition,
                                            Instruction* instr) {
   // Assemble a branch after this instruction.
   InstructionOperandConverter i(this, instr);
-  RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
-  RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
+  RpoNumber true_rpo =
+      i.InputRpo(instr->InputCount() - kBranchEndOffsetOfTrueBlock);
+  RpoNumber false_rpo =
+      i.InputRpo(instr->InputCount() - kBranchEndOffsetOfFalseBlock);
 
   if (true_rpo == false_rpo) {
     return true_rpo;
   }
-  FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   if (IsNextInAssemblyOrder(true_rpo) || instructions()
                                              ->InstructionBlockAt(false_rpo)
                                              ->IsLoopHeaderInAssemblyOrder()) {
@@ -778,9 +780,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
-    case kFlags_branch: {
+    case kFlags_branch:
+    case kFlags_conditional_branch: {
+      if (mode == kFlags_conditional_branch) {
+        InstructionOperandConverter i(this, instr);
+        condition = static_cast<FlagsCondition>(
+            i.ToConstant(instr->InputAt(instr->InputCount() -
+                                        kConditionalBranchEndOffsetOfCondition))
+                .ToInt64());
+      }
       BranchInfo branch;
-      RpoNumber target = ComputeBranchInfo(&branch, instr);
+      RpoNumber target = ComputeBranchInfo(&branch, condition, instr);
       if (target.IsValid()) {
         // redundant branch.
         if (!IsNextInAssemblyOrder(target)) {
@@ -788,8 +798,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
         }
         return kSuccess;
       }
-      // Assemble architecture-specific branch.
-      AssembleArchBranch(instr, &branch);
+      if (mode == kFlags_branch) {
+        // Assemble architecture-specific branch.
+        AssembleArchBranch(instr, &branch);
+      } else {
+        AssembleArchConditionalBranch(instr, &branch);
+      }
       break;
     }
     case kFlags_deoptimize: {
@@ -813,6 +827,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_set: {
       // Assemble a boolean materialization after this instruction.
       AssembleArchBoolean(instr, condition);
+      break;
+    }
+    case kFlags_conditional_set: {
+      // Assemble a conditional boolean materialization after this instruction.
+      AssembleArchConditionalBoolean(instr);
       break;
     }
     case kFlags_select: {

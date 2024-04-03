@@ -484,6 +484,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
     case kFlags_select:
       return os << "select";
+    case kFlags_conditional_set:
+      return os << "conditional set";
+    case kFlags_conditional_branch:
+      return os << "conditional branch";
   }
   UNREACHABLE();
 }

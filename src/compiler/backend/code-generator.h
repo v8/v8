@@ -254,7 +254,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Compute branch info from given instruction. Returns a valid rpo number
   // if the branch is redundant, the returned rpo number point to the target
   // basic block.
-  RpoNumber ComputeBranchInfo(BranchInfo* branch, Instruction* instr);
+  RpoNumber ComputeBranchInfo(BranchInfo* branch, FlagsCondition condition,
+                              Instruction* instr);
 
   // Returns true if a instruction is a tail call that needs to adjust the stack
   // pointer before execution. The stack slot index to the empty slot above the
@@ -279,11 +280,13 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchJump(RpoNumber target);
   void AssembleArchJumpRegardlessOfAssemblyOrder(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
+  void AssembleArchConditionalBranch(Instruction* instr, BranchInfo* branch);
 
   // Generates special branch for deoptimization condition.
   void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
 
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
+  void AssembleArchConditionalBoolean(Instruction* instr);
   void AssembleArchSelect(Instruction* instr, FlagsCondition condition);
 #if V8_ENABLE_WEBASSEMBLY
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);

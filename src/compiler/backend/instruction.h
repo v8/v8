@@ -1982,6 +1982,21 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            const InstructionSequence&);
 #undef INSTRUCTION_OPERAND_ALIGN
 
+// Constants for accessing ConditionalCompare data, shared between isel and
+// codegen.
+constexpr size_t kNumCcmpOperands = 5;
+constexpr size_t kCcmpOffsetOfOpcode = 0;
+constexpr size_t kCcmpOffsetOfLhs = 1;
+constexpr size_t kCcmpOffsetOfRhs = 2;
+constexpr size_t kCcmpOffsetOfDefaultFlags = 3;
+constexpr size_t kCcmpOffsetOfCompareCondition = 4;
+constexpr size_t kConditionalSetEndOffsetOfNumCcmps = 1;
+constexpr size_t kConditionalSetEndOffsetOfCondition = 2;
+constexpr size_t kBranchEndOffsetOfFalseBlock = 1;
+constexpr size_t kBranchEndOffsetOfTrueBlock = 2;
+constexpr size_t kConditionalBranchEndOffsetOfNumCcmps = 3;
+constexpr size_t kConditionalBranchEndOffsetOfCondition = 4;
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

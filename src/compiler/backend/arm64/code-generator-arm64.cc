@@ -3247,6 +3247,139 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ Cset(reg, cc);
 }
 
+// Given condition, return a value for nzcv which represents it. This is used
+// for the default condition for ccmp.
+inline StatusFlags ConditionToDefaultFlags(Condition condition) {
+  switch (condition) {
+    default:
+      UNREACHABLE();
+    case eq:
+      return ZFlag;  // Z == 1
+    case ne:
+      return NoFlag;  // Z == 0
+    case hs:
+      return CFlag;  // C == 1
+    case lo:
+      return NoFlag;  // C == 0
+    case mi:
+      return NFlag;  // N == 1
+    case pl:
+      return NoFlag;  // N == 0
+    case vs:
+      return VFlag;  // V == 1
+    case vc:
+      return NoFlag;  // V == 0
+    case hi:
+      return CFlag;  // C == 1 && Z == 0
+    case ls:
+      return NoFlag;  // C == 0 || Z == 1
+    case ge:
+      return NoFlag;  // N == V
+    case lt:
+      return NFlag;  // N != V
+    case gt:
+      return NoFlag;  // Z == 0 && N == V
+    case le:
+      return ZFlag;  // Z == 1 || N != V
+  }
+}
+
+void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
+                                     size_t ccmp_base_index,
+                                     CodeGenerator* gen) {
+  Arm64OperandConverter i(gen, instr);
+  // The first two, or three operands are the compare that begins the chain.
+  // These operands are used when the first compare, the one with the
+  // continuation attached, is generated.
+  // Then, each five provide:
+  //  - cmp opcode
+  //  - compare lhs
+  //  - compare rhs
+  //  - default flags
+  //  - user condition
+  for (unsigned n = 0; n < num_ccmps; ++n) {
+    size_t opcode_index = ccmp_base_index + kCcmpOffsetOfOpcode;
+    size_t compare_lhs_index = ccmp_base_index + kCcmpOffsetOfLhs;
+    size_t compare_rhs_index = ccmp_base_index + kCcmpOffsetOfRhs;
+    size_t default_condition_index =
+        ccmp_base_index + kCcmpOffsetOfDefaultFlags;
+    size_t compare_condition_index =
+        ccmp_base_index + kCcmpOffsetOfCompareCondition;
+    ccmp_base_index += kNumCcmpOperands;
+    DCHECK_LT(ccmp_base_index, instr->InputCount() - 1);
+
+    InstructionCode code = static_cast<InstructionCode>(
+        i.ToConstant(instr->InputAt(opcode_index)).ToInt64());
+
+    FlagsCondition default_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(default_condition_index)).ToInt64());
+
+    StatusFlags default_flags =
+        ConditionToDefaultFlags(FlagsConditionToCondition(default_condition));
+
+    FlagsCondition compare_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(compare_condition_index)).ToInt64());
+
+    if (code == kArm64Cmp) {
+      gen->masm()->Ccmp(i.InputRegister64(compare_lhs_index),
+                        i.InputOperand64(compare_rhs_index), default_flags,
+                        FlagsConditionToCondition(compare_condition));
+    } else {
+      DCHECK_EQ(code, kArm64Cmp32);
+      gen->masm()->Ccmp(i.InputRegister32(compare_lhs_index),
+                        i.InputOperand32(compare_rhs_index), default_flags,
+                        FlagsConditionToCondition(compare_condition));
+    }
+  }
+}
+
+// Assemble a conditional compare and boolean materializations after this
+// instruction.
+void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+  // Materialize a full 64-bit 1 or 0 value. The result register is always the
+  // last output of the instruction.
+  DCHECK_NE(0u, instr->OutputCount());
+  Arm64OperandConverter i(this, instr);
+  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+  DCHECK_GE(instr->InputCount(), 6);
+
+  // Input ordering:
+  // > InputCount - 1: number of ccmps.
+  // > InputCount - 2: branch condition.
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalSetEndOffsetOfNumCcmps;
+  size_t set_condition_index =
+      instr->InputCount() - kConditionalSetEndOffsetOfCondition;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = set_condition_index - kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+
+  FlagsCondition set_condition = static_cast<FlagsCondition>(
+      i.ToConstant(instr->InputAt(set_condition_index)).ToInt64());
+  __ Cset(reg, FlagsConditionToCondition(set_condition));
+}
+
+void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
+                                                  BranchInfo* branch) {
+  DCHECK_GE(instr->InputCount(), 6);
+  Arm64OperandConverter i(this, instr);
+  // Input ordering:
+  // > InputCount - 1: false block.
+  // > InputCount - 2: true block.
+  // > InputCount - 3: number of ccmps.
+  // > InputCount - 4: branch condition.
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalBranchEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalBranchEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(branch->condition);
+  __ B(cc, branch->true_label);
+  if (!branch->fallthru) __ B(branch->false_label);
+}
+
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
   Arm64OperandConverter i(this, instr);

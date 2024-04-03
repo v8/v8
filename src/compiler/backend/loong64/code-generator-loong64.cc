@@ -2252,6 +2252,11 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
                          branch->fallthru);
 }
 
+void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
+                                                  BranchInfo* branch) {
+  UNREACHABLE();
+}
+
 #undef UNSUPPORTED_COND
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2356,6 +2361,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     TRACE_UNIMPL();
     UNIMPLEMENTED();
   }
+}
+
+void CodeGenerator::AssembleArchConditionalBoolean(
+    Instruction* instr, FlagsCondition compare_condition) {
+  UNREACHABLE();
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {

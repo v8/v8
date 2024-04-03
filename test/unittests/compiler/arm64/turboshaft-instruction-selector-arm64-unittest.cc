@@ -1647,6 +1647,80 @@ TEST_F(TurboshaftInstructionSelectorTest, EqualZeroAndBranch) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32(), MachineType::Int32());
+    OpIndex a = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
+    OpIndex b = m.Int32LessThan(m.Parameter(0), m.Parameter(2));
+    m.Return(m.Word32BitwiseAnd(a, b));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
+    EXPECT_EQ(9U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex a = m.Word64Equal(m.Parameter(0), m.Parameter(1));
+    OpIndex b = m.Word64Equal(m.Parameter(0), m.Parameter(2));
+    OpIndex c = m.Word64NotEqual(m.Parameter(0), m.Int64Constant(42));
+    m.Return(m.Word32BitwiseOr(m.Word32BitwiseOr(a, b), c));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
+    EXPECT_EQ(14U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    OpIndex a = m.Word64Equal(m.Parameter(0), m.Int64Constant(30));
+    OpIndex b = m.Word64Equal(m.Parameter(0), m.Int64Constant(50));
+    OpIndex c = m.Uint64LessThanOrEqual(m.Parameter(0), m.Parameter(1));
+    OpIndex d = m.Int64LessThan(m.Parameter(0), m.Parameter(2));
+    m.Return(
+        m.Word32BitwiseAnd(m.Word32BitwiseAnd(m.Word32BitwiseOr(a, b), c), d));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(50, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(kFlags_conditional_set, s[0]->flags_mode());
+    EXPECT_EQ(19U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int64());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
+    OpIndex cond_b = m.Int64LessThan(m.Parameter(0), m.Parameter(2));
+    m.Branch(m.Word32BitwiseAnd(cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32(),
+                    MachineType::Int32(), MachineType::Int32());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.Int32LessThan(m.Parameter(0), m.Parameter(1));
+    OpIndex cond_b = m.Int32LessThan(m.Parameter(0), m.Parameter(2));
+    m.Branch(m.Word32BitwiseOr(cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Add and subtract instructions with overflow.
 

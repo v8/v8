@@ -2809,6 +2809,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
   }
 
+  static constexpr bool IsImmConditionalCompare(int64_t immediate) {
+    return is_uint5(immediate);
+  }
+
   static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n,
                            unsigned* imm_s, unsigned* imm_r);
 
@@ -3116,7 +3120,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ConditionalCompare(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond,
                           ConditionalCompareOp op);
-  static bool IsImmConditionalCompare(int64_t immediate);
 
   void AddSubWithCarry(const Register& rd, const Register& rn,
                        const Operand& operand, FlagsUpdate S,

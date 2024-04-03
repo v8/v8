@@ -4444,10 +4444,6 @@ bool Assembler::IsImmLogical(uint64_t value, unsigned width, unsigned* n,
   return true;
 }
 
-bool Assembler::IsImmConditionalCompare(int64_t immediate) {
-  return is_uint5(immediate);
-}
-
 bool Assembler::IsImmFP32(uint32_t bits) {
   // Valid values will have the form:
   // aBbb.bbbc.defg.h000.0000.0000.0000.0000

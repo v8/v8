@@ -572,6 +572,7 @@
   'test-sync-primitives-arm/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
   'turboshaft-test-branch-combine/*': [SKIP],
+  'turboshaft-test-compare-combine/*': [SKIP],
   'turboshaft-test-select-combine/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],

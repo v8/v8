@@ -33,6 +33,7 @@ enum ImmediateMode {
   kLoadStoreImm16,
   kLoadStoreImm32,
   kLoadStoreImm64,
+  kConditionalCompareImm,
   kNoImmediate
 };
 
@@ -180,6 +181,8 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         return IsLoadStoreImmediate(value, 3);
       case kNoImmediate:
         return false;
+      case kConditionalCompareImm:
+        return Assembler::IsImmConditionalCompare(value);
       case kShift32Imm:  // Fall through.
       case kShift64Imm:
         // Shift operations only observe the bottom 5 or 6 bits of the value.
@@ -870,7 +873,14 @@ void VisitBinopImpl(InstructionSelectorT<TurboshaftAdapter>* selector,
                     FlagsContinuationT<TurboshaftAdapter>* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
-  InstructionOperand inputs[5];
+  constexpr uint32_t kMaxFlagSetInputs = 3;
+  constexpr uint32_t kMaxCcmpOperands =
+      FlagsContinuationT<TurboshaftAdapter>::kMaxCompareChainSize *
+      kNumCcmpOperands;
+  constexpr uint32_t kExtraCcmpInputs = 2;
+  constexpr uint32_t kMaxInputs =
+      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  InstructionOperand inputs[kMaxInputs];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
@@ -880,6 +890,10 @@ void VisitBinopImpl(InstructionSelectorT<TurboshaftAdapter>* selector,
   bool must_commute_cond = MustCommuteCondField::decode(properties);
   bool is_add_sub = IsAddSubField::decode(properties);
 
+  // We've already commuted the flags while searching for the pattern.
+  if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
+    can_commute = false;
+  }
   if (g.CanBeImmediate(right_node, operand_mode)) {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseImmediate(right_node);
@@ -928,6 +942,28 @@ void VisitBinopImpl(InstructionSelectorT<TurboshaftAdapter>* selector,
     // overwriting the inputs.
     inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
     inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
+  } else if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
+    DCHECK_LE(input_count, kMaxInputs);
+    auto& compares = cont->compares();
+    for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
+      auto compare = compares[i];
+      inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
+      inputs[input_count + kCcmpOffsetOfLhs] = g.UseRegisterAtEnd(compare.lhs);
+      if (g.CanBeImmediate(compare.rhs, kConditionalCompareImm)) {
+        inputs[input_count + kCcmpOffsetOfRhs] = g.UseImmediate(compare.rhs);
+      } else {
+        inputs[input_count + kCcmpOffsetOfRhs] =
+            g.UseRegisterAtEnd(compare.rhs);
+      }
+      inputs[input_count + kCcmpOffsetOfDefaultFlags] =
+          g.TempImmediate(compare.default_flags);
+      inputs[input_count + kCcmpOffsetOfCompareCondition] =
+          g.TempImmediate(compare.compare_condition);
+      input_count += kNumCcmpOperands;
+    }
+    inputs[input_count++] = g.TempImmediate(cont->final_condition());
+    inputs[input_count++] =
+        g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
   }
 
   DCHECK_NE(0u, input_count);
@@ -1989,6 +2025,450 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
   UNREACHABLE();
 }
 
+namespace turboshaft {
+
+class CompareSequence {
+ public:
+  void InitialCompare(OpIndex op, OpIndex l, OpIndex r,
+                      RegisterRepresentation rep) {
+    DCHECK(!HasCompare());
+    cmp_ = op;
+    left_ = l;
+    right_ = r;
+    opcode_ = GetOpcode(rep);
+  }
+  bool HasCompare() const { return cmp_.valid(); }
+  OpIndex cmp() const { return cmp_; }
+  OpIndex left() const { return left_; }
+  OpIndex right() const { return right_; }
+  InstructionCode opcode() const { return opcode_; }
+  uint32_t num_ccmps() const { return num_ccmps_; }
+  FlagsContinuationT<TurboshaftAdapter>::compare_chain_t& ccmps() {
+    return ccmps_;
+  }
+  void AddConditionalCompare(RegisterRepresentation rep,
+                             FlagsCondition ccmp_condition,
+                             FlagsCondition default_flags, OpIndex ccmp_lhs,
+                             OpIndex ccmp_rhs) {
+    InstructionCode code = GetOpcode(rep);
+    ccmps_.at(num_ccmps_) =
+        FlagsContinuationT<TurboshaftAdapter>::ConditionalCompare(
+            code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs);
+    ++num_ccmps_;
+  }
+
+ private:
+  InstructionCode GetOpcode(RegisterRepresentation rep) const {
+    if (rep == RegisterRepresentation::Word32()) {
+      return kArm64Cmp32;
+    } else {
+      DCHECK_EQ(rep, RegisterRepresentation::Word64());
+      return kArm64Cmp;
+    }
+  }
+
+  OpIndex cmp_;
+  OpIndex left_;
+  OpIndex right_;
+  InstructionCode opcode_;
+  FlagsContinuationT<TurboshaftAdapter>::compare_chain_t ccmps_;
+  uint32_t num_ccmps_ = 0;
+};
+
+class CompareChainNode final : public ZoneObject {
+ public:
+  enum class NodeKind : uint8_t { kFlagSetting, kLogicalCombine };
+
+  explicit CompareChainNode(OpIndex n, FlagsCondition condition)
+      : node_kind_(NodeKind::kFlagSetting),
+        user_condition_(condition),
+        node_(n) {}
+
+  explicit CompareChainNode(OpIndex n, CompareChainNode* l, CompareChainNode* r)
+      : node_kind_(NodeKind::kLogicalCombine), node_(n), lhs_(l), rhs_(r) {
+    // Canonicalise the chain with cmps on the right.
+    if (lhs_->IsFlagSetting() && !rhs_->IsFlagSetting()) {
+      std::swap(lhs_, rhs_);
+    }
+  }
+  void SetCondition(FlagsCondition condition) {
+    DCHECK(IsLogicalCombine());
+    user_condition_ = condition;
+    if (requires_negation_) {
+      NegateFlags();
+    }
+  }
+  void MarkRequiresNegation() {
+    if (IsFlagSetting()) {
+      NegateFlags();
+    } else {
+      requires_negation_ = true;
+    }
+  }
+  void NegateFlags() {
+    user_condition_ = NegateFlagsCondition(user_condition_);
+    requires_negation_ = false;
+  }
+  void CommuteFlags() {
+    user_condition_ = CommuteFlagsCondition(user_condition_);
+  }
+  bool IsLegalFirstCombine() const {
+    DCHECK(IsLogicalCombine());
+    // We need two cmps feeding the first logic op.
+    return lhs_->IsFlagSetting() && rhs_->IsFlagSetting();
+  }
+  bool IsFlagSetting() const { return node_kind_ == NodeKind::kFlagSetting; }
+  bool IsLogicalCombine() const {
+    return node_kind_ == NodeKind::kLogicalCombine;
+  }
+  OpIndex node() const { return node_; }
+  FlagsCondition user_condition() const { return user_condition_; }
+  CompareChainNode* lhs() const {
+    DCHECK(IsLogicalCombine());
+    return lhs_;
+  }
+  CompareChainNode* rhs() const {
+    DCHECK(IsLogicalCombine());
+    return rhs_;
+  }
+
+ private:
+  NodeKind node_kind_;
+  FlagsCondition user_condition_;
+  bool requires_negation_ = false;
+  OpIndex node_;
+  CompareChainNode* lhs_ = nullptr;
+  CompareChainNode* rhs_ = nullptr;
+};
+
+static base::Optional<FlagsCondition> GetFlagsCondition(
+    OpIndex node, InstructionSelectorT<TurboshaftAdapter>* selector) {
+  if (const ComparisonOp* comparison =
+          selector->Get(node).TryCast<ComparisonOp>()) {
+    if (comparison->rep == RegisterRepresentation::Word32() ||
+        comparison->rep == RegisterRepresentation::Word64()) {
+      switch (comparison->kind) {
+        case ComparisonOp::Kind::kEqual:
+          return FlagsCondition::kEqual;
+        case ComparisonOp::Kind::kSignedLessThan:
+          return FlagsCondition::kSignedLessThan;
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
+          return FlagsCondition::kSignedLessThanOrEqual;
+        case ComparisonOp::Kind::kUnsignedLessThan:
+          return FlagsCondition::kUnsignedLessThan;
+        case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+          return FlagsCondition::kUnsignedLessThanOrEqual;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  return base::nullopt;
+}
+
+// Search through AND, OR and comparisons.
+// To make life a little easier, we currently don't handle combining two logic
+// operations. There are restrictions on what logical combinations can be
+// performed with ccmp, so this implementation builds a ccmp chain from the LHS
+// of the tree while combining one more compare from the RHS at each step. So,
+// currently, if we discover a pattern like this:
+//   logic(logic(cmp, cmp), logic(cmp, cmp))
+// The search will fail from the outermost logic operation, but it will succeed
+// for the two inner operations. This will result in, suboptimal, codegen:
+//   cmp
+//   ccmp
+//   cset x
+//   cmp
+//   ccmp
+//   cset y
+//   logic x, y
+static base::Optional<CompareChainNode*> FindCompareChain(
+    OpIndex user, OpIndex node,
+    InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone,
+    ZoneVector<CompareChainNode*>& nodes) {
+  if (selector->Get(node).Is<Opmask::kWord32BitwiseAnd>() ||
+      selector->Get(node).Is<Opmask::kWord32BitwiseOr>()) {
+    auto maybe_lhs = FindCompareChain(node, selector->input_at(node, 0),
+                                      selector, zone, nodes);
+    auto maybe_rhs = FindCompareChain(node, selector->input_at(node, 1),
+                                      selector, zone, nodes);
+    if (maybe_lhs.has_value() && maybe_rhs.has_value()) {
+      CompareChainNode* lhs = maybe_lhs.value();
+      CompareChainNode* rhs = maybe_rhs.value();
+      // Ensure we don't try to combine a logic operation with two logic inputs.
+      if (lhs->IsFlagSetting() || rhs->IsFlagSetting()) {
+        nodes.push_back(std::move(zone->New<CompareChainNode>(node, lhs, rhs)));
+        return nodes.back();
+      }
+    }
+    return base::nullopt;
+  } else if (selector->valid(user) && selector->CanCover(user, node)) {
+    base::Optional<FlagsCondition> user_condition =
+        GetFlagsCondition(node, selector);
+    if (!user_condition.has_value()) {
+      return base::nullopt;
+    }
+    const ComparisonOp& comparison = selector->Get(node).Cast<ComparisonOp>();
+    if (comparison.kind == ComparisonOp::Kind::kEqual &&
+        selector->MatchIntegralZero(comparison.right())) {
+      auto maybe_negated = FindCompareChain(node, selector->input_at(node, 0),
+                                            selector, zone, nodes);
+      if (maybe_negated.has_value()) {
+        CompareChainNode* negated = maybe_negated.value();
+        negated->MarkRequiresNegation();
+        return negated;
+      }
+    }
+    return zone->New<CompareChainNode>(node, user_condition.value());
+  }
+  return base::nullopt;
+}
+
+// Overview -------------------------------------------------------------------
+//
+// A compare operation will generate a 'user condition', which is the
+// FlagCondition of the opcode. For this algorithm, we generate the default
+// flags from the LHS of the logic op, while the RHS is used to predicate the
+// new ccmp. Depending on the logical user, those conditions are either used
+// as-is or negated:
+// > For OR, the generated ccmp will negate the LHS condition for its predicate
+//   while the default flags are taken from the RHS.
+// > For AND, the generated ccmp will take the LHS condition for its predicate
+//   while the default flags are a negation of the RHS.
+//
+// The new ccmp will now generate a user condition of its own, and this is
+// always forwarded from the RHS.
+//
+// Chaining compares, including with OR, needs to be equivalent to combining
+// all the results with AND, and NOT.
+//
+// AND Example ----------------------------------------------------------------
+//
+//  cmpA      cmpB
+//   |         |
+// condA     condB
+//   |         |
+//   --- AND ---
+//
+// As the AND becomes the ccmp, it is predicated on condA and the cset is
+// predicated on condB. The user of the ccmp is always predicated on the
+// condition from the RHS of the logic operation. The default flags are
+// not(condB) so cset only produces one when both condA and condB are true:
+//   cmpA
+//   ccmpB not(condB), condA
+//   cset condB
+//
+// OR Example -----------------------------------------------------------------
+//
+//  cmpA      cmpB
+//   |         |
+// condA     condB
+//   |         |
+//   --- OR  ---
+//
+//                    cmpA          cmpB
+//   equivalent ->     |             |
+//                    not(condA)  not(condB)
+//                     |             |
+//                     ----- AND -----
+//                            |
+//                           NOT
+//
+// In this case, the input conditions to the AND (the ccmp) have been negated
+// so the user condition and default flags have been negated compared to the
+// previous example. The cset still uses condB because it is negated twice:
+//   cmpA
+//   ccmpB condB, not(condA)
+//   cset condB
+//
+// Combining AND and OR -------------------------------------------------------
+//
+//  cmpA      cmpB    cmpC
+//   |         |       |
+// condA     condB    condC
+//   |         |       |
+//   --- AND ---       |
+//        |            |
+//       OR -----------
+//
+//  equivalent -> cmpA      cmpB      cmpC
+//                 |         |         |
+//               condA     condB  not(condC)
+//                 |         |         |
+//                 --- AND ---         |
+//                      |              |
+//                     NOT             |
+//                      |              |
+//                     AND -------------
+//                      |
+//                     NOT
+//
+// For this example the 'user condition', coming out, of the first ccmp is
+// condB but it is negated as the input predicate for the next ccmp as that
+// one is performing an OR:
+//   cmpA
+//   ccmpB not(condB), condA
+//   ccmpC condC, not(condB)
+//   cset condC
+//
+void CombineFlagSettingOps(CompareChainNode* logic_node,
+                           InstructionSelectorT<TurboshaftAdapter>* selector,
+                           CompareSequence* sequence) {
+  CompareChainNode* lhs = logic_node->lhs();
+  CompareChainNode* rhs = logic_node->rhs();
+
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  if (!sequence->HasCompare()) {
+    // This is the beginning of the conditional compare chain.
+    DCHECK(lhs->IsFlagSetting());
+    DCHECK(rhs->IsFlagSetting());
+    OpIndex cmp = lhs->node();
+    OpIndex ccmp = rhs->node();
+    // ccmp has a much smaller immediate range than cmp, so swap the
+    // operations if possible.
+    if ((g.CanBeImmediate(selector->input_at(cmp, 0), kConditionalCompareImm) ||
+         g.CanBeImmediate(selector->input_at(cmp, 1),
+                          kConditionalCompareImm)) &&
+        (!g.CanBeImmediate(selector->input_at(ccmp, 0),
+                           kConditionalCompareImm) &&
+         !g.CanBeImmediate(selector->input_at(ccmp, 1),
+                           kConditionalCompareImm))) {
+      std::swap(lhs, rhs);
+      std::swap(cmp, ccmp);
+    }
+
+    OpIndex left = selector->input_at(cmp, 0);
+    OpIndex right = selector->input_at(cmp, 1);
+    if (g.CanBeImmediate(left, kArithmeticImm)) {
+      std::swap(left, right);
+      lhs->CommuteFlags();
+    }
+    // Initialize chain with the compare which will hold the continuation.
+    RegisterRepresentation rep = selector->Get(cmp).Cast<ComparisonOp>().rep;
+    sequence->InitialCompare(cmp, left, right, rep);
+  }
+
+  bool is_logical_or =
+      selector->Get(logic_node->node()).Is<Opmask::kWord32BitwiseOr>();
+  FlagsCondition ccmp_condition =
+      is_logical_or ? NegateFlagsCondition(lhs->user_condition())
+                    : lhs->user_condition();
+  FlagsCondition default_flags =
+      is_logical_or ? rhs->user_condition()
+                    : NegateFlagsCondition(rhs->user_condition());
+
+  // We canonicalise the chain so that the rhs is always a cmp, whereas lhs
+  // will either be the initial cmp or the previous logic, now ccmp, op and
+  // only provides ccmp_condition.
+  FlagsCondition user_condition = rhs->user_condition();
+  OpIndex ccmp = rhs->node();
+  OpIndex ccmp_lhs = selector->input_at(ccmp, 0);
+  OpIndex ccmp_rhs = selector->input_at(ccmp, 1);
+
+  // Switch ccmp lhs/rhs if lhs is a small immediate.
+  if (g.CanBeImmediate(ccmp_lhs, kConditionalCompareImm)) {
+    user_condition = CommuteFlagsCondition(user_condition);
+    default_flags = CommuteFlagsCondition(default_flags);
+    std::swap(ccmp_lhs, ccmp_rhs);
+  }
+
+  RegisterRepresentation rep = selector->Get(ccmp).Cast<ComparisonOp>().rep;
+  sequence->AddConditionalCompare(rep, ccmp_condition, default_flags, ccmp_lhs,
+                                  ccmp_rhs);
+  // Ensure the user_condition is kept up-to-date for the next ccmp/cset.
+  logic_node->SetCondition(user_condition);
+}
+
+static base::Optional<FlagsCondition> TryMatchConditionalCompareChainShared(
+    InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone, OpIndex node,
+    CompareSequence* sequence) {
+  // Instead of:
+  //  cmp x0, y0
+  //  cset cc0
+  //  cmp x1, y1
+  //  cset cc1
+  //  and/orr
+  // Try to merge logical combinations of flags into:
+  //  cmp x0, y0
+  //  ccmp x1, y1 ..
+  //  cset ..
+  // So, for AND:
+  //  (cset cc1 (ccmp x1 y1 !cc1 cc0 (cmp x0, y0)))
+  // and for ORR:
+  //  (cset cc1 (ccmp x1 y1 cc1 !cc0 (cmp x0, y0))
+
+  // Look for a potential chain.
+  ZoneVector<CompareChainNode*> logic_nodes(zone);
+  auto root =
+      FindCompareChain(OpIndex::Invalid(), node, selector, zone, logic_nodes);
+  if (!root.has_value()) return base::nullopt;
+
+  if (logic_nodes.size() >
+      FlagsContinuationT<TurboshaftAdapter>::kMaxCompareChainSize) {
+    return base::nullopt;
+  }
+  if (!logic_nodes.front()->IsLegalFirstCombine()) {
+    return base::nullopt;
+  }
+
+  for (auto* logic_node : logic_nodes) {
+    CombineFlagSettingOps(logic_node, selector, sequence);
+  }
+  DCHECK_LE(sequence->num_ccmps(),
+            FlagsContinuationT<TurboshaftAdapter>::kMaxCompareChainSize);
+  return logic_nodes.back()->user_condition();
+}
+
+static bool TryMatchConditionalCompareChainBranch(
+    InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone, OpIndex node,
+    FlagsContinuationT<TurboshaftAdapter>* cont) {
+  if (!cont->IsBranch()) return false;
+  DCHECK(cont->condition() == kNotEqual || cont->condition() == kEqual);
+
+  CompareSequence sequence;
+  auto final_cond =
+      TryMatchConditionalCompareChainShared(selector, zone, node, &sequence);
+  if (final_cond.has_value()) {
+    FlagsCondition condition = cont->condition() == kNotEqual
+                                   ? final_cond.value()
+                                   : NegateFlagsCondition(final_cond.value());
+    FlagsContinuationT<TurboshaftAdapter> new_cont =
+        FlagsContinuationT<TurboshaftAdapter>::ForConditionalBranch(
+            sequence.ccmps(), sequence.num_ccmps(), condition,
+            cont->true_block(), cont->false_block());
+
+    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
+                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                   sequence.opcode(), kArithmeticImm, &new_cont);
+
+    return true;
+  }
+  return false;
+}
+
+static bool TryMatchConditionalCompareChainSet(
+    InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone,
+    OpIndex node) {
+  // Create the cmp + ccmp ... sequence.
+  CompareSequence sequence;
+  auto final_cond =
+      TryMatchConditionalCompareChainShared(selector, zone, node, &sequence);
+  if (final_cond.has_value()) {
+    // The continuation performs the conditional compare and cset.
+    FlagsContinuationT<TurboshaftAdapter> cont =
+        FlagsContinuationT<TurboshaftAdapter>::ForConditionalSet(
+            sequence.ccmps(), sequence.num_ccmps(), final_cond.value(), node);
+
+    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
+                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                   sequence.opcode(), kArithmeticImm, &cont);
+    return true;
+  }
+  return false;
+}
+
+}  // end namespace turboshaft
+
 template <typename Adapter, typename Matcher>
 static void VisitLogical(InstructionSelectorT<Adapter>* selector, Node* node,
                          Matcher* m, ArchOpcode opcode, bool left_can_cover,
@@ -2057,7 +2537,7 @@ static void VisitLogical(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 static void VisitLogical(InstructionSelectorT<TurboshaftAdapter>* selector,
-                         turboshaft::OpIndex node,
+                         Zone* zone, turboshaft::OpIndex node,
                          turboshaft::WordRepresentation rep, ArchOpcode opcode,
                          bool left_can_cover, bool right_can_cover,
                          ImmediateMode imm_mode) {
@@ -2090,6 +2570,10 @@ static void VisitLogical(InstructionSelectorT<TurboshaftAdapter>* selector,
       break;
     default:
       UNREACHABLE();
+  }
+
+  if (turboshaft::TryMatchConditionalCompareChainSet(selector, zone, node)) {
+    return;
   }
 
   // Select Logical(y, ~x) for Logical(Xor(x, -1), y).
@@ -2178,7 +2662,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
       // Other cases fall through to the normal And operation.
     }
   }
-  VisitLogical(this, node, bitwise_and.rep, kArm64And32,
+  VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And32,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical32Imm);
 }
@@ -2265,7 +2749,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord64And(node_t node) {
       // Other cases fall through to the normal And operation.
     }
   }
-  VisitLogical(this, node, bitwise_and.rep, kArm64And,
+  VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical64Imm);
 }
@@ -2317,8 +2801,9 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
-    VisitLogical(this, node, op.rep, kArm64Or32, CanCover(node, op.left()),
-                 CanCover(node, op.right()), kLogical32Imm);
+    VisitLogical(this, zone(), node, op.rep, kArm64Or32,
+                 CanCover(node, op.left()), CanCover(node, op.right()),
+                 kLogical32Imm);
   } else {
     Int32BinopMatcher m(node);
     VisitLogical<Adapter, Int32BinopMatcher>(
@@ -2332,8 +2817,9 @@ void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
-    VisitLogical(this, node, op.rep, kArm64Or, CanCover(node, op.left()),
-                 CanCover(node, op.right()), kLogical64Imm);
+    VisitLogical(this, zone(), node, op.rep, kArm64Or,
+                 CanCover(node, op.left()), CanCover(node, op.right()),
+                 kLogical64Imm);
   } else {
     Int64BinopMatcher m(node);
     VisitLogical<Adapter, Int64BinopMatcher>(
@@ -2347,8 +2833,9 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
-    VisitLogical(this, node, op.rep, kArm64Eor32, CanCover(node, op.left()),
-                 CanCover(node, op.right()), kLogical32Imm);
+    VisitLogical(this, zone(), node, op.rep, kArm64Eor32,
+                 CanCover(node, op.left()), CanCover(node, op.right()),
+                 kLogical32Imm);
   } else {
     Int32BinopMatcher m(node);
     VisitLogical<Adapter, Int32BinopMatcher>(
@@ -2362,8 +2849,9 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const WordBinopOp& op = this->Get(node).template Cast<WordBinopOp>();
-    VisitLogical(this, node, op.rep, kArm64Eor, CanCover(node, op.left()),
-                 CanCover(node, op.right()), kLogical64Imm);
+    VisitLogical(this, zone(), node, op.rep, kArm64Eor,
+                 CanCover(node, op.left()), CanCover(node, op.right()),
+                 kLogical64Imm);
   } else {
     Int64BinopMatcher m(node);
     VisitLogical<Adapter, Int64BinopMatcher>(
@@ -5359,9 +5847,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
     } else if (value_op.Is<Opmask::kWord32Sub>()) {
       return VisitWord32Compare(this, value, cont);
     } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
+      if (TryMatchConditionalCompareChainBranch(this, zone(), value, cont)) {
+        return;
+      }
       return VisitWordCompare(this, value, kArm64Tst32, cont, kLogical32Imm);
     } else if (value_op.Is<Opmask::kWord64BitwiseAnd>()) {
       return VisitWordCompare(this, value, kArm64Tst, cont, kLogical64Imm);
+    } else if (value_op.Is<Opmask::kWord32BitwiseOr>()) {
+      if (TryMatchConditionalCompareChainBranch(this, zone(), value, cont)) {
+        return;
+      }
     } else if (value_op.Is<StackPointerGreaterThanOp>()) {
       cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
       return VisitStackPointerGreaterThan(value, cont);

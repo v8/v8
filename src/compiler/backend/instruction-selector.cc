@@ -1284,7 +1284,7 @@ Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     continuation_temps_.push_back(temps[i]);
   }
 
-  if (cont->IsBranch()) {
+  if (cont->IsBranch() || cont->IsConditionalBranch()) {
     continuation_inputs_.push_back(g.Label(cont->true_block()));
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
@@ -1294,7 +1294,7 @@ Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
                               cont->node_id(), cont->feedback(),
                               cont->frame_state());
-  } else if (cont->IsSet()) {
+  } else if (cont->IsSet() || cont->IsConditionalSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsSelect()) {
     // The {Select} should put one of two values into the output register,
