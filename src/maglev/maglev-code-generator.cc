@@ -1330,6 +1330,25 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
+  bool TryDeduplicateObject(int id) {
+    int dup_id = GetDuplicatedId(id);
+    if (dup_id != kNotDuplicated) {
+      translation_array_builder_->DuplicateObject(dup_id);
+      return false;
+    }
+    return true;
+  }
+
+  template <typename T>
+  bool TryDeduplicateObject(const T& object,
+                            const InputLocation*& input_location) {
+    if (!TryDeduplicateObject(object.id)) {
+      input_location += object.GetInputLocationsArraySize();
+      return false;
+    }
+    return true;
+  }
+
   void BuildHeapNumber(Float64 number) {
     Handle<Object> value =
         local_isolate_->factory()->NewHeapNumberFromBits<AllocationType::kOld>(
@@ -1338,9 +1357,7 @@ class MaglevFrameTranslationBuilder {
   }
 
   void BuildFastObject(const FastObject& object) {
-    int dup_id = GetDuplicatedId(object.id);
-    if (dup_id != kNotDuplicated) {
-      translation_array_builder_->DuplicateObject(dup_id);
+    if (!TryDeduplicateObject(object.id)) {
       return;
     }
     translation_array_builder_->BeginCapturedObject(object.instance_size /
@@ -1361,9 +1378,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildFastContext(FastContext context,
                         const InputLocation*& input_location) {
-    int dup_id = GetDuplicatedId(context.id);
-    if (dup_id != kNotDuplicated) {
-      translation_array_builder_->DuplicateObject(dup_id);
+    if (!TryDeduplicateObject(context, input_location)) {
       return;
     }
     translation_array_builder_->BeginCapturedObject(context.length + 2);
@@ -1416,10 +1431,8 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreLiteral(
             GetDeoptLiteral(*array.cow_value.object()));
         break;
-      case FastFixedArray::kTagged: {
-        int dup_id = GetDuplicatedId(array.id);
-        if (dup_id != kNotDuplicated) {
-          translation_array_builder_->DuplicateObject(dup_id);
+      case FastFixedArray::kTagged:
+        if (!TryDeduplicateObject(array.id)) {
           return;
         }
         translation_array_builder_->BeginCapturedObject(array.length + 2);
@@ -1431,11 +1444,8 @@ class MaglevFrameTranslationBuilder {
           BuildFieldValue(array.values[i]);
         }
         break;
-      }
-      case FastFixedArray::kDouble: {
-        int dup_id = GetDuplicatedId(array.id);
-        if (dup_id != kNotDuplicated) {
-          translation_array_builder_->DuplicateObject(dup_id);
+      case FastFixedArray::kDouble:
+        if (!TryDeduplicateObject(array.id)) {
           return;
         }
         translation_array_builder_->BeginCapturedObject(array.length + 2);
@@ -1453,7 +1463,6 @@ class MaglevFrameTranslationBuilder {
           }
         }
         break;
-      }
     }
   }
 

@@ -914,6 +914,9 @@ struct FastContext {
     DCHECK_IMPLIES(extension.has_value(),
                    length >= Context::MIN_CONTEXT_EXTENDED_SLOTS);
   }
+
+  size_t GetInputLocationsArraySize() const;
+
   int id;
   compiler::MapRef map;
   int length;
@@ -1085,6 +1088,20 @@ struct DeoptObject {
         inlined_unmapped_elements(elements) {}
   explicit DeoptObject(FastContext context)
       : type(kContext), context(context) {}
+
+  size_t GetInputLocationsArraySize() const {
+    switch (type) {
+      case DeoptObject::kObject:
+      case DeoptObject::kNumber:
+      case DeoptObject::kFixedArray:
+      case DeoptObject::kArguments:
+      case DeoptObject::kMappedArgumentsElements:
+      case DeoptObject::kInlinedUnmappedArgumentsElements:
+        return 0;
+      case DeoptObject::kContext:
+        return context.GetInputLocationsArraySize();
+    }
+  }
 
   enum {
     kObject,
@@ -2376,6 +2393,8 @@ class ValueNode : public Node {
   void DoLoadToRegister(MaglevAssembler*, Register);
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
   Handle<Object> Reify(LocalIsolate* isolate) const;
+
+  size_t GetInputLocationsArraySize() const;
 
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
