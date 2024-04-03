@@ -6298,6 +6298,14 @@ void InstructionSelectorT<Adapter>::VisitI32x4SConvertF32x4(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8SConvertF32x8(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kX64I32x8SConvertF32x8, g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)));
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4UConvertF32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);

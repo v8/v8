@@ -4287,6 +4287,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16SubSatU(node);
     case IrOpcode::kI8x32SubSatU:
       return MarkAsSimd256(node), VisitI8x32SubSatU(node);
+    case IrOpcode::kI32x8SConvertF32x8:
+      return MarkAsSimd256(node), VisitI32x8SConvertF32x8(node);
     case IrOpcode::kI32x8UConvertF32x8:
       return MarkAsSimd256(node), VisitI32x8UConvertF32x8(node);
     case IrOpcode::kF64x4ConvertI32x4S:

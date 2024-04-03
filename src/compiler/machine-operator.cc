@@ -657,6 +657,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, I8x32GtU, Operator::kNoProperties, 2, 0, 1)                       \
   IF_WASM(V, I8x32GeS, Operator::kNoProperties, 2, 0, 1)                       \
   IF_WASM(V, I8x32GeU, Operator::kNoProperties, 2, 0, 1)                       \
+  IF_WASM(V, I32x8SConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, I32x8UConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)             \
   IF_WASM(V, F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)             \

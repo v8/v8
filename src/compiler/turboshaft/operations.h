@@ -7912,7 +7912,9 @@ struct Simd256LoadTransformOp
   V(F32x8Sqrt)                           \
   V(F64x4Sqrt)                           \
   V(I32x8UConvertF32x8)                  \
+  V(I32x8SConvertF32x8)                  \
   V(F32x8UConvertI32x8)                  \
+  V(F32x8SConvertI32x8)                  \
   V(I16x16SConvertI8x16)                 \
   V(I16x16UConvertI8x16)                 \
   V(I32x8SConvertI16x8)                  \

@@ -262,6 +262,7 @@ namespace compiler {
   V(X64I64x2UConvertI32x4High)                       \
   V(X64I64x4UConvertI32x4)                           \
   V(X64I32x4SConvertF32x4)                           \
+  V(X64I32x8SConvertF32x8)                           \
   V(X64I32x4SConvertI16x8Low)                        \
   V(X64I32x4SConvertI16x8High)                       \
   V(X64I32x8SConvertI16x8)                           \

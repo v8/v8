@@ -1167,6 +1167,7 @@
   V(I8x32GtU)                      \
   V(I8x32GeS)                      \
   V(I8x32GeU)                      \
+  V(I32x8SConvertF32x8)            \
   V(I32x8UConvertF32x8)            \
   V(F64x4ConvertI32x4S)            \
   V(F32x8SConvertI32x8)            \

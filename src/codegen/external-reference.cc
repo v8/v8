@@ -166,6 +166,21 @@ constexpr struct alignas(16) {
     uint32_t{0x4f00'0000},
 };
 
+constexpr struct alignas(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+  uint32_t e;
+  uint32_t f;
+  uint32_t g;
+  uint32_t h;
+} wasm_i32x8_int32_overflow_as_float = {
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000}, uint32_t{0x4f00'0000},
+};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -794,6 +809,12 @@ ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
 ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
   return ExternalReference(
       reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
+}
+
+ExternalReference
+ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_i32x8_int32_overflow_as_float));
 }
 
 ExternalReference ExternalReference::supports_cetss_address() {

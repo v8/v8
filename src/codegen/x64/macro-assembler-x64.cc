@@ -1960,6 +1960,30 @@ void MacroAssembler::I16x16ExtAddPairwiseI8x32U(YMMRegister dst,
   vpmaddubsw(dst, src, scratch);
 }
 
+void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
+                                        YMMRegister tmp, Register scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+  Operand int32_overflow_as_float = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      scratch);
+  // This algorithm works by:
+  // 1. lanes with NaNs are zero-ed
+  // 2. lanes ge than 2147483648.0f (MAX_INT32+1) set to 0xffff'ffff
+  // 3. cvttps2dq sets all out of range lanes to 0x8000'0000
+  //   a. correct for underflows (< MIN_INT32)
+  //   b. wrong for overflow, and we know which lanes overflow from 2.
+  // 4. adjust for 3b by xor-ing 2 and 3
+  //   a. 0x8000'0000 xor 0xffff'ffff = 0x7fff'ffff (MAX_INT32)
+  vcmpeqps(tmp, src, src);
+  vandps(dst, src, tmp);
+  vcmpgeps(tmp, src, int32_overflow_as_float);
+  vcvttps2dq(dst, dst);
+  vpxor(dst, dst, tmp);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

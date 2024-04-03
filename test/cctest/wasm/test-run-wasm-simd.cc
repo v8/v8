@@ -1660,42 +1660,16 @@ WASM_EXEC_TEST(I32x4ConvertF32x4) {
 }
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I32x8SConvertF32x8) {
+  RunI32x8ConvertF32x8RevecTest<int32_t>(
+      kExprI32x4SConvertF32x4, ConvertToInt,
+      compiler::IrOpcode::kI32x8SConvertF32x8);
+}
+
 TEST(RunWasmTurbofan_I32x8UConvertF32x8) {
-  EXPERIMENTAL_FLAG_SCOPE(revectorize);
-  if (!CpuFeatures::IsSupported(AVX2)) return;
-  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-  float* memory = r.builder().AddMemoryElems<float>(16);
-  uint8_t param1 = 0;
-  uint8_t param2 = 1;
-  uint8_t temp1 = r.AllocateLocal(kWasmS128);
-  uint8_t temp2 = r.AllocateLocal(kWasmS128);
-  constexpr uint8_t offset = 16;
-
-  BUILD_AND_CHECK_REVEC_NODE(
-      r, compiler::IrOpcode::kI32x8UConvertF32x8,
-      WASM_LOCAL_SET(
-          temp1, WASM_SIMD_UNOP(kExprI32x4UConvertF32x4,
-                                WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
-      WASM_LOCAL_SET(temp2,
-                     WASM_SIMD_UNOP(kExprI32x4UConvertF32x4,
-                                    WASM_SIMD_LOAD_MEM_OFFSET(
-                                        offset, WASM_LOCAL_GET(param1)))),
-      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
-      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
-                                 WASM_LOCAL_GET(temp2)),
-      WASM_ONE);
-
-  FOR_FLOAT32_INPUTS(x) {
-    if (!PlatformCanRepresent(x)) continue;
-    for (int i = 0; i < 8; i++) {
-      r.builder().WriteMemory(&memory[i], x);
-    }
-    r.Call(0, 32);
-    int32_t expected_unsigned = ConvertToInt(x, true);
-    for (int i = 0; i < 8; i++) {
-      CHECK_EQ(memcmp((const void*)&expected_unsigned, &memory[8 + i], 4), 0);
-    }
-  }
+  RunI32x8ConvertF32x8RevecTest<uint32_t>(
+      kExprI32x4UConvertF32x4, ConvertToInt,
+      compiler::IrOpcode::kI32x8UConvertF32x8);
 }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

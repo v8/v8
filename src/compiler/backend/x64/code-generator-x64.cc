@@ -4963,6 +4963,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                             kScratchRegister);
       break;
     }
+    case kX64I32x8SConvertF32x8: {
+      __ I32x8SConvertF32x8(i.OutputSimd256Register(),
+                            i.InputSimd256Register(0), kScratchSimd256Reg,
+                            kScratchRegister);
+      break;
+    }
     case kX64I32x4SConvertI16x8Low: {
       __ Pmovsxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;

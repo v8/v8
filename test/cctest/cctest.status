@@ -1088,7 +1088,6 @@
 ['variant == turboshaft or variant == future', {
   # Revectorization is not supported yet in Turboshaft.
   # TODO(14108): Remove once supported.
-  'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_ShuffleVpshufd': [SKIP],
 }],  # variant == turboshaft or variant == future
 
