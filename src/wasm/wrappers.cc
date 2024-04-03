@@ -20,6 +20,7 @@ namespace v8::internal::wasm {
 
 using compiler::CallDescriptor;
 using compiler::Operator;
+using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using compiler::turboshaft::Label;
@@ -164,7 +165,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Word32> add = __ Int32AddCheckOverflow(value, value);
     V<Word32> ovf = __ Projection<Word32>(add, 1);
     Variable result = __ NewVariable(RegisterRepresentation::Tagged());
-    IF_NOT (ovf) {
+    IF_NOT (UNLIKELY(ovf)) {
       // If it didn't overflow, the result is {2 * value} as pointer-sized
       // value.
       __ SetVariable(result,
@@ -956,7 +957,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case wasm::HeapType::kExn:
           case wasm::HeapType::kNoExn:
             if (type.kind() == wasm::kRef) {
-              IF (__ TaggedEqual(input, LOAD_ROOT(NullValue))) {
+              IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
                 CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
                             context);
                 __ Unreachable();
@@ -1068,7 +1069,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                         TSBlock* slow_path) {
     switch (type.kind()) {
       case wasm::kI32: {
-        __ GotoIfNot(__ IsSmi(input), slow_path);
+        __ GotoIfNot(LIKELY(__ IsSmi(input)), slow_path);
         return;
       }
       case wasm::kF32:
@@ -1079,7 +1080,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
         // TODO(thibaudm): Handle map packing.
         V<Word32> is_heap_number = __ TaggedEqual(heap_number_map, map);
-        __ GotoIf(is_heap_number, done);
+        __ GotoIf(LIKELY(is_heap_number), done);
         __ Goto(slow_path);
         __ Bind(done);
         return;
@@ -1198,7 +1199,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
         IsolateData::is_on_central_stack_flag_offset());
     Variable result_var = __ NewVariable(RegisterRepresentation::Tagged());
-    IF (is_on_central_stack_flag) {
+    IF (LIKELY(is_on_central_stack_flag)) {
       OpIndex call = __ Call(target, OpIndex::Invalid(), base::VectorOf(args),
                              call_descriptor);
       // For asm.js the error location can differ depending on whether an
