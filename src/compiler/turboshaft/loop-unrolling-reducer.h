@@ -199,7 +199,7 @@ class LoopUnrollingReducer : public Next {
   // CopyingPhase.
 #endif
 
-  OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_idx, const GotoOp& gto) {
+  V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" are placed in the parts of
     // this Reduce method triggering the unrolling rather than at the begining.
     // This is because the backedge skipping is not an optimization but a
@@ -215,20 +215,20 @@ class LoopUnrollingReducer : public Next {
       if (ShouldSkipOptimizationStep()) goto no_change;
       if (analyzer_.ShouldRemoveLoop(dst)) {
         RemoveLoop(dst);
-        return OpIndex::Invalid();
+        return {};
       } else if (analyzer_.ShouldFullyUnrollLoop(dst)) {
         FullyUnrollLoop(dst);
-        return OpIndex::Invalid();
+        return {};
       } else if (analyzer_.ShouldPartiallyUnrollLoop(dst)) {
         PartiallyUnrollLoop(dst);
-        return OpIndex::Invalid();
+        return {};
       }
     } else if ((unrolling_ == UnrollingStatus::kUnrolling ||
                 unrolling_ == UnrollingStatus::kUnrollingFirstIteration) &&
                dst == current_loop_header_) {
       // Skipping the backedge of the loop: FullyUnrollLoop and
       // PartiallyUnrollLoop will emit a Goto to the next unrolled iteration.
-      return OpIndex::Invalid();
+      return {};
     }
     goto no_change;
   }
@@ -266,7 +266,8 @@ class LoopUnrollingReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Call)(OpIndex ig_idx, const CallOp& call) {
+  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
+                                        const CallOp& call) {
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
@@ -278,7 +279,7 @@ class LoopUnrollingReducer : public Next {
           // we don't do this for the 1st folded body of partially unrolled
           // loops so that the loop keeps a stack check).
           DCHECK_NE(unrolling_, UnrollingStatus::kUnrollingFirstIteration);
-          return OpIndex::Invalid();
+          return {};
         }
       }
     }

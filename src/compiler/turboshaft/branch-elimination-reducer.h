@@ -292,7 +292,7 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
+  V<None> REDUCE(Goto)(Block* destination, bool is_backedge) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceGoto(destination, is_backedge);
     }
@@ -323,7 +323,8 @@ class BranchEliminationReducer : public Next {
     }
 
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
-      OpIndex condition = __ template MapToNewGraph<true>(branch->condition());
+      V<Word32> condition =
+          __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
         base::Optional<bool> condition_value = known_conditions_.Get(condition);
         if (!condition_value.has_value()) {
@@ -337,7 +338,7 @@ class BranchEliminationReducer : public Next {
         // process {new_dst} right away, and we'll end it with a Goto instead of
         // its current Branch.
         __ CloneBlockAndGoto(destination_origin);
-        return OpIndex::Invalid();
+        return {};
       } else {
         // Optimization 2bis:
         // {condition} hasn't been visited yet, and thus it doesn't have a
@@ -349,14 +350,14 @@ class BranchEliminationReducer : public Next {
                                       .Get(branch->condition())
                                       .template TryCast<PhiOp>()) {
             __ CloneBlockAndGoto(destination_origin);
-            return OpIndex::Invalid();
+            return {};
           } else if (CanBeConstantFolded(branch->condition(),
                                          destination_origin)) {
             // If the {cond} only uses constant Phis that come from the current
             // block, it's probably worth it to clone the block in order to
             // constant-fold away the Branch.
             __ CloneBlockAndGoto(destination_origin);
-            return OpIndex::Invalid();
+            return {};
           } else {
             goto no_change;
           }
@@ -368,7 +369,7 @@ class BranchEliminationReducer : public Next {
       // and the old destination is a merge block, so we can directly
       // inline the destination block in place of the Goto.
       Asm().CloneAndInlineBlock(destination_origin);
-      return OpIndex::Invalid();
+      return {};
     }
 
     goto no_change;

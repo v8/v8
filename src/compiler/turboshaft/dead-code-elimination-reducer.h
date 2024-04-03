@@ -444,8 +444,8 @@ class DeadCodeEliminationReducer
     return Next::ReduceInputGraphBranch(ig_index, branch);
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_index, const GotoOp& gto) {
-    if (TryRewriteBranch(ig_index)) return OpIndex::Invalid();
+  V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_index, const GotoOp& gto) {
+    if (TryRewriteBranch(ig_index)) return {};
     return Next::ReduceInputGraphGoto(ig_index, gto);
   }
 

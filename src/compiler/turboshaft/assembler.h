@@ -918,7 +918,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     return Base::ReducePendingLoopPhi(first, rep);
   }
 
-  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
+  V<None> REDUCE(Goto)(Block* destination, bool is_backedge) {
     // Calling Base::Goto will call Emit<Goto>, which will call FinalizeBlock,
     // which will reset {current_block_}. We thus save {current_block_} before
     // calling Base::Goto, as we'll need it for AddPredecessor. Note also that
@@ -926,7 +926,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     // split an edge, which means that it has to run after Base::Goto
     // (otherwise, the current Goto could be inserted in the wrong block).
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex = Base::ReduceGoto(destination, is_backedge);
+    V<None> new_opindex = Base::ReduceGoto(destination, is_backedge);
     Asm().AddPredecessor(saved_current_block, destination, false);
     return new_opindex;
   }
@@ -2703,19 +2703,20 @@ class TurboshaftAssemblerOpInterface
     Return(Word32Constant(0), base::VectorOf({result}));
   }
 
-  V<Any> Call(V<CallTarget> callee,
-              OptionalV<turboshaft::FrameState> frame_state,
-              base::Vector<const OpIndex> arguments,
-              const TSCallDescriptor* descriptor,
-              OpEffects effects = OpEffects().CanCallAnything()) {
+  template <typename R = AnyOrNone>
+  V<R> Call(V<CallTarget> callee, OptionalV<turboshaft::FrameState> frame_state,
+            base::Vector<const OpIndex> arguments,
+            const TSCallDescriptor* descriptor,
+            OpEffects effects = OpEffects().CanCallAnything()) {
     return ReduceIfReachableCall(callee, frame_state, arguments, descriptor,
                                  effects);
   }
-  V<Any> Call(V<CallTarget> callee, std::initializer_list<OpIndex> arguments,
-              const TSCallDescriptor* descriptor,
-              OpEffects effects = OpEffects().CanCallAnything()) {
-    return Call(callee, OptionalV<turboshaft::FrameState>::Nullopt(),
-                base::VectorOf(arguments), descriptor, effects);
+  template <typename R = AnyOrNone>
+  V<R> Call(V<CallTarget> callee, std::initializer_list<OpIndex> arguments,
+            const TSCallDescriptor* descriptor,
+            OpEffects effects = OpEffects().CanCallAnything()) {
+    return Call<R>(callee, OptionalV<turboshaft::FrameState>::Nullopt(),
+                   base::VectorOf(arguments), descriptor, effects);
   }
 
   template <typename Descriptor>
@@ -3329,7 +3330,7 @@ class TurboshaftAssemblerOpInterface
   }
 
   // Return `true` if the control flow after the conditional jump is reachable.
-  ConditionalGotoStatus GotoIf(OpIndex condition, Block* if_true,
+  ConditionalGotoStatus GotoIf(V<Word32> condition, Block* if_true,
                                BranchHint hint = BranchHint::kNone) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       // What we return here should not matter.
@@ -3342,7 +3343,7 @@ class TurboshaftAssemblerOpInterface
     return GotoIf(condition.condition(), if_true, condition.hint());
   }
   // Return `true` if the control flow after the conditional jump is reachable.
-  ConditionalGotoStatus GotoIfNot(OpIndex condition, Block* if_false,
+  ConditionalGotoStatus GotoIfNot(V<Word32> condition, Block* if_false,
                                   BranchHint hint = BranchHint::kNone) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       // What we return here should not matter.
@@ -4038,7 +4039,7 @@ class TurboshaftAssemblerOpInterface
   // Branch, bind {to_bind} (which should correspond to the implicit new block
   // following the GotoIf/GotoIfNot) and return a ConditionalGotoStatus
   // representing whether the destinations of the Branch are reachable or not.
-  ConditionalGotoStatus BranchAndBind(OpIndex condition, Block* if_true,
+  ConditionalGotoStatus BranchAndBind(V<Word32> condition, Block* if_true,
                                       Block* if_false, BranchHint hint,
                                       Block* to_bind) {
     DCHECK_EQ(to_bind, any_of(if_true, if_false));

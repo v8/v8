@@ -196,9 +196,17 @@ V8_INLINE std::ostream& operator<<(std::ostream& os, OptionalOpIndex idx) {
 // RegisterRepresentation.
 struct nullrep_t {};
 constexpr nullrep_t nullrep;
+constexpr inline bool operator==(nullrep_t, nullrep_t) { return true; }
+constexpr inline bool operator==(nullrep_t, RegisterRepresentation) {
+  return false;
+}
+constexpr inline bool operator==(RegisterRepresentation, nullrep_t) {
+  return false;
+}
 
 // Abstract tag classes for V<>.
 struct Any {};
+struct None {};
 
 template <size_t Bits>
 struct WordWithBits : public Any {
@@ -247,6 +255,19 @@ struct v_traits<Any> {
 
   template <typename U>
   struct implicitly_constructible_from : std::true_type {};
+};
+
+template <>
+struct v_traits<None> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr auto rep = nullrep;
+  static constexpr bool allows_representation(RegisterRepresentation) {
+    return false;
+  }
+
+  template <typename U>
+  struct implicitly_constructible_from
+      : std::bool_constant<std::is_same_v<U, None>> {};
 };
 
 template <>
@@ -392,7 +413,7 @@ struct v_traits<UnionT<T1, T2>,
 namespace detail {
 template <typename T, bool>
 struct RepresentationForUnionBase {
-  static constexpr auto rep = MaybeRegisterRepresentation::None();
+  static constexpr auto rep = nullrep;
 };
 template <typename T>
 struct RepresentationForUnionBase<T, true> {
@@ -426,7 +447,7 @@ struct v_traits<Union<Ts...>> {
 
 template <typename T>
 struct v_traits<T, std::enable_if_t<std::is_base_of_v<InternalTag, T>>> {
-  static constexpr auto rep = MaybeRegisterRepresentation::None();
+  static constexpr auto rep = nullrep;
 
   template <typename U>
   struct implicitly_constructible_from
@@ -445,6 +466,7 @@ using Primitive = Union<BigInt, NonBigIntPrimitive>;
 using Numeric = Union<Number, BigInt>;
 using JSPrimitive = Union<Numeric, String, Symbol, Boolean, Null, Undefined>;
 using CallTarget = Union<WordPtr, Code>;
+using AnyOrNone = Union<Any, None>;
 
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
