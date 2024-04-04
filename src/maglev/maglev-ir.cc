@@ -4975,7 +4975,7 @@ void Call::SetValueLocationConstraints() {
 }
 
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(args());
 
   uint32_t arg_count = num_args();
   if (target_type_ == TargetType::kAny) {
@@ -5039,12 +5039,10 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()),
+    __ PushReverse(receiver(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()));
+    __ PushReverse(receiver(), args());
   }
   DCHECK_EQ(kContextRegister, ToRegister(context()));
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
@@ -5079,12 +5077,10 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()),
+    __ PushReverse(receiver(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(),
-                   base::make_iterator_range(args_begin(), args_end()));
+    __ PushReverse(receiver(), args());
   }
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -5135,8 +5131,7 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
 void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  __ PushReverse(receiver(),
-                 base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(receiver(), args());
 
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -5356,11 +5351,10 @@ void CallBuiltin::PushArguments(MaglevAssembler* masm, Args... extra_args) {
   if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
     // In Default order we cannot have extra args (feedback).
     DCHECK_EQ(sizeof...(extra_args), 0);
-    __ Push(base::make_iterator_range(stack_args_begin(), stack_args_end()));
+    __ Push(stack_args());
   } else {
     DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
-    __ PushReverse(extra_args..., base::make_iterator_range(stack_args_begin(),
-                                                            stack_args_end()));
+    __ PushReverse(extra_args..., stack_args());
   }
 }
 
@@ -5461,7 +5455,7 @@ void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
   // Push all arguments to the builtin (including the receiver).
   static_assert(BuiltinArguments::kNumExtraArgsWithReceiver == 5);
   static_assert(BuiltinArguments::kReceiverOffset == 4);
-  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+  __ PushReverse(args());
 
   static_assert(BuiltinArguments::kNewTargetOffset == 0);
   static_assert(BuiltinArguments::kTargetOffset == 1);
@@ -5494,7 +5488,7 @@ void CallRuntime::SetValueLocationConstraints() {
 void CallRuntime::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   DCHECK_EQ(ToRegister(context()), kContextRegister);
-  __ Push(base::make_iterator_range(args_begin(), args_end()));
+  __ Push(args());
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -5522,8 +5516,7 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
       function(),            // target
       num_args_no_spread(),  // arguments count
       spread(),              // spread
-      base::make_iterator_range(args_no_spread_begin(),
-                                args_no_spread_end())  // pushed args
+      args_no_spread()       // pushed args
   );
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -5618,8 +5611,7 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
       feedback().index(),    // feedback slot
       spread(),              // spread
       feedback().vector,     // feedback vector
-      base::make_iterator_range(args_no_spread_begin(),
-                                args_no_spread_end())  // args
+      args_no_spread()       // args
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
