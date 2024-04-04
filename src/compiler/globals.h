@@ -140,6 +140,19 @@ inline ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
   UNREACHABLE();
 }
 
+inline int ExternalArrayElementSize(const ExternalArrayType element_type) {
+  switch (element_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

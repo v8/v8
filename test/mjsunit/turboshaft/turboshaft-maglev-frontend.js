@@ -719,7 +719,7 @@ assertOptimized(simple_loop);
 
 // Testing Float64 Ieee754 unary functions.
 {
-  function f(x) {
+  function float_f(x) {
     let x1 = Math.abs(x);
     let x2 = Math.acos(x);
     let x3 = Math.acosh(x);
@@ -745,18 +745,19 @@ assertOptimized(simple_loop);
             x12, x13, x14, x15, x16, x17, x18, x19, x20];
   }
 
-  %PrepareFunctionForOptimization(f);
-  let expected_1 = f(0.758);
-  let expected_2 = f(2);
+  %PrepareFunctionForOptimization(float_f);
+  let expected_1 = float_f(0.758);
+  let expected_2 = float_f(2);
 
-  %OptimizeFunctionOnNextCall(f);
-  assertEquals(expected_1, f(0.758));
-  assertEquals(expected_2, f(2));
+  %OptimizeFunctionOnNextCall(float_f);
+  assertEquals(expected_1, float_f(0.758));
+  assertEquals(expected_2, float_f(2));
+  assertOptimized(float_f);
 }
 
 // Testing for-in loops.
 {
-  function f(o) {
+  function forin(o) {
     let s = 0;
     for (let i in o) {
       s += o[i];
@@ -766,10 +767,10 @@ assertOptimized(simple_loop);
 
   let o = { x : 42, y : 19, z: 5 };
 
-  %PrepareFunctionForOptimization(f);
-  assertEquals(66, f(o));
-  %OptimizeFunctionOnNextCall(f);
-  assertEquals(66, f(o));
+  %PrepareFunctionForOptimization(forin);
+  assertEquals(66, forin(o));
+  %OptimizeFunctionOnNextCall(forin);
+  assertEquals(66, forin(o));
 }
 
 // Testing loops with multiple forward edges.
@@ -799,6 +800,7 @@ assertOptimized(simple_loop);
   %OptimizeFunctionOnNextCall(multi_pred_loop);
   assertEquals(5, multi_pred_loop(1));
   assertEquals(5, multi_pred_loop(2));
+  assertOptimized(multi_pred_loop);
 }
 
 // Testing reference error if hole
@@ -839,6 +841,7 @@ assertOptimized(simple_loop);
   f_eval();
   %OptimizeFunctionOnNextCall(f_eval);
   f_eval();
+  assertOptimized(f_eval);
 }
 
 // Testing typed arrays creations, loads and stores.
@@ -861,4 +864,24 @@ assertOptimized(simple_loop);
   %OptimizeFunctionOnNextCall(typed_arr);
   let a2 = typed_arr();
   assertEquals(a1, a2);
+  assertOptimized(typed_arr);
+}
+
+// Testing dataview creation, loads and stores.
+{
+  function dataview() {
+    const buffer = new ArrayBuffer(40);
+    const dw = new DataView(buffer);
+    dw.setInt8(4, 32);
+    dw.setInt16(2, 152515);
+    dw.setFloat64(8, 12.2536);
+    return [dw.getInt16(0), dw.getInt8(4), dw.getFloat64(2), dw.getInt32(7)];
+  }
+
+  %PrepareFunctionForOptimization(dataview);
+  let a1 = dataview();
+  %OptimizeFunctionOnNextCall(dataview);
+  let a2 = dataview();
+  assertEquals(a1, a2);
+  assertOptimized(dataview);
 }

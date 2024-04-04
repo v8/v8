@@ -660,19 +660,6 @@ constexpr Condition ConditionForNaN();
 bool FromConstantToBool(LocalIsolate* local_isolate, ValueNode* node);
 bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node);
 
-inline int ExternalArrayElementSize(const ExternalArrayType element_type) {
-  switch (element_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case kExternal##Type##Array:                    \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-
 inline int ElementsKindSize(ElementsKind element_kind) {
   switch (element_kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -5868,6 +5855,8 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
 
   auto options() const { return std::tuple{element_type_}; }
 
+  ExternalArrayType element_type() const { return element_type_; }
+
  private:
   ExternalArrayType element_type_;
 };
@@ -6796,6 +6785,8 @@ class LoadSignedIntDataViewElement
 
   auto options() const { return std::tuple{type_}; }
 
+  ExternalArrayType type() const { return type_; }
+
  private:
   ExternalArrayType type_;
 };
@@ -6956,6 +6947,8 @@ class StoreSignedIntDataViewElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  ExternalArrayType type() const { return type_; }
 
  private:
   ExternalArrayType type_;

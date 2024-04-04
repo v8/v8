@@ -2482,7 +2482,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                   AbortReason::kUnexpectedValue);
   }
 
-  int element_size = ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(type_);
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register data_pointer = temps.Acquire();
@@ -2530,7 +2530,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  if (ExternalArrayElementSize(type_) > 1) {
+  if (compiler::ExternalArrayElementSize(type_) > 1) {
     UseAndClobberRegister(value_input());
   } else {
     UseRegister(value_input());
@@ -2556,7 +2556,7 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                   AbortReason::kUnexpectedValue);
   }
 
-  int element_size = ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(type_);
 
   // We ignore little endian argument if type is a byte size.
   if (element_size > 1) {

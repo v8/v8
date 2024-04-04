@@ -881,6 +881,91 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckJSDataViewBounds* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    // Normal DataView (backed by AB / SAB) or non-length tracking backed by
+    // GSAB.
+    V<WordPtr> byte_length =
+        __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
+                              AccessBuilder::ForJSDataViewByteLength());
+
+    int element_size = ExternalArrayElementSize(node->element_type());
+    if (element_size > 1) {
+      // For element_size larger than 1, we need to make sure that {index} is
+      // less than {byte_length}, but also that {index+element_size} is less
+      // than {byte_length}. We do this by subtracting {element_size-1} from
+      // {byte_length}: if the resulting length is greater than 0, then we can
+      // just treat {element_size} as 1 and check if {index} is less than this
+      // new {byte_length}.
+      DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
+      byte_length = __ WordPtrSub(byte_length, element_size - 1);
+      __ DeoptimizeIf(__ IntPtrLessThan(byte_length, 0), frame_state,
+                      DeoptimizeReason::kOutOfBounds,
+                      node->eager_deopt_info()->feedback_to_update());
+    }
+    __ DeoptimizeIfNot(
+        __ Uint32LessThan(Map<Word32>(node->index_input()),
+                          __ TruncateWordPtrToWord32(byte_length)),
+        frame_state, DeoptimizeReason::kOutOfBounds,
+        node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::LoadSignedIntDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
+    V<WordPtr> storage = __ LoadField<WordPtr>(
+        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    SetMap(node,
+           __ LoadDataViewElement(
+               data_view, storage,
+               __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+               RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
+               node->type()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
+    V<WordPtr> storage = __ LoadField<WordPtr>(
+        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    SetMap(node,
+           __ LoadDataViewElement(
+               data_view, storage,
+               __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+               RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
+               ExternalArrayType::kExternalFloat64Array));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::StoreSignedIntDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
+    V<WordPtr> storage = __ LoadField<WordPtr>(
+        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    __ StoreDataViewElement(
+        data_view, storage,
+        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+        Map<Word32>(node->value_input()),
+        RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
+        node->type());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
+    V<WordPtr> storage = __ LoadField<WordPtr>(
+        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    __ StoreDataViewElement(
+        data_view, storage,
+        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+        Map<Float64>(node->value_input()),
+        RootEqual(node->is_little_endian_input(), RootIndex::kTrueValue),
+        ExternalArrayType::kExternalFloat64Array);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Jump* node,
                                 const maglev::ProcessingState& state) {
     Block* destination = Map(node->target());
