@@ -4029,6 +4029,14 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   info()->SetCode(code);
   PrintCode(isolate(), code, info());
 
+  // Functions with many inline candidates are sensitive to correct call
+  // frequency feedback and should therefore not be tiered up early.
+  if (v8_flags.profile_guided_optimization &&
+      info()->could_not_inline_all_candidates()) {
+    info()->shared_info()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
+
   if (info()->trace_turbo_json()) {
     TurboJsonFile json_of(info(), std::ios_base::app);
 

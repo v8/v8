@@ -5928,11 +5928,7 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     compiler::OptionalFeedbackVectorRef feedback_vector, float call_frequency) {
   if (graph()->total_inlined_bytecode_size() >
       v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
-    if (v8_flags.profile_guided_optimization) {
-      compilation_unit_->shared_function_info()
-          .object()
-          ->set_cached_tiering_decision(CachedTieringDecision::kNormal);
-    }
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlined bytecode size");
     return false;
   }
@@ -6032,11 +6028,9 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(), current_source_position_));
-  if (v8_flags.profile_guided_optimization &&
-      feedback_vector->object()->invocation_count_before_stable() >
-          v8_flags.invocation_count_for_early_optimization) {
-    shared.object()->set_cached_tiering_decision(
-        CachedTieringDecision::kNormal);
+  if (feedback_vector->object()->invocation_count_before_stable() >
+      v8_flags.invocation_count_for_early_optimization) {
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
   }
   int inlining_id = static_cast<int>(graph()->inlined_functions().size() - 1);
 

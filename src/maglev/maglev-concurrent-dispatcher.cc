@@ -148,6 +148,13 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
     return CompilationJob::FAILED;
   }
+  // Functions with many inline candidates are sensitive to correct call
+  // frequency feedback and should therefore not be tiered up early.
+  if (v8_flags.profile_guided_optimization &&
+      info()->could_not_inline_all_candidates()) {
+    info()->toplevel_function()->shared()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
   info()->set_code(code);
   GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
   RegisterWeakObjectsInOptimizedCode(

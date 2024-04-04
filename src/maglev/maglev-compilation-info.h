@@ -116,6 +116,13 @@ class MaglevCompilationInfo final {
 
   bool is_detached();
 
+  bool could_not_inline_all_candidates() {
+    return could_not_inline_all_candidates_;
+  }
+  void set_could_not_inline_all_candidates() {
+    could_not_inline_all_candidates_ = true;
+  }
+
  private:
   MaglevCompilationInfo(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
@@ -141,6 +148,9 @@ class MaglevCompilationInfo final {
   // particular, when used as Turboshaft front-end, this will use Turboshaft's
   // broker.
   bool owns_broker_ = true;
+
+  // True if some inlinees were skipped due to total size constraints.
+  bool could_not_inline_all_candidates_ = false;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 
