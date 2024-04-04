@@ -413,6 +413,13 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
                        : vector->shared_function_info()->HasBaselineCode()
                            ? CodeKind::BASELINE
                            : CodeKind::INTERPRETED_FUNCTION;
+  if (code_kind == CodeKind::INTERPRETED_FUNCTION &&
+      CanCompileWithBaseline(isolate_, vector->shared_function_info())) {
+    // Don't delay tier-up if we haven't tiered up to baseline yet, but will --
+    // baseline code is feedback independent.
+    return;
+  }
+
   OptimizationDecision decision = ShouldOptimize(vector, code_kind);
   if (decision.should_optimize()) {
     Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
