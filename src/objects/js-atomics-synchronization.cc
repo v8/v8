@@ -19,61 +19,6 @@ namespace internal {
 
 namespace detail {
 
-// The waiter queue lock guard provides a RAII-style mechanism for locking the
-// waiter queue. It is a non copyable and non movable object and a new state
-// must be set before destroying the guard.
-class V8_NODISCARD WaiterQueueLockGuard final {
-  using StateT = JSSynchronizationPrimitive::StateT;
-
- public:
-  // Spinlock to acquire the IsWaiterQueueLockedField bit. current_state is
-  // updated to the last value of the state before the waiter queue lock was
-  // acquired.
-  explicit WaiterQueueLockGuard(std::atomic<StateT>* state,
-                                StateT& current_state)
-      : state_(state), new_state_(kInvalidState) {
-    while (!JSSynchronizationPrimitive::TryLockWaiterQueueExplicit(
-        state, current_state)) {
-      YIELD_PROCESSOR;
-    }
-  }
-
-  // Constructor for creating a wrapper around a state whose waiter queue
-  // is already locked and owned by this thread.
-  explicit WaiterQueueLockGuard(std::atomic<StateT>* state, bool is_locked)
-      : state_(state), new_state_(kInvalidState) {
-    CHECK(is_locked);
-    DCHECK(JSSynchronizationPrimitive::IsWaiterQueueLockedField::decode(
-        state->load()));
-  }
-
-  WaiterQueueLockGuard(const WaiterQueueLockGuard&) = delete;
-  WaiterQueueLockGuard() = delete;
-
-  ~WaiterQueueLockGuard() {
-    DCHECK_NOT_NULL(state_);
-    DCHECK_NE(new_state_, kInvalidState);
-    DCHECK(JSSynchronizationPrimitive::IsWaiterQueueLockedField::decode(
-        state_->load()));
-    new_state_ = JSSynchronizationPrimitive::IsWaiterQueueLockedField::update(
-        new_state_, false);
-    state_->store(new_state_, std::memory_order_release);
-  }
-
-  void set_new_state(StateT new_state) { new_state_ = new_state; }
-
-  static std::optional<WaiterQueueLockGuard>
-  NewAlreadyLockedWaiterQueueLockGuard(std::atomic<StateT>* state) {
-    return std::optional<WaiterQueueLockGuard>(std::in_place, state, true);
-  }
-
- private:
-  static constexpr StateT kInvalidState =
-      ~JSSynchronizationPrimitive::kEmptyState;
-  std::atomic<StateT>* state_;
-  StateT new_state_;
-};
-
 // To manage waiting threads, there is a process-wide doubly-linked intrusive
 // list per waiter (i.e. mutex or condition variable). There is a per-thread
 // node allocated on the stack when the thread goes to sleep during
@@ -307,7 +252,9 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
   int num_waiters;
   {
     // Take the queue lock.
-    WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+    while (!TryLockWaiterQueueExplicit(state, current_state)) {
+      YIELD_PROCESSOR;
+    }
 
     // Get the waiter queue head.
     WaiterQueueNode* waiter_head = DestructivelyGetWaiterQueueHead(requester);
@@ -317,9 +264,9 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
     // new state.
     DCHECK_EQ(state->load(),
               IsWaiterQueueLockedField::update(current_state, true));
-    StateT new_state =
-        SetWaiterQueueHead(requester, waiter_head, current_state);
-    waiter_queue_lock_guard.set_new_state(new_state);
+    StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
+    new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
+    state->store(new_state, std::memory_order_release);
   }
 
   return Smi::FromInt(num_waiters);
@@ -333,21 +280,6 @@ bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
   return state->compare_exchange_weak(
       expected, IsLockedField::update(expected, true),
       std::memory_order_acquire, std::memory_order_relaxed);
-}
-
-// static
-std::optional<WaiterQueueLockGuard> JSAtomicsMutex::LockWaiterQueueOrJSMutex(
-    std::atomic<StateT>* state, StateT& current_state) {
-  for (;;) {
-    if (IsLockedField::decode(current_state) &&
-        TryLockWaiterQueueExplicit(state, current_state)) {
-      return WaiterQueueLockGuard::NewAlreadyLockedWaiterQueueLockGuard(state);
-    }
-    // Also check for the lock having been released by another thread during
-    // attempts to acquire the queue lock.
-    if (TryLockExplicit(state, current_state)) return std::nullopt;
-    YIELD_PROCESSOR;
-  }
 }
 
 // static
@@ -370,9 +302,6 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
   StateT current_state = state->load(std::memory_order_relaxed);
   // There are no waiters, but the js mutex lock may be held by another thread.
   if (!HasWaitersField::decode(current_state)) return false;
-
-  // The details of updating the state in this function are too complicated
-  // for the waiter queue lock guard to manage, so handle the state manually.
   while (!TryLockWaiterQueueExplicit(state, current_state)) {
     YIELD_PROCESSOR;
   }
@@ -466,15 +395,17 @@ bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
     {
       // Try to acquire the queue lock, which is itself a spinlock.
       current_state = state->load(std::memory_order_relaxed);
-      std::optional<WaiterQueueLockGuard> waiter_queue_lock_guard =
-          LockWaiterQueueOrJSMutex(state, current_state);
-      if (!waiter_queue_lock_guard.has_value()) {
-        // There is no waiter queue lock guard, so the lock was acquired.
-        DCHECK(IsLockedField::decode(state->load()));
-        return true;
+      for (;;) {
+        if (IsLockedField::decode(current_state) &&
+            TryLockWaiterQueueExplicit(state, current_state)) {
+          break;
+        }
+        // Also check for the lock having been released by another thread during
+        // attempts to acquire the queue lock.
+        if (TryLockExplicit(state, current_state)) return true;
+        YIELD_PROCESSOR;
       }
-      DCHECK_EQ(state->load(),
-                IsWaiterQueueLockedField::update(current_state, true));
+
       // With the queue lock held, enqueue the requester onto the waiter queue.
       this_waiter.should_wait = true;
       WaiterQueueNode* waiter_head =
@@ -482,14 +413,16 @@ bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
       WaiterQueueNode::Enqueue(&waiter_head, &this_waiter);
 
       // Enqueue a new waiter queue head and release the queue lock.
-      StateT new_state =
-          mutex->SetWaiterQueueHead(requester, waiter_head, current_state);
+      DCHECK_EQ(state->load(),
+                IsWaiterQueueLockedField::update(current_state, true));
+      StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
+      new_state = mutex->SetWaiterQueueHead(requester, waiter_head, new_state);
       // The lock is held, just not by us, so don't set the current thread id as
       // the owner.
       DCHECK(IsLockedField::decode(current_state));
       DCHECK(!mutex->IsCurrentThreadOwner());
       new_state = IsLockedField::update(new_state, true);
-      waiter_queue_lock_guard->set_new_state(new_state);
+      state->store(new_state, std::memory_order_release);
     }
 
     bool rv;
@@ -528,7 +461,9 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   // To wake a sleeping thread, first acquire the queue lock, which is itself
   // a spinlock.
   StateT current_state = state->load(std::memory_order_relaxed);
-  WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+  while (!TryLockWaiterQueueExplicit(state, current_state)) {
+    YIELD_PROCESSOR;
+  }
 
   if (!HasWaitersField::decode(current_state)) {
     // All waiters were removed while waiting for the queue lock, possibly by
@@ -545,9 +480,10 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
 
   // Release both the lock and the queue lock, and install the new waiter queue
   // head.
-  StateT new_state = IsLockedField::update(current_state, false);
+  StateT new_state = IsWaiterQueueLockedField::update(
+      IsLockedField::update(current_state, false), false);
   new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
-  waiter_queue_lock_guard.set_new_state(new_state);
+  state->store(new_state, std::memory_order_release);
 
   old_head->Notify();
 }
@@ -570,7 +506,9 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
 
     // Try to acquire the queue lock, which is itself a spinlock.
     StateT current_state = state->load(std::memory_order_relaxed);
-    WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+    while (!TryLockWaiterQueueExplicit(state, current_state)) {
+      YIELD_PROCESSOR;
+    }
 
     // With the queue lock held, enqueue the requester onto the waiter queue.
     this_waiter.should_wait = true;
@@ -581,9 +519,9 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
     // Release the queue lock and install the new waiter queue head.
     DCHECK_EQ(state->load(),
               IsWaiterQueueLockedField::update(current_state, true));
-    StateT new_state =
-        cv->SetWaiterQueueHead(requester, waiter_head, current_state);
-    waiter_queue_lock_guard.set_new_state(new_state);
+    StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
+    new_state = cv->SetWaiterQueueHead(requester, waiter_head, new_state);
+    state->store(new_state, std::memory_order_release);
   }
 
   // Release the mutex and wait for another thread to wake us up, reacquiring
@@ -618,7 +556,9 @@ WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
   StateT current_state = state->load(std::memory_order_relaxed);
 
   if (!HasWaitersField::decode(current_state)) return nullptr;
-  WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+  while (!TryLockWaiterQueueExplicit(state, current_state)) {
+    YIELD_PROCESSOR;
+  }
 
   // Get the waiter queue head.
   WaiterQueueNode* waiter_head = cv->DestructivelyGetWaiterQueueHead(requester);
@@ -626,8 +566,9 @@ WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
   // There's no waiter to wake up, release the queue lock by setting it to the
   // empty state.
   if (waiter_head == nullptr) {
-    StateT new_state = kEmptyState;
-    waiter_queue_lock_guard.set_new_state(new_state);
+    DCHECK_EQ(state->load(),
+              IsWaiterQueueLockedField::update(current_state, true));
+    state->store(kEmptyState, std::memory_order_release);
     return nullptr;
   }
 
@@ -636,9 +577,9 @@ WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
   // Release the queue lock and install the new waiter queue head.
   DCHECK_EQ(state->load(),
             IsWaiterQueueLockedField::update(current_state, true));
-  StateT new_state =
-      cv->SetWaiterQueueHead(requester, waiter_head, current_state);
-  waiter_queue_lock_guard.set_new_state(new_state);
+  StateT new_state = IsWaiterQueueLockedField::update(current_state, false);
+  new_state = cv->SetWaiterQueueHead(requester, waiter_head, new_state);
+  state->store(new_state, std::memory_order_release);
 
   return old_head;
 }

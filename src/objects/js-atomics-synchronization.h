@@ -21,11 +21,9 @@ namespace internal {
 #include "torque-generated/src/objects/js-atomics-synchronization-tq.inc"
 
 namespace detail {
-class WaiterQueueLockGuard;
 class WaiterQueueNode;
 }  // namespace detail
 
-using detail::WaiterQueueLockGuard;
 using detail::WaiterQueueNode;
 
 // JSSynchronizationPrimitive is the base class for JSAtomicsMutex and
@@ -87,11 +85,7 @@ class JSSynchronizationPrimitive
   using TorqueGeneratedJSSynchronizationPrimitive<
       JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject>::set_state;
 
-  static constexpr StateT kEmptyState = 0;
-
  private:
-  friend class WaiterQueueLockGuard;
-
 #if V8_COMPRESS_POINTERS
   // When pointer compression is enabled, the pointer to the waiter queue head
   // is stored in the external pointer table and the object itself only contains
@@ -221,7 +215,7 @@ class JSAtomicsMutex
   // and whether the lock itself is locked (IsLockedField).
   using IsLockedField = JSSynchronizationPrimitive::NextBitField<bool, 1>;
 
-  static constexpr StateT kUnlockedUncontended = kEmptyState;
+  static constexpr StateT kUnlockedUncontended = 0;
   static constexpr StateT kLockedUncontended = IsLockedField::encode(true);
 
   inline void SetCurrentThreadAsOwner();
@@ -243,10 +237,6 @@ class JSAtomicsMutex
   static bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
   static void UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
                                             StateT new_state);
-  // Returns nullopt if the JS mutex is acquired, otherwise return an optional
-  // with a `WaiterQueueLockGuard` object.
-  static std::optional<WaiterQueueLockGuard> LockWaiterQueueOrJSMutex(
-      std::atomic<StateT>* state, StateT& current_state);
 
   using TorqueGeneratedJSAtomicsMutex<
       JSAtomicsMutex, JSSynchronizationPrimitive>::owner_thread_id;
@@ -314,6 +304,8 @@ class JSAtomicsCondition
  private:
   friend class Factory;
   friend class WaiterQueueNode;
+
+  static constexpr StateT kEmptyState = 0;
 
   using DequeueAction = std::function<WaiterQueueNode*(WaiterQueueNode**)>;
   static WaiterQueueNode* DequeueExplicit(Isolate* requester,
