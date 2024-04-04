@@ -2025,6 +2025,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovDoubleHighToInt(i.OutputRegister(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_DoubleFromWord32Pair:
+      __ clrldi(i.TempRegister(0), i.InputRegister(1), Operand(32));
+      __ ShiftLeftU64(kScratchReg, i.InputRegister(0), Operand(32));
+      __ OrU64(i.TempRegister(0), i.TempRegister(0), kScratchReg);
+      __ MovInt64ToDouble(i.OutputDoubleRegister(), i.TempRegister(0));
+      break;
     case kPPC_DoubleInsertLowWord32:
       __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1), r0);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
