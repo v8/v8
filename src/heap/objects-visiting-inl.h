@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/object-lock.h"
+#include "src/heap/object-lock-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"

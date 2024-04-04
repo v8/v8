@@ -27,37 +27,16 @@ class BaseSpace;
 class MemoryChunkMetadata {
  public:
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static MemoryChunkMetadata* FromAddress(Address a) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return MemoryChunk::FromAddress(a)->Metadata();
-  }
+  V8_INLINE static MemoryChunkMetadata* FromAddress(Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return FromAddress(o.ptr());
-  }
+  V8_INLINE static MemoryChunkMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunkMetadata* FromHeapObject(const HeapObjectLayout* o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return FromAddress(reinterpret_cast<Address>(o));
-  }
+  V8_INLINE static MemoryChunkMetadata* FromHeapObject(
+      const HeapObjectLayout* o);
 
-  static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == kNullAddress) return;
-    // Need to subtract one from the mark because when a chunk is full the
-    // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to
-    // PageMetadata::FromAllocationAreaAddress.
-    MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->ChunkAddress());
-    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
-    while ((new_mark > old_mark) &&
-           !chunk->high_water_mark_.compare_exchange_weak(
-               old_mark, new_mark, std::memory_order_acq_rel)) {
-    }
-  }
+  V8_INLINE static void UpdateHighWaterMark(Address mark);
 
   MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                       Address area_start, Address area_end,

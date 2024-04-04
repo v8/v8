@@ -55,14 +55,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static MutablePageMetadata* FromAddress(Address a) {
-    return cast(MemoryChunkMetadata::FromAddress(a));
-  }
+  V8_INLINE static MutablePageMetadata* FromAddress(Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o) {
-    return cast(MemoryChunkMetadata::FromHeapObject(o));
-  }
+  V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
     SLOW_DCHECK(!metadata || !metadata->Chunk()->InReadOnlySpace());

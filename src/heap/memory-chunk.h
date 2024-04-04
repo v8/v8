@@ -149,17 +149,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return FromAddress(object.ptr());
   }
 
-  V8_INLINE MemoryChunkMetadata* Metadata() {
-    // If this changes, we also need to update
-    // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
-  }
+  V8_INLINE MemoryChunkMetadata* Metadata();
 
-  V8_INLINE const MemoryChunkMetadata* Metadata() const {
-    // If this changes, we also need to update
-    // CodeStubAssembler::PageMetadataFromMemoryChunk
-    return metadata_;
-  }
+  V8_INLINE const MemoryChunkMetadata* Metadata() const;
 
   V8_INLINE bool IsFlagSet(Flag flag) const {
     return main_thread_flags_ & flag;
@@ -218,7 +210,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return ClearFlagsUnlocked(flags);
   }
 
-  Heap* GetHeap();
+  V8_INLINE Heap* GetHeap();
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::SynchronizedLoad() to simulate the barrier.

@@ -108,8 +108,6 @@ void MemoryChunk::ClearFlagSlow(Flag flag) {
   }
 }
 
-Heap* MemoryChunk::GetHeap() { return Metadata()->heap(); }
-
 // static
 MemoryChunk::MainThreadFlags MemoryChunk::OldGenerationPageFlags(
     MarkingMode marking_mode, bool in_shared_space) {

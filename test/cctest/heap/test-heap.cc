@@ -50,6 +50,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
