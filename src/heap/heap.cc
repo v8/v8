@@ -5492,7 +5492,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   DCHECK_NOT_NULL(heap_allocator_);
 
   // Set the stack start for the main thread that sets up the heap.
-  SetStackStart(base::Stack::GetStackStart());
+  SetStackStart();
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   heap_allocator_->UpdateAllocationTimeout();
@@ -5984,11 +5984,11 @@ std::optional<StackState> Heap::overridden_stack_state() const {
   return embedder_stack_state_;
 }
 
-void Heap::SetStackStart(void* stack_start) {
+void Heap::SetStackStart() {
   // If no main thread local heap has been set up (we're still in the
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
-  stack().SetStackStart(stack_start);
+  stack().SetStackStart();
 }
 
 ::heap::base::Stack& Heap::stack() {

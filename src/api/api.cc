@@ -726,7 +726,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 namespace api_internal {
 void StackAllocated<true>::VerifyOnStack() const {
   if (internal::StackAllocatedCheck::Get()) {
-    internal::HandleHelper::VerifyOnStack(this);
+    DCHECK(::heap::base::Stack::IsOnStack(this));
   }
 }
 }  // namespace api_internal
@@ -758,22 +758,6 @@ void CopyTracedReference(const internal::Address* const* from,
 
 void DisposeTracedReference(internal::Address* location) {
   TracedHandles::Destroy(location);
-}
-
-// static
-bool HandleHelper::IsOnStack(const void* ptr) {
-  return v8::base::Stack::GetCurrentStackPosition() <= ptr &&
-         ptr <= v8::base::Stack::GetStackStartUnchecked();
-}
-
-// static
-void HandleHelper::VerifyOnStack(const void* ptr) { DCHECK(IsOnStack(ptr)); }
-
-// static
-void HandleHelper::VerifyOnMainThread() {
-  // The following verifies that we are on the main thread, as
-  // LocalHeap::Current is not set in that case.
-  DCHECK_NULL(LocalHeap::Current());
 }
 
 #if V8_STATIC_ROOTS_BOOL

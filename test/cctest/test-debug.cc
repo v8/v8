@@ -4312,8 +4312,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // This test on purpose unlocks the isolate without exiting and
       // re-entering. It must however update the stack start, which would have
       // been done automatically if the isolate was properly re-entered.
-      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart(
-          v8::base::Stack::GetStackStart());
+      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart();
     }
     isolate_->Enter();
   }

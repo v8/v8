@@ -3554,7 +3554,7 @@ void Isolate::Delete(Isolate* isolate) {
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
-  isolate->heap()->SetStackStart(base::Stack::GetStackStart());
+  isolate->heap()->SetStackStart();
 
   isolate->Deinit();
 
@@ -5034,7 +5034,7 @@ void Isolate::Enter() {
 #endif
 
   // Set the stack start for the main thread that enters the isolate.
-  heap()->SetStackStart(base::Stack::GetStackStart());
+  heap()->SetStackStart();
 
   if (current_data != nullptr) {
     current_isolate = current_data->isolate_;

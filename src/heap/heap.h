@@ -1113,7 +1113,8 @@ class Heap final {
 
   std::optional<StackState> overridden_stack_state() const;
 
-  V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
+  // Set stack information from the stack of the current thread.
+  V8_EXPORT_PRIVATE void SetStackStart();
 
   // Stack information of the main thread.
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();

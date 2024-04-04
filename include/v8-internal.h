@@ -1435,10 +1435,6 @@ class HandleHelper final {
     if (rhs.IsEmpty()) return false;
     return lhs.ptr() == rhs.ptr();
   }
-
-  static V8_EXPORT bool IsOnStack(const void* ptr);
-  static V8_EXPORT void VerifyOnStack(const void* ptr);
-  static V8_EXPORT void VerifyOnMainThread();
 };
 
 V8_EXPORT void VerifyHandleIsNonEmpty(bool is_empty);
