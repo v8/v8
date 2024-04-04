@@ -345,10 +345,20 @@ class MachineOptimizationReducer : public Next {
         }
       }
     }
-    if (const ConstantOp* cst = matcher.TryCast<ConstantOp>(input);
-        cst && cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
-      if (Smi::IsValid(cst->integral())) {
-        return __ SmiConstant(static_cast<intptr_t>(cst->integral()));
+    if (const ConstantOp* cst = matcher.TryCast<ConstantOp>(input)) {
+      // Try to constant-fold Word constant -> Tagged (Smi).
+      if (cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
+        if (Smi::IsValid(cst->integral())) {
+          return __ SmiConstant(static_cast<intptr_t>(cst->integral()));
+        }
+      }
+      // Try to constant-fold Smi -> Untagged.
+      if (cst->kind == ConstantOp::Kind::kSmi) {
+        if (to == RegisterRepresentation::Word32()) {
+          return __ Word32Constant(static_cast<uint32_t>(cst->smi().ptr()));
+        } else if (to == RegisterRepresentation::Word64()) {
+          return __ Word64Constant(static_cast<uint64_t>(cst->smi().ptr()));
+        }
       }
     }
     return Next::ReduceTaggedBitcast(input, from, to, kind);

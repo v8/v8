@@ -1048,10 +1048,14 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
     case ConstantOp::Kind::kSmi:
       if constexpr (Is64()) {
         return AddNode(
-            common.Int64Constant(static_cast<int64_t>(op.smi().ptr())), {});
+            machine.BitcastWordToTaggedSigned(),
+            {AddNode(common.Int64Constant(static_cast<int64_t>(op.smi().ptr())),
+                     {})});
       } else {
         return AddNode(
-            common.Int32Constant(static_cast<int32_t>(op.smi().ptr())), {});
+            machine.BitcastWordToTaggedSigned(),
+            {AddNode(common.Int32Constant(static_cast<int32_t>(op.smi().ptr())),
+                     {})});
       }
     case ConstantOp::Kind::kExternal:
       return AddNode(common.ExternalConstant(op.external_reference()), {});

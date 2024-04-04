@@ -127,6 +127,11 @@
   'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
+
+  # TODO(nicohartmann@): Turboshaft's LateLoadElimination is currently not able
+  # to verify this tests assumptions (static_assert). We should improve it and
+  # reenable this test.
+  'test-torque/TestLoadEliminationVariable': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

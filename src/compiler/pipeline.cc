@@ -181,7 +181,8 @@ class PipelineImpl final {
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
   turboshaft::PipelineData GetTurboshaftPipelineData(
-      turboshaft::TurboshaftPipelineKind kind);
+      turboshaft::TurboshaftPipelineKind kind,
+      turboshaft::Graph* graph = nullptr);
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void Revectorize();
@@ -2750,6 +2751,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     data.set_profile_data(profile_data);
   }
 
+  const bool build_with_turboshaft_instruction_selection =
+      v8_flags.turboshaft_csa && v8_flags.turboshaft_instruction_selection;
   if (!v8_flags.turboshaft_csa) {
     pipeline.Run<CsaEarlyOptimizationPhase>();
     pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
@@ -2775,12 +2778,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
+  base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline;
   if (v8_flags.turboshaft_csa) {
     UnparkedScopeIfNeeded scope(data.broker(),
                                 v8_flags.turboshaft_trace_reduction);
-    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
-        data.GetTurboshaftPipelineData(
-            turboshaft::TurboshaftPipelineKind::kCSA));
+    turboshaft_pipeline.emplace(data.GetTurboshaftPipelineData(
+        turboshaft::TurboshaftPipelineKind::kCSA));
     turboshaft::Tracing::Scope tracing_scope(data.info());
 
     Linkage linkage(call_descriptor);
@@ -2801,12 +2804,14 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     // representations.
     pipeline.Run<turboshaft::DecompressionOptimizationPhase>();
 
-    auto [new_graph, new_schedule] =
-        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
-    data.set_graph(new_graph);
-    data.set_schedule(new_schedule);
-    TraceSchedule(data.info(), &data, data.schedule(),
-                  turboshaft::RecreateSchedulePhase::phase_name());
+    if (!build_with_turboshaft_instruction_selection) {
+      auto [new_graph, new_schedule] =
+          pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+      data.set_graph(new_graph);
+      data.set_schedule(new_schedule);
+      TraceSchedule(data.info(), &data, data.schedule(),
+                    turboshaft::RecreateSchedulePhase::phase_name());
+    }
   }
 
   // First run code generation on a copy of the pipeline, in order to be able to
@@ -2821,7 +2826,15 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                                 isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(v8_flags.verify_csa);
   PipelineImpl second_pipeline(&second_data);
-  second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
+  base::Optional<turboshaft::PipelineData::Scope> second_turboshaft_pipeline;
+  if (build_with_turboshaft_instruction_selection) {
+    second_turboshaft_pipeline.emplace(
+        second_pipeline.GetTurboshaftPipelineData(
+            turboshaft::TurboshaftPipelineKind::kCSA,
+            &turboshaft_pipeline->Value().graph()));
+  }
+  second_pipeline.SelectInstructionsAndAssemble(
+      call_descriptor, build_with_turboshaft_instruction_selection);
 
   if (v8_flags.turbo_profiling) {
     info.profiler_data()->SetHash(initial_graph_hash);
@@ -2829,7 +2842,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
-    return pipeline.GenerateCode(call_descriptor);
+    if (build_with_turboshaft_instruction_selection) {
+      DCHECK(second_turboshaft_pipeline->Value().graph_has_special_rpo());
+      second_turboshaft_pipeline.reset();
+      turboshaft_pipeline->Value().set_graph_has_special_rpo();
+    }
+    return pipeline.GenerateCode(call_descriptor,
+                                 build_with_turboshaft_instruction_selection);
   } else {
     return second_pipeline.FinalizeCode();
   }
@@ -3709,8 +3728,8 @@ void PipelineImpl::ComputeScheduledGraph() {
 }
 
 turboshaft::PipelineData PipelineImpl::GetTurboshaftPipelineData(
-    turboshaft::TurboshaftPipelineKind kind) {
-  return data_->GetTurboshaftPipelineData(kind);
+    turboshaft::TurboshaftPipelineKind kind, turboshaft::Graph* graph) {
+  return data_->GetTurboshaftPipelineData(kind, graph);
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC

@@ -257,13 +257,14 @@ class PipelineData {
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
   turboshaft::PipelineData& GetTurboshaftPipelineData(
-      turboshaft::TurboshaftPipelineKind kind) {
+      turboshaft::TurboshaftPipelineKind kind,
+      turboshaft::Graph* graph = nullptr) {
     if (!ts_data_.has_value()) {
       ts_data_.emplace(kind, info_, schedule_, graph_zone_, info_->zone(),
                        broker_, isolate_, source_positions_, node_origins_,
                        sequence_, frame_, assembler_options_,
                        &max_unoptimized_frame_height_,
-                       &max_pushed_argument_count_, instruction_zone_);
+                       &max_pushed_argument_count_, instruction_zone_, graph);
     }
     return ts_data_.value();
   }

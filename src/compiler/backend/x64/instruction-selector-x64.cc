@@ -1609,10 +1609,8 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      node_t tag = store.indirect_pointer_tag();
-      auto tag_constant = selector->constant_view(tag);
-      DCHECK(tag_constant.is_int64());
-      inputs[input_count++] = g.UseImmediate64(tag_constant.int64_value());
+      IndirectPointerTag tag = store.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else {
       code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
@@ -5017,30 +5015,44 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  X64OperandGeneratorT<TurboshaftAdapter> g(this);
+  const auto& bitcast =
+      this->Cast<turboshaft::BitcastWord32PairToFloat64Op>(node);
+  node_t hi = bitcast.high_word32();
+  node_t lo = bitcast.low_word32();
+
+  // TODO(nicohartmann@): We could try to emit a better sequence here.
+  InstructionOperand zero = sequence()->AddImmediate(Constant(0.0));
+  InstructionOperand temp = g.TempDoubleRegister();
+  Emit(kSSEFloat64InsertHighWord32, temp, zero, g.Use(hi));
+  Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node), temp, g.Use(lo));
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64InsertLowWord32(
+    node_t node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 2);
   node_t left = this->input_at(node, 0);
   node_t right = this->input_at(node, 1);
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Might want to provide this optimization for
-    // turboshaft.
-  } else {
-    Float64Matcher mleft(left);
-    if (mleft.HasResolvedValue() &&
-        (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
-      Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
-      return;
-    }
+  Float64Matcher mleft(left);
+  if (mleft.HasResolvedValue() &&
+      (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
+    Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+    return;
   }
   Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64InsertHighWord32(
+    node_t node) {
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 2);
   node_t left = this->input_at(node, 0);
   node_t right = this->input_at(node, 1);

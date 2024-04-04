@@ -62,6 +62,7 @@ struct GraphBuilder {
   SourcePositionTable* source_positions =
       PipelineData::Get().source_positions();
   NodeOriginTable* origins = PipelineData::Get().node_origins();
+  TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
 
   struct BlockData {
     Block* block;
@@ -482,8 +483,6 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Word32Ror, Word32RotateRight)
       BINOP_CASE(Word64Ror, Word64RotateRight)
 
-      BINOP_CASE(Word32Equal, Word32Equal)
-      BINOP_CASE(Word64Equal, Word64Equal)
       BINOP_CASE(Float32Equal, Float32Equal)
       BINOP_CASE(Float64Equal, Float64Equal)
 
@@ -508,6 +507,70 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
       BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
 #undef BINOP_CASE
+
+    case IrOpcode::kWord32Equal: {
+      OpIndex left = Map(node->InputAt(0));
+      OpIndex right = Map(node->InputAt(1));
+      if constexpr (kTaggedSize == kInt32Size) {
+        // Unfortunately, CSA produces Word32Equal for tagged comparison.
+        if (V8_UNLIKELY(pipeline_kind == TurboshaftPipelineKind::kCSA)) {
+          // We need to detect these cases and construct a consistent graph.
+          const bool left_is_tagged =
+              __ output_graph().Get(left).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          const bool right_is_tagged =
+              __ output_graph().Get(right).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          if (left_is_tagged && right_is_tagged) {
+            return __ TaggedEqual(V<Object>::Cast(left),
+                                  V<Object>::Cast(right));
+          } else if (left_is_tagged) {
+            return __ Word32Equal(
+                __ TruncateWordPtrToWord32(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(left))),
+                V<Word32>::Cast(right));
+          } else if (right_is_tagged) {
+            return __ Word32Equal(
+                V<Word32>::Cast(left),
+                __ TruncateWordPtrToWord32(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(right))));
+          }
+        }
+      }
+      return __ Word32Equal(V<Word32>::Cast(left), V<Word32>::Cast(right));
+    }
+
+    case IrOpcode::kWord64Equal: {
+      OpIndex left = Map(node->InputAt(0));
+      OpIndex right = Map(node->InputAt(1));
+      if constexpr (kTaggedSize == kInt64Size) {
+        // Unfortunately, CSA produces Word32Equal for tagged comparison.
+        if (V8_UNLIKELY(pipeline_kind == TurboshaftPipelineKind::kCSA)) {
+          // We need to detect these cases and construct a consistent graph.
+          const bool left_is_tagged =
+              __ output_graph().Get(left).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          const bool right_is_tagged =
+              __ output_graph().Get(right).outputs_rep().at(0) ==
+              RegisterRepresentation::Tagged();
+          if (left_is_tagged && right_is_tagged) {
+            return __ TaggedEqual(V<Object>::Cast(left),
+                                  V<Object>::Cast(right));
+          } else if (left_is_tagged) {
+            DCHECK((std::is_same_v<WordPtr, Word64>));
+            return __ Word64Equal(V<Word64>::Cast(__ BitcastTaggedToWordPtr(
+                                      V<Object>::Cast(left))),
+                                  V<Word64>::Cast(right));
+          } else if (right_is_tagged) {
+            DCHECK((std::is_same_v<WordPtr, Word64>));
+            return __ Word64Equal(V<Word64>::Cast(left),
+                                  V<Word64>::Cast(__ BitcastTaggedToWordPtr(
+                                      V<Object>::Cast(right))));
+          }
+        }
+      }
+      return __ Word64Equal(V<Word64>::Cast(left), V<Word64>::Cast(right));
+    }
 
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord32Sar: {
@@ -1098,7 +1161,7 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore: {
       OpIndex base = Map(node->InputAt(0));
-      if (PipelineData::Get().pipeline_kind() == TurboshaftPipelineKind::kCSA) {
+      if (pipeline_kind == TurboshaftPipelineKind::kCSA) {
         // TODO(nicohartmann@): This is currently required to properly compile
         // builtins. We should fix them and remove this.
         if (__ output_graph().Get(base).outputs_rep()[0] ==
@@ -1345,17 +1408,9 @@ OpIndex GraphBuilder::Process(
       return __ Projection(Map(input), index, rep);
     }
 
-    case IrOpcode::kStaticAssert: {
-      if (V8_UNLIKELY(PipelineData::Get().pipeline_kind() ==
-                      TurboshaftPipelineKind::kCSA)) {
-        // TODO(nicohartmann@): CSA code contains some static asserts (even in
-        // release builds) that we cannot prove currently, so we skip them here
-        // for now.
-        return OpIndex::Invalid();
-      }
+    case IrOpcode::kStaticAssert:
       __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();
-    }
 
     case IrOpcode::kAllocate: {
       AllocationType allocation = AllocationTypeOf(node->op());
@@ -2029,8 +2084,7 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
       // Currently this is only used by the CSA pipeline.
-      DCHECK_EQ(PipelineData::Get().pipeline_kind(),
-                TurboshaftPipelineKind::kCSA);
+      DCHECK_EQ(pipeline_kind, TurboshaftPipelineKind::kCSA);
       return __ BitcastTaggedToWordPtrForTagAndSmiBits(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTaggedSigned:
       return __ BitcastWordPtrToSmi(Map(node->InputAt(0)));
@@ -2263,6 +2317,43 @@ OpIndex GraphBuilder::Process(
       __ StackCheck(StackCheckOp::CheckOrigin::kFromJS,
                     StackCheckOp::CheckKind::kFunctionHeaderCheck);
       return OpIndex::Invalid();
+    }
+
+    case IrOpcode::kInt32PairAdd:
+    case IrOpcode::kInt32PairSub:
+    case IrOpcode::kInt32PairMul:
+    case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairSar:
+    case IrOpcode::kWord32PairShr: {
+      V<Word32> left_low = Map(node->InputAt(0));
+      V<Word32> left_high = Map(node->InputAt(1));
+      V<Word32> right_low = Map(node->InputAt(2));
+      V<Word32> right_high = Map(node->InputAt(3));
+      Word32PairBinopOp::Kind kind;
+      switch (node->opcode()) {
+        case IrOpcode::kInt32PairAdd:
+          kind = Word32PairBinopOp::Kind::kAdd;
+          break;
+        case IrOpcode::kInt32PairSub:
+          kind = Word32PairBinopOp::Kind::kSub;
+          break;
+        case IrOpcode::kInt32PairMul:
+          kind = Word32PairBinopOp::Kind::kMul;
+          break;
+        case IrOpcode::kWord32PairShl:
+          kind = Word32PairBinopOp::Kind::kShiftLeft;
+          break;
+        case IrOpcode::kWord32PairSar:
+          kind = Word32PairBinopOp::Kind::kShiftRightArithmetic;
+          break;
+        case IrOpcode::kWord32PairShr:
+          kind = Word32PairBinopOp::Kind::kShiftRightLogical;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      return __ Word32PairBinop(left_low, left_high, right_low, right_high,
+                                kind);
     }
 
     default:
