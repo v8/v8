@@ -617,8 +617,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringNewWtf16Array : public Descriptor<WasmStringNewWtf16Array> {
@@ -630,8 +631,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringViewWtf8Slice : public Descriptor<WasmStringViewWtf8Slice> {
@@ -695,8 +697,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmFloat64ToString : public Descriptor<WasmFloat64ToString> {
