@@ -3788,14 +3788,14 @@ struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
-  OpIndex throwing_operation() const { return input(0); }
+  V<Any> throwing_operation() const { return input<Any>(0); }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
   }
 
-  CheckExceptionOp(OpIndex throwing_operation, Block* successor,
+  CheckExceptionOp(V<Any> throwing_operation, Block* successor,
                    Block* catch_block)
       : Base(throwing_operation),
         didnt_throw_block(successor),

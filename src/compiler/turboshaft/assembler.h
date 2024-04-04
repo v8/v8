@@ -1019,13 +1019,13 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   // automatically by `CatchIfInCatchScope` and `DoNotCatch` defined below and
   // never explicitly.
   using Base::ReduceDidntThrow;
-  OpIndex REDUCE(CheckException)(OpIndex throwing_operation, Block* successor,
+  V<None> REDUCE(CheckException)(V<Any> throwing_operation, Block* successor,
                                  Block* catch_block) {
     // {successor} and {catch_block} should never be the same.  AddPredecessor
     // and SplitEdge rely on this.
     DCHECK_NE(successor, catch_block);
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex =
+    V<None> new_opindex =
         Base::ReduceCheckException(throwing_operation, successor, catch_block);
     Asm().AddPredecessor(saved_current_block, successor, true);
     Asm().AddPredecessor(saved_current_block, catch_block, true);

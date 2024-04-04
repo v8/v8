@@ -1779,7 +1779,8 @@ bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
 void CheckExceptionOp::Validate(const Graph& graph) const {
   DCHECK_NE(didnt_throw_block, catch_block);
   // `CheckException` should follow right after the throwing operation.
-  DCHECK_EQ(throwing_operation(), graph.PreviousIndex(graph.Index(*this)));
+  DCHECK_EQ(throwing_operation(),
+            V<Any>::Cast(graph.PreviousIndex(graph.Index(*this))));
 }
 
 namespace {

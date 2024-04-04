@@ -852,7 +852,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     }
     return result;
   }
-  OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
+
+  V<None> AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
     Graph::OpIndexIterator it(op.didnt_throw_block->begin(),
                               &Asm().input_graph());
     Graph::OpIndexIterator end(op.didnt_throw_block->end(),
@@ -868,7 +869,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       CatchScope scope(Asm(), MapToNewGraph(op.catch_block));
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
-        return OpIndex::Invalid();
+        return V<None>::Invalid();
       }
       ++it;
     }
@@ -880,7 +881,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         break;
       }
     }
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
