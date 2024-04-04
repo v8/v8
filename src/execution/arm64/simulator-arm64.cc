@@ -17,6 +17,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -771,6 +772,24 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       ObjectPair result = UnsafeGenericFunctionCall(
           external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
           arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
+#ifdef V8_USE_MEMORY_SANITIZER
+      // `UnsafeGenericFunctionCall()` dispatches calls to functions with
+      // varying signatures and relies on the fact that the mismatched prototype
+      // used by the caller and the prototype used by the callee (defined using
+      // the `RUNTIME_FUNCTION*()` macros happen to line up so that things more
+      // or less work out [1].
+      //
+      // Unfortunately, this confuses MSan's uninit tracking with eager checks
+      // enabled; it's unclear if these are all false positives or if there are
+      // legitimate reports. For now, unconditionally unpoison `result` to
+      // unblock finding and fixing more violations with MSan eager checks.
+      //
+      // TODO(crbug.com/v8/14712): Fix the MSan violations and migrate to
+      // something like crrev.com/c/5422076 instead.
+      //
+      // [1] Yes, this is undefined behaviour. 🙈🙉🙊
+      MSAN_MEMORY_IS_INITIALIZED(&result, sizeof(result));
+#endif
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
