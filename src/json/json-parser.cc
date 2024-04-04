@@ -138,12 +138,8 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
   JSObject::AddProperty(isolate, holder, name, result, NONE);
-  if (v8_flags.harmony_json_parse_with_source) {
-    return internalizer.InternalizeJsonProperty<kWithSource>(
-        holder, name, val_node.ToHandleChecked(), result);
-  }
-  return internalizer.InternalizeJsonProperty<kWithoutSource>(
-      holder, name, Handle<Object>(), Handle<Object>());
+  return internalizer.InternalizeJsonProperty<kWithSource>(
+      holder, name, val_node.ToHandleChecked(), result);
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -259,8 +255,6 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     }
   }
 
-  Handle<Object> result;
-  if (v8_flags.harmony_json_parse_with_source) {
     Handle<JSObject> context =
         isolate_->factory()->NewJSObject(isolate_->object_function());
     if (pass_source_to_reviver && IsString(*val_node)) {
@@ -270,15 +264,10 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           .Check();
     }
     Handle<Object> argv[] = {name, value, context};
+    Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv),
         Object);
-  } else {
-    Handle<Object> argv[] = {name, value};
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 2, argv),
-        Object);
-  }
   return outer_scope.CloseAndEscape(result);
 }
 
@@ -544,8 +533,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
   Handle<Object> result;
   // Only record the val node when reviver is callable.
   bool reviver_is_callable = IsCallable(*reviver);
-  bool should_track_json_source =
-      v8_flags.harmony_json_parse_with_source && reviver_is_callable;
+  bool should_track_json_source = reviver_is_callable;
   if (V8_UNLIKELY(should_track_json_source)) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValue<true>(),
                                Object);

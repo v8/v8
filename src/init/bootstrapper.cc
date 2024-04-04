@@ -3540,6 +3540,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- J S O N
+    Handle<Map> raw_json_map = factory->NewContextfulMapForCurrentContext(
+        JS_RAW_JSON_TYPE, JSRawJson::kInitialSize, TERMINAL_FAST_ELEMENTS_KIND,
+        1);
+    Map::EnsureDescriptorSlack(isolate_, raw_json_map, 1);
+    {
+      Descriptor d = Descriptor::DataField(
+          isolate(), factory->raw_json_string(),
+          JSRawJson::kRawJsonInitialIndex, NONE, Representation::Tagged());
+      raw_json_map->AppendDescriptor(isolate(), &d);
+    }
+    raw_json_map->SetPrototype(isolate(), raw_json_map, factory->null_value());
+    raw_json_map->SetConstructor(native_context()->object_function());
+    native_context()->set_js_raw_json_map(*raw_json_map);
+
     Handle<JSObject> json_object =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "JSON", json_object, DONT_ENUM);
@@ -3547,6 +3561,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           2, false);
     SimpleInstallFunction(isolate_, json_object, "stringify",
                           Builtin::kJsonStringify, 3, true);
+    SimpleInstallFunction(isolate_, json_object, "rawJSON",
+                          Builtin::kJsonRawJson, 1, true);
+    SimpleInstallFunction(isolate_, json_object, "isRawJSON",
+                          Builtin::kJsonIsRawJson, 1, true);
     InstallToStringTag(isolate_, json_object, "JSON");
     native_context()->set_json_object(*json_object);
   }
@@ -5524,33 +5542,6 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
   // having been modified from its initial state. So, after adding new methods,
   // we should reset the Set.prototype initial map.
   native_context()->set_initial_set_prototype_map(set_prototype->map());
-}
-
-void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
-  if (!v8_flags.harmony_json_parse_with_source) return;
-  Handle<Map> map = factory()->NewContextfulMapForCurrentContext(
-      JS_RAW_JSON_TYPE, JSRawJson::kInitialSize, TERMINAL_FAST_ELEMENTS_KIND,
-      1);
-  Map::EnsureDescriptorSlack(isolate_, map, 1);
-  {
-    Descriptor d = Descriptor::DataField(
-        isolate(), factory()->raw_json_string(),
-        JSRawJson::kRawJsonInitialIndex, NONE, Representation::Tagged());
-    map->AppendDescriptor(isolate(), &d);
-  }
-  map->SetPrototype(isolate(), map, isolate()->factory()->null_value());
-  map->SetConstructor(native_context()->object_function());
-  native_context()->set_js_raw_json_map(*map);
-  // TODO(v8:12955): Remove the LOG after the flag is removed and this map goes
-  // into the startup snapshot. It is needed for the
-  // LogMapsTest.LogMapsDetailsContexts unittest.
-  LOG(isolate(), MapDetails(*map));
-  SimpleInstallFunction(isolate_,
-                        handle(native_context()->json_object(), isolate_),
-                        "rawJSON", Builtin::kJsonRawJson, 1, true);
-  SimpleInstallFunction(isolate_,
-                        handle(native_context()->json_object(), isolate_),
-                        "isRawJSON", Builtin::kJsonIsRawJson, 1, true);
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {

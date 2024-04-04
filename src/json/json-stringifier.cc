@@ -884,7 +884,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case SYMBOL_TYPE:
       return UNCHANGED;
     case JS_RAW_JSON_TYPE:
-      DCHECK(v8_flags.harmony_json_parse_with_source);
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       {
         Handle<JSRawJson> raw_json_obj = Handle<JSRawJson>::cast(object);
