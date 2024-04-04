@@ -583,7 +583,7 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
 
 DEFINE_UINT(
-    concurrent_maglev_max_threads, 1,
+    concurrent_maglev_max_threads, 2,
     "max number of threads that concurrent Maglev can use (0 for unbounded)")
 DEFINE_BOOL(concurrent_maglev_high_priority_threads, false,
             "use high priority compiler threads for concurrent Maglev")
@@ -1047,7 +1047,7 @@ DEFINE_BOOL(concurrent_recompilation_front_running, true,
             "move compile jobs to the front if recompilation is requested "
             "multiple times")
 DEFINE_UINT(
-    concurrent_turbofan_max_threads, 0,
+    concurrent_turbofan_max_threads, 4,
     "max number of threads that concurrent Turbofan can use (0 for unbounded)")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,
