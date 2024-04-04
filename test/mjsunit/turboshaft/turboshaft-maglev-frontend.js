@@ -771,6 +771,7 @@ assertOptimized(simple_loop);
   assertEquals(66, forin(o));
   %OptimizeFunctionOnNextCall(forin);
   assertEquals(66, forin(o));
+  assertOptimized(forin);
 }
 
 // Testing loops with multiple forward edges.

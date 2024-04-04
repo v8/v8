@@ -789,16 +789,17 @@ class GraphBuilder {
       // Otherwise, an empty array with non-zero required length is not valid.
       V<Word32> condition =
           RootEqual(node->indices_input(), RootIndex::kEmptyFixedArray);
-      __ DeoptimizeIfNot(condition, BuildFrameState(node->eager_deopt_info()),
-                         DeoptimizeReason::kWrongEnumIndices,
-                         node->eager_deopt_info()->feedback_to_update());
+      __ DeoptimizeIf(condition, BuildFrameState(node->eager_deopt_info()),
+                      DeoptimizeReason::kWrongEnumIndices,
+                      node->eager_deopt_info()->feedback_to_update());
     }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadTaggedFieldByFieldIndex* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ LoadFieldByIndex(Map(node->object_input()),
-                                     Map(node->index_input())));
+    SetMap(node,
+           __ LoadFieldByIndex(Map(node->object_input()),
+                               __ UntagSmi(Map<Smi>(node->index_input()))));
     return maglev::ProcessResult::kContinue;
   }
 
