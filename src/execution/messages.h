@@ -86,8 +86,14 @@ class ErrorUtils : public AllStatic {
       Handle<Object> message, Handle<Object> options, FrameSkipMode mode,
       Handle<Object> caller, StackTraceCollection stack_trace_collection);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<String> ToString(Isolate* isolate,
-                                                        Handle<Object> recv);
+  enum class ToStringMessageSource {
+    kPreferOriginalMessage,
+    kCurrentMessageProperty
+  };
+  V8_EXPORT_PRIVATE static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<Object> recv,
+      ToStringMessageSource message_source =
+          ToStringMessageSource::kCurrentMessageProperty);
 
   static Handle<JSObject> MakeGenericError(
       Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,

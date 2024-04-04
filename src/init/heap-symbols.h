@@ -499,6 +499,7 @@
   V(_, class_fields_symbol)                               \
   V(_, class_positions_symbol)                            \
   V(_, error_end_pos_symbol)                              \
+  V(_, error_message_symbol)                              \
   V(_, error_script_symbol)                               \
   V(_, error_stack_symbol)                                \
   V(_, error_start_pos_symbol)                            \

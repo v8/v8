@@ -2246,6 +2246,10 @@ DEFINE_INT(max_stack_trace_source_length, 300,
 DEFINE_BOOL(clear_exceptions_on_js_entry, false,
             "clear exceptions when entering JavaScript")
 
+DEFINE_BOOL(use_original_message_for_stack_trace, true,
+            "use the message with which the Error constructor was called "
+            "rather than the value of the \"message\" property for Error.stack")
+
 // counters.cc
 DEFINE_INT(histogram_interval, 600000,
            "time interval in ms for aggregating memory histograms")

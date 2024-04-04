@@ -1550,13 +1550,21 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   }
 
   Handle<Map> initial_map(error_fun->initial_map(), isolate);
-  Map::EnsureDescriptorSlack(isolate, initial_map, 2);
+  Map::EnsureDescriptorSlack(isolate, initial_map, 3);
   const int kJSErrorErrorStackSymbolIndex = 0;
+  const int kJSErrorErrorMessageSymbolIndex = 1;
 
   {  // error_stack_symbol
     Descriptor d = Descriptor::DataField(isolate, factory->error_stack_symbol(),
                                          kJSErrorErrorStackSymbolIndex,
                                          DONT_ENUM, Representation::Tagged());
+    initial_map->AppendDescriptor(isolate, &d);
+  }
+  {
+    // error_message_symbol
+    Descriptor d = Descriptor::DataField(
+        isolate, factory->error_message_symbol(),
+        kJSErrorErrorMessageSymbolIndex, DONT_ENUM, Representation::Tagged());
     initial_map->AppendDescriptor(isolate, &d);
   }
   {  // stack
