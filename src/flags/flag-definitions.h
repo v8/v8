@@ -1989,6 +1989,7 @@ DEFINE_BOOL(cppheap_concurrent_marking, false,
             "use concurrent marking for CppHeap")
 DEFINE_NEG_NEG_IMPLICATION(cppheap_incremental_marking,
                            cppheap_concurrent_marking)
+DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
 DEFINE_WEAK_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
 
 DEFINE_BOOL(memory_balancer, false,
