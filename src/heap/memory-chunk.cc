@@ -42,6 +42,7 @@ void MemoryChunk::InitializationMemoryFence() {
   // to tell TSAN that there is no data race when emitting a
   // InitializationMemoryFence. Note that the other thread still needs to
   // perform MutablePageMetadata::synchronized_heap().
+  RwxMemoryWriteScope scope("TSAN only InitializationMemoryFence");
   metadata_->SynchronizedHeapStore();
   base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),
                       reinterpret_cast<base::AtomicWord>(metadata_));
