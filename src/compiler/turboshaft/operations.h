@@ -6749,11 +6749,11 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
           .CanDependOnChecks()
           .CanReadMemory();
 
-  ArrayGetOp(V<WasmArray> array, V<Word32> index,
+  ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
              const wasm::ArrayType* array_type, bool is_signed)
       : Base(array, index), is_signed(is_signed), array_type(array_type) {}
 
-  V<WasmArray> array() const { return input<WasmArray>(0); }
+  V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6782,11 +6782,11 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
           .CanDependOnChecks()
           .CanWriteMemory();
 
-  ArraySetOp(V<WasmArray> array, V<Word32> index, V<Any> value,
+  ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
              wasm::ValueType element_type)
       : Base(array, index, value), element_type(element_type) {}
 
-  V<WasmArray> array() const { return input<WasmArray>(0); }
+  V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
   V<Any> value() const { return input<Any>(2); }
 
@@ -6820,10 +6820,10 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
     return result;
   }
 
-  explicit ArrayLengthOp(V<WasmArray> array, CheckForNull null_check)
+  explicit ArrayLengthOp(V<WasmArrayNullable> array, CheckForNull null_check)
       : Base(array), null_check(null_check) {}
 
-  V<WasmArray> array() const { return input<WasmArray>(0); }
+  V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();

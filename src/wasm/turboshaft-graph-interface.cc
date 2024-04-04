@@ -64,6 +64,7 @@ using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
+using compiler::turboshaft::WasmArrayNullable;
 using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
@@ -3547,42 +3548,43 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
-    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    result->op =
-        __ ArrayGet(V<WasmArray>::Cast(array_obj.op), V<Word32>::Cast(index.op),
-                    imm.array_type, is_signed);
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    result->op = __ ArrayGet(array_value, V<Word32>::Cast(index.op),
+                             imm.array_type, is_signed);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
-    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    __ ArraySet(V<WasmArray>::Cast(array_obj.op), V<Word32>::Cast(index.op),
-                V<Any>::Cast(value.op), imm.array_type->element_type());
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    __ ArraySet(array_value, V<Word32>::Cast(index.op), V<Any>::Cast(value.op),
+                imm.array_type->element_type());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    result->op =
-        __ ArrayLength(array_obj.op, array_obj.type.is_nullable()
-                                         ? compiler::kWithNullCheck
-                                         : compiler::kWithoutNullCheck);
+    result->op = __ ArrayLength(V<WasmArrayNullable>::Cast(array_obj.op),
+                                array_obj.type.is_nullable()
+                                    ? compiler::kWithNullCheck
+                                    : compiler::kWithoutNullCheck);
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const ArrayIndexImmediate& src_imm, const Value& length) {
-    BoundsCheckArrayWithLength(dst.op, dst_index.op, length.op,
+    V<WasmArrayNullable> src_array = V<WasmArrayNullable>::Cast(src.op);
+    V<WasmArrayNullable> dst_array = V<WasmArrayNullable>::Cast(dst.op);
+    BoundsCheckArrayWithLength(dst_array, dst_index.op, length.op,
                                dst.type.is_nullable()
                                    ? compiler::kWithNullCheck
                                    : compiler::kWithoutNullCheck);
-    BoundsCheckArrayWithLength(src.op, src_index.op, length.op,
+    BoundsCheckArrayWithLength(src_array, src_index.op, length.op,
                                src.type.is_nullable()
                                    ? compiler::kWithNullCheck
                                    : compiler::kWithoutNullCheck);
 
     ValueType element_type = src_imm.array_type->element_type();
-    V<WasmArray> src_array = V<WasmArray>::Cast(src.op);
-    V<WasmArray> dst_array = V<WasmArray>::Cast(dst.op);
 
     IF_NOT (__ Word32Equal(length.op, 0)) {
       // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
@@ -3667,11 +3669,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                  const Value& length) {
     const bool emit_write_barrier =
         imm.array_type->element_type().is_reference();
-    BoundsCheckArrayWithLength(array.op, index.op, length.op,
-                               array.type.is_nullable()
-                                   ? compiler::kWithNullCheck
-                                   : compiler::kWithoutNullCheck);
-    ArrayFillImpl(V<WasmArray>::Cast(array.op), V<Word32>::Cast(index.op),
+    auto array_value = V<WasmArrayNullable>::Cast(array.op);
+    V<WasmArray> array_not_null = BoundsCheckArrayWithLength(
+        array_value, index.op, length.op,
+        array.type.is_nullable() ? compiler::kWithNullCheck
+                                 : compiler::kWithoutNullCheck);
+    ArrayFillImpl(array_not_null, V<Word32>::Cast(index.op),
                   V<Any>::Cast(value.op), V<Word32>::Cast(length.op),
                   imm.array_type, emit_write_barrier);
   }
@@ -6913,7 +6916,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return result_op;
   }
 
-  void BoundsCheckArray(V<WasmArray> array, V<Word32> index,
+  void BoundsCheckArray(V<WasmArrayNullable> array, V<Word32> index,
                         ValueType array_type) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
@@ -6928,10 +6931,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  void BoundsCheckArrayWithLength(V<WasmArray> array, V<Word32> index,
-                                  V<Word32> length,
-                                  compiler::CheckForNull null_check) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
+  V<WasmArray> BoundsCheckArrayWithLength(V<WasmArrayNullable> array,
+                                          V<Word32> index, V<Word32> length,
+                                          compiler::CheckForNull null_check) {
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+      return V<WasmArray>::Cast(array);
+    }
     V<Word32> array_length = __ ArrayLength(array, null_check);
     V<Word32> range_end = __ Word32Add(index, length);
     V<Word32> range_valid = __ Word32BitwiseAnd(
@@ -6941,6 +6946,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ Uint32LessThanOrEqual(index, range_end));
     __ TrapIfNot(range_valid, OpIndex::Invalid(),
                  TrapId::kTrapArrayOutOfBounds);
+    // The array is now guaranteed to be non-null.
+    return V<WasmArray>::Cast(array);
   }
 
   void BrOnCastImpl(FullDecoder* decoder, V<Map> rtt,

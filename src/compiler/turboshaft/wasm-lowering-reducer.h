@@ -251,7 +251,7 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  V<Any> REDUCE(ArrayGet)(V<WasmArray> array, V<Word32> index,
+  V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
                           const wasm::ArrayType* array_type, bool is_signed) {
     bool is_mutable = array_type->mutability();
     LoadOp::Kind load_kind = is_mutable
@@ -263,8 +263,8 @@ class WasmLoweringReducer : public Next {
                    array_type->element_type().value_kind_size_log2());
   }
 
-  V<None> REDUCE(ArraySet)(V<WasmArray> array, V<Word32> index, V<Any> value,
-                           wasm::ValueType element_type) {
+  V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
+                           V<Any> value, wasm::ValueType element_type) {
     __ Store(array, __ ChangeInt32ToIntPtr(index), value,
              LoadOp::Kind::TaggedBase(), RepresentationFor(element_type, true),
              element_type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier,
@@ -272,7 +272,8 @@ class WasmLoweringReducer : public Next {
     return {};
   }
 
-  V<Word32> REDUCE(ArrayLength)(V<WasmArray> array, CheckForNull null_check) {
+  V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
+                                CheckForNull null_check) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
         null_check_strategy_ == NullCheckStrategy::kExplicit;

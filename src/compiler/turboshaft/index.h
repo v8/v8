@@ -468,6 +468,10 @@ using JSPrimitive = Union<Numeric, String, Symbol, Boolean, Null, Undefined>;
 using CallTarget = Union<WordPtr, Code>;
 using AnyOrNone = Union<Any, None>;
 
+#if V8_ENABLE_WEBASSEMBLY
+using WasmArrayNullable = Union<WasmArray, WasmNull>;
+#endif
+
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
 // representation classes (`Word32`, ...) defined above.
