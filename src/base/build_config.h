@@ -76,6 +76,8 @@ constexpr int kPageSizeBits = kHugePageBits;
 constexpr int kPageSizeBits = 18;
 #endif
 
+constexpr int kRegularPageSize = 1 << kPageSizeBits;
+
 // The minimal supported page size by the operation system. Any region aligned
 // to that size needs to be individually protectable via
 // {base::OS::SetPermission} and friends.

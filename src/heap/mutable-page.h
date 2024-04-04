@@ -46,7 +46,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
       MemoryChunkLayout::kSlotSetOffset;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
+  static const int kPageSize = kRegularPageSize;
 
   MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
                       Address area_start, Address area_end,
