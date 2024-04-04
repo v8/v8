@@ -433,6 +433,19 @@ class LiftoffCompiler {
   using Value = ValueBase<ValidationTag>;
   static constexpr bool kUsesPoppedArgs = false;
 
+  // Some constants for tier-up checks.
+  // In general we use the number of executed machine code bytes as an estimate
+  // of how much time was spent in this function.
+  // - {kTierUpCostForCheck} is the cost for checking for the tier-up itself,
+  //   which is added to the PC distance on every tier-up check. This cost is
+  //   for loading the tiering budget, subtracting from one entry in the array,
+  //   and the conditional branch if the value is negative.
+  // - {kTierUpCostForFunctionEntry} reflects the cost for calling the frame
+  //   setup stub in the function prologue (the time is spent in another code
+  //   object and hence not reflected in the PC distance).
+  static constexpr int kTierUpCostForCheck = 20;
+  static constexpr int kTierUpCostForFunctionEntry = 40;
+
   struct ElseState {
     explicit ElseState(Zone* zone) : label(zone), state(zone) {}
     MovableLabel label;
@@ -857,6 +870,7 @@ class LiftoffCompiler {
                    int budget_used) {
     if (for_debugging_ != kNotForDebugging) return;
     SCOPED_CODE_COMMENT("tierup check");
+    budget_used += kTierUpCostForCheck;
     // We never want to blow the entire budget at once.
     const int max_budget_use = std::max(1, v8_flags.wasm_tiering_budget / 4);
     if (budget_used > max_budget_use) budget_used = max_budget_use;
@@ -2669,7 +2683,8 @@ class LiftoffCompiler {
 
   void TierupCheckOnTailCall(FullDecoder* decoder) {
     if (!dynamic_tiering()) return;
-    TierupCheck(decoder, decoder->position(), __ pc_offset());
+    TierupCheck(decoder, decoder->position(),
+                __ pc_offset() + kTierUpCostForFunctionEntry);
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t /* drop values */) {
@@ -2679,7 +2694,8 @@ class LiftoffCompiler {
   void ReturnImpl(FullDecoder* decoder) {
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionExit(decoder);
     if (dynamic_tiering()) {
-      TierupCheck(decoder, decoder->position(), __ pc_offset());
+      TierupCheck(decoder, decoder->position(),
+                  __ pc_offset() + kTierUpCostForFunctionEntry);
     }
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
@@ -3013,11 +3029,7 @@ class LiftoffCompiler {
       if (target->is_loop()) {
         DCHECK(target->label.get()->is_bound());
         int jump_distance = __ pc_offset() - target->label.get()->pos();
-        // For now we just add one as the cost for the tier up check. We might
-        // want to revisit this when tuning tiering budgets later.
-        const int kTierUpCheckCost = 1;
-        TierupCheck(decoder, decoder->position(),
-                    jump_distance + kTierUpCheckCost);
+        TierupCheck(decoder, decoder->position(), jump_distance);
       } else {
         // To estimate time spent in this function more accurately, we could
         // increment the tiering budget on forward jumps. However, we don't
