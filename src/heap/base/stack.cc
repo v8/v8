@@ -163,8 +163,6 @@ void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
     // TODO(v8:13493): If inactive stacks are used again, consider iterating
     // pointers in the unsafe stack here.
   }
-
-  IterateBackgroundStacks(visitor);
 }
 
 void Stack::IterateBackgroundStacks(StackVisitor* visitor) const {
