@@ -237,6 +237,17 @@ assertOptimized(simple_loop);
   assertEquals(3.41, load_holey_fixed_double(holey_double_arr, 1));
   assertEquals(undefined, load_holey_fixed_double(holey_double_arr, 2));
   assertOptimized(load_holey_fixed_double);
+
+  function load_hole(arr, idx) {
+    return arr[idx];
+  }
+  let holey_arr = [ {}, 3.41, /* hole */, 4.55 ];
+
+  %PrepareFunctionForOptimization(load_hole);
+  assertEquals(undefined, load_hole(holey_arr, 2));
+  %OptimizeFunctionOnNextCall(load_hole);
+  assertEquals(undefined, load_hole(holey_arr, 2));
+  assertOptimized(load_hole);
 }
 
 // Simple JS function call
