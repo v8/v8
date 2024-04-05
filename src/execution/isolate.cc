@@ -69,6 +69,8 @@
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/init/v8.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
@@ -2379,6 +2381,43 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
 namespace {
 
+class StackFrameSummaryIterator {
+ public:
+  explicit StackFrameSummaryIterator(Isolate* isolate)
+      : stack_iterator_(isolate), summaries_(), index_(0) {
+    InitSummaries();
+  }
+  void Advance() {
+    if (index_ == 0) {
+      summaries_.clear();
+      stack_iterator_.Advance();
+      InitSummaries();
+    } else {
+      index_--;
+    }
+  }
+  bool done() const { return stack_iterator_.done(); }
+  StackFrame* frame() const { return stack_iterator_.frame(); }
+  bool has_frame_summary() const { return index_ < summaries_.size(); }
+  const FrameSummary& frame_summary() const {
+    DCHECK(has_frame_summary());
+    return summaries_[index_];
+  }
+  Isolate* isolate() const { return stack_iterator_.isolate(); }
+
+ private:
+  void InitSummaries() {
+    if (!done() && frame()->is_java_script()) {
+      JavaScriptFrame::cast(frame())->Summarize(&summaries_);
+      DCHECK_GT(summaries_.size(), 0);
+      index_ = summaries_.size() - 1;
+    }
+  }
+  StackFrameIterator stack_iterator_;
+  std::vector<FrameSummary> summaries_;
+  size_t index_;
+};
+
 HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
   switch (builtin_id) {
 #define CASE(Name)       \
@@ -2391,39 +2430,22 @@ HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
   }
 }
 
-HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
-  HandlerTable::CatchPrediction prediction;
-  if (frame->is_optimized()) {
-    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
-      // This optimized frame will catch. It's handler table does not include
-      // exception prediction, and we need to use the corresponding handler
-      // tables on the unoptimized code objects.
-      std::vector<FrameSummary> summaries;
-      frame->Summarize(&summaries);
-      PtrComprCageBase cage_base(frame->isolate());
-      for (size_t i = summaries.size(); i != 0; i--) {
-        const FrameSummary& summary = summaries[i - 1];
-        Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-        if (code->kind(cage_base) == CodeKind::BUILTIN) {
-          auto prediction = CatchPredictionFor(code->GetCode()->builtin_id());
-          if (prediction == HandlerTable::UNCAUGHT) continue;
-          return prediction;
-        }
-
-        // Must have been constructed from a bytecode array.
-        CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
-        int code_offset = summary.code_offset();
-        HandlerTable table(code->GetBytecodeArray());
-        int index = table.LookupRange(code_offset, nullptr, &prediction);
-        if (index <= 0) continue;
-        if (prediction == HandlerTable::UNCAUGHT) continue;
-        return prediction;
-      }
-    }
-  } else if (frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
-    return prediction;
+HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
+                                               Isolate* isolate) {
+  PtrComprCageBase cage_base(isolate);
+  Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
+  if (code->kind(cage_base) == CodeKind::BUILTIN) {
+    return CatchPredictionFor(code->GetCode()->builtin_id());
   }
-  return HandlerTable::UNCAUGHT;
+
+  // Must have been constructed from a bytecode array.
+  CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
+  int code_offset = summary.code_offset();
+  HandlerTable table(code->GetBytecodeArray());
+  HandlerTable::CatchPrediction prediction;
+  int index = table.LookupRange(code_offset, nullptr, &prediction);
+  if (index <= 0) return HandlerTable::UNCAUGHT;
+  return prediction;
 }
 
 Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
@@ -2441,38 +2463,22 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
       UNREACHABLE();
   }
 }
-}  // anonymous namespace
 
-Isolate::CatchType Isolate::PredictExceptionCatcher() {
-  if (TopExceptionHandlerType(Tagged<Object>()) ==
-      ExceptionHandlerType::kExternalTryCatch) {
-    return CAUGHT_BY_EXTERNAL;
-  }
-
-  // Search for an exception handler by performing a full walk over the stack.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
-    StackFrame* frame = iter.frame();
-    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(frame);
-    if (prediction != NOT_CAUGHT) return prediction;
-  }
-
-  // Handler not found.
-  return NOT_CAUGHT;
-}
-
-Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
+Isolate::CatchType PredictExceptionCatchAtFrame(
+    const StackFrameSummaryIterator& iterator) {
+  const StackFrame* frame = iterator.frame();
   switch (frame->type()) {
     case StackFrame::ENTRY:
     case StackFrame::CONSTRUCT_ENTRY: {
       Address external_handler =
-          thread_local_top()->try_catch_handler_address();
+          iterator.isolate()->thread_local_top()->try_catch_handler_address();
       Address entry_handler = frame->top_handler()->next_address();
       // The exception has been externally caught if and only if there is an
       // external handler which is on top of the top-most JS_ENTRY handler.
       if (external_handler != kNullAddress &&
-          !try_catch_handler()->is_verbose_) {
+          !iterator.isolate()->try_catch_handler()->IsVerbose()) {
         if (entry_handler == kNullAddress || entry_handler > external_handler) {
-          return CAUGHT_BY_EXTERNAL;
+          return Isolate::CAUGHT_BY_EXTERNAL;
         }
       }
     } break;
@@ -2483,8 +2489,9 @@ Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
     case StackFrame::TURBOFAN:
     case StackFrame::MAGLEV:
     case StackFrame::BUILTIN: {
-      JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-      return ToCatchType(PredictException(js_frame));
+      DCHECK(iterator.has_frame_summary());
+      return ToCatchType(
+          PredictException(iterator.frame_summary(), iterator.isolate()));
     }
 
     case StackFrame::STUB: {
@@ -2506,6 +2513,23 @@ Isolate::CatchType Isolate::PredictExceptionCatchAtFrame(StackFrame* frame) {
       // All other types can not handle exception.
       break;
   }
+  return Isolate::NOT_CAUGHT;
+}
+}  // anonymous namespace
+
+Isolate::CatchType Isolate::PredictExceptionCatcher() {
+  if (TopExceptionHandlerType(Tagged<Object>()) ==
+      ExceptionHandlerType::kExternalTryCatch) {
+    return CAUGHT_BY_EXTERNAL;
+  }
+
+  // Search for an exception handler by performing a full walk over the stack.
+  for (StackFrameSummaryIterator iter(this); !iter.done(); iter.Advance()) {
+    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(iter);
+    if (prediction != NOT_CAUGHT) return prediction;
+  }
+
+  // Handler not found.
   return NOT_CAUGHT;
 }
 
@@ -2904,6 +2928,172 @@ bool WalkPromiseTreeInternal(
   return caught;
 }
 
+// Helper functions to scan for calls to .catch.
+using interpreter::Bytecode;
+using interpreter::Bytecodes;
+
+enum PromiseMethod { kThen, kCatch, kFinally, kInvalid };
+
+// Requires the iterator to be on a GetNamedProperty instruction
+PromiseMethod GetPromiseMethod(
+    Isolate* isolate, const interpreter::BytecodeArrayIterator& iterator) {
+  Handle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
+  if (!IsString(*object)) {
+    return kInvalid;
+  }
+  Handle<String> str = Handle<String>::cast(object);
+  if (str->Equals(ReadOnlyRoots(isolate).then_string())) {
+    return kThen;
+  } else if (str->IsEqualTo(base::StaticCharVector("catch"))) {
+    return kCatch;
+  } else if (str->IsEqualTo(base::StaticCharVector("finally"))) {
+    return kFinally;
+  } else {
+    return kInvalid;
+  }
+}
+
+bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
+                     int index) {
+  Bytecode bytecode = iterator.current_bytecode();
+  int num_operands = Bytecodes::NumberOfOperands(bytecode);
+  const interpreter::OperandType* operand_types =
+      Bytecodes::GetOperandTypes(bytecode);
+
+  for (int i = 0; i < num_operands; ++i) {
+    if (Bytecodes::IsRegisterOperandType(operand_types[i])) {
+      int base_index = iterator.GetRegisterOperand(i).index();
+      int num_registers;
+      if (Bytecodes::IsRegisterListOperandType(operand_types[i])) {
+        num_registers = iterator.GetRegisterCountOperand(++i);
+      } else {
+        num_registers =
+            Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
+      }
+
+      if (base_index <= index && index < base_index + num_registers) {
+        return true;
+      }
+    }
+  }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    return iterator.GetStarTargetRegister().index() == index;
+  }
+
+  return false;
+}
+
+bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
+                      int offset) {
+  interpreter::BytecodeArrayIterator iterator(bytecode_array, offset);
+
+  while (!iterator.done()) {
+    // We should be on a call instruction of some kind. While we could check
+    // this, it may be difficult to create an exhaustive list of instructions
+    // that could call, such as property getters, but at a minimum this
+    // instruction should write to the accumulator.
+    if (!Bytecodes::WritesAccumulator(iterator.current_bytecode())) {
+      return false;
+    }
+
+    iterator.Advance();
+    // Next instruction should be a Star (store accumulator to register)
+    if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
+      return false;
+    }
+    // The register it stores to will be assumed to be our promise
+    int promise_register = iterator.GetStarTargetRegister().index();
+
+    // TODO(crbug/40283993): Should we loop over non-matching instructions here
+    // to allow code like
+    // `const promise = foo(); console.log(...); promise.catch(...);`?
+
+    iterator.Advance();
+    // We should be on a GetNamedProperty instruction.
+    if (iterator.done() ||
+        iterator.current_bytecode() != Bytecode::kGetNamedProperty ||
+        iterator.GetRegisterOperand(0).index() != promise_register) {
+      return false;
+    }
+    PromiseMethod method = GetPromiseMethod(isolate, iterator);
+    if (method == kInvalid) {
+      return false;
+    }
+
+    iterator.Advance();
+    // Next instruction should be a Star (save immediate to register)
+    if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
+      return false;
+    }
+    // This register contains the method we will eventually invoke
+    int method_register = iterator.GetStarTargetRegister().index();
+    if (method_register == promise_register) {
+      return false;
+    }
+
+    // Now we step over multiple instructions creating the arguments for the
+    // method.
+    while (true) {
+      iterator.Advance();
+      if (iterator.done()) {
+        return false;
+      }
+      Bytecode bytecode = iterator.current_bytecode();
+      if (bytecode == Bytecode::kCallProperty1 ||
+          bytecode == Bytecode::kCallProperty2) {
+        // This is a call property call of the right size, but is it a call of
+        // the method and on the promise?
+        if (iterator.GetRegisterOperand(0).index() == method_register &&
+            iterator.GetRegisterOperand(1).index() == promise_register) {
+          // This is our method call, but does it catch?
+          if (method == kCatch ||
+              (method == kThen && bytecode == Bytecode::kCallProperty2)) {
+            return true;
+          }
+          // Break out of the inner loop, continuing the outer loop. We
+          // will use the same procedure to check for chained method calls.
+          break;
+        }
+      }
+
+      // Check for some instructions that should make us give up scanning.
+      if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
+          Bytecodes::Returns(bytecode) ||
+          Bytecodes::UnconditionallyThrows(bytecode)) {
+        // Stop scanning at control flow instructions that aren't calls
+        return false;
+      }
+
+      if (TouchesRegister(iterator, promise_register) ||
+          TouchesRegister(iterator, method_register)) {
+        // Stop scanning at instruction that unexpectedly interacts with one of
+        // the registers we care about.
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
+  if (!iterator.frame()->is_java_script()) {
+    return false;
+  }
+  if (iterator.frame_summary().IsJavaScript()) {
+    auto& js_summary = iterator.frame_summary().AsJavaScript();
+    if (IsBytecodeArray(*js_summary.abstract_code())) {
+      if (CallsCatchMethod(
+              iterator.isolate(),
+              Handle<BytecodeArray>::cast(js_summary.abstract_code()),
+              js_summary.code_offset())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 bool Isolate::WalkCallStackAndPromiseTree(
@@ -2937,19 +3127,24 @@ bool Isolate::WalkCallStackAndPromiseTree(
   }
 
   // Search for an exception handler by performing a full walk over the stack.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
-    StackFrame* frame = iter.frame();
-    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(frame);
+  for (StackFrameSummaryIterator iter(this); !iter.done(); iter.Advance()) {
+    Isolate::CatchType prediction = PredictExceptionCatchAtFrame(iter);
 
     bool caught;
     if (rejected_promise.is_null()) {
       switch (prediction) {
         case NOT_CAUGHT:
-          caught = false;
-          // TODO(b/40283993): if this is a promise rejection, scan for calls to
-          // .catch or a two argument .then.
+          // Uncaught unless this is a promise rejection and the code will call
+          // .catch()
+          caught = is_promise_rejection && CallsCatchMethod(iter);
           break;
         case CAUGHT_BY_ASYNC_AWAIT:
+          // Uncaught unless this is a promise rejection and the code will call
+          // .catch()
+          caught = is_promise_rejection && CallsCatchMethod(iter);
+          // Exceptions turn into promise rejections here
+          is_promise_rejection = true;
+          break;
         case CAUGHT_BY_PROMISE:
           // Exceptions turn into promise rejections here
           // TODO(leese): Perhaps we can handle the case where the reject method
@@ -2965,18 +3160,18 @@ bool Isolate::WalkCallStackAndPromiseTree(
         case CAUGHT_BY_JAVASCRIPT:
           caught = true;
           // Unless this is a promise rejection and the function is not async...
-          if (is_promise_rejection && frame->is_java_script()) {
-            std::vector<Handle<SharedFunctionInfo>> infos;
-            JavaScriptFrame::cast(frame)->GetFunctions(&infos);
-            caught = false;
-            for (auto info : infos) {
-              if (IsAsyncFunction(info->kind())) {
-                // If the catch happens in an async function, assume it will
-                // await this promise.
-                caught = true;
-                break;
-              }
-            }
+          DCHECK(iter.has_frame_summary());
+          const FrameSummary& summary = iter.frame_summary();
+          if (is_promise_rejection && summary.IsJavaScript()) {
+            // If the catch happens in an async function, assume it will
+            // await this promise. Alternately, if the code will call .catch,
+            // assume it is on this promise.
+            caught = IsAsyncFunction(iter.frame_summary()
+                                         .AsJavaScript()
+                                         .function()
+                                         ->shared()
+                                         ->kind()) ||
+                     CallsCatchMethod(iter);
           }
           break;
       }
@@ -2989,12 +3184,12 @@ bool Isolate::WalkCallStackAndPromiseTree(
       caught = false;
     }
 
-    if (frame->is_java_script()) {
-      std::vector<Handle<SharedFunctionInfo>> infos;
-      JavaScriptFrame::cast(frame)->GetFunctions(&infos);
-
+    if (iter.frame()->is_java_script()) {
       bool debuggable = false;
-      for (auto info : infos) {
+      DCHECK(iter.has_frame_summary());
+      const FrameSummary& summary = iter.frame_summary();
+      if (summary.IsJavaScript()) {
+        const auto& info = summary.AsJavaScript().function()->shared();
         if (info->IsSubjectToDebugging()) {
           callback({*info, false});
           debuggable = true;

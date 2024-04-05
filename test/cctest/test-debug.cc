@@ -6352,3 +6352,303 @@ TEST(FailedBreakpointConditoinEvaluationEvent) {
   CHECK(delegate.exception_thrown);
   CHECK(!delegate.exception.IsEmpty());
 }
+
+class ExceptionCatchPredictionChecker : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    exception_event_count++;
+    was_uncaught = is_uncaught;
+    // Check that exception is the string 'f' so we know that we are
+    // only throwing the intended exception.
+    CHECK(v8_str(paused_context->GetIsolate(), "f")
+              ->Equals(paused_context, exception)
+              .ToChecked());
+  }
+
+  int exception_event_count = 0;
+  bool was_uncaught = false;
+  int functions_checked = 0;
+};
+
+void RunExceptionCatchPredictionTest(bool predict_uncaught, const char* code) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  ExceptionCatchPredictionChecker delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  CompileRun(code);
+  CHECK_EQ(0, delegate.exception_event_count);
+
+  CompileRun("%PrepareFunctionForOptimization(test);\n");
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+
+  // Second time should be same result as first
+  delegate.exception_event_count = 0;
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+
+  // Now ensure optimization doesn't change the reported exception
+  delegate.exception_event_count = 0;
+  CompileRun("%OptimizeFunctionOnNextCall(test);\n");
+  CompileRun("test();\n");
+  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(predict_uncaught, delegate.was_uncaught);
+}
+
+class FunctionBlackboxedCheckCounter : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    // Should never happen due to consistent blackboxing
+    UNREACHABLE();
+  }
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override {
+    functions_checked++;
+    // Return true to ensure it keeps walking the callstack
+    return true;
+  }
+  int functions_checked = 0;
+};
+
+void RunAndIgnore(v8::Local<v8::Script> script,
+                  v8::Local<v8::Context> context) {
+  auto result = script->Run(context);
+  if (!result.IsEmpty()) result.ToLocalChecked();
+}
+
+void RunExceptionBlackboxCheckTest(int functions_checked, const char* code) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  FunctionBlackboxedCheckCounter delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  CompileRun(code);
+  CHECK_EQ(0, delegate.functions_checked);
+
+  CompileRun("%PrepareFunctionForOptimization(test);\n");
+
+  // Need to compile this script once and run it multiple times so the call
+  // stack doesn't change.
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::Script> test_script =
+      v8::Script::Compile(context, v8_str(isolate, "test();\n"))
+          .ToLocalChecked();
+  RunAndIgnore(test_script, context);
+  CHECK_EQ(functions_checked, delegate.functions_checked);
+
+  // Second time should not do any checks due to cached function debug info
+  delegate.functions_checked = 0;
+  RunAndIgnore(test_script, context);
+  CHECK_EQ(0, delegate.functions_checked);
+
+  // Now ensure optimization doesn't lead to additional frames being checked
+  delegate.functions_checked = 0;
+  CompileRun("%OptimizeFunctionOnNextCall(test);\n");
+  RunAndIgnore(test_script, context);
+  // Will fail if we iterate over more stack frames than expected. Would be
+  // nice to figure out how to use something like
+  // v8::debug::ResetBlackboxedStateCache so we can ensure the same functions
+  // are being checked.
+  CHECK_EQ(0, delegate.functions_checked);
+}
+
+void RunExceptionOptimizedCallstackWalkTest(bool predict_uncaught,
+                                            int functions_checked,
+                                            const char* code) {
+  RunExceptionCatchPredictionTest(predict_uncaught, code);
+  RunExceptionBlackboxCheckTest(functions_checked, code);
+}
+
+TEST(CatchPredictionWithLongStar) {
+  // Simple scan for catch method, but we first exhaust the short registers
+  // in the bytecode so that it doesn't use the short star instructions
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let r1 = 1;
+      let r2 = 2;
+      let r3 = r1 + r2;
+      let r4 = r2 * 2;
+      let r5 = r2 + r3;
+      let r6 = r4 + r2;
+      let r7 = 7;
+      let r8 = r5 + r3;
+      let r9 = r7 + r2;
+      let r10 = r4 + r6;
+      let r11 = r8 + r3;
+      let r12 = r7 + r5;
+      let r13 = r11 + r2;
+      let r14 = r10 + r4;
+      let r15 = r9 + r6;
+      let r16 = r15 + r1;
+      let p = Promise.reject('f').catch(()=>17);
+      return {p, r16, r14, r13, r12};
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionInlineExceptionCaught) {
+  // Simple throw and catch, but make sure inlined functions don't affect
+  // prediction.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      thrower();
+    }
+
+    function catcher() {
+      try {
+        throwerWrapper();
+      } catch(e) {}
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionInlineExceptionUncaught) {
+  // Simple uncaught throw, but make sure inlined functions don't affect
+  // prediction.
+  RunExceptionOptimizedCallstackWalkTest(true, 4, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      thrower();
+    }
+
+    function test() {
+      throwerWrapper();
+    }
+
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromise) {
+  // Throw turns into promise rejection in async function, then caught
+  // by catch method. Multiple intermediate stack frames with decoy catches
+  // that won't actually catch and shouldn't be predicted to catch. Make sure
+  // we walk the correct number of frames and that inlining does not affect
+  // our behavior.
+  RunExceptionOptimizedCallstackWalkTest(false, 6, R"javascript(
+    function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower().catch(()=>{});
+    }
+
+    async function promiseWrapper() {
+      throwerWrapper();
+    }
+
+    function fakeCatcher() {
+      try {
+        return promiseWrapper();
+      } catch(e) {}
+    }
+
+    async function awaiter() {
+      await fakeCatcher();
+    }
+
+    function catcher() {
+      return awaiter().then(()=>{}).catch(()=>{});
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(awaiter);
+    %PrepareFunctionForOptimization(fakeCatcher);
+    %PrepareFunctionForOptimization(promiseWrapper);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromiseInAsyncFunction) {
+  // Throw as promise rejection in async function, then caught
+  // by catch method. Ensure we scan for catch method in an async
+  // function.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    async function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower();
+    }
+
+    async function catcher() {
+      await throwerWrapper().catch(()=>{});
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}
+
+TEST(CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
+  // Throw as promise rejection in async function, then caught
+  // by catch method. Ensure we scan for catch method in function
+  // with a (decoy) catch block.
+  RunExceptionOptimizedCallstackWalkTest(false, 3, R"javascript(
+    async function thrower() {
+      throw 'f';
+    }
+
+    function throwerWrapper() {
+      return thrower();
+    }
+
+    function catcher() {
+      try {
+        return throwerWrapper().catch(()=>{});
+      } catch (e) {}
+    }
+
+    function test() {
+      catcher();
+    }
+
+    %PrepareFunctionForOptimization(catcher);
+    %PrepareFunctionForOptimization(throwerWrapper);
+    %PrepareFunctionForOptimization(thrower);
+  )javascript");
+}

@@ -1054,7 +1054,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_ASYNC_AWAIT,
   };
   CatchType PredictExceptionCatcher();
-  CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
 
   void ReportPendingMessages(bool report = true);
 
