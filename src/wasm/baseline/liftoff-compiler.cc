@@ -3290,8 +3290,8 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
                           pinned);
     } else {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
-                                     pinned);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
+                                        pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * (memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
@@ -3474,13 +3474,11 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize,
                           pinned);
     } else {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(memory_start, MemoryBasesAndSizes, pinned);
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * memory_index * 2;
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(memory_start, MemoryBasesAndSizes,
+                                        pinned);
+      int buffer_offset = wasm::ObjectAccess::ToTagged(
+          TrustedFixedAddressArray::OffsetOfElementAt(memory_index * 2));
       __ LoadFullPointer(memory_start, memory_start, buffer_offset);
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(memory_start);
-#endif
     }
     __ cache_state()->SetMemStartCacheRegister(memory_start, memory_index);
     return memory_start;
@@ -3742,8 +3740,8 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
                           pinned);
     } else {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
-                                     pinned);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
+                                        pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * (imm.memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
@@ -5299,13 +5297,10 @@ class LiftoffCompiler {
     if (imm.memory->index == 0) {
       LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
     } else {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * imm.memory->index * 2;
       __ LoadFullPointer(addr, addr, buffer_offset);
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(addr);
-#endif
     }
     __ emit_i32_add(addr, addr, index);
     pinned.clear(LiftoffRegister(index));

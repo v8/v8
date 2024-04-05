@@ -3421,10 +3421,14 @@ Node* WasmGraphBuilder::LoadMemStart(uint32_t mem_index) {
                                               MachineType::Pointer());
   }
   Node* memory_bases_and_sizes =
-      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+      LOAD_PROTECTED_INSTANCE_FIELD(MemoryBasesAndSizes);
+  // Use {LoadByteArrayElement} even though it's a trusted array; their layout
+  // is the same.
+  static_assert(FixedAddressArray::OffsetOfElementAt(0) ==
+                TrustedFixedAddressArray::OffsetOfElementAt(0));
   return gasm_->LoadByteArrayElement(memory_bases_and_sizes,
                                      gasm_->IntPtrConstant(2 * mem_index),
-                                     kMaybeSandboxedPointer);
+                                     MachineType::Pointer());
 }
 
 Node* WasmGraphBuilder::LoadMemSize(uint32_t mem_index) {
@@ -3437,7 +3441,11 @@ Node* WasmGraphBuilder::LoadMemSize(uint32_t mem_index) {
         mem_type);
   }
   Node* memory_bases_and_sizes =
-      LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+      LOAD_PROTECTED_INSTANCE_FIELD(MemoryBasesAndSizes);
+  // Use {LoadByteArrayElement} even though it's a trusted array; their layout
+  // is the same.
+  static_assert(FixedAddressArray::OffsetOfElementAt(0) ==
+                TrustedFixedAddressArray::OffsetOfElementAt(0));
   return SetType(
       gasm_->LoadByteArrayElement(memory_bases_and_sizes,
                                   gasm_->IntPtrConstant(2 * mem_index + 1),

@@ -318,9 +318,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
   static constexpr bool kUsesPoppedArgs = true;
-  static constexpr MemoryRepresentation kMaybeSandboxedPointer =
-      V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
-                             : MemoryRepresentation::UintPtr();
 
   struct Value : public ValueBase<ValidationTag> {
     OpIndex op = OpIndex::Invalid();
@@ -6110,13 +6107,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_start();
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), MemoryBasesAndSizes,
-          MemoryRepresentation::TaggedPointer());
+      V<TrustedFixedAddressArray> instance_memories =
+          LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
+                                        MemoryBasesAndSizes,
+                                        TrustedFixedAddressArray);
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
-                     kMaybeSandboxedPointer,
-                     ByteArray::kHeaderSize +
-                         2 * index * kMaybeSandboxedPointer.SizeInBytes());
+                     MemoryRepresentation::UintPtr(),
+                     TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
     }
   }
 
@@ -6131,13 +6128,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_size();
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), MemoryBasesAndSizes,
-          MemoryRepresentation::TaggedPointer());
+      V<TrustedByteArray> instance_memories = LOAD_PROTECTED_INSTANCE_FIELD(
+          trusted_instance_data(), MemoryBasesAndSizes, TrustedByteArray);
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
           MemoryRepresentation::UintPtr(),
-          ByteArray::kHeaderSize + (2 * index + 1) * kSystemPointerSize);
+          TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
     }
   }
 

@@ -1071,15 +1071,15 @@ void ImportedFunctionEntry::set_target(Address new_target) {
 }
 
 // static
-constexpr std::array<uint16_t, 17> WasmTrustedInstanceData::kTaggedFieldOffsets;
+constexpr std::array<uint16_t, 16> WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, 17>
+constexpr std::array<const char*, 16>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 3>
+constexpr std::array<uint16_t, 4>
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 3>
+constexpr std::array<const char*, 4>
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
@@ -1107,10 +1107,9 @@ void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
   CHECK_LE(mem_size, module()->memories[memory_index].is_memory64
                          ? wasm::max_mem64_bytes()
                          : wasm::max_mem32_bytes());
-  // All memory bases and sizes are stored in a FixedAddressArray.
-  Tagged<FixedAddressArray> bases_and_sizes = memory_bases_and_sizes();
-  bases_and_sizes->set_sandboxed_pointer(memory_index * 2,
-                                         reinterpret_cast<Address>(mem_start));
+  // All memory bases and sizes are stored in a TrustedFixedAddressArray.
+  Tagged<TrustedFixedAddressArray> bases_and_sizes = memory_bases_and_sizes();
+  bases_and_sizes->set(memory_index * 2, reinterpret_cast<Address>(mem_start));
   bases_and_sizes->set(memory_index * 2 + 1, mem_size);
   // Memory 0 has fast-access fields.
   if (memory_index == 0) {
@@ -1157,8 +1156,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   int num_memories = static_cast<int>(module->memories.size());
   Handle<FixedArray> memory_objects =
       isolate->factory()->NewFixedArray(num_memories);
-  Handle<FixedAddressArray> memory_bases_and_sizes =
-      FixedAddressArray::New(isolate, 2 * num_memories);
+  Handle<TrustedFixedAddressArray> memory_bases_and_sizes =
+      TrustedFixedAddressArray::New(isolate, 2 * num_memories);
 
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
@@ -1218,7 +1217,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
     for (int i = 0; i < num_memories; ++i) {
-      memory_bases_and_sizes->set_sandboxed_pointer(
+      memory_bases_and_sizes->set(
           2 * i, reinterpret_cast<Address>(empty_backing_store_buffer));
       memory_bases_and_sizes->set(2 * i + 1, 0);
     }
