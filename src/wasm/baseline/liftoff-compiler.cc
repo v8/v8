@@ -7918,6 +7918,15 @@ class LiftoffCompiler {
             ? no_reg
             : pinned.set(__ LoadToRegister(index_slot, pinned).gp());
 
+    const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
+    const uint32_t max_table_size =
+        table.has_maximum_size
+            ? std::min(table.maximum_size, uint32_t{kV8MaxWasmTableSize})
+            : uint32_t{kV8MaxWasmTableSize};
+    const bool statically_oob =
+        is_static_index &&
+        static_cast<uint32_t>(index_slot.i32_const()) > max_table_size;
+
     TempRegisterScope temps;
     pinned |= temps.AddTempRegisters(3, kGpReg, &asm_, pinned);
 
@@ -7937,43 +7946,43 @@ class LiftoffCompiler {
                                   imm.table_imm.index));
     }
 
-    const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
     {
       SCOPED_CODE_COMMENT("Check index is in-bounds");
-      ScopedTempRegister table_size{temps, kGpReg};
       // Bounds check against the table size: Compare against the dispatch table
       // size, or a constant if the size is statically known.
-      bool needs_dynamic_size =
+      const bool needs_dynamic_size =
           !table.has_maximum_size || table.maximum_size != table.initial_size;
-      if (needs_dynamic_size) {
-        __ Load(table_size.reg(), dispatch_table.gp_reg(), no_reg,
-                wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset),
-                LoadType::kI32Load);
-      }
 
       Label* out_of_bounds_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapTableOutOfBounds);
-      {
-        FREEZE_STATE(trapping);
-        if (needs_dynamic_size) {
-          if (is_static_index) {
-            __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, out_of_bounds_label,
-                                   table_size.gp_reg(), index_slot.i32_const(),
-                                   trapping);
-          } else {
-            __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label, kI32,
-                              table_size.gp_reg(), index_reg, trapping);
-          }
+
+      ScopedTempRegister table_size{temps, kGpReg};
+      FREEZE_STATE(trapping);
+      if (statically_oob) {
+        __ emit_jump(out_of_bounds_label);
+        // This case is unlikely to happen in production. Thus we just continue
+        // generating code afterwards, to make sure that the stack is in a
+        // consistent state for following instructions.
+      } else if (needs_dynamic_size) {
+        __ Load(table_size.reg(), dispatch_table.gp_reg(), no_reg,
+                wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset),
+                LoadType::kI32Load);
+
+        if (is_static_index) {
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, out_of_bounds_label,
+                                 table_size.gp_reg(), index_slot.i32_const(),
+                                 trapping);
         } else {
-          uint32_t static_table_size = table.initial_size;
-          if (!is_static_index) {
-            __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual,
-                                   out_of_bounds_label, index_reg,
-                                   static_table_size, trapping);
-          } else if (static_cast<uint32_t>(index_slot.i32_const()) >=
-                     static_table_size) {
-            __ emit_jump(out_of_bounds_label);
-          }
+          __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label, kI32,
+                            table_size.gp_reg(), index_reg, trapping);
+        }
+      } else {
+        DCHECK_EQ(max_table_size, table.initial_size);
+        if (is_static_index) {
+          DCHECK_LE(index_slot.i32_const(), max_table_size);
+        } else {
+          __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
+                                 index_reg, max_table_size, trapping);
         }
       }
     }
@@ -7984,8 +7993,14 @@ class LiftoffCompiler {
     ScopedTempRegister dispatch_table_base{std::move(dispatch_table)};
     int dispatch_table_offset = 0;
     if (is_static_index) {
-      dispatch_table_offset = wasm::ObjectAccess::ToTagged(
-          WasmDispatchTable::OffsetOf(index_slot.i32_const()));
+      // Avoid potential integer overflow here by excluding too large
+      // (statically OOB) indexes. This code is not reached for statically OOB
+      // indexes anyway.
+      dispatch_table_offset =
+          statically_oob
+              ? 0
+              : wasm::ObjectAccess::ToTagged(
+                    WasmDispatchTable::OffsetOf(index_slot.i32_const()));
     } else {
       // TODO(clemensb): Produce better code for this (via more specialized
       // platform-specific methods?).
