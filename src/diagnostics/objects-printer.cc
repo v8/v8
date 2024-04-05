@@ -2545,22 +2545,22 @@ void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
 
 void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmApiFunctionRef");
-  Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
   os << "\n - instance: " << Brief(instance());
   os << "\n - suspend: " << suspend();
   os << "\n - wrapper_budget: " << wrapper_budget();
   os << "\n - call_origin: " << Brief(call_origin());
-  os << "\n - code: " << Brief(code(isolate));
   os << "\n";
 }
 
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
+  Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - call target: " << reinterpret_cast<void*>(call_target());
   os << "\n - ref: " << Brief(ref());
   os << "\n - external: " << Brief(external());
+  os << "\n - code: " << Brief(code(isolate));
   os << "\n - func_ref: " << Brief(func_ref());
   os << "\n";
 }

@@ -6361,8 +6361,41 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                                 MemoryRepresentation::UintPtr(),
                                 WasmInternalFunction::kCallTargetOffset);
+    Label<WordPtr> done(&asm_);
+    // For wasm functions, we have a cached handle to a pointer to off-heap
+    // code. For WasmJSFunctions we used not to be able to cache this handle
+    // because the code was on-heap, so we needed to fetch it every time from
+    // the on-heap Code object. However now, when code pointer sandboxing is on,
+    // the on-heap Code object also has a handle to off-heap code, so we could
+    // probably also cache that somehow.
+    // TODO(manoskouk): Figure out how to improve the situation.
+    IF (UNLIKELY(__ WordPtrEqual(target, 0))) {
+#ifdef V8_ENABLE_SANDBOX
+      // In this case we can use a shortcut: the code pointer table (CPT) entry
+      // through which we reference the Code object also directly contains the
+      // entrypoint, so we don't have to load it from the Code object.
+      V<Word32> call_target_handle = __ Load(
+          internal_function, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::Uint32(), WasmInternalFunction::kCodeOffset);
+      V<WordPtr> call_target =
+          BuildLoadWasmCodeEntrypointViaCodePointer(call_target_handle);
+#else
+      V<Code> wrapper_code =
+          __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmInternalFunction::kCodeOffset);
+      V<WordPtr> call_target = __ Load(wrapper_code, LoadOp::Kind::TaggedBase(),
+                                       MemoryRepresentation::UintPtr(),
+                                       Code::kInstructionStartOffset);
+#endif
+      GOTO(done, call_target);
+    } ELSE {
+      GOTO(done, target);
+    }
 
-    return {target, ref};
+    BIND(done, final_target);
+
+    return {final_target, ref};
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {

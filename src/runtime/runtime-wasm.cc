@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
@@ -560,9 +559,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // code may move. `call_target` would become stale then.
     Handle<WasmInternalFunction> internal_function{
         WasmFuncRef::cast(*origin)->internal(isolate), isolate};
-    ref->set_code(*wasm_to_js_wrapper_code);
-    internal_function->set_call_target(
-        Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+    internal_function->set_code(*wasm_to_js_wrapper_code);
+    // Reset a possibly existing generic wrapper in the call target.
+    internal_function->set_call_target(kNullAddress);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

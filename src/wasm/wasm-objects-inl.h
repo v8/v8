@@ -354,11 +354,8 @@ WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExportedFunction)
 
-// WasmApiFunctionRef
-
-CODE_POINTER_ACCESSORS(WasmApiFunctionRef, code, kCodeOffset)
-
 // WasmInternalFunction
+CODE_POINTER_ACCESSORS(WasmInternalFunction, code, kCodeOffset)
 
 // {ref} will be a WasmTrustedInstanceData or a WasmApiFunctionRef.
 PROTECTED_POINTER_ACCESSORS(WasmInternalFunction, ref, ExposedTrustedObject,

@@ -886,9 +886,6 @@ class WasmApiFunctionRef
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmApiFunctionRef)
-
-  DECL_CODE_POINTER_ACCESSORS(code)
-
   static constexpr int kInvalidCallOrigin = 0;
 
   static void SetImportIndexAsCallOrigin(Handle<WasmApiFunctionRef> ref,
@@ -910,10 +907,8 @@ class WasmApiFunctionRef
   static void SetInternalFunctionAsCallOrigin(
       Handle<WasmApiFunctionRef> ref, Handle<WasmInternalFunction> internal);
 
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedExposedTrustedObjectBodyDescriptor<
-          WasmApiFunctionRef, kWasmApiFunctionRefIndirectPointerTag>,
-      WithStrongCodePointer<kCodeOffset>>;
+  using BodyDescriptor = FixedExposedTrustedObjectBodyDescriptor<
+      WasmApiFunctionRef, kWasmApiFunctionRefIndirectPointerTag>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
 };
@@ -929,6 +924,7 @@ class WasmInternalFunction
   V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
       Handle<WasmInternalFunction> internal);
 
+  DECL_CODE_POINTER_ACCESSORS(code)
   DECL_PROTECTED_POINTER_ACCESSORS(ref, ExposedTrustedObject)
 
   // Dispatched behavior.
@@ -937,7 +933,8 @@ class WasmInternalFunction
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<
           WasmInternalFunction, kWasmInternalFunctionIndirectPointerTag>,
-      WithProtectedPointer<kProtectedRefOffset>>;
+      WithProtectedPointer<kProtectedRefOffset>,
+      WithStrongCodePointer<kCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
 };

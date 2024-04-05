@@ -2397,12 +2397,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
                                            suspend)
               .ToHandleChecked();
-      Handle<WasmApiFunctionRef> api_function_ref{
-          WasmApiFunctionRef::cast(function_data->internal(isolate)->ref()),
-          isolate};
-      api_function_ref->set_code(*wrapper_code);
-      function_data->internal(isolate)->set_call_target(
-          Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+      function_data->internal(isolate)->set_code(*wrapper_code);
     }
   }
 

@@ -8182,11 +8182,17 @@ class LiftoffCompiler {
       // Spill everything up front to work around that.
       __ SpillAllRegisters();
 
+      // We limit ourselves to four registers:
+      // (1) func_ref / internal_function.
+      // (2) first_param_reg, initially used for ref.
+      // (3) target, initially used as temp.
+      // (4) temp.
       LiftoffRegList pinned;
       Register func_ref = pinned.set(__ PopToModifiableRegister(pinned)).gp();
       MaybeEmitNullCheck(decoder, func_ref, pinned, func_ref_type);
       first_param_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      target_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
       // Load the WasmInternalFunction from the WasmFuncRef.
       Register internal_function = func_ref;
@@ -8201,13 +8207,37 @@ class LiftoffCompiler {
                               wasm::ObjectAccess::ToTagged(
                                   WasmInternalFunction::kProtectedRefOffset));
 
-      __ LoadFullPointer(target_reg, internal_function,
+      __ LoadFullPointer(target, internal_function,
                          wasm::ObjectAccess::ToTagged(
                              WasmInternalFunction::kCallTargetOffset));
 
-      // Now the call target is in {target_reg} and the first parameter
+      FREEZE_STATE(frozen);
+      Label perform_call;
+
+      Register null_address = temp;
+      __ LoadConstant(LiftoffRegister{null_address}, WasmValue::ForUintPtr(0));
+      __ emit_cond_jump(kNotEqual, &perform_call, kIntPtrKind, target,
+                        null_address, frozen);
+      // The cached target can only be null for WasmJSFunctions.
+#ifdef V8_ENABLE_SANDBOX
+      // In this case, we can use a shortcut and load the entrypoint directly
+      // from the code pointer table without going through the Code object.
+      __ LoadCodeEntrypointViaCodePointer(
+          target, internal_function,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
+#else
+      __ LoadTaggedPointer(
+          target, internal_function, no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
+      __ LoadCodeInstructionStart(target, target, kWasmEntrypointTag);
+#endif
+      // Fall through to {perform_call}.
+
+      __ bind(&perform_call);
+      // Now the call target is in {target} and the first parameter
       // (WasmTrustedInstanceData or WasmApiFunctionRef) is in
       // {first_param_reg}.
+      target_reg = target;
     }  // inlining_enabled(decoder)
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, first_param_reg);
