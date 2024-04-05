@@ -33,6 +33,9 @@ extern class WasmApiFunctionRef extends ExposedTrustedObject {
   call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: PodArrayOfWasmValueType;
+  // This field is used by the WasmToOnHeapWasmToJSTrampoline.
+  @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) code: Code;
 }
 
 class WasmFastApiCallData extends HeapObject {
@@ -59,10 +62,6 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // so we can construct the two objects subsequently and satify any in-between
   // heap verification.
   func_ref: WasmFuncRef|Undefined;
-  // This field is used when the call target is null.
-  // TODO(14564): Remove the indirection.
-  @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
-  @ifnot(V8_ENABLE_SANDBOX) code: Code;
   // The call target, stored as raw pointer in this trusted object.
   call_target: RawPtr;
 }

@@ -7,6 +7,7 @@
 #include "include/v8-wasm.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/heap-inl.h"
@@ -195,13 +196,8 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
         wasm_js_function->shared()->wasm_js_function_data()->internal(isolate);
   }
 
-  Tagged<Code> wrapper =
-      isolate->builtins()->code(Builtin::kWasmToJsWrapperAsm);
-  if (!internal->call_target()) {
-    return isolate->heap()->ToBoolean(internal->code(isolate) == wrapper);
-  }
-  return isolate->heap()->ToBoolean(internal->call_target() ==
-                                    wrapper->instruction_start());
+  Address wrapper = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+  return isolate->heap()->ToBoolean(internal->call_target() == wrapper);
 }
 
 RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
