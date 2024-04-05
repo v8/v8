@@ -35,7 +35,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/init/isolate-allocator.h"
+#include "src/init/isolate-group.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
@@ -1200,14 +1200,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
 
-  // When pointer compression is on, the PtrComprCage used by this
-  // Isolate. Otherwise nullptr.
-  VirtualMemoryCage* GetPtrComprCage() {
-    return isolate_allocator_->GetPtrComprCage();
+  IsolateGroup* isolate_group() const { return isolate_group_; }
+
+  VirtualMemoryCage* GetPtrComprCage() const {
+    return isolate_group()->GetPtrComprCage();
   }
-  const VirtualMemoryCage* GetPtrComprCage() const {
-    return isolate_allocator_->GetPtrComprCage();
-  }
+
   VirtualMemoryCage* GetPtrComprCodeCageForTesting();
 
   // Generated code can embed this address to get access to the isolate-specific
@@ -2233,7 +2231,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
  private:
-  explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
+  explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
 
   static Isolate* Allocate();
@@ -2350,7 +2348,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Set to true if this isolate is used as main isolate with a shared space.
   bool is_shared_space_isolate_{false};
 
-  std::unique_ptr<IsolateAllocator> isolate_allocator_;
+  IsolateGroup* isolate_group_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
