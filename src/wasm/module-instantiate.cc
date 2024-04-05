@@ -1241,9 +1241,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       Handle<WasmDispatchTable> dispatch_table =
           WasmDispatchTable::New(isolate_, table.initial_size);
       dispatch_tables->set(i, *dispatch_table);
-      if (i == 0) trusted_data->set_dispatch_table0(*dispatch_table);
     }
     trusted_data->set_dispatch_tables(*dispatch_tables);
+    if (dispatch_tables->get(0) != Smi::zero()) {
+      trusted_data->set_dispatch_table0(
+          WasmDispatchTable::cast(dispatch_tables->get(0)));
+    }
   }
 
   //--------------------------------------------------------------------------
