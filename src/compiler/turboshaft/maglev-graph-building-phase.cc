@@ -31,6 +31,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -547,6 +548,18 @@ class GraphBuilder {
         __ TaggedEqual(Map(node->first_input()), Map(node->second_input())),
         frame_state, DeoptimizeReason::kWrongValue,
         node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedSmiSizedInt32* node,
+                                const maglev::ProcessingState& state) {
+    // TODO(dmercadier): is there no higher level way of doing this?
+    V<Word32> input = Map<Word32>(node->input());
+    OpIndex add = __ Int32AddCheckOverflow(input, input);
+    V<Word32> check = __ template Projection<Word32>(add, 1);
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, input);
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1453,6 +1466,12 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Identity* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, Map(node->input(0)));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.
@@ -1904,6 +1923,12 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
       local_isolate, compilation_info->toplevel_compilation_unit(),
       maglev_graph);
   maglev_graph_builder.Build();
+
+  // TODO(dmercadier, nicohartmann): remove the MaglevPhiRepresentationSelector
+  // once we have representation selection / simplified lowering in Turboshaft.
+  maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector>
+      representation_selector(&maglev_graph_builder);
+  representation_selector.ProcessGraph(maglev_graph);
 
   if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
     CodeTracer* code_tracer = data.GetCodeTracer();

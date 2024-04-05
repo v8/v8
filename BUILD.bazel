@@ -3545,6 +3545,8 @@ filegroup(
             "src/maglev/maglev-ir.h",
             "src/maglev/maglev-ir-inl.h",
             "src/maglev/maglev-register-frame-array.h",
+            "src/maglev/maglev-phi-representation-selector.cc",
+            "src/maglev/maglev-phi-representation-selector.h",
         ],
     }),
 )

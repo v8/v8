@@ -897,3 +897,21 @@ assertOptimized(simple_loop);
   assertEquals(a1, a2);
   assertOptimized(dataview);
 }
+
+// Testing untagged phis.
+{
+  function fact(n) {
+    let s = 1;
+    while (n > 1) {
+      s *= n;
+      n--;
+    }
+    return s;
+  }
+
+  %PrepareFunctionForOptimization(fact);
+  let n1 = fact(42);
+  %OptimizeFunctionOnNextCall(fact);
+  assertEquals(n1, fact(42));
+  assertOptimized(fact);
+}
