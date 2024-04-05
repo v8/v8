@@ -1027,9 +1027,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int offset_since_start_call = pc_offset - start_pc_offset;
         // Here we are going to patch the `addi` instruction above to use the
         // correct offset.
-        // LoadPC emits two instructions and pc is the address of its
-        // second emitted instruction therefore there is one more instruction to
-        // count.
+        // LoadPC emits two instructions and pc is the address of its second
+        // emitted instruction. Add one more to the offset to point to after the
+        // Call.
         offset_since_start_call += kInstrSize;
         __ patch_pc_address(kScratchReg, start_pc_offset,
                             offset_since_start_call);
