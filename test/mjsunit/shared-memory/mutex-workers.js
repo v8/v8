@@ -167,6 +167,9 @@ if (this.Worker) {
   assertEquals('done', timedOutWorker.getMessage());
   assertEquals(0, %AtomicsSynchronizationPrimitiveNumWaitersForTesting(mutex));
   assertTrue(Atomics.Mutex.tryLock(mutex, function() {}).success);
+
+  workerLock.terminate();
+  timedOutWorker.terminate();
 })();
 
 }

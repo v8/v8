@@ -299,7 +299,7 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
     Isolate* requester) {
   DisallowGarbageCollection no_gc;
   std::atomic<StateT>* state = AtomicStatePtr();
-  StateT current_state = state->load(std::memory_order_relaxed);
+  StateT current_state = state->load(std::memory_order_acquire);
 
   // There are no waiters.
   if (!HasWaitersField::decode(current_state)) return Smi::FromInt(0);
@@ -309,8 +309,15 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
     // Take the queue lock.
     WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
 
+    if (!HasWaitersField::decode(current_state)) {
+      // The queue was emptied while waiting for the queue lock.
+      waiter_queue_lock_guard.set_new_state(current_state);
+      return Smi::FromInt(0);
+    }
+
     // Get the waiter queue head.
     WaiterQueueNode* waiter_head = DestructivelyGetWaiterQueueHead(requester);
+    DCHECK_NOT_NULL(waiter_head);
     num_waiters = WaiterQueueNode::LengthFromHead(waiter_head);
 
     // Release the queue lock and reinstall the same queue head by creating a
@@ -533,9 +540,8 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   if (!HasWaitersField::decode(current_state)) {
     // All waiters were removed while waiting for the queue lock, possibly by
     // timing out. Release both the lock and the queue lock.
-    StateT new_state = IsWaiterQueueLockedField::update(
-        IsLockedField::update(current_state, false), false);
-    state->store(new_state, std::memory_order_release);
+    StateT new_state = IsLockedField::update(current_state, false);
+    waiter_queue_lock_guard.set_new_state(new_state);
     return;
   }
 
