@@ -26,7 +26,7 @@ namespace internal {
 #ifdef V8_COMPRESS_POINTERS
 V8_INLINE static Address* GetCppHeapPointerTableBase(v8::Isolate* isolate) {
   Address addr = reinterpret_cast<Address>(isolate) +
-                 Internals::kIsolateCppHeapPointerTableAddressOffset +
+                 Internals::kIsolateCppHeapPointerTableOffset +
                  Internals::kExternalPointerTableBasePointerOffset;
   return *reinterpret_cast<Address**>(addr);
 }
