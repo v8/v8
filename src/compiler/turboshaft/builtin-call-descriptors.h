@@ -899,8 +899,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringNewWtf16 : public Descriptor<WasmStringNewWtf16> {
@@ -912,8 +913,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanLeaveCurrentFunction();
   };
 
   struct WasmStringFromDataSegment
