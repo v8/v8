@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/compactible-external-entity-table.h"
+#include "src/utils/allocation.h"
 
 #ifdef V8_COMPRESS_POINTERS
 
@@ -64,6 +65,14 @@ struct ExternalPointerTableEntry {
   // Load the tag of the external pointer stored in this entry.
   // This entry must be an external pointer entry.
   inline ExternalPointerTag GetExternalPointerTag() const;
+
+  // Returns the address of the managed resource contained in this entry or
+  // nullptr if this entry does not reference a managed resource.
+  inline Address ExtractManagedResourceOrNull() const;
+
+  // Invalidate the entry. Any access to a zapped entry will result in an
+  // invalid pointer that will crash upon dereference.
+  inline void MakeZappedEntry();
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -315,6 +324,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   // This method is atomic and can be called from background threads.
   inline ExternalPointerTag GetTag(ExternalPointerHandle handle) const;
 
+  // Invalidates the entry referenced by the given handle.
+  inline void Zap(ExternalPointerHandle handle);
+
   // Allocates a new entry in the given space. The caller must provide the
   // initial value and tag for the entry.
   //
@@ -340,6 +352,34 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   //
   // Returns the number of live entries after sweeping.
   uint32_t SweepAndCompact(Space* space, Counters* counters);
+
+  // A resource outside of the V8 heap whose lifetime is tied to something
+  // inside the V8 heap. This class makes that relationship explicit.
+  //
+  // Knowing about such objects is important for the sandbox to guarantee
+  // memory safety. In particular, it is necessary to prevent issues where the
+  // external resource is destroyed before the entry in the
+  // ExternalPointerTable (EPT) that references it is freed. In that case, the
+  // EPT entry would then contain a dangling pointer which could be abused by
+  // an attacker to cause a use-after-free outside of the sandbox.
+  //
+  // Currently, this is solved by remembering the EPT entry in the external
+  // object and zapping/invalidating it when the resource is destroyed. An
+  // alternative approach that might be preferable in the future would be to
+  // destroy the external resource only when the EPT entry is freed. This would
+  // avoid the need to manually keep track of the entry, for example.
+  class ManagedResource : public Malloced {
+   public:
+    // This method should be called before destroying the external resource.
+    // When the sandbox is enabled, it will take care of zapping its EPT entry.
+    inline void ZapExternalPointerTableEntry();
+
+   private:
+    friend class ExternalPointerTable;
+
+    ExternalPointerTable* owning_table_ = nullptr;
+    ExternalPointerHandle ept_entry_ = kNullExternalPointerHandle;
+  };
 
  private:
   static inline bool IsValidHandle(ExternalPointerHandle handle);

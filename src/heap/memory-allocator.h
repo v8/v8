@@ -52,8 +52,8 @@ class MemoryAllocator {
     Pool& operator=(const Pool&) = delete;
 
     void Add(MutablePageMetadata* chunk) {
-      // This method is called only on the main thread and only during the atomic
-      // pause so a lock is not needed.
+      // This method is called only on the main thread and only during the
+      // atomic pause so a lock is not needed.
       DCHECK_NOT_NULL(chunk);
       DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
       DCHECK(!chunk->Chunk()->IsLargePage());
