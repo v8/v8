@@ -78,6 +78,10 @@ corruptMe.crash();
 The following list contains further resources about the sandbox, in particular
 various design documents related to it.
 
+* [Sandbox Blog Post](https://v8.dev/blog/sandbox):
+  Discusses the motivation behind the sandbox and its goals while also briefly
+  covering the high-level design, performance characteristics, and testability
+  aspects of the sandbox.
 * [High-Level Design Document](https://docs.google.com/document/d/1FM4fQmIhEqPG8uGp5o9A-mnPB5BOeScZYpkHjo0KKA8/edit?usp=sharing):
   Discusses the attacker model, goal, and basic design of the sandbox, while
   linking to the more specific design documents below where appropriate.
