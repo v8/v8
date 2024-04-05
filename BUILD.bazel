@@ -2146,6 +2146,8 @@ filegroup(
         "src/objects/visitors.cc",
         "src/objects/visitors.h",
         "src/objects/visitors-inl.h",
+        "src/objects/waiter-queue-node.cc",
+        "src/objects/waiter-queue-node.h",
         "src/parsing/expression-scope.h",
         "src/parsing/func-name-inferrer.cc",
         "src/parsing/func-name-inferrer.h",
