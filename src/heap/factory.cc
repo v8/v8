@@ -1662,6 +1662,7 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmApiFunctionRef::kInvalidCallOrigin));
   result->set_sig(*serialized_sig);
+  result->set_code(*BUILTIN_CODE(isolate(), Abort));
   return handle(result, isolate());
 }
 
@@ -1697,7 +1698,6 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DCHECK(IsWasmTrustedInstanceData(*ref) || IsWasmApiFunctionRef(*ref));
     internal->set_ref(*ref);
     // Default values, will be overwritten by the caller.
-    internal->set_code(*BUILTIN_CODE(isolate(), Abort));
     internal->set_function_index(function_index);
     internal->set_external(*undefined_value());
     // Initially set undefined here, so heap verification passes if the
