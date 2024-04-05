@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_TRANSITIONS_INL_H_
 #define V8_OBJECTS_TRANSITIONS_INL_H_
 
+#include <type_traits>
+
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
@@ -377,6 +379,50 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
 Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
   DCHECK(!ExpectedTransitionKey().is_null());
   return handle(GetTarget(0), isolate_);
+}
+
+template <typename Callback, typename ProtoCallback>
+void TransitionsAccessor::ForEachTransition(
+    DisallowGarbageCollection* no_gc, Callback callback,
+    ProtoCallback proto_transition_callback) {
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+    case kMigrationTarget:
+      return;
+    case kWeakRef: {
+      Tagged<Map> target =
+          Map::cast(raw_transitions_.GetHeapObjectAssumeWeak());
+      callback(target);
+      return;
+    }
+    case kFullTransitionArray: {
+      base::SharedMutexGuardIf<base::kShared> scope(
+          isolate_->full_transition_array_access(), concurrent_access_);
+      int num_transitions = transitions()->number_of_transitions();
+      for (int i = 0; i < num_transitions; ++i) {
+        Tagged<Map> target = transitions()->GetTarget(i);
+        callback(target);
+      }
+      if constexpr (!std::is_same<ProtoCallback, std::nullptr_t>::value) {
+        if (transitions()->HasPrototypeTransitions()) {
+          Tagged<WeakFixedArray> cache =
+              transitions()->GetPrototypeTransitions();
+          int length = TransitionArray::NumberOfPrototypeTransitions(cache);
+          for (int i = 0; i < length; i++) {
+            auto target =
+                cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
+            Tagged<HeapObject> heap_object;
+            if (target.GetHeapObjectIfWeak(&heap_object)) {
+              proto_transition_callback(Map::cast(heap_object));
+            }
+          }
+        }
+      }
+      return;
+    }
+  }
+  UNREACHABLE();
 }
 
 }  // namespace internal

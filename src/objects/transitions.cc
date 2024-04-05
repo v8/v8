@@ -42,6 +42,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
                                  Handle<Name> name, Handle<Map> target,
                                  TransitionKindFlag flag) {
+  DCHECK_NE(flag, PROTOTYPE_TRANSITION);
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
   target->SetBackPointer(*map);
@@ -389,6 +390,7 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  Handle<Map> map,
                                                  Handle<Object> prototype,
                                                  Handle<Map> target_map) {
+  DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(HeapObject::cast(*prototype)->map()));
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
@@ -498,6 +500,19 @@ int TransitionsAccessor::NumberOfTransitions() {
       return 1;
     case kFullTransitionArray:
       return transitions()->number_of_transitions();
+  }
+  UNREACHABLE();
+}
+
+bool TransitionsAccessor::HasPrototypeTransitions() {
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+    case kMigrationTarget:
+    case kWeakRef:
+      return false;
+    case kFullTransitionArray:
+      return transitions()->HasPrototypeTransitions();
   }
   UNREACHABLE();
 }
