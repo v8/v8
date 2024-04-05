@@ -3714,6 +3714,12 @@ namespace {
 bool HasFlagThatRequiresSharedHeap() {
   return v8_flags.shared_string_table || v8_flags.harmony_struct;
 }
+
+IsolateGroup* AcquireGroupForNewIsolate() {
+  IsolateGroup* group = IsolateGroup::AcquireGlobal();
+  if (group) return group;
+  return IsolateGroup::New();
+}
 }  // namespace
 
 // static
@@ -3723,11 +3729,11 @@ Isolate* Isolate::New() { return Allocate(); }
 Isolate* Isolate::Allocate() {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
+  IsolateGroup* group = AcquireGroupForNewIsolate();
   // Allocate Isolate itself on C++ heap, ensuring page alignment.
   void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
   // IsolateAllocator manages the virtual memory resources for the Isolate.
-  Isolate* isolate =
-      new (isolate_ptr) Isolate(std::make_unique<IsolateAllocator>());
+  Isolate* isolate = new (isolate_ptr) Isolate(group);
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -3757,14 +3763,11 @@ void Isolate::Delete(Isolate* isolate) {
   non_disposed_isolates_--;
 #endif  // DEBUG
 
-  // Take ownership of the IsolateAllocator to ensure the Isolate memory will
-  // be available during Isolate destructor call.
-  std::unique_ptr<IsolateAllocator> isolate_allocator =
-      std::move(isolate->isolate_allocator_);
+  IsolateGroup* group = isolate->isolate_group();
   isolate->~Isolate();
-  // Now release the memory owned by the allocator.
-  isolate_allocator.reset();
-  // And free the isolate itself.
+  // Only release the group once all other Isolate members have been destroyed.
+  group->Release();
+  // Free the isolate itself.
   base::AlignedFree(isolate);
 
   // Restore the previous current isolate.
@@ -3787,13 +3790,13 @@ void Isolate::SetUpFromReadOnlyArtifacts(
 }
 
 v8::PageAllocator* Isolate::page_allocator() const {
-  return isolate_allocator_->page_allocator();
+  return isolate_group()->page_allocator();
 }
 
-Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_data_(this, isolate_allocator->GetPtrComprCageBase(),
-                    isolate_allocator->GetTrustedPtrComprCageBase()),
-      isolate_allocator_(std::move(isolate_allocator)),
+Isolate::Isolate(IsolateGroup* isolate_group)
+    : isolate_data_(this, isolate_group->GetPtrComprCageBase(),
+                    isolate_group->GetTrustedPtrComprCageBase()),
+      isolate_group_(isolate_group),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
       traced_handles_(this),
@@ -4224,7 +4227,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   g_current_isolate_ = isolate;
   g_current_per_isolate_thread_data_ = data;
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   if (isolate) {
     V8HeapCompressionScheme::InitBase(isolate->cage_base());
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -4236,7 +4239,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
     ExternalCodeCompressionScheme::InitBase(kNullAddress);
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
   if (isolate && isolate->main_thread_local_isolate()) {
     WriteBarrier::SetForThread(
@@ -4335,6 +4338,9 @@ Isolate::~Isolate() {
     delete read_only_heap_;
     read_only_heap_ = nullptr;
   }
+
+  // isolate_group_ released in caller, to ensure that all member destructors
+  // run before potentially unmapping the isolate's VirtualMemoryArea.
 }
 
 void Isolate::InitializeThreadLocal() {
@@ -4665,7 +4671,8 @@ class BigIntPlatform : public bigint::Platform {
 }  // namespace
 
 VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
-  return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range() : GetPtrComprCage();
+  return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range()
+                                     : isolate_group_->GetPtrComprCage();
 }
 
 void Isolate::VerifyStaticRoots() {
@@ -4978,11 +4985,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       CHECK(jitless_);
       // In jitless mode the code space pages will be allocated in the main
       // pointer compression cage.
-      code_cage = GetPtrComprCage();
+      code_cage = isolate_group_->GetPtrComprCage();
     }
     code_cage_base_ = ExternalCodeCompressionScheme::PrepareCageBaseAddress(
         code_cage->base());
-    if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+    if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
       // .. now that it's available, initialize the thread-local base.
       ExternalCodeCompressionScheme::InitBase(code_cage_base_);
     }
