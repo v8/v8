@@ -2020,7 +2020,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  bool switch_to_central = this->options().is_wasm;
+  bool switch_to_central = options().is_wasm;
   CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central));
 }
 

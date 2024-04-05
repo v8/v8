@@ -2409,7 +2409,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           inlining_decisions_->function_calls()[feedback_slot_];
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
       base::SmallVector<TSBlock*, 5> case_blocks;
-      for (size_t i = 0; i < feedback_cases.size() + 1; i++) {
+      const bool use_deopt = v8_flags.wasm_deopt;
+      size_t case_count = feedback_cases.size() + (use_deopt ? 0 : 1);
+      for (size_t i = 0; i < case_count; i++) {
         case_blocks.push_back(__ NewBlock());
       }
       TSBlock* merge = __ NewBlock();
@@ -2432,13 +2434,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         uint32_t inlined_index = tree->function_index();
         V<Object> inlined_func_ref =
             __ LoadFixedArrayElement(func_refs, inlined_index);
-        TSBlock* inline_block = __ NewBlock();
-        bool is_last_case = (i == feedback_cases.size() - 1);
-        BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
-        __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
-                  inline_block, case_blocks[i + 1]);
+        bool is_last_case = (i == case_count - 1);
+        if (use_deopt && is_last_case) {
+          DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
+                     sig, func_ref, args);
+        } else {
+          TSBlock* inline_block = __ NewBlock();
+          BranchHint hint =
+              is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+          __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
+                    inline_block, case_blocks[i + 1]);
+          __ Bind(inline_block);
+        }
 
-        __ Bind(inline_block);
         instance_cache_.RestoreFromSnapshot(saved_cache);
         SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
         if (v8_flags.trace_wasm_inlining) {
@@ -2465,18 +2473,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
       }
 
-      TSBlock* no_inline_block = case_blocks[case_blocks.size() - 1];
-      __ Bind(no_inline_block);
-      instance_cache_.RestoreFromSnapshot(saved_cache);
-      auto [target, ref] =
-          BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-      SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
-      BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
-      for (size_t ret = 0; ret < ref_returns.size(); ret++) {
-        case_returns[ret].push_back(ref_returns[ret].op);
+      if (!use_deopt) {
+        TSBlock* no_inline_block = case_blocks[case_count - 1];
+        __ Bind(no_inline_block);
+        instance_cache_.RestoreFromSnapshot(saved_cache);
+        auto [target, ref] =
+            BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+        SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
+        BuildWasmCall(decoder, sig, target, ref, args, ref_returns.data());
+        for (size_t ret = 0; ret < ref_returns.size(); ret++) {
+          case_returns[ret].push_back(ref_returns[ret].op);
+        }
+        merge_phis.AddPhiInputs(instance_cache_);
+        __ Goto(merge);
       }
-      merge_phis.AddPhiInputs(instance_cache_);
-      __ Goto(merge);
 
       __ Bind(merge);
       for (size_t i = 0; i < case_returns.size(); i++) {
@@ -4929,6 +4939,69 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
  private:
+  void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
+                  const FunctionSig* callee_sig, const Value& func_ref,
+                  const Value args[]) {
+    CHECK(v8_flags.wasm_deopt);
+    compiler::turboshaft::FrameStateData::Builder builder;
+    // The first input is the closure for JS; Wasm adds the
+    // WasmTrustedInstanceData as a dummy value instead. (The code generator
+    // will just skip this input as the liftoff frame doesn't have a closure.)
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+    // Add the parameters.
+    size_t param_count = decoder->sig_->parameter_count();
+    for (size_t i = 0; i < param_count; ++i) {
+      builder.AddInput(decoder->sig_->GetParam(i).machine_type(), ssa_env_[i]);
+    }
+    // Add the context. Wasm doesn't have a JS context, so this is another
+    // value skipped by the instruction selector.
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+
+    // Add the wasm locals.
+    for (size_t i = param_count; i < ssa_env_.size(); ++i) {
+      builder.AddInput(
+          decoder->local_type(static_cast<uint32_t>(i)).machine_type(),
+          ssa_env_[i]);
+    }
+    // Add the wasm stack values.
+    // Note that the decoder stack is already in the state after the call, i.e.
+    // the callee and the arguments were already popped from the stack and the
+    // returns are pushed. Therefore skip the results and manually add the
+    // call_ref stack values.
+    for (uint32_t i = static_cast<uint32_t>(callee_sig->return_count());
+         i < decoder->stack_size(); ++i) {
+      Value* val = decoder->stack_value(i + 1);
+      builder.AddInput(val->type.machine_type(), val->op);
+    }
+    // Add the call_ref stack values.
+    for (const Value& arg :
+         base::VectorOf(args, callee_sig->parameter_count())) {
+      builder.AddInput(arg.type.machine_type(), arg.op);
+    }
+    builder.AddInput(func_ref.type.machine_type(), func_ref.op);
+    // Add the wasm trusted instance as a real input.
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+    constexpr size_t kExtraLocals = 3;  // closure, context, instance
+    size_t local_count = callee_sig->parameter_count() + kExtraLocals +
+                         decoder->stack_size() - callee_sig->return_count();
+    Handle<SharedFunctionInfo> shared_info;
+    Zone* zone = compiler::turboshaft::PipelineData::Get().shared_zone();
+    auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
+        // TODO(mliedtke): Introduce new FrameStateType for liftoff function.
+        compiler::FrameStateType::kWasmInlinedIntoJS,
+        static_cast<int>(param_count), static_cast<int>(local_count),
+        shared_info);
+    auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
+        BytecodeOffset(decoder->pc_offset()),
+        compiler::OutputFrameStateCombine::Ignore(), function_info);
+    OpIndex frame_state =
+        __ FrameState(builder.Inputs(), builder.inlined(),
+                      builder.AllocateFrameStateData(*frame_state_info, zone));
+    __ DeoptimizeIfNot(deopt_condition, frame_state,
+                       DeoptimizeReason::kWrongCallTarget,
+                       compiler::FeedbackSource());
+  }
+
   V<Word64> ExtractTruncationProjections(OpIndex truncated) {
     V<Word64> result =
         __ Projection(truncated, 0, RegisterRepresentation::Word64());

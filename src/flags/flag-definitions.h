@@ -1551,6 +1551,11 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
 
+DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
+                            "enable deopts in optimized wasm functions")
+// Deopt support for wasm is not implemented for Turbofan.
+DEFINE_IMPLICATION(wasm_deopt, turboshaft_wasm)
+
 // Declare command-line flags for Wasm features. Warning: avoid using these
 // flags directly in the implementation. Instead accept wasm::WasmFeatures
 // for configurability.
