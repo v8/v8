@@ -470,7 +470,6 @@ class WasmLoadEliminationAnalyzer {
   // it was already visited).
   bool BackedgeHasSnapshot(const Block& loop_header) const;
 
-  void InvalidateAllNonAliasingInputs(const Operation& op);
   void InvalidateIfAlias(OpIndex op_idx);
 
   Graph& graph_;
@@ -635,18 +634,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // operations should be already handled above, which means that we don't
         // need a `if (can_write) { Invalidate(); }` here.
         CHECK(!op.Effects().can_write());
-
-        // Even if the operation doesn't write, it could create an alias to its
-        // input by returning it. This happens for instance in Phis and in
-        // Change (although ChangeOp is already handled earlier by calling
-        // ProcessChange). We are conservative here by calling
-        // InvalidateAllNonAliasingInputs for all operations even though only
-        // few can actually create aliases to fresh allocations, the reason
-        // being that missing such a case would be a security issue, and it
-        // should be rare for fresh allocations to be used outside of
-        // Call/Store/Load/Change anyways.
-        InvalidateAllNonAliasingInputs(op);
-
         break;
     }
   }
@@ -826,18 +813,13 @@ void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
 
-  InvalidateAllNonAliasingInputs(op);
+  for (OpIndex input : op.inputs()) {
+    InvalidateIfAlias(input);
+  }
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
   memory_.InvalidateMaybeAliasing();
-}
-
-void WasmLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
-    const Operation& op) {
-  for (OpIndex input : op.inputs()) {
-    InvalidateIfAlias(input);
-  }
 }
 
 void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
@@ -857,9 +839,16 @@ void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
 }
 
 void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
-  InvalidateAllNonAliasingInputs(phi);
-
   base::Vector<const OpIndex> inputs = phi.inputs();
+  for (OpIndex input : inputs) {
+    if (auto key = non_aliasing_objects_.TryGetKeyFor(input)) {
+      non_aliasing_objects_.Set(*key, false);
+    }
+    // If {non_aliasing_objects_} has no key for {input}, then {input} was not
+    // known as non-aliasing (and is thus considered by default as
+    // maybe-aliasing), so there is no need to create an entry for it in
+    // {non_aliasing_objects_}.
+  }
   // This copies some of the functionality of {RequiredOptimizationReducer}:
   // Phis whose inputs are all the same value can be replaced by that value.
   // We need to have this logic here because interleaving it with other cases
