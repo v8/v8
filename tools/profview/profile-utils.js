@@ -12,6 +12,7 @@ let codeKinds = [
     "CPP_COMP",
     "CPP_GC",
     "CPP_EXT",
+    "CPP_LOGGING",
     "CPP",
     "LIB",
     "IC",
@@ -82,6 +83,8 @@ function resolveCodeKindAndVmState(code, vmState) {
       kind = "CPP_COMP";
     } else if (vmState === 6) {
       kind = "CPP_EXT";
+    } else if (vmState === 9) {
+      kind = "CPP_LOGGING";
     }
     // TODO(cbruni): add CPP_COMP_BASELINE
   }
@@ -283,6 +286,7 @@ function buildCategoryTreeAndLookup() {
   addCategory("C++/Baseline Compiler", [ "CPP_COMP_BASELINE" ]);
   addCategory("C++/Compiler", [ "CPP_COMP" ]);
   addCategory("C++/External", [ "CPP_EXT" ]);
+  addCategory("C++/Logging", [ "CPP_LOGGING" ]);
   addCategory("Unknown", [ "UNKNOWN" ]);
 
   return { categories, root };

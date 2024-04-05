@@ -43,7 +43,8 @@ function emptyState() {
       categories : "code-type",
       sort : "time"
     },
-    sourceData: null
+    sourceData: null,
+    showLogging: false,
   };
 }
 
@@ -144,11 +145,86 @@ let main = {
     main.currentState.sourceData = new SourceData(file);
   },
 
+  filterFileTicks(file, showLogging) {
+    if (showLogging) return file;
+
+    // Filter out ticks with the logging VMState, if necessary. This is done
+    // directly on the file ticks, rather than as a filter on the tick
+    // processors, so that the timestamps can be adjusted as if the stacks were
+    // never there.
+    let filtered_ticks = [];
+    let currentTimestampCorrection = 0;
+    let timestampCorrections = [];
+    for (let i = 0; i < file.ticks.length; ++i) {
+      let tick = file.ticks[i];
+      // Fitler VMState == CPP_LOGGING.
+      if (tick.vm == 9) {
+        if (i > 0) {
+          currentTimestampCorrection += tick.tm - file.ticks[i - 1].tm;
+          timestampCorrections.push({
+            tm: tick.tm,
+            correction: timestampCorrection
+          });
+        }
+      } else if (currentTimestampCorrection == 0) {
+        filtered_ticks.push(tick);
+      } else {
+        let new_tick = {...tick};
+        new_tick.tm -= currentTimestampCorrection;
+        filtered_ticks.push(new_tick);
+      }
+    }
+
+    // Now fix up creation timestamps of code objects.
+
+    // Binary search for the lower bound timestamp correction.
+    function applyTimestampCorrection(tm) {
+      let corrections = timestampCorrections;
+
+      if (corrections.length == 0) return 0;
+      let start = 0;
+      let end = corrections.length - 1;
+      while (start <= end) {
+        let middle = (start + end) >> 1;
+        if (tm > corrections[middle].tm) {
+          start = middle + 1;
+        } else {
+          end = middle - 1;
+        }
+      }
+      return corrections[start].correction
+    }
+
+    let filtered_code = [];
+    for (let i = 0; i < file.code.length; ++i) {
+      let code = file.code[i];
+      if (code.type == "JS") {
+        let new_code = { ...code };
+        new_code.tm =
+            applyTimestampCorrection(new_code.tm, timestampCorrections);
+
+        if (code.deopt) {
+          let new_deopt = { ...code.deopt };
+          new_deopt.tm =
+              applyTimestampCorrection(new_deopt.tm, timestampCorrections);
+          new_code.deopt = new_deopt;
+        }
+
+        filtered_code.push(new_code);
+      } else {
+        filtered_code.push(code);
+      }
+    }
+    return {...file, code: filtered_code, ticks: filtered_ticks};
+  },
+
   setFile(file) {
-    if (file !== main.currentState.file) {
+    if (file !== main.currentState.unfilteredFile) {
       let lastMode = main.currentState.mode || "summary";
       main.currentState = emptyState();
-      main.currentState.file = file;
+      main.currentState.unfilteredFile = file;
+      main.currentState.file =
+          main.filterFileTicks(file, main.currentState.showLogging);
       main.updateSources(file);
       main.setMode(lastMode);
       main.delayRender();
@@ -167,6 +243,15 @@ let main = {
     if (main.currentState.viewingSource !== value) {
       main.currentState = Object.assign({}, main.currentState);
       main.currentState.viewingSource = value;
+      main.delayRender();
+    }
+  },
+
+  setShowLogging(value) {
+    if (main.currentState.showLogging !== value) {
+      main.currentState = Object.assign({}, main.currentState);
+      main.currentState.showLogging = value;
+      main.currentState.file = main.filterFileTicks(main.currentState.unfilteredFile, value);
       main.delayRender();
     }
   },
@@ -292,6 +377,12 @@ const bucketDescriptors =
     text: "C++/GC"
   },
   {
+    kinds: ["CPP_LOGGING"],
+    color: "#dedede",
+    backgroundColor: "#efefef",
+    text: "C++/Logging"
+  },
+  {
     kinds: ["UNKNOWN"],
     color: "#bdbdbd",
     backgroundColor: "#efefef",
@@ -335,6 +426,8 @@ function codeTypeToText(type) {
       return "C++ GC";
     case "CPP_EXT":
       return "C++ External";
+    case "CPP_LOGGING":
+      return "C++ Logging";
     case "CPP":
       return "C++";
     case "LIB":
@@ -772,6 +865,11 @@ class TimelineView {
     this.functionTimelineTickHeight = 16;
 
     this.currentState = null;
+
+    this.showLoggingInput = $("show-logging");
+    this.showLoggingInput.onchange = () => {
+      main.setShowLogging(this.showLoggingInput.checked);
+    };
   }
 
   onMouseDown(e) {
@@ -908,7 +1006,8 @@ class TimelineView {
           newState.currentCodeId === oldState.currentCodeId &&
           newState.callTree.attribution === oldState.callTree.attribution &&
           newState.start === oldState.start &&
-          newState.end === oldState.end) {
+          newState.end === oldState.end &&
+          newState.showLogging === oldState.showLogging) {
         // No change, nothing to do.
         return;
       }
@@ -1107,26 +1206,21 @@ class TimelineView {
     this.drawSelection();
 
     // (Re-)Populate the graph legend.
-    while (this.legend.cells.length > 0) {
-      this.legend.deleteCell(0);
-    }
-    let cell = this.legend.insertCell(-1);
-    cell.textContent = "Legend: ";
-    cell.style.padding = "1ex";
+    this.legend.innerHTML = "";
     for (let i = 0; i < bucketDescriptors.length; i++) {
-      let cell = this.legend.insertCell(-1);
-      cell.style.padding = "1ex";
       let desc = bucketDescriptors[i];
-      let div = document.createElement("div");
-      div.style.display = "inline-block";
-      div.style.width = "0.6em";
-      div.style.height = "1.2ex";
-      div.style.backgroundColor = desc.color;
-      div.style.borderStyle = "solid";
-      div.style.borderWidth = "1px";
-      div.style.borderColor = "Black";
-      cell.appendChild(div);
+      let box = document.createElement("div");
+      box.style.display = "inline-block";
+      box.style.width = "0.6em";
+      box.style.height = "1.2ex";
+      box.style.backgroundColor = desc.color;
+      box.style.borderStyle = "solid";
+      box.style.borderWidth = "1px";
+      box.style.borderColor = "Black";
+      let cell = document.createElement("div");
+      cell.appendChild(box);
       cell.appendChild(document.createTextNode(" " + desc.text));
+      this.legend.appendChild(cell);
     }
 
     removeAllChildren(this.currentCode);
