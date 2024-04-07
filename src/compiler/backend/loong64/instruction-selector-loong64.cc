@@ -2291,7 +2291,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else {
-        auto constant = constant_view(input_at(value, 1)).int64_value();
+        auto shift_value = input_at(value, 1);
+        DCHECK(g.IsIntegerConstant(shift_value));
+        auto constant = g.GetIntegerConstantValue(constant_view(shift_value));
+
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kLoong64Sra_d, g.DefineAsRegister(node),
