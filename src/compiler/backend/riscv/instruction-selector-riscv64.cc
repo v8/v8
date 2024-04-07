@@ -468,6 +468,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(this);
   typename Adapter::StoreView store_view = this->store_view(node);
+  DCHECK_EQ(store_view.displacement(), 0);
   node_t base = store_view.base();
   node_t index = this->value(store_view.index());
   node_t value = store_view.value();
@@ -494,8 +495,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = kArchStoreIndirectWithWriteBarrier;
-      node_t tag = store_view.indirect_pointer_tag();
-      inputs[input_count++] = g.UseImmediate(tag);
+      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else {
       code = kArchStoreWithWriteBarrier;
     }
