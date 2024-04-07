@@ -1630,6 +1630,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Float64ExtractHighWord32:
       __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
+    case kMips64Float64FromWord32Pair:
+      __ Move(i.OutputDoubleRegister(), i.InputRegister(1), i.InputRegister(0));
+      break;
     case kMips64Float64InsertLowWord32:
       __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
