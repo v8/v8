@@ -53,7 +53,14 @@
 // warning with Pragmas. Clang and GCC helpfully disagree on where the warning
 // is (on the if or the else), so they need separate macros.
 #if defined(__clang__)
+#if defined(V8_OS_ANDROID) && defined(V8_TARGET_ARCH_ARM64)
+// TODO(nicohartmann@, chromium:332329850): Temporarily disabling
+// FORCE_UNROLL_LOOP on arm64 android to work around clang failing to unroll a
+// loop (crbug.com/332329850).
+#define FORCE_UNROLL_LOOP
+#else
 #define FORCE_UNROLL_LOOP _Pragma("clang loop unroll(full)")
+#endif
 #define SUPPRESSED_DANGLING_ELSE_WARNING_IF(...) if (__VA_ARGS__)
 #define SUPPRESSED_DANGLING_ELSE_WARNING_ELSE                             \
   _Pragma("GCC diagnostic push")                                          \
