@@ -142,7 +142,7 @@ in_category(
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"default_targets": ["v8_gcc_light"]},
         use_remoteexec = RECLIENT.NO,
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
