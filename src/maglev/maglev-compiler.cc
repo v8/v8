@@ -196,8 +196,7 @@ class AnyUseMarkingProcessor {
     }
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
-      if (InlinedAllocation* object =
-              node->input(0).node()->template TryCast<InlinedAllocation>()) {
+      if (node->input(0).node()->template Is<InlinedAllocation>()) {
         stores_to_allocations_.push_back(node);
       }
     }

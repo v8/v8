@@ -346,9 +346,7 @@ class BranchEliminationReducer : public Next {
         // input is coming from the current block, then it still makes sense to
         // inline {destination_origin}: the condition will then be known.
         if (destination_origin->Contains(branch->condition())) {
-          if (const PhiOp* cond = __ input_graph()
-                                      .Get(branch->condition())
-                                      .template TryCast<PhiOp>()) {
+          if (__ input_graph().Get(branch->condition()).template Is<PhiOp>()) {
             __ CloneBlockAndGoto(destination_origin);
             return {};
           } else if (CanBeConstantFolded(branch->condition(),
