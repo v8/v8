@@ -10,6 +10,9 @@
 #include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
+#if defined(LEAK_SANITIZER)
+#include "src/base/platform/mutex.h"
+#endif
 
 namespace v8 {
 namespace base {
@@ -69,6 +72,7 @@ class V8_BASE_EXPORT LsanPageAllocator : public v8::PageAllocator {
   const size_t allocate_page_size_;
   const size_t commit_page_size_;
 #if defined(LEAK_SANITIZER)
+  base::Mutex not_registered_regions_mutex_;
   std::set<void*> not_registered_regions_;
 #endif
 };

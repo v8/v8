@@ -34,6 +34,7 @@ void* LsanPageAllocator::AllocatePages(void* hint, size_t size,
       // mark the memory as unused. This makes tests with LSAN enabled 2-3x
       // slower since it will always try to scan the area for pointers. So skip
       // registering the JIT regions with LSAN.
+      base::MutexGuard lock(&not_registered_regions_mutex_);
       not_registered_regions_.insert(result);
     }
   }
@@ -60,6 +61,7 @@ bool LsanPageAllocator::CanAllocateSharedPages() {
 bool LsanPageAllocator::FreePages(void* address, size_t size) {
   CHECK(page_allocator_->FreePages(address, size));
 #if defined(LEAK_SANITIZER)
+  base::MutexGuard lock(&not_registered_regions_mutex_);
   if (not_registered_regions_.count(address) == 0) {
     __lsan_unregister_root_region(address, size);
   } else {
@@ -73,6 +75,7 @@ bool LsanPageAllocator::ReleasePages(void* address, size_t size,
                                      size_t new_size) {
   CHECK(page_allocator_->ReleasePages(address, size, new_size));
 #if defined(LEAK_SANITIZER)
+  base::MutexGuard lock(&not_registered_regions_mutex_);
   if (not_registered_regions_.count(address) == 0) {
     __lsan_unregister_root_region(address, size);
     __lsan_register_root_region(address, new_size);
