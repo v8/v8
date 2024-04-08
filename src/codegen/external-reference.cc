@@ -277,6 +277,10 @@ ExternalReference ExternalReference::code_pointer_table_address() {
   return ExternalReference(GetProcessWideCodePointerTable()->base_address());
 }
 
+ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
+  return ExternalReference(MemoryChunk::MetadataTableAddress());
+}
+
 #endif  // V8_ENABLE_SANDBOX
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(

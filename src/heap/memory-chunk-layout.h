@@ -45,7 +45,11 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
   enum Header {
     FIELD(uintptr_t, Flags),
+#ifdef V8_ENABLE_SANDBOX
+    FIELD(uint32_t, MetadataIndex),
+#else
     FIELD(MemoryChunkMetadata*, Metadata),
+#endif
     kEndOfMetadataPointer,
     kMemoryChunkHeaderSize =
         kEndOfMetadataPointer +

@@ -11,10 +11,20 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE MemoryChunkMetadata* MemoryChunk::Metadata() {
+MemoryChunkMetadata* MemoryChunk::Metadata() {
   // If this changes, we also need to update
   // CodeStubAssembler::PageMetadataFromMemoryChunk
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_LT(metadata_index_, kMetadataPointerTableSizeMask);
+  MemoryChunkMetadata* metadata =
+      metadata_pointer_table_[metadata_index_ & kMetadataPointerTableSizeMask];
+  // Check that the Metadata belongs to this Chunk, since an attacker with write
+  // inside the sandbox could've swapped the index.
+  SBXCHECK_EQ(metadata->Chunk(), this);
+  return metadata;
+#else
   return metadata_;
+#endif
 }
 
 const MemoryChunkMetadata* MemoryChunk::Metadata() const {
