@@ -196,37 +196,36 @@ class FastApiCallLoweringReducer : public Next {
     return {callee, arg};
   }
 
+  template <typename T>
+  V<T> Checked(V<Tuple<T, Word32>> result, Label<>& otherwise) {
+    V<Word32> result_state = __ template Projection<1>(result);
+    GOTO_IF_NOT(__ Word32Equal(result_state, TryChangeOp::kSuccessValue),
+                otherwise);
+    return __ template Projection<0>(result);
+  }
+
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
                                 Label<>& handle_error) {
     switch (arg_type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kScalar: {
-        auto CheckSuccess = [&](OpIndex result, Label<>& otherwise) {
-          V<Word32> result_state = __ template Projection<Word32>(result, 1);
-          GOTO_IF_NOT(__ Word32Equal(result_state, TryChangeOp::kSuccessValue),
-                      otherwise);
-        };
         uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
         if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
           switch (arg_type.GetType()) {
             case CTypeInfo::Type::kInt32: {
-              OpIndex result = __ TryTruncateFloat64ToInt32(argument);
-              CheckSuccess(result, handle_error);
-              return __ template Projection<Word32>(result, 0);
+              auto result = __ TryTruncateFloat64ToInt32(argument);
+              return Checked(result, handle_error);
             }
             case CTypeInfo::Type::kUint32: {
-              OpIndex result = __ TryTruncateFloat64ToUint32(argument);
-              CheckSuccess(result, handle_error);
-              return __ template Projection<Word32>(result, 0);
+              auto result = __ TryTruncateFloat64ToUint32(argument);
+              return Checked(result, handle_error);
             }
             case CTypeInfo::Type::kInt64: {
-              OpIndex result = __ TryTruncateFloat64ToInt64(argument);
-              CheckSuccess(result, handle_error);
-              return __ template Projection<Word64>(result, 0);
+              auto result = __ TryTruncateFloat64ToInt64(argument);
+              return Checked(result, handle_error);
             }
             case CTypeInfo::Type::kUint64: {
-              OpIndex result = __ TryTruncateFloat64ToUint64(argument);
-              CheckSuccess(result, handle_error);
-              return __ template Projection<Word64>(result, 0);
+              auto result = __ TryTruncateFloat64ToUint64(argument);
+              return Checked(result, handle_error);
             }
             default: {
               GOTO(handle_error);

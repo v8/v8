@@ -1966,13 +1966,13 @@ OpIndex GraphBuilder::Process(
 
       Label<Object> done(this);
 
-      OpIndex fast_call_result =
+      V<Tuple<Word32, Any>> fast_call_result =
           __ FastApiCall(data_argument, base::VectorOf(arguments), parameters);
-      V<Word32> result_state =
-          __ template Projection<Word32>(fast_call_result, 0);
+      V<Word32> result_state = __ template Projection<0>(fast_call_result);
 
       IF (LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
-        GOTO(done, __ template Projection<Object>(fast_call_result, 1));
+        GOTO(done, V<Object>::Cast(__ template Projection<1>(
+                       fast_call_result, RegisterRepresentation::Tagged())));
       } ELSE {
         // We need to generate a fallback (both fast and slow call) in case:
         // 1) the generated code might fail, in case e.g. a Smi was passed where

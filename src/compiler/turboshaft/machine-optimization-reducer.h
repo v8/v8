@@ -1214,9 +1214,9 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
-                                       OverflowCheckedBinopOp::Kind kind,
-                                       WordRepresentation rep) {
+  V<Tuple<Word, Word32>> REDUCE(OverflowCheckedBinop)(
+      V<Word> left, V<Word> right, OverflowCheckedBinopOp::Kind kind,
+      WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
     }
@@ -1273,7 +1273,7 @@ class MachineOptimizationReducer : public Next {
     // left - 0  =>  (left, false)
     if (kind == any_of(Kind::kSignedAdd, Kind::kSignedSub) &&
         matcher.MatchZero(right)) {
-      return __ Tuple(left, right);
+      return __ Tuple(left, __ Word32Constant(0));
     }
 
     if (kind == Kind::kSignedMul) {
@@ -1301,7 +1301,7 @@ class MachineOptimizationReducer : public Next {
     // (where UntagSmi(x) = x >> 1   with a ShiftOutZeros shift)
     if (kind == Kind::kSignedAdd && left == right) {
       uint16_t amount;
-      if (OpIndex x; matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
+      if (V<Word> x; matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                          left, &x, WordRepresentation::Word32(), &amount) &&
                      amount == 1) {
         return __ Tuple(x, __ Word32Constant(0));
@@ -1458,7 +1458,7 @@ class MachineOptimizationReducer : public Next {
       }
       {
         // (x >> k) </<=  (y >> k)  =>  x </<=  y   if shifts reversible
-        OpIndex x, y;
+        V<Word> x, y;
         uint16_t k1, k2;
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                 left, &x, rep_w, &k1) &&
@@ -1472,7 +1472,7 @@ class MachineOptimizationReducer : public Next {
         // (x >> k1) </<= k2  =>  x </<= (k2 << k1)  if shifts reversible
         // Only perform the transformation if the shift is not used yet, to
         // avoid keeping both the shift and x alive.
-        OpIndex x;
+        V<Word> x;
         uint16_t k1;
         int64_t k2;
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
@@ -2066,7 +2066,7 @@ class MachineOptimizationReducer : public Next {
           // (x >> k1) == k2  =>  x == (k2 << k1)  if shifts reversible
           // Only perform the transformation if the shift is not used yet, to
           // avoid keeping both the shift and x alive.
-          OpIndex x;
+          V<Word> x;
           uint16_t k1;
           int64_t k2;
           if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(

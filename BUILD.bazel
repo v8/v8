@@ -799,6 +799,8 @@ filegroup(
         "src/base/strings.h",
         "src/base/sys-info.cc",
         "src/base/sys-info.h",
+        "src/base/template-meta-programming/algorithm.h",
+        "src/base/template-meta-programming/list.h",
         "src/base/template-utils.h",
         "src/base/threaded-list.h",
         "src/base/timezone-cache.h",

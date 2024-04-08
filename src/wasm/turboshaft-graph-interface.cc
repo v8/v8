@@ -46,6 +46,7 @@ using compiler::turboshaft::ConstOrV;
 using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
+using compiler::turboshaft::FrameState;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -62,6 +63,7 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
+using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::WasmArrayNullable;
@@ -4154,13 +4156,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<String> string,
                             V<Word32> offset) {
-    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Object> base =
-        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
-    V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
-    V<Word32> charwidth_shift =
-        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+    auto prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Object> base = __ template Projection<0>(prepare);
+    V<WordPtr> base_offset = __ template Projection<1>(prepare);
+    V<Word32> charwidth_shift = __ template Projection<2>(prepare);
 
     // Bounds check.
     V<Word32> length = LoadStringLength(string);
@@ -4220,13 +4219,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   V<Word32> StringCodePointAt(FullDecoder* decoder, V<String> string,
                               V<Word32> offset) {
-    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Object> base =
-        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
-    V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::WordPtr());
-    V<Word32> charwidth_shift =
-        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+    auto prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Object> base = __ template Projection<0>(prepare);
+    V<WordPtr> base_offset = __ template Projection<1>(prepare);
+    V<Word32> charwidth_shift = __ template Projection<2>(prepare);
 
     // Bounds check.
     V<Word32> length = LoadStringLength(string);
@@ -4997,7 +4993,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
-    OpIndex frame_state =
+    V<FrameState> frame_state =
         __ FrameState(builder.Inputs(), builder.inlined(),
                       builder.AllocateFrameStateData(*frame_state_info, zone));
     __ DeoptimizeIfNot(deopt_condition, frame_state,
@@ -5005,13 +5001,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        compiler::FeedbackSource());
   }
 
-  V<Word64> ExtractTruncationProjections(OpIndex truncated) {
-    V<Word64> result =
-        __ Projection(truncated, 0, RegisterRepresentation::Word64());
-    V<Word32> check =
-        __ Projection(truncated, 1, RegisterRepresentation::Word32());
-    __ TrapIf(__ Word32Equal(check, 0), OpIndex::Invalid(),
-              TrapId::kTrapFloatUnrepresentable);
+  V<Word64> ExtractTruncationProjections(V<Tuple<Word64, Word32>> truncated) {
+    V<Word64> result = __ template Projection<0>(truncated);
+    V<Word32> check = __ template Projection<1>(truncated);
+    __ TrapIf(__ Word32Equal(check, 0), {}, TrapId::kTrapFloatUnrepresentable);
     return result;
   }
 
@@ -5304,16 +5297,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               arg, MemoryRepresentation::Float32(),
               ExternalReference::wasm_float32_to_int64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat32ToInt64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat32ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ Projection<0>(converted);
         }
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
+        IF (LIKELY(__ Projection<1>(converted))) {
+          GOTO(done, __ Projection<0>(converted));
         } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
@@ -5343,17 +5334,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               arg, MemoryRepresentation::Float32(),
               ExternalReference::wasm_float32_to_uint64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat32ToUint64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat32ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
         } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
@@ -5382,17 +5371,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               arg, MemoryRepresentation::Float64(),
               ExternalReference::wasm_float64_to_int64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat64ToInt64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat64ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
         } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
@@ -5422,17 +5409,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
               arg, MemoryRepresentation::Float64(),
               ExternalReference::wasm_float64_to_uint64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat64ToUint64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat64ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
         } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
