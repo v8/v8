@@ -7,6 +7,7 @@
 
 #include "include/v8-function.h"
 #include "include/v8-platform.h"
+#include "src/base/platform/time.h"
 #include "src/init/v8.h"
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
@@ -207,16 +208,20 @@ TEST_WITH_PLATFORM(TestEventWithId, MockTracingPlatform) {
 }
 
 TEST_WITH_PLATFORM(TestEventWithTimestamp, MockTracingPlatform) {
-  TRACE_EVENT_INSTANT_WITH_TIMESTAMP0("v8-cat", "0arg",
-                                      TRACE_EVENT_SCOPE_GLOBAL, 1729);
-  TRACE_EVENT_INSTANT_WITH_TIMESTAMP1("v8-cat", "1arg",
-                                      TRACE_EVENT_SCOPE_GLOBAL, 4104, "val", 1);
-  TRACE_EVENT_MARK_WITH_TIMESTAMP2("v8-cat", "mark", 13832, "a", 1, "b", 2);
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
+      "v8-cat", "0arg", TRACE_EVENT_SCOPE_GLOBAL,
+      v8::base::TimeTicks::FromInternalValue(1729));
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP1(
+      "v8-cat", "1arg", TRACE_EVENT_SCOPE_GLOBAL,
+      v8::base::TimeTicks::FromInternalValue(4104), "val", 1);
+  TRACE_EVENT_MARK_WITH_TIMESTAMP2(
+      "v8-cat", "mark", v8::base::TimeTicks::FromInternalValue(13832), "a", 1,
+      "b", 2);
 
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0("v8-cat", "begin", 5,
-                                                        20683);
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("v8-cat", "end", 5,
-                                                      32832);
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+      "v8-cat", "begin", 5, v8::base::TimeTicks::FromInternalValue(20683));
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+      "v8-cat", "end", 5, v8::base::TimeTicks::FromInternalValue(32832));
 
   CHECK_EQ(5, platform.NumberOfTraceObjects());
 
