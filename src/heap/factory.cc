@@ -1686,8 +1686,7 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<ExposedTrustedObject> ref, DirectHandle<Map> rtt,
-    int function_index) {
+    DirectHandle<ExposedTrustedObject> ref, int function_index) {
   Tagged<WasmInternalFunction> internal =
       Tagged<WasmInternalFunction>::cast(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize, AllocationType::kTrusted,
@@ -1701,26 +1700,23 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     // Default values, will be overwritten by the caller.
     internal->set_function_index(function_index);
     internal->set_external(*undefined_value());
-    // Initially set undefined here, so heap verification passes if the
-    // allocation of the WasmFuncRef triggers GC.
-    internal->set_func_ref(*undefined_value());
   }
 
-  Handle<WasmInternalFunction> result{internal, isolate()};
-  // Disallow using the unhandlified reference from here on.
-  internal = {};
-  // Now allocate the WasmFuncRef and link the two objects.
-  Tagged<HeapObject> func_ref_raw =
+  return handle(internal, isolate());
+}
+
+Handle<WasmFuncRef> Factory::NewWasmFuncRef(
+    DirectHandle<WasmInternalFunction> internal_function,
+    DirectHandle<Map> rtt) {
+  Tagged<HeapObject> raw =
       AllocateRaw(WasmFuncRef::kSize, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
   DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
-  func_ref_raw->set_map_after_allocation(*rtt);
-  Tagged<WasmFuncRef> func_ref = WasmFuncRef::cast(func_ref_raw);
-  func_ref->set_internal(*result);
-  result->set_func_ref(*func_ref);
-
-  return result;
+  raw->set_map_after_allocation(*rtt);
+  Tagged<WasmFuncRef> func_ref = WasmFuncRef::cast(raw);
+  func_ref->set_internal(*internal_function);
+  return handle(func_ref, isolate());
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
@@ -1731,14 +1727,15 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       callable, suspend, undefined_value(), serialized_sig);
 
-  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, rtt, -1);
-  WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(ref, internal);
+  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, -1);
+  Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
+  WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
       Tagged<WasmJSFunctionData>::cast(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result->set_internal(*internal);
+  result->set_func_ref(*func_ref);
   result->set_wrapper_code(*wrapper_code);
   result->set_serialized_signature(*serialized_sig);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
@@ -1761,7 +1758,7 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmInstanceObject> instance,
-    DirectHandle<WasmInternalFunction> internal, int func_index,
+    DirectHandle<WasmFuncRef> func_ref, int func_index,
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
     int wrapper_budget, wasm::Promise promise) {
   Tagged<Map> map = *wasm_exported_function_data_map();
@@ -1769,7 +1766,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
       Tagged<WasmExportedFunctionData>::cast(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result->set_internal(*internal);
+  result->set_func_ref(*func_ref);
   result->set_wrapper_code(*export_wrapper);
   result->set_instance(*instance);
   result->set_function_index(func_index);
@@ -1792,15 +1789,16 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       undefined_value(), wasm::kNoSuspend, undefined_value(), serialized_sig);
-  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, rtt, -1);
-  WasmApiFunctionRef::SetInternalFunctionAsCallOrigin(ref, internal);
+  Handle<WasmInternalFunction> internal = NewWasmInternalFunction(ref, -1);
+  Handle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
+  WasmApiFunctionRef::SetFuncRefAsCallOrigin(ref, func_ref);
   internal->set_call_target(call_target);
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Tagged<WasmCapiFunctionData>::cast(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result->set_internal(*internal);
+  result->set_func_ref(*func_ref);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
   result->set_serialized_signature(*serialized_sig);

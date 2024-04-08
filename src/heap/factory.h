@@ -699,8 +699,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmInstanceObject> opt_instance, uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<ExposedTrustedObject> ref, DirectHandle<Map> rtt,
-      int function_index);
+      DirectHandle<ExposedTrustedObject> ref, int function_index);
+  Handle<WasmFuncRef> NewWasmFuncRef(
+      DirectHandle<WasmInternalFunction> internal_function,
+      DirectHandle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
@@ -708,7 +710,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       DirectHandle<Code> export_wrapper,
       DirectHandle<WasmInstanceObject> instance_object,
-      DirectHandle<WasmInternalFunction> internal, int func_index,
+      DirectHandle<WasmFuncRef> func_ref, int func_index,
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
       int wrapper_budget, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(

@@ -2253,7 +2253,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return;
     }
     i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
-        i::WasmTrustedInstanceData::cast(data->internal(i_isolate)->ref()),
+        i::WasmTrustedInstanceData::cast(
+            data->func_ref()->internal(i_isolate)->ref()),
         i_isolate);
     int func_index = data->function_index();
     i::Handle<i::Code> wrapper =
@@ -2279,11 +2280,13 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
                   i_isolate);
 
     i::Handle<i::WasmInternalFunction> internal =
-        i_isolate->factory()->NewWasmInternalFunction(ref, rtt, func_index);
+        i_isolate->factory()->NewWasmInternalFunction(ref, func_index);
+    i::Handle<i::WasmFuncRef> func_ref =
+        i_isolate->factory()->NewWasmFuncRef(internal, rtt);
     internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
 
     i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
-        i_isolate, trusted_instance_data, internal, func_index,
+        i_isolate, trusted_instance_data, func_ref, func_index,
         static_cast<int>(data->sig()->parameter_count()), wrapper);
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;

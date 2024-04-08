@@ -372,10 +372,6 @@ TRUSTED_POINTER_ACCESSORS(WasmFuncRef, internal, WasmInternalFunction,
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
 
-TRUSTED_POINTER_ACCESSORS(WasmFunctionData, internal, WasmInternalFunction,
-                          kTrustedInternalOffset,
-                          kWasmInternalFunctionIndirectPointerTag)
-
 // WasmExportedFunctionData
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
@@ -401,9 +397,8 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExternalFunction)
 
-Tagged<WasmInternalFunction> WasmExternalFunction::internal(
-    IsolateForSandbox isolate) const {
-  return shared()->wasm_function_data()->internal(isolate);
+Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
+  return shared()->wasm_function_data()->func_ref();
 }
 
 // WasmTypeInfo

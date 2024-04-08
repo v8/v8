@@ -763,7 +763,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
-      Handle<WasmInternalFunction> internal, int func_index, int arity,
+      Handle<WasmFuncRef> func_ref, int func_index, int arity,
       Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
@@ -830,7 +830,7 @@ class WasmExternalFunction : public JSFunction {
  public:
   static bool IsWasmExternalFunction(Tagged<Object> object);
 
-  inline Tagged<WasmInternalFunction> internal(IsolateForSandbox isolate) const;
+  inline Tagged<WasmFuncRef> func_ref() const;
 
   DECL_CAST(WasmExternalFunction)
   OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
@@ -841,15 +841,11 @@ class WasmFunctionData
  public:
   DECL_CODE_POINTER_ACCESSORS(wrapper_code)
 
-  DECL_TRUSTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
-
   DECL_PRINTER(WasmFunctionData)
 
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmFunctionData>,
-      WithStrongCodePointer<kWrapperCodeOffset>,
-      WithStrongTrustedPointer<kTrustedInternalOffset,
-                               kWasmInternalFunctionIndirectPointerTag>>;
+  using BodyDescriptor =
+      StackedBodyDescriptor<FixedBodyDescriptorFor<WasmFunctionData>,
+                            WithStrongCodePointer<kWrapperCodeOffset>>;
 
   using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
   using PromiseField = base::BitField<wasm::Promise, 1, 1>;
@@ -907,8 +903,8 @@ class WasmApiFunctionRef
       Isolate* isolate, Handle<WasmApiFunctionRef> ref,
       Handle<WasmInstanceObject> instance_object, int entry_index);
 
-  static void SetInternalFunctionAsCallOrigin(
-      Handle<WasmApiFunctionRef> ref, Handle<WasmInternalFunction> internal);
+  static void SetFuncRefAsCallOrigin(Handle<WasmApiFunctionRef> ref,
+                                     Handle<WasmFuncRef> func_ref);
 
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<

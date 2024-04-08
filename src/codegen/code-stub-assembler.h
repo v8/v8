@@ -1343,13 +1343,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         func_ref, WasmFuncRef::kTrustedInternalOffset,
         kWasmInternalFunctionIndirectPointerTag));
   }
-
-  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromWasmFunctionData(
-      TNode<WasmFunctionData> data) {
-    return CAST(LoadTrustedPointerFromObject(
-        data, WasmFunctionData::kTrustedInternalOffset,
-        kWasmInternalFunctionIndirectPointerTag));
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

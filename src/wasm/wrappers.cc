@@ -405,10 +405,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        V<Object> internal = __ LoadTrustedPointerField(
-            function_data, LoadOp::Kind::TaggedBase(),
-            kWasmInternalFunctionIndirectPointerTag,
-            WasmFunctionData::kTrustedInternalOffset);
+        V<WasmFuncRef> func_ref = V<WasmFuncRef>::Cast(__ LoadTaggedField(
+            function_data, WasmFunctionData::kFuncRefOffset));
+        V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
+            __ LoadTrustedPointerField(func_ref, LoadOp::Kind::TaggedBase(),
+                                       kWasmInternalFunctionIndirectPointerTag,
+                                       WasmFuncRef::kTrustedInternalOffset));
         V<WordPtr> callee = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::UintPtr(),
                                     WasmInternalFunction::kCallTargetOffset);
@@ -718,8 +720,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Object> function_node = __ LoadTaggedField(
         incoming_params[0], WasmApiFunctionRef::kCallableOffset);
     V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
-    V<Object> function_data =
-        __ LoadTaggedField(shared, SharedFunctionInfo::kFunctionDataOffset);
+    V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
+        __ LoadTaggedField(shared, SharedFunctionInfo::kFunctionDataOffset));
     V<Object> host_data_foreign = __ LoadTaggedField(
         function_data, WasmCapiFunctionData::kEmbedderDataOffset);
 
@@ -730,7 +732,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
              MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              Isolate::c_entry_fp_offset());
 
-    OpIndex function =
+    V<WordPtr> call_target =
         BuildLoadCallTargetFromExportedFunctionData(function_data);
 
     // Parameters: Address host_data_foreign, Address arguments.
@@ -738,7 +740,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
             .Params(MachineType::AnyTagged(), MachineType::Pointer());
     OpIndex return_value =
-        CallC(&host_sig, function, {host_data_foreign, values});
+        CallC(&host_sig, call_target, {host_data_foreign, values});
 
     BuildModifyThreadInWasmFlag(__ phase_zone(), true);
 
@@ -1323,12 +1325,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     __ Store(base, value, store_kind, rep, compiler::kNoWriteBarrier, offset);
   }
 
-  OpIndex BuildLoadCallTargetFromExportedFunctionData(OpIndex function_data) {
-    OpIndex internal = __ LoadTrustedPointerField(
-        function_data, LoadOp::Kind::TaggedBase(),
-        kWasmInternalFunctionIndirectPointerTag,
-        WasmExportedFunctionData::kTrustedInternalOffset);
-    // TODO(saelo): should this become a CodePointer instead?
+  V<WordPtr> BuildLoadCallTargetFromExportedFunctionData(
+      V<WasmFunctionData> function_data) {
+    V<WasmFuncRef> func_ref = V<WasmFuncRef>::Cast(__ LoadTaggedField(
+        function_data, WasmExportedFunctionData::kFuncRefOffset));
+    V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
+        __ LoadTrustedPointerField(func_ref, LoadOp::Kind::TaggedBase(),
+                                   kWasmInternalFunctionIndirectPointerTag,
+                                   WasmFuncRef::kTrustedInternalOffset));
     return __ Load(internal, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::UintPtr(),
                    WasmInternalFunction::kCallTargetOffset);

@@ -57,11 +57,6 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   external: JSFunction|Undefined;
   // The function index if ref is a WasmInstanceObject, -1 otherwise.
   function_index: Smi;
-  // The object representing a function reference to this function.
-  // TODO(14564): Remove this field, or disallow undefined which is only allowed
-  // so we can construct the two objects subsequently and satify any in-between
-  // heap verification.
-  func_ref: WasmFuncRef|Undefined;
   // The call target, stored as raw pointer in this trusted object.
   call_target: RawPtr;
 }
@@ -85,18 +80,15 @@ extern class WasmFunctionData extends HeapObject {
   // Used for calling this function from JavaScript.
   @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
-  // The wasm-internal representation of this function object.
-  // Torque code uses the '.internal' macro below to load the actual reference
-  // to the WasmInternalFunction.
-  @if(V8_ENABLE_SANDBOX) trusted_internal:
-      IndirectPointer<WasmInternalFunction>;
-  @ifnot(V8_ENABLE_SANDBOX) trusted_internal: WasmInternalFunction;
+  // The function reference for this function object. This is used when
+  // converting a JS function back to the wasm-side func ref, and for loading
+  // the call target in js-to-wasm wrappers.
+  // We could save one indirection there by storing either the
+  // WasmInternalFunction or the call target (via CPT) directly here.
+  func_ref: WasmFuncRef;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
 }
-
-extern operator '.internal' macro LoadWasmInternalFunctionFromWasmFunctionData(
-    WasmFunctionData): WasmInternalFunction;
 
 extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of
