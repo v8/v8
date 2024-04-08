@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_METADATA_H_
 #define V8_HEAP_MEMORY_CHUNK_METADATA_H_
 
+#include <bit>
 #include <type_traits>
 #include <unordered_map>
 
@@ -14,8 +15,8 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
@@ -41,6 +42,7 @@ class MemoryChunkMetadata {
   MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                       Address area_start, Address area_end,
                       VirtualMemory reservation);
+  ~MemoryChunkMetadata();
 
   Address ChunkAddress() const { return Chunk()->address(); }
   Address MetadataAddress() const { return reinterpret_cast<Address>(this); }

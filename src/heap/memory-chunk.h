@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_H_
 #define V8_HEAP_MEMORY_CHUNK_H_
 
+#include <bit>
+
 #include "src/base/build_config.h"
 #include "src/base/functional.h"
 #include "src/flags/flags.h"
@@ -17,6 +19,8 @@ class MemoryChunkMetadata;
 class ReadOnlyPageMetadata;
 class PageMetadata;
 class LargePageMetadata;
+class CodeStubAssembler;
+class ExternalReference;
 template <typename T>
 class Tagged;
 
@@ -126,8 +130,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
 
-  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
-      : main_thread_flags_(flags), metadata_(metadata) {}
+  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
 
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
@@ -299,16 +302,69 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   size_t OffsetMaybeOutOfRange(Address addr) const { return Offset(addr); }
 #endif
 
+#ifdef V8_ENABLE_SANDBOX
+  static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
+#endif
+
  private:
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_;
 
+#ifdef V8_ENABLE_SANDBOX
+  uint32_t metadata_index_;
+#else
   MemoryChunkMetadata* metadata_;
+#endif
 
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
   static constexpr intptr_t kAlignmentMask = kAlignment - 1;
+
+#ifdef V8_ENABLE_SANDBOX
+#ifndef V8_EXTERNAL_CODE_SPACE
+#error The global metadata pointer table requires a single external code space.
+#endif
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+#error The global metadata pointer table is incompatible with third party heap.
+#endif
+
+  static constexpr size_t kPagesInMainCage =
+      kPtrComprCageReservationSize / kRegularPageSize;
+  static constexpr size_t kPagesInCodeCage =
+      kMaximalCodeRangeSize / kRegularPageSize;
+  static constexpr size_t kPagesInTrustedCage =
+      kMaximalTrustedRangeSize / kRegularPageSize;
+
+  static constexpr size_t kMainCageMetadataOffset = 0;
+  static constexpr size_t kTrustedSpaceMetadataOffset =
+      kMainCageMetadataOffset + kPagesInMainCage;
+  static constexpr size_t kCodeRangeMetadataOffset =
+      kTrustedSpaceMetadataOffset + kPagesInTrustedCage;
+
+  static constexpr size_t kMetadataPointerTableSizeLog2 =
+      std::bit_width(kPagesInMainCage + kPagesInCodeCage + kPagesInTrustedCage);
+  static constexpr size_t kMetadataPointerTableSize =
+      1 << kMetadataPointerTableSizeLog2;
+  static constexpr size_t kMetadataPointerTableSizeMask =
+      kMetadataPointerTableSize - 1;
+
+  static MemoryChunkMetadata*
+      metadata_pointer_table_[kMetadataPointerTableSize];
+
+  V8_INLINE static MemoryChunkMetadata* FromIndex(uint32_t index);
+  static uint32_t MetadataTableIndex(Address chunk_address);
+
+  V8_INLINE static Address MetadataTableAddress() {
+    return reinterpret_cast<Address>(metadata_pointer_table_);
+  }
+
+  // For access to the kMetadataPointerTableSizeMask;
+  friend class CodeStubAssembler;
+  // For access to the MetadataTableAddress;
+  friend class ExternalReference;
+
+#endif  // V8_ENABLE_SANDBOX
 
   friend class BasicMemoryChunkValidator;
 };

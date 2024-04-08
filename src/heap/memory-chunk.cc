@@ -9,6 +9,7 @@
 #include "src/heap/large-page.h"
 #include "src/heap/page.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/trusted-range.h"
 
 namespace v8 {
 namespace internal {
@@ -34,6 +35,59 @@ constexpr MemoryChunk::MainThreadFlags
 // static
 constexpr MemoryChunk::MainThreadFlags MemoryChunk::kCopyOnFlipFlagsMask;
 
+MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
+    : main_thread_flags_(flags),
+#ifdef V8_ENABLE_SANDBOX
+      metadata_index_(MetadataTableIndex(address()))
+#else
+      metadata_(metadata)
+#endif
+{
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_IMPLIES(metadata_pointer_table_[metadata_index_] != nullptr,
+                 metadata_pointer_table_[metadata_index_] == metadata);
+  metadata_pointer_table_[metadata_index_] = metadata;
+#endif
+}
+
+#ifdef V8_ENABLE_SANDBOX
+
+MemoryChunkMetadata* MemoryChunk::metadata_pointer_table_[] = {nullptr};
+
+// static
+void MemoryChunk::ClearMetadataPointer(MemoryChunkMetadata* metadata) {
+  uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
+  DCHECK_EQ(metadata_pointer_table_[metadata_index], metadata);
+  metadata_pointer_table_[metadata_index] = nullptr;
+}
+
+// static
+uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
+  uint32_t index;
+  if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(chunk_address) ==
+      V8HeapCompressionScheme::base()) {
+    static_assert(kPtrComprCageReservationSize == kPtrComprCageBaseAlignment);
+    Tagged_t offset = V8HeapCompressionScheme::CompressAny(chunk_address);
+    DCHECK_LT(offset >> kPageSizeBits, kPagesInMainCage);
+    index = kMainCageMetadataOffset + (offset >> kPageSizeBits);
+  } else if (TrustedRange::GetProcessWideTrustedRange()->region().contains(
+                 chunk_address)) {
+    Tagged_t offset = TrustedSpaceCompressionScheme::CompressAny(chunk_address);
+    DCHECK_LT(offset >> kPageSizeBits, kPagesInTrustedCage);
+    index = kTrustedSpaceMetadataOffset + (offset >> kPageSizeBits);
+  } else {
+    CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
+    DCHECK(code_range->region().contains(chunk_address));
+    uint32_t offset = static_cast<uint32_t>(chunk_address - code_range->base());
+    DCHECK_LT(offset >> kPageSizeBits, kPagesInCodeCage);
+    index = kCodeRangeMetadataOffset + (offset >> kPageSizeBits);
+  }
+  DCHECK_LT(index, kMetadataPointerTableSize);
+  return index;
+}
+
+#endif
+
 void MemoryChunk::InitializationMemoryFence() {
   base::SeqCst_MemoryFence();
 
@@ -42,19 +96,38 @@ void MemoryChunk::InitializationMemoryFence() {
   // to tell TSAN that there is no data race when emitting a
   // InitializationMemoryFence. Note that the other thread still needs to
   // perform MutablePageMetadata::synchronized_heap().
-  RwxMemoryWriteScope scope("TSAN only InitializationMemoryFence");
-  metadata_->SynchronizedHeapStore();
+  Metadata()->SynchronizedHeapStore();
+#ifndef V8_ENABLE_SANDBOX
   base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),
                       reinterpret_cast<base::AtomicWord>(metadata_));
+#else
+  static_assert(sizeof(base::AtomicWord) == sizeof(metadata_pointer_table_[0]));
+  static_assert(sizeof(base::Atomic32) == sizeof(metadata_index_));
+  base::Release_Store(reinterpret_cast<base::AtomicWord*>(
+                          &metadata_pointer_table_[metadata_index_]),
+                      reinterpret_cast<base::AtomicWord>(
+                          metadata_pointer_table_[metadata_index_]));
+  base::Release_Store(reinterpret_cast<base::Atomic32*>(&metadata_index_),
+                      metadata_index_);
+#endif
 #endif
 }
 
 #ifdef THREAD_SANITIZER
 
 void MemoryChunk::SynchronizedLoad() const {
+#ifndef V8_ENABLE_SANDBOX
   MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
           &(const_cast<MemoryChunk*>(this)->metadata_))));
+#else
+  size_t metadata_index =
+      base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
+          &(const_cast<MemoryChunk*>(this)->metadata_index_)));
+  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+      base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
+          &metadata_pointer_table_[metadata_index])));
+#endif
   metadata->SynchronizedHeapLoad();
 }
 
