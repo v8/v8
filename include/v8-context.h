@@ -116,7 +116,9 @@ class V8_EXPORT Context : public Data {
           DeserializeInternalFieldsCallback(),
       MicrotaskQueue* microtask_queue = nullptr,
       DeserializeContextDataCallback context_data_deserializer =
-          DeserializeContextDataCallback());
+          DeserializeContextDataCallback(),
+      DeserializeAPIWrapperCallback api_wrapper_deserializer =
+          DeserializeAPIWrapperCallback());
 
   /**
    * Create a new context from a (non-default) context snapshot. There

@@ -4,6 +4,7 @@
 
 #include "src/snapshot/serializer.h"
 
+#include "include/v8-internal.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
@@ -18,6 +19,7 @@
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -1115,6 +1117,25 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   }
 }
 
+void Serializer::ObjectSerializer::VisitCppHeapPointer(
+    Tagged<HeapObject> host, CppHeapPointerSlot slot) {
+  PtrComprCageBase cage_base(isolate());
+  // Currently there's only very limited support for CppHeapPointerSlot
+  // serialization as it's only used for API wrappers.
+  //
+  // We serialize the slot as initialized-but-unused slot.  The actual API
+  // wrapper serialization is implemented in
+  // `ContextSerializer::SerializeApiWrapperFields()`.
+  DCHECK(IsJSApiWrapperObject(object_->map(cage_base)));
+  static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
+  sink_->Put(
+      FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
+      "FixedRawData");
+  sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kNullCppHeapPointer),
+                kCppHeapPointerSlotSize, "empty cpp heap pointer handle");
+  bytes_processed_so_far_ += kCppHeapPointerSlotSize;
+}
+
 void Serializer::ObjectSerializer::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   PtrComprCageBase cage_base(isolate());
@@ -1160,12 +1181,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsJSSynchronizationPrimitive(instance_type) ||
         // See ContextSerializer::SerializeObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
-         JSObject::cast(host)->GetEmbedderFieldCount() > 0) ||
-        // API objects with support for embedder fields.
-        InstanceTypeChecker::IsJSApiObject(instance_type) ||
-        InstanceTypeChecker::IsJSGlobalObject(instance_type) ||
-        InstanceTypeChecker::IsJSGlobalProxy(instance_type) ||
-        InstanceTypeChecker::IsJSSpecialApiObject(instance_type));
+         JSObject::cast(host)->GetEmbedderFieldCount() > 0));
   }
 }
 

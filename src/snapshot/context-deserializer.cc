@@ -5,8 +5,10 @@
 #include "src/snapshot/context-deserializer.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/logging/counters-scopes.h"
+#include "src/snapshot/serializer-deserializer.h"
 
 namespace v8 {
 namespace internal {
@@ -62,7 +64,8 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     DeserializeDeferredObjects();
     DeserializeEmbedderFields(Handle<NativeContext>::cast(result),
                               embedder_fields_deserializer);
-
+    DeserializeApiWrapperFields(
+        embedder_fields_deserializer.api_wrapper_callback);
     LogNewMapEvents();
     WeakenDescriptorArrays();
   }
@@ -72,10 +75,31 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
   return result;
 }
 
+template <typename T>
+class PlainBuffer {
+ public:
+  T* data() { return data_.get(); }
+
+  void EnsureCapacity(size_t new_capacity) {
+    if (new_capacity > capacity_) {
+      data_.reset(new T[new_capacity]);
+      capacity_ = new_capacity;
+    }
+  }
+
+ private:
+  std::unique_ptr<T[]> data_;
+  size_t capacity_{0};
+};
+
 void ContextDeserializer::DeserializeEmbedderFields(
     Handle<NativeContext> context,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  if (!source()->HasMore() || source()->Get() != kEmbedderFieldsData) return;
+  if (!source()->HasMore() || source()->Peek() != kEmbedderFieldsData) {
+    return;
+  }
+  // Consume `kEmbedderFieldsData`.
+  source()->Get();
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
@@ -86,7 +110,7 @@ void ContextDeserializer::DeserializeEmbedderFields(
         Handle<HeapObject>::cast(GetBackReferencedObject());
     int index = source()->GetUint30();
     int size = source()->GetUint30();
-    // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.
+    // TODO(chromium:328117814): Turn this into a reusable shared buffer.
     uint8_t* data = new uint8_t[size];
     source()->CopyRaw(data, size);
 
@@ -109,5 +133,36 @@ void ContextDeserializer::DeserializeEmbedderFields(
     delete[] data;
   }
 }
+
+void ContextDeserializer::DeserializeApiWrapperFields(
+    const v8::DeserializeAPIWrapperCallback& api_wrapper_callback) {
+  if (!source()->HasMore() || source()->Peek() != kApiWrapperFieldsData) {
+    return;
+  }
+  // Consume `kApiWrapperFieldsData`.
+  source()->Get();
+  DisallowGarbageCollection no_gc;
+  DisallowJavascriptExecution no_js(isolate());
+  DisallowCompilation no_compile(isolate());
+  // Buffer is reused across various deserializations. We always copy N bytes
+  // into the backing and pass that N bytes to the embedder via StartupData.
+  PlainBuffer<char> buffer;
+  // The block for `kApiWrapperFieldsData` consists of consecutive `kNewObject`
+  // blocks that are in the end terminated with a `kSynchronize`.
+  for (int code = source()->Get(); code != kSynchronize;
+       code = source()->Get()) {
+    HandleScope scope(isolate());
+    Handle<JSObject> js_object =
+        Handle<JSObject>::cast(GetBackReferencedObject());
+    const int size = source()->GetUint30();
+    buffer.EnsureCapacity(size);
+    source()->CopyRaw(buffer.data(), size);
+    DCHECK_NOT_NULL(api_wrapper_callback.callback);
+    api_wrapper_callback.callback(v8::Utils::ToLocal(js_object),
+                                  {buffer.data(), size},
+                                  api_wrapper_callback.data);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

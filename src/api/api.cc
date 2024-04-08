@@ -568,21 +568,25 @@ Isolate* SnapshotCreator::GetIsolate() {
 void SnapshotCreator::SetDefaultContext(
     Local<Context> context,
     SerializeInternalFieldsCallback internal_fields_serializer,
-    SerializeContextDataCallback context_data_serializer) {
+    SerializeContextDataCallback context_data_serializer,
+    SerializeAPIWrapperCallback api_wrapper_serializer) {
   impl_->SetDefaultContext(
       Utils::OpenHandle(*context),
       i::SerializeEmbedderFieldsCallback(internal_fields_serializer,
-                                         context_data_serializer));
+                                         context_data_serializer,
+                                         api_wrapper_serializer));
 }
 
 size_t SnapshotCreator::AddContext(
     Local<Context> context,
     SerializeInternalFieldsCallback internal_fields_serializer,
-    SerializeContextDataCallback context_data_serializer) {
+    SerializeContextDataCallback context_data_serializer,
+    SerializeAPIWrapperCallback api_wrapper_serializer) {
   return impl_->AddContext(
       Utils::OpenHandle(*context),
       i::SerializeEmbedderFieldsCallback(internal_fields_serializer,
-                                         context_data_serializer));
+                                         context_data_serializer,
+                                         api_wrapper_serializer));
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
@@ -6665,11 +6669,13 @@ Local<Context> v8::Context::New(
     v8::MaybeLocal<Value> global_object,
     v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue,
-    v8::DeserializeContextDataCallback context_callback_deserializer) {
+    v8::DeserializeContextDataCallback context_callback_deserializer,
+    v8::DeserializeAPIWrapperCallback api_wrapper_deserializer) {
   return NewContext(
       external_isolate, extensions, global_template, global_object, 0,
       i::DeserializeEmbedderFieldsCallback(internal_fields_deserializer,
-                                           context_callback_deserializer),
+                                           context_callback_deserializer,
+                                           api_wrapper_deserializer),
       microtask_queue);
 }
 

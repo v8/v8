@@ -30,9 +30,13 @@
 
 #include <vector>
 
+#include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
+#include "include/v8-platform.h"
+#include "include/v8-sandbox.h"
 #include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -437,7 +441,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
+        SerializeEmbedderFieldsCallback(v8::SerializeInternalFieldsCallback()));
     context_serializer.Serialize(&raw_context, no_gc);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -505,7 +509,8 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
-                 v8::DeserializeInternalFieldsCallback())
+                 DeserializeEmbedderFieldsCallback(
+                     v8::DeserializeInternalFieldsCallback()))
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
@@ -516,7 +521,8 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       SnapshotData snapshot_data(context_blob);
       root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, 0, false, global_proxy,
-                  v8::DeserializeInternalFieldsCallback())
+                  DeserializeEmbedderFieldsCallback(
+                      v8::DeserializeInternalFieldsCallback()))
                   .ToHandleChecked();
       CHECK(IsContext(*root2));
       CHECK(!root.is_identical_to(root2));
@@ -631,7 +637,8 @@ static void SerializeCustomContext(
       SnapshotByteSink context_sink;
       ContextSerializer context_serializer(
           i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-          v8::SerializeInternalFieldsCallback());
+          SerializeEmbedderFieldsCallback(
+              v8::SerializeInternalFieldsCallback()));
       context_serializer.Serialize(&raw_context, no_gc);
 
       startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -683,7 +690,8 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
-                 v8::DeserializeInternalFieldsCallback())
+                 DeserializeEmbedderFieldsCallback(
+                     v8::DeserializeInternalFieldsCallback()))
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       Handle<NativeContext> context = Handle<NativeContext>::cast(root);
@@ -4343,6 +4351,130 @@ UNINITIALIZED_TEST(SerializeContextData) {
     delete[] blob.data;
   }
 
+  FreeCurrentEmbeddedBlob();
+}
+
+class DummyWrappable : public cppgc::GarbageCollected<DummyWrappable> {
+ public:
+  void Trace(cppgc::Visitor*) const {}
+
+  bool is_special = false;
+};
+
+static constexpr char kSpecialTag = 1;
+
+static v8::StartupData SerializeAPIWrapperCallback(Local<v8::Object> holder,
+                                                   void* cpp_heap_pointer,
+                                                   void* data) {
+  auto* wrappable = reinterpret_cast<DummyWrappable*>(cpp_heap_pointer);
+  if (wrappable && wrappable->is_special) {
+    *reinterpret_cast<int64_t*>(data) += 1;
+    return v8::StartupData{&kSpecialTag, 1};
+  }
+  return v8::StartupData{nullptr, 0};
+}
+
+static void DeserializeAPIWrapperCallback(Local<v8::Object> holder,
+                                          v8::StartupData payload, void* data) {
+  if (payload.raw_size == 1 &&
+      *reinterpret_cast<const char*>(payload.data) == kSpecialTag) {
+    *reinterpret_cast<int64_t*>(data) -= 1;
+  }
+}
+
+UNINITIALIZED_TEST(SerializeApiWrapperData) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+
+  int64_t special_objects_encountered = 0;
+
+  v8::SerializeAPIWrapperCallback serialize_api_fields(
+      &SerializeAPIWrapperCallback, &special_objects_encountered);
+  v8::DeserializeAPIWrapperCallback deserialize_api_fields(
+      &DeserializeAPIWrapperCallback, &special_objects_encountered);
+
+  v8::StartupData blob;
+  auto* platform = V8::GetCurrentPlatform();
+  {
+    // Create a blob with API wrapper objects. One of the objects is marked as
+    // special which results in providing a tag via embedder callbacks.
+
+    SnapshotCreatorParams params;
+    params.create_params.cpp_heap =
+        v8::CppHeap::Create(platform, v8::CppHeapCreateParams(
+                                          {}, v8::WrapperDescriptor(0, 1, 0)))
+            .release();
+    v8::SnapshotCreator creator(params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+    DummyWrappable *wrappable1, *wrappable2;
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      v8::Local<v8::FunctionTemplate> function_template =
+          v8::FunctionTemplate::New(isolate);
+      auto object_template = function_template->InstanceTemplate();
+
+      v8::Local<v8::Object> obj1 =
+          object_template->NewInstance(context).ToLocalChecked();
+      wrappable1 = cppgc::MakeGarbageCollected<DummyWrappable>(
+          cpp_heap->GetAllocationHandle());
+      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj1,
+                                                           wrappable1);
+      CHECK_EQ(wrappable1, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+                               isolate, obj1));
+      CHECK(context->Global()->Set(context, v8_str("obj1"), obj1).FromJust());
+
+      v8::Local<v8::Object> obj2 =
+          object_template->NewInstance(context).ToLocalChecked();
+      wrappable2 = cppgc::MakeGarbageCollected<DummyWrappable>(
+          cpp_heap->GetAllocationHandle());
+      wrappable2->is_special = true;
+      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj2,
+                                                           wrappable2);
+      CHECK_EQ(wrappable2, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+                               isolate, obj2));
+      CHECK(context->Global()->Set(context, v8_str("obj2"), obj2).FromJust());
+
+      creator.SetDefaultContext(context, SerializeInternalFieldsCallback(),
+                                SerializeContextDataCallback(),
+                                serialize_api_fields);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK_EQ(special_objects_encountered, 1);
+  }
+  {
+    // Initialize an Isolate from the blob.
+
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(
+          isolate, nullptr, {}, {}, DeserializeInternalFieldsCallback(),
+          nullptr, DeserializeContextDataCallback(), deserialize_api_fields);
+      v8::Local<v8::Value> obj1 =
+          context->Global()->Get(context, v8_str("obj1")).ToLocalChecked();
+      CHECK(obj1->IsObject());
+      v8::Local<v8::Value> obj2 =
+          context->Global()->Get(context, v8_str("obj1")).ToLocalChecked();
+      CHECK(obj2->IsObject());
+      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+                            isolate, obj1.As<v8::Object>()));
+      CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+                            isolate, obj2.As<v8::Object>()));
+      CHECK_EQ(special_objects_encountered, 0);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
 
