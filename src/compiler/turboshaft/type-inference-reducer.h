@@ -327,9 +327,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  V<Any> REDUCE(Projection)(V<Any> input, uint16_t idx,
-                            RegisterRepresentation rep) {
-    V<Any> index = Next::ReduceProjection(input, idx, rep);
+  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
+                             RegisterRepresentation rep) {
+    OpIndex index = Next::ReduceProjection(input, idx, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeProjection(GetType(input), idx);

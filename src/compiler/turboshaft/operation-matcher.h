@@ -423,7 +423,7 @@ class OperationMatcher {
   }
 
   bool MatchConstantShiftRightArithmeticShiftOutZeros(OpIndex matched,
-                                                      V<Word>* input,
+                                                      OpIndex* input,
                                                       WordRepresentation rep,
                                                       uint16_t* amount) const {
     const ShiftOp* op = TryCast<ShiftOp>(matched);
@@ -432,7 +432,7 @@ class OperationMatcher {
         op->rep == rep &&
         MatchIntegralWord32Constant(op->right(), &rhs_constant) &&
         rhs_constant < static_cast<uint64_t>(rep.bit_width())) {
-      *input = V<Word>::Cast(op->left());
+      *input = op->left();
       *amount = static_cast<uint16_t>(rhs_constant);
       return true;
     }

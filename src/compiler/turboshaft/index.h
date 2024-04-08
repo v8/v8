@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
-#include "src/base/template-meta-programming/algorithm.h"
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -204,13 +203,6 @@ constexpr inline bool operator==(nullrep_t, RegisterRepresentation) {
 constexpr inline bool operator==(RegisterRepresentation, nullrep_t) {
   return false;
 }
-constexpr inline bool operator!=(nullrep_t, nullrep_t) { return false; }
-constexpr inline bool operator!=(nullrep_t, RegisterRepresentation) {
-  return true;
-}
-constexpr inline bool operator!=(RegisterRepresentation, nullrep_t) {
-  return true;
-}
 
 // Abstract tag classes for V<>.
 struct Any {};
@@ -244,17 +236,8 @@ struct FrameState : public InternalTag {};
 
 // A Union type for untagged values. For Tagged types use `UnionT` for now.
 // TODO(nicohartmann@): We should think about a more uniform solution some day.
-template <typename... Ts>
-struct Union : public Any {
-  using to_list_t = base::tmp::list<Ts...>;
-};
-
-template <typename... Ts>
-struct Tuple : public Any {
-  using to_list_t = base::tmp::list<Ts...>;
-  template <int Index>
-  using element_t = base::tmp::element_t<to_list_t, Index>;
-};
+template <typename...>
+struct Union : public Any {};
 
 // Traits classes `v_traits<T>` to provide additional T-specific information for
 // V<T> and ConstOrV<T>. If you need to provide non-default conversion behavior
@@ -265,7 +248,6 @@ struct v_traits;
 template <>
 struct v_traits<Any> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = RegisterRepresentation;
   static constexpr auto rep = nullrep;
   static constexpr bool allows_representation(RegisterRepresentation) {
     return true;
@@ -278,7 +260,6 @@ struct v_traits<Any> {
 template <>
 struct v_traits<None> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = nullrep_t;
   static constexpr auto rep = nullrep;
   static constexpr bool allows_representation(RegisterRepresentation) {
     return false;
@@ -292,8 +273,7 @@ struct v_traits<None> {
 template <>
 struct v_traits<Compressed> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = RegisterRepresentation;
-  static constexpr auto rep = RegisterRepresentation::Compressed();
+  static constexpr auto rep = nullrep;
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Compressed();
   }
@@ -306,8 +286,7 @@ struct v_traits<Compressed> {
 template <>
 struct v_traits<Word32> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = WordRepresentation;
-  static constexpr auto rep = WordRepresentation::Word32();
+  static constexpr WordRepresentation rep = WordRepresentation::Word32();
   using constexpr_type = uint32_t;
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Word32();
@@ -321,8 +300,7 @@ struct v_traits<Word32> {
 template <>
 struct v_traits<Word64> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = WordRepresentation;
-  static constexpr auto rep = WordRepresentation::Word64();
+  static constexpr WordRepresentation rep = WordRepresentation::Word64();
   using constexpr_type = uint64_t;
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Word64();
@@ -336,8 +314,7 @@ struct v_traits<Word64> {
 template <>
 struct v_traits<Float32> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = FloatRepresentation;
-  static constexpr auto rep = FloatRepresentation::Float32();
+  static constexpr FloatRepresentation rep = FloatRepresentation::Float32();
   using constexpr_type = float;
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Float32();
@@ -351,8 +328,7 @@ struct v_traits<Float32> {
 template <>
 struct v_traits<Float64> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = FloatRepresentation;
-  static constexpr auto rep = FloatRepresentation::Float64();
+  static constexpr FloatRepresentation rep = FloatRepresentation::Float64();
   using constexpr_type = double;
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Float64();
@@ -366,8 +342,8 @@ struct v_traits<Float64> {
 template <>
 struct v_traits<Simd128> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = RegisterRepresentation;
-  static constexpr auto rep = RegisterRepresentation::Simd128();
+  static constexpr RegisterRepresentation rep =
+      RegisterRepresentation::Simd128();
   using constexpr_type = uint8_t[kSimd128Size];
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Simd128();
@@ -381,8 +357,8 @@ struct v_traits<Simd128> {
 template <>
 struct v_traits<Simd256> {
   static constexpr bool is_abstract_tag = true;
-  using rep_type = RegisterRepresentation;
-  static constexpr auto rep = RegisterRepresentation::Simd256();
+  static constexpr RegisterRepresentation rep =
+      RegisterRepresentation::Simd256();
   using constexpr_type = uint8_t[kSimd256Size];
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Simd256();
@@ -396,7 +372,6 @@ struct v_traits<Simd256> {
 template <typename T>
 struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   static constexpr bool is_abstract_tag = false;
-  using rep_type = RegisterRepresentation;
   static constexpr auto rep = RegisterRepresentation::Tagged();
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return rep == RegisterRepresentation::Tagged();
@@ -419,9 +394,6 @@ struct v_traits<UnionT<T1, T2>,
   static_assert(!v_traits<T2>::is_abstract_tag);
   static constexpr bool is_abstract_tag = false;
   static_assert(v_traits<T1>::rep == v_traits<T2>::rep);
-  static_assert(std::is_same_v<typename v_traits<T1>::rep_type,
-                               typename v_traits<T2>::rep_type>);
-  using rep_type = typename v_traits<T1>::rep_type;
   static constexpr auto rep = v_traits<T1>::rep;
   static constexpr bool allows_representation(RegisterRepresentation r) {
     return r == rep;
@@ -439,7 +411,7 @@ struct v_traits<UnionT<T1, T2>,
 };
 
 namespace detail {
-template <typename T, bool SameStaticRep>
+template <typename T, bool>
 struct RepresentationForUnionBase {
   static constexpr auto rep = nullrep;
 };
@@ -452,28 +424,11 @@ struct RepresentationForUnion {};
 template <typename T, typename... Ts>
 struct RepresentationForUnion<Union<T, Ts...>>
     : RepresentationForUnionBase<T, ((v_traits<T>::rep == v_traits<Ts>::rep) &&
-                                     ...)> {
- private:
-  template <typename U>
-  struct to_rep_type {
-    using type = typename v_traits<U>::rep_type;
-  };
-  using rep_types = base::tmp::map_t<to_rep_type, base::tmp::list<T, Ts...>>;
-
- public:
-  using rep_type =
-      std::conditional_t<base::tmp::contains_v<rep_types, nullrep_t>, nullrep_t,
-                         std::conditional_t<base::tmp::all_equal_v<rep_types>,
-                                            typename v_traits<T>::rep_type,
-                                            RegisterRepresentation>>;
-};
-
+                                     ...)> {};
 }  // namespace detail
 
 template <typename... Ts>
 struct v_traits<Union<Ts...>> {
-  using rep_type =
-      typename detail::RepresentationForUnion<Union<Ts...>>::rep_type;
   static constexpr auto rep = detail::RepresentationForUnion<Union<Ts...>>::rep;
   static constexpr bool allows_representation(RegisterRepresentation r) {
     return (v_traits<Ts>::allows_representation(r) || ...);
@@ -492,34 +447,11 @@ struct v_traits<Union<Ts...>> {
 
 template <typename T>
 struct v_traits<T, std::enable_if_t<std::is_base_of_v<InternalTag, T>>> {
-  using rep_type = nullrep_t;
   static constexpr auto rep = nullrep;
 
   template <typename U>
   struct implicitly_constructible_from
       : std::bool_constant<std::is_same_v<T, U>> {};
-};
-
-template <typename... Ts>
-struct v_traits<Tuple<Ts...>> {
-  using rep_type = nullrep_t;
-  static constexpr auto rep = nullrep;
-  static constexpr bool allows_representation(RegisterRepresentation) {
-    return false;
-  }
-
-  template <typename U>
-  struct implicitly_constructible_from : std::false_type {};
-
-  // NOTE: If you end up here with a compiler error
-  // "pack expansion contains parameter packs 'Ts' and 'Us' that have different
-  // lengths" this is most likely because you tried to convert between Tuple<>
-  // types of different sizes.
-  template <typename... Us>
-  struct implicitly_constructible_from<Tuple<Us...>>
-      : std::bool_constant<(
-            v_traits<Ts>::template implicitly_constructible_from<Us>::value &&
-            ...)> {};
 };
 
 using Word = Union<Word32, Word64>;
@@ -714,72 +646,6 @@ template <typename T>
 using maybe_const_or_v_t = typename detail::ConstOrVTypeHelper<T>::type;
 template <typename T>
 constexpr bool const_or_v_exists_v = detail::ConstOrVTypeHelper<T>::exists;
-
-// `ShadowyOpIndex` is a wrapper around `OpIndex` that allows implicit
-// conversion to arbitrary `V<>`. This is required for generic code inside the
-// `Assembler` and `CopyingPhase`. Once implicit initialization of `V<>` from
-// `OpIndex` is disabled,
-//
-//   OpIndex new_index = ...
-//   ReduceWordUnary(new_index, ...)
-//
-// will no longer compile, because `ReduceWordUnary` expects a `V<Word>` input.
-// However,
-//
-//   OpIndex new_index = ...
-//   ReduceWordUnary(ShadowyOpIndex{new_index}, ...)
-//
-// will still compile. **Do not use ShadowyOpIndex directly** in any operations
-// or reducers.
-class ShadowyOpIndex : public OpIndex {
- public:
-  explicit ShadowyOpIndex(OpIndex index) : OpIndex(index) {}
-
-  template <typename T>
-  operator V<T>() const {  // NOLINT(runtime/explicit)
-    return V<T>::Cast(*this);
-  }
-};
-
-// Similarly to how `ShadowyOpIndex` is a wrapper around `OpIndex` that allows
-// arbitrary conversion to `V<>`, `ShadowyOpIndexVectorWrapper` is a wrapper
-// around `base::Vector<const OpIndex>` that allows implicit conversion to
-// `base::Vector<const V<U>>` for any `U`.
-class ShadowyOpIndexVectorWrapper {
- public:
-  template <typename T>
-  ShadowyOpIndexVectorWrapper(
-      base::Vector<const V<T>> indices)  // NOLINT(runtime/explicit)
-      : indices_(indices.data(), indices.size()) {}
-  ShadowyOpIndexVectorWrapper(
-      base::Vector<const OpIndex> indices)  // NOLINT(runtime/explicit)
-      : indices_(indices) {}
-  template <typename T>
-  ShadowyOpIndexVectorWrapper(
-      base::Vector<V<T>> indices)  // NOLINT(runtime/explicit)
-      : indices_(indices.data(), indices.size()) {}
-  ShadowyOpIndexVectorWrapper(
-      base::Vector<OpIndex> indices)  // NOLINT(runtime/explicit)
-      : indices_(indices) {}
-
-  operator base::Vector<const OpIndex>() const {  // NOLINT(runtime/explicit)
-    return indices_;
-  }
-  template <typename U>
-  operator base::Vector<V<U>>() const {  // NOLINT(runtime/explicit)
-    return base::Vector<V<U>>{indices_.data(), indices_.size()};
-  }
-  template <typename U>
-  operator base::Vector<const V<U>>() const {  // NOLINT(runtime/explicit)
-    return base::Vector<const V<U>>{static_cast<const V<U>*>(indices_.data()),
-                                    indices_.size()};
-  }
-
-  size_t size() const noexcept { return indices_.size(); }
-
- private:
-  base::Vector<const OpIndex> indices_;
-};
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.

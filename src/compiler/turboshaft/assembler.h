@@ -743,9 +743,9 @@ class EmitProjectionReducer
 
  private:
   template <class Op>
-  V<Any> WrapInTupleIfNeeded(const Op& op, V<Any> idx) {
+  OpIndex WrapInTupleIfNeeded(const Op& op, OpIndex idx) {
     if (op.outputs_rep().size() > 1) {
-      base::SmallVector<V<Any>, 8> projections;
+      base::SmallVector<OpIndex, 8> projections;
       auto reps = op.outputs_rep();
       for (int i = 0; i < static_cast<int>(reps.size()); i++) {
         projections.push_back(Asm().Projection(idx, i, reps[i]));
@@ -829,29 +829,6 @@ class TSReducerBase : public Next {
 #endif  // DEBUG
 };
 
-namespace detail {
-template <typename T>
-inline T&& MakeShadowy(T&& value) {
-  static_assert(!std::is_same_v<std::remove_reference_t<T>, OpIndex>);
-  return std::forward<T>(value);
-}
-inline ShadowyOpIndex MakeShadowy(OpIndex value) {
-  return ShadowyOpIndex{value};
-}
-template <typename T>
-inline ShadowyOpIndex MakeShadowy(V<T> value) {
-  return ShadowyOpIndex{value};
-}
-inline ShadowyOpIndexVectorWrapper MakeShadowy(
-    base::Vector<const OpIndex> value) {
-  return ShadowyOpIndexVectorWrapper{value};
-}
-template <typename T>
-inline ShadowyOpIndexVectorWrapper MakeShadowy(base::Vector<const V<T>> value) {
-  return ShadowyOpIndexVectorWrapper{value};
-}
-}  // namespace detail
-
 // This empty base-class is used to provide default-implementations of plain
 // methods emitting operations.
 template <class Next>
@@ -859,13 +836,13 @@ class ReducerBaseForwarder : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(ReducerBaseForwarder)
 
-#define EMIT_OP(Name)                                                         \
-  OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) {      \
-    return this->Asm().AssembleOutputGraph##Name(op);                         \
-  }                                                                           \
-  template <class... Args>                                                    \
-  OpIndex Reduce##Name(Args... args) {                                        \
-    return this->Asm().template Emit<Name##Op>(detail::MakeShadowy(args)...); \
+#define EMIT_OP(Name)                                                    \
+  OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
+    return this->Asm().AssembleOutputGraph##Name(op);                    \
+  }                                                                      \
+  template <class... Args>                                               \
+  OpIndex Reduce##Name(Args... args) {                                   \
+    return this->Asm().template Emit<Name##Op>(args...);                 \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
@@ -1207,8 +1184,8 @@ class TurboshaftAssemblerOpInterface
   // stack, and that the BaseReducer will actually emit an Operation. If we put
   // this projection-to-tuple-simplification in the BaseReducer, then this
   // assumption of the ValueNumberingReducer will break.
-  V<Any> REDUCE(Projection)(V<Any> tuple, uint16_t index,
-                            RegisterRepresentation rep) {
+  OpIndex REDUCE(Projection)(OpIndex tuple, uint16_t index,
+                             RegisterRepresentation rep) {
     if (auto* tuple_op = Asm().matcher().template TryCast<TupleOp>(tuple)) {
       return tuple_op->input(index);
     }
@@ -1348,39 +1325,24 @@ class TurboshaftAssemblerOpInterface
                                WordRepresentation rep) {
     return ReduceIfReachableOverflowCheckedBinop(left, right, kind, rep);
   }
-
-#define DECL_MULTI_REP_CHECK_BINOP_V(name, operation, kind, tag)            \
-  V<Tuple<tag, Word32>> name(V<tag> left, V<tag> right,                     \
-                             v_traits<tag>::rep_type rep) {                 \
-    return ReduceIfReachable##operation(left, right,                        \
-                                        operation##Op::Kind::k##kind, rep); \
-  }
-#define DECL_SINGLE_REP_CHECK_BINOP_V(name, operation, kind, tag)       \
-  V<Tuple<tag, Word32>> name(ConstOrV<tag> left, ConstOrV<tag> right) { \
-    return ReduceIfReachable##operation(resolve(left), resolve(right),  \
-                                        operation##Op::Kind::k##kind,   \
-                                        V<tag>::rep);                   \
-  }
-  DECL_MULTI_REP_CHECK_BINOP_V(IntAddCheckOverflow, OverflowCheckedBinop,
-                               SignedAdd, Word)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int32AddCheckOverflow, OverflowCheckedBinop,
-                                SignedAdd, Word32)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int64AddCheckOverflow, OverflowCheckedBinop,
-                                SignedAdd, Word64)
-  DECL_MULTI_REP_CHECK_BINOP_V(IntSubCheckOverflow, OverflowCheckedBinop,
-                               SignedSub, Word)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int32SubCheckOverflow, OverflowCheckedBinop,
-                                SignedSub, Word32)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int64SubCheckOverflow, OverflowCheckedBinop,
-                                SignedSub, Word64)
-  DECL_MULTI_REP_CHECK_BINOP_V(IntMulCheckOverflow, OverflowCheckedBinop,
-                               SignedMul, Word)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int32MulCheckOverflow, OverflowCheckedBinop,
-                                SignedMul, Word32)
-  DECL_SINGLE_REP_CHECK_BINOP_V(Int64MulCheckOverflow, OverflowCheckedBinop,
-                                SignedMul, Word64)
-#undef DECL_MULTI_REP_CHECK_BINOP_V
-#undef DECL_SINGLE_REP_CHECK_BINOP_V
+  DECL_MULTI_REP_BINOP(IntAddCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedAdd)
+  DECL_SINGLE_REP_BINOP_V(Int32AddCheckOverflow, OverflowCheckedBinop,
+                          SignedAdd, Word32)
+  DECL_SINGLE_REP_BINOP_V(Int64AddCheckOverflow, OverflowCheckedBinop,
+                          SignedAdd, Word64)
+  DECL_MULTI_REP_BINOP(IntSubCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedSub)
+  DECL_SINGLE_REP_BINOP_V(Int32SubCheckOverflow, OverflowCheckedBinop,
+                          SignedSub, Word32)
+  DECL_SINGLE_REP_BINOP_V(Int64SubCheckOverflow, OverflowCheckedBinop,
+                          SignedSub, Word64)
+  DECL_MULTI_REP_BINOP(IntMulCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedMul)
+  DECL_SINGLE_REP_BINOP_V(Int32MulCheckOverflow, OverflowCheckedBinop,
+                          SignedMul, Word32)
+  DECL_SINGLE_REP_BINOP_V(Int64MulCheckOverflow, OverflowCheckedBinop,
+                          SignedMul, Word64)
 
   DECL_MULTI_REP_BINOP_V(FloatAdd, FloatBinop, FloatRepresentation, Add, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Add, FloatBinop, Add, Float32)
@@ -1881,9 +1843,9 @@ class TurboshaftAssemblerOpInterface
     return Word64Constant(static_cast<uint64_t>(value));
   }
   V<WordPtr> WordPtrConstant(uintptr_t value) {
-    return V<WordPtr>::Cast(WordConstant(value, WordRepresentation::WordPtr()));
+    return WordConstant(value, WordRepresentation::WordPtr());
   }
-  V<Word> WordConstant(uint64_t value, WordRepresentation rep) {
+  OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
     switch (rep.value()) {
       case WordRepresentation::Word32():
         return Word32Constant(static_cast<uint32_t>(value));
@@ -1894,7 +1856,10 @@ class TurboshaftAssemblerOpInterface
   V<WordPtr> IntPtrConstant(intptr_t value) {
     return UintPtrConstant(static_cast<uintptr_t>(value));
   }
-  V<WordPtr> UintPtrConstant(uintptr_t value) { return WordPtrConstant(value); }
+  V<WordPtr> UintPtrConstant(uintptr_t value) {
+    return WordConstant(static_cast<uint64_t>(value),
+                        WordRepresentation::WordPtr());
+  }
   V<Smi> SmiConstant(intptr_t value) {
     return SmiConstant(i::Tagged<Smi>(value));
   }
@@ -1982,9 +1947,10 @@ class TurboshaftAssemblerOpInterface
                                    V<from>::rep, V<to>::rep);            \
   }
 #define DECL_TRY_CHANGE_V(name, kind, from, to)                       \
-  V<Tuple<to, Word32>> name(V<from> input) {                          \
+  V<to> name(V<from> input) {                                         \
     return ReduceIfReachableTryChange(input, TryChangeOp::Kind::kind, \
-                                      V<from>::rep, V<to>::rep);      \
+                                      FloatRepresentation::from(),    \
+                                      WordRepresentation::to());      \
   }
 
   DECL_CHANGE_V(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
@@ -3329,40 +3295,22 @@ class TurboshaftAssemblerOpInterface
     return PendingLoopPhi(first, V<T>::rep);
   }
 
-  V<Any> Tuple(base::Vector<const V<Any>> indices) {
+  OpIndex Tuple(base::Vector<OpIndex> indices) {
     return ReduceIfReachableTuple(indices);
   }
-  V<Any> Tuple(std::initializer_list<V<Any>> indices) {
+  OpIndex Tuple(std::initializer_list<OpIndex> indices) {
     return ReduceIfReachableTuple(base::VectorOf(indices));
   }
-  template <typename... Ts>
-  V<turboshaft::Tuple<Ts...>> Tuple(V<Ts>... indices) {
-    std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
-    return V<turboshaft::Tuple<Ts...>>::Cast(Tuple(base::VectorOf(inputs)));
+  OpIndex Tuple(OpIndex a, OpIndex b) {
+    return ReduceIfReachableTuple(base::VectorOf({a, b}));
   }
-  // TODO(chromium:331100916): Remove this overload once everything is properly
-  // V<>ified.
-  V<turboshaft::Tuple<Any, Any>> Tuple(OpIndex left, OpIndex right) {
-    return V<turboshaft::Tuple<Any, Any>>::Cast(
-        Tuple(base::VectorOf({V<Any>::Cast(left), V<Any>::Cast(right)})));
-  }
-  V<Any> Projection(V<Any> tuple, uint16_t index, RegisterRepresentation rep) {
+  OpIndex Projection(OpIndex tuple, uint16_t index,
+                     RegisterRepresentation rep) {
     return ReduceIfReachableProjection(tuple, index, rep);
   }
-  template <uint16_t Index, typename... Ts>
-  auto Projection(V<turboshaft::Tuple<Ts...>> tuple) {
-    using element_t = base::nth_type_t<Index, Ts...>;
-    static_assert(v_traits<element_t>::rep != nullrep,
-                  "Representation for Projection cannot be inferred. Use "
-                  "overload with explicit Representation argument.");
-    return V<element_t>::Cast(Projection(tuple, Index, V<element_t>::rep));
-  }
-  template <uint16_t Index, typename... Ts>
-  auto Projection(V<turboshaft::Tuple<Ts...>> tuple,
-                  RegisterRepresentation rep) {
-    using element_t = base::nth_type_t<Index, Ts...>;
-    DCHECK(V<element_t>::allows_representation(rep));
-    return V<element_t>::Cast(Projection(tuple, Index, rep));
+  template <typename T>
+  V<T> Projection(OpIndex tuple, uint16_t index) {
+    return Projection(tuple, index, V<T>::rep);
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
@@ -3871,8 +3819,7 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableStringAsWtf16(string);
   }
 
-  V<turboshaft::Tuple<Object, WordPtr, Word32>> StringPrepareForGetCodeUnit(
-      V<Object> string) {
+  V<Object> StringPrepareForGetCodeUnit(V<Object> string) {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 

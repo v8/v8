@@ -1045,7 +1045,7 @@ struct OperationT : Operation {
   static Derived& New(Graph* graph, size_t input_count, Args... args) {
     OperationStorageSlot* ptr =
         AllocateOpStorage(graph, StorageSlotCount(input_count));
-    Derived* result = new (ptr) Derived(args...);
+    Derived* result = new (ptr) Derived(std::move(args)...);
 #ifdef DEBUG
     result->Validate(*graph);
     ZoneVector<MaybeRegisterRepresentation> storage(get_zone(graph));
@@ -1067,7 +1067,7 @@ struct OperationT : Operation {
   }
 
   template <class... Args>
-  static Derived& New(Graph* graph, ShadowyOpIndexVectorWrapper inputs,
+  static Derived& New(Graph* graph, base::Vector<const OpIndex> inputs,
                       Args... args) {
     return New(graph, inputs.size(), inputs, args...);
   }
@@ -1079,10 +1079,9 @@ struct OperationT : Operation {
 #endif  // !V8_CC_MSVC
     static_assert(std::is_trivially_destructible<Derived>::value);
   }
-  explicit OperationT(ShadowyOpIndexVectorWrapper inputs)
+  explicit OperationT(base::Vector<const OpIndex> inputs)
       : OperationT(inputs.size()) {
-    this->inputs().OverwriteWith(
-        static_cast<base::Vector<const OpIndex>>(inputs));
+    this->inputs().OverwriteWith(inputs);
   }
 
   bool EqualsForGVN(const Base& other) const {
@@ -4157,7 +4156,7 @@ struct TupleOp : OperationT<TupleOp> {
     return {};
   }
 
-  explicit TupleOp(base::Vector<const V<Any>> inputs) : Base(inputs) {}
+  explicit TupleOp(base::Vector<const OpIndex> inputs) : Base(inputs) {}
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
@@ -4185,9 +4184,9 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
     return {};
   }
 
-  V<Any> input() const { return Base::input<Any>(0); }
+  OpIndex input() const { return Base::input(0); }
 
-  ProjectionOp(V<Any> input, uint16_t index, RegisterRepresentation rep)
+  ProjectionOp(OpIndex input, uint16_t index, RegisterRepresentation rep)
       : Base(input), index(index), rep(rep) {}
 
   void Validate(const Graph& graph) const {
@@ -8575,10 +8574,6 @@ constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
 constexpr size_t input_count(OpIndex) { return 1; }
 constexpr size_t input_count(OptionalOpIndex) { return 1; }
 constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
-  return inputs.size();
-}
-template <typename T>
-constexpr size_t input_count(base::Vector<const V<T>> inputs) {
   return inputs.size();
 }
 }  // namespace detail
