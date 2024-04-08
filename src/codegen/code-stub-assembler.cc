@@ -13200,26 +13200,8 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
     TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-#ifdef V8_ENABLE_SANDBOX
-  TNode<RawPtrT> table = ExternalConstant(
-      ExternalReference::memory_chunk_metadata_table_address());
-  TNode<Uint32T> index = Load<Uint32T>(
-      address, IntPtrConstant(MemoryChunkLayout::kMetadataIndexOffset));
-  index = Word32And(
-      index, UniqueUint32Constant(MemoryChunk::kMetadataPointerTableSizeMask));
-  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
-      Word32Shl(index, UniqueUint32Constant(kSystemPointerSizeLog2)));
-  TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
-  // Check that the Metadata belongs to this Chunk, since an attacker with write
-  // inside the sandbox could've swapped the index.
-  TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(Load<IntPtrT>(
-      metadata, IntPtrConstant(MemoryChunkLayout::kAreaStartOffset)));
-  CSA_CHECK(this, WordEqual(metadata_chunk, address));
-  return metadata;
-#else
   return Load<IntPtrT>(address,
                        IntPtrConstant(MemoryChunkLayout::kMetadataOffset));
-#endif
 }
 
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromAddress(

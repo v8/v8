@@ -165,21 +165,14 @@ TEST(MutablePageMetadata) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t area_size;
 
+  bool jitless = isolate->jitless();
+
   for (int i = 0; i < 100; i++) {
     area_size =
         RoundUp(PseudorandomAreaSize(), page_allocator->CommitPageSize());
 
-    const size_t code_range_size = 32 * MB;
-#ifdef V8_ENABLE_SANDBOX
-    // When the sandbox is enabled, the code assumes that there's only a single
-    // code range for easy metadata lookup, so use the process wide code range
-    // in this case.
-    CodeRange* code_range =
-        CodeRange::EnsureProcessWideCodeRange(page_allocator, code_range_size);
-    base::BoundedPageAllocator* page_allocator = code_range->page_allocator();
-#else
     // With CodeRange.
-    bool jitless = isolate->jitless();
+    const size_t code_range_size = 32 * MB;
     VirtualMemory code_range_reservation(
         page_allocator, code_range_size, nullptr,
         MemoryChunk::GetAlignmentForAllocation(),
@@ -206,14 +199,12 @@ TEST(MutablePageMetadata) {
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::GetAlignmentForAllocation(),
         page_initialization_mode, page_freeing_mode);
-    base::BoundedPageAllocator* page_allocator = &code_page_allocator;
-#endif
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, EXECUTABLE,
-                      PageSize::kLarge, heap->code_lo_space());
+    VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
+                      EXECUTABLE, PageSize::kLarge, heap->code_lo_space());
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, NOT_EXECUTABLE,
-                      PageSize::kLarge, heap->lo_space());
+    VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
+                      NOT_EXECUTABLE, PageSize::kLarge, heap->lo_space());
   }
 }
 

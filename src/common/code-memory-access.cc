@@ -80,6 +80,14 @@ void ThreadIsolation::Initialize(
 
   bool enable = thread_isolated_allocator != nullptr && !v8_flags.jitless;
 
+#ifdef THREAD_SANITIZER
+  // TODO(sroettger): with TSAN enabled, we get crashes because
+  // SetDefaultPermissionsForSignalHandler gets called while a
+  // RwxMemoryWriteScope is active. It seems that tsan's ProcessPendingSignals
+  // doesn't restore the pkru value after executing the signal handler.
+  enable = false;
+#endif
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   if (enable &&
       !base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport()) {

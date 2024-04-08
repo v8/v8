@@ -437,12 +437,11 @@ class StatsCounter;
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                          \
-  V(sandbox_base_address, "Sandbox::base()")                        \
-  V(sandbox_end_address, "Sandbox::end()")                          \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")        \
-  V(code_pointer_table_address, "GetProcessWideCodePointerTable()") \
-  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                   \
+  V(sandbox_base_address, "Sandbox::base()")                 \
+  V(sandbox_end_address, "Sandbox::end()")                   \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()") \
+  V(code_pointer_table_address, "GetProcessWideCodePointerTable()")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
