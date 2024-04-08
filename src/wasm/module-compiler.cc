@@ -2133,7 +2133,7 @@ class BaseCompileJSToWasmWrapperJob : public JobTask {
   bool GetNextUnitIndex(size_t* index_out) {
     size_t next_index = unit_index_.fetch_add(1, std::memory_order_relaxed);
     if (next_index >= total_units_) {
-      // {unit_index_} may exceeed {total_units_}, but only by the number of
+      // {unit_index_} may exceed {total_units_}, but only by the number of
       // workers at worst, thus it can't exceed 2 * {total_units_} and overflow
       // shouldn't happen.
       DCHECK_GE(2 * total_units_, next_index);
@@ -2188,24 +2188,23 @@ class AsyncCompileJSToWasmWrapperJob final
   void Run(JobDelegate* delegate) override {
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
-    std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit = nullptr;
 
-    OperationsBarrier::Token wrapper_compilation_token;
-    Isolate* isolate;
 
     size_t index;
     if (!GetNextUnitIndex(&index)) return;
-    {
-      BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return FlushRemainingUnits();
-      wrapper_unit =
-          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
-              index);
-      isolate = wrapper_unit->isolate();
-      wrapper_compilation_token =
-          wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
-      if (!wrapper_compilation_token) return FlushRemainingUnits();
-    }
+
+    // The wrapper units keep a pointer to the signature, so execute the units
+    // inside the compile scope to keep the WasmModule's signature_zone alive.
+    BackgroundCompileScope compile_scope(native_module_);
+    if (compile_scope.cancelled()) return FlushRemainingUnits();
+
+    std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit =
+        compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
+            index);
+    Isolate* isolate = wrapper_unit->isolate();
+    OperationsBarrier::Token wrapper_compilation_token =
+        wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
+    if (!wrapper_compilation_token) return FlushRemainingUnits();
 
     TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
     // In case multi-cage pointer compression mode is enabled ensure that
@@ -2213,30 +2212,18 @@ class AsyncCompileJSToWasmWrapperJob final
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
-      base::Optional<BackgroundCompileScope> compile_scope;
-      if (v8_flags.turboshaft_wasm_wrappers) {
-        compile_scope.emplace(native_module_);
-        if (compile_scope->cancelled()) return;
-        // The wrapper unit keeps a pointer to the signature, so execute the
-        // unit inside the compile scope to keep the WasmModule's signature_zone
-        // alive.
-      }
       wrapper_unit->Execute();
       bool complete_last_unit = CompleteUnit();
       bool yield = delegate && delegate->ShouldYield();
       if (yield && !complete_last_unit) return;
 
-      if (!v8_flags.turboshaft_wasm_wrappers) {
-        compile_scope.emplace(native_module_);
-        if (compile_scope->cancelled()) return;
-      }
       if (complete_last_unit) {
-        compile_scope->compilation_state()->OnFinishedJSToWasmWrapperUnits();
+        compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
       }
       if (yield) return;
       if (!GetNextUnitIndex(&index)) return;
       wrapper_unit =
-          compile_scope->compilation_state()->GetJSToWasmWrapperCompilationUnit(
+          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
     }
   }
