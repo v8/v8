@@ -1550,6 +1550,8 @@ void TierUpAllForTesting(
   }
 }
 
+namespace {
+
 bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
@@ -1567,6 +1569,24 @@ bool IsI8Array(wasm::ValueType type, const WasmModule* module,
   return module->isorecursive_canonical_type_ids[reftype] ==
          TypeCanonicalizer::kPredefinedArrayI8Index;
 }
+
+// Returns the start offset of a given import, for use in error messages.
+// The module_name payload is preceded by an i32v giving its length. That i32v
+// is preceded by another i32v, which is either a type index (specifying the
+// type of the previous import) or the imports count (in case of the first
+// import). So we scan backwards as long as we find non-last LEB bytes there.
+uint32_t ImportStartOffset(base::Vector<const uint8_t> wire_bytes,
+                           uint32_t module_name_start) {
+  DCHECK_LT(0, module_name_start);
+  uint32_t offset = module_name_start - 1;  // Last byte of the string length.
+  DCHECK_EQ(wire_bytes[offset] & 0x80, 0);
+  while (offset > 0 && (wire_bytes[offset - 1] & 0x80) != 0) {
+    offset--;
+  }
+  return offset;
+}
+
+}  // namespace
 
 // Validates the signatures of recognized compile-time imports, and stores
 // them on the {module}'s {well_known_imports} list.
@@ -1611,10 +1631,6 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       continue;
     }
     base::Vector<const uint8_t> collection = module_name.SubVectorFrom(5);
-    // TODO(14179): Can we get the actual offset?
-    // Idea: work backwards from {import.module_name.offset()}, we only have
-    // to find the beginning of the i32v giving the string length.
-    constexpr uint32_t kErrorOffset = 0;
     WellKnownImport status = WellKnownImport::kUninstantiated;
     const WasmFunction& func = module->functions[import.index];
     const FunctionSig* sig = func.sig;
@@ -1623,9 +1639,11 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         wire_bytes.SubVector(field_name.offset(), field_name.end_offset());
     if (collection == base::StaticOneByteVector("js-string") &&
         imports.contains(CompileTimeImport::kJsString)) {
-#define RETURN_ERROR(module_name, import_name)                     \
-  return WasmError(kErrorOffset,                                   \
-                   "Imported builtin function \"wasm:" module_name \
+#define RETURN_ERROR(module_name_string, import_name)                     \
+  uint32_t error_offset =                                                 \
+      ImportStartOffset(wire_bytes, import.module_name.offset());         \
+  return WasmError(error_offset,                                          \
+                   "Imported builtin function \"wasm:" module_name_string \
                    "\" \"" import_name "\" has incorrect signature")
 
 #define CHECK_SIG(import_name, kSigName, kEnumName)      \

@@ -705,9 +705,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     module = std::move(result).value();
     if (WasmError error = ValidateAndSetBuiltinImports(
             module.get(), bytes.module_bytes(), compile_imports)) {
-      // TODO(14179): When we have the offset, include it in the message.
-      DCHECK_EQ(0, error.offset());
-      thrower->LinkError("%s", error.message().c_str());
+      thrower->LinkError("%s @+%u", error.message().c_str(), error.offset());
       return {};
     }
   }
