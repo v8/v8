@@ -37,27 +37,27 @@
 #include "src/wasm/wasm-serialization.h"
 #include "src/wasm/wasm-value.h"
 
+namespace v8 {
+
 using v8::internal::wasm::CompileTimeImport;
 using v8::internal::wasm::CompileTimeImports;
 using v8::internal::wasm::ErrorThrower;
-
-namespace v8 {
+using v8::internal::wasm::WasmFeatures;
 
 class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
-      Isolate* isolate, const char* api_method_name,
+      i::Isolate* isolate, const char* api_method_name,
       CompileTimeImports compile_imports,
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
-      : isolate_(isolate),
+      : i_isolate_(isolate),
         compile_imports_(compile_imports),
-        resolver_(std::move(resolver)) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-    streaming_decoder_ = i::wasm::GetWasmEngine()->StartStreamingCompilation(
-        i_isolate, enabled_features, compile_imports_,
-        handle(i_isolate->context(), i_isolate), api_method_name, resolver_);
-  }
+        enabled_features_(i::wasm::WasmFeatures::FromIsolate(i_isolate_)),
+        streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
+            i_isolate_, enabled_features_, compile_imports_,
+            handle(i_isolate_->context(), i_isolate_), api_method_name,
+            resolver)),
+        resolver_(std::move(resolver)) {}
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
@@ -67,7 +67,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
 
   void Abort(MaybeLocal<Value> exception) {
-    i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate_));
+    i::HandleScope scope(i_isolate_);
     streaming_decoder_->Abort();
 
     // If no exception value is provided, we do not reject the promise. This can
@@ -80,7 +80,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
 
   bool SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
-    if (!i::wasm::IsSupportedVersion(bytes)) return false;
+    if (!i::wasm::IsSupportedVersion(bytes, enabled_features_)) return false;
     streaming_decoder_->SetCompiledModuleBytes(bytes);
     return true;
   }
@@ -98,10 +98,11 @@ class WasmStreaming::WasmStreamingImpl {
   void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
 
  private:
-  Isolate* const isolate_;
-  CompileTimeImports compile_imports_;
-  std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
-  std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
+  i::Isolate* const i_isolate_;
+  const CompileTimeImports compile_imports_;
+  const WasmFeatures enabled_features_;
+  const std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
+  const std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
@@ -707,7 +708,7 @@ void WebAssemblyCompileStreaming(
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
-              isolate, kAPIMethodName, compile_imports, resolver));
+              i_isolate, kAPIMethodName, compile_imports, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(
@@ -1058,7 +1059,8 @@ void WebAssemblyInstantiateStreaming(
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
           std::make_unique<WasmStreaming::WasmStreamingImpl>(
-              isolate, kAPIMethodName, compile_imports, compilation_resolver));
+              i_isolate, kAPIMethodName, compile_imports,
+              compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(
@@ -3491,8 +3493,7 @@ std::unique_ptr<WasmStreaming> StartStreamingForTesting(
     std::shared_ptr<wasm::CompilationResultResolver> resolver) {
   return std::make_unique<WasmStreaming>(
       std::make_unique<WasmStreaming::WasmStreamingImpl>(
-          reinterpret_cast<v8::Isolate*>(isolate), "StartStreamingForTesting",
-          CompileTimeImports{}, resolver));
+          isolate, "StartStreamingForTesting", CompileTimeImports{}, resolver));
 }
 }  // namespace wasm
 
