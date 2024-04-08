@@ -414,7 +414,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
                            ? CodeKind::BASELINE
                            : CodeKind::INTERPRETED_FUNCTION;
   if (code_kind == CodeKind::INTERPRETED_FUNCTION &&
-      CanCompileWithBaseline(isolate_, vector->shared_function_info())) {
+      CanCompileWithBaseline(isolate_, vector->shared_function_info()) &&
+      !vector->shared_function_info()->sparkplug_compiled()) {
     // Don't delay tier-up if we haven't tiered up to baseline yet, but will --
     // baseline code is feedback independent.
     return;
