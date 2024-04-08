@@ -103,34 +103,33 @@ void ContextDeserializer::DeserializeEmbedderFields(
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
+  // Buffer is reused across various deserializations. We always copy N bytes
+  // into the backing and pass that N bytes to the embedder via StartupData.
+  PlainBuffer<char> buffer;
   for (int code = source()->Get(); code != kSynchronize;
        code = source()->Get()) {
     HandleScope scope(isolate());
     Handle<HeapObject> heap_object =
         Handle<HeapObject>::cast(GetBackReferencedObject());
-    int index = source()->GetUint30();
-    int size = source()->GetUint30();
-    // TODO(chromium:328117814): Turn this into a reusable shared buffer.
-    uint8_t* data = new uint8_t[size];
-    source()->CopyRaw(data, size);
-
+    const int index = source()->GetUint30();
+    const int size = source()->GetUint30();
+    buffer.EnsureCapacity(size);
+    source()->CopyRaw(buffer.data(), size);
     if (IsJSObject(*heap_object)) {
       Handle<JSObject> obj = Handle<JSObject>::cast(heap_object);
       v8::DeserializeInternalFieldsCallback callback =
           embedder_fields_deserializer.js_object_callback;
       DCHECK_NOT_NULL(callback.callback);
-      callback.callback(v8::Utils::ToLocal(obj), index,
-                        {reinterpret_cast<char*>(data), size}, callback.data);
-
+      callback.callback(v8::Utils::ToLocal(obj), index, {buffer.data(), size},
+                        callback.data);
     } else {
       DCHECK(IsEmbedderDataArray(*heap_object));
       v8::DeserializeContextDataCallback callback =
           embedder_fields_deserializer.context_callback;
       DCHECK_NOT_NULL(callback.callback);
       callback.callback(v8::Utils::ToLocal(context), index,
-                        {reinterpret_cast<char*>(data), size}, callback.data);
+                        {buffer.data(), size}, callback.data);
     }
-    delete[] data;
   }
 }
 
