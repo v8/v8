@@ -116,14 +116,12 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        barrier = BARRIER.NONE,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN no origins",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        barrier = BARRIER.NONE,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
