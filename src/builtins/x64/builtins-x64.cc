@@ -4068,8 +4068,8 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
   __ jmp(call_target);
 #else
   Register code = r11;  // Anything not in kGpParamRegisters.
-  __ movq(code,
-          FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ LoadTaggedField(
+      code, FieldOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
   __ jmp(FieldOperand(code, Code::kInstructionStartOffset));
 #endif
 }
