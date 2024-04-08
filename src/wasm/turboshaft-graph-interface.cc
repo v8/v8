@@ -2031,7 +2031,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         break;
       }
       case WKI::kStringFromCodePoint:
-        // TODO(14179): Fix trapping when the result is unused.
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
                                                             {args[0].op});
