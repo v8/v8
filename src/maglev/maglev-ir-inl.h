@@ -79,10 +79,10 @@ void DeepForEachInputSingleFrameImpl(
 
 template <typename Function>
 void DeepForFastContext(FastContext context, InputLocation*& input_location,
-                        Function&& f) {
-  f(context.previous_context, input_location);
+                        Function&& rec_f) {
+  rec_f(context.previous_context, input_location, rec_f);
   if (context.extension.has_value()) {
-    f(context.extension.value(), input_location);
+    rec_f(context.extension.value(), input_location, rec_f);
   }
 }
 
@@ -111,26 +111,24 @@ void DeepForEachInputAndDeoptObject(
     InputLocation*& input_location, Function&& f,
     std::function<bool(interpreter::Register)> is_result_register =
         [](interpreter::Register) { return false; }) {
-  auto runf_and_next_location = [&f](first_argument<Function> node,
-                                     InputLocation*& input_location) {
-    f(node, input_location);
-    input_location++;
-  };
-  DeepForEachInputSingleFrameImpl(
-      frame, input_location,
-      [&runf_and_next_location](first_argument<Function> node,
-                                InputLocation*& input_location) {
-        if (const_if_function_first_arg_not_reference<InlinedAllocation,
-                                                      Function>* alloc =
-                node->template TryCast<InlinedAllocation>()) {
-          if (!alloc->HasEscaped()) {
-            return DeepForDeoptObject(alloc->value(), input_location,
-                                      runf_and_next_location);
-          }
+  auto update_node = [&f](first_argument<Function> node,
+                          InputLocation*& input_location) {
+    auto lambda = [&f](first_argument<Function> node,
+                       InputLocation*& input_location, const auto& lambda) {
+      if (const_if_function_first_arg_not_reference<InlinedAllocation,
+                                                    Function>* alloc =
+              node->template TryCast<InlinedAllocation>()) {
+        if (!alloc->HasEscaped()) {
+          return DeepForDeoptObject(alloc->value(), input_location, lambda);
         }
-        runf_and_next_location(node, input_location);
-      },
-      is_result_register);
+      }
+      f(node, input_location);
+      input_location++;
+    };
+    lambda(node, input_location, lambda);
+  };
+  DeepForEachInputSingleFrameImpl(frame, input_location, update_node,
+                                  is_result_register);
 }
 
 template <typename Function>
