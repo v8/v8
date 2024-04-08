@@ -1721,6 +1721,26 @@ std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind) {
   }
 #undef PRINT_KIND
 }
+
+#ifdef V8_TARGET_ARCH_X64
+void Simd256ShufdOp::PrintOptions(std::ostream& os) const {
+  os << '[' << std::bitset<8>(control) << ']';
+}
+
+void Simd256ShufpsOp::PrintOptions(std::ostream& os) const {
+  os << '[' << std::bitset<8>(control) << ']';
+}
+
+std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)               \
+  case Simd256UnpackOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_256_UNPACK_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {

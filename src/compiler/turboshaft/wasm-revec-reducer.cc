@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/wasm/simd-shuffle.h"
 
 #define TRACE(...)                                  \
   do {                                              \
@@ -209,6 +210,95 @@ PackNode* SLPTree::NewPackNodeAndRecurs(const NodeGroup& node_group,
   }
   return pnode;
 }
+
+ShufflePackNode* SLPTree::NewShufflePackNode(
+    const NodeGroup& node_group, ShufflePackNode::SpecificInfo::Kind kind) {
+  Operation& op = graph_.Get(node_group[0]);
+  TRACE("PackNode %s(#%d:, #%d)\n", GetSimdOpcodeName(op).c_str(),
+        node_group[0].id(), node_group[1].id());
+  ShufflePackNode* pnode = phase_zone_->New<ShufflePackNode>(node_group, kind);
+  for (OpIndex node : node_group) {
+    node_to_packnode_[node] = pnode;
+  }
+  return pnode;
+}
+
+#ifdef V8_TARGET_ARCH_X64
+ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
+                                                const uint8_t* shuffle0,
+                                                const uint8_t* shuffle1) {
+  DCHECK_EQ(node_group.size(), 2);
+  OpIndex op_idx0 = node_group[0];
+  OpIndex op_idx1 = node_group[1];
+  const Simd128ShuffleOp& op0 = graph_.Get(op_idx0).Cast<Simd128ShuffleOp>();
+  const Simd128ShuffleOp& op1 = graph_.Get(op_idx1).Cast<Simd128ShuffleOp>();
+
+  uint8_t shuffle8x32[32];
+
+  if (op0.left() == op0.right() && op1.left() == op1.right()) {
+    // shuffles are swizzles
+    for (int i = 0; i < 16; ++i) {
+      shuffle8x32[i] = shuffle0[i] % 16;
+      shuffle8x32[i + 16] = 16 + shuffle1[i] % 16;
+    }
+
+    if (uint8_t shuffle32x8[8];
+        wasm::SimdShuffle::TryMatch32x8Shuffle(shuffle8x32, shuffle32x8)) {
+      uint8_t control;
+      if (wasm::SimdShuffle::TryMatchVpshufd(shuffle32x8, &control)) {
+        ShufflePackNode* pnode = NewShufflePackNode(
+            node_group, ShufflePackNode::SpecificInfo::Kind::kShufd);
+        pnode->info().set_shufd_control(control);
+        return pnode;
+      }
+    }
+  } else if (op0.left() != op0.right() && op1.left() != op1.right()) {
+    // shuffles are not swizzles
+    for (int i = 0; i < 16; ++i) {
+      if (shuffle0[i] < 16) {
+        shuffle8x32[i] = shuffle0[i];
+      } else {
+        shuffle8x32[i] = 16 + shuffle0[i];
+      }
+
+      if (shuffle1[i] < 16) {
+        shuffle8x32[i + 16] = 16 + shuffle1[i];
+      } else {
+        shuffle8x32[i + 16] = 32 + shuffle1[i];
+      }
+    }
+
+    if (const wasm::ShuffleEntry<kSimd256Size>* arch_shuffle;
+        wasm::SimdShuffle::TryMatchArchShuffle(shuffle8x32, false,
+                                               &arch_shuffle)) {
+      ShufflePackNode::SpecificInfo::Kind kind;
+      switch (arch_shuffle->opcode) {
+        case kX64S32x8UnpackHigh:
+          kind = ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackHigh;
+          break;
+        case kX64S32x8UnpackLow:
+          kind = ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackLow;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      ShufflePackNode* pnode = NewShufflePackNode(node_group, kind);
+      return pnode;
+    } else if (uint8_t shuffle32x8[8]; wasm::SimdShuffle::TryMatch32x8Shuffle(
+                   shuffle8x32, shuffle32x8)) {
+      uint8_t control;
+      if (wasm::SimdShuffle::TryMatchShufps256(shuffle32x8, &control)) {
+        ShufflePackNode* pnode = NewShufflePackNode(
+            node_group, ShufflePackNode::SpecificInfo::Kind::kShufps);
+        pnode->info().set_shufps_control(control);
+        return pnode;
+      }
+    }
+  }
+
+  return nullptr;
+}
+#endif  // V8_TARGET_ARCH_X64
 
 void SLPTree::DeleteTree() { node_to_packnode_.clear(); }
 
@@ -597,6 +687,79 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       }
       PackNode* pnode = NewPackNode(node_group);
       return pnode;
+    }
+
+    case Opcode::kSimd128Shuffle: {
+      // We pack shuffles only if it can match specific patterns. We should
+      // avoid packing general shuffles because it will cause regression.
+      const auto& shuffle0 = op0.Cast<Simd128ShuffleOp>().shuffle;
+      const auto& shuffle1 = op1.Cast<Simd128ShuffleOp>().shuffle;
+
+      if (CompareCharsEqual(shuffle0, shuffle1, kSimd128Size)) {
+        if (IsSplat(node_group)) {
+          // Check if the shuffle can be replaced by a loadsplat.
+          // Take load32splat as an example:
+          // 1. Param0  # be used as load base
+          // 2. Param1  # be used as load index
+          // 3. Param2  # be used as store base
+          // 4. Param3  # be used as store index
+          // 5. Load128(base, index, offset=0)
+          // 6. AnyOp
+          // 7. Shuffle32x4 (1,2, [2,2,2,2])
+          // 8. Store128(3,4,7, offset=0)
+          // 9. Store128(3,4,7, offset=16)
+          //
+          // We can replace the load128 and shuffle with a loadsplat32:
+          // 1. Param0  # be used as load base
+          // 2. Param1  # be used as load index
+          // 3. Param2  # be used as store base
+          // 4. Param3  # be used as store index
+          // 5. Load32Splat256(base, index, offset=4)
+          // 6. Store256(3,4,7,offset=0)
+          int index;
+          if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle0, &index) &&
+              graph_.Get(op0.input(index >> 2)).opcode == Opcode::kLoad) {
+            ShufflePackNode* pnode = NewShufflePackNode(
+                node_group,
+                ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform);
+            pnode->info().set_splat_index(index);
+            return pnode;
+          } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle0, &index) &&
+                     graph_.Get(op0.input(index >> 1)).opcode ==
+                         Opcode::kLoad) {
+            ShufflePackNode* pnode = NewShufflePackNode(
+                node_group,
+                ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform);
+            pnode->info().set_splat_index(index);
+            return pnode;
+          }
+        } else {
+#ifdef V8_TARGET_ARCH_X64
+          if (ShufflePackNode* pnode =
+                  X64TryMatch256Shuffle(node_group, shuffle0, shuffle1)) {
+            // Manually invoke recur build tree for shuffle node
+            for (int i = 0; i < value_in_count; ++i) {
+              NodeGroup operands(graph_.Get(node_group[0]).input(i),
+                                 graph_.Get(node_group[1]).input(i));
+
+              if (!BuildTreeRec(operands, recursion_depth + 1)) {
+                return nullptr;
+              }
+            }
+            return pnode;
+          }
+#endif  // V8_TARGET_ARCH_X64
+          return nullptr;
+        }
+
+        TRACE("Unsupported Simd128Shuffle\n");
+        return nullptr;
+
+      } else {
+        // TODO(v8:12716): support pattern
+        // (128loadzero64+shuffle)x2 -> s256load8x8u
+        return nullptr;
+      }
     }
 
     default:

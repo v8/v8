@@ -354,10 +354,12 @@ namespace compiler {
   V(X64S32x4UnpackHigh)                              \
   V(X64S16x8UnpackHigh)                              \
   V(X64S8x16UnpackHigh)                              \
+  V(X64S32x8UnpackHigh)                              \
   V(X64S64x2UnpackLow)                               \
   V(X64S32x4UnpackLow)                               \
   V(X64S16x8UnpackLow)                               \
   V(X64S8x16UnpackLow)                               \
+  V(X64S32x8UnpackLow)                               \
   V(X64S8x16TransposeLow)                            \
   V(X64S8x16TransposeHigh)                           \
   V(X64S8x8Reverse)                                  \

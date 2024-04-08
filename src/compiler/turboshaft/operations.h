@@ -135,15 +135,30 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringPrepareForGetCodeUnit)
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
-#define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
-  V(Simd256Constant)                         \
-  V(Simd256Extract128Lane)                   \
-  V(Simd256LoadTransform)                    \
-  V(Simd256Unary)                            \
-  V(Simd256Binop)                            \
-  V(Simd256Shift)                            \
-  V(Simd256Ternary)                          \
+#define TURBOSHAFT_SIMD256_COMMOM_OPERATION_LIST(V) \
+  V(Simd256Constant)                                \
+  V(Simd256Extract128Lane)                          \
+  V(Simd256LoadTransform)                           \
+  V(Simd256Unary)                                   \
+  V(Simd256Binop)                                   \
+  V(Simd256Shift)                                   \
+  V(Simd256Ternary)                                 \
   V(Simd256Splat)
+
+#if V8_TARGET_ARCH_X64
+#define TURBOSHAFT_SIMD256_X64_OPERATION_LIST(V) \
+  V(Simd256Shufd)                                \
+  V(Simd256Shufps)                               \
+  V(Simd256Unpack)
+
+#define TURBOSHAFT_SIMD256_OPERATION_LIST(V)  \
+  TURBOSHAFT_SIMD256_COMMOM_OPERATION_LIST(V) \
+  TURBOSHAFT_SIMD256_X64_OPERATION_LIST(V)
+#else
+#define TURBOSHAFT_SIMD256_OPERATION_LIST(V) \
+  TURBOSHAFT_SIMD256_COMMOM_OPERATION_LIST(V)
+#endif  // V8_TARGET_ARCH_X64
+
 #else
 #define TURBOSHAFT_SIMD256_OPERATION_LIST(V)
 #endif
@@ -8228,6 +8243,94 @@ struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd256SplatOp::Kind kind);
+
+#ifdef V8_TARGET_ARCH_X64
+struct Simd256ShufdOp : FixedArityOperationT<1, Simd256ShufdOp> {
+  static constexpr OpEffects effects = OpEffects();
+  uint8_t control;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256ShufdOp(V<Simd256> input, uint8_t control)
+      : Base(input), control(control) {}
+
+  V<Simd256> input() const { return Base::input<Simd256>(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{control}; }
+
+  void PrintOptions(std::ostream& os) const;
+};
+
+struct Simd256ShufpsOp : FixedArityOperationT<2, Simd256ShufpsOp> {
+  static constexpr OpEffects effects = OpEffects();
+  uint8_t control;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256ShufpsOp(V<Simd256> left, V<Simd256> right, uint8_t control)
+      : Base(left, right), control(control) {}
+
+  V<Simd256> left() const { return Base::input<Simd256>(0); }
+  V<Simd256> right() const { return Base::input<Simd256>(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{control}; }
+
+  void PrintOptions(std::ostream& os) const;
+};
+
+#define FOREACH_SIMD_256_UNPACK_OPCODE(V) \
+  V(32x8Low)                              \
+  V(32x8High)
+struct Simd256UnpackOp : FixedArityOperationT<2, Simd256UnpackOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_256_UNPACK_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+  static constexpr OpEffects effects = OpEffects();
+  Kind kind;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd256()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd256(),
+                          RegisterRepresentation::Simd256()>();
+  }
+
+  Simd256UnpackOp(V<Simd256> left, V<Simd256> right, Kind kind)
+      : Base(left, right), kind(kind) {}
+
+  V<Simd256> left() const { return Base::input<Simd256>(0); }
+  V<Simd256> right() const { return Base::input<Simd256>(1); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind);
+#endif  // V8_TARGET_ARCH_X64
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

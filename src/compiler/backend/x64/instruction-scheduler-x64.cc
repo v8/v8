@@ -299,10 +299,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S32x4UnpackHigh:
     case kX64S16x8UnpackHigh:
     case kX64S8x16UnpackHigh:
+    case kX64S32x8UnpackHigh:
     case kX64S64x2UnpackLow:
     case kX64S32x4UnpackLow:
     case kX64S16x8UnpackLow:
     case kX64S8x16UnpackLow:
+    case kX64S32x8UnpackLow:
     case kX64S8x16TransposeLow:
     case kX64S8x16TransposeHigh:
     case kX64S8x8Reverse:

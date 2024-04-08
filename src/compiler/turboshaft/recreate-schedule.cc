@@ -1903,6 +1903,18 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256SplatOp& op) {
 #undef HANDLE_KIND
   }
 }
+
+#ifdef V8_TARGET_ARCH_X64
+Node* ScheduleBuilder::ProcessOperation(const Simd256ShufdOp& op) {
+  UNIMPLEMENTED();
+}
+Node* ScheduleBuilder::ProcessOperation(const Simd256ShufpsOp& op) {
+  UNIMPLEMENTED();
+}
+Node* ScheduleBuilder::ProcessOperation(const Simd256UnpackOp& op) {
+  UNIMPLEMENTED();
+}
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 Node* ScheduleBuilder::ProcessOperation(const LoadStackPointerOp& op) {

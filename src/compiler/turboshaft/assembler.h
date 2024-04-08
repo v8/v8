@@ -3941,6 +3941,22 @@ class TurboshaftAssemblerOpInterface
   V<Simd256> Simd256Splat(OpIndex input, Simd256SplatOp::Kind kind) {
     return ReduceIfReachableSimd256Splat(input, kind);
   }
+
+#ifdef V8_TARGET_ARCH_X64
+  V<Simd256> Simd256Shufd(V<Simd256> input, const uint8_t control) {
+    return ReduceIfReachableSimd256Shufd(input, control);
+  }
+
+  V<Simd256> Simd256Shufps(V<Simd256> left, V<Simd256> right,
+                           const uint8_t control) {
+    return ReduceIfReachableSimd256Shufps(left, right, control);
+  }
+
+  V<Simd256> Simd256Unpack(V<Simd256> left, V<Simd256> right,
+                           Simd256UnpackOp::Kind kind) {
+    return ReduceIfReachableSimd256Unpack(left, right, kind);
+  }
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   V<WasmTrustedInstanceData> WasmInstanceParameter() {

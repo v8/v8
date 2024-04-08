@@ -6057,8 +6057,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Shufps: {
-      __ Shufps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1), i.InputUint8(2));
+      if (instr->Output()->IsSimd128Register()) {
+        __ Shufps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputUint8(2));
+      } else {
+        DCHECK(instr->Output()->IsSimd256Register());
+        DCHECK(CpuFeatures::IsSupported(AVX));
+        CpuFeatureScope scope(masm(), AVX);
+        __ vshufps(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputUint8(2));
+      }
       break;
     }
     case kX64S32x4Rotate: {
@@ -6159,6 +6167,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S32x4UnpackHigh:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhdq);
       break;
+    case kX64S32x8UnpackHigh: {
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      __ vpunpckhdq(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
     case kX64S16x8UnpackHigh:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhwd);
       break;
@@ -6171,6 +6185,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S32x4UnpackLow:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckldq);
       break;
+    case kX64S32x8UnpackLow: {
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      __ vpunpckldq(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
     case kX64S16x8UnpackLow:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklwd);
       break;

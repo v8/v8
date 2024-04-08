@@ -5539,6 +5539,20 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_SPLAT
       }
     }
+#ifdef V8_TARGET_ARCH_X64
+    case Opcode::kSimd256Shufd: {
+      MarkAsSimd256(node);
+      return VisitSimd256Shufd(node);
+    }
+    case Opcode::kSimd256Shufps: {
+      MarkAsSimd256(node);
+      return VisitSimd256Shufps(node);
+    }
+    case Opcode::kSimd256Unpack: {
+      MarkAsSimd256(node);
+      return VisitSimd256Unpack(node);
+    }
+#endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
     case Opcode::kLoadStackPointer:
