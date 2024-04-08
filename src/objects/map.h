@@ -807,8 +807,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a copy of the map, prepared for inserting into the transition
   // tree as a prototype transition.
   static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
-                                                Handle<Map> map,
-                                                Handle<HeapObject> prototype);
+                                                Handle<Map> map);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -884,6 +883,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                : ObjectFields::kMaybePointers;
   }
 
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 

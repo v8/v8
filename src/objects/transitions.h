@@ -86,15 +86,6 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline Handle<String> ExpectedTransitionKey();
   inline Handle<Map> ExpectedTransitionTarget();
 
-  template <typename Callback, typename ProtoCallback>
-  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
-                         ProtoCallback proto_transition_callback);
-
-  template <typename Callback>
-  void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback) {
-    ForEachTransition(no_gc, callback, callback);
-  }
-
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveReferences would leak memory while
@@ -140,7 +131,6 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                                      Handle<Map> target_map);
   static Handle<Map> GetPrototypeTransition(Isolate* isolate, Handle<Map> map,
                                             Handle<Object> prototype);
-  bool HasPrototypeTransitions();
 
   // During the first-time Map::Update and Map::TryUpdate, the migration target
   // map could be cached in the raw_transitions slot of the old map that is
