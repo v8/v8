@@ -5,8 +5,6 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_H_
 #define V8_HEAP_MEMORY_CHUNK_H_
 
-#include <bit>
-
 #include "src/base/build_config.h"
 #include "src/base/functional.h"
 #include "src/flags/flags.h"
@@ -342,8 +340,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   static constexpr size_t kCodeRangeMetadataOffset =
       kTrustedSpaceMetadataOffset + kPagesInTrustedCage;
 
-  static constexpr size_t kMetadataPointerTableSizeLog2 =
-      std::bit_width(kPagesInMainCage + kPagesInCodeCage + kPagesInTrustedCage);
+  static constexpr size_t kMetadataPointerTableSizeLog2 = base::bits::BitWidth(
+      kPagesInMainCage + kPagesInCodeCage + kPagesInTrustedCage);
   static constexpr size_t kMetadataPointerTableSize =
       1 << kMetadataPointerTableSizeLog2;
   static constexpr size_t kMetadataPointerTableSizeMask =
