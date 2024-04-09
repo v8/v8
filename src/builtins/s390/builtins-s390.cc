@@ -3163,8 +3163,8 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
   // Load the code pointer from the WasmApiFunctionRef and tail-call there.
   Register api_function_ref = wasm::kGpParamRegisters[0];
   Register scratch = ip;
-  __ LoadU64(scratch, FieldMemOperand(api_function_ref,
-                                      WasmApiFunctionRef::kCodeOffset));
+  __ LoadTaggedField(scratch, FieldMemOperand(api_function_ref,
+                                              WasmApiFunctionRef::kCodeOffset));
   __ LoadU64(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
   __ Jump(scratch);
 }
