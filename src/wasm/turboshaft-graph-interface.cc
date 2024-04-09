@@ -4993,8 +4993,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     Handle<SharedFunctionInfo> shared_info;
     Zone* zone = compiler::turboshaft::PipelineData::Get().shared_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
-        // TODO(mliedtke): Introduce new FrameStateType for liftoff function.
-        compiler::FrameStateType::kWasmInlinedIntoJS,
+        compiler::FrameStateType::kLiftoffFunction,
         static_cast<int>(param_count), static_cast<int>(local_count),
         shared_info);
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(

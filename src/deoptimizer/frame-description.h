@@ -115,7 +115,7 @@ class FrameDescription {
 
   Address GetFramePointerAddress() {
     // We should not pad arguments in the bottom frame, since this
-    // already contain a padding if necessary and it might contain
+    // already contains a padding if necessary and it might contain
     // extra arguments (actual argument count > parameter count).
     const bool pad_arguments_bottom_frame = false;
     int fp_offset = GetLastArgumentSlotOffset(pad_arguments_bottom_frame) -

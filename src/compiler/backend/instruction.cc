@@ -1183,6 +1183,17 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
           config);
       return info.frame_size_in_bytes();
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      // TODO(mliedtke): This is difficult to answer: What is the maximum frame
+      // size of a liftoff function? This can be more than the current locals +
+      // parameters + wasm value stack as there can be more spilled values than
+      // that (e.g. the cached memory start). Plan: Store this information in
+      // the wasm module data after liftoff compilation and reuse it here.
+      // There always is a prior liftoff compilation as without type feedback
+      // there isn't any reason to generate deopts.
+      return 0;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   UNREACHABLE();
 }
@@ -1245,6 +1256,10 @@ size_t FrameStateDescriptor::GetHeight() const {
       //   CreateJavaScriptBuiltinContinuationFrameState), and
       // - does *not* include the context.
       return parameters_count();
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      return locals_count() + parameters_count();
+#endif
   }
   UNREACHABLE();
 }

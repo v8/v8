@@ -47,6 +47,7 @@ class FrameTranslationBuilder {
       base::Optional<wasm::ValueKind> return_kind);
   void BeginWasmInlinedIntoJSFrame(BytecodeOffset bailout_id, int literal_id,
                                    unsigned height);
+  void BeginLiftoffFrame(BytecodeOffset bailout_id, unsigned height);
 #endif  // V8_ENABLE_WEBASSEMBLY
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);

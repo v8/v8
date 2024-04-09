@@ -78,6 +78,8 @@ enum class FrameStateType {
                                    // JS to Wasm call.
   kWasmInlinedIntoJS,              // Represents a Wasm function inlined into a
                                    // JS function.
+  kLiftoffFunction,                // Represents an unoptimized (liftoff) wasm
+                                   // function.
 #endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
