@@ -376,6 +376,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
    private:
     friend class ExternalPointerTable;
+    // Currently required for snapshot stress mode, see deserializer.cc.
+    template <typename IsolateT>
+    friend class Deserializer;
 
     ExternalPointerTable* owning_table_ = nullptr;
     ExternalPointerHandle ept_entry_ = kNullExternalPointerHandle;

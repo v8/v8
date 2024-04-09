@@ -232,6 +232,7 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
   if (IsManagedExternalPointerType(tag)) {
     ManagedResource* resource =
         reinterpret_cast<ManagedResource*>(initial_value);
+    DCHECK_EQ(resource->ept_entry_, kNullExternalPointerHandle);
     resource->owning_table_ = this;
     resource->ept_entry_ = handle;
   }
