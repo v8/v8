@@ -166,7 +166,12 @@ namespace v8::internal::compiler::turboshaft {
   V(I64x2Shl, I64x4Shl)     \
   V(I64x2ShrU, I64x4ShrU)
 
-#define SIMD256_TERNARY_OP(V) V(S128Select, S256Select)
+#define SIMD256_TERNARY_OP(V) \
+  V(S128Select, S256Select)   \
+  V(F32x4Qfma, F32x8Qfma)     \
+  V(F32x4Qfms, F32x8Qfms)     \
+  V(F64x2Qfma, F64x4Qfma)     \
+  V(F64x2Qfms, F64x4Qfms)
 
 #define SIMD256_SPLAT_OP(V) \
   V(I8x16, I8x32)           \

@@ -3754,6 +3754,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    kScratchDoubleReg);
       break;
     }
+    case kX64F64x4Qfma: {
+      __ F64x4Qfma(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
+    case kX64F64x4Qfms: {
+      __ F64x4Qfms(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
     case kX64F64x2ConvertLowI32x4S: {
       __ Cvtdq2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3850,6 +3862,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ F32x4Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1), i.InputSimd128Register(2),
                    kScratchDoubleReg);
+      break;
+    }
+    case kX64F32x8Qfma: {
+      __ F32x8Qfma(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
+      break;
+    }
+    case kX64F32x8Qfms: {
+      __ F32x8Qfms(i.OutputSimd256Register(), i.InputSimd256Register(0),
+                   i.InputSimd256Register(1), i.InputSimd256Register(2),
+                   kScratchSimd256Reg);
       break;
     }
     case kX64Minps: {

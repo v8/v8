@@ -8167,7 +8167,18 @@ struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd256ShiftOp::Kind kind);
 
-#define FOREACH_SIMD_256_TERNARY_OPCODE(V) V(S256Select)
+#define FOREACH_SIMD_256_TERNARY_MASK_OPCODE(V) V(S256Select)
+
+#define FOREACH_SIMD_256_TERNARY_OTHER_OPCODE(V) \
+  V(F32x8Qfma)                                   \
+  V(F32x8Qfms)                                   \
+  V(F64x4Qfma)                                   \
+  V(F64x4Qfms)
+
+#define FOREACH_SIMD_256_TERNARY_OPCODE(V) \
+  FOREACH_SIMD_256_TERNARY_MASK_OPCODE(V)  \
+  FOREACH_SIMD_256_TERNARY_OTHER_OPCODE(V)
+
 struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,

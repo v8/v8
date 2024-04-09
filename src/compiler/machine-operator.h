@@ -1166,6 +1166,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S256Not();
   const Operator* S256Select();
   const Operator* S256AndNot();
+  const Operator* F32x8Qfma();
+  const Operator* F32x8Qfms();
+  const Operator* F64x4Qfma();
+  const Operator* F64x4Qfms();
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);
