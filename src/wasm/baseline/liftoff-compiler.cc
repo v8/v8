@@ -1222,7 +1222,7 @@ class LiftoffCompiler {
 
   V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1) {
     DCHECK_LE(1, steps_done);
-    CODE_COMMENT("check max steps");
+    SCOPED_CODE_COMMENT("check max steps");
     LiftoffRegList pinned;
     LiftoffRegister max_steps = pinned.set(__ GetUnusedRegister(kGpReg, {}));
     LiftoffRegister max_steps_addr =
@@ -7925,7 +7925,7 @@ class LiftoffCompiler {
             : uint32_t{kV8MaxWasmTableSize};
     const bool statically_oob =
         is_static_index &&
-        static_cast<uint32_t>(index_slot.i32_const()) > max_table_size;
+        static_cast<uint32_t>(index_slot.i32_const()) >= max_table_size;
 
     TempRegisterScope temps;
     pinned |= temps.AddTempRegisters(3, kGpReg, &asm_, pinned);
@@ -7979,7 +7979,7 @@ class LiftoffCompiler {
       } else {
         DCHECK_EQ(max_table_size, table.initial_size);
         if (is_static_index) {
-          DCHECK_LE(index_slot.i32_const(), max_table_size);
+          DCHECK_LT(index_slot.i32_const(), max_table_size);
         } else {
           __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
                                  index_reg, max_table_size, trapping);
