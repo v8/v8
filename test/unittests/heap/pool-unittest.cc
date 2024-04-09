@@ -302,10 +302,7 @@ class PoolTest : public                                     //
   PoolTest& operator=(const PoolTest&) = delete;
 
   static void FreeProcessWidePtrComprCageForTesting() {
-    IsolateGroup::ReleaseGlobal();
-    if (CodeRange* code_range = CodeRange::GetProcessWideCodeRange()) {
-      code_range->Free();
-    }
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
   }
 
   static void DoMixinSetUp() {
@@ -321,7 +318,7 @@ class PoolTest : public                                     //
     // Reinitialize the process-wide pointer cage so it can pick up the
     // TrackingPageAllocator.
     // The pointer cage must be destroyed before the sandbox.
-    FreeProcessWidePtrComprCageForTesting();
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #ifdef V8_ENABLE_SANDBOX
     // Reinitialze the sandbox so it uses the TrackingPageAllocator.
     GetProcessWideSandbox()->TearDown();
@@ -329,7 +326,7 @@ class PoolTest : public                                     //
     CHECK(GetProcessWideSandbox()->Initialize(
         tracking_page_allocator_, kSandboxMinimumSize, use_guard_regions));
 #endif
-    IsolateGroup::InitializeOncePerProcess();
+    IsolateAllocator::InitializeOncePerProcess();
 #endif
   }
 
@@ -337,7 +334,7 @@ class PoolTest : public                                     //
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Free the process-wide cage reservation, otherwise the pages won't be
     // freed until process teardown.
-    FreeProcessWidePtrComprCageForTesting();
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #endif
 #ifdef V8_ENABLE_SANDBOX
     GetProcessWideSandbox()->TearDown();

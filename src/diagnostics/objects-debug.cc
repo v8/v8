@@ -646,7 +646,7 @@ void Map::MapVerify(Isolate* isolate) {
 
     if (IsJSSharedStructMap(*this) || IsJSSharedArrayMap(*this) ||
         IsJSAtomicsMutex(*this) || IsJSAtomicsCondition(*this)) {
-      if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
+      if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
         // CHECK(InSharedHeap());
