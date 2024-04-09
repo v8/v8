@@ -80,7 +80,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:3cec541372ec0556127a641d9c6e4a90d46ba1b8',
+  'siso_version': 'git_revision:437716714a744e272fabdf1377b8878ccac26b43',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:06dc7a1f2eeb1d095f7876799458328a44438df1',
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bbc1efa4ce09a306328744c508d208407d5978a6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd3191d381c290e90a86e9a63fa6bf13ddcb60b68',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8919328651a559f8a974641d40fe712062cc6718',
   'buildtools/linux64': {
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '17551f6e8469d4c0488d213a3143c51e0c7ed6a4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f85dd800c796d44fa1b16f16f74cb1366a0670c8',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'd7c63cd216941e297569428e40f9b8bc155e0423',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'f10e11fb27301fba21caa71030bb5024e67aa135',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '3d73dee972d0db344bda9b659836612aba6a3564',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libs': {
@@ -324,7 +324,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '9ebe4a22cad8a025b68a9594bdff3c047a111333',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'e76b306b847f9c8f42f5f1ba1000affa2691142b',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
