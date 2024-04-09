@@ -296,6 +296,9 @@ void ContextSerializer::SerializeApiWrapperFields(Handle<JSObject> js_object) {
   DCHECK_NOT_NULL(callback_data.callback);
   const auto data = callback_data.callback(
       v8::Utils::ToLocal(js_object), cpp_heap_pointer, callback_data.data);
+  if (DataIsEmpty(data)) {
+    return;
+  }
   const SerializerReference* reference =
       reference_map()->LookupReference(*js_object);
   DCHECK_NOT_NULL(reference);

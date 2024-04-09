@@ -6684,7 +6684,8 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
     v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
     v8::MicrotaskQueue* microtask_queue,
-    v8::DeserializeContextDataCallback context_callback_deserializer) {
+    v8::DeserializeContextDataCallback context_callback_deserializer,
+    v8::DeserializeAPIWrapperCallback api_wrapper_deserializer) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
@@ -6695,7 +6696,8 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
       external_isolate, extensions, MaybeLocal<ObjectTemplate>(), global_object,
       index_including_default_context,
       i::DeserializeEmbedderFieldsCallback(internal_fields_deserializer,
-                                           context_callback_deserializer),
+                                           context_callback_deserializer,
+                                           api_wrapper_deserializer),
       microtask_queue);
 }
 
