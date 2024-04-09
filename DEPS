@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd3191d381c290e90a86e9a63fa6bf13ddcb60b68',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6c1802265daa8d81a508fa167f2cd1526c17774e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8919328651a559f8a974641d40fe712062cc6718',
   'buildtools/linux64': {
@@ -324,7 +324,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'e76b306b847f9c8f42f5f1ba1000affa2691142b',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '3c7e162c8eefa8db556df680cf01b0c2cde71230',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
@@ -342,7 +342,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd076d8bd089843ae105b1aeeda32dbeb667402ef',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4a26ea788b4626e4032f55f7c01f2b449b2af96c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a56e90a69840a1223564b43215aed3514583190d',
   'tools/luci-go': {
       'packages': [
         {
