@@ -96,8 +96,6 @@ class ArrayBufferSweeper final {
 
   void DoSweep(SweepingType type, ThreadKind thread_kind, uint64_t trace_id);
 
-  static void FinalizeAndDelete(ArrayBufferExtension* extension);
-
   Heap* const heap_;
   std::unique_ptr<SweepingJob> job_;
   base::Mutex sweeping_mutex_;
