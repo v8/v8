@@ -38,6 +38,7 @@ def define_all_recipes():
         "v8/archive",
         "v8/bazel",
         "v8/branch_monitor",
+        "v8/canary_detector",
         "v8/compilator",
         "v8/flako",
         "v8/node_integration_ng",

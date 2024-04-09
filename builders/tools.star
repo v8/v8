@@ -36,6 +36,21 @@ v8_builder(
 )
 
 v8_builder(
+    defaults_ci,
+    name = "Canary Detector",
+    bucket = "ci-hp",
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    service_account = V8_AUTOROLL_ACCOUNT,
+    executable = "recipe:v8/canary_detector",
+    priority = 30,
+    execution_timeout = 10800,
+    expiration_timeout = 158400 * time.second,
+    schedule = "10,25,40,55 * * * *",
+    in_list = "tools",
+    notifies = ["infra"],
+)
+
+v8_builder(
     name = "Test262 exporter",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
