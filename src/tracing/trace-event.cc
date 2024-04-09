@@ -6,21 +6,16 @@
 
 #include <string.h>
 
-#if defined(V8_USE_PERFETTO)
-#include "perfetto/tracing/track_event.h"
-#endif
-
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/tracing/traced-value.h"
 
-#if !defined(V8_USE_PERFETTO)
-
 namespace v8 {
 namespace internal {
 namespace tracing {
 
+#if !defined(V8_USE_PERFETTO)
 v8::TracingController* TraceEventHelper::GetTracingController() {
   return v8::internal::V8::GetCurrentPlatform()->GetTracingController();
 }
@@ -61,24 +56,8 @@ void CallStatsScopedTracer::Initialize(v8::internal::Isolate* isolate,
 }
 
 #endif  // defined(V8_RUNTIME_CALL_STATS)
+#endif  // !defined(V8_USE_PERFETTO)
 
 }  // namespace tracing
 }  // namespace internal
 }  // namespace v8
-
-#else
-
-namespace perfetto {
-
-TraceTimestamp
-TraceTimestampTraits<v8::base::TimeTicks>::ConvertTimestampToTraceTimeNs(
-    const v8::base::TimeTicks& ticks) {
-  // Use perfetto's
-  return TraceTimestamp{
-      protos::pbzero::BuiltinClock::BUILTIN_CLOCK_MONOTONIC,
-      static_cast<uint64_t>(ticks.since_origin().InNanoseconds())};
-}
-
-}  // namespace perfetto
-
-#endif  // !defined(V8_USE_PERFETTO)

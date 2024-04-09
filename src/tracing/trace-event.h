@@ -21,7 +21,6 @@
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
-#include "src/base/platform/time.h"
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -115,7 +114,7 @@ enum CategoryGroupEnabledFlags {
 //                    const uint8_t* arg_types,
 //                    const uint64_t* arg_values,
 //                    unsigned int flags,
-//                    base::TimeTicks timestamp)
+//                    int64_t timestamp)
 #define TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP \
   v8::internal::tracing::AddTraceEventWithTimestampImpl
 
@@ -407,7 +406,7 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
     const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags, base::TimeTicks timestamp) {
+    const uint64_t* arg_values, unsigned int flags, int64_t timestamp) {
   std::unique_ptr<ConvertableToTraceFormat> arg_convertables[2];
   if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
     arg_convertables[0].reset(reinterpret_cast<ConvertableToTraceFormat*>(
@@ -422,8 +421,7 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
       v8::internal::tracing::TraceEventHelper::GetTracingController();
   return controller->AddTraceEventWithTimestamp(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
-      arg_names, arg_types, arg_values, arg_convertables, flags,
-      timestamp.since_origin().InMicroseconds());
+      arg_names, arg_types, arg_values, arg_convertables, flags, timestamp);
 }
 
 // Define SetTraceValue for each allowed type. It stores the type and
@@ -521,7 +519,7 @@ static V8_INLINE uint64_t AddTraceEvent(
 static V8_INLINE uint64_t AddTraceEventWithTimestamp(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    base::TimeTicks timestamp) {
+    int64_t timestamp) {
   return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
       phase, category_group_enabled, name, scope, id, bind_id, kZeroNumArgs,
       nullptr, nullptr, nullptr, flags, timestamp);
@@ -531,7 +529,7 @@ template <class ARG1_TYPE>
 static V8_INLINE uint64_t AddTraceEventWithTimestamp(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    base::TimeTicks timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val) {
+    int64_t timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val) {
   const int num_args = 1;
   uint8_t arg_type;
   uint64_t arg_value;
@@ -545,7 +543,7 @@ template <class ARG1_TYPE, class ARG2_TYPE>
 static V8_INLINE uint64_t AddTraceEventWithTimestamp(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    base::TimeTicks timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val,
+    int64_t timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val,
     const char* arg2_name, ARG2_TYPE&& arg2_val) {
   const int num_args = 2;
   const char* arg_names[2] = {arg1_name, arg2_name};
@@ -629,20 +627,6 @@ class CallStatsScopedTracer {
 }  // namespace v8
 
 #else  // defined(V8_USE_PERFETTO)
-
-namespace v8::base {
-class TimeTicks;
-}
-
-namespace perfetto {
-
-template <>
-struct V8_BASE_EXPORT TraceTimestampTraits<v8::base::TimeTicks> {
-  static TraceTimestamp ConvertTimestampToTraceTimeNs(
-      const v8::base::TimeTicks& ticks);
-};
-
-}  // namespace perfetto
 
 #ifdef V8_RUNTIME_CALL_STATS
 
