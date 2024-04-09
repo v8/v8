@@ -125,13 +125,6 @@
 #define ENABLE_SPARKPLUG_BY_DEFAULT false
 #endif
 
-#if V8_ENABLE_MAGLEV && !defined(ANDROID)
-// Enable Maglev by default on desktop-only.
-#define ENABLE_MAGLEV_BY_DEFAULT true
-#else
-#define ENABLE_MAGLEV_BY_DEFAULT false
-#endif
-
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
@@ -523,9 +516,8 @@ DEFINE_BOOL(force_emit_interrupt_budget_checks, false,
             "force emit tier-up logic from all non-turbofan code, even if it "
             "is the top enabled tier")
 #ifdef V8_ENABLE_MAGLEV
-DEFINE_BOOL(maglev, ENABLE_MAGLEV_BY_DEFAULT,
-            "enable the maglev optimizing compiler")
-#if !ENABLE_MAGLEV_BY_DEFAULT
+DEFINE_BOOL(maglev, true, "enable the maglev optimizing compiler")
+#if !ENABLE_MAGLEV
 // Enable Maglev on Future for platforms in which it's not enabled by default
 // (eg, Android).
 DEFINE_WEAK_IMPLICATION(future, maglev)
