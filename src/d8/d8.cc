@@ -1788,15 +1788,17 @@ double Shell::GetTimestamp() {
     return delta.InMillisecondsF();
   }
 }
-
-base::TimeTicks Shell::GetTracingTimestampFromPerformanceTimestamp(
+uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
     double performance_timestamp) {
   // Don't use this in --verify-predictable mode, predictable timestamps don't
   // work well with tracing.
   DCHECK(!i::v8_flags.verify_predictable);
   base::TimeDelta delta =
       base::TimeDelta::FromMillisecondsD(performance_timestamp);
-  return delta + kInitialTicks;
+  // See TracingController::CurrentTimestampMicroseconds().
+  int64_t internal_value = (delta + kInitialTicks).ToInternalValue();
+  DCHECK_GE(internal_value, 0);
+  return internal_value;
 }
 
 // performance.now() returns GetTimestamp().
