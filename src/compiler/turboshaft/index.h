@@ -460,6 +460,7 @@ using Untagged = Union<Word, Float>;
 using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
 using NumberOrString = UnionT<Number, String>;
 using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
+using StringOrNull = Union<String, Null>;
 
 using NonBigIntPrimitive = Union<Symbol, PlainPrimitive>;
 using Primitive = Union<BigInt, NonBigIntPrimitive>;
@@ -470,6 +471,9 @@ using AnyOrNone = Union<Any, None>;
 
 #if V8_ENABLE_WEBASSEMBLY
 using WasmArrayNullable = Union<WasmArray, WasmNull>;
+// The type for a nullable ref.string (stringref proposal). For imported strings
+// use StringOrNull instead.
+using WasmStringRefNullable = Union<String, WasmNull>;
 #endif
 
 // V<> represents an SSA-value that is parameterized with the type of the value.

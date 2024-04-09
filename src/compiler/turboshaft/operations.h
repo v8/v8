@@ -6571,7 +6571,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   static constexpr OpEffects effects = OpEffects();
   wasm::ValueType type;
 
-  explicit WasmTypeAnnotationOp(OpIndex value, wasm::ValueType type)
+  explicit WasmTypeAnnotationOp(V<Object> value, wasm::ValueType type)
       : Base(value), type(type) {}
 
   V<Object> value() const { return Base::input<Object>(0); }

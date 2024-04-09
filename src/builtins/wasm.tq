@@ -46,13 +46,14 @@ extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
-    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String;
+    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String|WasmNull;
 extern runtime WasmArrayInitSegment(
     Context, WasmTrustedInstanceData, Smi, WasmArray, Smi, Smi, Smi): JSAny;
 extern runtime WasmStringNewWtf8(
-    Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String|Null;
+    Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
+    |WasmNull;
 extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi): String
-    |Null;
+    |WasmNull;
 extern runtime WasmStringNewWtf16(
     Context, WasmTrustedInstanceData, Smi, Number, Number): String;
 extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
@@ -783,7 +784,8 @@ macro ModifyThreadInWasmFlag(newValue: int32): void {
 }
 
 builtin WasmStringNewWtf8(
-    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String|Null {
+    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String
+    |WasmNull {
   const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmStringNewWtf8(
       LoadContextFromInstanceData(trustedData), trustedData, memory,
@@ -791,7 +793,7 @@ builtin WasmStringNewWtf8(
 }
 builtin WasmStringNewWtf8Array(
     start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String
-    |Null {
+    |WasmNull {
   // This can be called from Wasm and from "JS String Builtins".
   const context = LoadContextFromWasmOrJsFrame();
   try {
@@ -932,11 +934,11 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
 }
 
 // For imports based string constants.
-// Always returns a String if it didn't trap; typed "JSAny" to satisfy
-// Torque's type checker for tail calls.
+// Always returns a String or WasmNull if it didn't trap; typed "JSAny" to
+// satisfy Torque's type checker for tail calls.
 builtin WasmStringFromDataSegment(
     segmentLength: uint32, arrayStart: uint32, arrayEnd: uint32,
-    segmentIndex: Smi, segmentOffset: Smi, variant: Smi): JSAny {
+    segmentIndex: Smi, segmentOffset: Smi, variant: Smi): JSAny|WasmNull {
   const trustedData = LoadInstanceDataFromFrame();
   try {
     const segmentOffsetU: uint32 = Unsigned(SmiToInt32(segmentOffset));

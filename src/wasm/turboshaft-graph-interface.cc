@@ -61,10 +61,12 @@ using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
+using compiler::turboshaft::StringOrNull;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::WasmArrayNullable;
+using compiler::turboshaft::WasmStringRefNullable;
 using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
@@ -1811,7 +1813,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   // Adds a wasm type annotation to the graph and replaces any extern type with
   // the extern string type.
-  V<String> AnnotateAsString(OpIndex value, wasm::ValueType type) {
+  template <typename T>
+  V<T> AnnotateAsString(V<T> value, wasm::ValueType type) {
     DCHECK(type.is_reference_to(HeapType::kString) ||
            type.is_reference_to(HeapType::kExternString) ||
            type.is_reference_to(HeapType::kExtern));
@@ -2003,11 +2006,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> head_string = ExternRefToString(args[0]);
         V<String> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = instance_cache_.native_context();
-        result = CallBuiltinThroughJumptable<
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::StringAdd_CheckNone>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string});
-        result = __ AnnotateWasmType(result, kWasmRefExternString);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -2024,27 +2027,29 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringFromCharCode: {
         V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
-        result = CallBuiltinThroughJumptable<
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder, {capped});
-        result = __ AnnotateWasmType(result, kWasmRefExternString);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
-      case WKI::kStringFromCodePoint:
-        result = CallBuiltinThroughJumptable<
+      case WKI::kStringFromCodePoint: {
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
                                                             {args[0].op});
-        result = __ AnnotateWasmType(result, kWasmRefExternString);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
-      case WKI::kStringFromWtf16Array:
-        result = CallBuiltinThroughJumptable<
+      }
+      case WKI::kStringFromWtf16Array: {
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringNewWtf16Array>(
             decoder,
             {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op, args[2].op});
-        result = __ AnnotateWasmType(result, kWasmRefExternString);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
+      }
       case WKI::kStringFromUtf8Array:
         result = StringNewWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
@@ -2061,9 +2066,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       case WKI::kStringToUtf8Array: {
         V<String> string = ExternRefToString(args[0]);
-        result = CallBuiltinThroughJumptable<
+        V<WasmArray> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringToUtf8Array>(decoder, {string});
-        result = __ AnnotateWasmType(result, returns[0].type);
+        result = __ AnnotateWasmType(result_value, returns[0].type);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -2086,10 +2091,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Object> view = __ StringAsWtf16(string);
         // TODO(12868): Consider annotating {view}'s type when the typing story
         //              for string views has been settled.
-        result = CallBuiltinThroughJumptable<
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
             decoder, {V<String>::Cast(view), args[1].op, args[2].op});
-        result = __ AnnotateWasmType(result, kWasmRefExternString);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
       }
@@ -2104,29 +2109,31 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
 
       // Other string-related imports.
-      case WKI::kDoubleToString:
+      case WKI::kDoubleToString: {
         BuildModifyThreadInWasmFlag(decoder->zone(), false);
-        result = CallBuiltinThroughJumptable<
+        V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmFloat64ToString>(decoder, {args[0].op});
-        result = AnnotateAsString(result, returns[0].type);
+        result = AnnotateAsString(result_value, returns[0].type);
         BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
                 : kFeature_imported_strings);
         break;
-      case WKI::kIntToString:
+      }
+      case WKI::kIntToString: {
         BuildModifyThreadInWasmFlag(decoder->zone(), false);
-        result =
+        V<String> result_value =
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
                 decoder, {args[0].op, args[1].op});
-        result = AnnotateAsString(result, returns[0].type);
+        result = AnnotateAsString(result_value, returns[0].type);
         BuildModifyThreadInWasmFlag(decoder->zone(), true);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::HeapType::kString)
                 ? kFeature_stringref
                 : kFeature_imported_strings);
         break;
+      }
       case WKI::kParseFloat: {
         if (args[0].type.is_nullable()) {
           Label<Float64> done(&asm_);
@@ -2207,8 +2214,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             __ Unreachable();
           }
         }
-        result = CallStringToLowercase(decoder, string);
-        __ AnnotateWasmType(result, kWasmRefString);
+        V<String> result_value = CallStringToLowercase(decoder, string);
+        result = __ AnnotateWasmType(result_value, kWasmRefString);
         decoder->detected_->Add(kFeature_stringref);
         break;
 #else
@@ -2224,8 +2231,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           return false;
         }
         V<String> string = args[0].op;
-        result = CallStringToLowercase(decoder, string);
-        __ AnnotateWasmType(result, kWasmRefExternString);
+        V<String> result_value = CallStringToLowercase(decoder, string);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->Add(kFeature_imported_strings);
         break;
 #else
@@ -3700,14 +3707,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    result->op =
+    V<WasmArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayNewSegment>(
             decoder,
             {__ Word32Constant(segment_imm.index), offset.op, length.op,
              __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
              __ RttCanon(instance_cache_.managed_object_maps(),
                          array_imm.index)});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void ArrayInitSegment(FullDecoder* decoder,
@@ -3871,10 +3878,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Smi> memory_smi = __ SmiConstant(Smi::FromInt(memory.index));
     V<Smi> variant_smi =
         __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
-    result->op =
+    V<WasmStringRefNullable> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf8>(
             decoder, {offset.op, size.op, memory_smi, variant_smi});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   // TODO(jkummerow): This check would be more elegant if we made
@@ -3905,13 +3912,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return nullptr;
   }
 
-  V<Object> StringNewWtf8ArrayImpl(FullDecoder* decoder,
-                                   const unibrow::Utf8Variant variant,
-                                   const Value& array, const Value& start,
-                                   const Value& end, ValueType result_type) {
+  V<HeapObject> StringNewWtf8ArrayImpl(FullDecoder* decoder,
+                                       const unibrow::Utf8Variant variant,
+                                       const Value& array, const Value& start,
+                                       const Value& end,
+                                       ValueType result_type) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
-    V<Object> call;
+    V<compiler::turboshaft::Union<String, WasmNull, Null>> call;
     if (const CallOp* array_new = IsArrayNewSegment(array.op)) {
       // We can only pass 3 untagged parameters to the builtin (on 32-bit
       // platforms). The segment index is easy to tag: if it validated, it must
@@ -3960,27 +3968,27 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    result->op =
+    V<String> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf16>(
             decoder, {__ Word32Constant(imm.index), offset.op, size.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->op = CallBuiltinThroughJumptable<
+    V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringNewWtf16Array>(
         decoder, {V<WasmArray>::Cast(NullCheck(array)), start.op, end.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    result->op =
+    V<String> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringConst>(
             decoder, {__ Word32Constant(imm.index)});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
@@ -4067,12 +4075,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
     V<NativeContext> native_context = instance_cache_.native_context();
-    result->op =
+    V<String> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringAdd_CheckNone>(
             decoder, native_context,
             {V<String>::Cast(NullCheck(head)),
              V<String>::Cast(NullCheck(tail))});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   V<Word32> StringEqImpl(FullDecoder* decoder, V<String> a, V<String> b,
@@ -4107,10 +4115,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    result->op =
+    V<ByteArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsWtf8>(
             decoder, {V<String>::Cast(NullCheck(str))});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
@@ -4141,10 +4149,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->op = CallBuiltinThroughJumptable<
+    V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf8Slice>(
         decoder, {V<ByteArray>::Cast(NullCheck(view)), start.op, end.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
@@ -4307,50 +4315,50 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                             const Value& start, const Value& end,
                             Value* result) {
     V<String> string = V<String>::Cast(NullCheck(view));
-    result->op = CallBuiltinThroughJumptable<
+    V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
         decoder, {string, start.op, end.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
     V<String> string = V<String>::Cast(NullCheck(str));
-    result->op =
+    V<WasmStringViewIter> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsIter>(
             decoder, {string});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    V<Object> string = NullCheck(view);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
     result->op = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringViewIterNext>(decoder, {string});
+        BuiltinCallDescriptor::WasmStringViewIterNext>(decoder, {iter});
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    V<Object> string = NullCheck(view);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewIterAdvance>(
-        decoder, {string, codepoints.op});
+        decoder, {iter, codepoints.op});
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    V<Object> string = NullCheck(view);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
     result->op = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringViewIterRewind>(
-        decoder, {string, codepoints.op});
+        BuiltinCallDescriptor::WasmStringViewIterRewind>(decoder,
+                                                         {iter, codepoints.op});
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    V<Object> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringViewIterSlice>(
-        decoder, {string, codepoints.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewIterSlice>(decoder,
+                                                        {iter, codepoints.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
@@ -4364,10 +4372,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
-    result->op = CallBuiltinThroughJumptable<
+    V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
                                                         {code_point.op});
-    result->op = __ AnnotateWasmType(result->op, result->type);
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
@@ -6441,8 +6449,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
-    return type.is_object_reference() ? __ AnnotateWasmType(result, type)
-                                      : result;
+    return type.is_object_reference()
+               ? __ AnnotateWasmType(V<Object>::Cast(result), type)
+               : result;
   }
 
   void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,

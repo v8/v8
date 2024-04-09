@@ -611,7 +611,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringNewWtf8Array : public Descriptor<WasmStringNewWtf8Array> {
     static constexpr auto kFunction = Builtin::kWasmStringNewWtf8Array;
     using arguments_t = std::tuple<V<Word32>, V<Word32>, V<WasmArray>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;  // String|Null
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -868,7 +868,7 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmArrayNewSegment;
     using arguments_t =
         std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Map>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<WasmArray>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -893,7 +893,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringNewWtf8 : public Descriptor<WasmStringNewWtf8> {
     static constexpr auto kFunction = Builtin::kWasmStringNewWtf8;
     using arguments_t = std::tuple<V<Word32>, V<Word32>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;  // String|Null
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -923,7 +923,7 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
     using arguments_t =
         std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<WasmStringRefNullable>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -1085,7 +1085,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringAsIter : public Descriptor<WasmStringAsIter> {
     static constexpr auto kFunction = Builtin::kWasmStringAsIter;
     using arguments_t = std::tuple<V<String>>;
-    using results_t = std::tuple<OpIndex /*WasmStringViewIter*/>;
+    using results_t = std::tuple<V<WasmStringViewIter>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
@@ -1095,7 +1095,7 @@ struct BuiltinCallDescriptor {
 
   struct WasmStringViewIterNext : public Descriptor<WasmStringViewIterNext> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterNext;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1108,7 +1108,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringViewIterAdvance
       : public Descriptor<WasmStringViewIterAdvance> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterAdvance;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1121,7 +1121,7 @@ struct BuiltinCallDescriptor {
   struct WasmStringViewIterRewind
       : public Descriptor<WasmStringViewIterRewind> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterRewind;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1133,7 +1133,7 @@ struct BuiltinCallDescriptor {
 
   struct WasmStringViewIterSlice : public Descriptor<WasmStringViewIterSlice> {
     static constexpr auto kFunction = Builtin::kWasmStringViewIterSlice;
-    using arguments_t = std::tuple<OpIndex /*WasmStringViewIter*/, V<Word32>>;
+    using arguments_t = std::tuple<V<WasmStringViewIter>, V<Word32>>;
     using results_t = std::tuple<V<String>>;
 
     static constexpr bool kNeedsFrameState = false;

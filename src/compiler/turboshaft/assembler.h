@@ -3769,7 +3769,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableExternConvertAny(input);
   }
 
-  OpIndex AnnotateWasmType(OpIndex value, const wasm::ValueType type) {
+  template <typename T>
+  V<T> AnnotateWasmType(V<T> value, const wasm::ValueType type) {
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 

@@ -199,7 +199,7 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(WasmTypeAnnotation)(OpIndex value, wasm::ValueType type) {
+  V<Object> REDUCE(WasmTypeAnnotation)(V<Object> value, wasm::ValueType type) {
     // Remove type annotation operations as they are not needed any more.
     return value;
   }

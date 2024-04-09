@@ -263,8 +263,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
-      OpIndex op_idx, const WasmTypeAnnotationOp& type_annotation) {
+  V<Object> REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
+      V<Object> op_idx, const WasmTypeAnnotationOp& type_annotation) {
     // Remove type annotation operations as they are not needed any more.
     return __ MapToNewGraph(type_annotation.value());
   }
