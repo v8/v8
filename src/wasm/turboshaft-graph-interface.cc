@@ -2320,6 +2320,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kFastAPICall: {
         WellKnown_FastApi(decoder, imm, args, returns);
         result = returns[0].op;
+        break;
       }
     }
     if (v8_flags.trace_wasm_inlining) {

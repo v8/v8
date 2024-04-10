@@ -1691,8 +1691,20 @@ void InstanceBuilder::SanitizeImports() {
       module_object_->native_module()->wire_bytes();
   const WellKnownImportsList& well_known_imports =
       module_->type_feedback.well_known_imports;
+  const bool has_magic_string_constants =
+      module_->type_feedback.has_magic_string_constants;
   for (uint32_t index = 0; index < module_->import_table.size(); ++index) {
     const WasmImport& import = module_->import_table[index];
+
+    if (import.kind == kExternalGlobal && has_magic_string_constants &&
+        import.module_name.length() == 1 &&
+        wire_bytes[import.module_name.offset()] ==
+            kMagicStringConstantsModuleName) {
+      Handle<String> value = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+          isolate_, wire_bytes, import.field_name, kNoInternalize);
+      sanitized_imports_.push_back(value);
+      continue;
+    }
 
     if (import.kind == kExternalFunction) {
       WellKnownImport wki = well_known_imports.get(import.index);

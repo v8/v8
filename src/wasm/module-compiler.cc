@@ -1614,7 +1614,30 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
 
   std::vector<WellKnownImport> statuses;
   statuses.reserve(module->num_imported_functions);
-  for (const WasmImport& import : module->import_table) {
+  for (size_t i = 0; i < module->import_table.size(); i++) {
+    const WasmImport& import = module->import_table[i];
+
+    // When magic string imports are requested, check that imports with the
+    // string constant module name are globals of the right type.
+    if (imports.contains(CompileTimeImport::kStringConstants) &&
+        import.module_name.length() == 1 &&
+        wire_bytes[import.module_name.offset()] ==
+            kMagicStringConstantsModuleName) {
+      if (import.kind != kExternalGlobal ||
+          module->globals[import.index].type != kWasmExternRef ||
+          module->globals[import.index].mutability != false) {
+        TruncatedUserString<> name(
+            wire_bytes.data() + import.field_name.offset(),
+            import.field_name.length());
+        return WasmError(
+            ImportStartOffset(wire_bytes, import.module_name.offset()),
+            "String constant import #%zu \"%.*s\" must be a global of type "
+            "'immutable externref'",
+            i, name.length(), name.start());
+      }
+    }
+
+    // Check compile-time imported functions.
     if (import.kind != kExternalFunction) continue;
     base::Vector<const uint8_t> module_name = wire_bytes.SubVector(
         import.module_name.offset(), import.module_name.end_offset());
@@ -1728,6 +1751,9 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   if (module->num_imported_functions != 0) {
     module->type_feedback.well_known_imports.Initialize(
         base::VectorOf(statuses));
+  }
+  if (imports.contains(CompileTimeImport::kStringConstants)) {
+    module->type_feedback.has_magic_string_constants = true;
   }
   return {};
 }

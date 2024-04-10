@@ -536,48 +536,62 @@ CompileTimeImports ArgumentToCompileOptions(
   i::Handle<i::Object> arg = Utils::OpenHandle(*arg_value);
   if (!i::IsJSReceiver(*arg)) return {};
   i::Handle<i::JSReceiver> receiver = i::Handle<i::JSReceiver>::cast(arg);
+  CompileTimeImports result;
+
+  // ==================== Builtins ====================
   i::Handle<i::Object> builtins;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, builtins,
       i::JSReceiver::GetProperty(isolate, receiver, "builtins"), {});
-  if (!i::IsJSReceiver(*builtins)) return {};
-  i::Handle<i::Object> length_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, length_obj,
-      i::Object::GetLengthFromArrayLike(
-          isolate, i::Handle<i::JSReceiver>::cast(builtins)),
-      {});
-  double raw_length = i::Object::Number(*length_obj);
-  // Technically we should probably iterate up to 2^53-1 if {length_obj} says
-  // so, but lengths above 2^32 probably don't happen in practice (and would be
-  // very slow if they do), so just use a saturating to-uint32 conversion
-  // for simplicity.
-  uint32_t len = raw_length >= i::kMaxUInt32
-                     ? i::kMaxUInt32
-                     : static_cast<uint32_t>(raw_length);
-  CompileTimeImports result;
-  for (uint32_t i = 0; i < len; i++) {
-    i::LookupIterator it(isolate, builtins, i);
-    Maybe<bool> maybe_found = i::JSReceiver::HasProperty(&it);
-    MAYBE_RETURN(maybe_found, {});
-    if (!maybe_found.FromJust()) continue;
-    i::Handle<i::Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
-                                     i::Object::GetProperty(&it), {});
-    if (i::IsString(*value)) {
-      i::Tagged<i::String> builtin = i::String::cast(*value);
-      // TODO(jkummerow): We could make other string comparisons to known
-      // constants in this file more efficient by migrating them to this
-      // style (rather than `...->StringEquals(v8_str(...))`).
-      if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
-        result.Add(CompileTimeImport::kJsString);
-      } else if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
-        result.Add(CompileTimeImport::kTextEncoder);
-      } else if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
-        result.Add(CompileTimeImport::kTextDecoder);
+  if (i::IsJSReceiver(*builtins)) {
+    i::Handle<i::Object> length_obj;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, length_obj,
+        i::Object::GetLengthFromArrayLike(
+            isolate, i::Handle<i::JSReceiver>::cast(builtins)),
+        {});
+    double raw_length = i::Object::Number(*length_obj);
+    // Technically we should probably iterate up to 2^53-1 if {length_obj} says
+    // so, but lengths above 2^32 probably don't happen in practice (and would
+    // be very slow if they do), so just use a saturating to-uint32 conversion
+    // for simplicity.
+    uint32_t len = raw_length >= i::kMaxUInt32
+                       ? i::kMaxUInt32
+                       : static_cast<uint32_t>(raw_length);
+    for (uint32_t i = 0; i < len; i++) {
+      i::LookupIterator it(isolate, builtins, i);
+      Maybe<bool> maybe_found = i::JSReceiver::HasProperty(&it);
+      MAYBE_RETURN(maybe_found, {});
+      if (!maybe_found.FromJust()) continue;
+      i::Handle<i::Object> value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+                                       i::Object::GetProperty(&it), {});
+      if (i::IsString(*value)) {
+        i::Tagged<i::String> builtin = i::String::cast(*value);
+        // TODO(jkummerow): We could make other string comparisons to known
+        // constants in this file more efficient by migrating them to this
+        // style (rather than `...->StringEquals(v8_str(...))`).
+        if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
+          result.Add(CompileTimeImport::kJsString);
+        } else if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
+          result.Add(CompileTimeImport::kTextEncoder);
+        } else if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
+          result.Add(CompileTimeImport::kTextDecoder);
+        }
       }
     }
   }
+
+  // ==================== String constants ====================
+  i::Handle<i::Object> constants;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, constants,
+      i::JSReceiver::GetProperty(isolate, receiver, "importedStringConstants"),
+      {});
+  if (i::Object::BooleanValue(*constants, isolate)) {
+    result.Add(CompileTimeImport::kStringConstants);
+  }
+
   return result;
 }
 }  // namespace
