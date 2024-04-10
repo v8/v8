@@ -2378,6 +2378,7 @@ filegroup(
         "src/strings/char-predicates.h",
         "src/strings/char-predicates-inl.h",
         "src/strings/string-builder.cc",
+        "src/strings/string-builder.h",
         "src/strings/string-builder-inl.h",
         "src/strings/string-case.cc",
         "src/strings/string-case.h",

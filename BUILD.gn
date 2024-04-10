@@ -4125,6 +4125,7 @@ v8_header_set("v8_internal_headers") {
     "src/strings/char-predicates-inl.h",
     "src/strings/char-predicates.h",
     "src/strings/string-builder-inl.h",
+    "src/strings/string-builder.h",
     "src/strings/string-case.h",
     "src/strings/string-hasher-inl.h",
     "src/strings/string-hasher.h",

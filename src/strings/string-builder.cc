@@ -352,5 +352,6 @@ void IncrementalStringBuilder::AppendString(Handle<String> string) {
   Extend();  // Attach current part and allocate new part.
   Accumulate(string);
 }
+
 }  // namespace internal
 }  // namespace v8
