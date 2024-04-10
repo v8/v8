@@ -615,6 +615,11 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // We rely on having no raw "Store" operations operating on Wasm
         // objects at this point in the pipeline.
         // TODO(jkummerow): Is there any way to DCHECK that?
+      case Opcode::kFrameState:
+        // We explicitely break for FrameStates so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they don't
+        // really create aliases. (and also, FrameStates don't write so it's
+        // fine to break)
       case Opcode::kAssumeMap:
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:

@@ -180,6 +180,11 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Check for tagged -> word32 load replacement
         ProcessChange(op_idx, op.Cast<ChangeOp>());
         break;
+      case Opcode::kFrameState:
+        // We explicitely break for FrameStates so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they don't
+        // really create aliases. (and also, FrameStates don't write so it's
+        // fine to break)
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
