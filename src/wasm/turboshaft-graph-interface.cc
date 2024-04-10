@@ -4993,7 +4993,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
         static_cast<int>(param_count), static_cast<int>(local_count),
-        shared_info);
+        shared_info, GetLiftoffFrameSize(decoder));
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
@@ -5003,6 +5003,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
                        compiler::FeedbackSource());
+  }
+
+  uint32_t GetLiftoffFrameSize(const FullDecoder* decoder) {
+    if (liftoff_frame_size_ !=
+        FunctionTypeFeedback::kUninitializedLiftoffFrameSize) {
+      return liftoff_frame_size_;
+    }
+    const TypeFeedbackStorage& feedback = decoder->module_->type_feedback;
+    base::SharedMutexGuard<base::kShared> mutex_guard(&feedback.mutex);
+    auto function_feedback = feedback.feedback_for_function.find(func_index_);
+    CHECK_NE(function_feedback, feedback.feedback_for_function.end());
+    liftoff_frame_size_ = function_feedback->second.liftoff_frame_size;
+    // The liftoff frame size is strictly required. If it is not properly set,
+    // calling the function embedding the deopt node will always fail on the
+    // stack check.
+    CHECK_NE(liftoff_frame_size_,
+             FunctionTypeFeedback::kUninitializedLiftoffFrameSize);
+    return liftoff_frame_size_;
   }
 
   V<Word64> ExtractTruncationProjections(V<Tuple<Word64, Word32>> truncated) {
@@ -7412,6 +7430,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   int feedback_slot_ = -1;
   // Inlining budget in case of --no-liftoff.
   int no_liftoff_inlining_budget_ = 0;
+  uint32_t liftoff_frame_size_ =
+      FunctionTypeFeedback::kUninitializedLiftoffFrameSize;
 
   /* Used for inlining modes */
   // Contains real parameters for this inlined function, including the instance.

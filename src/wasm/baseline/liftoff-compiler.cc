@@ -1193,8 +1193,11 @@ class LiftoffCompiler {
       TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
       base::SharedMutexGuard<base::kExclusive> mutex_guard(
           &type_feedback.mutex);
+      FunctionTypeFeedback& function_feedback =
+          type_feedback.feedback_for_function[func_index_];
+      function_feedback.liftoff_frame_size = __ GetTotalFrameSize();
       base::OwnedVector<uint32_t>& call_targets =
-          type_feedback.feedback_for_function[func_index_].call_targets;
+          function_feedback.call_targets;
       if (call_targets.empty()) {
         call_targets =
             base::OwnedVector<uint32_t>::Of(encountered_call_instructions_);
