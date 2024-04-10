@@ -1240,7 +1240,7 @@ STREAM_TEST(TestIncrementalCaching) {
   ZoneBuffer buffer(tester.zone());
   TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
-  builder.SetMinMemorySize(1);
+  builder.AddMemory(1);
 
   base::Vector<const char> function_names[] = {
       base::CStrVector("f0"), base::CStrVector("f1"), base::CStrVector("f2")};

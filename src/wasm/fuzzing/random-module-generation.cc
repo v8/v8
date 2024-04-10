@@ -4141,7 +4141,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   }
 
   ZoneBuffer buffer{zone};
-  builder.SetMaxMemorySize(32);
+  builder.AddMemory(0, 32);
   builder.WriteTo(&buffer);
   return base::VectorOf(buffer);
 }
@@ -4279,7 +4279,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   }
 
   ZoneBuffer buffer{zone};
-  builder.SetMaxMemorySize(32);
+  builder.AddMemory(0, 32);
   builder.WriteTo(&buffer);
   return base::VectorOf(buffer);
 }
