@@ -292,6 +292,104 @@ Isolate* TemplateInfo::GetIsolateChecked() const {
   return isolate;
 }
 
+// static
+template <typename ReturnType>
+MaybeHandle<ReturnType> TemplateInfo::ProbeInstantiationsCache(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    int serial_number, CachingMode caching_mode) {
+  DCHECK_NE(serial_number, TemplateInfo::kDoNotCache);
+  if (serial_number == TemplateInfo::kUncached) {
+    return {};
+  }
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+    Tagged<FixedArray> fast_cache =
+        native_context->fast_template_instantiations_cache();
+    Handle<Object> object{fast_cache->get(serial_number), isolate};
+    if (IsTheHole(*object, isolate)) {
+      return {};
+    }
+    return Handle<ReturnType>::cast(object);
+  }
+  if (caching_mode == CachingMode::kUnlimited ||
+      (serial_number < TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
+    Tagged<SimpleNumberDictionary> slow_cache =
+        native_context->slow_template_instantiations_cache();
+    InternalIndex entry = slow_cache->FindEntry(isolate, serial_number);
+    if (entry.is_found()) {
+      return handle(ReturnType::cast(slow_cache->ValueAt(entry)), isolate);
+    }
+  }
+  return {};
+}
+
+// static
+template <typename InstantiationType, typename TemplateInfoType>
+void TemplateInfo::CacheTemplateInstantiation(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateInfoType> data, CachingMode caching_mode,
+    Handle<InstantiationType> object) {
+  DCHECK_NE(TemplateInfo::kDoNotCache, data->serial_number());
+
+  int serial_number = data->serial_number();
+  if (serial_number == TemplateInfo::kUncached) {
+    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+  }
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+    Handle<FixedArray> fast_cache =
+        handle(native_context->fast_template_instantiations_cache(), isolate);
+    Handle<FixedArray> new_cache =
+        FixedArray::SetAndGrow(isolate, fast_cache, serial_number, object);
+    if (*new_cache != *fast_cache) {
+      native_context->set_fast_template_instantiations_cache(*new_cache);
+    }
+    data->set_serial_number(serial_number);
+  } else if (caching_mode == CachingMode::kUnlimited ||
+             (serial_number <
+              TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
+    Handle<SimpleNumberDictionary> cache =
+        handle(native_context->slow_template_instantiations_cache(), isolate);
+    auto new_cache =
+        SimpleNumberDictionary::Set(isolate, cache, serial_number, object);
+    if (*new_cache != *cache) {
+      native_context->set_slow_template_instantiations_cache(*new_cache);
+    }
+    data->set_serial_number(serial_number);
+  } else {
+    // we've overflowed the cache limit, no more caching
+    data->set_serial_number(TemplateInfo::kDoNotCache);
+  }
+}
+
+// static
+template <typename TemplateInfoType>
+void TemplateInfo::UncacheTemplateInstantiation(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateInfoType> data, CachingMode caching_mode) {
+  int serial_number = data->serial_number();
+  if (serial_number < 0) return;
+
+  if (serial_number < TemplateInfo::kFastTemplateInstantiationsCacheSize) {
+    Tagged<FixedArray> fast_cache =
+        native_context->fast_template_instantiations_cache();
+    DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
+    fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
+                    SKIP_WRITE_BARRIER);
+    data->set_serial_number(TemplateInfo::kUncached);
+  } else if (caching_mode == CachingMode::kUnlimited ||
+             (serial_number <
+              TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
+    Handle<SimpleNumberDictionary> cache =
+        handle(native_context->slow_template_instantiations_cache(), isolate);
+    InternalIndex entry = cache->FindEntry(isolate, serial_number);
+    DCHECK(entry.is_found());
+    cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
+    native_context->set_slow_template_instantiations_cache(*cache);
+    data->set_serial_number(TemplateInfo::kUncached);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 
