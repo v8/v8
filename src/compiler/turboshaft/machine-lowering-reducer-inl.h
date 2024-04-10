@@ -530,8 +530,8 @@ class MachineLoweringReducer : public Next {
         if constexpr (SmiValuesAre32Bits()) {
           GOTO(done, 1);
         } else {
-          OpIndex add = __ Int32AddCheckOverflow(v32, v32);
-          V<Word32> overflow = __ template Projection<Word32>(add, 1);
+          V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(v32, v32);
+          V<Word32> overflow = __ template Projection<1>(add);
           GOTO_IF(overflow, done, 0);
           GOTO(done, 1);
         }
@@ -987,10 +987,11 @@ class MachineLoweringReducer : public Next {
         if constexpr (SmiValuesAre32Bits()) {
           return __ TagSmi(input_w32);
         } else {
-          OpIndex test = __ Int32AddCheckOverflow(input_w32, input_w32);
-          __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
+          V<Tuple<Word32, Word32>> test =
+              __ Int32AddCheckOverflow(input_w32, input_w32);
+          __ DeoptimizeIf(__ template Projection<1>(test), frame_state,
                           DeoptimizeReason::kLostPrecision, feedback);
-          return __ BitcastWord32ToSmi(__ template Projection<Word32>(test, 0));
+          return __ BitcastWord32ToSmi(__ template Projection<0>(test));
         }
       } else {
         DCHECK_EQ(input_interpretation, ConvertUntaggedToJSPrimitiveOrDeoptOp::
@@ -1012,10 +1013,10 @@ class MachineLoweringReducer : public Next {
         if constexpr (SmiValuesAre32Bits()) {
           return __ TagSmi(i32);
         } else {
-          OpIndex test = __ Int32AddCheckOverflow(i32, i32);
-          __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
+          V<Tuple<Word32, Word32>> test = __ Int32AddCheckOverflow(i32, i32);
+          __ DeoptimizeIf(__ template Projection<1>(test), frame_state,
                           DeoptimizeReason::kLostPrecision, feedback);
-          return __ BitcastWord32ToSmi(__ template Projection<Word32>(test, 0));
+          return __ BitcastWord32ToSmi(__ template Projection<0>(test));
         }
       } else {
         DCHECK_EQ(input_interpretation, ConvertUntaggedToJSPrimitiveOrDeoptOp::
@@ -1786,33 +1787,32 @@ class MachineLoweringReducer : public Next {
     switch (kind) {
       case WordBinopDeoptOnOverflowOp::Kind::kSignedAdd: {
         DCHECK_EQ(mode, CheckForMinusZeroMode::kDontCheckForMinusZero);
-        OpIndex result = __ IntAddCheckOverflow(left, right, rep);
+        V<Tuple<Word, Word32>> result =
+            __ IntAddCheckOverflow(left, right, rep);
 
-        V<Word32> overflow =
-            __ Projection(result, 1, RegisterRepresentation::Word32());
+        V<Word32> overflow = __ template Projection<1>(result);
         __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
                         feedback);
-        return __ Projection(result, 0, rep);
+        return __ template Projection<0>(result, rep);
       }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedSub: {
         DCHECK_EQ(mode, CheckForMinusZeroMode::kDontCheckForMinusZero);
-        OpIndex result = __ IntSubCheckOverflow(left, right, rep);
+        V<Tuple<Word, Word32>> result =
+            __ IntSubCheckOverflow(left, right, rep);
 
-        V<Word32> overflow =
-            __ Projection(result, 1, RegisterRepresentation::Word32());
+        V<Word32> overflow = __ template Projection<1>(result);
         __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
                         feedback);
-        return __ Projection(result, 0, rep);
+        return __ template Projection<0>(result, rep);
       }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedMul:
         if (rep == WordRepresentation::Word32()) {
-          OpIndex result = __ Int32MulCheckOverflow(left, right);
-          V<Word32> overflow =
-              __ Projection(result, 1, RegisterRepresentation::Word32());
+          V<Tuple<Word32, Word32>> result =
+              __ Int32MulCheckOverflow(left, right);
+          V<Word32> overflow = __ template Projection<1>(result);
           __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
                           feedback);
-          V<Word32> value =
-              __ Projection(result, 0, RegisterRepresentation::Word32());
+          V<Word32> value = __ template Projection<0>(result);
 
           if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
             IF (__ Word32Equal(value, 0)) {
@@ -1826,13 +1826,13 @@ class MachineLoweringReducer : public Next {
         } else {
           DCHECK_EQ(rep, WordRepresentation::Word64());
           DCHECK_EQ(mode, CheckForMinusZeroMode::kDontCheckForMinusZero);
-          OpIndex result = __ Int64MulCheckOverflow(left, right);
+          V<Tuple<Word64, Word32>> result =
+              __ Int64MulCheckOverflow(left, right);
 
-          V<Word32> overflow =
-              __ Projection(result, 1, RegisterRepresentation::Word32());
+          V<Word32> overflow = __ template Projection<1>(result);
           __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
                           feedback);
-          return __ Projection(result, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(result);
         }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedDiv:
         if (rep == WordRepresentation::Word32()) {
@@ -3235,10 +3235,10 @@ class MachineLoweringReducer : public Next {
     // Check for overflow at the same time that we are smi tagging.
     // Since smi tagging shifts left by one, it's the same as adding value
     // twice.
-    OpIndex add = __ Int32AddCheckOverflow(input, input);
-    V<Word32> check = __ template Projection<Word32>(add, 1);
+    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(input, input);
+    V<Word32> check = __ template Projection<1>(add);
     GOTO_IF(UNLIKELY(check), *overflow);
-    GOTO(*done, __ BitcastWord32ToSmi(__ template Projection<Word32>(add, 0)));
+    GOTO(*done, __ BitcastWord32ToSmi(__ template Projection<0>(add)));
   }
 
   // `IsNonZero` converts any non-0 value into 1.

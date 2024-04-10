@@ -555,8 +555,8 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     // TODO(dmercadier): is there no higher level way of doing this?
     V<Word32> input = Map<Word32>(node->input());
-    OpIndex add = __ Int32AddCheckOverflow(input, input);
-    V<Word32> check = __ template Projection<Word32>(add, 1);
+    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(input, input);
+    V<Word32> check = __ template Projection<1>(add);
     V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi,
                     node->eager_deopt_info()->feedback_to_update());

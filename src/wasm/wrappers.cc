@@ -33,6 +33,7 @@ using compiler::turboshaft::OptionalOpIndex;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::TSCallDescriptor;
+using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Variable;
 using compiler::turboshaft::Word32;
@@ -162,14 +163,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     DCHECK(SmiValuesAre31Bits());
 
     // Double value to test if value can be a Smi, and if so, to convert it.
-    V<Word32> add = __ Int32AddCheckOverflow(value, value);
-    V<Word32> ovf = __ Projection<Word32>(add, 1);
+    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(value, value);
+    V<Word32> ovf = __ template Projection<1>(add);
     Variable result = __ NewVariable(RegisterRepresentation::Tagged());
     IF_NOT (UNLIKELY(ovf)) {
       // If it didn't overflow, the result is {2 * value} as pointer-sized
       // value.
       __ SetVariable(result,
-                     __ ChangeInt32ToIntPtr(__ Projection<Word32>(add, 0)));
+                     __ ChangeInt32ToIntPtr(__ template Projection<0>(add)));
     } ELSE{
       // Otherwise, call builtin, to convert to a HeapNumber.
       V<HeapNumber> call = CallBuiltin<WasmInt32ToHeapNumberDescriptor>(
