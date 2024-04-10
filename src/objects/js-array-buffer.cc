@@ -231,11 +231,6 @@ ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {
 std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
   ArrayBufferExtension* extension = this->extension();
   DCHECK_NOT_NULL(extension);
-#ifdef V8_ENABLE_SANDBOX
-  // Invalidate the extension's entry in the EPT. Not strictly required, but
-  // doesn't hurt either.
-  extension->ZapExternalPointerTableEntry();
-#endif  // V8_ENABLE_SANDBOX
   auto result = extension->RemoveBackingStore();
   // Remove pointer to extension such that the next GC will free it
   // automatically.
