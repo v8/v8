@@ -6149,20 +6149,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
+    using Implementation = compiler::turboshaft::SelectOp::Implementation;
     if (bounds_checks == kTrapHandler &&
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64) {
-        V<Word32> cond = __ Word64Equal(
-            __ Word64ShiftRightLogical(V<Word64>::Cast(converted_index),
-                                       memory->GetMemory64GuardsShift()),
-            0);
-        V<WordPtr> vtrue = converted_index;
-        V<WordPtr> vfalse =
+        converted_index = __ Select(
+            __ Word64ShiftRightLogical(
+                V<Word64>::Cast(converted_index),
+                memory->GetMemory64GuardsShift()),  // cond
             __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
                     MemoryRepresentation::UintPtr(),
-                    IsolateData::wasm64_oob_offset_offset());
-        converted_index = __ WordPtrSelect(cond, vtrue, vfalse);
+                    IsolateData::wasm64_oob_offset_offset()),  // vtrue
+            V<Word64>::Cast(converted_index),                  // vfalse
+            RegisterRepresentation::Word64(), BranchHint::kNone,
+            Implementation::kCMove);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }
