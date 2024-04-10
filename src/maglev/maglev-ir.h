@@ -9390,6 +9390,8 @@ class BranchIfUint32Compare
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  Operation operation() const { return operation_; }
+
  private:
   Operation operation_;
 };

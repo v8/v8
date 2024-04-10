@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
+#include <type_traits>
 
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
@@ -562,6 +563,15 @@ class GraphBuilder {
     SetMap(node, input);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckNotHole* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIf(RootEqual(node->object_input(), RootIndex::kTheHoleValue),
+                    BuildFrameState(node->eager_deopt_info()),
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, Map(node->object_input()));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
                                 const maglev::ProcessingState& state) {
@@ -600,6 +610,13 @@ class GraphBuilder {
     V<HeapObject> alloc = Map(node->allocation_block());
     SetMap(node, __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                      __ BitcastHeapObjectToWordPtr(alloc), node->offset())));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::EnsureWritableFastElements* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ EnsureWritableFastElements(Map(node->object_input()),
+                                               Map(node->elements_input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1008,15 +1025,17 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::Int32Compare* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> bool_res = ConvertCompare<Word32>(
-        node->left_input(), node->right_input(), node->operation());
+    V<Word32> bool_res =
+        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+                               node->operation(), Sign::kSigned);
     SetMap(node, ConvertWord32ToJSBool(bool_res));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64Compare* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> bool_res = ConvertCompare<Float64>(
-        node->left_input(), node->right_input(), node->operation());
+    V<Word32> bool_res =
+        ConvertCompare<Float64>(node->left_input(), node->right_input(),
+                                node->operation(), Sign::kSigned);
     SetMap(node, ConvertWord32ToJSBool(bool_res));
     return maglev::ProcessResult::kContinue;
   }
@@ -1041,15 +1060,25 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::BranchIfInt32Compare* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> condition = ConvertCompare<Word32>(
-        node->left_input(), node->right_input(), node->operation());
+    V<Word32> condition =
+        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+                               node->operation(), Sign::kSigned);
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfUint32Compare* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> condition =
+        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+                               node->operation(), Sign::kUnsigned);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::BranchIfFloat64Compare* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> condition = ConvertCompare<Float64>(
-        node->left_input(), node->right_input(), node->operation());
+    V<Word32> condition =
+        ConvertCompare<Float64>(node->left_input(), node->right_input(),
+                                node->operation(), Sign::kSigned);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
@@ -1101,6 +1130,18 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::UnsafeSmiUntag* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ UntagSmi(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedSmiTagInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(
+        node,
+        __ ConvertUntaggedToJSPrimitiveOrDeopt(
+            Map(node->input()), BuildFrameState(node->eager_deopt_info()),
+            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
+            RegisterRepresentation::Word32(),
+            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
+            node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UnsafeSmiTag* node,
@@ -1395,6 +1436,22 @@ class GraphBuilder {
     SetMap(node, Map(node->input()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedInt32ToUint32* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0),
+                    BuildFrameState(node->eager_deopt_info()),
+                    DeoptimizeReason::kNotUint32,
+                    node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, Map(node->input()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
+                                const maglev::ProcessingState& state) {
+    // This is a no-op in Maglev, and also in Turboshaft where both Uint32 and
+    // Int32 are Word32.
+    SetMap(node, Map(node->input()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,
                                 const maglev::ProcessingState& state) {
     OpIndex result = __ ConvertJSPrimitiveToUntaggedOrDeopt(
@@ -1609,9 +1666,13 @@ class GraphBuilder {
                                              combine, info);
   }
 
+  enum class Sign { kSigned, kUnsigned };
   template <typename rep>
   V<Word32> ConvertCompare(maglev::Input left_input, maglev::Input right_input,
-                           ::Operation operation) {
+                           ::Operation operation, Sign sign) {
+    DCHECK_IMPLIES(
+        (std::is_same_v<rep, Float64> || std::is_same_v<rep, Float32>),
+        sign == Sign::kSigned);
     ComparisonOp::Kind kind;
     bool swap_inputs = false;
     switch (operation) {
@@ -1620,17 +1681,23 @@ class GraphBuilder {
         kind = ComparisonOp::Kind::kEqual;
         break;
       case ::Operation::kLessThan:
-        kind = ComparisonOp::Kind::kSignedLessThan;
+        kind = sign == Sign::kSigned ? ComparisonOp::Kind::kSignedLessThan
+                                     : ComparisonOp::Kind::kUnsignedLessThan;
         break;
       case ::Operation::kLessThanOrEqual:
-        kind = ComparisonOp::Kind::kSignedLessThanOrEqual;
+        kind = sign == Sign::kSigned
+                   ? ComparisonOp::Kind::kSignedLessThanOrEqual
+                   : ComparisonOp::Kind::kUnsignedLessThanOrEqual;
         break;
       case ::Operation::kGreaterThan:
-        kind = ComparisonOp::Kind::kSignedLessThan;
+        kind = sign == Sign::kSigned ? ComparisonOp::Kind::kSignedLessThan
+                                     : ComparisonOp::Kind::kUnsignedLessThan;
         swap_inputs = true;
         break;
       case ::Operation::kGreaterThanOrEqual:
-        kind = ComparisonOp::Kind::kSignedLessThanOrEqual;
+        kind = sign == Sign::kSigned
+                   ? ComparisonOp::Kind::kSignedLessThanOrEqual
+                   : ComparisonOp::Kind::kUnsignedLessThanOrEqual;
         swap_inputs = true;
         break;
       default:

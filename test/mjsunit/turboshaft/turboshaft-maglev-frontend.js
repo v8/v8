@@ -915,3 +915,60 @@ assertOptimized(simple_loop);
   assertEquals(n1, fact(42));
   assertOptimized(fact);
 }
+
+// Testing a few array operations.
+{
+  let a = [1, 2, 3, 4];
+  let b = [5, 6, 7, 8];
+
+  function make_fast_arr(a, b) {
+    let s = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++) {
+      s[i] = a[i] + b[i];
+    }
+    return s;
+  }
+
+  %PrepareFunctionForOptimization(make_fast_arr);
+  assertEquals([6, 8, 10, 12], make_fast_arr(a, b));
+  %OptimizeFunctionOnNextCall(make_fast_arr);
+  assertEquals([6, 8, 10, 12], make_fast_arr(a, b));
+  assertOptimized(make_fast_arr);
+
+  function arr_oob_load(a, b) {
+    let s = [0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 6; i++) {
+      // This will load out of bounds in {a} and {b}, which is fine.
+      s[i] = a[i] + b[i];
+    }
+    return s;
+  }
+
+  %PrepareFunctionForOptimization(arr_oob_load);
+  assertEquals([6, 8, 10, 12, NaN, NaN], arr_oob_load(a, b));
+  %OptimizeFunctionOnNextCall(arr_oob_load);
+  assertEquals([6, 8, 10, 12, NaN, NaN], arr_oob_load(a, b));
+  assertOptimized(arr_oob_load);
+
+  function ret_from_holey_arr(i) {
+    let arr = new Array(10);
+    arr[0] = 42;
+    return arr[i];
+  }
+
+  %PrepareFunctionForOptimization(ret_from_holey_arr);
+  assertEquals(42, ret_from_holey_arr(0));
+  %OptimizeFunctionOnNextCall(ret_from_holey_arr);
+  assertEquals(42, ret_from_holey_arr(0));
+  assertOptimized(ret_from_holey_arr);
+
+  // Triggering deopt by trying to return a hole.
+  assertEquals(undefined, ret_from_holey_arr(1));
+  assertUnoptimized(ret_from_holey_arr);
+
+  // Reopting
+  %OptimizeFunctionOnNextCall(ret_from_holey_arr);
+  assertEquals(undefined, ret_from_holey_arr(1));
+  // This time the hole is converted to undefined without deopting.
+  assertOptimized(ret_from_holey_arr);
+}
