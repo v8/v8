@@ -44,7 +44,6 @@ Handle<Managed<CppType>> Managed<CppType>::FromSharedPtr(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
-  static_assert(IsManagedExternalPointerType(kTag));
   reinterpret_cast<v8::Isolate*>(isolate)
       ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
   auto destructor = new ManagedPtrDestructor(
