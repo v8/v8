@@ -99,15 +99,11 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
 
   std::vector<Segment> segments_to_deallocate;
   for (auto segment : base::Reversed(space->segments_)) {
-    // If we evacuated all live entries in this segment then we can take a
-    // shortcut here and only check if any managed resources need to be freed.
-    // Afterwards, the entire segment will be deallocated after this loop.
+    // If we evacuated all live entries in this segment then we can skip it
+    // here and directly deallocate it after this loop.
     if (evacuation_was_successful &&
         segment.first_entry() >= start_of_evacuation_area) {
       segments_to_deallocate.push_back(segment);
-      for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
-        CheckAndHandleFreedManagedResourceEntry(i);
-      }
       continue;
     }
 
