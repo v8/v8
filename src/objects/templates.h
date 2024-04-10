@@ -50,6 +50,30 @@ class TemplateInfo
 
   using BodyDescriptor = StructBodyDescriptor;
 
+  // Whether or not to cache every instance: when we materialize a getter or
+  // setter from an lazy AccessorPair, we rely on this cache to be able to
+  // always return the same getter or setter. However, objects will be cloned
+  // anyways, so it's not observable if we didn't cache an instance.
+  // Furthermore, a badly behaved embedder might create an unlimited number of
+  // objects, so we limit the cache for those cases.
+  enum class CachingMode { kLimited, kUnlimited };
+
+  template <typename ReturnType>
+  static MaybeHandle<ReturnType> ProbeInstantiationsCache(
+      Isolate* isolate, DirectHandle<NativeContext> native_context,
+      int serial_number, CachingMode caching_mode);
+
+  template <typename InstantiationType, typename TemplateInfoType>
+  static void CacheTemplateInstantiation(
+      Isolate* isolate, DirectHandle<NativeContext> native_context,
+      DirectHandle<TemplateInfoType> data, CachingMode caching_mode,
+      Handle<InstantiationType> object);
+
+  template <typename TemplateInfoType>
+  static void UncacheTemplateInstantiation(
+      Isolate* isolate, DirectHandle<NativeContext> native_context,
+      DirectHandle<TemplateInfoType> data, CachingMode caching_mode);
+
   TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
 };
 
