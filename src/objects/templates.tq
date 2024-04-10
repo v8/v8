@@ -98,5 +98,5 @@ extern class ObjectTemplateInfo extends TemplateInfo {
 @generateBodyDescriptor
 extern class DictionaryTemplateInfo extends HeapObject {
   property_names: FixedArray;
-  serial_number: Smi;
+  fully_populated_map: Weak<Map>;
 }

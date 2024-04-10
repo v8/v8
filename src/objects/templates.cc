@@ -240,14 +240,10 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
   }
 
   const bool can_use_map_cache = num_properties_set == property_names_len;
-  MaybeHandle<Map> maybe_cached_map;
-  if (V8_LIKELY(can_use_map_cache)) {
-    maybe_cached_map = TemplateInfo::ProbeInstantiationsCache<Map>(
-        isolate, context, self->serial_number(),
-        TemplateInfo::CachingMode::kUnlimited);
-  }
-  Handle<Map> cached_map;
-  if (V8_LIKELY(can_use_map_cache && maybe_cached_map.ToHandle(&cached_map))) {
+  if (V8_LIKELY(can_use_map_cache &&
+                !self->fully_populated_map().IsCleared())) {
+    Handle<Map> cached_map = Handle<Map>::cast(
+        handle(self->fully_populated_map().GetHeapObjectAssumeWeak(), isolate));
     DCHECK(!cached_map->is_dictionary_map());
     bool can_use_cached_map = !cached_map->is_deprecated();
     if (V8_LIKELY(can_use_cached_map)) {
@@ -277,7 +273,13 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
       if (V8_LIKELY(can_use_cached_map)) {
         // Create the object from the cached map.
         CHECK(!cached_map->is_deprecated());
-        CHECK_EQ(context->object_function_prototype(), cached_map->prototype());
+        Handle<JSObject> prototype = isolate->object_function_prototype();
+        if (cached_map->prototype() != *prototype) {
+          cached_map =
+              Map::Copy(isolate, cached_map, "dictionary in new context");
+          Map::SetPrototype(isolate, cached_map, prototype);
+          self->set_fully_populated_map(MakeWeak(*cached_map));
+        }
         auto object = isolate->factory()->NewJSObjectFromMap(
             cached_map, AllocationType::kYoung);
         DisallowGarbageCollection no_gc;
@@ -295,8 +297,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
     // A cached map was either deprecated or the descriptors changed in
     // incompatible ways. We clear the cached map and continue with the generic
     // path.
-    TemplateInfo::UncacheTemplateInstantiation(
-        isolate, context, self, TemplateInfo::CachingMode::kUnlimited);
+    self->set_fully_populated_map(ClearedValue(isolate));
   }
 
   // General case: We either don't have a cached map, or it is unusuable for the
@@ -328,10 +329,8 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
                          *value);
     current_property_index++;
   }
-  if (V8_LIKELY(can_use_map_cache)) {
-    TemplateInfo::CacheTemplateInstantiation(
-        isolate, context, self, TemplateInfo::CachingMode::kUnlimited,
-        handle(object->map(), isolate));
+  if (can_use_map_cache) {
+    self->set_fully_populated_map(MakeWeak(object->map()));
   }
   return object;
 }
