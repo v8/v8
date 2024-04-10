@@ -184,21 +184,21 @@ void ExternalPointerSlot::init(IsolateForSandbox isolate, Address value) {
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 ExternalPointerHandle ExternalPointerSlot::Relaxed_LoadHandle() const {
-  return base::AsAtomic32::Relaxed_Load(location());
+  return base::AsAtomic32::Relaxed_Load(handle_location());
 }
 
 void ExternalPointerSlot::Relaxed_StoreHandle(
     ExternalPointerHandle handle) const {
-  return base::AsAtomic32::Relaxed_Store(location(), handle);
+  return base::AsAtomic32::Relaxed_Store(handle_location(), handle);
 }
 
 void ExternalPointerSlot::Release_StoreHandle(
     ExternalPointerHandle handle) const {
-  return base::AsAtomic32::Release_Store(location(), handle);
+  return base::AsAtomic32::Release_Store(handle_location(), handle);
 }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 Address ExternalPointerSlot::load(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX

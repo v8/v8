@@ -4005,18 +4005,26 @@ void Heap::NotifyObjectLayoutChange(
     }
   }
 
-#ifdef V8_ENABLE_SANDBOX
   // During external pointer table compaction, the external pointer table
-  // records addresses of fields containing external pointers. As such, it
-  // needs to be informed when such a field is invalidated.
+  // records addresses of fields that index into the external pointer table. As
+  // such, it needs to be informed when such a field is invalidated.
   if (invalidate_external_pointer_slots ==
       InvalidateExternalPointerSlots::kYes) {
-    ExternalPointerSlotInvalidator external_pointer_slot_invalidator(isolate());
-    int num_invalidated_slots = external_pointer_slot_invalidator.Visit(object);
-    USE(num_invalidated_slots);
-    DCHECK_GT(num_invalidated_slots, 0);
-  }
+    // Currently, the only time this function receives
+    // InvalidateExternalPointerSlots::kYes is when an external string
+    // transitions to a thin string.  If this ever changed to happen for array
+    // buffer extension slots, we would have to run the invalidator in
+    // pointer-compression-but-no-sandbox configurations as well.
+    DCHECK(IsString(object));
+#ifdef V8_ENABLE_SANDBOX
+    if (V8_ENABLE_SANDBOX_BOOL) {
+      ExternalPointerSlotInvalidator slot_invalidator(isolate());
+      int num_invalidated_slots = slot_invalidator.Visit(object);
+      USE(num_invalidated_slots);
+      DCHECK_GT(num_invalidated_slots, 0);
+    }
 #endif
+  }
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {

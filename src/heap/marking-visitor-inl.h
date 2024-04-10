@@ -171,17 +171,19 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
-                                    ? shared_external_pointer_table_
-                                    : external_pointer_table_;
-  ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
-                                           ? shared_external_pointer_space_
-                                           : heap_->external_pointer_space();
-  table->Mark(space, handle, slot.address());
-#endif  // V8_ENABLE_SANDBOX
+  if (slot.HasExternalPointerHandle()) {
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
+                                      ? shared_external_pointer_table_
+                                      : external_pointer_table_;
+    ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
+                                             ? shared_external_pointer_space_
+                                             : heap_->external_pointer_space();
+    table->Mark(space, handle, slot.address());
+  }
+#endif  // V8_COMPRESS_POINTERS
 }
 
 template <typename ConcreteVisitor>

@@ -2880,7 +2880,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   MarkDependentCodeForDeoptimization();
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE);
     // External pointer table sweeping needs to happen before evacuating live
@@ -2899,7 +2899,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     isolate->cpp_heap_pointer_table().SweepAndCompact(
         isolate->heap()->cpp_heap_pointer_space(), isolate->counters());
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
   {

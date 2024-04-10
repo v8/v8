@@ -66,19 +66,19 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
         code_flushing_increase_(code_flushing_increase),
         isolate_in_background_(heap->isolate()->is_backgrounded())
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
         shared_external_pointer_table_(
             &heap->isolate()->shared_external_pointer_table()),
         shared_external_pointer_space_(
             heap->isolate()->shared_external_pointer_space()),
-        trusted_pointer_table_(&heap->isolate()->trusted_pointer_table())
-#endif  // V8_ENABLE_SANDBOX
-#ifdef V8_COMPRESS_POINTERS
-        ,
         cpp_heap_pointer_table_(&heap->isolate()->cpp_heap_pointer_table())
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+        ,
+        trusted_pointer_table_(&heap->isolate()->trusted_pointer_table())
+#endif  // V8_ENABLE_SANDBOX
   {
   }
 
@@ -234,15 +234,15 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   const bool should_mark_shared_heap_;
   const uint16_t code_flushing_increase_;
   const bool isolate_in_background_;
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
   ExternalPointerTable::Space* const shared_external_pointer_space_;
-  TrustedPointerTable* const trusted_pointer_table_;
-#endif  // V8_ENABLE_SANDBOX
-#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable* const cpp_heap_pointer_table_;
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+  TrustedPointerTable* const trusted_pointer_table_;
+#endif  // V8_ENABLE_SANDBOX
 };
 
 // This is the common base class for main and concurrent full marking visitors.
