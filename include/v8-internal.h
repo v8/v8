@@ -456,6 +456,7 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   /* Foreigns */ \
   V(kGenericForeignTag,                         TAG(30)) \
   /* Managed */ \
+  V(kFirstManagedTag,                           TAG(40)) \
   V(kGenericManagedTag,                         TAG(40)) \
   V(kWasmWasmStreamingTag,                      TAG(41)) \
   V(kWasmFuncDataTag,                           TAG(42)) \
@@ -472,7 +473,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kIcuLocalizedNumberFormatterTag,            TAG(53)) \
   V(kIcuPluralRulesTag,                         TAG(54)) \
   V(kIcuCollatorTag,                            TAG(55)) \
-  V(kDisplayNamesInternalTag,                   TAG(56))
+  V(kDisplayNamesInternalTag,                   TAG(56)) \
+  V(kLastManagedTag,                            TAG(56))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \
@@ -488,15 +490,18 @@ enum ExternalPointerTag : uint64_t {
   kExternalPointerNullTag =            MAKE_TAG(1, 0b00000000),
   // External pointer tag that will match any external pointer. Use with care!
   kAnyExternalPointerTag =             MAKE_TAG(1, 0b11111111),
+  // External pointer tag that will match any external pointer in a Foreign.
+  // Use with care! If desired, this could be made more fine-granular.
+  kAnyForeignTag =                     kAnyExternalPointerTag,
   // The free entry tag has all type bits set so every type check with a
   // different type fails. It also doesn't have the mark bit set as free
   // entries are (by definition) not alive.
   kExternalPointerFreeEntryTag =       MAKE_TAG(0, 0b11111111),
   // Evacuation entries are used during external pointer table compaction.
-  kExternalPointerEvacuationEntryTag = MAKE_TAG(1, 0b11100111),
-  // External pointer tag that will match any external pointer in a Foreign.
-  // Use with care! If desired, this could be made more fine-granular.
-  kAnyForeignTag = kAnyExternalPointerTag,
+  kExternalPointerEvacuationEntryTag = MAKE_TAG(1, 0b11111110),
+  // Tag for zapped/invalidated entries. Those are considered to no longer be
+  // in use and so have the marking bit cleared.
+  kExternalPointerZappedEntryTag =     MAKE_TAG(0, 0b11111101),
 
   ALL_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
 };
@@ -521,6 +526,15 @@ V8_INLINE static constexpr bool IsMaybeReadOnlyExternalPointerType(
     ExternalPointerTag tag) {
   return tag == kAccessorInfoGetterTag || tag == kAccessorInfoSetterTag ||
          tag == kFunctionTemplateInfoCallbackTag;
+}
+
+// True if the external pointer references an external object whose lifetime is
+// tied to the entry in the external pointer table.
+// In this case, the entry in the ExternalPointerTable always points to an
+// object derived from ExternalPointerTable::ManagedResource.
+V8_INLINE static constexpr bool IsManagedExternalPointerType(
+    ExternalPointerTag tag) {
+  return tag >= kFirstManagedTag && tag <= kLastManagedTag;
 }
 
 // Sanity checks.

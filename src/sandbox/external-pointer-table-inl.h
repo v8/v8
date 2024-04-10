@@ -69,6 +69,20 @@ ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
   return payload.ExtractTag();
 }
 
+Address ExternalPointerTableEntry::ExtractManagedResourceOrNull() const {
+  auto payload = payload_.load(std::memory_order_relaxed);
+  ExternalPointerTag tag = payload.ExtractTag();
+  if (IsManagedExternalPointerType(tag)) {
+    return payload.Untag(tag);
+  }
+  return kNullAddress;
+}
+
+void ExternalPointerTableEntry::MakeZappedEntry() {
+  Payload new_payload(kNullAddress, kExternalPointerZappedEntryTag);
+  payload_.store(new_payload, std::memory_order_relaxed);
+}
+
 void ExternalPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   // The next freelist entry is stored in the lower bits of the entry.
   static_assert(kMaxExternalPointers <= std::numeric_limits<uint32_t>::max());
@@ -108,16 +122,10 @@ bool ExternalPointerTableEntry::HasEvacuationEntry() const {
   return payload.ContainsEvacuationEntry();
 }
 
-void ExternalPointerTableEntry::UnmarkAndMigrateInto(
-    ExternalPointerTableEntry& other) {
+void ExternalPointerTableEntry::MigrateInto(ExternalPointerTableEntry& other) {
   auto payload = payload_.load(std::memory_order_relaxed);
   // We expect to only migrate entries containing external pointers.
   DCHECK(payload.ContainsExternalPointer());
-
-  // During compaction, entries that are evacuated may not be visited during
-  // sweeping and may therefore still have their marking bit set. As such, we
-  // should clear that here.
-  payload.ClearMarkBit();
 
   other.payload_.store(payload, std::memory_order_relaxed);
 #if defined(LEAK_SANITIZER)
@@ -179,6 +187,15 @@ ExternalPointerTag ExternalPointerTable::GetTag(
   return at(index).GetExternalPointerTag();
 }
 
+void ExternalPointerTable::Zap(ExternalPointerHandle handle) {
+  // Zapping the null entry is a nop. This is useful as we reset the handle of
+  // managed resources to the kNullExternalPointerHandle when the entry is
+  // deleted. See SweepAndCompact.
+  if (handle == kNullExternalPointerHandle) return;
+  uint32_t index = HandleToIndex(handle);
+  at(index).MakeZappedEntry();
+}
+
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     Space* space, Address initial_value, ExternalPointerTag tag) {
   DCHECK(space->BelongsTo(this));
@@ -202,7 +219,19 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     space->AbortCompacting(start_of_evacuation_area);
   }
 
-  return IndexToHandle(index);
+  ExternalPointerHandle handle = IndexToHandle(index);
+
+  // If we allocated the entry for a managed resource, we need to also
+  // initialize that resource's back reference to the table entry.
+  if (IsManagedExternalPointerType(tag)) {
+    ManagedResource* resource =
+        reinterpret_cast<ManagedResource*>(initial_value);
+    DCHECK_EQ(resource->ept_entry_, kNullExternalPointerHandle);
+    resource->owning_table_ = this;
+    resource->ept_entry_ = handle;
+  }
+
+  return handle;
 }
 
 void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
@@ -287,6 +316,10 @@ void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
   DCHECK(Contains(HandleToIndex(handle)));
 #endif
   AddInvalidatedField(field_address);
+}
+
+void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
+  owning_table_->Zap(ept_entry_);
 }
 
 }  // namespace internal

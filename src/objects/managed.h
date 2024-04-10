@@ -6,10 +6,12 @@
 #define V8_OBJECTS_MANAGED_H_
 
 #include <memory>
+
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
+#include "src/sandbox/external-pointer-table.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +52,13 @@ struct TagForManaged {
   };
 
 // Implements a doubly-linked lists of destructors for the isolate.
-struct ManagedPtrDestructor {
+struct ManagedPtrDestructor
+#ifdef V8_ENABLE_SANDBOX
+    : public ExternalPointerTable::ManagedResource {
+#else
+    : public Malloced {
+#endif  // V8_ENABLE_SANDBOX
+
   // Estimated size of external memory associated with the managed object.
   // This is used to adjust the garbage collector's heuristics upon
   // allocation and deallocation of a managed object.
