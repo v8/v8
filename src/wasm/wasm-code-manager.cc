@@ -709,9 +709,6 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
     // allocations (jump tables etc).
     CHECK_EQ(kUnrestrictedRegion, region);
 
-    Address hint = owned_code_space_.empty() ? kNullAddress
-                                             : owned_code_space_.back().end();
-
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
     size_t reserve_size = ReservationSize(
@@ -724,8 +721,7 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
       V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
                                   oom_detail.PrintToArray().data());
     }
-    VirtualMemory new_mem =
-        code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
+    VirtualMemory new_mem = code_manager->TryAllocate(reserve_size);
     if (!new_mem.IsReserved()) {
       auto oom_detail = base::FormattedString{}
                         << "cannot allocate more code space (" << reserve_size
@@ -1864,7 +1860,9 @@ NativeModule::~NativeModule() {
 
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
-      critical_committed_code_space_(max_committed_code_space_ / 2) {
+      critical_committed_code_space_(max_committed_code_space_ / 2),
+      next_code_space_hint_(reinterpret_cast<Address>(
+          GetPlatformPageAllocator()->GetRandomMmapAddr())) {
   // Check that --wasm-max-code-space-size-mb is not set bigger than the default
   // value. Otherwise we run into DCHECKs or other crashes later.
   CHECK_GE(kDefaultMaxWasmCodeSpaceSizeMb,
@@ -1948,21 +1946,37 @@ void WasmCodeManager::AssignRange(base::AddressRegion region,
       region.begin(), std::make_pair(region.end(), native_module)));
 }
 
-VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
+VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
-  if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
+  Address hint =
+      next_code_space_hint_.fetch_add(size, std::memory_order_relaxed);
 
   // When we start exposing Wasm in jitless mode, then the jitless flag
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!v8_flags.jitless);
-  VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
+  VirtualMemory mem(page_allocator, size, reinterpret_cast<void*>(hint),
+                    allocate_page_size,
                     PageAllocator::Permission::kNoAccessWillJitLater);
-  if (!mem.IsReserved()) return {};
+  if (!mem.IsReserved()) {
+    // Try resetting {next_code_space_hint_}, which might fail if another thread
+    // bumped it in the meantime.
+    Address bumped_hint = hint + size;
+    next_code_space_hint_.compare_exchange_weak(bumped_hint, hint,
+                                                std::memory_order_relaxed);
+    return {};
+  }
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
+
+  if (mem.address() != hint) {
+    // If the hint was ignored, just store the end of the new vmem area
+    // unconditionally, potentially racing with other concurrent allocations (it
+    // does not really matter which end pointer we keep in that case).
+    next_code_space_hint_.store(mem.end(), std::memory_order_relaxed);
+  }
 
   // Don't pre-commit the code cage on Windows since it uses memory and it's not
   // required for recommit.

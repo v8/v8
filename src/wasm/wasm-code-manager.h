@@ -1053,8 +1053,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);
 
-  V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
-                                                  void* hint = nullptr);
+  V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size);
   void Commit(base::AddressRegion);
   void Decommit(base::AddressRegion);
 
@@ -1083,6 +1082,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // End of fields protected by {native_modules_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
+
+  // We remember the end address of the last allocated code space and use that
+  // as a hint for the next code space. As the WasmCodeManager is shared by the
+  // whole process this ensures that Wasm code spaces are allocated next to each
+  // other with a high likelyhood. This improves the performance of cross-module
+  // calls as the branch predictor can only predict indirect call targets within
+  // a certain range around the call instruction.
+  std::atomic<Address> next_code_space_hint_;
 };
 
 // {WasmCodeRefScope}s form a perfect stack. New {WasmCode} pointers generated
