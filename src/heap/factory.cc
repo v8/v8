@@ -75,6 +75,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
@@ -4390,7 +4391,7 @@ Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
   obj->set_property_names(*property_names);
-  obj->set_fully_populated_map(ClearedValue(isolate()));
+  obj->set_serial_number(TemplateInfo::kUncached);
   return handle(obj, isolate());
 }
 
