@@ -1427,6 +1427,11 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
                                           skip_indices);
 }
 
+void SHA256Hash(v8::Local<v8::String> s, base::Vector<uint8_t> hash) {
+  i::Handle<i::String> str = Utils::OpenHandle(*s);
+  str->Sha256Hash(hash);
+}
+
 }  // namespace debug
 
 namespace internal {
