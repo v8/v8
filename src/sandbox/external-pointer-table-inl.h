@@ -326,7 +326,6 @@ void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
 
 void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
   owning_table_->Zap(ept_entry_);
-  ept_entry_ = kNullExternalPointerHandle;
 }
 
 }  // namespace internal
