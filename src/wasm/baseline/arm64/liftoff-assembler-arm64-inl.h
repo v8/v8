@@ -3707,7 +3707,7 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
 
   Register scratch2 = temps.AcquireX();
   ldr(scratch2, oob_offset);
-  Csel(index.X(), scratch2, index.X(), ne);
+  Csel(scratch.X(), scratch2, index.X(), ne);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

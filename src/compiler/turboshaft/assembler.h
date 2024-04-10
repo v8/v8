@@ -2699,6 +2699,7 @@ class TurboshaftAssemblerOpInterface
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
+  DEF_SELECT(WordPtr)
   DEF_SELECT(Float32)
   DEF_SELECT(Float64)
 #undef DEF_SELECT
