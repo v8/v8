@@ -936,6 +936,20 @@ CPU::CPU()
 #elif V8_HOST_ARCH_RISCV64
 #if V8_OS_LINUX
   CPUInfo cpu_info;
+#if (V8_GLIBC_PREREQ(2, 39))
+#include <asm/hwprobe.h>
+#include <asm/unistd.h>
+  riscv_hwprobe pairs[] = {{RISCV_HWPROBE_KEY_IMA_EXT_0, 0}};
+  if (!syscall(__NR_riscv_hwprobe, &pairs,
+               sizeof(pairs) / sizeof(riscv_hwprobe), 0, nullptr, 0)) {
+    if (pairs[0].value & RISCV_HWPROBE_IMA_V) {
+      has_rvv_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_IMA_FD) {
+      has_fpu_ = true;
+    }
+  }
+#else
   char* features = cpu_info.ExtractField("isa");
 
   if (HasListItem(features, "rv64imafdc")) {
@@ -945,6 +959,8 @@ CPU::CPU()
     has_fpu_ = true;
     has_rvv_ = true;
   }
+#endif
+
   char* mmu = cpu_info.ExtractField("mmu");
   if (HasListItem(mmu, "sv48")) {
     riscv_mmu_ = RV_MMU_MODE::kRiscvSV48;
