@@ -73,7 +73,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:f07499aebcf5b1b8f09f27f705e1b6e463ecdba1',
+  'gn_version': 'git_revision:d823fd85da3fb83146f734377da454473b93a2b2',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a7289776d7f7b273cade22b06ac63908b149e6b3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '68c67467c386a59e696a3957a723dff2300d7bea',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'aaab0bb753c4eee97a211194a3f404e38f666470',
   'buildtools/linux64': {
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eea30870b85500d8ee8261bbda79b550a7451393',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c41b0affa0aacd0e8b332477e3f46b579d7672b6',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'd7c63cd216941e297569428e40f9b8bc155e0423',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '3d73dee972d0db344bda9b659836612aba6a3564',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b1a777f31913f8a047f43b2a5f823e736e7f5082',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libs': {
@@ -340,9 +340,9 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '37d9855c8db5a130571971e78fde2740314cd98a',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7d77fb7fd66d8a5640618ad32c71fdeb7d3e02df',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b6ed3ca0d22277effe6caf828d9f823da8b6494e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd953bd036f5d6f986e633c9cc1204df08dd04567',
   'tools/luci-go': {
       'packages': [
         {
@@ -358,7 +358,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '76297a9b60e6fe857858775e927af2ed9f33cd12',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'a64dd87cec79c80c88190265cfea0cbd4027677f',
     'condition': 'not build_with_chromium',
   }
 }
