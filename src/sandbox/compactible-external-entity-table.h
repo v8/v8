@@ -75,6 +75,8 @@ class Counters;
 template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
     : public ExternalEntityTable<Entry, size> {
+  using Base = ExternalEntityTable<Entry, size>;
+
  public:
   CompactibleExternalEntityTable() = default;
   CompactibleExternalEntityTable(const CompactibleExternalEntityTable&) =
@@ -84,7 +86,7 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
 
   // The Spaces used by pointer tables also contain the state related
   // to compaction.
-  struct Space : public ExternalEntityTable<Entry, size>::Space {
+  struct Space : public Base::Space {
    public:
     Space() : start_of_evacuation_area_(kNotCompactingMarker) {}
 

@@ -27,8 +27,8 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
       space->start_of_evacuation_area_.load(std::memory_order_relaxed);
   if (index >= start_of_evacuation_area) {
     DCHECK(space->IsCompacting());
-    uint32_t new_index = ExternalEntityTable<Entry, size>::AllocateEntryBelow(
-        space, start_of_evacuation_area);
+    uint32_t new_index =
+        Base::AllocateEntryBelow(space, start_of_evacuation_area);
     if (new_index) {
       DCHECK_LT(new_index, start_of_evacuation_area);
       DCHECK(space->Contains(new_index));
@@ -37,8 +37,7 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
       // fail) to allocate the same table entry, thereby causing a read from
       // this memory location. Without an atomic store here, TSan would then
       // complain about a data race.
-      ExternalEntityTable<Entry, size>::at(new_index).MakeEvacuationEntry(
-          handle_location);
+      Base::at(new_index).MakeEvacuationEntry(handle_location);
     } else {
       // In this case, the application has allocated a sufficiently large
       // number of entries from the freelist so that new entries would now be
@@ -135,20 +134,22 @@ void CompactibleExternalEntityTable<Entry,
   double free_ratio = static_cast<double>(num_free_entries) /
                       static_cast<double>(num_total_entries);
   uint32_t num_segments_to_evacuate =
-      (num_free_entries / 2) /
-      ExternalEntityTable<Entry, size>::kEntriesPerSegment;
-
-  uint32_t space_size =
-      num_total_entries * ExternalEntityTable<Entry, size>::kEntrySize;
+      (num_free_entries / 2) / Base::kEntriesPerSegment;
+  uint32_t space_size = num_total_entries * Base::kEntrySize;
   bool should_compact = (space_size >= 1 * MB) && (free_ratio >= 0.10) &&
                         (num_segments_to_evacuate >= 1);
+
+  // However, if --stress-compaction is enabled, we compact whenever possible:
+  // whenever we have at least one segment worth of empty entries.
+  if (v8_flags.stress_compaction) {
+    should_compact = num_free_entries > Base::kEntriesPerSegment;
+  }
 
   if (should_compact) {
     // If we're compacting, attempt to free up the last N segments so that they
     // can be decommitted afterwards.
-    typename ExternalEntityTable<Entry, size>::Segment
-        first_segment_to_evacuate =
-            *std::prev(this->segments_.end(), num_segments_to_evacuate);
+    auto first_segment_to_evacuate =
+        *std::prev(this->segments_.end(), num_segments_to_evacuate);
     uint32_t start_of_evacuation_area = first_segment_to_evacuate.first_entry();
     StartCompacting(start_of_evacuation_area);
   }
