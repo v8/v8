@@ -31,7 +31,7 @@ class InstructionSelectionNormalizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(InstructionSelectionNormalization)
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
     // Putting constant on the right side.
     if (WordBinopOp::IsCommutative(kind)) {

@@ -3043,8 +3043,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
   DCHECK(add.Is<Opmask::kWord32Add>());
-  V<Word32> left = add.left();
-  V<Word32> right = add.right();
+  V<Word32> left = add.left<Word32>();
+  V<Word32> right = add.right<Word32>();
   // Select Madd(x, y, z) for Add(Mul(x, y), z) or Add(z, Mul(x, y)).
   if (TryEmitMultiplyAddInt32(this, node, left, right) ||
       TryEmitMultiplyAddInt32(this, node, right, left)) {
@@ -3122,8 +3122,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Add(node_t node) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
   DCHECK(add.Is<Opmask::kWord64Add>());
-  V<Word64> left = add.left();
-  V<Word64> right = add.right();
+  V<Word64> left = add.left<Word64>();
+  V<Word64> right = add.right<Word64>();
   // Select Madd(x, y, z) for Add(Mul(x, y), z) or Add(z, Mul(x, y)).
   if (TryEmitMultiplyAddInt64(this, node, left, right) ||
       TryEmitMultiplyAddInt64(this, node, right, left)) {

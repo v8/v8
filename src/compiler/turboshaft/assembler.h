@@ -1271,8 +1271,8 @@ class TurboshaftAssemblerOpInterface
                                         operation##Op::Kind::k##kind, rep); \
   }
 
-#define DECL_MULTI_REP_BINOP_V(name, operation, rep_type, kind, tag)        \
-  V<tag> name(V<tag> left, V<tag> right, rep_type rep) {                    \
+#define DECL_MULTI_REP_BINOP_V(name, operation, kind, tag)                  \
+  V<tag> name(V<tag> left, V<tag> right, v_traits<tag>::rep_type rep) {     \
     return ReduceIfReachable##operation(left, right,                        \
                                         operation##Op::Kind::k##kind, rep); \
   }
@@ -1283,69 +1283,67 @@ class TurboshaftAssemblerOpInterface
                                         operation##Op::Kind::k##kind,  \
                                         V<tag>::rep);                  \
   }
-  DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
+  DECL_MULTI_REP_BINOP_V(WordAdd, WordBinop, Add, Word)
   DECL_SINGLE_REP_BINOP_V(Word32Add, WordBinop, Add, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Add, WordBinop, Add, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrAdd, WordBinop, Add, WordPtr)
 
-  DECL_MULTI_REP_BINOP(WordMul, WordBinop, WordRepresentation, Mul)
+  DECL_MULTI_REP_BINOP_V(WordMul, WordBinop, Mul, Word)
   DECL_SINGLE_REP_BINOP_V(Word32Mul, WordBinop, Mul, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Mul, WordBinop, Mul, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrMul, WordBinop, Mul, WordPtr)
 
-  DECL_MULTI_REP_BINOP(WordBitwiseAnd, WordBinop, WordRepresentation,
-                       BitwiseAnd)
+  DECL_MULTI_REP_BINOP_V(WordBitwiseAnd, WordBinop, BitwiseAnd, Word)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseAnd, WordBinop, BitwiseAnd, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64BitwiseAnd, WordBinop, BitwiseAnd, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrBitwiseAnd, WordBinop, BitwiseAnd, WordPtr)
 
-  DECL_MULTI_REP_BINOP(WordBitwiseOr, WordBinop, WordRepresentation, BitwiseOr)
+  DECL_MULTI_REP_BINOP_V(WordBitwiseOr, WordBinop, BitwiseOr, Word)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseOr, WordBinop, BitwiseOr, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64BitwiseOr, WordBinop, BitwiseOr, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrBitwiseOr, WordBinop, BitwiseOr, WordPtr)
 
-  DECL_MULTI_REP_BINOP(WordBitwiseXor, WordBinop, WordRepresentation,
-                       BitwiseXor)
+  DECL_MULTI_REP_BINOP_V(WordBitwiseXor, WordBinop, BitwiseXor, Word)
   DECL_SINGLE_REP_BINOP_V(Word32BitwiseXor, WordBinop, BitwiseXor, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64BitwiseXor, WordBinop, BitwiseXor, Word64)
 
-  DECL_MULTI_REP_BINOP(WordSub, WordBinop, WordRepresentation, Sub)
+  DECL_MULTI_REP_BINOP_V(WordSub, WordBinop, Sub, Word)
   DECL_SINGLE_REP_BINOP_V(Word32Sub, WordBinop, Sub, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64Sub, WordBinop, Sub, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrSub, WordBinop, Sub, WordPtr)
 
-  DECL_MULTI_REP_BINOP(IntDiv, WordBinop, WordRepresentation, SignedDiv)
+  DECL_MULTI_REP_BINOP_V(IntDiv, WordBinop, SignedDiv, Word)
   DECL_SINGLE_REP_BINOP_V(Int32Div, WordBinop, SignedDiv, Word32)
   DECL_SINGLE_REP_BINOP_V(Int64Div, WordBinop, SignedDiv, Word64)
-  DECL_MULTI_REP_BINOP(UintDiv, WordBinop, WordRepresentation, UnsignedDiv)
+  DECL_MULTI_REP_BINOP_V(UintDiv, WordBinop, UnsignedDiv, Word)
   DECL_SINGLE_REP_BINOP_V(Uint32Div, WordBinop, UnsignedDiv, Word32)
   DECL_SINGLE_REP_BINOP_V(Uint64Div, WordBinop, UnsignedDiv, Word64)
-  DECL_MULTI_REP_BINOP(IntMod, WordBinop, WordRepresentation, SignedMod)
+  DECL_MULTI_REP_BINOP_V(IntMod, WordBinop, SignedMod, Word)
   DECL_SINGLE_REP_BINOP_V(Int32Mod, WordBinop, SignedMod, Word32)
   DECL_SINGLE_REP_BINOP_V(Int64Mod, WordBinop, SignedMod, Word64)
-  DECL_MULTI_REP_BINOP(UintMod, WordBinop, WordRepresentation, UnsignedMod)
+  DECL_MULTI_REP_BINOP_V(UintMod, WordBinop, UnsignedMod, Word)
   DECL_SINGLE_REP_BINOP_V(Uint32Mod, WordBinop, UnsignedMod, Word32)
   DECL_SINGLE_REP_BINOP_V(Uint64Mod, WordBinop, UnsignedMod, Word64)
-  DECL_MULTI_REP_BINOP(IntMulOverflownBits, WordBinop, WordRepresentation,
-                       SignedMulOverflownBits)
+  DECL_MULTI_REP_BINOP_V(IntMulOverflownBits, WordBinop, SignedMulOverflownBits,
+                         Word)
   DECL_SINGLE_REP_BINOP_V(Int32MulOverflownBits, WordBinop,
                           SignedMulOverflownBits, Word32)
   DECL_SINGLE_REP_BINOP_V(Int64MulOverflownBits, WordBinop,
                           SignedMulOverflownBits, Word64)
-  DECL_MULTI_REP_BINOP(UintMulOverflownBits, WordBinop, WordRepresentation,
-                       UnsignedMulOverflownBits)
+  DECL_MULTI_REP_BINOP_V(UintMulOverflownBits, WordBinop,
+                         UnsignedMulOverflownBits, Word)
   DECL_SINGLE_REP_BINOP_V(Uint32MulOverflownBits, WordBinop,
                           UnsignedMulOverflownBits, Word32)
   DECL_SINGLE_REP_BINOP_V(Uint64MulOverflownBits, WordBinop,
                           UnsignedMulOverflownBits, Word64)
 
-  OpIndex WordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> WordBinop(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                     WordRepresentation rep) {
     return ReduceIfReachableWordBinop(left, right, kind, rep);
   }
-  OpIndex OverflowCheckedBinop(OpIndex left, OpIndex right,
-                               OverflowCheckedBinopOp::Kind kind,
-                               WordRepresentation rep) {
+  V<turboshaft::Tuple<Word, Word32>> OverflowCheckedBinop(
+      V<Word> left, V<Word> right, OverflowCheckedBinopOp::Kind kind,
+      WordRepresentation rep) {
     return ReduceIfReachableOverflowCheckedBinop(left, right, kind, rep);
   }
 
@@ -1383,22 +1381,22 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_MULTI_REP_CHECK_BINOP_V
 #undef DECL_SINGLE_REP_CHECK_BINOP_V
 
-  DECL_MULTI_REP_BINOP_V(FloatAdd, FloatBinop, FloatRepresentation, Add, Float)
+  DECL_MULTI_REP_BINOP_V(FloatAdd, FloatBinop, Add, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Add, FloatBinop, Add, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Add, FloatBinop, Add, Float64)
-  DECL_MULTI_REP_BINOP_V(FloatMul, FloatBinop, FloatRepresentation, Mul, Float)
+  DECL_MULTI_REP_BINOP_V(FloatMul, FloatBinop, Mul, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Mul, FloatBinop, Mul, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Mul, FloatBinop, Mul, Float64)
-  DECL_MULTI_REP_BINOP_V(FloatSub, FloatBinop, FloatRepresentation, Sub, Float)
+  DECL_MULTI_REP_BINOP_V(FloatSub, FloatBinop, Sub, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Sub, FloatBinop, Sub, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Sub, FloatBinop, Sub, Float64)
-  DECL_MULTI_REP_BINOP_V(FloatDiv, FloatBinop, FloatRepresentation, Div, Float)
+  DECL_MULTI_REP_BINOP_V(FloatDiv, FloatBinop, Div, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Div, FloatBinop, Div, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Div, FloatBinop, Div, Float64)
-  DECL_MULTI_REP_BINOP_V(FloatMin, FloatBinop, FloatRepresentation, Min, Float)
+  DECL_MULTI_REP_BINOP_V(FloatMin, FloatBinop, Min, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Min, FloatBinop, Min, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Min, FloatBinop, Min, Float64)
-  DECL_MULTI_REP_BINOP_V(FloatMax, FloatBinop, FloatRepresentation, Max, Float)
+  DECL_MULTI_REP_BINOP_V(FloatMax, FloatBinop, Max, Float)
   DECL_SINGLE_REP_BINOP_V(Float32Max, FloatBinop, Max, Float32)
   DECL_SINGLE_REP_BINOP_V(Float64Max, FloatBinop, Max, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Mod, FloatBinop, Mod, Float64)
@@ -1646,7 +1644,7 @@ class TurboshaftAssemblerOpInterface
 #undef DECL_MULTI_REP_UNARY
 #undef DECL_MULTI_REP_UNARY_V
 
-  OpIndex WordBinopDeoptOnOverflow(OpIndex left, OpIndex right,
+  V<Word> WordBinopDeoptOnOverflow(V<Word> left, V<Word> right,
                                    V<turboshaft::FrameState> frame_state,
                                    WordBinopDeoptOnOverflowOp::Kind kind,
                                    WordRepresentation rep,

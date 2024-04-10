@@ -544,6 +544,12 @@ using WasmArrayNullable = Union<WasmArray, WasmNull>;
 using WasmStringRefNullable = Union<String, WasmNull>;
 #endif
 
+template <typename T>
+constexpr bool IsWord() {
+  return std::is_same_v<T, Word32> || std::is_same_v<T, Word64> ||
+         std::is_same_v<T, Word>;
+}
+
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
 // representation classes (`Word32`, ...) defined above.

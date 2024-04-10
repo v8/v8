@@ -1449,8 +1449,16 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
     return InputsRepFactory::PairOf(rep);
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  template <class WordType = Word,
+            typename = std::enable_if_t<IsWord<WordType>()>>
+  V<WordType> left() const {
+    return input<WordType>(0);
+  }
+  template <class WordType = Word,
+            typename = std::enable_if_t<IsWord<WordType>()>>
+  V<WordType> right() const {
+    return input<WordType>(1);
+  }
 
   bool IsCommutative() const { return IsCommutative(kind); }
 
@@ -1512,7 +1520,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
     }
   }
 
-  WordBinopOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
+  WordBinopOp(V<Word> left, V<Word> right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {}
@@ -1642,13 +1650,13 @@ struct WordBinopDeoptOnOverflowOp
     return InputsRepFactory::PairOf(rep);
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
-  OpIndex frame_state() const { return input(2); }
+  V<Word> left() const { return input<Word>(0); }
+  V<Word> right() const { return input<Word>(1); }
+  V<FrameState> frame_state() const { return input<FrameState>(2); }
 
-  WordBinopDeoptOnOverflowOp(OpIndex left, OpIndex right, OpIndex frame_state,
-                             Kind kind, WordRepresentation rep,
-                             FeedbackSource feedback,
+  WordBinopDeoptOnOverflowOp(V<Word> left, V<Word> right,
+                             V<FrameState> frame_state, Kind kind,
+                             WordRepresentation rep, FeedbackSource feedback,
                              CheckForMinusZeroMode mode)
       : Base(left, right, frame_state),
         kind(kind),
@@ -1694,8 +1702,8 @@ struct OverflowCheckedBinopOp
     return InputsRepFactory::PairOf(rep);
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  V<Word> left() const { return input<Word>(0); }
+  V<Word> right() const { return input<Word>(1); }
 
   static bool IsCommutative(Kind kind) {
     switch (kind) {
@@ -1707,7 +1715,7 @@ struct OverflowCheckedBinopOp
     }
   }
 
-  OverflowCheckedBinopOp(OpIndex left, OpIndex right, Kind kind,
+  OverflowCheckedBinopOp(V<Word> left, V<Word> right, Kind kind,
                          WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 

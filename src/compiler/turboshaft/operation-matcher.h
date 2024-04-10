@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_OPERATION_MATCHER_H_
 
 #include <limits>
+#include <type_traits>
 
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -246,18 +247,20 @@ class OperationMatcher {
     return true;
   }
 
-  bool MatchWordBinop(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchWordBinop(OpIndex matched, V<T>* left, V<T>* right,
                       WordBinopOp::Kind* kind, WordRepresentation* rep) const {
     const WordBinopOp* op = TryCast<WordBinopOp>(matched);
     if (!op) return false;
     *kind = op->kind;
-    *left = op->left();
-    *right = op->right();
+    *left = op->left<T>();
+    *right = op->right<T>();
     if (rep) *rep = op->rep;
     return true;
   }
 
-  bool MatchWordBinop(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchWordBinop(OpIndex matched, V<T>* left, V<T>* right,
                       WordBinopOp::Kind kind, WordRepresentation rep) const {
     const WordBinopOp* op = TryCast<WordBinopOp>(matched);
     if (!op || kind != op->kind) {
@@ -269,36 +272,41 @@ class OperationMatcher {
            op->rep == WordRepresentation::Word64()))) {
       return false;
     }
-    *left = op->left();
-    *right = op->right();
+    *left = op->left<T>();
+    *right = op->right<T>();
     return true;
   }
 
-  bool MatchWordAdd(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchWordAdd(OpIndex matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kAdd, rep);
   }
 
-  bool MatchWordSub(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchWordSub(OpIndex matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kSub, rep);
   }
 
-  bool MatchWordMul(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchWordMul(OpIndex matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kMul, rep);
   }
 
-  bool MatchBitwiseAnd(OpIndex matched, OpIndex* left, OpIndex* right,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchBitwiseAnd(OpIndex matched, V<T>* left, V<T>* right,
                        WordRepresentation rep) const {
     return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kBitwiseAnd,
                           rep);
   }
 
-  bool MatchBitwiseAndWithConstant(OpIndex matched, OpIndex* value,
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
+  bool MatchBitwiseAndWithConstant(OpIndex matched, V<T>* value,
                                    uint64_t* constant,
                                    WordRepresentation rep) const {
-    OpIndex left, right;
+    V<T> left, right;
     if (!MatchBitwiseAnd(matched, &left, &right, rep)) return false;
     if (MatchIntegralWordConstant(right, rep, constant)) {
       *value = left;
@@ -422,8 +430,9 @@ class OperationMatcher {
     return false;
   }
 
+  template <class T, typename = std::enable_if_t<IsWord<T>()>>
   bool MatchConstantShiftRightArithmeticShiftOutZeros(OpIndex matched,
-                                                      V<Word>* input,
+                                                      V<T>* input,
                                                       WordRepresentation rep,
                                                       uint16_t* amount) const {
     const ShiftOp* op = TryCast<ShiftOp>(matched);
@@ -432,7 +441,7 @@ class OperationMatcher {
         op->rep == rep &&
         MatchIntegralWord32Constant(op->right(), &rhs_constant) &&
         rhs_constant < static_cast<uint64_t>(rep.bit_width())) {
-      *input = V<Word>::Cast(op->left());
+      *input = V<T>::Cast(op->left());
       *amount = static_cast<uint16_t>(rhs_constant);
       return true;
     }

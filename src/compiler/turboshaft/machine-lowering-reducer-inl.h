@@ -1780,8 +1780,8 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(WordBinopDeoptOnOverflow)(
-      OpIndex left, OpIndex right, OpIndex frame_state,
+  V<Word> REDUCE(WordBinopDeoptOnOverflow)(
+      V<Word> left, V<Word> right, V<FrameState> frame_state,
       WordBinopDeoptOnOverflowOp::Kind kind, WordRepresentation rep,
       FeedbackSource feedback, CheckForMinusZeroMode mode) {
     switch (kind) {
@@ -1807,8 +1807,10 @@ class MachineLoweringReducer : public Next {
       }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedMul:
         if (rep == WordRepresentation::Word32()) {
+          V<Word32> left_w32 = V<Word32>::Cast(left);
+          V<Word32> right_w32 = V<Word32>::Cast(right);
           V<Tuple<Word32, Word32>> result =
-              __ Int32MulCheckOverflow(left, right);
+              __ Int32MulCheckOverflow(left_w32, right_w32);
           V<Word32> overflow = __ template Projection<1>(result);
           __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
                           feedback);
@@ -1817,7 +1819,7 @@ class MachineLoweringReducer : public Next {
           if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
             IF (__ Word32Equal(value, 0)) {
               __ DeoptimizeIf(
-                  __ Int32LessThan(__ Word32BitwiseOr(left, right), 0),
+                  __ Int32LessThan(__ Word32BitwiseOr(left_w32, right_w32), 0),
                   frame_state, DeoptimizeReason::kMinusZero, feedback);
             }
           }
@@ -1826,8 +1828,8 @@ class MachineLoweringReducer : public Next {
         } else {
           DCHECK_EQ(rep, WordRepresentation::Word64());
           DCHECK_EQ(mode, CheckForMinusZeroMode::kDontCheckForMinusZero);
-          V<Tuple<Word64, Word32>> result =
-              __ Int64MulCheckOverflow(left, right);
+          V<Tuple<Word64, Word32>> result = __ Int64MulCheckOverflow(
+              V<Word64>::Cast(left), V<Word64>::Cast(right));
 
           V<Word32> overflow = __ template Projection<1>(result);
           __ DeoptimizeIf(overflow, frame_state, DeoptimizeReason::kOverflow,
@@ -1836,48 +1838,50 @@ class MachineLoweringReducer : public Next {
         }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedDiv:
         if (rep == WordRepresentation::Word32()) {
+          V<Word32> left_w32 = V<Word32>::Cast(left);
+          V<Word32> right_w32 = V<Word32>::Cast(right);
           // Check if the {rhs} is a known power of two.
           int32_t divisor;
-          if (__ matcher().MatchPowerOfTwoWord32Constant(right, &divisor)) {
+          if (__ matcher().MatchPowerOfTwoWord32Constant(right_w32, &divisor)) {
             // Since we know that {rhs} is a power of two, we can perform a fast
             // check to see if the relevant least significant bits of the {lhs}
             // are all zero, and if so we know that we can perform a division
             // safely (and fast by doing an arithmetic - aka sign preserving -
             // right shift on {lhs}).
             V<Word32> check =
-                __ Word32Equal(__ Word32BitwiseAnd(left, divisor - 1), 0);
+                __ Word32Equal(__ Word32BitwiseAnd(left_w32, divisor - 1), 0);
             __ DeoptimizeIfNot(check, frame_state,
                                DeoptimizeReason::kLostPrecision, feedback);
             return __ Word32ShiftRightArithmeticShiftOutZeros(
-                left, base::bits::WhichPowerOfTwo(divisor));
+                left_w32, base::bits::WhichPowerOfTwo(divisor));
           } else {
             Label<Word32> done(this);
 
             // Check if {rhs} is positive (and not zero).
-            IF (__ Int32LessThan(0, right)) {
-              GOTO(done, __ Int32Div(left, right));
+            IF (__ Int32LessThan(0, right_w32)) {
+              GOTO(done, __ Int32Div(left_w32, right_w32));
             } ELSE {
               // Check if {rhs} is zero.
-              __ DeoptimizeIf(__ Word32Equal(right, 0), frame_state,
+              __ DeoptimizeIf(__ Word32Equal(right_w32, 0), frame_state,
                               DeoptimizeReason::kDivisionByZero, feedback);
 
               // Check if {lhs} is zero, as that would produce minus zero.
-              __ DeoptimizeIf(__ Word32Equal(left, 0), frame_state,
+              __ DeoptimizeIf(__ Word32Equal(left_w32, 0), frame_state,
                               DeoptimizeReason::kMinusZero, feedback);
 
               // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd
               // have to return -kMinInt, which is not representable as Word32.
-              IF (UNLIKELY(__ Word32Equal(left, kMinInt))) {
-                __ DeoptimizeIf(__ Word32Equal(right, -1), frame_state,
+              IF (UNLIKELY(__ Word32Equal(left_w32, kMinInt))) {
+                __ DeoptimizeIf(__ Word32Equal(right_w32, -1), frame_state,
                                 DeoptimizeReason::kOverflow, feedback);
               }
 
-              GOTO(done, __ Int32Div(left, right));
+              GOTO(done, __ Int32Div(left_w32, right_w32));
             }
 
             BIND(done, value);
             V<Word32> lossless =
-                __ Word32Equal(left, __ Word32Mul(value, right));
+                __ Word32Equal(left_w32, __ Word32Mul(value, right_w32));
             __ DeoptimizeIfNot(lossless, frame_state,
                                DeoptimizeReason::kLostPrecision, feedback);
             return value;
@@ -1885,21 +1889,25 @@ class MachineLoweringReducer : public Next {
         } else {
           DCHECK_EQ(rep, WordRepresentation::Word64());
           DCHECK(Is64());
+          V<Word64> left_w64 = V<Word64>::Cast(left);
+          V<Word64> right_w64 = V<Word64>::Cast(right);
 
-          __ DeoptimizeIf(__ Word64Equal(right, 0), frame_state,
+          __ DeoptimizeIf(__ Word64Equal(right_w64, 0), frame_state,
                           DeoptimizeReason::kDivisionByZero, feedback);
           // Check if {lhs} is kMinInt64 and {rhs} is -1, in which case we'd
           // have to return -kMinInt64, which is not representable as Word64.
-          IF (UNLIKELY(
-                  __ Word64Equal(left, std::numeric_limits<int64_t>::min()))) {
-            __ DeoptimizeIf(__ Word64Equal(right, int64_t{-1}), frame_state,
+          IF (UNLIKELY(__ Word64Equal(left_w64,
+                                      std::numeric_limits<int64_t>::min()))) {
+            __ DeoptimizeIf(__ Word64Equal(right_w64, int64_t{-1}), frame_state,
                             DeoptimizeReason::kOverflow, feedback);
           }
 
-          return __ Int64Div(left, right);
+          return __ Int64Div(left_w64, right_w64);
         }
       case WordBinopDeoptOnOverflowOp::Kind::kSignedMod:
         if (rep == WordRepresentation::Word32()) {
+          V<Word32> left_w32 = V<Word32>::Cast(left);
+          V<Word32> right_w32 = V<Word32>::Cast(right);
           // General case for signed integer modulus, with optimization for
           // (unknown) power of 2 right hand side.
           //
@@ -1922,27 +1930,27 @@ class MachineLoweringReducer : public Next {
           Label<Word32> done(this);
 
           // Check if {rhs} is not strictly positive.
-          IF (__ Int32LessThanOrEqual(right, 0)) {
+          IF (__ Int32LessThanOrEqual(right_w32, 0)) {
             // Negate {rhs}, might still produce a negative result in case of
             // -2^31, but that is handled safely below.
-            V<Word32> temp = __ Word32Sub(0, right);
+            V<Word32> temp = __ Word32Sub(0, right_w32);
 
             // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
             __ DeoptimizeIfNot(temp, frame_state,
                                DeoptimizeReason::kDivisionByZero, feedback);
             GOTO(rhs_checked, temp);
           } ELSE {
-            GOTO(rhs_checked, right);
+            GOTO(rhs_checked, right_w32);
           }
 
           BIND(rhs_checked, rhs_value);
 
-          IF (__ Int32LessThan(left, 0)) {
+          IF (__ Int32LessThan(left_w32, 0)) {
             // The {lhs} is a negative integer. This is very unlikely and
             // we intentionally don't use the BuildUint32Mod() here, which
             // would try to figure out whether {rhs} is a power of two,
             // since this is intended to be a slow-path.
-            V<Word32> temp = __ Uint32Mod(__ Word32Sub(0, left), rhs_value);
+            V<Word32> temp = __ Uint32Mod(__ Word32Sub(0, left_w32), rhs_value);
 
             // Check if we would have to return -0.
             __ DeoptimizeIf(__ Word32Equal(temp, 0), frame_state,
@@ -1950,7 +1958,7 @@ class MachineLoweringReducer : public Next {
             GOTO(done, __ Word32Sub(0, temp));
           } ELSE {
             // The {lhs} is a non-negative integer.
-            GOTO(done, BuildUint32Mod(left, rhs_value));
+            GOTO(done, BuildUint32Mod(left_w32, rhs_value));
           }
 
           BIND(done, result);
@@ -1958,47 +1966,52 @@ class MachineLoweringReducer : public Next {
         } else {
           DCHECK_EQ(rep, WordRepresentation::Word64());
           DCHECK(Is64());
+          V<Word64> left_w64 = V<Word64>::Cast(left);
+          V<Word64> right_w64 = V<Word64>::Cast(right);
 
-          __ DeoptimizeIf(__ Word64Equal(right, 0), frame_state,
+          __ DeoptimizeIf(__ Word64Equal(right_w64, 0), frame_state,
                           DeoptimizeReason::kDivisionByZero, feedback);
 
           // While the mod-result cannot overflow, the underlying instruction is
           // `idiv` and will trap when the accompanying div-result overflows.
-          IF (UNLIKELY(
-                  __ Word64Equal(left, std::numeric_limits<int64_t>::min()))) {
-            __ DeoptimizeIf(__ Word64Equal(right, int64_t{-1}), frame_state,
+          IF (UNLIKELY(__ Word64Equal(left_w64,
+                                      std::numeric_limits<int64_t>::min()))) {
+            __ DeoptimizeIf(__ Word64Equal(right_w64, int64_t{-1}), frame_state,
                             DeoptimizeReason::kOverflow, feedback);
           }
 
-          return __ Int64Mod(left, right);
+          return __ Int64Mod(left_w64, right_w64);
         }
       case WordBinopDeoptOnOverflowOp::Kind::kUnsignedDiv: {
         DCHECK_EQ(rep, WordRepresentation::Word32());
+        V<Word32> left_w32 = V<Word32>::Cast(left);
+        V<Word32> right_w32 = V<Word32>::Cast(right);
 
         // Check if the {rhs} is a known power of two.
         int32_t divisor;
-        if (__ matcher().MatchPowerOfTwoWord32Constant(right, &divisor)) {
+        if (__ matcher().MatchPowerOfTwoWord32Constant(right_w32, &divisor)) {
           // Since we know that {rhs} is a power of two, we can perform a fast
           // check to see if the relevant least significant bits of the {lhs}
           // are all zero, and if so we know that we can perform a division
           // safely (and fast by doing a logical - aka zero extending - right
           // shift on {lhs}).
           V<Word32> check =
-              __ Word32Equal(__ Word32BitwiseAnd(left, divisor - 1), 0);
+              __ Word32Equal(__ Word32BitwiseAnd(left_w32, divisor - 1), 0);
           __ DeoptimizeIfNot(check, frame_state,
                              DeoptimizeReason::kLostPrecision, feedback);
           return __ Word32ShiftRightLogical(
-              left, base::bits::WhichPowerOfTwo(divisor));
+              left_w32, base::bits::WhichPowerOfTwo(divisor));
         } else {
           // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-          __ DeoptimizeIf(__ Word32Equal(right, 0), frame_state,
+          __ DeoptimizeIf(__ Word32Equal(right_w32, 0), frame_state,
                           DeoptimizeReason::kDivisionByZero, feedback);
 
           // Perform the actual unsigned integer division.
-          V<Word32> value = __ Uint32Div(left, right);
+          V<Word32> value = __ Uint32Div(left_w32, right_w32);
 
           // Check if the remainder is non-zero.
-          V<Word32> lossless = __ Word32Equal(left, __ Word32Mul(right, value));
+          V<Word32> lossless =
+              __ Word32Equal(left_w32, __ Word32Mul(right_w32, value));
           __ DeoptimizeIfNot(lossless, frame_state,
                              DeoptimizeReason::kLostPrecision, feedback);
           return value;
@@ -2006,11 +2019,14 @@ class MachineLoweringReducer : public Next {
       }
       case WordBinopDeoptOnOverflowOp::Kind::kUnsignedMod: {
         DCHECK_EQ(rep, WordRepresentation::Word32());
+        V<Word32> left_w32 = V<Word32>::Cast(left);
+        V<Word32> right_w32 = V<Word32>::Cast(right);
+
         // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-        __ DeoptimizeIf(__ Word32Equal(right, 0), frame_state,
+        __ DeoptimizeIf(__ Word32Equal(right_w32, 0), frame_state,
                         DeoptimizeReason::kDivisionByZero, feedback);
 
-        return BuildUint32Mod(left, right);
+        return BuildUint32Mod(left_w32, right_w32);
       }
     }
   }

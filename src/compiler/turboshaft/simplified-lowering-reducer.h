@@ -38,9 +38,7 @@ class SimplifiedLoweringReducer : public Next {
     V<Word32> right = ProcessInput(Map(op.right()), Rep::Word32(),
                                    CheckKind::kSigned32, frame_state);
 
-    V<Tuple<Word32, Word32>> result = __ OverflowCheckedBinop(
-        left, right, OverflowCheckedBinopOp::Kind::kSignedAdd,
-        WordRepresentation::Word32());
+    V<Tuple<Word32, Word32>> result = __ Int32AddCheckOverflow(left, right);
 
     V<Word32> overflow = __ template Projection<1>(result);
     __ DeoptimizeIf(overflow, Map(op.frame_state()),

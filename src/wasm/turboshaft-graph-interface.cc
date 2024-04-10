@@ -1846,10 +1846,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Map> map = __ LoadMapField(V<Object>::Cast(receiver));
 
     // Clear the weak bit.
-    cached_map = __ BitcastWordPtrToTagged(
-        __ WordBitwiseAnd(__ BitcastTaggedToWordPtr(cached_map),
-                          __ IntPtrConstant(~kWeakHeapObjectMask),
-                          WordRepresentation::WordPtr()));
+    cached_map = __ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
+        __ BitcastTaggedToWordPtr(cached_map), ~kWeakHeapObjectMask));
     GOTO_IF(__ TaggedEqual(map, cached_map), if_equal_maps);
     GOTO(if_unknown_receiver);
 

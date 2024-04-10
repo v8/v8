@@ -79,10 +79,10 @@ class StaticCanonicalForLoopMatcher {
   bool MatchPhiCompareCst(OpIndex cond_idx,
                           StaticCanonicalForLoopMatcher::CmpOp* cmp_op,
                           OpIndex* phi, uint64_t* cst) const;
-  bool MatchCheckedOverflowBinop(OpIndex idx, OpIndex* left, OpIndex* right,
+  bool MatchCheckedOverflowBinop(OpIndex idx, V<Word>* left, V<Word>* right,
                                  BinOp* binop_op,
                                  WordRepresentation* binop_rep) const;
-  bool MatchWordBinop(OpIndex idx, OpIndex* left, OpIndex* right,
+  bool MatchWordBinop(OpIndex idx, V<Word>* left, V<Word>* right,
                       BinOp* binop_op, WordRepresentation* binop_rep) const;
   bool HasFewIterations(uint64_t equal_cst, CmpOp cmp_op,
                         uint64_t initial_input, uint64_t binop_cst,

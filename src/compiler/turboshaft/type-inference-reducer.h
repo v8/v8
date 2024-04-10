@@ -337,9 +337,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
-    OpIndex index = Next::ReduceWordBinop(left, right, kind, rep);
+    V<Word> index = Next::ReduceWordBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
     Type type = Typer::TypeWordBinop(GetType(left), GetType(right), kind, rep,
@@ -348,7 +348,7 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
+  OpIndex REDUCE(OverflowCheckedBinop)(V<Word> left, V<Word> right,
                                        OverflowCheckedBinopOp::Kind kind,
                                        WordRepresentation rep) {
     OpIndex index = Next::ReduceOverflowCheckedBinop(left, right, kind, rep);

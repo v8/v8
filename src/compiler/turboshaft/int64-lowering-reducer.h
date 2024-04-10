@@ -37,22 +37,27 @@ class Int64LoweringReducer : public Next {
     InitializeIndexMaps();
   }
 
-  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+  V<Word> REDUCE(WordBinop)(V<Word> left, V<Word> right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
     if (rep == WordRepresentation::Word64()) {
+      V<Word64> left_w64 = V<Word64>::Cast(left);
+      V<Word64> right_w64 = V<Word64>::Cast(right);
       switch (kind) {
         case WordBinopOp::Kind::kAdd:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kAdd);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kAdd);
         case WordBinopOp::Kind::kSub:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kSub);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kSub);
         case WordBinopOp::Kind::kMul:
-          return LowerPairBinOp(left, right, Word32PairBinopOp::Kind::kMul);
+          return LowerPairBinOp(left_w64, right_w64,
+                                Word32PairBinopOp::Kind::kMul);
         case WordBinopOp::Kind::kBitwiseAnd:
-          return LowerBitwiseAnd(left, right);
+          return LowerBitwiseAnd(left_w64, right_w64);
         case WordBinopOp::Kind::kBitwiseOr:
-          return LowerBitwiseOr(left, right);
+          return LowerBitwiseOr(left_w64, right_w64);
         case WordBinopOp::Kind::kBitwiseXor:
-          return LowerBitwiseXor(left, right);
+          return LowerBitwiseXor(left_w64, right_w64);
         default:
           FATAL("WordBinopOp kind %d not supported by int64 lowering",
                 static_cast<int>(kind));
