@@ -3499,9 +3499,10 @@ struct DeoptimizeOp : FixedArityOperationT<1, DeoptimizeOp> {
     return {};
   }
 
-  OpIndex frame_state() const { return input(0); }
+  V<FrameState> frame_state() const { return input<FrameState>(0); }
 
-  DeoptimizeOp(OpIndex frame_state, const DeoptimizeParameters* parameters)
+  DeoptimizeOp(V<FrameState> frame_state,
+               const DeoptimizeParameters* parameters)
       : Base(frame_state), parameters(parameters) {}
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
@@ -3521,10 +3522,10 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex condition() const { return input(0); }
-  OpIndex frame_state() const { return input(1); }
+  V<Word32> condition() const { return input<Word32>(0); }
+  V<FrameState> frame_state() const { return input<FrameState>(1); }
 
-  DeoptimizeIfOp(OpIndex condition, OpIndex frame_state, bool negated,
+  DeoptimizeIfOp(V<Word32> condition, V<FrameState> frame_state, bool negated,
                  const DeoptimizeParameters* parameters)
       : Base(condition, frame_state),
         negated(negated),
@@ -3566,12 +3567,13 @@ struct TrapIfOp : OperationT<TrapIfOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex condition() const { return input(0); }
-  OptionalOpIndex frame_state() const {
-    return input_count > 1 ? input(1) : OpIndex::Invalid();
+  V<Word32> condition() const { return input<Word32>(0); }
+  OptionalV<FrameState> frame_state() const {
+    return input_count > 1 ? input<FrameState>(1)
+                           : OptionalV<FrameState>::Nullopt();
   }
 
-  TrapIfOp(OpIndex condition, OptionalOpIndex frame_state, bool negated,
+  TrapIfOp(V<Word32> condition, OptionalV<FrameState> frame_state, bool negated,
            const TrapId trap_id)
       : Base(1 + frame_state.valid()), negated(negated), trap_id(trap_id) {
     input(0) = condition;
@@ -3586,8 +3588,8 @@ struct TrapIfOp : OperationT<TrapIfOp> {
               trap_id);
   }
 
-  static TrapIfOp& New(Graph* graph, OpIndex condition,
-                       OptionalOpIndex frame_state, bool negated,
+  static TrapIfOp& New(Graph* graph, V<Word32> condition,
+                       OptionalV<FrameState> frame_state, bool negated,
                        const TrapId trap_id) {
     return Base::New(graph, 1 + frame_state.valid(), condition, frame_state,
                      negated, trap_id);

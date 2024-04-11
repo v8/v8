@@ -1544,7 +1544,7 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::Deopt* node,
                                 const maglev::ProcessingState& state) {
-    OpIndex frame_state = BuildFrameState(node->eager_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
     __ Deoptimize(frame_state, node->reason(),
                   node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;

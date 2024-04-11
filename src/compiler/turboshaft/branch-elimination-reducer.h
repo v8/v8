@@ -373,7 +373,7 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
                                bool negated,
                                const DeoptimizeParameters* parameters) {
     LABEL_BLOCK(no_change) {
@@ -393,12 +393,12 @@ class BranchEliminationReducer : public Next {
       return Next::ReduceDeoptimize(frame_state, parameters);
     } else {
       // The condition is false, so we never deoptimize.
-      return OpIndex::Invalid();
+      return V<None>::Invalid();
     }
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+  V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
                          bool negated, const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
@@ -415,13 +415,13 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    OpIndex static_condition = __ Word32Constant(*condition_value);
+    V<Word32> static_condition = __ Word32Constant(*condition_value);
     if (negated) {
       __ TrapIfNot(static_condition, frame_state, trap_id);
     } else {
       __ TrapIf(static_condition, frame_state, trap_id);
     }
-    return OpIndex::Invalid();
+    return V<None>::Invalid();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

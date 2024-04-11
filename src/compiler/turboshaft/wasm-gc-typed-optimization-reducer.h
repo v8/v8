@@ -165,8 +165,7 @@ class WasmGCTypedOptimizationReducer : public Next {
                                                               cast_op.object()),
                                                           type)
                                               : __ Word32Constant(0);
-        __ TrapIfNot(non_trapping_condition, OpIndex::Invalid(),
-                     TrapId::kTrapIllegalCast);
+        __ TrapIfNot(non_trapping_condition, {}, TrapId::kTrapIllegalCast);
         if (!to_nullable) {
           __ Unreachable();
         }

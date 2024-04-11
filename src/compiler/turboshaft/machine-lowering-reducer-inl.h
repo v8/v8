@@ -58,7 +58,7 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(ChangeOrDeopt)(OpIndex input, OpIndex frame_state,
+  OpIndex REDUCE(ChangeOrDeopt)(OpIndex input, V<FrameState> frame_state,
                                 ChangeOrDeoptOp::Kind kind,
                                 CheckForMinusZeroMode minus_zero_mode,
                                 const FeedbackSource& feedback) {
@@ -144,7 +144,7 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
                                bool negated,
                                const DeoptimizeParameters* parameters) {
     LABEL_BLOCK(no_change) {
@@ -2674,7 +2674,8 @@ class MachineLoweringReducer : public Next {
     return CompareMapAgainstMultipleMaps(__ LoadMapField(heap_object), maps);
   }
 
-  OpIndex REDUCE(CheckMaps)(V<HeapObject> heap_object, OpIndex frame_state,
+  OpIndex REDUCE(CheckMaps)(V<HeapObject> heap_object,
+                            V<FrameState> frame_state,
                             const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
     if (maps.is_empty()) {
@@ -2918,7 +2919,7 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Object> REDUCE(CheckedClosure)(V<Object> input, OpIndex frame_state,
+  V<Object> REDUCE(CheckedClosure)(V<Object> input, V<FrameState> frame_state,
                                    Handle<FeedbackCell> feedback_cell) {
     // Check that {input} is actually a JSFunction.
     V<Map> map = __ LoadMapField(input);
@@ -2941,7 +2942,7 @@ class MachineLoweringReducer : public Next {
 
   OpIndex REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
                                                 V<Object> value,
-                                                OpIndex frame_state) {
+                                                V<FrameState> frame_state) {
     Label<> done(this);
     // Check if {expected} and {value} are the same, which is the likely case.
     GOTO_IF(LIKELY(__ TaggedEqual(expected, value)), done);
@@ -3069,7 +3070,7 @@ class MachineLoweringReducer : public Next {
   V<Object> REDUCE(MaybeGrowFastElements)(V<Object> object, V<Object> elements,
                                           V<Word32> index,
                                           V<Word32> elements_length,
-                                          OpIndex frame_state,
+                                          V<FrameState> frame_state,
                                           GrowFastElementsMode mode,
                                           const FeedbackSource& feedback) {
     Label<Object> done(this);
@@ -3272,7 +3273,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(
-      V<Object> heap_object, OpIndex frame_state,
+      V<Object> heap_object, V<FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind input_kind,
       const FeedbackSource& feedback) {
     V<Map> map = __ LoadMapField(heap_object);
@@ -3335,7 +3336,7 @@ class MachineLoweringReducer : public Next {
   }
 
   void MigrateInstanceOrDeopt(V<HeapObject> heap_object, V<Map> heap_object_map,
-                              OpIndex frame_state,
+                              V<FrameState> frame_state,
                               const FeedbackSource& feedback) {
     // If {heap_object_map} is not deprecated, the migration attempt does not
     // make sense.

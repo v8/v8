@@ -27,6 +27,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
@@ -1571,6 +1572,11 @@ class MachineOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceShift(left, right, kind, rep);
     }
+
+    if (rep == WordRepresentation::Word32()) {
+      left = TryRemoveWord32ToWord64Conversion(left);
+    }
+
     using Kind = ShiftOp::Kind;
     uint64_t c_unsigned;
     int64_t c_signed;
@@ -1730,7 +1736,7 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
                                bool negated,
                                const DeoptimizeParameters* parameters) {
     if (ShouldSkipOptimizationStep()) {
@@ -1744,7 +1750,7 @@ class MachineOptimizationReducer : public Next {
       // `DeoptimizeIf` doesn't produce a value.
       return OpIndex::Invalid();
     }
-    if (base::Optional<OpIndex> new_condition =
+    if (base::Optional<V<Word32>> new_condition =
             ReduceBranchCondition(condition, &negated)) {
       return __ ReduceDeoptimizeIf(new_condition.value(), frame_state, negated,
                                    parameters);
@@ -1755,7 +1761,7 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+  V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
                          bool negated, TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
@@ -1767,9 +1773,9 @@ class MachineOptimizationReducer : public Next {
         __ Unreachable();
       }
       // `TrapIf` doesn't produce a value.
-      return OpIndex::Invalid();
+      return V<None>::Invalid();
     }
-    if (base::Optional<OpIndex> new_condition =
+    if (base::Optional<V<Word32>> new_condition =
             ReduceBranchCondition(condition, &negated)) {
       return __ ReduceTrapIf(new_condition.value(), frame_state, negated,
                              trap_id);
@@ -2474,13 +2480,12 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  base::Optional<V<Word>> ReduceBranchCondition(V<Word> condition,
-                                                bool* negated) {
+  base::Optional<V<Word32>> ReduceBranchCondition(V<Word32> condition,
+                                                  bool* negated) {
     // TODO(dmercadier): consider generalizing this function both Word32 and
     // Word64.
     bool reduced = false;
     while (true) {
-      condition = TryRemoveWord32ToWord64Conversion(condition);
       // x == 0  =>  x with flipped branches
       if (V<Word32> left, right;
           matcher.MatchEqual(condition, &left, &right,
@@ -2552,7 +2557,7 @@ class MachineOptimizationReducer : public Next {
       }
       break;
     }
-    return reduced ? base::Optional<V<Word>>(condition) : base::nullopt;
+    return reduced ? base::Optional<V<Word32>>(condition) : base::nullopt;
   }
 
   base::Optional<bool> MatchBoolConstant(OpIndex condition) {

@@ -1370,7 +1370,7 @@ OpIndex GraphBuilder::Process(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
-      OpIndex frame_state = Map(node->InputAt(0));
+      V<FrameState> frame_state = Map(node->InputAt(0));
       __ Deoptimize(frame_state, &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
     }
