@@ -1088,9 +1088,9 @@ class GraphBuilder {
         node->check_type() == maglev::CheckType::kCheckHeapObject
             ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
             : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
-    V<Word32> condition = __ TruncateJSPrimitiveToUntagged(
+    V<Word32> condition = V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
         Map(node->condition_input()),
-        TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit, assumption);
+        TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit, assumption));
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
@@ -1365,9 +1365,9 @@ class GraphBuilder {
         node->check_type() == maglev::CheckType::kCheckHeapObject
             ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
             : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
-    V<Word32> condition = __ TruncateJSPrimitiveToUntagged(
+    V<Word32> condition = V<Word32>::Cast(__ TruncateJSPrimitiveToUntagged(
         Map(node->value()), TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
-        assumption);
+        assumption));
     SetMap(node, ConvertWord32ToJSBool(condition, /*flip*/ true));
     return maglev::ProcessResult::kContinue;
   }

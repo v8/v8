@@ -1316,8 +1316,8 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(TruncateJSPrimitiveToUntagged)(
-      V<Object> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,
+  V<Word> REDUCE(TruncateJSPrimitiveToUntagged)(
+      V<JSPrimitive> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     switch (kind) {
       case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32: {
@@ -1469,8 +1469,8 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(TruncateJSPrimitiveToUntaggedOrDeopt)(
-      V<Object> input, OpIndex frame_state,
+  V<Word> REDUCE(TruncateJSPrimitiveToUntaggedOrDeopt)(
+      V<JSPrimitive> input, V<FrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
           input_requirement,

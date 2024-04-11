@@ -1835,15 +1835,15 @@ class TurboshaftAssemblerOpInterface
         CheckForMinusZeroMode::kDontCheckForMinusZero, feedback));
   }
 
-  OpIndex TruncateJSPrimitiveToUntagged(
-      V<Object> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,
+  V<Word> TruncateJSPrimitiveToUntagged(
+      V<JSPrimitive> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     return ReduceIfReachableTruncateJSPrimitiveToUntagged(object, kind,
                                                           input_assumptions);
   }
 
-  OpIndex TruncateJSPrimitiveToUntaggedOrDeopt(
-      V<Object> object, V<turboshaft::FrameState> frame_state,
+  V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
+      V<JSPrimitive> object, V<turboshaft::FrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
           input_requirement,

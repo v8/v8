@@ -4700,9 +4700,9 @@ struct TruncateJSPrimitiveToUntaggedOp
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<JSPrimitive> input() const { return Base::input<JSPrimitive>(0); }
 
-  TruncateJSPrimitiveToUntaggedOp(OpIndex input, UntaggedKind kind,
+  TruncateJSPrimitiveToUntaggedOp(V<JSPrimitive> input, UntaggedKind kind,
                                   InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
   void Validate(const Graph& graph) const {
@@ -4740,10 +4740,11 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<JSPrimitive> input() const { return Base::input<JSPrimitive>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  TruncateJSPrimitiveToUntaggedOrDeoptOp(OpIndex input, OpIndex frame_state,
+  TruncateJSPrimitiveToUntaggedOrDeoptOp(V<JSPrimitive> input,
+                                         V<FrameState> frame_state,
                                          UntaggedKind kind,
                                          InputRequirement input_requirement,
                                          const FeedbackSource& feedback)
