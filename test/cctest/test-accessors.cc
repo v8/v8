@@ -208,11 +208,26 @@ static void XGetter(Local<Name> name,
 static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_receiver_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.Holder())
+            ->Equals(isolate->GetCurrentContext(),
+                     info.HolderSoonToBeDeprecated())
             .FromJust());
   XGetter(info, 1);
 }
 
+template <typename Info>
+Local<v8::Object> GetHolder(const Info& info);
+
+template <>
+Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
+    const v8::PropertyCallbackInfo<void>& info) {
+  return info.Holder();
+}
+
+template <>
+Local<v8::Object> GetHolder<v8::FunctionCallbackInfo<v8::Value>>(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  return info.HolderSoonToBeDeprecated();
+}
 
 template<class Info>
 static void XSetter(Local<Value> value, const Info& info, int offset) {
@@ -222,7 +237,7 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
             ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   CHECK(x_holder_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.Holder())
+            ->Equals(isolate->GetCurrentContext(), GetHolder(info))
             .FromJust());
   x_register[offset] =
       value->Int32Value(isolate->GetCurrentContext()).FromJust();

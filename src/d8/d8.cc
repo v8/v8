@@ -2896,7 +2896,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Initialize the embedder field to 0; if we return early without
   // creating a new Worker (because the main thread is terminating) we can
   // early-out from the instance calls.
-  info.Holder()->SetInternalField(0, v8::Integer::New(isolate, 0));
+  info.This()->SetInternalField(0, v8::Integer::New(isolate, 0));
 
   {
     // Don't allow workers to create more workers if the main thread
@@ -2920,7 +2920,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
     i::Handle<i::Object> managed = i::Managed<Worker>::FromSharedPtr(
         i_isolate, kWorkerSizeEstimate, worker);
-    info.Holder()->SetInternalField(0, Utils::ToLocal(managed));
+    info.This()->SetInternalField(0, Utils::ToLocal(managed));
     base::Thread::Priority priority =
         options.apply_priority ? base::Thread::Priority::kUserBlocking
                                : base::Thread::Priority::kDefault;
@@ -2942,7 +2942,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   std::shared_ptr<Worker> worker =
-      GetWorkerFromInternalField(isolate, info.Holder());
+      GetWorkerFromInternalField(isolate, info.This());
   if (!worker.get()) {
     return;
   }
@@ -2962,7 +2962,7 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
-      GetWorkerFromInternalField(isolate, info.Holder());
+      GetWorkerFromInternalField(isolate, info.This());
   if (!worker.get()) {
     return;
   }
@@ -2981,7 +2981,7 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
-      GetWorkerFromInternalField(isolate, info.Holder());
+      GetWorkerFromInternalField(isolate, info.This());
   if (!worker.get()) return;
   worker->Terminate();
 }
@@ -2992,7 +2992,7 @@ void Shell::WorkerTerminateAndWait(
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
   std::shared_ptr<Worker> worker =
-      GetWorkerFromInternalField(isolate, info.Holder());
+      GetWorkerFromInternalField(isolate, info.This());
   if (!worker.get()) {
     return;
   }
