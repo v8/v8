@@ -6374,6 +6374,21 @@ bool v8::V8::Initialize(const int build_config) {
         V8_ENABLE_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
   }
 
+  const bool kEmbedderTargetOsIsAndroid =
+      (build_config & kTargetOsIsAndroid) != 0;
+#ifdef V8_TARGET_OS_ANDROID
+  const bool kV8TargetOsIsAndroid = true;
+#else
+  const bool kV8TargetOsIsAndroid = false;
+#endif
+  if (kEmbedderTargetOsIsAndroid != kV8TargetOsIsAndroid) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "target OS is %s while on V8 side it's %s.",
+        kEmbedderTargetOsIsAndroid ? "Android" : "not Android",
+        kV8TargetOsIsAndroid ? "Android" : "not Android");
+  }
+
   i::V8::Initialize();
   return true;
 }
