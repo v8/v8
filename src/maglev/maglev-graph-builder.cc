@@ -7071,6 +7071,7 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
 
 ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
     compiler::JSFunctionRef target, CallArguments& args) {
+  // TODO(jialu): optimize for heap const receiver.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return ReduceResult::Fail();
   }
