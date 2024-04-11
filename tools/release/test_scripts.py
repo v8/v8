@@ -806,9 +806,6 @@ Merged: Revert \"Something\"
 Revision: ab56789
 
 BUG=123,234,345,456,567,v8:123
-NOTRY=true
-NOPRESUBMIT=true
-NOTREECHECKS=true
 """
 
     def VerifyLand():
