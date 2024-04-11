@@ -102,12 +102,6 @@ asm(
     "  add $48, %rsp                                    \n"
     // Restore rbp as it was used as frame pointer.
     "  pop %rbp                                         \n"
-    "  ret                                              \n"
-#if !defined(__APPLE__)
-    ".Lfunc_end0:                                       \n"
-    ".size PushAllRegistersAndIterateStack, "
-    ".Lfunc_end0-PushAllRegistersAndIterateStack        \n"
-#endif
-    );
+    "  ret                                              \n");
 
 #endif  // !_WIN64
