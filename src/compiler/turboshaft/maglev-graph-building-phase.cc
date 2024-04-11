@@ -350,20 +350,28 @@ class GraphBuilder {
 
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CallBuiltin* node,
-                                const maglev::ProcessingState& state) {
+  V<Any> GenerateBuiltinCall(maglev::NodeBase* node, Builtin builtin,
+                             V<FrameState> frame_state,
+                             base::Vector<const OpIndex> arguments) {
     ThrowingScope throwing_scope(this, node);
 
-    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
-    Callable callable = Builtins::CallableFor(
-        isolate_->GetMainThreadIsolateUnsafe(), node->builtin());
+    Callable callable =
+        Builtins::CallableFor(isolate_->GetMainThreadIsolateUnsafe(), builtin);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
         graph_zone(), descriptor, descriptor.GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState);
     V<Code> stub_code = __ HeapConstant(callable.code());
-    base::SmallVector<OpIndex, 16> arguments;
 
+    return __ Call(stub_code, frame_state, base::VectorOf(arguments),
+                   TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                                            graph_zone()));
+  }
+  maglev::ProcessResult Process(maglev::CallBuiltin* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    base::SmallVector<OpIndex, 16> arguments;
     for (int i = 0; i < node->InputCountWithoutContext(); i++) {
       arguments.push_back(Map(node->input(i)));
     }
@@ -378,9 +386,8 @@ class GraphBuilder {
       arguments.push_back(Map(node->context_input()));
     }
 
-    SetMap(node, __ Call(stub_code, frame_state, base::VectorOf(arguments),
-                         TSCallDescriptor::Create(
-                             call_descriptor, CanThrow::kYes, graph_zone())));
+    SetMap(node, GenerateBuiltinCall(node, node->builtin(), frame_state,
+                                     base::VectorOf(arguments)));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -483,6 +490,35 @@ class GraphBuilder {
                          TSCallDescriptor::Create(
                              call_descriptor, CanThrow::kYes, graph_zone())));
 
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::SetKeyedGeneric* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {Map(node->object_input()),
+                           Map(node->key_input()),
+                           Map(node->value_input()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kKeyedStoreIC, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::GetKeyedGeneric* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {Map(node->object_input()), Map(node->key_input()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kKeyedLoadIC, frame_state,
+                                     base::VectorOf(arguments)));
     return maglev::ProcessResult::kContinue;
   }
 

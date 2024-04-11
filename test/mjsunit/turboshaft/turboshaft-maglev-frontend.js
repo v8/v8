@@ -972,3 +972,18 @@ assertOptimized(simple_loop);
   // This time the hole is converted to undefined without deopting.
   assertOptimized(ret_from_holey_arr);
 }
+
+// Testing SetKeyedGeneric and GetKeyedGeneric.
+{
+  function generic_key(arr, i, j) {
+    arr[i] = 45;
+    return arr[j];
+  }
+
+  let arr = new Int32Array(42);
+
+  %PrepareFunctionForOptimization(generic_key);
+  assertEquals(undefined, generic_key(arr, -123456, -45896));
+  %OptimizeFunctionOnNextCall(generic_key);
+  assertEquals(undefined, generic_key(arr, -123456, -45896));
+}
