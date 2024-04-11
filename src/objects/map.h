@@ -9,6 +9,7 @@
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/internal-index.h"

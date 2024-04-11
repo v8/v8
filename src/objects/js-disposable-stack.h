@@ -7,7 +7,6 @@
 
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"
 
