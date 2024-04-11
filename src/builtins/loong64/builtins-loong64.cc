@@ -3060,8 +3060,8 @@ void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
       kWasmEntrypointTag);
 #else
   Register code = call_target;
-  __ Ld_d(code,
-          FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
+  __ LoadTaggedField(
+      code, FieldMemOperand(api_function_ref, WasmApiFunctionRef::kCodeOffset));
   __ Ld_d(call_target, FieldMemOperand(code, Code::kInstructionStartOffset));
 #endif
   __ Jump(call_target);
