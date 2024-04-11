@@ -69,7 +69,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSubOvf:
     case kRiscvSub32:
 #endif
-#ifdef CAN_USE_ZBA_INSTRUCTIONS
     case kRiscvSh1add:
     case kRiscvSh2add:
     case kRiscvSh3add:
@@ -80,8 +79,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSh3adduw:
     case kRiscvSlliuw:
 #endif
-#endif
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
     case kRiscvAndn:
     case kRiscvOrn:
     case kRiscvXnor:
@@ -101,8 +98,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSexth:
     case kRiscvZexth:
     case kRiscvRev8:
-#endif
-#ifdef CAN_USE_ZBS_INSTRUCTIONS
     case kRiscvBclr:
     case kRiscvBclri:
     case kRiscvBext:
@@ -111,7 +106,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvBinvi:
     case kRiscvBset:
     case kRiscvBseti:
-#endif
     case kRiscvAbsD:
     case kRiscvAbsS:
     case kRiscvAddD:

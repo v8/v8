@@ -1384,7 +1384,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
 #endif
-#ifdef CAN_USE_ZBB_INSTRUCTIONS
     case kRiscvRev8:
       __ rev8(i.OutputRegister(), i.InputRegister(0));
       break;
@@ -1438,7 +1437,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvZexth:
       __ zexth(i.OutputRegister(), i.InputRegister(0));
       break;
-#endif
     case kRiscvTst32:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       __ Sll32(kScratchReg, kScratchReg, 0x0);

@@ -46,30 +46,40 @@
 namespace v8 {
 namespace internal {
 // Get the CPU features enabled by the build. For cross compilation the
-// preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
+// preprocessor symbols __riscv_f and __riscv_d
 // can be defined to enable FPU instructions when building the
 // snapshot.
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
-#ifdef CAN_USE_FPU_INSTRUCTIONS
+#if defined(__riscv_f) && defined(__riscv_d)
   answer |= 1u << FPU;
-#endif  // def CAN_USE_FPU_INSTRUCTIONS
+#endif  // def __riscv_f
 
-#if (defined CAN_USE_RVV_INSTRUCTIONS)
+#if (defined __riscv_vector) && (__riscv_v >= 1000000)
   answer |= 1u << RISCV_SIMD;
 #endif  // def CAN_USE_RVV_INSTRUCTIONS
 
-#if (defined CAN_USE_ZBA_INSTRUCTIONS)
+#if (defined __riscv_zba)
   answer |= 1u << ZBA;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zba
 
-#if (defined CAN_USE_ZBB_INSTRUCTIONS)
+#if (defined __riscv_zbb)
   answer |= 1u << ZBB;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zbb
 
-#if (defined CAN_USE_ZBS_INSTRUCTIONS)
+#if (defined __riscv_zbs)
   answer |= 1u << ZBS;
-#endif  // def CAN_USE_ZBA_INSTRUCTIONS
+#endif  // def __riscv_zbs
+  return answer;
+}
+
+static unsigned SimulatorFeatures() {
+  unsigned answer = 0;
+  answer |= 1u << RISCV_SIMD;
+  answer |= 1u << ZBA;
+  answer |= 1u << ZBB;
+  answer |= 1u << ZBS;
+  answer |= 1u << FPU;
   return answer;
 }
 
@@ -80,6 +90,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
   // Probe for additional features at runtime.
+
+#ifdef USE_SIMULATOR
+  supported_ |= SimulatorFeatures();
+#else
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
@@ -88,7 +102,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     FATAL("SV57 is not supported");
     UNIMPLEMENTED();
   }
-#endif
+#endif  // V8_COMPRESS_POINTERS
+#endif  // USE_SIMULATOR
   // Set a static value on whether SIMD is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
@@ -99,6 +114,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf("supports_wasm_simd_128=%d\n", CpuFeatures::SupportsWasmSimd128());
+  printf("zba=%d,zbb=%d,zbs=%d\n", CpuFeatures::IsSupported(ZBA),
+         CpuFeatures::IsSupported(ZBB), CpuFeatures::IsSupported(ZBS));
 }
 int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
