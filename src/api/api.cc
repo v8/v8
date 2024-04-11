@@ -4737,11 +4737,28 @@ Local<Value> v8::Object::GetPrototype() {
   return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
 }
 
-Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
-                                     Local<Value> value) {
-  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+Local<Value> v8::Object::GetPrototypeV2() {
   auto self = Utils::OpenHandle(this);
+  auto i_isolate = self->GetIsolate();
+  i::PrototypeIterator iter(i_isolate, self);
+  if (i::IsJSGlobalProxy(*self)) {
+    // Skip hidden prototype (i.e. JSGlobalObject).
+    iter.Advance();
+  }
+  DCHECK(!i::IsJSGlobalObject(*i::PrototypeIterator::GetCurrent(iter)));
+  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
+}
+
+namespace {
+
+Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
+                             Local<Value> value, bool from_javascript) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  auto self = Utils::OpenHandle(this_);
   auto value_obj = Utils::OpenHandle(*value);
+  // TODO(333672197): turn this to DCHECK once it's no longer possible
+  // to get JSGlobalObject via API.
+  CHECK_IMPLIES(from_javascript, !i::IsJSGlobalObject(*value_obj));
   if (i::IsJSProxy(*self)) {
     ENTER_V8(i_isolate, context, Object, SetPrototype, i::HandleScope);
     // We do not allow exceptions thrown while setting the prototype
@@ -4749,17 +4766,34 @@ Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate));
     auto result =
         i::JSProxy::SetPrototype(i_isolate, i::Handle<i::JSProxy>::cast(self),
-                                 value_obj, false, i::kThrowOnError);
+                                 value_obj, from_javascript, i::kThrowOnError);
     has_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   } else {
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    // TODO(333672197): turn this to DCHECK once it's no longer possible
+    // to get JSGlobalObject via API.
+    CHECK_IMPLIES(from_javascript, !i::IsJSGlobalObject(*self));
     auto result =
         i::JSObject::SetPrototype(i_isolate, i::Handle<i::JSObject>::cast(self),
-                                  value_obj, false, i::kDontThrow);
+                                  value_obj, from_javascript, i::kDontThrow);
     if (!result.FromJust()) return Nothing<bool>();
   }
   return Just(true);
+}
+
+}  // namespace
+
+Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
+                                     Local<Value> value) {
+  static constexpr bool from_javascript = false;
+  return SetPrototypeImpl(this, context, value, from_javascript);
+}
+
+Maybe<bool> v8::Object::SetPrototypeV2(Local<Context> context,
+                                       Local<Value> value) {
+  static constexpr bool from_javascript = true;
+  return SetPrototypeImpl(this, context, value, from_javascript);
 }
 
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
