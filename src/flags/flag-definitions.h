@@ -286,7 +286,6 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_import_assertions, "harmony import assertions")           \
   V(harmony_rab_gsab,                                                 \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")       \
-  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")       \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")        \
   V(harmony_array_grouping, "harmony array grouping")                 \
   V(harmony_array_from_async, "harmony Array.fromAsync")              \

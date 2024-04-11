@@ -3304,6 +3304,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kRegExpPrototypeStickyGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->unicode_string(),
                           Builtin::kRegExpPrototypeUnicodeGetter, true);
+      SimpleInstallGetter(isolate(), prototype,
+                      factory->unicodeSets_string(),
+                      Builtin::kRegExpPrototypeUnicodeSetsGetter, true);
 
       SimpleInstallFunction(isolate_, prototype, "compile",
                             Builtin::kRegExpPrototypeCompile, 2, true);
@@ -5542,20 +5545,6 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
   // having been modified from its initial state. So, after adding new methods,
   // we should reset the Set.prototype initial map.
   native_context()->set_initial_set_prototype_map(set_prototype->map());
-}
-
-void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {
-  if (!v8_flags.harmony_regexp_unicode_sets) return;
-
-  Handle<JSFunction> regexp_fun(native_context()->regexp_function(), isolate());
-  Handle<JSObject> regexp_prototype(
-      JSObject::cast(regexp_fun->instance_prototype()), isolate());
-  SimpleInstallGetter(isolate(), regexp_prototype,
-                      factory()->unicodeSets_string(),
-                      Builtin::kRegExpPrototypeUnicodeSetsGetter, true);
-
-  // Store regexp prototype map again after change.
-  native_context()->set_regexp_prototype_map(regexp_prototype->map());
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
