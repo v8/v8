@@ -2736,7 +2736,7 @@ class TurboshaftAssemblerOpInterface
     }
     return cached_param;
   }
-  OpIndex OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
+  V<Object> OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
   void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values) {
     ReduceIfReachableReturn(pop_count, return_values);
   }
@@ -3441,7 +3441,8 @@ class TurboshaftAssemblerOpInterface
     return Asm().Call(callee, frame_state, arguments, ts_call_descriptor);
   }
 
-  V<Object> NewConsString(V<Word32> length, V<Object> first, V<Object> second) {
+  V<ConsString> NewConsString(V<Word32> length, V<String> first,
+                              V<String> second) {
     return ReduceIfReachableNewConsString(length, first, second);
   }
   V<Object> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,

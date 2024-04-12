@@ -4832,11 +4832,11 @@ struct NewConsStringOp : FixedArityOperationT<3, NewConsStringOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex length() const { return Base::input(0); }
-  OpIndex first() const { return Base::input(1); }
-  OpIndex second() const { return Base::input(2); }
+  V<Word32> length() const { return Base::input<Word32>(0); }
+  V<String> first() const { return Base::input<String>(1); }
+  V<String> second() const { return Base::input<String>(2); }
 
-  NewConsStringOp(OpIndex length, OpIndex first, OpIndex second)
+  NewConsStringOp(V<Word32> length, V<String> first, V<String> second)
       : Base(length, first, second) {}
   void Validate(const Graph& graph) const {
   }
@@ -5153,10 +5153,10 @@ struct StringAtOp : FixedArityOperationT<2, StringAtOp> {
                           MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  OpIndex string() const { return Base::input(0); }
-  OpIndex position() const { return Base::input(1); }
+  V<String> string() const { return Base::input<String>(0); }
+  V<WordPtr> position() const { return Base::input<WordPtr>(1); }
 
-  StringAtOp(OpIndex string, OpIndex position, Kind kind)
+  StringAtOp(V<String> string, V<WordPtr> position, Kind kind)
       : Base(string, position), kind(kind) {}
 
   void Validate(const Graph& graph) const {
@@ -5191,9 +5191,9 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex string() const { return Base::input(0); }
+  V<String> string() const { return Base::input<String>(0); }
 
-  StringToCaseIntlOp(OpIndex string, Kind kind) : Base(string), kind(kind) {}
+  StringToCaseIntlOp(V<String> string, Kind kind) : Base(string), kind(kind) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -5219,9 +5219,9 @@ struct StringLengthOp : FixedArityOperationT<1, StringLengthOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex string() const { return Base::input(0); }
+  V<String> string() const { return Base::input<String>(0); }
 
-  explicit StringLengthOp(OpIndex string) : Base(string) {}
+  explicit StringLengthOp(V<String> string) : Base(string) {}
 
   void Validate(const Graph& graph) const {
   }
@@ -5250,11 +5250,11 @@ struct StringIndexOfOp : FixedArityOperationT<3, StringIndexOfOp> {
 
   // Search the string `search` within the string `string` starting at
   // `position`.
-  OpIndex string() const { return Base::input(0); }
-  OpIndex search() const { return Base::input(1); }
-  OpIndex position() const { return Base::input(2); }
+  V<String> string() const { return Base::input<String>(0); }
+  V<String> search() const { return Base::input<String>(1); }
+  V<Smi> position() const { return Base::input<Smi>(2); }
 
-  StringIndexOfOp(OpIndex string, OpIndex search, OpIndex position)
+  StringIndexOfOp(V<String> string, V<String> search, V<Smi> position)
       : Base(string, search, position) {}
 
   void Validate(const Graph& graph) const {
@@ -5282,14 +5282,13 @@ struct StringFromCodePointAtOp
                           MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  OpIndex string() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
+  V<String> string() const { return Base::input<String>(0); }
+  V<WordPtr> index() const { return Base::input<WordPtr>(1); }
 
-  StringFromCodePointAtOp(OpIndex string, OpIndex index)
+  StringFromCodePointAtOp(V<String> string, V<WordPtr> index)
       : Base(string, index) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5313,15 +5312,14 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex string() const { return Base::input(0); }
-  OpIndex start() const { return Base::input(1); }
-  OpIndex end() const { return Base::input(2); }
+  V<String> string() const { return Base::input<String>(0); }
+  V<Word32> start() const { return Base::input<Word32>(1); }
+  V<Word32> end() const { return Base::input<Word32>(2); }
 
-  StringSubstringOp(OpIndex string, OpIndex start, OpIndex end)
+  StringSubstringOp(V<String> string, V<Word32> start, V<Word32> end)
       : Base(string, start, end) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5344,13 +5342,12 @@ struct StringConcatOp : FixedArityOperationT<2, StringConcatOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
+  V<String> left() const { return Base::input<String>(0); }
+  V<String> right() const { return Base::input<String>(1); }
 
-  StringConcatOp(OpIndex left, OpIndex right) : Base(left, right) {}
+  StringConcatOp(V<String> left, V<String> right) : Base(left, right) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5380,10 +5377,10 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
 
   static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
+  V<String> left() const { return Base::input<String>(0); }
+  V<String> right() const { return Base::input<String>(1); }
 
-  StringComparisonOp(OpIndex left, OpIndex right, Kind kind)
+  StringComparisonOp(V<String> left, V<String> right, Kind kind)
       : Base(left, right), kind(kind) {}
 
   void Validate(const Graph& graph) const {

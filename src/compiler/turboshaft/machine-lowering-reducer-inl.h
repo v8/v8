@@ -1553,14 +1553,15 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(NewConsString)(OpIndex length, OpIndex first, OpIndex second) {
+  V<ConsString> REDUCE(NewConsString)(V<Word32> length, V<String> first,
+                                      V<String> second) {
     // Determine the instance types of {first} and {second}.
     V<Map> first_map = __ LoadMapField(first);
     V<Word32> first_type = __ LoadInstanceTypeField(first_map);
     V<Map> second_map = __ LoadMapField(second);
     V<Word32> second_type = __ LoadInstanceTypeField(second_map);
 
-    Label<Object> allocate_string(this);
+    Label<Map> allocate_string(this);
     // Determine the proper map for the resulting ConsString.
     // If both {first} and {second} are one-byte strings, we
     // create a new ConsOneByteString, otherwise we create a
@@ -1580,7 +1581,7 @@ class MachineLoweringReducer : public Next {
 
     // Allocate the resulting ConsString.
     BIND(allocate_string, map);
-    auto string = __ template Allocate<String>(
+    auto string = __ template Allocate<ConsString>(
         __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung);
     __ InitializeField(string, AccessBuilder::ForMap(), map);
     __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
