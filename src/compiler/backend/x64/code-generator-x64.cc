@@ -2929,6 +2929,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64MovqDecompressProtected: {
+      CHECK(instr->HasOutput());
+      Operand address(i.MemoryOperand());
+      __ DecompressProtected(i.OutputRegister(), address);
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+                                     DetermineStubCallMode(), kTaggedSize);
+      break;
+    }
     case kX64MovqStoreIndirectPointer: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

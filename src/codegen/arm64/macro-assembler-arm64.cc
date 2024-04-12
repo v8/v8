@@ -3485,6 +3485,18 @@ void MacroAssembler::DecompressTagged(const Register& destination,
   }
 }
 
+void MacroAssembler::DecompressProtected(const Register& destination,
+                                         const MemOperand& field_operand) {
+  CHECK(V8_ENABLE_SANDBOX_BOOL);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Ldr(destination.W(), field_operand);
+  Ldr(scratch,
+      MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  Orr(destination, destination, scratch);
+}
+
 void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
                                                   const Register& base,
                                                   const Register& index,
@@ -3765,13 +3777,7 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                MemOperand field_operand) {
   DCHECK(root_array_available());
 #ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Ldr(destination.W(), field_operand);
-  Ldr(scratch,
-      MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  Orr(destination, destination, scratch);
+  DecompressProtected(destination, field_operand);
 #else
   LoadTaggedField(destination, field_operand);
 #endif

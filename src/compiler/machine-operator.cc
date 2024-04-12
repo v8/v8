@@ -886,6 +886,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(MapInHeader)             \
   V(AnyTagged)               \
   V(CompressedPointer)       \
+  V(ProtectedPointer)        \
   V(SandboxedPointer)        \
   V(AnyCompressed)           \
   V(Simd256)
@@ -1800,11 +1801,11 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
-      break;
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
@@ -2070,11 +2071,11 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
-      break;
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StoreIndirectPointer(
@@ -2112,39 +2113,37 @@ base::Optional<const Operator*> MachineOperatorBuilder::TryStorePair(
 const Operator* MachineOperatorBuilder::ProtectedStore(
     MachineRepresentation rep) {
   switch (rep) {
-#define STORE(kRep)                       \
-  case MachineRepresentation::kRep:       \
-    return &cache_.kProtectedStore##kRep; \
-    break;
+#define STORE(kRep)                 \
+  case MachineRepresentation::kRep: \
+    return &cache_.kProtectedStore##kRep;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
-      break;
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StoreTrapOnNull(
     StoreRepresentation rep) {
   switch (rep.representation()) {
-#define STORE(kRep)                                             \
-  case MachineRepresentation::kRep:                             \
-    if (rep.write_barrier_kind() == kNoWriteBarrier) {          \
-      return &cache_.kStoreTrapOnNull##kRep##NoWriteBarrier;    \
-    } else if (rep.write_barrier_kind() == kFullWriteBarrier) { \
-      return &cache_.kStoreTrapOnNull##kRep##FullWriteBarrier;  \
-    }                                                           \
-    break;
+#define STORE(kRep)                                          \
+  case MachineRepresentation::kRep:                          \
+    if (rep.write_barrier_kind() == kNoWriteBarrier) {       \
+      return &cache_.kStoreTrapOnNull##kRep##NoWriteBarrier; \
+    }                                                        \
+    DCHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());  \
+    return &cache_.kStoreTrapOnNull##kRep##FullWriteBarrier;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
-      break;
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StackPointerGreaterThan(

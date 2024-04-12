@@ -1047,6 +1047,10 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kWord64:
       opcode = kX64Movq;
       break;
+    case MachineRepresentation::kProtectedPointer:
+      CHECK(V8_ENABLE_SANDBOX_BOOL);
+      opcode = kX64MovqDecompressProtected;
+      break;
     case MachineRepresentation::kSandboxedPointer:
       opcode = kX64MovqDecodeSandboxedPointer;
       break;
@@ -1070,22 +1074,22 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movss;
     case MachineRepresentation::kFloat64:
       return kX64Movsd;
-    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
       return kX64Movb;
     case MachineRepresentation::kWord16:
       return kX64Movw;
     case MachineRepresentation::kWord32:
       return kX64Movl;
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
       return kX64MovqCompressTagged;
 #else
       UNREACHABLE();
 #endif
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return kX64MovqCompressTagged;
     case MachineRepresentation::kWord64:
@@ -1096,13 +1100,14 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64MovqEncodeSandboxedPointer;
     case MachineRepresentation::kSimd128:
       return kX64Movdqu;
-    case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kSimd256:
       return kX64Movdqu256;
-    case MachineRepresentation::kNone:     // Fall through.
-    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kNone:
+    case MachineRepresentation::kMapWord:
+      // We never store directly to protected pointers from generated code.
+    case MachineRepresentation::kProtectedPointer:
       UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {

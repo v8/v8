@@ -570,6 +570,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kProtectedPointer:
       case MachineRepresentation::kSandboxedPointer:
         return true;
       case MachineRepresentation::kBit:
@@ -579,9 +580,8 @@ class LocationOperand : public InstructionOperand {
         return false;
       case MachineRepresentation::kMapWord:
       case MachineRepresentation::kIndirectPointer:
-        break;
+        UNREACHABLE();
     }
-    UNREACHABLE();
   }
 
   // Return true if the locations can be moved to one another.

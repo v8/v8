@@ -1002,6 +1002,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
@@ -1043,6 +1044,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kProtectedPointer:   // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.

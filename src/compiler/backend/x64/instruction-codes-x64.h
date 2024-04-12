@@ -61,6 +61,7 @@ namespace compiler {
   V(X64MovqDecompressTaggedSigned)                         \
   V(X64MovqDecompressTagged)                               \
   V(X64MovqCompressTagged)                                 \
+  V(X64MovqDecompressProtected)                            \
   V(X64S256Load8Splat)                                     \
   V(X64S256Load16Splat)                                    \
   V(X64S256Load32Splat)                                    \

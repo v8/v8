@@ -288,6 +288,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kProtectedPointer:
+          os << "|pp";
+          break;
         case MachineRepresentation::kIndirectPointer:
           os << "|ip";
           break;
@@ -1041,15 +1044,14 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kIndirectPointer:
-      break;
+      UNREACHABLE();
   }
-
-  UNREACHABLE();
 }
 
 MachineRepresentation InstructionSequence::GetRepresentation(

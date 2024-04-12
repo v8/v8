@@ -402,6 +402,19 @@ void MacroAssembler::DecompressTagged(Register destination,
        Operand(kPtrComprCageBaseRegister, static_cast<int32_t>(immediate)));
 }
 
+void MacroAssembler::DecompressProtected(Register destination,
+                                         Operand field_operand) {
+#if V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  movl(destination, field_operand);
+  DCHECK(root_array_available_);
+  orq(destination,
+      Operand{kRootRegister, IsolateData::trusted_cage_base_offset()});
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       SaveFPRegsMode save_fp,
@@ -640,10 +653,7 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                Operand field_operand) {
   DCHECK(root_array_available());
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(destination, kScratchRegister));
-  movl(destination, field_operand);
-  orq(destination,
-      Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  DecompressProtected(destination, field_operand);
 #else
   LoadTaggedField(destination, field_operand);
 #endif

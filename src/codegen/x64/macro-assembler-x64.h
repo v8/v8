@@ -718,6 +718,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void DecompressTagged(Register destination, Operand field_operand);
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(Register destination, Tagged_t immediate);
+  void DecompressProtected(Register destination, Operand field_operand);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support

@@ -1153,7 +1153,7 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       opcode = kArm64StrD;
       immediate_mode = kLoadStoreImm64;
       break;
-    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
       CHECK(!paired);
       opcode = kArm64Strb;
@@ -1168,7 +1168,7 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       opcode = paired ? kArm64StrWPair : kArm64StrW;
       immediate_mode = kLoadStoreImm32;
       break;
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
       opcode = paired ? kArm64StrWPair : kArm64StrCompressTagged;
@@ -1177,8 +1177,8 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
 #else
       UNREACHABLE();
 #endif
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       if (paired) {
         // There is an inconsistency here on how we treat stores vs. paired
@@ -1219,8 +1219,10 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       opcode = kArm64StrQ;
       immediate_mode = kNoImmediate;
       break;
-    case MachineRepresentation::kSimd256:  // Fall through.
-    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kSimd256:
+    case MachineRepresentation::kMapWord:
+      // We never store directly to protected pointers from generated code.
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1721,6 +1723,10 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kWord64:
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
+      break;
+    case MachineRepresentation::kProtectedPointer:
+      CHECK(V8_ENABLE_SANDBOX_BOOL);
+      opcode = kArm64LdrDecompressProtected;
       break;
     case MachineRepresentation::kSandboxedPointer:
       opcode = kArm64LdrDecodeSandboxedPointer;
