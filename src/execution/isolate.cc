@@ -2998,6 +2998,40 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     }
 
     iterator.Advance();
+    // While usually the next instruction is a Star, sometimes we store and
+    // reload from context first.
+    if (iterator.done()) {
+      return false;
+    }
+    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot) {
+      unsigned int slot = iterator.GetIndexOperand(0);
+      iterator.Advance();
+      if (!iterator.done() &&
+          (iterator.current_bytecode() ==
+               Bytecode::kLdaImmutableCurrentContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot)) {
+        if (iterator.GetIndexOperand(0) != slot) {
+          return false;
+        }
+        iterator.Advance();
+      }
+    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot) {
+      int context = iterator.GetRegisterOperand(0).index();
+      unsigned int slot = iterator.GetIndexOperand(1);
+      int depth = iterator.GetImmediateOperand(2);
+      iterator.Advance();
+      if (!iterator.done() &&
+          (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaContextSlot)) {
+        if (iterator.GetRegisterOperand(0).index() != context ||
+            iterator.GetIndexOperand(1) != slot ||
+            iterator.GetImmediateOperand(2) != depth) {
+          return false;
+        }
+        iterator.Advance();
+      }
+    }
+
     // Next instruction should be a Star (store accumulator to register)
     if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
       return false;
