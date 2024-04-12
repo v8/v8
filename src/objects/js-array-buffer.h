@@ -182,7 +182,12 @@ class JSArrayBuffer
 // extension-object. The GC periodically iterates all extensions concurrently
 // and frees unmarked ones.
 // https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
-class ArrayBufferExtension final : public Malloced {
+class ArrayBufferExtension final
+#ifdef V8_COMPRESS_POINTERS
+    : public ExternalPointerTable::ManagedResource {
+#else
+    : public Malloced {
+#endif  // V8_COMPRESS_POINTERS
  public:
   ArrayBufferExtension() : backing_store_(std::shared_ptr<BackingStore>()) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)

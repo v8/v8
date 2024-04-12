@@ -370,7 +370,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   // avoid the need to manually keep track of the entry, for example.
   class ManagedResource : public Malloced {
    public:
-    // This method should be called before destroying the external resource.
+    // This method must be called before destroying the external resource.
     // When the sandbox is enabled, it will take care of zapping its EPT entry.
     inline void ZapExternalPointerTableEntry();
 

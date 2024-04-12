@@ -659,6 +659,17 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     // Ensure deterministic output by setting extension to null during
     // serialization.
     buffer->set_extension(nullptr);
+
+#ifdef V8_COMPRESS_POINTERS
+    // With the above, we're effectively temporarily releasing ownership of the
+    // extension, so we should also invalidate it's entry in the external
+    // pointer table. Failure to do this here would result in DCHECK failures
+    // as set_extension takes ownership of the extension and verifies that
+    // there isn't already an owner.
+    if (extension) {
+      extension->ZapExternalPointerTableEntry();
+    }
+#endif  // V8_COMPRESS_POINTERS
   }
   SerializeObject();
   {
