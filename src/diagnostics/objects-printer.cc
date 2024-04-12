@@ -12,6 +12,7 @@
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
+#include "src/heap/marking-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
@@ -3908,4 +3909,17 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     transitions.PrintTransitionTree();
 #endif
   }
+}
+
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object_MarkBit(void* object) {
+#ifdef OBJECT_PRINT
+  const auto mark_bit =
+      v8::internal::MarkBit::From(reinterpret_cast<i::Address>(object));
+  i::StdoutStream os;
+  os << "Object " << object << " is "
+     << (mark_bit.Get() ? "marked" : "unmarked") << std::endl;
+  os << "  mark-bit cell: " << mark_bit.CellAddress()
+     << ", mask: " << mark_bit.Mask() << std::endl;
+#endif
 }
