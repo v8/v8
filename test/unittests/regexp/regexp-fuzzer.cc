@@ -129,7 +129,8 @@ void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
     CHECK(!i_isolate_->has_exception());
     v8::TryCatch try_catch_inner(isolate_);
     i::MaybeHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(
-        i_isolate_, source, i::JSRegExp::AsJSRegExpFlags(flags));
+        i_isolate_, source, i::JSRegExp::AsJSRegExpFlags(flags),
+        /*backtrack_limit*/ 1000000);
     if (!maybe_regexp.ToHandle(&regexp)) {
       i_isolate_->clear_exception();
       return;
@@ -159,8 +160,8 @@ class RegExpOneByteTest : public RegExpTest<uint8_t> {
 };
 
 V8_FUZZ_TEST_F(RegExpOneByteTest, RunRegExp)
-    .WithDomains(fuzztest::internal_no_adl::InExpGrammar(), ArbitraryFlags(),
-                 ArbitraryOneBytes());
+    .WithDomains(fuzztest::internal_no_adl::InPatternGrammar(),
+                 ArbitraryFlags(), ArbitraryOneBytes());
 
 class RegExpTwoByteTest : public RegExpTest<v8::base::uc16> {
  protected:
@@ -171,8 +172,8 @@ class RegExpTwoByteTest : public RegExpTest<v8::base::uc16> {
 };
 
 V8_FUZZ_TEST_F(RegExpTwoByteTest, RunRegExp)
-    .WithDomains(fuzztest::internal_no_adl::InExpGrammar(), ArbitraryFlags(),
-                 ArbitraryTwoBytes());
+    .WithDomains(fuzztest::internal_no_adl::InPatternGrammar(),
+                 ArbitraryFlags(), ArbitraryTwoBytes());
 
 }  // namespace
 }  // namespace v8
