@@ -2639,9 +2639,13 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 
-  void StackCheck(StackCheckOp::CheckOrigin origin,
-                  StackCheckOp::CheckKind kind) {
-    ReduceIfReachableStackCheck(origin, kind);
+  void StackCheck(StackCheckOp::Kind kind) {
+    ReduceIfReachableStackCheck(kind);
+  }
+
+  void JSLoopStackCheck(V<Context> context,
+                        V<turboshaft::FrameState> frame_state) {
+    ReduceIfReachableJSLoopStackCheck(context, frame_state);
   }
 
   void Retain(OpIndex value) { ReduceIfReachableRetain(value); }
@@ -3186,6 +3190,13 @@ class TurboshaftAssemblerOpInterface
   V<Number> CallRuntime_DateCurrentTime(Isolate* isolate, V<Context> context) {
     return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
         isolate, context, {});
+  }
+  V<Object> CallRuntime_HandleNoHeapWritesInterrupts(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context) {
+    return CallRuntime<
+        typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
+        isolate, frame_state, context, {});
   }
   V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate, V<Context> context,
                                           V<Smi> gap) {

@@ -287,6 +287,7 @@ class LoopUnrollingReducer : public Next {
     goto no_change;
   }
 
+  // TODO(dmercadier): also special case JSLoopStackCheck.
   OpIndex REDUCE_INPUT_GRAPH(StackCheck)(OpIndex ig_idx,
                                          const StackCheckOp& check) {
     LABEL_BLOCK(no_change) {
@@ -296,7 +297,7 @@ class LoopUnrollingReducer : public Next {
 
     if (unrolling_ == UnrollingStatus::kUnrolling) {
       DCHECK(!IsRunningBuiltinPipeline());
-      if (check.check_kind == StackCheckOp::CheckKind::kLoopCheck) {
+      if (check.check_kind == StackCheckOp::Kind::kWasmLoop) {
         // When we unroll a loop, we get rid of its stack checks. (note that we
         // don't do this for the 1st folded body of partially unrolled loops so
         // that the loop keeps a stack check).

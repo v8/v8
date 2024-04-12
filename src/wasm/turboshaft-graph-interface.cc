@@ -498,7 +498,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     if (mode_ == kRegular) {
-      StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
+      StackCheck(StackCheckOp::Kind::kWasmFunctionHeader);
     }
 
     if (v8_flags.trace_wasm) {
@@ -598,7 +598,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
-    StackCheck(StackCheckOp::CheckKind::kLoopCheck);
+    StackCheck(StackCheckOp::Kind::kWasmLoop);
 
     TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
@@ -6314,9 +6314,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                 __ NoContextConstant());
   }
 
-  void StackCheck(StackCheckOp::CheckKind kind) {
+  void StackCheck(StackCheckOp::Kind kind) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ StackCheck(StackCheckOp::CheckOrigin::kFromWasm, kind);
+    __ StackCheck(kind);
   }
 
  private:

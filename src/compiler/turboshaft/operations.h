@@ -310,7 +310,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
   V(Allocate)                              \
   V(DecodeExternalPointer)                 \
-  V(StackCheck)
+  V(StackCheck)                            \
+  V(JSLoopStackCheck)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3302,18 +3303,21 @@ struct DecodeExternalPointerOp
   auto options() const { return std::tuple{tag}; }
 };
 
+// Wasm stack check or JS function entry stack check. Note that JS loop
+// iteration stack checks should use instead the JSLoopStackCheckOp operation
+// (which is separate because it has different inputs, different effects, and
+// different lowering).
 struct StackCheckOp : FixedArityOperationT<0, StackCheckOp> {
-  enum class CheckOrigin : bool { kFromJS, kFromWasm };
-
-  enum class CheckKind : bool { kFunctionHeaderCheck, kLoopCheck };
-
-  CheckOrigin check_origin;
-  CheckKind check_kind;
+  enum class Kind : uint8_t {
+    kJSFunctionHeader,
+    kWasmFunctionHeader,
+    kWasmLoop
+  };
+  Kind check_kind;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
-  explicit StackCheckOp(CheckOrigin origin, CheckKind kind)
-      : Base(), check_origin(origin), check_kind(kind) {}
+  explicit StackCheckOp(Kind kind) : Base(), check_kind(kind) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -3324,13 +3328,33 @@ struct StackCheckOp : FixedArityOperationT<0, StackCheckOp> {
 
   void Validate(const Graph& graph) const {}
 
-  auto options() const { return std::tuple{check_origin, check_kind}; }
+  auto options() const { return std::tuple{check_kind}; }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           StackCheckOp::CheckOrigin origin);
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           StackCheckOp::CheckKind kind);
+                                           StackCheckOp::Kind kind);
+
+struct JSLoopStackCheckOp : FixedArityOperationT<2, JSLoopStackCheckOp> {
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().CanDeopt().CanReadHeapMemory();
+
+  V<Context> native_context() const { return Base::input<Context>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  explicit JSLoopStackCheckOp(V<Context> context, V<FrameState> frame_state)
+      : Base(context, frame_state) {}
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{}; }
+};
 
 // Retain a HeapObject to prevent it from being garbage collected too early.
 struct RetainOp : FixedArityOperationT<1, RetainOp> {
