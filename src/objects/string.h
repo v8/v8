@@ -424,11 +424,6 @@ V8_OBJECT class String : public Name {
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = nullptr);
 
-  // Calculates the SHA256 hash of the UTF8 representation of the string.
-  // This is equivalent of calling |ToCString| and hashing the result but
-  // without allocating a copy.
-  void Sha256Hash(base::Vector<uint8_t> hash) const;
-
   // Externalization.
   template <typename T>
   bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);

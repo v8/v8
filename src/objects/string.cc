@@ -28,7 +28,6 @@
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/sha-256.h"
 
 namespace v8 {
 namespace internal {
@@ -889,30 +888,6 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
                                           RobustnessFlag robust_flag,
                                           int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
-}
-
-void String::Sha256Hash(base::Vector<uint8_t> hash) const {
-  DCHECK_EQ(hash.size(), kSizeOfSha256Digest);
-
-  LITE_SHA256_CTX ctx;
-  SHA256_init(&ctx);
-
-  StringCharacterStream stream(this);
-  char buffer[4];
-  int last = unibrow::Utf16::kNoPreviousCharacter;
-  while (stream.HasMore()) {
-    uint16_t character = stream.GetNext();
-    if (character <= unibrow::Utf8::kMaxOneByteChar) {
-      SHA256_update(&ctx, &character, 1);
-    } else {
-      int len = unibrow::Utf8::Encode(buffer, character, last);
-      SHA256_update(&ctx, buffer, len);
-    }
-    last = character;
-  }
-
-  const uint8_t* result = SHA256_final(&ctx);
-  std::copy(result, result + kSizeOfSha256Digest, hash.begin());
 }
 
 // static

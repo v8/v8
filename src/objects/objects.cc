@@ -4586,13 +4586,15 @@ Handle<String> Script::GetScriptHash(Isolate* isolate, Handle<Script> script,
     src_text = handle(String::cast(maybe_script_source), isolate);
   }
 
-  base::ScopedVector<uint8_t> hash(kSizeOfSha256Digest);
-  src_text->Sha256Hash(hash);
   char formatted_hash[kSizeOfFormattedSha256Digest];
-  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash.data(),
-                   hash.size());
-  DCHECK_LT(hash.size() * 2, kSizeOfFormattedSha256Digest);
-  formatted_hash[hash.size() * 2] = '\0';
+
+  std::unique_ptr<char[]> string_val = src_text->ToCString();
+  size_t len = strlen(string_val.get());
+  uint8_t hash[kSizeOfSha256Digest];
+  SHA256_hash(string_val.get(), len, hash);
+  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
+                   kSizeOfSha256Digest);
+  formatted_hash[kSizeOfSha256Digest * 2] = '\0';
 
   Handle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(formatted_hash);

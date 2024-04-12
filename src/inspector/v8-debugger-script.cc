@@ -5,7 +5,6 @@
 #include "src/inspector/v8-debugger-script.h"
 
 #include "src/base/memory.h"
-#include "src/base/vector.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/string-util.h"
@@ -20,11 +19,20 @@ namespace {
 const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 
 String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
-  v8::base::ScopedVector<uint8_t> hash(kSizeOfSha256Digest);
-  v8::debug::SHA256Hash(source, hash);
+  std::unique_ptr<UChar[]> buffer(new UChar[source->Length()]);
+  int written = source->Write(
+      isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0, source->Length());
+
+  const uint8_t* data = nullptr;
+  size_t sizeInBytes = sizeof(UChar) * written;
+  data = reinterpret_cast<const uint8_t*>(buffer.get());
+
+  uint8_t hash[kSizeOfSha256Digest];
+  v8::internal::SHA256_hash(data, sizeInBytes, hash);
+
   String16Builder formatted_hash;
-  for (size_t i = 0; i < hash.size(); i++)
-    formatted_hash.appendUnsignedAsHex(hash[i]);
+  for (size_t i = 0; i < kSizeOfSha256Digest; i++)
+    formatted_hash.appendUnsignedAsHex(static_cast<uint8_t>(hash[i]));
 
   return formatted_hash.toString();
 }

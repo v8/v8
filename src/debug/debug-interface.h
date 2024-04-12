@@ -691,8 +691,6 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
 
-void SHA256Hash(v8::Local<v8::String> str, base::Vector<uint8_t> hash);
-
 }  // namespace debug
 }  // namespace v8
 
