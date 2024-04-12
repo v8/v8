@@ -3731,11 +3731,6 @@ class ModuleGen {
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
     }
 
-    int num_data_segments =
-        module_range_->get<uint8_t>() % kMaxPassiveDataSegments;
-    for (int i = 0; i < num_data_segments; i++) {
-      GeneratePassiveDataSegment(module_range_, builder_);
-    }
     return {globals, mutable_globals};
   }
 
@@ -4109,6 +4104,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   auto [globals, mutable_globals] =
       gen_module.GenerateRandomGlobals(array_types, struct_types);
 
+  // Add passive data segments.
   int num_data_segments = module_range.get<uint8_t>() % kMaxPassiveDataSegments;
   for (int i = 0; i < num_data_segments; i++) {
     GeneratePassiveDataSegment(&module_range, &builder);
