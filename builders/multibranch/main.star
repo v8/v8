@@ -254,6 +254,14 @@ in_category(
         barrier = BARRIER.NONE,
         disable_resultdb_exports = True,
     ),
+    main_multibranch_builder(
+        name = "V8 Win - arm64 - debug builder",
+        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
+        disable_resultdb_exports = True,
+        first_branch_version = "12.5",
+    ),
 )
 
 in_category(
