@@ -147,6 +147,11 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
     base::Mutex invalidated_fields_mutex_;
   };
 
+  // Allocate an EPT entry from the space's freelist, or add a freshly-allocated
+  // segment to the space and allocate there.  If the space is compacting but
+  // the new index is above the evacuation threshold, abort compaction.
+  inline uint32_t AllocateEntry(Space* space);
+
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);
 };
