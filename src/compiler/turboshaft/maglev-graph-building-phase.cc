@@ -241,21 +241,49 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::InitialValue* node,
                                 const maglev::ProcessingState& state) {
+    // TODO(dmercadier): InitialValues are much simpler in Maglev because they
+    // are mapped directly to interpreter registers, whereas Turbofan changes
+    // the indices, making everything more complex. We should try to have the
+    // same InitialValues in Turboshaft as in Maglev, in order to simplify
+    // things.
 #ifdef DEBUG
     char* debug_name = strdup(node->source().ToString().c_str());
 #else
     char* debug_name = nullptr;
 #endif
     interpreter::Register source = node->source();
-    int index = source.ToParameterIndex();
+    V<Object> value;
     if (source.is_function_closure()) {
-      index = Linkage::kJSCallClosureParamIndex;
-    } else if (source.is_current_context()) {
-      index = Linkage::GetJSCallContextParamIndex(
-          maglev_compilation_unit_->parameter_count());
+      // The function closure is a Parameter rather than an OsrValue even when
+      // OSR-compiling.
+      value = __ Parameter(Linkage::kJSCallClosureParamIndex,
+                           RegisterRepresentation::Tagged(), debug_name);
+    } else if (maglev_compilation_unit_->is_osr()) {
+      int index;
+      if (source.is_current_context()) {
+        index = Linkage::kOsrContextSpillSlotIndex;
+      } else if (source == interpreter::Register::virtual_accumulator()) {
+        index = Linkage::kOsrAccumulatorRegisterIndex;
+      } else if (source.is_parameter()) {
+        index = source.ToParameterIndex();
+      } else {
+        // For registers, recreate the index computed by FillWithOsrValues in
+        // BytecodeGraphBuilder.
+        index = source.index() + InterpreterFrameConstants::kExtraSlotCount +
+                maglev_compilation_unit_->parameter_count();
+      }
+      value = __ OsrValue(index);
+    } else {
+      int index = source.ToParameterIndex();
+      if (source.is_current_context()) {
+        index = Linkage::GetJSCallContextParamIndex(
+            maglev_compilation_unit_->parameter_count());
+      } else {
+        index = source.ToParameterIndex();
+      }
+      value = __ Parameter(index, RegisterRepresentation::Tagged(), debug_name);
     }
-    SetMap(node,
-           __ Parameter(index, RegisterRepresentation::Tagged(), debug_name));
+    SetMap(node, value);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::RegisterInput* node,
@@ -1033,22 +1061,30 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::Jump* node,
-                                const maglev::ProcessingState& state) {
-    Block* destination = Map(node->target());
-    if (node->target()->is_loop() && node->target()->predecessor_count() > 2) {
+  void BuildJump(maglev::BasicBlock* target) {
+    Block* destination = Map(target);
+    if (target->is_loop() && target->predecessor_count() > 2) {
       // This loop has multiple forward edge in Maglev, so we'll create an extra
       // block in Turboshaft that will be the only predecessor.
-      auto it = loop_single_edge_predecessors_.find(node->target());
+      auto it = loop_single_edge_predecessors_.find(target);
       if (it != loop_single_edge_predecessors_.end()) {
         destination = it->second;
       } else {
         Block* loop_only_pred = __ NewBlock();
-        loop_single_edge_predecessors_[node->target()] = loop_only_pred;
+        loop_single_edge_predecessors_[target] = loop_only_pred;
         destination = loop_only_pred;
       }
     }
     __ Goto(destination);
+  }
+  maglev::ProcessResult Process(maglev::Jump* node,
+                                const maglev::ProcessingState& state) {
+    BuildJump(node->target());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckpointedJump* node,
+                                const maglev::ProcessingState& state) {
+    BuildJump(node->target());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1565,6 +1601,11 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::TryOnStackReplacement*,
+                                const maglev::ProcessingState&) {
+    // Turboshaft is the top tier compiler, so we never need to OSR from it.
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.
