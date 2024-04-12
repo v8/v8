@@ -44,6 +44,11 @@ OpIndex LoadRootHelper(AssemblerT&& assembler, RootIndex index) {
       instance, LoadOp::Kind::TaggedBase(),                 \
       WasmTrustedInstanceData::kProtected##name##Offset))
 
+#define LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(instance, name, type) \
+  V<type>::Cast(__ LoadProtectedPointerField(                         \
+      instance, LoadOp::Kind::TaggedBase().Immutable(),               \
+      WasmTrustedInstanceData::kProtected##name##Offset))
+
 #define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)       \
   __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(), representation, \
           WasmTrustedInstanceData::k##name##Offset)

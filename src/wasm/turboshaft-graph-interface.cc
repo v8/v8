@@ -188,7 +188,7 @@ std::pair<V<WordPtr>, V<HeapObject>>
 WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
     ConstOrV<Word32> func_index,
     V<WasmTrustedInstanceData> trusted_instance_data) {
-  V<WasmDispatchTable> dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(
+  V<WasmDispatchTable> dispatch_table = LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
       trusted_instance_data, DispatchTableForImports, WasmDispatchTable);
   // Handle constant indexes specially to reduce graph size, even though later
   // optimization would optimize this to the same result.
@@ -6258,9 +6258,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       return instance_cache_.memory0_start();
     } else {
       V<TrustedFixedAddressArray> instance_memories =
-          LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
-                                        MemoryBasesAndSizes,
-                                        TrustedFixedAddressArray);
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
+                                                  MemoryBasesAndSizes,
+                                                  TrustedFixedAddressArray);
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::UintPtr(),
                      TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
@@ -6278,8 +6278,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_size();
     } else {
-      V<TrustedByteArray> instance_memories = LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data(), MemoryBasesAndSizes, TrustedByteArray);
+      V<TrustedByteArray> instance_memories =
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+              trusted_instance_data(), MemoryBasesAndSizes, TrustedByteArray);
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
           MemoryRepresentation::UintPtr(),
@@ -6356,8 +6357,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(
           trusted_instance_data(), DispatchTable0, WasmDispatchTable);
     } else {
-      V<ProtectedFixedArray> dispatch_tables = LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data(), DispatchTables, ProtectedFixedArray);
+      V<ProtectedFixedArray> dispatch_tables =
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+              trusted_instance_data(), DispatchTables, ProtectedFixedArray);
       dispatch_table = V<WasmDispatchTable>::Cast(
           __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
     }

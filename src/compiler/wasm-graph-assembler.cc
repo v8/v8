@@ -151,6 +151,14 @@ Node* WasmGraphAssembler::LoadProtectedPointerFromObject(Node* object,
                         object, offset);
 }
 
+Node* WasmGraphAssembler::LoadImmutableProtectedPointerFromObject(
+    Node* object, Node* offset) {
+  return LoadImmutableFromObject(V8_ENABLE_SANDBOX_BOOL
+                                     ? MachineType::ProtectedPointer()
+                                     : MachineType::AnyTagged(),
+                                 object, offset);
+}
+
 Node* WasmGraphAssembler::BuildDecompressProtectedPointer(Node* tagged) {
 #if V8_ENABLE_SANDBOX
   static_assert(COMPRESS_POINTERS_BOOL);
