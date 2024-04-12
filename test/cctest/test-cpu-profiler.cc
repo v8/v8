@@ -4020,9 +4020,12 @@ TEST(ContextIsolation) {
 void ValidateEmbedderState(v8::CpuProfile* profile,
                            EmbedderStateTag expected_tag) {
   for (int i = 0; i < profile->GetSamplesCount(); i++) {
-    if (profile->GetSampleState(i) == StateTag::GC) {
-      // Samples captured during a GC do not have an EmbedderState
-      CHECK_EQ(profile->GetSampleEmbedderState(i), EmbedderStateTag::EMPTY);
+    if (profile->GetSampleState(i) == StateTag::GC ||
+        profile->GetSampleState(i) == StateTag::LOGGING) {
+      // Samples captured during a GC (including logging during GC) might not
+      // have an EmbedderState
+      CHECK(profile->GetSampleEmbedderState(i) == expected_tag ||
+            profile->GetSampleEmbedderState(i) == EmbedderStateTag::EMPTY);
     } else {
       CHECK_EQ(profile->GetSampleEmbedderState(i), expected_tag);
     }
