@@ -77,6 +77,8 @@ extern runtime WasmStringFromCodePoint(Context, Number): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
 extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
+
+extern runtime PropagateException(NoContext): JSAny;
 }
 
 namespace unsafe {
@@ -696,6 +698,10 @@ builtin ThrowWasmTrapUnreachable(): JSAny {
 
 builtin WasmTrapHandlerThrowTrap(): JSAny {
   tail runtime::TrapHandlerThrowWasmError(LoadContextFromWasmOrJsFrame());
+}
+
+builtin WasmPropagateException(): JSAny {
+  tail runtime::PropagateException(kNoContext);
 }
 
 builtin ThrowWasmTrapMemOutOfBounds(): JSAny {

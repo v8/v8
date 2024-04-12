@@ -141,7 +141,8 @@ namespace v8::internal::wasm {
   V(IterableToFixedArrayForWasm)                                               \
   V(WasmAllocateZeroedFixedArray)                                              \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
-  V(DeoptimizationEntry_Eager)
+  V(DeoptimizationEntry_Eager)                                                 \
+  V(WasmPropagateException)
 
 namespace detail {
 constexpr std::array<uint8_t, static_cast<int>(Builtin::kFirstBytecodeHandler)>

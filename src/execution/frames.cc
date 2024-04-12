@@ -3039,7 +3039,8 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
-  return wasm::GetWasmCodeManager()->LookupCode(isolate(), pc());
+  return wasm::GetWasmCodeManager()->LookupCode(isolate(),
+                                                maybe_unauthenticated_pc());
 }
 
 Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
@@ -3087,7 +3088,8 @@ void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
   wasm::WasmCode* code = wasm_code();
-  int offset = static_cast<int>(pc() - code->instruction_start());
+  int offset =
+      static_cast<int>(maybe_unauthenticated_pc() - code->instruction_start());
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   // Push regular non-inlined summary.
   SourcePosition pos = code->GetSourcePositionBefore(offset);

@@ -1228,6 +1228,17 @@ struct BuiltinCallDescriptor {
         base_effects.CanLeaveCurrentFunction();
   };
 
+  struct WasmPropagateException : public Descriptor<WasmPropagateException> {
+    static constexpr auto kFunction = Builtin::kWasmPropagateException;
+    using arguments_t = std::tuple<>;
+    using results_t = Never;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

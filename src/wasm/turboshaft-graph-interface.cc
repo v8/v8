@@ -1924,19 +1924,32 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                                     builder.Get());
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-    Variable result =
-        __ NewVariable(RegisterRepresentation::FromMachineRepresentation(
-            sig->GetReturn().machine_representation()));
     OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
         env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
         ExternalReference::FAST_C_CALL));
+
+    BuildModifyThreadInWasmFlag(__ graph_zone(), false);
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
+
+    OpIndex threw_exception =
+        __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr(),
+                IsolateData::fast_c_call_threw_exception_offset());
+    IF (__ WordPtrEqual(threw_exception, 1)) {
+      CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmPropagateException>(
+          decoder, {}, CheckForException::kCatchInThisFrame);
+    }
+    BuildModifyThreadInWasmFlag(__ graph_zone(), true);
 
     if (env_->fast_api_return_is_bool[func_index]) {
       ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
                                   WordRepresentation::Word32());
     }
+    Variable result =
+        __ NewVariable(RegisterRepresentation::FromMachineRepresentation(
+            sig->GetReturn().machine_representation()));
     IF (__ Load(options_object, LoadOp::Kind::RawAligned(),
                 MemoryRepresentation::Uint32(),
                 offsetof(v8::FastApiCallbackOptions, fallback))) {
