@@ -1624,15 +1624,15 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
         wire_bytes[import.module_name.offset()] ==
             kMagicStringConstantsModuleName) {
       if (import.kind != kExternalGlobal ||
-          module->globals[import.index].type != kWasmExternRef ||
+          module->globals[import.index].type != kRefExtern ||
           module->globals[import.index].mutability != false) {
         TruncatedUserString<> name(
             wire_bytes.data() + import.field_name.offset(),
             import.field_name.length());
         return WasmError(
             ImportStartOffset(wire_bytes, import.module_name.offset()),
-            "String constant import #%zu \"%.*s\" must be a global of type "
-            "'immutable externref'",
+            "String constant import #%zu \"%.*s\" must be an immutable global "
+            "of type (ref extern)",
             i, name.length(), name.start());
       }
     }

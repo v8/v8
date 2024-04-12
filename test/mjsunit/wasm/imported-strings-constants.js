@@ -6,6 +6,8 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
+const kRefExtern = wasmRefType(kWasmExternRef);
+
 (function() {
   let invalid_builder = new WasmModuleBuilder();
   invalid_builder.addImport("'", "foo", kSig_v_v);
@@ -14,7 +16,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           {"'": {foo: () => {}}}, {importedStringConstants: true}),
       WebAssembly.LinkError,
       'WebAssembly.Module(): String constant import #0 "foo" must be ' +
-          'a global of type \'immutable externref\' @+17');
+          'an immutable global of type (ref extern) @+17');
 
   let invalid_builder2 = new WasmModuleBuilder();
   invalid_builder2.addImportedGlobal("'", "bar", kWasmI32);
@@ -23,15 +25,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           {"'": {bar: 42}}, {importedStringConstants: true}),
       WebAssembly.LinkError,
       'WebAssembly.Module(): String constant import #0 "bar" must be ' +
-          'a global of type \'immutable externref\' @+11');
+          'an immutable global of type (ref extern) @+11');
 })();
 
 let builder = new WasmModuleBuilder();
 let $log = builder.addImport("m", "log", kSig_v_r);
 let hello_world = "Hello, world!";
 let multi_byte = "\uD83D\uDE02";  // U+1F602
-let $hello = builder.addImportedGlobal("'", hello_world, kWasmExternRef, false);
-let $multi = builder.addImportedGlobal("'", multi_byte, kWasmExternRef, false);
+let $hello = builder.addImportedGlobal("'", hello_world, kRefExtern, false);
+let $multi = builder.addImportedGlobal("'", multi_byte, kRefExtern, false);
 
 builder.addFunction("main", kSig_v_v).exportFunc().addBody([
   kExprGlobalGet, $hello,
