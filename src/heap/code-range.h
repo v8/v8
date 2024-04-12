@@ -99,7 +99,7 @@ class CodeRange final : public VirtualMemoryCage {
 
   bool InitReservation(v8::PageAllocator* page_allocator, size_t requested);
 
-  void Free();
+  V8_EXPORT_PRIVATE void Free();
 
   // Remap and copy the embedded builtins into this CodeRange. This method is
   // idempotent and only performs the copy once. This property is so that this
