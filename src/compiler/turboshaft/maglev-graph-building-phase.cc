@@ -2046,6 +2046,36 @@ class GraphBuilder {
   base::SmallVector<int, 16> predecessor_permutation_;
 };
 
+namespace {
+void PrintBytecode(PipelineData& data,
+                   maglev::MaglevCompilationInfo* compilation_info) {
+  DCHECK(data.info()->trace_turbo_graph());
+  maglev::MaglevCompilationUnit* top_level_unit =
+      compilation_info->toplevel_compilation_unit();
+  CodeTracer* code_tracer = data.GetCodeTracer();
+  CodeTracer::StreamScope tracing_scope(code_tracer);
+  tracing_scope.stream()
+      << "\n----- Bytecode before MaglevGraphBuilding -----\n"
+      << std::endl;
+  tracing_scope.stream() << "Function: "
+                         << Brief(*compilation_info->toplevel_function())
+                         << std::endl;
+  BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
+                             tracing_scope.stream());
+  Print(*top_level_unit->feedback().object(), tracing_scope.stream());
+}
+
+void PrintMaglevGraph(PipelineData& data,
+                      maglev::MaglevCompilationInfo* compilation_info,
+                      maglev::Graph* maglev_graph) {
+  CodeTracer* code_tracer = data.GetCodeTracer();
+  CodeTracer::StreamScope tracing_scope(code_tracer);
+  tracing_scope.stream()
+      << "\n----- Maglev graph after MaglevGraphBuilding -----" << std::endl;
+  maglev::PrintGraph(tracing_scope.stream(), compilation_info, maglev_graph);
+}
+}  // namespace
+
 void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
   PipelineData& data = PipelineData::Get();
   JSHeapBroker* broker = data.broker();
@@ -2054,6 +2084,10 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
   auto compilation_info = maglev::MaglevCompilationInfo::New(
       data.isolate(), broker, data.info()->closure(),
       data.info()->osr_offset());
+
+  if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
+    PrintBytecode(data, compilation_info.get());
+  }
 
   LocalIsolate* local_isolate = broker->local_isolate()
                                     ? broker->local_isolate()
@@ -2075,12 +2109,7 @@ void MaglevGraphBuildingPhase::Run(Zone* temp_zone) {
   representation_selector.ProcessGraph(maglev_graph);
 
   if (V8_UNLIKELY(data.info()->trace_turbo_graph())) {
-    CodeTracer* code_tracer = data.GetCodeTracer();
-    CodeTracer::StreamScope tracing_scope(code_tracer);
-    tracing_scope.stream()
-        << "\n----- Maglev graph after MaglevGraphBuilding -----" << std::endl;
-    maglev::PrintGraph(tracing_scope.stream(), compilation_info.get(),
-                       maglev_graph);
+    PrintMaglevGraph(data, compilation_info.get(), maglev_graph);
   }
 
   maglev::GraphProcessor<GraphBuilder, true> builder(
