@@ -303,9 +303,6 @@ class PoolTest : public                                     //
 
   static void FreeProcessWidePtrComprCageForTesting() {
     IsolateGroup::ReleaseGlobal();
-    if (CodeRange* code_range = CodeRange::GetProcessWideCodeRange()) {
-      code_range->Free();
-    }
   }
 
   static void DoMixinSetUp() {

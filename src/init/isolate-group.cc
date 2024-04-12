@@ -140,6 +140,10 @@ IsolateGroup* IsolateGroup::AcquireGlobal() {
 // static
 void IsolateGroup::ReleaseGlobal() {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  if (CodeRange* code_range = CodeRange::GetProcessWideCodeRange()) {
+    code_range->Free();
+  }
+
   IsolateGroup *group = GetProcessWideIsolateGroup();
   CHECK_EQ(group->reference_count_.load(), 1);
   group->page_allocator_ = nullptr;
