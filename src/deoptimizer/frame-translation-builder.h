@@ -86,7 +86,7 @@ class FrameTranslationBuilder {
  private:
   struct Instruction {
     template <typename... T>
-    Instruction(TranslationOpcode opcode, T... operands)
+    explicit Instruction(TranslationOpcode opcode, T... operands)
         : opcode(opcode),
           operands{operands.value()...}
 #ifdef ENABLE_SLOW_DCHECKS

@@ -77,9 +77,9 @@ class DeoptimizationFrameTranslation : public TrustedByteArray {
   OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, TrustedByteArray);
 };
 
-class DeoptimizationFrameTranslation::Iterator {
+class DeoptTranslationIterator {
  public:
-  Iterator(Tagged<DeoptimizationFrameTranslation> buffer, int index);
+  DeoptTranslationIterator(base::Vector<const uint8_t> buffer, int index);
 
   int32_t NextOperand();
 
@@ -104,7 +104,7 @@ class DeoptimizationFrameTranslation::Iterator {
   void SkipOpcodeAndItsOperandsAtPreviousIndex();
 
   std::vector<int32_t> uncompressed_contents_;
-  Tagged<DeoptimizationFrameTranslation> buffer_;
+  const base::Vector<const uint8_t> buffer_;
   int index_;
 
   // This decrementing counter indicates how many more times to read operations
@@ -118,6 +118,14 @@ class DeoptimizationFrameTranslation::Iterator {
   // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
   // advance the previous_index_ by this many steps.
   int ops_since_previous_index_was_updated_ = 0;
+};
+
+// Iterator over the deoptimization values. The iterator is not GC-safe.
+class DeoptimizationFrameTranslation::Iterator
+    : public DeoptTranslationIterator {
+ public:
+  Iterator(Tagged<DeoptimizationFrameTranslation> buffer, int index);
+  DisallowGarbageCollection no_gc_;
 };
 
 // DeoptimizationData is a fixed array used to hold the deoptimization data for
