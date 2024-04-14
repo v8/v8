@@ -110,6 +110,7 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
       fi
       # Fuzztest replay.
       if [ "$#" -eq  "1" ]; then
+         unset CENTIPEDE_RUNNER_FLAGS
          FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
       fi
       """)

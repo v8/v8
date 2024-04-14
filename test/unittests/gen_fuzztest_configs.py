@@ -54,6 +54,7 @@ if [ "$#" -eq  "0" ]; then
 fi
 # Fuzztest replay.
 if [ "$#" -eq  "1" ]; then
+   unset CENTIPEDE_RUNNER_FLAGS
    FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz={test}
 fi
 """
