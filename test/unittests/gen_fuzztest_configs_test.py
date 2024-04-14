@@ -39,9 +39,9 @@ class TestFileName(unittest.TestCase):
     check_conversion('Foo.Bar', 'v8_foo_bar_fuzztest')
     check_conversion('foo.bar', 'v8_foo_bar_fuzztest')
     check_conversion('SimpleSuite.SimpleTest',
-                     'v8_simple_suite_simple_test_fuzztest')
+                     'v8_simple_suite_simple_fuzztest')
     check_conversion('RemoveFuzzTest.SimpleTest',
-                     'v8_remove_simple_test_fuzztest')
+                     'v8_remove_simple_fuzztest')
     check_conversion('IPConversionABC.I24P',
                      'v8_ip_conversion_abc_i24_p_fuzztest')
 
@@ -91,8 +91,8 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
         'centipede',  # Bash wrapper to ../centipede
         'fuzztests.stamp',
         'v8_alpha_sort_this_foo_bar_xyz_fuzztest',
-        'v8_foo_test_test1_fuzztest',
-        'v8_foo_test_test2_fuzztest',
+        'v8_foo_1_fuzztest',
+        'v8_foo_2_fuzztest',
     ]
     self.assertEqual(expexted_fuzz_test_output, fuzz_test_output)
 
@@ -113,7 +113,7 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
          FUZZTEST_REPLAY=$1 exec $BINARY_DIR/v8_unittests --fuzz=FooTest.Test1
       fi
       """)
-    with open('/out/build/fuzztests/v8_foo_test_test1_fuzztest') as f:
+    with open('/out/build/fuzztests/v8_foo_1_fuzztest') as f:
       self.assertEqual(expected_wrapper, f.read())
 
 

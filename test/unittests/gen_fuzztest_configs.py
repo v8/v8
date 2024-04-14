@@ -75,7 +75,7 @@ def list_fuzz_tests(executable):
 
 def fuzz_test_to_file_name(test):
   assert FUZZER_NAME_RE.match(test)
-  fuzztest_name = re.sub(r'(f|F)uzz(t|T)est', '', test)
+  fuzztest_name = re.sub(r'((f|F)uzz(t|T)est|(t|T)est)', '', test)
   fuzztest_name = re.sub(r'\.', ' ', fuzztest_name)
   fuzztest_name = re.sub('([A-Z]+)', r' \1', fuzztest_name)
   fuzztest_name = re.sub('([A-Z][a-z]+)', r' \1', fuzztest_name)
