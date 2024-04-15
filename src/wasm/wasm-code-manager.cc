@@ -556,6 +556,15 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
   return result;
 }
 
+size_t WasmCode::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 88);
+  size_t result = sizeof(WasmCode);
+  // For meta_data_.
+  result += protected_instructions_size_ + reloc_info_size_ +
+            source_positions_size_ + inlining_positions_size_;
+  return result;
+}
+
 WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(4);
@@ -2462,7 +2471,13 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   {
     base::RecursiveMutexGuard lock(&allocation_mutex_);
     result += ContentSize(owned_code_);
+    for (auto& [address, unique_code_ptr] : owned_code_) {
+      result += unique_code_ptr->EstimateCurrentMemoryConsumption();
+    }
     result += ContentSize(new_owned_code_);
+    for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
+      result += code->EstimateCurrentMemoryConsumption();
+    }
     // For {code_table_}.
     result += module_->num_declared_functions * sizeof(void*);
     result += ContentSize(code_space_data_);

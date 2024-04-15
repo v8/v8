@@ -306,6 +306,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   friend class NativeModule;
 
