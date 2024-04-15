@@ -258,7 +258,8 @@ class CallArguments {
 class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
  public:
   CallSpeculationScope(MaglevGraphBuilder* builder,
-                       compiler::FeedbackSource feedback_source)
+                       compiler::FeedbackSource feedback_source,
+                       SpeculationMode mode)
       : builder_(builder) {
     DCHECK(!builder_->current_speculation_feedback_.IsValid());
     if (feedback_source.IsValid()) {
@@ -267,9 +268,11 @@ class V8_NODISCARD MaglevGraphBuilder::CallSpeculationScope {
           FeedbackSlotKind::kCall);
     }
     builder_->current_speculation_feedback_ = feedback_source;
+    builder_->current_speculation_mode_ = mode;
   }
   ~CallSpeculationScope() {
     builder_->current_speculation_feedback_ = compiler::FeedbackSource();
+    builder_->current_speculation_mode_ = SpeculationMode::kAllowSpeculation;
   }
 
  private:
@@ -281,16 +284,19 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
   explicit SaveCallSpeculationScope(MaglevGraphBuilder* builder)
       : builder_(builder) {
     saved_ = builder_->current_speculation_feedback_;
+    saved_mode_ = builder->current_speculation_mode_;
     builder_->current_speculation_feedback_ = compiler::FeedbackSource();
   }
   ~SaveCallSpeculationScope() {
     builder_->current_speculation_feedback_ = saved_;
+    builder_->current_speculation_mode_ = saved_mode_;
   }
 
   const compiler::FeedbackSource& value() { return saved_; }
 
  private:
   compiler::FeedbackSource saved_;
+  SpeculationMode saved_mode_;
   MaglevGraphBuilder* builder_;
 };
 
@@ -6129,6 +6135,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
+
   ValueNode* receiver = args.receiver();
   if (!receiver) return ReduceResult::Fail();
 
@@ -6411,6 +6421,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   if (args.count() != 1) return ReduceResult::Fail();
   return AddNewNode<BuiltinStringFromCharCode>({GetTruncatedInt32ForToNumber(
       args[0], ToNumberHint::kAssumeNumberOrOddball)});
@@ -6418,6 +6431,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -6455,6 +6471,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
 
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -6533,6 +6552,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
 template <typename LoadNode>
 ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
                                                       ExternalArrayType type) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return ReduceResult::Fail();
@@ -6553,6 +6575,9 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
 template <typename StoreNode, typename Function>
 ReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     const CallArguments& args, ExternalArrayType type, Function&& getValue) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return ReduceResult::Fail();
@@ -6739,6 +6764,9 @@ ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -6878,6 +6906,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -7115,6 +7146,10 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
         arg = GetHoleyFloat64ForToNumber(arg,
                                          ToNumberHint::kAssumeNumberOrOddball);
       } else {
+        if (current_speculation_mode_ ==
+            SpeculationMode::kDisallowSpeculation) {
+          return ReduceResult::Fail();
+        }
         DeoptFrameScope continuation_scope(this,
                                            Float64Round::continuation(kind));
         ToNumberOrNumeric* conversion =
@@ -7177,16 +7212,23 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
   return AddNewNode<Float64Exponentiate>({left, right});
 }
 
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName) \
-  ReduceResult MaglevGraphBuilder::TryReduce##MathName(              \
-      compiler::JSFunctionRef target, CallArguments& args) {         \
-    if (args.count() < 1) {                                          \
-      return GetRootConstant(RootIndex::kNanValue);                  \
-    }                                                                \
-    ValueNode* value =                                               \
-        GetFloat64ForToNumber(args[0], ToNumberHint::kAssumeNumber); \
-    return AddNewNode<Float64Ieee754Unary>(                          \
-        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName); \
+#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)          \
+  ReduceResult MaglevGraphBuilder::TryReduce##MathName(                       \
+      compiler::JSFunctionRef target, CallArguments& args) {                  \
+    if (args.count() < 1) {                                                   \
+      return GetRootConstant(RootIndex::kNanValue);                           \
+    }                                                                         \
+    if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) { \
+      ValueRepresentation rep = args[0]->properties().value_representation(); \
+      if (rep == ValueRepresentation::kTagged ||                              \
+          rep == ValueRepresentation::kHoleyFloat64) {                        \
+        return ReduceResult::Fail();                                          \
+      }                                                                       \
+    }                                                                         \
+    ValueNode* value =                                                        \
+        GetFloat64ForToNumber(args[0], ToNumberHint::kAssumeNumber);          \
+    return AddNewNode<Float64Ieee754Unary>(                                   \
+        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);          \
   }
 
 IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
@@ -7201,12 +7243,7 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (!feedback_source.IsValid() ||
-      speculation_mode == SpeculationMode::kDisallowSpeculation) {
-    // TODO(leszeks): Some builtins might be inlinable without speculation.
-    return ReduceResult::Fail();
-  }
-  CallSpeculationScope speculate(this, feedback_source);
+  CallSpeculationScope speculate(this, feedback_source, speculation_mode);
   if (!shared.HasBuiltinId()) {
     return ReduceResult::Fail();
   }
