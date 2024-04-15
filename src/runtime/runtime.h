@@ -685,7 +685,7 @@ namespace internal {
   F(WasmStringEncodeWtf8Array, 4, 1)          \
   F(WasmStringToUtf8Array, 1, 1)              \
   F(WasmStringAsWtf8, 1, 1)                   \
-  F(WasmStringViewWtf8Encode, 6, 1)           \
+  F(WasmStringViewWtf8Encode, 7, 1)           \
   F(WasmStringViewWtf8Slice, 3, 1)            \
   F(WasmStringFromCodePoint, 1, 1)            \
   F(WasmStringHash, 1, 1)                     \

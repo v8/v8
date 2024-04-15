@@ -1111,7 +1111,7 @@ Node* CodeAssembler::CallRuntimeImpl(
       Builtins::RuntimeCEntry(result_size, switch_to_the_central_stack);
   TNode<Code> centry_code =
       HeapConstantNoHole(isolate()->builtins()->code_handle(centry));
-  constexpr size_t kMaxNumArgs = 6;
+  constexpr size_t kMaxNumArgs = 7;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(

@@ -1992,8 +1992,9 @@ class WasmGraphBuildingInterface {
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
                      const unibrow::Utf8Variant variant, const Value& offset,
                      const Value& size, Value* result) {
-    SetAndTypeNode(result, builder_->StringNewWtf8(memory.index, variant,
-                                                   offset.node, size.node));
+    SetAndTypeNode(result,
+                   builder_->StringNewWtf8(memory.memory, variant, offset.node,
+                                           size.node, decoder->position()));
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
@@ -2008,7 +2009,8 @@ class WasmGraphBuildingInterface {
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
     SetAndTypeNode(result,
-                   builder_->StringNewWtf16(imm.index, offset.node, size.node));
+                   builder_->StringNewWtf16(imm.memory, offset.node, size.node,
+                                            decoder->position()));
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
@@ -2056,7 +2058,7 @@ class WasmGraphBuildingInterface {
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
     SetAndTypeNode(
-        result, builder_->StringEncodeWtf8(memory.index, variant, str.node,
+        result, builder_->StringEncodeWtf8(memory.memory, variant, str.node,
                                            NullCheckFor(str.type), offset.node,
                                            decoder->position()));
   }
@@ -2074,7 +2076,7 @@ class WasmGraphBuildingInterface {
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
     SetAndTypeNode(result, builder_->StringEncodeWtf16(
-                               imm.index, str.node, NullCheckFor(str.type),
+                               imm.memory, str.node, NullCheckFor(str.type),
                                offset.node, decoder->position()));
   }
 
@@ -2127,7 +2129,7 @@ class WasmGraphBuildingInterface {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    builder_->StringViewWtf8Encode(memory.index, variant, view.node,
+    builder_->StringViewWtf8Encode(memory.memory, variant, view.node,
                                    NullCheckFor(view.type), addr.node, pos.node,
                                    bytes.node, &next_pos->node,
                                    &bytes_written->node, decoder->position());
@@ -2162,7 +2164,7 @@ class WasmGraphBuildingInterface {
                              const Value& codeunits, Value* result) {
     SetAndTypeNode(
         result, builder_->StringViewWtf16Encode(
-                    imm.index, view.node, NullCheckFor(view.type), offset.node,
+                    imm.memory, view.node, NullCheckFor(view.type), offset.node,
                     pos.node, codeunits.node, decoder->position()));
   }
 

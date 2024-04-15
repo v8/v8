@@ -69,8 +69,8 @@ extern runtime WasmStringEncodeWtf16(
     Context, WasmTrustedInstanceData, Smi, String, Number, Smi, Smi): JSAny;
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
 extern runtime WasmStringViewWtf8Encode(
-    Context, WasmTrustedInstanceData, Smi, ByteArray, Number, Number,
-    Number): JSAny;
+    Context, WasmTrustedInstanceData, Smi, ByteArray, Number, Number, Number,
+    Smi): JSAny;
 extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
     String;
 extern runtime WasmStringFromCodePoint(Context, Number): String;
@@ -539,6 +539,15 @@ builtin UintPtr53ToNumber(value: uintptr): Number {
   return AllocateHeapNumberWithValue(valueFloat);
 }
 
+// Suitable for indexes/offsets into memory: while values >2^53 will get
+// rounded off, they're all OOB anyway, and an OOB check after a conversion
+// back to uintptr can still detect that. (Alternatively we could trap
+// right here.)
+macro UintPtrToNumberRounding(value: uintptr): Number {
+  if (value <= kSmiMaxValue) return Convert<Smi>(Convert<intptr>(value));
+  return AllocateHeapNumberWithValue(ChangeUintPtrToFloat64(value));
+}
+
 extern builtin I64ToBigInt(intptr): BigInt;
 extern builtin I32PairToBigInt(/*low*/ intptr, /*high*/ intptr): BigInt;
 
@@ -790,12 +799,13 @@ macro ModifyThreadInWasmFlag(newValue: int32): void {
 }
 
 builtin WasmStringNewWtf8(
-    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String
+    offset: uintptr, size: uint32, memory: uint32, utf8Variant: Smi): String
     |WasmNull {
   const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmStringNewWtf8(
-      LoadContextFromInstanceData(trustedData), trustedData, memory,
-      utf8Variant, WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
+      LoadContextFromInstanceData(trustedData), trustedData,
+      SmiFromUint32(memory), utf8Variant, UintPtrToNumberRounding(offset),
+      WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
     start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String
@@ -812,12 +822,12 @@ builtin WasmStringNewWtf8Array(
     runtime::ThrowWasmError(context, SmiConstant(error));
   }
 }
-builtin WasmStringNewWtf16(memory: uint32, offset: uint32, size: uint32):
+builtin WasmStringNewWtf16(memory: uint32, offset: uintptr, size: uint32):
     String {
   const trustedData = LoadInstanceDataFromFrame();
   tail runtime::WasmStringNewWtf16(
       LoadContextFromInstanceData(trustedData), trustedData,
-      SmiFromUint32(memory), WasmUint32ToNumber(offset),
+      SmiFromUint32(memory), UintPtrToNumberRounding(offset),
       WasmUint32ToNumber(size));
 }
 
@@ -990,11 +1000,13 @@ builtin WasmStringMeasureWtf8(string: String): int32 {
   return NumberToInt32(result);
 }
 builtin WasmStringEncodeWtf8(
-    string: String, offset: uint32, memory: Smi, utf8Variant: Smi): uint32 {
+    offset: uintptr, memory: uint32, utf8Variant: uint32,
+    string: String): uint32 {
   const trustedData = LoadInstanceDataFromFrame();
   const result = runtime::WasmStringEncodeWtf8(
-      LoadContextFromInstanceData(trustedData), trustedData, memory,
-      utf8Variant, string, WasmUint32ToNumber(offset));
+      LoadContextFromInstanceData(trustedData), trustedData,
+      SmiFromUint32(memory), SmiFromUint32(utf8Variant), string,
+      UintPtrToNumberRounding(offset));
   return NumberToUint32(result);
 }
 builtin WasmStringEncodeWtf8Array(
@@ -1008,12 +1020,13 @@ builtin WasmStringEncodeWtf8Array(
 builtin WasmStringToUtf8Array(string: String): WasmArray {
   return runtime::WasmStringToUtf8Array(LoadContextFromFrame(), string);
 }
-builtin WasmStringEncodeWtf16(string: String, offset: uint32, memory: Smi):
+builtin WasmStringEncodeWtf16(string: String, offset: uintptr, memory: uint32):
     uint32 {
   const trustedData = LoadInstanceDataFromFrame();
   runtime::WasmStringEncodeWtf16(
-      LoadContextFromInstanceData(trustedData), trustedData, memory, string,
-      WasmUint32ToNumber(offset), SmiConstant(0), SmiFromInt32(string.length));
+      LoadContextFromInstanceData(trustedData), trustedData,
+      SmiFromUint32(memory), string, UintPtrToNumberRounding(offset),
+      SmiConstant(0), SmiFromInt32(string.length));
   return Unsigned(string.length);
 }
 builtin WasmStringEncodeWtf16Array(
@@ -1153,23 +1166,17 @@ struct NewPositionAndBytesWritten {
   bytesWritten: uintptr;
 }
 builtin WasmStringViewWtf8Encode(
-    addr: uint32, pos: uint32, bytes: uint32, view: ByteArray, memory: Smi,
+    addr: uintptr, pos: uint32, bytes: uint32, view: ByteArray, memory: Smi,
     utf8Variant: Smi): NewPositionAndBytesWritten {
   const start = WasmStringViewWtf8Advance(view, pos, 0);
   const end = WasmStringViewWtf8Advance(view, start, bytes);
   const trustedData = LoadInstanceDataFromFrame();
   const context = LoadContextFromInstanceData(trustedData);
 
-  // kMaxArgs in code-assembler.cc:CallRunTimeImpl is currently limited
-  // to 6 arguments when calling a runtime function.  Throw away the
-  // memory argument for now; when we need multi-memory we can bump
-  // kMaxArgs.
-  dcheck(memory == SmiFromInt32(0));
-
   // Always call out to run-time, to catch invalid addr.
   runtime::WasmStringViewWtf8Encode(
-      context, trustedData, utf8Variant, view, WasmUint32ToNumber(addr),
-      WasmUint32ToNumber(start), WasmUint32ToNumber(end));
+      context, trustedData, utf8Variant, view, UintPtrToNumberRounding(addr),
+      WasmUint32ToNumber(start), WasmUint32ToNumber(end), memory);
 
   return NewPositionAndBytesWritten{
     newPosition: Convert<uintptr>(end),
@@ -1199,7 +1206,7 @@ transitioning builtin WasmStringViewWtf16GetCodeUnit(
   }
 }
 builtin WasmStringViewWtf16Encode(
-    offset: uint32, start: uint32, length: uint32, string: String,
+    offset: uintptr, start: uint32, length: uint32, string: String,
     memory: Smi): uint32 {
   const trustedData = LoadInstanceDataFromFrame();
   const clampedStart =
@@ -1208,7 +1215,7 @@ builtin WasmStringViewWtf16Encode(
   const clampedLength = length < maxLength ? length : maxLength;
   runtime::WasmStringEncodeWtf16(
       LoadContextFromInstanceData(trustedData), trustedData, memory, string,
-      WasmUint32ToNumber(offset), SmiFromUint32(clampedStart),
+      UintPtrToNumberRounding(offset), SmiFromUint32(clampedStart),
       SmiFromUint32(clampedLength));
   return clampedLength;
 }

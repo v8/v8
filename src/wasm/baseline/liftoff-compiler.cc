@@ -5743,17 +5743,13 @@ class LiftoffCompiler {
       return slot;
     }
 
-    // Otherwise we have to either zero-extend or truncate; pop to a register
-    // first.
-    LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
     // For memory32 on 64-bit hosts, zero-extend.
     if (kSystemPointerSize == kInt64Size) {
       DCHECK(!is_mem64);  // Handled above.
-      // Get a register that we can overwrite, preferably {reg}.
-      LiftoffRegister intptr_reg = __ GetUnusedRegister(kGpReg, {reg}, *pinned);
-      __ emit_u32_to_uintptr(intptr_reg.gp(), reg.gp());
-      pinned->set(intptr_reg);
-      return {kIntPtrKind, intptr_reg, 0};
+      LiftoffRegister reg = __ LoadToModifiableRegister(slot, *pinned);
+      __ emit_u32_to_uintptr(reg.gp(), reg.gp());
+      pinned->set(reg);
+      return {kIntPtrKind, reg, 0};
     }
 
     // For memory64 on 32-bit systems, combine all high words for a zero-check
@@ -5761,6 +5757,7 @@ class LiftoffCompiler {
     // managable.
     DCHECK(is_mem64);  // Other cases are handled above.
     DCHECK_EQ(kSystemPointerSize, kInt32Size);
+    LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
       // Choose a register to hold the (combination of) high word(s). It cannot
@@ -5781,14 +5778,63 @@ class LiftoffCompiler {
     return {kIntPtrKind, reg.low(), 0};
   }
 
+  // Same, but can take a VarState in the middle of the stack without
+  // popping it.
+  // For 64-bit memories on 32-bit systems, the resulting VarState will
+  // contain a single register whose value will be kMaxUint32 if the
+  // high word had any bits set.
+  VarState MemTypeToVarStateSaturating(int stack_index,
+                                       LiftoffRegList* pinned) {
+    DCHECK_LE(0, stack_index);
+    DCHECK_LT(stack_index, __ cache_state()->stack_height());
+    VarState& slot = __ cache_state()->stack_state.end()[-1 - stack_index];
+    const bool is_mem64 = slot.kind() == kI64;
+    // For memory32 on a 32-bit system or memory64 on a 64-bit system, there is
+    // nothing to do.
+    if ((kSystemPointerSize == kInt64Size) == is_mem64) {
+      if (slot.is_reg()) pinned->set(slot.reg());
+      return slot;
+    }
+
+    LiftoffRegister reg = __ LoadToModifiableRegister(slot, *pinned);
+    // For memory32 on 64-bit hosts, zero-extend.
+    if (kSystemPointerSize == kInt64Size) {
+      DCHECK(!is_mem64);  // Handled above.
+      __ emit_u32_to_uintptr(reg.gp(), reg.gp());
+      pinned->set(reg);
+      return {kIntPtrKind, reg, 0};
+    }
+
+    // For memory64 on 32-bit systems, saturate the low word.
+    DCHECK(is_mem64);  // Other cases are handled above.
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
+    pinned->set(reg.low());
+    Label ok;
+    FREEZE_STATE(frozen);
+    __ emit_cond_jump(kZero, &ok, kI32, reg.high().gp(), no_reg, frozen);
+    __ LoadConstant(reg.low(), WasmValue{kMaxUInt32});
+    __ emit_jump(&ok);
+    __ bind(&ok);
+    return {kIntPtrKind, reg.low(), 0};
+  }
+
 #ifdef DEBUG
   // Checks that the top-of-stack value matches the declared memory (64-bit or
   // 32-bit). To be used inside a DCHECK. Always returns true though, will fail
   // internally on a detected inconsistency.
   bool MatchingMemTypeOnTopOfStack(const WasmMemory* memory) {
-    DCHECK_LT(0, __ cache_state()->stack_state.size());
+    DCHECK_LT(0, __ cache_state()->stack_height());
     ValueKind expected_kind = memory->is_memory64 ? kI64 : kI32;
     DCHECK_EQ(expected_kind, __ cache_state()->stack_state.back().kind());
+    return true;
+  }
+
+  bool MatchingMemType(const WasmMemory* memory, int stack_index) {
+    DCHECK_LE(0, stack_index);
+    DCHECK_LT(stack_index, __ cache_state()->stack_state.size());
+    ValueKind expected_kind = memory->is_memory64 ? kI64 : kI32;
+    DCHECK_EQ(expected_kind,
+              __ cache_state()->stack_state.end()[-1 - stack_index].kind());
     return true;
   }
 #endif
@@ -7078,27 +7124,23 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
-    LiftoffRegister memory_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.index);
-    VarState memory_var(kSmiKind, memory_reg, 0);
+    VarState memory_var{kI32, static_cast<int>(imm.index), 0};
 
     LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(variant_reg, static_cast<int32_t>(variant));
     VarState variant_var(kSmiKind, variant_reg, 0);
 
+    VarState& size_var = __ cache_state()->stack_state.end()[-1];
+
+    DCHECK(MatchingMemType(imm.memory, 1));
+    VarState address = MemTypeToVarStateSaturating(1, &pinned);
+
     CallBuiltin(
         Builtin::kWasmStringNewWtf8,
-        MakeSig::Returns(kRefNull).Params(kI32, kI32, kSmiKind, kSmiKind),
-        {
-            __ cache_state()->stack_state.end()[-2],  // offset
-            __ cache_state()->stack_state.end()[-1],  // size
-            memory_var,
-            variant_var,
-        },
-        decoder->position());
-    __ cache_state()->stack_state.pop_back(2);
+        MakeSig::Returns(kRefNull).Params(kIntPtrKind, kI32, kI32, kSmiKind),
+        {address, size_var, memory_var, variant_var}, decoder->position());
+    __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
@@ -7143,15 +7185,16 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
 
+    VarState& size_var = __ cache_state()->stack_state.end()[-1];
+
+    LiftoffRegList pinned;
+    DCHECK(MatchingMemType(imm.memory, 1));
+    VarState address = MemTypeToVarStateSaturating(1, &pinned);
+
     CallBuiltin(Builtin::kWasmStringNewWtf16,
-                MakeSig::Returns(kRef).Params(kI32, kI32, kI32),
-                {
-                    memory_var,
-                    __ cache_state()->stack_state.end()[-2],  // offset
-                    __ cache_state()->stack_state.end()[-1]   // size
-                },
-                decoder->position());
-    __ cache_state()->stack_state.pop_back(2);
+                MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32),
+                {memory_var, address, size_var}, decoder->position());
+    __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
@@ -7249,31 +7292,20 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
-    VarState& offset_var = __ cache_state()->stack_state.end()[-1];
+    DCHECK(MatchingMemType(imm.memory, 0));
+    VarState offset_var = MemTypeToVarStateSaturating(0, &pinned);
 
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     VarState string_var(kRef, string_reg, 0);
 
-    LiftoffRegister memory_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.index);
-    VarState memory_var(kSmiKind, memory_reg, 0);
-
-    LiftoffRegister variant_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(variant_reg, static_cast<int32_t>(variant));
-    VarState variant_var(kSmiKind, variant_reg, 0);
+    VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
+    VarState variant_var{kI32, static_cast<int32_t>(variant), 0};
 
     CallBuiltin(Builtin::kWasmStringEncodeWtf8,
-                MakeSig::Returns(kI32).Params(kRef, kI32, kSmiKind, kSmiKind),
-                {
-                    string_var,
-                    offset_var,
-                    memory_var,
-                    variant_var,
-                },
+                MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kI32, kRef),
+                {offset_var, memory_var, variant_var, string_var},
                 decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
@@ -7327,26 +7359,19 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
-    VarState& offset_var = __ cache_state()->stack_state.end()[-1];
+    DCHECK(MatchingMemType(imm.memory, 0));
+    VarState offset_var = MemTypeToVarStateSaturating(0, &pinned);
 
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     VarState string_var(kRef, string_reg, 0);
 
-    LiftoffRegister memory_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.index);
-    VarState memory_var(kSmiKind, memory_reg, 0);
+    VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
 
     CallBuiltin(Builtin::kWasmStringEncodeWtf16,
-                MakeSig::Returns(kI32).Params(kRef, kI32, kSmiKind),
-                {
-                    string_var,
-                    offset_var,
-                    memory_var,
-                },
-                decoder->position());
+                MakeSig::Returns(kI32).Params(kRef, kIntPtrKind, kI32),
+                {string_var, offset_var, memory_var}, decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -7555,13 +7580,17 @@ class LiftoffCompiler {
 
     VarState& bytes_var = __ cache_state()->stack_state.end()[-1];
     VarState& pos_var = __ cache_state()->stack_state.end()[-2];
-    VarState& addr_var = __ cache_state()->stack_state.end()[-3];
+
+    DCHECK(MatchingMemType(imm.memory, 2));
+    VarState addr_var = MemTypeToVarStateSaturating(2, &pinned);
 
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
     VarState view_var(kRef, view_reg, 0);
 
+    // TODO(jkummerow): Support Smi offsets when constructing {VarState}s
+    // directly; avoid requesting a register.
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(memory_reg, imm.index);
@@ -7572,18 +7601,12 @@ class LiftoffCompiler {
     LoadSmi(variant_reg, static_cast<int32_t>(variant));
     VarState variant_var(kSmiKind, variant_reg, 0);
 
-    CallBuiltin(Builtin::kWasmStringViewWtf8Encode,
-                MakeSig::Returns(kI32, kI32)
-                    .Params(kI32, kI32, kI32, kRef, kSmiKind, kSmiKind),
-                {
-                    addr_var,
-                    pos_var,
-                    bytes_var,
-                    view_var,
-                    memory_var,
-                    variant_var,
-                },
-                decoder->position());
+    CallBuiltin(
+        Builtin::kWasmStringViewWtf8Encode,
+        MakeSig::Returns(kI32, kI32)
+            .Params(kIntPtrKind, kI32, kI32, kRef, kSmiKind, kSmiKind),
+        {addr_var, pos_var, bytes_var, view_var, memory_var, variant_var},
+        decoder->position());
     __ DropValues(4);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -7651,11 +7674,7 @@ class LiftoffCompiler {
     VarState pos_var(kI32, pos_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringViewWtf16GetCodeUnit,
-                MakeSig::Returns(kI32).Params(kRef, kI32),
-                {
-                    view_var,
-                    pos_var,
-                },
+                MakeSig::Returns(kI32).Params(kRef, kI32), {view_var, pos_var},
                 decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -7672,7 +7691,9 @@ class LiftoffCompiler {
 
     VarState& codeunits_var = __ cache_state()->stack_state.end()[-1];
     VarState& pos_var = __ cache_state()->stack_state.end()[-2];
-    VarState& offset_var = __ cache_state()->stack_state.end()[-3];
+
+    DCHECK(MatchingMemType(imm.memory, 2));
+    VarState offset_var = MemTypeToVarStateSaturating(2, &pinned);
 
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
@@ -7684,16 +7705,11 @@ class LiftoffCompiler {
     LoadSmi(memory_reg, imm.index);
     VarState memory_var(kSmiKind, memory_reg, 0);
 
-    CallBuiltin(Builtin::kWasmStringViewWtf16Encode,
-                MakeSig::Returns(kI32).Params(kI32, kI32, kI32, kRef, kSmiKind),
-                {
-                    offset_var,
-                    pos_var,
-                    codeunits_var,
-                    view_var,
-                    memory_var,
-                },
-                decoder->position());
+    CallBuiltin(
+        Builtin::kWasmStringViewWtf16Encode,
+        MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kI32, kRef, kSmiKind),
+        {offset_var, pos_var, codeunits_var, view_var, memory_var},
+        decoder->position());
     __ DropValues(4);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 

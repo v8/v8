@@ -495,6 +495,22 @@ class LiftoffAssembler : public MacroAssembler {
   // Load a non-register cache slot to a given (fixed) register.
   inline void LoadToFixedRegister(VarState slot, LiftoffRegister reg);
 
+  // Load a cache slot to a register that has no other uses, so it can be
+  // modified.
+  LiftoffRegister LoadToModifiableRegister(VarState slot,
+                                           LiftoffRegList pinned) {
+    LiftoffRegister reg = LoadToRegister(slot, pinned);
+    // TODO(jkummerow): The following line is overly optimistic, as long as
+    // we don't pop the VarState, the register will never be considered free.
+    if (cache_state()->is_free(reg) && !pinned.has(reg)) return reg;
+
+    LiftoffRegister new_reg = GetUnusedRegister(reg.reg_class(), pinned);
+    // {new_reg} could be equal to {reg}, but it's unused by the stack now.
+    // Also, {reg} still holds the previous value, even if it was spilled.
+    if (new_reg != reg) Move(new_reg, reg, slot.kind());
+    return new_reg;
+  }
+
   // Pop a VarState from the stack, updating the register use count accordingly.
   V8_INLINE VarState PopVarState() {
     DCHECK(!cache_state_.stack_state.empty());
