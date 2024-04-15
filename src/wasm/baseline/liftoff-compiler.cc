@@ -3640,11 +3640,7 @@ class LiftoffCompiler {
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index_val,
                      Value* result) {
-    // LoadTransform requires SIMD support, so check for it here. If
-    // unsupported, bailout and let TurboFan lower the code.
-    if (!CheckSupportedType(decoder, kS128, "LoadTransform")) {
-      return;
-    }
+    CHECK(CheckSupportedType(decoder, kS128, "LoadTransform"));
 
     LiftoffRegister full_index = __ PopToRegister();
     // For load splats and load zero, LoadType is the size of the load, and for
@@ -4245,9 +4241,7 @@ class LiftoffCompiler {
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* /* args */,
               Value* /* result */) {
-    if (!CpuFeatures::SupportsWasmSimd128()) {
-      return unsupported(decoder, kSimd, "simd");
-    }
+    CHECK(CpuFeatures::SupportsWasmSimd128());
     switch (opcode) {
       case wasm::kExprI8x16Swizzle:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_swizzle);
@@ -4857,9 +4851,7 @@ class LiftoffCompiler {
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate& imm,
                   base::Vector<const Value> inputs, Value* result) {
-    if (!CpuFeatures::SupportsWasmSimd128()) {
-      return unsupported(decoder, kSimd, "simd");
-    }
+    CHECK(CpuFeatures::SupportsWasmSimd128());
     switch (opcode) {
 #define CASE_SIMD_EXTRACT_LANE_OP(opcode, kind, fn)      \
   case wasm::kExpr##opcode:                              \
@@ -4896,15 +4888,13 @@ class LiftoffCompiler {
       CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
 #undef CASE_SIMD_REPLACE_LANE_OP
       default:
-        unsupported(decoder, kSimd, "simd");
+        UNREACHABLE();
     }
   }
 
   void S128Const(FullDecoder* decoder, const Simd128Immediate& imm,
                  Value* result) {
-    if (!CpuFeatures::SupportsWasmSimd128()) {
-      return unsupported(decoder, kSimd, "simd");
-    }
+    CHECK(CpuFeatures::SupportsWasmSimd128());
     constexpr RegClass result_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {});
     bool all_zeroes = std::all_of(std::begin(imm.value), std::end(imm.value),
@@ -4925,9 +4915,7 @@ class LiftoffCompiler {
   void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    if (!CpuFeatures::SupportsWasmSimd128()) {
-      return unsupported(decoder, kSimd, "simd");
-    }
+    CHECK(CpuFeatures::SupportsWasmSimd128());
     static constexpr RegClass result_rc = reg_class_for(kS128);
     LiftoffRegList pinned;
     LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
