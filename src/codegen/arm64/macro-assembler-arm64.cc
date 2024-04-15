@@ -3487,7 +3487,7 @@ void MacroAssembler::DecompressTagged(const Register& destination,
 
 void MacroAssembler::DecompressProtected(const Register& destination,
                                          const MemOperand& field_operand) {
-  CHECK(V8_ENABLE_SANDBOX_BOOL);
+#if V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
@@ -3495,6 +3495,9 @@ void MacroAssembler::DecompressProtected(const Register& destination,
   Ldr(scratch,
       MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
   Orr(destination, destination, scratch);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
