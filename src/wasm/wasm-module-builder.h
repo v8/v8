@@ -424,6 +424,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumTables() { return static_cast<int>(tables_.size()); }
 
+  int NumMemories() { return static_cast<int>(memories_.size()); }
+
   int NumGlobals() { return static_cast<int>(globals_.size()); }
 
   int NumImportedFunctions() {

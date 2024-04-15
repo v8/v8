@@ -35,6 +35,7 @@ constexpr int kMaxReturns = 15;
 constexpr int kMaxExceptions = 4;
 constexpr int kMaxTableSize = 32;
 constexpr int kMaxTables = 4;
+constexpr int kMaxMemories = 4;
 constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
@@ -927,13 +928,19 @@ class BodyGen {
     // Generate the index and the arguments, if any.
     Generate<kI32, arg_kinds...>(data);
 
+    // Format of the instruction (supports multi-memory):
+    // memory_op (align | 0x40) memory_index offset
     if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(memory_op >> 8))) {
       DCHECK(memory_op >> 8 == kAtomicPrefix || memory_op >> 8 == kSimdPrefix);
       builder_->EmitWithPrefix(memory_op);
     } else {
       builder_->Emit(memory_op);
     }
-    builder_->EmitU32V(align);
+    builder_->EmitU32V(align | 0x40);
+    // Get random memory index.
+    uint8_t memory_index =
+        data->get<uint8_t>() % builder_->builder()->NumMemories();
+    builder_->EmitU32V(memory_index);
     builder_->EmitU32V(offset);
   }
 
@@ -3403,6 +3410,14 @@ class ModuleGen {
         num_arrays_(num_arrays),
         num_types_(num_functions + num_structs + num_arrays) {}
 
+  // Generates and adds random number of memories.
+  void GenerateRandomMemories() {
+    int num_memories = 1 + module_range_->get<uint8_t>() % kMaxMemories;
+    for (int i = 0; i < num_memories; i++) {
+      builder_->AddMemory(0, 32);
+    }
+  }
+
   // Puts the types into random recursive groups.
   std::map<uint8_t, uint8_t> GenerateRandomRecursiveGroups(
       uint8_t kNumDefaultArrayTypes) {
@@ -4022,6 +4037,11 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   ModuleGen<options> gen_module(zone, &builder, &module_range, num_functions,
                                 num_structs, num_arrays);
 
+  // Add random number of memories.
+  // TODO(v8:14674): Add a mode without declaring any memory or memory
+  // instructions.
+  gen_module.GenerateRandomMemories();
+
   uint8_t current_type_index = 0;
   // In case of WasmGC expressions, we create recursive groups for the recursive
   // types.
@@ -4137,7 +4157,6 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   }
 
   ZoneBuffer buffer{zone};
-  builder.AddMemory(0, 32);
   builder.WriteTo(&buffer);
   return base::VectorOf(buffer);
 }
@@ -4275,7 +4294,6 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   }
 
   ZoneBuffer buffer{zone};
-  builder.AddMemory(0, 32);
   builder.WriteTo(&buffer);
   return base::VectorOf(buffer);
 }
