@@ -3379,6 +3379,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   if (!maybe_wasm.ToHandle(&wasm_obj) || !IsJSObject(*wasm_obj)) return;
   Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
   if (!webassembly->map()->is_extensible()) return;
+  if (webassembly->map()->is_access_check_needed()) return;
 
   /*
     If you need to install some optional features, follow the pattern:
