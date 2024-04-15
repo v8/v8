@@ -543,6 +543,23 @@ CapturedObject CapturedObject::CreateMappedArgumentsElements(
   return elements;
 }
 
+// static
+CapturedObject CapturedObject::CreateRegExpLiteral(
+    Zone* zone, compiler::JSHeapBroker* broker, compiler::MapRef map,
+    compiler::RegExpBoilerplateDescriptionRef literal) {
+  DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
+  int slot_count = JSRegExp::Size() / kTaggedSize;
+  CapturedObject regexp(zone, slot_count);
+  regexp.set(JSRegExp::kMapOffset, map);
+  regexp.set(JSRegExp::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
+  regexp.set(JSRegExp::kElementsOffset, RootIndex::kEmptyFixedArray);
+  regexp.set(JSRegExp::kDataOffset, literal.data(broker));
+  regexp.set(JSRegExp::kSourceOffset, literal.source(broker));
+  regexp.set(JSRegExp::kFlagsOffset, literal.flags());
+  regexp.set(JSRegExp::kLastIndexOffset, JSRegExp::kInitialLastIndexValue);
+  return regexp;
+}
+
 CapturedFixedDoubleArray::CapturedFixedDoubleArray(
     Zone* zone, compiler::FixedDoubleArrayRef elements, int length)
     : length(length), values(zone->AllocateArray<Float64>(length)) {

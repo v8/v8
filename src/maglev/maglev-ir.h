@@ -877,6 +877,9 @@ class CapturedObject {
   static CapturedObject CreateMappedArgumentsElements(
       Zone* zone, compiler::MapRef map, int mapped_count, ValueNode* context,
       CapturedValue unmapped_elements, int param_idx_in_ctxt);
+  static CapturedObject CreateRegExpLiteral(
+      Zone* zone, compiler::JSHeapBroker* broker, compiler::MapRef map,
+      compiler::RegExpBoilerplateDescriptionRef literal);
 
   template <typename T>
   inline void set(int offset, T value);

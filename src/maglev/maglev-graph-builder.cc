@@ -8928,7 +8928,24 @@ void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
   FeedbackSlot slot = GetSlotOperand(1);
   uint32_t flags = GetFlag16Operand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
-  // TODO(victorgomes): Inline allocation if feedback has a RegExpLiteral.
+  compiler::ProcessedFeedback const& processed_feedback =
+      broker()->GetFeedbackForRegExpLiteral(feedback_source);
+  if (!processed_feedback.IsInsufficient()) {
+    compiler::RegExpBoilerplateDescriptionRef literal =
+        processed_feedback.AsRegExpLiteral().value();
+    compiler::NativeContextRef native_context =
+        broker()->target_native_context();
+    compiler::MapRef map =
+        native_context.regexp_function(broker()).initial_map(broker());
+    SetAccumulator(BuildInlinedAllocation(
+        CapturedObject::CreateRegExpLiteral(zone(), broker(), map, literal),
+        AllocationType::kYoung));
+    // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
+    // effect clear it.
+    ClearCurrentAllocationBlock();
+    return;
+  }
+  // Fallback.
   SetAccumulator(
       AddNewNode<CreateRegExpLiteral>({}, pattern, feedback_source, flags));
 }
