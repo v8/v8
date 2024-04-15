@@ -3018,14 +3018,14 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot) {
       int context = iterator.GetRegisterOperand(0).index();
       unsigned int slot = iterator.GetIndexOperand(1);
-      int depth = iterator.GetImmediateOperand(2);
+      unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
            iterator.current_bytecode() == Bytecode::kLdaContextSlot)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
             iterator.GetIndexOperand(1) != slot ||
-            iterator.GetImmediateOperand(2) != depth) {
+            iterator.GetUnsignedImmediateOperand(2) != depth) {
           return false;
         }
         iterator.Advance();

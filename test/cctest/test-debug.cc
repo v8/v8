@@ -6675,3 +6675,19 @@ TEST(CatchPredictionClosureCapture) {
     }
   )javascript");
 }
+
+TEST(CatchPredictionNestedContext) {
+  // Statement returning rejected promise stores in a variable in an outer
+  // context.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = null;
+      {
+        let otherObj = {};
+        result = Promise.reject('f');
+        result.catch(()=>otherObj);
+      }
+      return (() => result);
+    }
+  )javascript");
+}
