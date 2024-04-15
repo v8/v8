@@ -155,36 +155,49 @@ StackFrame* StackFrameIterator::Reframe() {
   return frame();
 }
 
+namespace {
+StackFrame::Type GetStateForFastCCallCallerFP(Isolate* isolate, Address fp,
+                                              Address pc, Address pc_address,
+                                              StackFrame::State* state) {
+  // 'Fast C calls' are a special type of C call where we call directly from
+  // JS to C without an exit frame inbetween. The CEntryStub is responsible
+  // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
+  // calls. To keep the stack iterable, we store the FP and PC of the caller
+  // of the fast C call on the isolate. This is guaranteed to be the topmost
+  // JS frame, because fast C calls cannot call back into JS. We start
+  // iterating the stack from this topmost JS frame.
+  DCHECK_NE(kNullAddress, pc);
+  state->fp = fp;
+  state->sp = kNullAddress;
+  state->pc_address = reinterpret_cast<Address*>(pc_address);
+  state->callee_pc_address = nullptr;
+  state->constant_pool_address = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+  if (wasm::GetWasmCodeManager()->LookupCode(isolate, pc)) {
+    return StackFrame::WASM;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return StackFrame::TURBOFAN;
+}
+}  // namespace
+
 void StackFrameIterator::Reset(ThreadLocalTop* top) {
   StackFrame::State state;
+  StackFrame::Type type;
 
   const Address fast_c_call_caller_fp =
       isolate_->isolate_data()->fast_c_call_caller_fp();
   if (fast_c_call_caller_fp != kNullAddress) {
-    // 'Fast C calls' are a special type of C call where we call directly from
-    // JS to C without an exit frame inbetween. The CEntryStub is responsible
-    // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
-    // calls. To keep the stack iterable, we store the FP and PC of the caller
-    // of the fast C call on the isolate. This is guaranteed to be the topmost
-    // JS frame, because fast C calls cannot call back into JS. We start
-    // iterating the stack from this topmost JS frame.
-    DCHECK_NE(kNullAddress, isolate_->isolate_data()->fast_c_call_caller_pc());
-    state.fp = fast_c_call_caller_fp;
-    state.sp = kNullAddress;
-    state.pc_address = reinterpret_cast<Address*>(
-        isolate_->isolate_data()->fast_c_call_caller_pc_address());
-    state.callee_pc_address = nullptr;
-    state.constant_pool_address = nullptr;
-
-    handler_ = StackHandler::FromAddress(Isolate::handler(top));
-    SetNewFrame(StackFrame::TURBOFAN, &state);
-
+    const Address caller_pc = isolate_->isolate_data()->fast_c_call_caller_pc();
+    const Address caller_pc_address =
+        isolate_->isolate_data()->fast_c_call_caller_pc_address();
+    type = GetStateForFastCCallCallerFP(isolate_, fast_c_call_caller_fp,
+                                        caller_pc, caller_pc_address, &state);
   } else {
-    StackFrame::Type type =
-        ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
+    type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
+  }
     handler_ = StackHandler::FromAddress(Isolate::handler(top));
     SetNewFrame(type, &state);
-  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2812,12 +2825,14 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
   Tagged<JSFunction> opt_function = function();
   Tagged<Code> code = opt_function->code(isolate());
 
+  Address pc = maybe_unauthenticated_pc();
+
   // The code object may have been replaced by lazy deoptimization. Fall back
   // to a slow search in this case to find the original optimized code object.
-  if (!code->contains(isolate(), pc())) {
+  if (!code->contains(isolate(), pc)) {
     code = isolate()
                ->heap()
-               ->GcSafeFindCodeForInnerPointer(pc())
+               ->GcSafeFindCodeForInnerPointer(pc)
                ->UnsafeCastToCode();
   }
   DCHECK(!code.is_null());
@@ -2825,13 +2840,13 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
 
   if (code->is_maglevved()) {
     MaglevSafepointEntry safepoint_entry =
-        code->GetMaglevSafepointEntry(isolate(), pc());
+        code->GetMaglevSafepointEntry(isolate(), pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return DeoptimizationData::cast(code->deoptimization_data());
     }
   } else {
-    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc());
+    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return DeoptimizationData::cast(code->deoptimization_data());

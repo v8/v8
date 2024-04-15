@@ -795,6 +795,11 @@ void DidntThrowOp::Validate(const Graph& graph) const {
       DCHECK(call_op.descriptor->out_reps == outputs_rep());
       break;
     }
+    case Opcode::kFastApiCall: {
+      auto& call_op = graph.Get(throwing_operation()).Cast<FastApiCallOp>();
+      DCHECK(call_op.kOutReps == outputs_rep());
+      break;
+    }
     default:
       UNREACHABLE();
   }

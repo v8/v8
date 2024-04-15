@@ -136,6 +136,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchSaveCallerRegisters)                                               \
   V(ArchRestoreCallerRegisters)                                            \
   V(ArchCallCFunction)                                                     \
+  V(ArchCallCFunctionWithFrameState)                                       \
   V(ArchPrepareTailCall)                                                   \
   V(ArchJmp)                                                               \
   V(ArchBinarySearchSwitch)                                                \
@@ -313,8 +314,8 @@ using InstructionCode = uint32_t;
 //                              AddressingModeField
 //                              FlagsModeField
 //                              FlagsConditionField
-// DeoptImmedArgsCountField    | ParamField   | MiscField
-// DeoptFrameStateOffsetField  | FPParamField |
+// DeoptImmedArgsCountField    | ParamField      | MiscField
+// DeoptFrameStateOffsetField  | FPParamField    |
 //
 // Notably, AccessModeField can follow any of several sequences of fields.
 

@@ -44,12 +44,29 @@ class FastCApiObject {
     return ret;
   }
 
+  static AnyCType ThrowNoFallbackFastCallbackPatch(AnyCType receiver) {
+    AnyCType ret;
+    ThrowNoFallbackFastCallback(receiver.object_value);
+    return ret;
+  }
+
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static void ThrowFallbackFastCallback(Local<Object> receiver,
                                         FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     self->fast_call_count_++;
     options.fallback = true;
+  }
+
+  static int ThrowNoFallbackFastCallback(Local<Object> receiver) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    self->fast_call_count_++;
+    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = LoadContextFromFastCApiObject(receiver);
+    v8::Context::Scope context_scope(context);
+    isolate->ThrowError("Exception from fast callback");
+    return 0;
   }
 
   static void ThrowFallbackSlowCallback(
@@ -59,7 +76,7 @@ class FastCApiObject {
     CHECK_SELF_OR_THROW();
     self->slow_call_count_++;
 
-    info.GetIsolate()->ThrowError("Exception from fallback.");
+    info.GetIsolate()->ThrowError("Exception from slow callback");
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1382,6 +1399,7 @@ class FastCApiObject {
   }
 
   static const int kV8WrapperObjectIndex = 1;
+  static const int kV8WrapperContextIndex = 2;
 
  private:
   static bool IsValidApiObject(Local<Object> object) {
@@ -1400,6 +1418,14 @@ class FastCApiObject {
     CHECK_NOT_NULL(wrapped);
     return wrapped;
   }
+
+  static Local<Context> LoadContextFromFastCApiObject(Local<Object> object) {
+    if (!IsValidApiObject(object)) {
+      return {};
+    }
+    return object->GetInternalField(kV8WrapperContextIndex).As<v8::Context>();
+  }
+
   int fast_call_count_ = 0, slow_call_count_ = 0;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   bool supports_fp_params_ = true;
@@ -1430,6 +1456,8 @@ void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   api_object->SetAlignedPointerInInternalField(
       FastCApiObject::kV8WrapperObjectIndex,
       reinterpret_cast<void*>(&kFastCApiObject));
+  api_object->SetInternalField(FastCApiObject::kV8WrapperContextIndex,
+                               info.GetIsolate()->GetCurrentContext());
   api_object->SetAccessorProperty(
       String::NewFromUtf8Literal(info.GetIsolate(), "supports_fp_params"),
       FunctionTemplate::New(info.GetIsolate(), FastCApiObject::SupportsFPParams)
@@ -1452,6 +1480,16 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::ThrowFallbackSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &throw_fallback_func));
+
+    CFunction throw_no_fallback_func = CFunction::Make(
+        FastCApiObject::ThrowNoFallbackFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::ThrowNoFallbackFastCallbackPatch));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "throw_no_fallback",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ThrowFallbackSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &throw_no_fallback_func));
 
     CFunction copy_str_func = CFunction::Make(
         FastCApiObject::CopyStringFastCallback V8_IF_USE_SIMULATOR(
@@ -1906,7 +1944,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             &add_all_32bit_int_5args_enforce_range_c_func));
   }
   api_obj_ctor->InstanceTemplate()->SetInternalFieldCount(
-      FastCApiObject::kV8WrapperObjectIndex + 1);
+      FastCApiObject::kV8WrapperContextIndex + 1);
 
   return api_obj_ctor;
 }

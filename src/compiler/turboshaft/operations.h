@@ -373,7 +373,9 @@ inline constexpr bool IsBlockTerminator(Opcode opcode) {
 
 // This list repeats the operations that may throw and need to be followed by
 // `DidntThrow`.
-#define TURBOSHAFT_THROWING_OPERATIONS_LIST(V) V(Call)
+#define TURBOSHAFT_THROWING_OPERATIONS_LIST(V) \
+  V(Call)                                      \
+  V(FastApiCall)
 
 // Operations that need to be followed by `DidntThrowOp`.
 inline constexpr bool MayThrow(Opcode opcode) {
@@ -6041,21 +6043,41 @@ struct FastApiCallParameters : public NON_EXPORTED_BASE(ZoneObject) {
 struct FastApiCallOp : OperationT<FastApiCallOp> {
   static constexpr uint32_t kSuccessValue = 1;
   static constexpr uint32_t kFailureValue = 0;
+  // We define the kOutReps vector here not as a return value of
+  // `outputs_rep()`, but to be passed to `DidntThrowOp` to be used there for
+  // `outputs_rep()`. The only consumer of the values of `FastApiCallOp` are
+  // `CheckExceptionOp` and `DidntThrowOp`, and `outputs_rep()` is not used for
+  // validation there. However, `DidntThrowOp` passes the return values forward,
+  // so the outputs of `DidntThrowOp` have to have correct type information.
+  // FastApiCallOp has two outputs so far:
+  // (1) a `should_fallback` flag, indicating that a slow call should be done;
+  // (2) the actual return value, which is always tagged.
+  // TODO(ahaas) Remove the `should_fallback` flag once fast api functions don't
+  // use it anymore.
+  static constexpr RegisterRepresentation kOutputRepsStorage[]{
+      RegisterRepresentation::Word32(), RegisterRepresentation::Tagged()};
+  static constexpr base::Vector<const RegisterRepresentation> kOutReps =
+      base::VectorOf(kOutputRepsStorage, 2);
+
   const FastApiCallParameters* parameters;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32(),
-                     RegisterRepresentation::Tagged()>();
-  }
+  // The outputs are produced by the `DidntThrow` operation.
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  // There are two inputs that are not parameters, the frame state and the data
+  // argument.
+  static constexpr int kNumNonParamInputs = 2;
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    DCHECK_EQ(inputs().size(), 1 + parameters->c_signature()->ArgumentCount());
+    DCHECK_EQ(inputs().size(),
+              kNumNonParamInputs + parameters->c_signature()->ArgumentCount());
     storage.resize(inputs().size());
-    storage[0] = MaybeRegisterRepresentation::Tagged();
+    storage[0] = MaybeRegisterRepresentation::None();
+    storage[1] = MaybeRegisterRepresentation::Tagged();
     for (unsigned i = 0; i < parameters->c_signature()->ArgumentCount(); ++i) {
-      storage[i + 1] = argument_representation(i);
+      storage[i + kNumNonParamInputs] = argument_representation(i);
     }
     return base::VectorOf(storage);
   }
@@ -6103,34 +6125,41 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     }
   }
 
-  OpIndex data_argument() const { return input(0); }
+  V<FrameState> frame_state() const { return input<FrameState>(0); }
+
+  OpIndex data_argument() const { return input(1); }
   base::Vector<const OpIndex> arguments() const {
-    return inputs().SubVector(1, inputs().size());
+    return inputs().SubVector(kNumNonParamInputs, inputs().size());
   }
 
-  FastApiCallOp(OpIndex data_argument, base::Vector<const OpIndex> arguments,
+  FastApiCallOp(V<FrameState> frame_state, OpIndex data_argument,
+                base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters)
-      : Base(1 + arguments.size()), parameters(parameters) {
+      : Base(kNumNonParamInputs + arguments.size()), parameters(parameters) {
     base::Vector<OpIndex> inputs = this->inputs();
-    inputs[0] = data_argument;
-    inputs.SubVector(1, 1 + arguments.size()).OverwriteWith(arguments);
+    inputs[0] = frame_state;
+    inputs[1] = data_argument;
+    inputs.SubVector(kNumNonParamInputs, kNumNonParamInputs + arguments.size())
+        .OverwriteWith(arguments);
   }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    V<FrameState> mapped_frame_state = mapper.Map(frame_state());
     OpIndex mapped_data_argument = mapper.Map(data_argument());
     auto mapped_arguments = mapper.template Map<8>(arguments());
-    return fn(mapped_data_argument, base::VectorOf(mapped_arguments),
-              parameters);
+    return fn(mapped_frame_state, mapped_data_argument,
+              base::VectorOf(mapped_arguments), parameters);
   }
 
   void Validate(const Graph& graph) const {
   }
 
-  static FastApiCallOp& New(Graph* graph, OpIndex data_argument,
+  static FastApiCallOp& New(Graph* graph, V<FrameState> frame_state,
+                            OpIndex data_argument,
                             base::Vector<const OpIndex> arguments,
                             const FastApiCallParameters* parameters) {
-    return Base::New(graph, 1 /*data_argument*/ + arguments.size(),
+    return Base::New(graph, kNumNonParamInputs + arguments.size(), frame_state,
                      data_argument, arguments, parameters);
   }
 

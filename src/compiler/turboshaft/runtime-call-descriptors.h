@@ -111,6 +111,15 @@ struct RuntimeCallDescriptor {
     static constexpr Operator::Properties kProperties = Operator::kNoWrite;
   };
 
+  struct PropagateException : public Descriptor<PropagateException> {
+    static constexpr auto kFunction = Runtime::kPropagateException;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto kFunction = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;

@@ -1037,6 +1037,23 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                             effects);
   }
 
+  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
+                              base::Vector<const OpIndex> arguments,
+                              const FastApiCallParameters* parameters) {
+    OpIndex raw_call = Base::ReduceFastApiCall(frame_state, data_argument,
+                                               arguments, parameters);
+    OpEffects effects = OpEffects().RequiredWhenUnused().CanCallAnything();
+    bool has_catch_block = CatchIfInCatchScope(raw_call);
+
+    return ReduceDidntThrow(raw_call, has_catch_block,
+                            &Asm()
+                                 .output_graph()
+                                 .Get(raw_call)
+                                 .template Cast<FastApiCallOp>()
+                                 .kOutReps,
+                            effects);
+  }
+
  private:
   // These reduce functions are private, as they should only be emitted
   // automatically by `CatchIfInCatchScope` and `DoNotCatch` defined below and
@@ -3735,10 +3752,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableFloat64SameValue(left, right);
   }
 
-  OpIndex FastApiCall(OpIndex data_argument,
+  OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
+                      OpIndex data_argument,
                       base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters) {
-    return ReduceIfReachableFastApiCall(data_argument, arguments, parameters);
+    return ReduceIfReachableFastApiCall(frame_state, data_argument, arguments,
+                                        parameters);
   }
 
   void RuntimeAbort(AbortReason reason) {

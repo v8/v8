@@ -110,11 +110,13 @@ Tagged<Object> Isolate::exception() {
 
 void Isolate::set_exception(Tagged<Object> exception_obj) {
   DCHECK(!IsException(exception_obj, this));
+  isolate_data()->set_fast_c_call_threw_exception();
   thread_local_top()->exception_ = exception_obj;
 }
 
 void Isolate::clear_internal_exception() {
   DCHECK(!IsException(thread_local_top()->exception_, this));
+  isolate_data()->reset_fast_c_call_threw_exception();
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 

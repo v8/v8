@@ -1938,6 +1938,11 @@ OpIndex GraphBuilder::Process(
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
 
+      base::Optional<decltype(assembler)::CatchScope> catch_scope;
+      if (is_final_control) {
+        Block* catch_block = Map(block->SuccessorAt(1));
+        catch_scope.emplace(assembler, catch_block);
+      }
       // Overload resolution.
       auto resolution_result =
           fast_api_call::OverloadsResolutionResult::Invalid();
@@ -1967,7 +1972,9 @@ OpIndex GraphBuilder::Process(
       Label<Object> done(this);
 
       V<Tuple<Word32, Any>> fast_call_result =
-          __ FastApiCall(data_argument, base::VectorOf(arguments), parameters);
+          __ FastApiCall(dominating_frame_state, data_argument,
+                         base::VectorOf(arguments), parameters);
+
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
 
       IF (LIKELY(__ Word32Equal(result_state, FastApiCallOp::kSuccessValue))) {
@@ -1980,6 +1987,7 @@ OpIndex GraphBuilder::Process(
         // 2) the embedder requested fallback possibility via providing options
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
+
         V<Object> slow_call_result = V<Object>::Cast(
             __ Call(slow_call_callee, dominating_frame_state,
                     base::VectorOf(slow_call_arguments),
@@ -1987,8 +1995,14 @@ OpIndex GraphBuilder::Process(
                                              CanThrow::kYes, __ graph_zone())));
         GOTO(done, slow_call_result);
       }
-
       BIND(done, result);
+      if (is_final_control) {
+        // The `__ FastApiCall()` before has already created exceptional control
+        // flow and bound a new block for the success case. So we can just
+        // `Goto` the block that Turbofan designated as the `IfSuccess`
+        // successor.
+        __ Goto(Map(block->SuccessorAt(0)));
+      }
       return result;
     }
 

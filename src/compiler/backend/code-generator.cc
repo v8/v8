@@ -1012,15 +1012,18 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   }
 
   if (needs_frame_state) {
-    // If the frame state is present, it starts at argument 1 - after
-    // the code address.
-    size_t frame_state_offset = 1;
-    FrameStateDescriptor* descriptor =
-        GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
-    int pc_offset = masm()->pc_offset_for_safepoint();
-    BuildTranslation(instr, pc_offset, frame_state_offset, 0,
-                     descriptor->state_combine());
+    RecordDeoptInfo(instr, masm()->pc_offset_for_safepoint());
   }
+}
+
+void CodeGenerator::RecordDeoptInfo(Instruction* instr, int pc_offset) {
+  // If the frame state is present, it starts at argument 1 - after
+  // the code address.
+  size_t frame_state_offset = 1;
+  FrameStateDescriptor* descriptor =
+      GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+  BuildTranslation(instr, pc_offset, frame_state_offset, 0,
+                   descriptor->state_combine());
 }
 
 int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {

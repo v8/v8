@@ -72,6 +72,8 @@ class StatsCounter;
   V(context_address, "Isolate::context_address()")                             \
   V(fast_c_call_caller_fp_address,                                             \
     "IsolateData::fast_c_call_caller_fp_address")                              \
+  V(fast_c_call_threw_exception_address,                                       \
+    "IsolateData::fast_c_call_threw_exception_address")                        \
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
   V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \

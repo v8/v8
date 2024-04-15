@@ -23,7 +23,7 @@ class FastApiCallLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
-  OpIndex REDUCE(FastApiCall)(OpIndex data_argument,
+  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state, OpIndex data_argument,
                               base::Vector<const OpIndex> arguments,
                               const FastApiCallParameters* parameters) {
     const auto& c_functions = parameters->c_functions;
@@ -108,10 +108,19 @@ class FastApiCallLoweringReducer : public Next {
 
       // Build the actual call.
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
-          Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Build()),
+          Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Build(),
+                                            CallDescriptor::kNeedsFrameState),
           CanThrow::kNo, __ graph_zone());
-      OpIndex c_call_result =
-          WrapFastCall(call_descriptor, callee, base::VectorOf(args));
+      OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
+                                           base::VectorOf(args));
+
+      Label<> trigger_exception(this);
+      V<WordPtr> threw_exception =
+          __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::UintPtr(),
+                  IsolateData::fast_c_call_threw_exception_offset());
+      GOTO_IF(__ WordPtrEqual(threw_exception, 1), trigger_exception);
+
       V<Object> fast_call_result =
           ConvertReturnValue(c_signature, c_call_result);
 
@@ -123,6 +132,12 @@ class FastApiCallLoweringReducer : public Next {
         GOTO_IF(error, handle_error);
       }
       GOTO(done, FastApiCallOp::kSuccessValue, fast_call_result);
+      BIND(trigger_exception);
+      __ template CallRuntime<
+          typename RuntimeCallDescriptor::PropagateException>(
+          isolate_, frame_state, __ NoContextConstant(), {});
+
+      GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 
     if (BIND(handle_error)) {
@@ -590,6 +605,7 @@ class FastApiCallLoweringReducer : public Next {
   }
 
   OpIndex WrapFastCall(const TSCallDescriptor* descriptor, OpIndex callee,
+                       V<FrameState> frame_state,
                        base::Vector<const OpIndex> arguments) {
     // CPU profiler support.
     OpIndex target_address = __ ExternalConstant(
@@ -606,6 +622,7 @@ class FastApiCallLoweringReducer : public Next {
           __ LoadOffHeap(js_execution_assert, MemoryRepresentation::Int8());
       IF_NOT(LIKELY(__ Word32Equal(old_value, 1))) {
         // We expect that JS execution is enabled, otherwise assert.
+        __ Comment("JS execution is disabled");
         __ Unreachable();
       }
     }
@@ -613,7 +630,7 @@ class FastApiCallLoweringReducer : public Next {
                     MemoryRepresentation::Int8());
 
     // Create the fast call.
-    OpIndex result = __ Call(callee, OpIndex::Invalid(), arguments, descriptor);
+    OpIndex result = __ Call(callee, frame_state, arguments, descriptor);
 
     // Reenable JS exeuction.
     __ StoreOffHeap(js_execution_assert, __ Word32Constant(1),

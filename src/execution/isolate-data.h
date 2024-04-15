@@ -38,62 +38,63 @@ class Isolate;
 // Aligns wasm64_oob_offset_ field to 8 bytes to avoid issues with different
 // field alignment vs cross-compilation.
 // The wasm64_oob_offset_ is currently aligned, so don't add the padding.
-#define ISOLATE_DATA_WASM64_OOB_PADDING(V)
-// #define ISOLATE_DATA_WASM64_OOB_PADDING(V)                      \
-//   V(kWasm64OOBOffsetAlignmentPaddingOffset, kSystemPointerSize, \
-//     wasm64_oob_offset_alignment_padding)
+// #define ISOLATE_DATA_WASM64_OOB_PADDING(V)
+#define ISOLATE_DATA_WASM64_OOB_PADDING(V)                      \
+  V(kWasm64OOBOffsetAlignmentPaddingOffset, kSystemPointerSize, \
+    wasm64_oob_offset_alignment_padding)
 
 #endif  // V8_HOST_ARCH_64_BIT
 
 // IsolateData fields, defined as: V(Offset, Size, Name)
-#define ISOLATE_DATA_FIELDS(V)                                                \
-  /* Misc. fields. */                                                         \
-  V(kCageBaseOffset, kSystemPointerSize, cage_base)                           \
-  V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                 \
-  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                              \
-  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                   \
-  V(kIsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)      \
-  V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                   \
-  V(kExecutionModeOffset, kUInt8Size, execution_mode)                         \
-  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
-  V(kErrorMessageParam, kUInt8Size, error_message_param)                      \
-  V(kTablesAlignmentPaddingOffset, 1, tables_alignment_padding)               \
-  /* Tier 0 tables (small but fast access). */                                \
-  V(kBuiltinTier0EntryTableOffset,                                            \
-    Builtins::kBuiltinTier0Count* kSystemPointerSize,                         \
-    builtin_tier0_entry_table)                                                \
-  V(kBuiltinsTier0TableOffset,                                                \
-    Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)    \
-  /* Misc. fields. */                                                         \
-  V(kNewAllocationInfoOffset, LinearAllocationArea::kSize,                    \
-    new_allocation_info)                                                      \
-  V(kOldAllocationInfoOffset, LinearAllocationArea::kSize,                    \
-    old_allocation_info)                                                      \
-  ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                         \
-  V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)      \
-  V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
-  V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
-  V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
-  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)    \
-  V(kHandleScopeDataOffset, HandleScopeData::kSizeInBytes, handle_scope_data) \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
-    embedder_data)                                                            \
-  ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
-  ISOLATE_DATA_FIELDS_SANDBOX(V)                                              \
-  V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
-    api_callback_thunk_argument)                                              \
-  V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,             \
-    continuation_preserved_embedder_data)                                     \
-  ISOLATE_DATA_WASM64_OOB_PADDING(V)                                          \
-  V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                          \
-  /* Full tables (arbitrary size, potentially slower access). */              \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
-    roots_table)                                                              \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes,      \
-    external_reference_table)                                                 \
-  V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,    \
-    builtin_entry_table)                                                      \
-  V(kBuiltinTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,         \
+#define ISOLATE_DATA_FIELDS(V)                                                 \
+  /* Misc. fields. */                                                          \
+  V(kCageBaseOffset, kSystemPointerSize, cage_base)                            \
+  V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                  \
+  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                               \
+  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                    \
+  V(kIsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)       \
+  V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                    \
+  V(kExecutionModeOffset, kUInt8Size, execution_mode)                          \
+  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                     \
+  V(kErrorMessageParam, kUInt8Size, error_message_param)                       \
+  V(kTablesAlignmentPaddingOffset, 1, tables_alignment_padding)                \
+  /* Tier 0 tables (small but fast access). */                                 \
+  V(kBuiltinTier0EntryTableOffset,                                             \
+    Builtins::kBuiltinTier0Count* kSystemPointerSize,                          \
+    builtin_tier0_entry_table)                                                 \
+  V(kBuiltinsTier0TableOffset,                                                 \
+    Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)     \
+  /* Misc. fields. */                                                          \
+  V(kNewAllocationInfoOffset, LinearAllocationArea::kSize,                     \
+    new_allocation_info)                                                       \
+  V(kOldAllocationInfoOffset, LinearAllocationArea::kSize,                     \
+    old_allocation_info)                                                       \
+  ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
+  V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)       \
+  V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)       \
+  V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)        \
+  V(kFastCCallThrewException, kSystemPointerSize, fast_c_call_threw_exception) \
+  V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)          \
+  V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)     \
+  V(kHandleScopeDataOffset, HandleScopeData::kSizeInBytes, handle_scope_data)  \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize,  \
+    embedder_data)                                                             \
+  ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
+  ISOLATE_DATA_FIELDS_SANDBOX(V)                                               \
+  V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                       \
+    api_callback_thunk_argument)                                               \
+  V(kContinuationPreservedEmbedderDataOffset, kSystemPointerSize,              \
+    continuation_preserved_embedder_data)                                      \
+  ISOLATE_DATA_WASM64_OOB_PADDING(V)                                           \
+  V(kWasm64OOBOffset, kInt64Size, wasm64_oob_offset)                           \
+  /* Full tables (arbitrary size, potentially slower access). */               \
+  V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,          \
+    roots_table)                                                               \
+  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes,       \
+    external_reference_table)                                                  \
+  V(kBuiltinEntryTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,     \
+    builtin_entry_table)                                                       \
+  V(kBuiltinTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,          \
     builtin_table)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -186,6 +187,15 @@ class IsolateData final {
   Address fast_c_call_caller_fp() const { return fast_c_call_caller_fp_; }
   Address fast_c_call_caller_pc() const { return fast_c_call_caller_pc_; }
   Address fast_api_call_target() const { return fast_api_call_target_; }
+
+  bool fast_c_call_threw_exception() const {
+    return fast_c_call_threw_exception_;
+  }
+
+  void set_fast_c_call_threw_exception() { fast_c_call_threw_exception_ = 1; }
+
+  void reset_fast_c_call_threw_exception() { fast_c_call_threw_exception_ = 0; }
+
   // The value of kPointerCageBaseRegister.
   Address cage_base() const { return cage_base_; }
   StackGuard* stack_guard() { return &stack_guard_; }
@@ -319,6 +329,11 @@ class IsolateData final {
   // The address of the fast API callback right before it's executed from
   // generated code.
   Address fast_api_call_target_ = kNullAddress;
+  // This flag is used by API functions called with a fast API calls to signal
+  // to the caller that an exception should be thrown. The flag has type
+  // `size_t` even though `bool` would be enough because the alignment of fields
+  // here is important.
+  size_t fast_c_call_threw_exception_ = 0;
 
   // Used for implementation of LongTaskStats. Counts the number of potential
   // long tasks.
@@ -356,7 +371,7 @@ class IsolateData final {
 #if !V8_HOST_ARCH_64_BIT
   // Aligns wasm64_oob_offset_ field to 8 bytes to avoid cross-compilation
   // issues on some 32-bit configurations.
-  // Address wasm64_oob_offset_alignment_padding_;
+  Address wasm64_oob_offset_alignment_padding_;
 #endif
   // An offset that always generates an invalid address when added to any
   // start address of a Wasm memory. This is used to force an out-of-bounds
