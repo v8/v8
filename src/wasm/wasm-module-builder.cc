@@ -537,12 +537,18 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
 }
 
 uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size) {
-  memories_.push_back({min_size, 0, false, false});
+  memories_.push_back({min_size, 0, false, false, false});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddMemory(uint32_t min_size, uint32_t max_size) {
-  memories_.push_back({min_size, max_size, true, false});
+  memories_.push_back({min_size, max_size, true, false, false});
+  return static_cast<uint32_t>(memories_.size() - 1);
+}
+
+uint32_t WasmModuleBuilder::AddMemory64(uintptr_t min_size,
+                                        uintptr_t max_size) {
+  memories_.push_back({min_size, max_size, true, false, true});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
@@ -741,15 +747,21 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer->write_size(memories_.size());
     for (const WasmMemory& memory : memories_) {
-      if (memory.is_shared) {
-        buffer->write_u8(memory.has_max_size ? kSharedWithMaximum
-                                             : kSharedNoMaximum);
-      } else {
-        buffer->write_u8(memory.has_max_size ? kWithMaximum : kNoMaximum);
-      }
-      buffer->write_u32v(memory.min_size);
+      uint8_t limits_byte = (memory.is_memory64 ? 4 : 0) |
+                            (memory.is_shared ? 2 : 0) |
+                            (memory.has_max_size ? 1 : 0);
+      buffer->write_u8(limits_byte);
+      auto WriteValToBuffer = [&](uintptr_t val) {
+        if (memory.is_memory64) {
+          buffer->write_u64v(val);
+        } else {
+          DCHECK_EQ(val, static_cast<uint32_t>(val));
+          buffer->write_u32v(static_cast<uint32_t>(val));
+        }
+      };
+      WriteValToBuffer(memory.min_size);
       if (memory.has_max_size) {
-        buffer->write_u32v(memory.max_size);
+        WriteValToBuffer(memory.max_size);
       }
     }
     FixupSection(buffer, start);

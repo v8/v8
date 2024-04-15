@@ -354,6 +354,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                     WasmInitExpr init);
   uint32_t AddMemory(uint32_t min_size);
   uint32_t AddMemory(uint32_t min_size, uint32_t max_size);
+  uint32_t AddMemory64(uintptr_t min_size, uintptr_t max_size);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(base::Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -481,10 +482,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmMemory {
-    uint32_t min_size;
-    uint32_t max_size;
+    uintptr_t min_size;
+    uintptr_t max_size;
     bool has_max_size;
     bool is_shared;
+    bool is_memory64;
   };
 
   struct WasmDataSegment {
