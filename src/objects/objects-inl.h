@@ -777,7 +777,8 @@ template <ExternalPointerTag tag>
 void HeapObject::InitExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate,
                                           Address value) {
-  i::InitExternalPointerField<tag>(field_address(offset), isolate, value);
+  i::InitExternalPointerField<tag>(address(), field_address(offset), isolate,
+                                   value);
 }
 
 template <ExternalPointerTag tag>
@@ -808,8 +809,8 @@ void HeapObject::WriteExternalPointerField(size_t offset,
 template <ExternalPointerTag tag>
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value) {
-  i::WriteLazilyInitializedExternalPointerField<tag>(field_address(offset),
-                                                     isolate, value);
+  i::WriteLazilyInitializedExternalPointerField<tag>(
+      address(), field_address(offset), isolate, value);
 }
 
 void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {

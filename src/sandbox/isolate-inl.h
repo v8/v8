@@ -30,20 +30,9 @@ ExternalPointerTable& IsolateForSandbox::GetExternalPointerTableFor(
 }
 
 ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
-    ExternalPointerTag tag, Address owning_slot) {
-  DCHECK_NE(tag, kExternalPointerNullTag);
-
-  if (V8_UNLIKELY(IsSharedExternalPointerType(tag))) {
-    DCHECK(!ReadOnlyHeap::Contains(owning_slot));
-    return isolate_->shared_external_pointer_space();
-  }
-
-  if (V8_UNLIKELY(IsMaybeReadOnlyExternalPointerType(tag) &&
-                  ReadOnlyHeap::Contains(owning_slot))) {
-    return isolate_->heap()->read_only_external_pointer_space();
-  }
-
-  return isolate_->heap()->external_pointer_space();
+    ExternalPointerTag tag, Address host) {
+  IsolateForPointerCompression isolate(isolate_);
+  return isolate.GetExternalPointerTableSpaceFor(tag, host);
 }
 
 ExternalBufferTable& IsolateForSandbox::GetExternalBufferTableFor(
@@ -94,6 +83,33 @@ IsolateForPointerCompression::IsolateForPointerCompression(IsolateT* isolate)
 #endif
 
 #ifdef V8_COMPRESS_POINTERS
+
+ExternalPointerTable& IsolateForPointerCompression::GetExternalPointerTableFor(
+    ExternalPointerTag tag) {
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  return IsSharedExternalPointerType(tag)
+             ? isolate_->shared_external_pointer_table()
+             : isolate_->external_pointer_table();
+}
+
+ExternalPointerTable::Space*
+IsolateForPointerCompression::GetExternalPointerTableSpaceFor(
+    ExternalPointerTag tag, Address host) {
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK_IMPLIES(tag != kArrayBufferExtensionTag, V8_ENABLE_SANDBOX_BOOL);
+
+  if (V8_UNLIKELY(IsSharedExternalPointerType(tag))) {
+    DCHECK(!ReadOnlyHeap::Contains(host));
+    return isolate_->shared_external_pointer_space();
+  }
+
+  if (V8_UNLIKELY(IsMaybeReadOnlyExternalPointerType(tag) &&
+                  ReadOnlyHeap::Contains(host))) {
+    return isolate_->heap()->read_only_external_pointer_space();
+  }
+
+  return isolate_->heap()->external_pointer_space();
+}
 
 ExternalPointerTable& IsolateForPointerCompression::GetCppHeapPointerTable() {
   return isolate_->cpp_heap_pointer_table();

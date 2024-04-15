@@ -209,7 +209,8 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 }
 
 template <typename IsolateT>
-int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
+int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
+                                                 ExternalPointerSlot dest,
                                                  Address value) {
   DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
          !next_reference_is_protected_pointer);
@@ -237,7 +238,7 @@ int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
   }
 #endif  // V8_ENABLE_SANDBOX
 
-  dest.init(main_thread_isolate(), value);
+  dest.init(main_thread_isolate(), host, value);
 
 #ifdef V8_ENABLE_SANDBOX
   if (managed_resource) {
@@ -1083,7 +1084,8 @@ int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
   if (data == kSandboxedExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 
@@ -1098,7 +1100,8 @@ int Deserializer<IsolateT>::ReadRawExternalReference(
   if (data == kSandboxedRawExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 
@@ -1224,7 +1227,8 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
   if (data == kSandboxedApiReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(tag),
                               address);
 }
 

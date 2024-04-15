@@ -170,11 +170,13 @@ void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
   *location() = value.ptr();
 }
 
-void ExternalPointerSlot::init(IsolateForSandbox isolate, Address value) {
+void ExternalPointerSlot::init(IsolateForSandbox isolate,
+                               Tagged<HeapObject> host, Address value) {
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
   ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-      isolate.GetExternalPointerTableSpaceFor(tag_, address()), value, tag_);
+      isolate.GetExternalPointerTableSpaceFor(tag_, host.address()), value,
+      tag_);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.

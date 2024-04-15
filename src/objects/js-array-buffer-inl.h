@@ -106,8 +106,9 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
 void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 #if V8_COMPRESS_POINTERS
   if (extension != nullptr) {
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
-    ExternalPointerTable& table = isolate->external_pointer_table();
+    IsolateForPointerCompression isolate = GetIsolateFromWritableObject(*this);
+    const ExternalPointerTag tag = kArrayBufferExtensionTag;
+    ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
 
     // The external pointer handle for the extension is initialized lazily and
     // so has to be zero here since, once set, the extension field can only be
@@ -116,8 +117,8 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate->heap()->external_pointer_space(),
-        reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
+        isolate.GetExternalPointerTableSpaceFor(tag, address()),
+        reinterpret_cast<Address>(extension), tag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {
     // This special handling of nullptr is required as it is used to initialize

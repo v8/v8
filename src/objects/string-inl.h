@@ -1185,9 +1185,9 @@ bool ExternalString::is_uncached() const {
 }
 
 void ExternalString::InitExternalPointerFields(Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   if (is_uncached()) return;
-  resource_data_.Init(isolate, kNullAddress);
+  resource_data_.Init(address(), isolate, kNullAddress);
 }
 
 void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {

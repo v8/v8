@@ -1123,8 +1123,8 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
-  bool ok =
-      i::EmbedderDataSlot(*data, index).store_aligned_pointer(i_isolate, value);
+  bool ok = i::EmbedderDataSlot(*data, index)
+                .store_aligned_pointer(i_isolate, *data, value);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
@@ -6289,7 +6289,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
 
   i::DisallowGarbageCollection no_gc;
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
-                      .store_aligned_pointer(obj->GetIsolate(), value),
+                      .store_aligned_pointer(obj->GetIsolate(), *obj, value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   internal::WriteBarrier::CombinedBarrierFromInternalFields(
@@ -6312,7 +6312,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
     }
     void* value = values[i];
     Utils::ApiCheck(i::EmbedderDataSlot(js_obj, index)
-                        .store_aligned_pointer(obj->GetIsolate(), value),
+                        .store_aligned_pointer(obj->GetIsolate(), *obj, value),
                     location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }

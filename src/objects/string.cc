@@ -178,11 +178,11 @@ void MigrateExternalString(Isolate* isolate, Tagged<String> string,
 
 void ExternalString::InitExternalPointerFieldsDuringExternalization(
     Tagged<Map> new_map, Isolate* isolate) {
-  resource_.Init(isolate, kNullAddress);
+  resource_.Init(address(), isolate, kNullAddress);
   bool is_uncached = (new_map->instance_type() & kUncachedExternalStringMask) ==
                      kUncachedExternalStringTag;
   if (!is_uncached) {
-    resource_data_.Init(isolate, kNullAddress);
+    resource_data_.Init(address(), isolate, kNullAddress);
   }
 }
 

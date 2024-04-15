@@ -163,7 +163,8 @@ class Deserializer : public SerializerDeserializer {
                        Handle<HeapObject> heap_object,
                        ReferenceDescriptor descr);
 
-  inline int WriteExternalPointer(ExternalPointerSlot dest, Address value);
+  inline int WriteExternalPointer(Tagged<HeapObject> host,
+                                  ExternalPointerSlot dest, Address value);
   inline int WriteIndirectPointer(IndirectPointerSlot dest,
                                   Tagged<HeapObject> value);
 

@@ -27,7 +27,7 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline ExternalPointerTable& GetExternalPointerTableFor(
       ExternalPointerTag tag);
   inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
-      ExternalPointerTag tag, Address owning_slot);
+      ExternalPointerTag tag, Address host);
 
   inline ExternalBufferTable& GetExternalBufferTableFor(ExternalPointerTag tag);
   inline ExternalBufferTable::Space* GetExternalBufferTableSpaceFor(
@@ -53,6 +53,11 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
   IsolateForPointerCompression(IsolateT* isolate);  // NOLINT(runtime/explicit)
 
 #ifdef V8_COMPRESS_POINTERS
+  inline ExternalPointerTable& GetExternalPointerTableFor(
+      ExternalPointerTag tag);
+  inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
+      ExternalPointerTag tag, Address host);
+
   inline ExternalPointerTable& GetCppHeapPointerTable();
   inline ExternalPointerTable::Space* GetCppHeapPointerTableSpace();
 #endif  // V8_COMPRESS_POINTERS

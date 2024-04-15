@@ -16,7 +16,7 @@ class ExternalPointerMember {
  public:
   ExternalPointerMember() = default;
 
-  void Init(IsolateForSandbox isolate, Address value);
+  void Init(Address host_address, IsolateForSandbox isolate, Address value);
 
   inline Address load(const IsolateForSandbox isolate) const;
   inline void store(IsolateForSandbox isolate, Address value);
@@ -33,7 +33,8 @@ class ExternalPointerMember {
 // Creates and initializes an entry in the external pointer table and writes the
 // handle for that entry to the field.
 template <ExternalPointerTag tag>
-V8_INLINE void InitExternalPointerField(Address field_address,
+V8_INLINE void InitExternalPointerField(Address host_address,
+                                        Address field_address,
                                         IsolateForSandbox isolate,
                                         Address value);
 
@@ -66,7 +67,8 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
 // If the sandbox is disabled, this is equivalent to WriteExternalPointerField.
 template <ExternalPointerTag tag>
 V8_INLINE void WriteLazilyInitializedExternalPointerField(
-    Address field_address, IsolateForSandbox isolate, Address value);
+    Address host_address, Address field_address, IsolateForSandbox isolate,
+    Address value);
 
 // Resets a lazily-initialized external pointer field. Afterwards, it is
 // guaranteed that reading the pointer stored in this field will return

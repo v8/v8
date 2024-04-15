@@ -326,7 +326,8 @@ class ExternalPointerSlot
   {
   }
 
-  inline void init(IsolateForSandbox isolate, Address value);
+  inline void init(IsolateForSandbox isolate, Tagged<HeapObject> host,
+                   Address value);
 
 #ifdef V8_COMPRESS_POINTERS
   // When the external pointer is sandboxed, or for array buffer extensions when
