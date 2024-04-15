@@ -178,6 +178,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
   __ B(kGreaterThanEqual, &done);
   __ Move(length, 0);
   __ Bind(&done);
+  __ UncheckedSmiTagInt32(length);
 }
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }

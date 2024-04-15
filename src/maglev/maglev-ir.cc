@@ -14,6 +14,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -335,19 +336,226 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
-size_t FastContext::GetInputLocationsArraySize() const {
-  size_t size = previous_context->GetInputLocationsArraySize();
-  if (extension.has_value()) {
-    size += extension.value()->GetInputLocationsArraySize();
+bool CapturedValue::IsValidRuntimeValue() const {
+  if (type != kRuntimeValue) return false;
+  // We should not use a generic runtime value for any of the following specific
+  // ValueNodes.
+  if (IsConstantNode(runtime_value->opcode())) return false;
+  switch (runtime_value->opcode()) {
+    case Opcode::kConstant:
+    case Opcode::kRootConstant:
+    case Opcode::kSmiConstant:
+    case Opcode::kInt32Constant:
+    case Opcode::kFloat64Constant:
+    case Opcode::kArgumentsElements:
+    case Opcode::kArgumentsLength:
+    case Opcode::kRestLength:
+      return false;
+    default:
+      return true;
+  }
+}
+
+size_t CapturedValue::InputLocationSizeNeeded() const {
+  switch (type) {
+    case kRuntimeValue:
+      return runtime_value->GetInputLocationsArraySize();
+    default:
+      return 0;
+  }
+}
+
+void CapturedObject::set(int index, ValueNode* value) {
+  // We unwrap any constant or special ValueNodes.
+  switch (value->opcode()) {
+    case Opcode::kConstant:
+      set(index, CapturedValue(value->Cast<Constant>()->object()));
+      break;
+    case Opcode::kRootConstant:
+      set(index, CapturedValue(value->Cast<RootConstant>()->index()));
+      break;
+    case Opcode::kSmiConstant:
+      set(index, CapturedValue(value->Cast<SmiConstant>()->value().value()));
+      break;
+    case Opcode::kInt32Constant:
+      set(index, CapturedValue(value->Cast<Int32Constant>()->value()));
+      break;
+    case Opcode::kFloat64Constant:
+      set(index, CapturedValue(value->Cast<Float64Constant>()->value()));
+      break;
+    case Opcode::kInlinedAllocation:
+      set(index, CapturedValue(value->Cast<InlinedAllocation>()));
+      break;
+    case Opcode::kArgumentsElements:
+      set(index, CapturedValue(value->Cast<ArgumentsElements>()));
+      break;
+    case Opcode::kArgumentsLength:
+      set(index, CapturedValue(value->Cast<ArgumentsLength>()));
+      break;
+    case Opcode::kRestLength:
+      set(index, CapturedValue(value->Cast<RestLength>()));
+      break;
+    default:
+      // Generic runtime value.
+      set(index, CapturedValue(value));
+      break;
+  }
+}
+
+void CapturedObject::ClearSlots(int last_init_slot) {
+  int last_init_index = last_init_slot / kTaggedSize;
+  for (int i = last_init_index + 1; i < slot_count_; i++) {
+    slots_[i] = CapturedValue();
+  }
+}
+
+compiler::MapRef CapturedObject::GetMap() const {
+  DCHECK_EQ(slots_[0].type, CapturedValue::kConstant);
+  DCHECK(slots_[0].constant.IsMap());
+  return slots_[0].constant.AsMap();
+}
+
+size_t CapturedObject::InputLocationSizeNeeded() const {
+  size_t size = 0;
+  // We skip the first slot, since it is always a MapRef.
+  for (int i = 1; i < slot_count_; i++) {
+    size += slots_[i].InputLocationSizeNeeded();
   }
   return size;
 }
 
+// static
+CapturedObject CapturedObject::CreateJSObject(Zone* zone,
+                                              compiler::MapRef map) {
+  DCHECK(!map.is_dictionary_map());
+  DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  int slot_count = map.instance_size() / kTaggedSize;
+  CapturedObject object(zone, slot_count);
+  object.set(JSObject::kMapOffset, map);
+  object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSObject::kElementsOffset, RootIndex::kEmptyFixedArray);
+  object.ClearSlots(JSObject::kElementsOffset);
+  return object;
+}
+
+// static
+CapturedObject CapturedObject::CreateJSConstructor(
+    Zone* zone, compiler::JSHeapBroker* broker,
+    compiler::JSFunctionRef constructor) {
+  compiler::SlackTrackingPrediction prediction =
+      broker->dependencies()->DependOnInitialMapInstanceSizePrediction(
+          constructor);
+  int slot_count = prediction.instance_size() / kTaggedSize;
+  CapturedObject object(zone, slot_count);
+  object.set(JSObject::kMapOffset, constructor.initial_map(broker));
+  object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSObject::kElementsOffset, RootIndex::kEmptyFixedArray);
+  object.ClearSlots(JSObject::kElementsOffset);
+  return object;
+}
+
+// static
+CapturedObject CapturedObject::CreateJSArray(Zone* zone, compiler::MapRef map,
+                                             ValueNode* length) {
+  int slot_count = map.instance_size() / kTaggedSize;
+  CapturedObject object(zone, slot_count);
+  object.set(JSArray::kMapOffset, map);
+  object.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSArray::kElementsOffset, RootIndex::kEmptyFixedArray);
+  object.set(JSArray::kLengthOffset, length);
+  object.ClearSlots(JSArray::kLengthOffset);
+  return object;
+}
+
+// static
+CapturedObject CapturedObject::CreateFixedArray(Zone* zone,
+                                                compiler::MapRef map,
+                                                int length) {
+  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
+  CapturedObject array(zone, slot_count);
+  array.set(Context::kMapOffset, map);
+  array.set(Context::kLengthOffset, length);
+  array.ClearSlots(Context::kLengthOffset);
+  return array;
+}
+
+// static
+CapturedObject CapturedObject::CreateContext(
+    Zone* zone, compiler::MapRef map, int length,
+    compiler::ScopeInfoRef scope_info, ValueNode* previous_context,
+    base::Optional<ValueNode*> extension) {
+  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
+  CapturedObject context(zone, slot_count);
+  context.set(Context::kMapOffset, map);
+  context.set(Context::kLengthOffset, length);
+  context.set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
+              scope_info);
+  context.set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
+              previous_context);
+  int index = Context::PREVIOUS_INDEX + 1;
+  if (extension.has_value()) {
+    context.set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
+                extension.value());
+    index++;
+  }
+  for (; index < length; index++) {
+    context.set(Context::OffsetOfElementAt(index), RootIndex::kUndefinedValue);
+  }
+  return context;
+}
+
+// static
+CapturedObject CapturedObject::CreateArgumentsObject(
+    Zone* zone, compiler::MapRef map, CapturedValue length,
+    CapturedValue elements, base::Optional<ValueNode*> callee) {
+  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
+  int slot_count = map.instance_size() / kTaggedSize;
+  CapturedObject arguments(zone, slot_count);
+  arguments.set(JSArray::kMapOffset, map);
+  arguments.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
+  arguments.set(JSArray::kElementsOffset, elements);
+  arguments.set(JSArray::kLengthOffset, length);
+  if (callee.has_value()) {
+    DCHECK_EQ(slot_count, 5);
+    arguments.set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
+  } else {
+    DCHECK_EQ(slot_count, 4);
+  }
+  return arguments;
+}
+
+// static
+CapturedObject CapturedObject::CreateMappedArgumentsElements(
+    Zone* zone, compiler::MapRef map, int mapped_count, ValueNode* context,
+    CapturedValue unmapped_elements, int param_idx_in_ctxt) {
+  int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
+  CapturedObject elements(zone, slot_count);
+  elements.set(SloppyArgumentsElements::kMapOffset, map);
+  elements.set(SloppyArgumentsElements::kLengthOffset, mapped_count);
+  elements.set(SloppyArgumentsElements::kContextOffset, context);
+  elements.set(SloppyArgumentsElements::kArgumentsOffset, unmapped_elements);
+  for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
+    elements.set(
+        SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
+        param_idx_in_ctxt);
+  }
+  return elements;
+}
+
+CapturedFixedDoubleArray::CapturedFixedDoubleArray(
+    Zone* zone, compiler::FixedDoubleArrayRef elements, int length)
+    : length(length), values(zone->AllocateArray<Float64>(length)) {
+  for (int i = 0; i < length; ++i) {
+    values[i] = elements.GetFromImmutableFixedDoubleArray(i);
+  }
+}
+
 size_t ValueNode::GetInputLocationsArraySize() const {
   if (const InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
-    // The input location size for an InlinedAllocation is either 1 when
-    // escaped, or GetInputLocationsArraySize when captured.
-    return std::max<size_t>(alloc->value().GetInputLocationsArraySize(), 1);
+    // We allocate the space needed for the captured object plus one location
+    // used if the InlinedAllocation escapes.
+    return alloc->captured_allocation().InputLocationSizeNeeded() + 1;
   }
   return 1;
 }

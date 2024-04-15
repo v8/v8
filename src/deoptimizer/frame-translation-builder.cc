@@ -348,6 +348,11 @@ void FrameTranslationBuilder::ArgumentsLength() {
   Add(opcode);
 }
 
+void FrameTranslationBuilder::RestLength() {
+  auto opcode = TranslationOpcode::REST_LENGTH;
+  Add(opcode);
+}
+
 void FrameTranslationBuilder::BeginCapturedObject(int length) {
   auto opcode = TranslationOpcode::CAPTURED_OBJECT;
   Add(opcode, SignedOperand(length));

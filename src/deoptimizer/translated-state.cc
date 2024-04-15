@@ -324,6 +324,11 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       os << "{arguments_length}";
       break;
     }
+    case TranslationOpcode::REST_LENGTH: {
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 0);
+      os << "{rest_length}";
+      break;
+    }
 
     case TranslationOpcode::CAPTURED_OBJECT: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
@@ -1087,6 +1092,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::DUPLICATED_OBJECT:
     case TranslationOpcode::ARGUMENTS_ELEMENTS:
     case TranslationOpcode::ARGUMENTS_LENGTH:
+    case TranslationOpcode::REST_LENGTH:
     case TranslationOpcode::CAPTURED_OBJECT:
     case TranslationOpcode::REGISTER:
     case TranslationOpcode::INT32_REGISTER:
@@ -1252,6 +1258,16 @@ int TranslatedState::CreateNextTranslatedValue(
                actual_argument_count_);
       }
       frame.Add(TranslatedValue::NewInt32(this, actual_argument_count_));
+      return 0;
+    }
+
+    case TranslationOpcode::REST_LENGTH: {
+      int rest_length =
+          std::max(0, actual_argument_count_ - formal_parameter_count_);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "rest length field (length = %d)", rest_length);
+      }
+      frame.Add(TranslatedValue::NewInt32(this, rest_length));
       return 0;
     }
 

@@ -78,30 +78,15 @@ void DeepForEachInputSingleFrameImpl(
 }
 
 template <typename Function>
-void DeepForFastContext(FastContext context, InputLocation*& input_location,
-                        Function&& rec_f) {
-  rec_f(context.previous_context, input_location, rec_f);
-  if (context.extension.has_value()) {
-    rec_f(context.extension.value(), input_location, rec_f);
-  }
-}
-
-template <typename Function>
-void DeepForDeoptObject(DeoptObject object, InputLocation*& input_location,
-                        Function&& f) {
-  switch (object.type) {
-    case DeoptObject::kObject:
-    case DeoptObject::kFixedArray:
-    case DeoptObject::kArguments:
-    case DeoptObject::kMappedArgumentsElements:
-    case DeoptObject::kInlinedUnmappedArgumentsElements:
-    case DeoptObject::kNumber:
-      // TODO(victorgomes); Either we do not support elision or it doesn't
-      // contain any runtime value.
-      break;
-    case DeoptObject::kContext:
-      DeepForFastContext(object.context, input_location, f);
-      break;
+void DeepForCapturedAllocation(const CapturedAllocation& alloc,
+                               InputLocation*& input_location, Function&& f) {
+  if (alloc.type != CapturedAllocation::kObject) return;
+  for (CapturedValue& value : alloc.object) {
+    DCHECK_NE(value.type, CapturedValue::kCapturedObject);
+    DCHECK_NE(value.type, CapturedValue::kFixedDoubleArray);
+    if (value.type == CapturedValue::kRuntimeValue) {
+      f(value.runtime_value, input_location, f);
+    }
   }
 }
 
@@ -115,15 +100,20 @@ void DeepForEachInputAndDeoptObject(
                           InputLocation*& input_location) {
     auto lambda = [&f](first_argument<Function> node,
                        InputLocation*& input_location, const auto& lambda) {
+      size_t input_locations_to_advance = 1;
       if (const_if_function_first_arg_not_reference<InlinedAllocation,
                                                     Function>* alloc =
               node->template TryCast<InlinedAllocation>()) {
         if (!alloc->HasEscaped()) {
-          return DeepForDeoptObject(alloc->value(), input_location, lambda);
+          input_location++;  // Reserved for the inlined allocation.
+          return DeepForCapturedAllocation(alloc->captured_allocation(),
+                                           input_location, lambda);
         }
+        input_locations_to_advance +=
+            alloc->captured_allocation().InputLocationSizeNeeded();
       }
       f(node, input_location);
-      input_location++;
+      input_location += input_locations_to_advance;
     };
     lambda(node, input_location, lambda);
   };

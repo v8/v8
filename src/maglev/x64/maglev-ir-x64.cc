@@ -63,6 +63,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
   __ j(greater_equal, &done, Label::Distance::kNear);
   __ Move(length, 0);
   __ bind(&done);
+  __ UncheckedSmiTagInt32(length);
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {

@@ -1357,148 +1357,100 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
   }
 
-  void BuildFastObject(const FastObject& object) {
-    if (!TryDeduplicateObject(object.id)) {
-      return;
-    }
-    translation_array_builder_->BeginCapturedObject(object.instance_size /
-                                                    kTaggedSize);
+  void BuildFixedDoubleArray(CapturedFixedDoubleArray array) {
+    translation_array_builder_->BeginCapturedObject(array.length + 2);
     translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(*object.map.object()));
+        GetDeoptLiteral(*local_isolate_->factory()->fixed_double_array_map()));
     translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(ReadOnlyRoots(local_isolate_).empty_fixed_array()));
-    BuildFastFixedArray(object.elements);
-    if (object.js_array_length.has_value()) {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(*object.js_array_length->object()));
-    }
-    for (int i = 0; i < object.inobject_properties; i++) {
-      BuildFieldValue(object.fields[i]);
+        GetDeoptLiteral(Smi::FromInt(array.length)));
+    for (int i = 0; i < array.length; i++) {
+      Float64 value = array.values[i];
+      if (value.is_hole_nan()) {
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(ReadOnlyRoots(local_isolate_).the_hole_value()));
+      } else {
+        BuildHeapNumber(value);
+      }
     }
   }
 
-  void BuildFastContext(FastContext context,
-                        const InputLocation*& input_location) {
-    if (!TryDeduplicateObject(context, input_location)) {
-      return;
-    }
-    translation_array_builder_->BeginCapturedObject(context.length + 2);
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(*context.map.object()));
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(Smi::FromInt(context.length)));
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(context.scope_info));
-    BuildDeoptFrameSingleValue(context.previous_context, input_location);
-    if (context.extension.has_value()) {
-      BuildDeoptFrameSingleValue(context.extension.value(), input_location);
-    }
-    int idx = context.extension.has_value()
-                  ? Context::MIN_CONTEXT_EXTENDED_SLOTS
-                  : Context::MIN_CONTEXT_SLOTS;
-    Tagged<Undefined> undefined =
-        ReadOnlyRoots(local_isolate_).undefined_value();
-    for (; idx < context.length; ++idx) {
-      translation_array_builder_->StoreLiteral(GetDeoptLiteral(undefined));
-    }
-  }
-
-  void BuildFieldValue(const FastField value) {
+  void BuildCapturedValue(CapturedValue value,
+                          const InputLocation*& input_location) {
     switch (value.type) {
-      case FastField::kUninitialized:
+      case CapturedValue::kUninitalized:
         translation_array_builder_->StoreLiteral(GetDeoptLiteral(
             ReadOnlyRoots(local_isolate_).one_pointer_filler_map()));
         break;
-      case FastField::kObject:
-        BuildFastObject(value.object);
+      case CapturedValue::kRuntimeValue:
+        BuildDeoptFrameSingleValue(value.runtime_value, input_location);
         break;
-      case FastField::kMutableDouble:
-        BuildHeapNumber(value.mutable_double_value);
-        break;
-      case FastField::kConstant:
+      case CapturedValue::kConstant:
         translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*value.constant_value.object()));
+            GetDeoptLiteral(*value.constant.object()));
         break;
-    }
-  }
-
-  void BuildFastFixedArray(const FastFixedArray array) {
-    switch (array.type) {
-      case FastFixedArray::kEmpty:
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(ReadOnlyRoots(local_isolate_).empty_fixed_array()));
-        break;
-      case FastFixedArray::kCoW:
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*array.cow_value.object()));
-        break;
-      case FastFixedArray::kTagged:
-        if (!TryDeduplicateObject(array.id)) {
-          return;
-        }
-        translation_array_builder_->BeginCapturedObject(array.length + 2);
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*local_isolate_->factory()->fixed_array_map()));
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(Smi::FromInt(array.length)));
-        for (int i = 0; i < array.length; i++) {
-          BuildFieldValue(array.values[i]);
-        }
-        break;
-      case FastFixedArray::kDouble:
-        if (!TryDeduplicateObject(array.id)) {
-          return;
-        }
-        translation_array_builder_->BeginCapturedObject(array.length + 2);
+      case CapturedValue::kRootConstant:
         translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-            *local_isolate_->factory()->fixed_double_array_map()));
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(Smi::FromInt(array.length)));
-        for (int i = 0; i < array.length; i++) {
-          Float64 value = array.double_values[i];
-          if (value.is_hole_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots(local_isolate_).the_hole_value()));
-          } else {
-            BuildHeapNumber(value);
-          }
-        }
+            ReadOnlyRoots(local_isolate_).object_at(value.root_constant)));
         break;
+      case CapturedValue::kSmi:
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(Smi::FromInt(value.smi)));
+        break;
+      case CapturedValue::kArgumentsElements:
+        translation_array_builder_->ArgumentsElements(
+            value.arguments_elements->type());
+        break;
+      case CapturedValue::kArgumentsLength:
+        translation_array_builder_->ArgumentsLength();
+        break;
+      case CapturedValue::kRestLength:
+        translation_array_builder_->RestLength();
+        break;
+      case CapturedValue::kCapturedObject:
+      case CapturedValue::kFixedDoubleArray:
+      case CapturedValue::kNumber:
+        UNREACHABLE();
     }
   }
 
-  void BuildDeoptObject(const DeoptObject value,
-                        const InputLocation*& input_location) {
-    switch (value.type) {
-      case DeoptObject::kObject:
-        BuildFastObject(value.object);
-        break;
-      case DeoptObject::kFixedArray:
-        BuildFastFixedArray(value.fixed_array);
-        break;
-      case DeoptObject::kArguments:
-      case DeoptObject::kMappedArgumentsElements:
-      case DeoptObject::kInlinedUnmappedArgumentsElements:
-        // TODO(victorgomes); Still not supported. Currently we always escape
-        // the arguments object.
-        UNREACHABLE();
-      case DeoptObject::kNumber:
-        BuildHeapNumber(value.number);
-        break;
-      case DeoptObject::kContext:
-        BuildFastContext(value.context, input_location);
-        break;
+  void BuildCapturedObject(CapturedObject object,
+                           const InputLocation*& input_location) {
+    translation_array_builder_->BeginCapturedObject(object.slot_count());
+    for (CapturedValue& value : object) {
+      BuildCapturedValue(value, input_location);
     }
+  }
+
+  void BuildCapturedAllocation(const CapturedAllocation& alloc,
+                               const InputLocation*& input_location) {
+    if (alloc.type == CapturedAllocation::kHeapNumber) {
+      return BuildHeapNumber(alloc.number);
+    }
+    int dup_id = GetDuplicatedId(alloc.id);
+    if (dup_id != kNotDuplicated) {
+      translation_array_builder_->DuplicateObject(dup_id);
+      input_location += alloc.InputLocationSizeNeeded();
+      return;
+    }
+    if (alloc.type == CapturedAllocation::kFixedDoubleArray) {
+      return BuildFixedDoubleArray(alloc.fixed_double_array);
+    }
+    DCHECK_EQ(alloc.type, CapturedAllocation::kObject);
+    return BuildCapturedObject(alloc.object, input_location);
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location) {
     DCHECK(!value->Is<Identity>());
+    size_t input_locations_to_advance = 1;
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       if (!alloc->HasEscaped()) {
-        BuildDeoptObject(alloc->value(), input_location);
+        input_location++;
+        BuildCapturedAllocation(alloc->captured_allocation(), input_location);
         return;
       }
+      input_locations_to_advance +=
+          alloc->captured_allocation().InputLocationSizeNeeded();
     }
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
@@ -1513,7 +1465,7 @@ class MaglevFrameTranslationBuilder {
         BuildDeoptStoreStackSlot(operand, repr);
       }
     }
-    input_location++;
+    input_location += input_locations_to_advance;
   }
 
   void BuildDeoptFrameValues(

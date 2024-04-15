@@ -31,6 +31,7 @@ namespace internal {
   TRANSLATION_FRAME_OPCODE_LIST(V)    \
   V(ARGUMENTS_ELEMENTS, 1)            \
   V(ARGUMENTS_LENGTH, 0)              \
+  V(REST_LENGTH, 0)                   \
   V(BEGIN_WITHOUT_FEEDBACK, 3)        \
   V(BEGIN_WITH_FEEDBACK, 3)           \
   V(BOOL_REGISTER, 1)                 \

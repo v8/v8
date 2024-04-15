@@ -1001,6 +1001,8 @@ class MaglevGraphBuilder {
                                      ContextSlotMutability slot_mutability);
   void StoreAndCacheContextSlot(ValueNode* context, int offset,
                                 ValueNode* value);
+  ValueNode* TryGetParentContext(ValueNode* node);
+  void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
   void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,
@@ -1011,7 +1013,7 @@ class MaglevGraphBuilder {
   void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
                                    int slot_index, ValueNode* value);
 
-  void BuildStoreReceiverMap(ValueNode* receiver, compiler::MapRef map);
+  void BuildStoreMap(ValueNode* object, compiler::MapRef map);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
@@ -2025,54 +2027,37 @@ class MaglevGraphBuilder {
       compiler::FeedbackSource feedback_source);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      int size, AllocationType allocation_type, DeoptObject value);
+      int size, AllocationType allocation_type, CapturedAllocation value);
   void ClearCurrentAllocationBlock();
 
   inline void AddDeoptUse(ValueNode* node) {
     if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
       AddNonEscapingUses(alloc, 1);
-      AddDeoptUse(alloc->value());
+      AddDeoptUse(alloc->captured_allocation());
     }
     node->add_use();
   }
-
-  void AddDeoptUse(FastContext obj);
-  void AddDeoptUse(DeoptObject obj);
+  void AddDeoptUse(const CapturedAllocation& alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
-  base::Optional<FastObject> TryReadBoilerplateForFastLiteral(
+  base::Optional<CapturedObject> TryReadBoilerplateForFastLiteral(
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
-  ValueNode* BuildAllocateFastObject(FastObject object,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastField value,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastFixedArray array,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastArgumentsElements elements,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(
-      FastInlinedUnmappedArgumentsElements elements, AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastUnmappedArgumentsElements elements,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastMappedArgumentsElements elements,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastArgumentsObject arguments,
-                                     AllocationType allocation);
-  ValueNode* BuildAllocateFastObject(FastContext object,
-                                     AllocationType allocation);
 
-  ValueNode* GetArgumentsElementsLength(FastUnmappedArgumentsElements elements);
-  ValueNode* GetArgumentsElementsLength(FastArgumentsElements elements);
+  ValueNode* GetValueNodeFromCapturedValue(CapturedValue& value);
+  ValueNode* BuildInlinedAllocation(Float64 number, AllocationType allocation);
+  ValueNode* BuildInlinedAllocation(CapturedFixedDoubleArray array,
+                                    AllocationType allocation);
+  ValueNode* BuildInlinedAllocation(CapturedObject object,
+                                    AllocationType allocation);
 
-  FastMappedArgumentsElements BuildMappedArgumentsElements();
-  FastUnmappedArgumentsElements BuildUnmappedArgumentsElements();
-  FastUnmappedArgumentsElements BuildRestParameterElements();
+  CapturedValue BuildInlinedArgumentsElements(int start_index, int length);
+  CapturedValue BuildInlinedUnmappedArgumentsElements(int mapped_count);
 
   template <CreateArgumentsType type>
-  FastArgumentsObject BuildFastArgumentsObject();
+  CapturedObject BuildCapturedArgumentsObject();
   template <CreateArgumentsType type>
   ValueNode* BuildAndAllocateArgumentsObject();
 
