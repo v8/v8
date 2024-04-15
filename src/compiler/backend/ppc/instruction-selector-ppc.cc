@@ -278,6 +278,7 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector,
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
@@ -469,6 +470,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
