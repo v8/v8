@@ -46,6 +46,26 @@ ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
   return isolate_->heap()->external_pointer_space();
 }
 
+ExternalBufferTable& IsolateForSandbox::GetExternalBufferTableFor(
+    ExternalPointerTag tag) {
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  return IsSharedExternalPointerType(tag)
+             ? isolate_->shared_external_buffer_table()
+             : isolate_->external_buffer_table();
+}
+
+ExternalBufferTable::Space* IsolateForSandbox::GetExternalBufferTableSpaceFor(
+    ExternalPointerTag tag, Address owning_slot) {
+  DCHECK_NE(tag, kExternalPointerNullTag);
+
+  if (V8_UNLIKELY(IsSharedExternalPointerType(tag))) {
+    DCHECK(!ReadOnlyHeap::Contains(owning_slot));
+    return isolate_->shared_external_buffer_space();
+  }
+
+  return isolate_->heap()->external_buffer_space();
+}
+
 CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
     Address owning_slot) {
   return ReadOnlyHeap::Contains(owning_slot)

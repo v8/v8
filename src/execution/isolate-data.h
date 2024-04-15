@@ -13,6 +13,7 @@
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/utils.h"
@@ -113,7 +114,11 @@ class Isolate;
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)                             \
   V(kTrustedCageBaseOffset, kSystemPointerSize, trusted_cage_base) \
   V(kTrustedPointerTableOffset, TrustedPointerTable::kSize,        \
-    trusted_pointer_table)
+    trusted_pointer_table)                                         \
+  V(kExternalBufferTableOffset, ExternalBufferTable::kSize,        \
+    external_buffer_table)                                         \
+  V(kSharedExternalBufferTableOffset, kSystemPointerSize,          \
+    shared_external_buffer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -359,6 +364,8 @@ class IsolateData final {
   const Address trusted_cage_base_;
 
   TrustedPointerTable trusted_pointer_table_;
+  ExternalBufferTable external_buffer_table_;
+  ExternalBufferTable* shared_external_buffer_table_;
 #endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk

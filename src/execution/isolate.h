@@ -43,6 +43,7 @@
 #include "src/objects/tagged.h"
 #include "src/runtime/runtime.h"
 #include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/allocation.h"
@@ -2106,6 +2107,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address trusted_pointer_table_base_address() const {
     return isolate_data_.trusted_pointer_table_.base_address();
   }
+
+  ExternalBufferTable& external_buffer_table() {
+    return isolate_data_.external_buffer_table_;
+  }
+
+  ExternalBufferTable& shared_external_buffer_table() {
+    return *isolate_data_.shared_external_buffer_table_;
+  }
+
+  ExternalBufferTable::Space* shared_external_buffer_space() {
+    return shared_external_buffer_space_;
+  }
 #endif  // V8_ENABLE_SANDBOX
 
   Address continuation_preserved_embedder_data_address() {
@@ -2675,6 +2688,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // table.
   ExternalPointerTable::Space* shared_external_pointer_space_ = nullptr;
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+  // Stores the external buffer table space for the shared external buffer
+  // table.
+  ExternalBufferTable::Space* shared_external_buffer_space_ = nullptr;
+#endif  // V8_ENABLE_SANDBOX
 
   // Used to track and safepoint all client isolates attached to this shared
   // isolate.

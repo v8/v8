@@ -97,6 +97,7 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
    private:
     friend class CompactibleExternalEntityTable<Entry, size>;
     friend class ExternalPointerTable;
+    friend class ExternalBufferTable;
 
     // Routines for compaction. See the comment about table compaction above.
     inline bool IsCompacting();
