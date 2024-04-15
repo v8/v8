@@ -195,7 +195,10 @@ void PagedSpaceBase::RefineAllocatedBytesAfterSweeping(PageMetadata* page) {
     if (identity() == NEW_SPACE) size_at_last_gc_ -= counter_diff;
     DecreaseAllocatedBytes(counter_diff, page);
   }
-  page->SetLiveBytes(0);
+  if (!v8_flags.sticky_mark_bits) {
+    // With sticky mark-bits the counter is reset on unmarking.
+    page->SetLiveBytes(0);
+  }
 }
 
 PageMetadata* PagedSpaceBase::RemovePageSafe(int size_in_bytes) {

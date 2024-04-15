@@ -3685,6 +3685,32 @@ void Heap::UnmarkSharedLinearAllocationAreas() {
   });
 }
 
+void Heap::Unmark() {
+  DCHECK(v8_flags.sticky_mark_bits);
+  DCHECK_NULL(new_space());
+
+  auto unmark_space = [](auto& space) {
+    for (auto* page : space) {
+      page->marking_bitmap()->template Clear<AccessMode::NON_ATOMIC>();
+      page->SetLiveBytes(0);
+    }
+  };
+
+  unmark_space(*old_space());
+  unmark_space(*lo_space());
+
+  if (isolate()->is_shared_space_isolate()) {
+    unmark_space(*shared_space());
+    unmark_space(*shared_lo_space());
+  }
+
+  unmark_space(*code_space());
+  unmark_space(*code_lo_space());
+
+  unmark_space(*trusted_space());
+  unmark_space(*trusted_lo_space());
+}
+
 namespace {
 
 double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {

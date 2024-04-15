@@ -583,7 +583,9 @@ void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPage(
       // the given live object.
       PromotedPageRecordMigratedSlotVisitor record_visitor(page);
       record_visitor.Process(LargePageMetadata::cast(page)->GetObject());
-      page->ClearLiveness();
+      if (!v8_flags.sticky_mark_bits) {
+        page->ClearLiveness();
+      }
     } else {
       const FreeSpaceTreatmentMode free_space_treatment_mode =
           heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
@@ -853,6 +855,14 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
       free_start, size);
   if (should_reduce_memory) page->DiscardUnusedMemory(free_start, size);
 
+  if (v8_flags.sticky_mark_bits) {
+    // Clear the bitmap, since fillers or slack may still be marked from black
+    // allocation.
+    page->marking_bitmap()->ClearRange<AccessMode::NON_ATOMIC>(
+        MarkingBitmap::AddressToIndex(free_start),
+        MarkingBitmap::AddressToIndex(free_end));
+  }
+
   return freed_bytes;
 }
 
@@ -922,7 +932,9 @@ void Sweeper::CleanupTypedSlotsInFreeMemory(
 
 void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(PageMetadata* page,
                                                        size_t live_bytes) {
-  page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
+  if (!v8_flags.sticky_mark_bits) {
+    page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
+  }
   // Keep the old live bytes counter of the page until RefillFreeList, where
   // the space size is refined.
   // The allocated_bytes() counter is precisely the total size of objects.

@@ -426,6 +426,9 @@ declare_args() {
   # Whether custom embedder snapshots may extend (= allocate new objects in)
   # ReadOnlySpace.
   v8_enable_extensible_ro_snapshot = true
+
+  # Use sticky mark-bits for separating object generations.
+  v8_enable_sticky_mark_bits = false
 }
 
 # Derived defaults.
@@ -1288,6 +1291,9 @@ config("features") {
   }
   if (v8_enable_local_off_stack_check) {
     defines += [ "V8_ENABLE_LOCAL_OFF_STACK_CHECK" ]
+  }
+  if (v8_enable_sticky_mark_bits) {
+    defines += [ "V8_ENABLE_STICKY_MARK_BITS" ]
   }
 }
 

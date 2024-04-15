@@ -356,6 +356,10 @@ void MarkCompactCollector::StartMarking() {
   // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
   use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
 
+  if (v8_flags.sticky_mark_bits) {
+    heap()->Unmark();
+  }
+
   // CppHeap's marker must be initialized before the V8 marker to allow
   // exchanging of worklists.
   if (heap_->cpp_heap()) {
@@ -393,7 +397,8 @@ void MarkCompactCollector::StartMarking() {
   // cycle. The SFI will remain in the cache until then and may remain in the
   // cache even longer in case the SFI is re-compiled.
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
-// Marking bits are cleared by the sweeper.
+  // Marking bits are cleared by the sweeper or unmarker (if sticky mark-bits
+  // are enabled).
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     VerifyMarkbitsAreClean();

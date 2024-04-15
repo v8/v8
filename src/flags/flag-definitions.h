@@ -2633,6 +2633,17 @@ DEFINE_BOOL(concurrent_minor_ms_marking, true,
             "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
 
+#ifdef V8_ENABLE_STICKY_MARK_BITS
+#define V8_ENABLE_STICKY_MARK_BITS_BOOL true
+#else
+#define V8_ENABLE_STICKY_MARK_BITS_BOOL false
+#endif
+DEFINE_BOOL_READONLY(sticky_mark_bits, V8_ENABLE_STICKY_MARK_BITS_BOOL,
+                     "use sticky mark bits for separation of generations")
+DEFINE_IMPLICATION(sticky_mark_bits, minor_ms)
+// TODO(333906585): Copy mark bits and live bytes on compaction.
+DEFINE_NEG_IMPLICATION(sticky_mark_bits, compact)
+
 #ifndef DEBUG
 #define V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT 8
 #else
