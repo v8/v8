@@ -690,13 +690,6 @@ class LiftoffCompiler {
       case kS128:
         bailout_reason = kSimd;
         break;
-      case kRef:
-      case kRefNull:
-      case kRtt:
-      case kI8:
-      case kI16:
-        bailout_reason = kGC;
-        break;
       default:
         UNREACHABLE();
     }
