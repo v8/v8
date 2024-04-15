@@ -47,7 +47,6 @@
   'language/statements/with/unscopables-inc-dec': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4249
-  'language/expressions/assignment/S11.13.1_A7_T3': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A6_T3': [FAIL],
   'language/expressions/postfix-decrement/S11.3.2_A6_T3': [FAIL],
   'language/expressions/prefix-decrement/S11.4.5_A6_T3': [FAIL],
@@ -2398,7 +2397,6 @@
 ####
 # import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
 [ALWAYS, {
-  'annexB/language/eval-code/direct/script-decl-lex-collision-in-sloppy-mode': [FAIL],
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-ambiguous-wall-clock-time': [FAIL],
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-getpossibleinstantsfor-called-with-iso8601-calendar': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/calendar-dateadd-called-with-options-undefined': [FAIL],
@@ -2458,7 +2456,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/order-of-operations': [FAIL],
   'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined-en': [FAIL],
   'intl402/DurationFormat/constructor-options-style-conflict': [FAIL],
-  'language/global-code/script-decl-lex-var-declared-via-eval-sloppy': [FAIL],
 }],
 # end import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
 ####
@@ -2746,6 +2743,17 @@
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'staging/Temporal/ZonedDateTime/old/round': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DurationFormat/prototype/format/fractions-of-subsecond-units-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/mixed-short-and-numeric': [SKIP],
+  'intl402/DurationFormat/prototype/format/style-digital-fractionalDigits-undefined-en': [SKIP],
+  'language/expressions/assignment/target-super-computed-reference': [SKIP],
 }],
 # End roll-watcher patch
 ####
