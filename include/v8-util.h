@@ -579,7 +579,7 @@ class DefaultPersistentValueVectorTraits {
  * handles being transparently handled by this class.
  */
 template <typename V, typename Traits = DefaultPersistentValueVectorTraits>
-class V8_DEPRECATE_SOON("Use std::vector<Global<V>>.") PersistentValueVector {
+class V8_DEPRECATED("Use std::vector<Global<V>>.") PersistentValueVector {
  public:
   explicit PersistentValueVector(Isolate* isolate) : isolate_(isolate) { }
 

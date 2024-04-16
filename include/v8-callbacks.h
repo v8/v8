@@ -152,7 +152,7 @@ using JitCodeEventHandler = void (*)(const JitCodeEvent* event);
 enum GCType {
   kGCTypeScavenge = 1 << 0,
   kGCTypeMinorMarkSweep = 1 << 1,
-  kGCTypeMinorMarkCompact V8_DEPRECATE_SOON(
+  kGCTypeMinorMarkCompact V8_DEPRECATED(
       "Use kGCTypeMinorMarkSweep instead of kGCTypeMinorMarkCompact.") =
       kGCTypeMinorMarkSweep,
   kGCTypeMarkSweepCompact = 1 << 2,
