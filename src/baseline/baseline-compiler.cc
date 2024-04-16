@@ -509,13 +509,11 @@ void BaselineCompiler::VisitSingleBytecode() {
     __ JumpTarget();
   }
 
-#ifdef V8_CODE_COMMENTS
-  std::ostringstream str;
-  if (v8_flags.code_comments) {
+  ASM_CODE_COMMENT_STRING(&masm_, [&]() {
+    std::ostringstream str;
     iterator().PrintTo(str);
-  }
-  ASM_CODE_COMMENT_STRING(&masm_, str.str());
-#endif
+    return str.str();
+  });
 
   VerifyFrame();
 
