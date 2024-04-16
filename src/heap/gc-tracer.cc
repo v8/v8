@@ -1363,11 +1363,6 @@ void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
       heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
           TruncateToMs(current_.incremental_marking_duration));
     }
-    const base::TimeDelta overall_marking_time =
-        current_.incremental_marking_duration + current_.scopes[Scope::MC_MARK];
-    heap_->isolate()->counters()->gc_marking_sum()->AddSample(
-        TruncateToMs(overall_marking_time));
-
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
   } else if (mode == RecordGCPhasesInfo::Mode::Scavenger) {
     counters->gc_scavenger_scavenge_main()->AddSample(

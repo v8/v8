@@ -29,7 +29,6 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \
