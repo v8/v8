@@ -1734,6 +1734,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kLoong64LoadDecompressProtected:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ DecompressProtected(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kLoong64StoreCompressTagged: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);

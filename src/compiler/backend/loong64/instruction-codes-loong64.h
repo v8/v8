@@ -27,6 +27,7 @@ namespace compiler {
   V(Loong64St_d)                                           \
   V(Loong64LoadDecompressTaggedSigned)                     \
   V(Loong64LoadDecompressTagged)                           \
+  V(Loong64LoadDecompressProtected)                        \
   V(Loong64StoreCompressTagged)                            \
   V(Loong64Fld_s)                                          \
   V(Loong64Fst_s)                                          \

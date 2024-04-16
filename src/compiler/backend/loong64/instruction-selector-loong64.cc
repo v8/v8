@@ -762,7 +762,13 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
 #ifdef V8_COMPRESS_POINTERS
         opcode = kLoong64Ld_wu;
         break;
+#else
+        UNREACHABLE();
 #endif
+      case MachineRepresentation::kProtectedPointer:
+        CHECK(V8_ENABLE_SANDBOX_BOOL);
+        opcode = kLoong64LoadDecompressProtected;
+        break;
       case MachineRepresentation::kSandboxedPointer:
         opcode = kLoong64LoadDecodeSandboxedPointer;
         break;
@@ -861,7 +867,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kFloat64:
         code = kLoong64Fst_d;
         break;
-      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
         code = kLoong64St_b;
         break;
@@ -874,12 +880,12 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kWord64:
         code = kLoong64St_d;
         break;
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
         code = kLoong64StoreCompressTagged;
         break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
         code = kLoong64StoreCompressTagged;
@@ -891,10 +897,12 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kIndirectPointer:
         code = kLoong64StoreIndirectPointer;
         break;
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kNone:     // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kMapWord:
+      case MachineRepresentation::kNone:
+      case MachineRepresentation::kSimd128:
       case MachineRepresentation::kSimd256:
+      // We never store directly to protected pointers from generated code.
+      case MachineRepresentation::kProtectedPointer:
         UNREACHABLE();
     }
 

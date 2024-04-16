@@ -376,13 +376,7 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
                                                MemOperand field_operand) {
   DCHECK(root_array_available());
 #ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Ld_wu(destination, field_operand);
-  Ld_d(scratch,
-       MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  Or(destination, destination, scratch);
+  DecompressProtected(destination, field_operand);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -4928,6 +4922,21 @@ void MacroAssembler::DecompressTagged(Register dst, Register src) {
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   Add_d(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
+}
+
+void MacroAssembler::DecompressProtected(const Register& destination,
+                                         const MemOperand& field_operand) {
+#if V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld_wu(destination, field_operand);
+  Ld_d(scratch,
+       MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  Or(destination, destination, scratch);
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
