@@ -73,6 +73,22 @@ bool IsFaultAddressCovered(uintptr_t fault_addr) {
   }
   return false;
 }
+
+bool IsAccessedMemoryCovered(uintptr_t addr) {
+  // For Wasm Memory64, we sometimes signal out-of-bounds accesses by accessing
+  // a non-canonical address (see IsolateData::wasm64_oob_offset_). In that
+  // case, the address reported by the kernel will be nullptr, so we also
+  // handle that here.
+  if (!addr) return true;
+
+  // Otherwise, check if the access is inside the V8 sandbox (if it is enabled)
+  // as all Wasm Memory objects must be located inside the sandbox.
+  if (gV8SandboxSize > 0) {
+    return addr >= gV8SandboxBase && addr < (gV8SandboxBase + gV8SandboxSize);
+  }
+
+  return true;
+}
 #endif  // V8_TRAP_HANDLER_SUPPORTED
 
 }  // namespace trap_handler
