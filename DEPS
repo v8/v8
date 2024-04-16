@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cab574b350bc82dc3e7a1f634fedeb3079bf9e9d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5cef78ec8648c78e2045fbc28460c87e2f0dab7f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5eb927f0a922dfacf10cfa84ee76f39dcf2a7311',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '88367fd8c736a2601fc183920c9ffe9ac2ec32ac',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '12e53bce0326eda9bf9c1e12ef70a027a3a9c339',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '495b23b39aaba2ca3b55dd27cadc523f1cb17ee6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '22de5fb71755dc55d735e942b86e97c0c1f91bde',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -302,7 +302,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e3b94d0e5b86883fd77696bf10dc33ba250ba99b',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '932d253fedb390a08b17ec3a92469a4553934a6a',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '51fe3584464d29067c8f0663f6e6dec84cc86868',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '419b03c0b8f20d6da9ddcb0d661a94a97cdd7dad',
   'third_party/logdog/logdog':
