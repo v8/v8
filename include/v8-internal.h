@@ -336,14 +336,19 @@ using ExternalBuffer_t = ExternalBufferHandle;
 using ExternalBuffer_t = Address;
 #endif
 
+#ifdef V8_TARGET_OS_ANDROID
 // The size of the virtual memory reservation for the external buffer table.
 // As with the external pointer table, a maximum table size in combination with
 // shifted indices allows omitting bounds checks.
-constexpr size_t kExternalBufferTableReservationSize = 128 * MB;
+constexpr size_t kExternalBufferTableReservationSize = 64 * MB;
 
 // The external buffer handles are stores shifted to the left by this amount
 // to guarantee that they are smaller than the maximum table size.
+constexpr uint32_t kExternalBufferHandleShift = 10;
+#else
+constexpr size_t kExternalBufferTableReservationSize = 128 * MB;
 constexpr uint32_t kExternalBufferHandleShift = 9;
+#endif  // V8_TARGET_OS_ANDROID
 
 // A null handle always references an entry that contains nullptr.
 constexpr ExternalBufferHandle kNullExternalBufferHandle = 0;
