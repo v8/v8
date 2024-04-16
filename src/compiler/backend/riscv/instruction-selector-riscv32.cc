@@ -277,6 +277,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kNone:
     case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kProtectedPointer:  // Fall through.
     case MachineRepresentation::kIndirectPointer:
       UNREACHABLE();
     }
@@ -337,6 +338,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitStore(node_t node) {
       case MachineRepresentation::kNone:
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kSimd256:  // Fall through.
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kIndirectPointer:
         UNREACHABLE();
     }
@@ -443,6 +445,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
       case MachineRepresentation::kNone:
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kSimd256:  // Fall through.
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kIndirectPointer:
         UNREACHABLE();
     }
@@ -976,6 +979,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
+      case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kNone:
       case MachineRepresentation::kIndirectPointer:
@@ -1038,6 +1042,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kNone:
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kIndirectPointer:

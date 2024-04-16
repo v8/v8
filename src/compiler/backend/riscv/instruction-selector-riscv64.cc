@@ -433,6 +433,10 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
         break;
 #else
 #endif
+      case MachineRepresentation::kProtectedPointer:
+        CHECK(V8_ENABLE_SANDBOX_BOOL);
+        opcode = kRiscvLoadDecompressProtected;
+        break;
       case MachineRepresentation::kSandboxedPointer:
         opcode = kRiscvLoadDecodeSandboxedPointer;
         break;
@@ -554,6 +558,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
+      case MachineRepresentation::kProtectedPointer:
         UNREACHABLE();
     }
 
@@ -1919,6 +1924,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kIndirectPointer:    // Fall through.
+      case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -1991,6 +1997,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kIndirectPointer:    // Fall through.
+      case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }

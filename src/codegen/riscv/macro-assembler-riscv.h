@@ -1192,6 +1192,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         const MemOperand& field_operand);
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(Register dst, Tagged_t immediate);
+  void DecompressProtected(const Register& destination,
+                           const MemOperand& field_operand);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
