@@ -7160,7 +7160,10 @@ if (current_toolchain == v8_snapshot_toolchain) {
       sources += [ "src/deoptimizer/deoptimizer-cfi-empty.cc" ]
     }
 
-    configs = [ ":internal_config" ]
+    configs = [
+      ":internal_config",
+      ":disable_icf",
+    ]
 
     deps = [
       ":v8_base_without_compiler",
@@ -7174,6 +7177,23 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_turboshaft",
       "//build/win:default_exe_manifest",
     ]
+  }
+
+  # This config disables a link time optimization "ICF", which may merge
+  # different functions into one if the function signature and body of them are
+  # identical.
+  #
+  # ICF breaks 1:1 mappings of the external references for V8 snapshot, so we
+  # disable it while taking a V8 snapshot.
+  config("disable_icf") {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+    if (is_win) {
+      ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
+    } else if (is_apple && !use_lld) {
+      ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
+    } else if (use_gold || use_lld) {
+      ldflags = [ "-Wl,--icf=none" ]
+    }
   }
 }
 
