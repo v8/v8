@@ -9442,8 +9442,12 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
               BuildInlinedUnmappedArgumentsElements(mapped_count);
           auto elements = CapturedObject::CreateMappedArgumentsElements(
               zone(), broker()->sloppy_arguments_elements_map(), mapped_count,
-              GetContext(), CapturedValue(unmapped_elements),
-              param_idx_in_ctxt);
+              GetContext(), CapturedValue(unmapped_elements));
+          for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
+            elements.set(
+                SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
+                param_idx_in_ctxt);
+          }
           return CapturedObject::CreateArgumentsObject(
               zone(),
               broker()->target_native_context().fast_aliased_arguments_map(
@@ -9457,8 +9461,17 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
               param_count);
           auto elements = CapturedObject::CreateMappedArgumentsElements(
               zone(), broker()->sloppy_arguments_elements_map(), param_count,
-              GetContext(), CapturedValue(unmapped_elements),
-              param_idx_in_ctxt);
+              GetContext(), CapturedValue(unmapped_elements));
+          ValueNode* the_hole_value = GetConstant(broker()->the_hole_value());
+          for (int i = 0; i < param_count; i++, param_idx_in_ctxt--) {
+            ValueNode* value = Select<BranchIfInt32Compare>(
+                [&] { return GetSmiConstant(param_idx_in_ctxt); },
+                [&] { return the_hole_value; }, {GetInt32Constant(i), length},
+                Operation::kLessThan);
+            elements.set(
+                SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
+                value);
+          }
           return CapturedObject::CreateArgumentsObject(
               zone(),
               broker()->target_native_context().fast_aliased_arguments_map(

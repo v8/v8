@@ -528,18 +528,13 @@ CapturedObject CapturedObject::CreateArgumentsObject(
 // static
 CapturedObject CapturedObject::CreateMappedArgumentsElements(
     Zone* zone, compiler::MapRef map, int mapped_count, ValueNode* context,
-    CapturedValue unmapped_elements, int param_idx_in_ctxt) {
+    CapturedValue unmapped_elements) {
   int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
   CapturedObject elements(zone, slot_count);
   elements.set(SloppyArgumentsElements::kMapOffset, map);
   elements.set(SloppyArgumentsElements::kLengthOffset, mapped_count);
   elements.set(SloppyArgumentsElements::kContextOffset, context);
   elements.set(SloppyArgumentsElements::kArgumentsOffset, unmapped_elements);
-  for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
-    elements.set(
-        SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
-        param_idx_in_ctxt);
-  }
   return elements;
 }
 

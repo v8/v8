@@ -876,7 +876,7 @@ class CapturedObject {
       CapturedValue elements, base::Optional<ValueNode*> callee = {});
   static CapturedObject CreateMappedArgumentsElements(
       Zone* zone, compiler::MapRef map, int mapped_count, ValueNode* context,
-      CapturedValue unmapped_elements, int param_idx_in_ctxt);
+      CapturedValue unmapped_elements);
   static CapturedObject CreateRegExpLiteral(
       Zone* zone, compiler::JSHeapBroker* broker, compiler::MapRef map,
       compiler::RegExpBoilerplateDescriptionRef literal);
