@@ -2213,7 +2213,9 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     objects_processed++;
     static_assert(base::bits::IsPowerOfTwo(kDeadlineCheckInterval),
                   "kDeadlineCheckInterval must be power of 2");
-    if ((objects_processed & kDeadlineCheckInterval) == 0 &&
+    // The below check is an optimized version of
+    // `(objects_processed % kDeadlineCheckInterval) == 0`
+    if ((objects_processed & (kDeadlineCheckInterval -1)) == 0 &&
         ((v8::base::TimeTicks::Now() - start) > max_duration)) {
       break;
     }
