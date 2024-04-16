@@ -11,6 +11,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/functional.h"
@@ -942,6 +943,7 @@ class MachineOptimizationReducer : public Next {
               return left;
             }
 
+            static_assert(kSmiTagMask == 1);
             // HeapObject & 1 => 1  ("& 1" is a Smi-check)
             // Note that we don't constant-fold the general case of
             // "HeapObject binop cst", because it's a bit unclear when such
@@ -953,6 +955,11 @@ class MachineOptimizationReducer : public Next {
                          ConstantOp::Kind::kCompressedHeapObject)) {
                 return __ WordConstant(1, rep);
               }
+            }
+
+            // AllocateOp & 1 => 1  ("& 1" is a Smi-check)
+            if (matcher.Is<AllocateOp>(left)) {
+              return __ WordConstant(1, rep);
             }
           }
 
