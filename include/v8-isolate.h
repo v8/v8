@@ -1376,7 +1376,7 @@ class V8_EXPORT Isolate {
    * that function. There is no guarantee that the actual work will be done
    * within the time limit.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use MemoryPressureNotification() to influence the GC schedule.")
   bool IdleNotificationDeadline(double deadline_in_seconds);
 
