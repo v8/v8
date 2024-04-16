@@ -624,6 +624,37 @@ ValueNode* MaglevGraphBuilder::Select(
   return subgraph.get(ret_val);
 }
 
+template <typename ControlNodeT, typename FTrue, typename FFalse,
+          typename... Args>
+ReduceResult MaglevGraphBuilder::SelectReduction(
+    FTrue if_true, FFalse if_false,
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  MaglevSubGraphBuilder subgraph(this, 1);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
+  MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
+  subgraph.GotoIfFalse<ControlNodeT>(&else_branch, control_inputs,
+                                     std::forward<Args>(args)...);
+  ReduceResult result_if_true = if_true();
+  DCHECK(result_if_true.IsDone());
+  if (result_if_true.IsDoneWithValue()) {
+    subgraph.set(ret_val, result_if_true.value());
+  }
+  subgraph.Goto(&done);
+  subgraph.Bind(&else_branch);
+  ReduceResult result_if_false = if_false();
+  DCHECK(result_if_false.IsDone());
+  if (result_if_false.IsDoneWithValue()) {
+    subgraph.set(ret_val, result_if_false.value());
+  }
+  subgraph.Goto(&done);
+  subgraph.Bind(&done);
+  if (result_if_true.IsDoneWithAbort() && result_if_false.IsDoneWithAbort()) {
+    return ReduceResult::DoneWithAbort();
+  }
+  return subgraph.get(ret_val);
+}
+
 // Known node aspects for the pseudo frame are null aside from when merging --
 // before each merge, we should borrow the node aspects from the parent
 // builder, and after each merge point, we should copy the node aspects back
@@ -3196,6 +3227,14 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type,
   if (!known_node_aspects().IsValid(it)) return false;
   if (current_type) *current_type = it->second.type();
   return NodeTypeIs(it->second.type(), type);
+}
+
+bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
+  NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
+  if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
+  auto it = known_node_aspects().FindInfo(node);
+  if (!known_node_aspects().IsValid(it)) return true;
+  return NodeTypeMayBeNullOrUndefined(it->second.type());
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
@@ -7781,41 +7820,43 @@ ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
 }
 
 ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
-    ValueNode* target_node, compiler::JSFunctionRef receiver,
+    ValueNode* function_apply_node, compiler::JSFunctionRef function,
     CallArguments& args, const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
-  // TODO(victorgomes): This has currently pretty limited usage and does not
-  // work with inlining. We need to implement arguments forwarding like TF
-  // ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments.
-  return ReduceResult::Fail();
-  // compiler::NativeContextRef native_context =
-  // broker()->target_native_context(); RETURN_IF_ABORT(BuildCheckValue(
-  //     target_node, native_context.function_prototype_apply(broker())));
-  // ValueNode* receiver_node = GetTaggedOrUndefined(args.receiver());
-  // RETURN_IF_ABORT(BuildCheckValue(receiver_node, receiver));
-  // if (args.mode() == CallArguments::kDefault) {
-  //   if (args.count() == 0) {
-  //     // No need for spread.
-  //     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
-  //     return ReduceCall(receiver, empty_args, feedback_source,
-  //                       speculation_mode);
-  //   }
-  //   if (args.count() == 1 || IsNullValue(args[1]) ||
-  //       IsUndefinedValue(args[1])) {
-  //     // No need for spread. We have only the new receiver.
-  //     CallArguments new_args(ConvertReceiverMode::kAny,
-  //                            {GetTaggedValue(args[0])});
-  //     return ReduceCall(receiver, new_args, feedback_source,
-  //     speculation_mode);
-  //   }
-  //   if (args.count() > 2) {
-  //     // FunctionPrototypeApply only consider two arguments: the new receiver
-  //     // and an array-like arguments_list. All others shall be ignored.
-  //     args.Truncate(2);
-  //   }
-  // }
-  // return ReduceCall(native_context.function_prototype_apply(broker()), args,
-  //                   feedback_source, speculation_mode);
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  compiler::JSFunctionRef function_apply =
+      native_context.function_prototype_apply(broker());
+  RETURN_IF_ABORT(BuildCheckValue(function_apply_node, function_apply));
+  ValueNode* function_apply_receiver = GetTaggedOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckValue(function_apply_receiver, function));
+  if (args.mode() != CallArguments::kDefault) return ReduceResult::Fail();
+  if (args.count() == 0) {
+    CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
+    return ReduceCall(GetConstant(function), empty_args, feedback_source,
+                      speculation_mode);
+  }
+  ValueNode* new_receiver = GetTaggedValue(args[0]);
+  auto build_call_only_with_new_receiver = [&] {
+    CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver});
+    return ReduceCall(GetConstant(function), new_args, feedback_source,
+                      speculation_mode);
+  };
+  if (args.count() == 1 || IsNullValue(args[1]) || IsUndefinedValue(args[1])) {
+    return build_call_only_with_new_receiver();
+  }
+  ValueNode* arg_list = args[1];
+  auto build_call_with_array_like = [&] {
+    CallArguments new_args(ConvertReceiverMode::kAny, {new_receiver, arg_list},
+                           CallArguments::kWithArrayLike);
+    return ReduceCall(GetConstant(function), new_args, feedback_source,
+                      speculation_mode);
+  };
+  if (!MayBeNullOrUndefined(arg_list)) {
+    return build_call_with_array_like();
+  }
+  return SelectReduction<BranchIfUndefinedOrNull>(
+      build_call_only_with_new_receiver, build_call_with_array_like,
+      {arg_list});
 }
 
 void MaglevGraphBuilder::BuildCallWithFeedback(
@@ -7837,8 +7878,12 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
     compiler::JSFunctionRef feedback_target =
         call_feedback.target()->AsJSFunction();
     if (content == CallFeedbackContent::kReceiver) {
-      // TODO(verwaest): Actually implement
-      // FunctionPrototypeApplyCallWithReceiver.
+      PROCESS_AND_RETURN_IF_DONE(
+          ReduceFunctionPrototypeApplyCallWithReceiver(
+              target_node, feedback_target, args, feedback_source,
+              call_feedback.speculation_mode()),
+          SetAccumulator);
+      // Fallback call to Function.prototype.apply.
       compiler::NativeContextRef native_context =
           broker()->target_native_context();
       feedback_target = native_context.function_prototype_apply(broker());

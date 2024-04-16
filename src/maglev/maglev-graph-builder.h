@@ -422,8 +422,11 @@ class MaglevGraphBuilder {
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+
   template <typename Function>
   bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);
+  bool MayBeNullOrUndefined(ValueNode* node);
+
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
                      NodeType new_node_type);
   bool ShouldEmitInterruptBudgetChecks() {
@@ -2146,6 +2149,12 @@ class MaglevGraphBuilder {
   ValueNode* Select(FTrue if_true, FFalse if_false,
                     std::initializer_list<ValueNode*> control_inputs,
                     Args&&... args);
+
+  template <typename ControlNodeT, typename FTrue, typename FFalse,
+            typename... Args>
+  ReduceResult SelectReduction(FTrue if_true, FFalse if_false,
+                               std::initializer_list<ValueNode*> control_inputs,
+                               Args&&... args);
 
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
