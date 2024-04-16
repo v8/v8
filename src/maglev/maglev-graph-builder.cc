@@ -4729,9 +4729,18 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
                                       DeoptimizeReason::kOutOfBounds);
 
       // Grow backing store if necessary and handle COW.
-      elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
+      elements_array = AddNewNode<MaybeGrowFastElements>(
           {elements_array, object, index, elements_array_length},
           elements_kind);
+
+      // If we didn't grow {elements}, it might still be COW, in which case we
+      // copy it now.
+      if (IsSmiOrObjectElementsKind(elements_kind)) {
+        DCHECK_EQ(keyed_mode.store_mode(),
+                  KeyedAccessStoreMode::kGrowAndHandleCOW);
+        elements_array =
+            AddNewNode<EnsureWritableFastElements>({elements_array, object});
+      }
 
       // Update length if necessary.
       if (is_jsarray) {
@@ -6875,10 +6884,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     ValueNode* value;
     GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
 
-    ValueNode* writable_elements_array =
-        AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
-            {elements_array, receiver, old_array_length, elements_array_length},
-            kind);
+    ValueNode* writable_elements_array = AddNewNode<MaybeGrowFastElements>(
+        {elements_array, receiver, old_array_length, elements_array_length},
+        kind);
 
     AddNewNode<StoreTaggedFieldNoWriteBarrier>({receiver, new_array_length_smi},
                                                JSArray::kLengthOffset);

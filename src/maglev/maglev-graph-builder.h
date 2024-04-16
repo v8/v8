@@ -1523,7 +1523,7 @@ class MaglevGraphBuilder {
         std::is_same_v<NodeT, StoreFixedDoubleArrayElement>;
 
     static constexpr bool is_elements_array_write =
-        std::is_same_v<NodeT, MaybeGrowAndEnsureWritableFastElements> ||
+        std::is_same_v<NodeT, MaybeGrowFastElements> ||
         std::is_same_v<NodeT, EnsureWritableFastElements>;
 
     if constexpr (is_elements_array_write) {

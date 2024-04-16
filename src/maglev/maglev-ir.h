@@ -198,7 +198,7 @@ class MergePointInterpreterFrameState;
   V(LoadGlobal)                                     \
   V(LoadNamedGeneric)                               \
   V(LoadNamedFromSuperGeneric)                      \
-  V(MaybeGrowAndEnsureWritableFastElements)         \
+  V(MaybeGrowFastElements)                          \
   V(SetNamedGeneric)                                \
   V(DefineNamedOwnGeneric)                          \
   V(StoreInArrayLiteralGeneric)                     \
@@ -6488,13 +6488,12 @@ class EnsureWritableFastElements
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class MaybeGrowAndEnsureWritableFastElements
-    : public FixedInputValueNodeT<4, MaybeGrowAndEnsureWritableFastElements> {
-  using Base = FixedInputValueNodeT<4, MaybeGrowAndEnsureWritableFastElements>;
+class MaybeGrowFastElements
+    : public FixedInputValueNodeT<4, MaybeGrowFastElements> {
+  using Base = FixedInputValueNodeT<4, MaybeGrowFastElements>;
 
  public:
-  explicit MaybeGrowAndEnsureWritableFastElements(uint64_t bitfield,
-                                                  ElementsKind elements_kind)
+  explicit MaybeGrowFastElements(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
 
   static constexpr OpProperties kProperties =

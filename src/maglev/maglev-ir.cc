@@ -3968,7 +3968,7 @@ void EnsureWritableFastElements::GenerateCode(MaglevAssembler* masm,
   __ EnsureWritableFastElements(register_snapshot(), elements, object, scratch);
 }
 
-void MaybeGrowAndEnsureWritableFastElements::SetValueLocationConstraints() {
+void MaybeGrowFastElements::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(object_input());
   UseRegister(index_input());
@@ -3978,8 +3978,8 @@ void MaybeGrowAndEnsureWritableFastElements::SetValueLocationConstraints() {
   }
   DefineSameAsFirst(this);
 }
-void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void MaybeGrowFastElements::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
   Register elements = ToRegister(elements_input());
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
@@ -3992,8 +3992,7 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
       index, elements_length, kUnsignedGreaterThanEqual,
       __ MakeDeferredCode(
           [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
-             Register index, Register result_reg,
-             MaybeGrowAndEnsureWritableFastElements* node) {
+             Register index, Register result_reg, MaybeGrowFastElements* node) {
             {
               RegisterSnapshot snapshot = node->register_snapshot();
               snapshot.live_registers.clear(result_reg);
@@ -4023,13 +4022,6 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
             __ Jump(*done);
           },
           done, object, index, elements, this));
-
-  if (IsSmiOrObjectElementsKind(elements_kind())) {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ EnsureWritableFastElements(register_snapshot(), elements, object,
-                                  scratch);
-  }
 
   __ bind(*done);
 }
