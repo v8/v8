@@ -549,6 +549,14 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckSmi* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIfNot(__ ObjectIsSmi(Map(node->receiver_input())),
+                       BuildFrameState(node->eager_deopt_info()),
+                       DeoptimizeReason::kNotASmi,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckMaps* node,
                                 const maglev::ProcessingState& state) {
     Label<> done(this);
@@ -682,6 +690,20 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ EnsureWritableFastElements(Map(node->object_input()),
                                                Map(node->elements_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::MaybeGrowFastElements* node,
+                                const maglev::ProcessingState& state) {
+    GrowFastElementsMode mode =
+        IsDoubleElementsKind(node->elements_kind())
+            ? GrowFastElementsMode::kDoubleElements
+            : GrowFastElementsMode::kSmiOrObjectElements;
+    SetMap(node,
+           __ MaybeGrowFastElements(
+               Map(node->object_input()), Map(node->elements_input()),
+               Map(node->index_input()), Map(node->elements_length_input()),
+               BuildFrameState(node->eager_deopt_info()), mode,
+               node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -1349,6 +1371,46 @@ class GraphBuilder {
 #undef CASE
     }
     SetMap(node, __ Float64Unary(Map(node->input()), kind));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CheckedSmiIncrement* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    V<Smi> result;
+    if constexpr (SmiValuesAre31Bits()) {
+      result = __ BitcastWord32ToSmi(__ Word32SignedAddDeoptOnOverflow(
+          __ BitcastSmiToWord32(Map(node->value_input())),
+          Smi::FromInt(1).ptr(), frame_state,
+          node->eager_deopt_info()->feedback_to_update()));
+    } else {
+      // Remember that 32-bit Smis are stored in the upper 32 bits of 64-bit
+      // qwords. We thus perform a 64-bit addition rather than a 32-bit one,
+      // despite Smis being only 32 bits.
+      result = __ BitcastWordPtrToSmi(__ WordPtrSignedAddDeoptOnOverflow(
+          __ BitcastSmiToWordPtr(Map(node->value_input())),
+          Smi::FromInt(1).ptr(), frame_state,
+          node->eager_deopt_info()->feedback_to_update()));
+    }
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckedSmiDecrement* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    V<Smi> result;
+    if constexpr (SmiValuesAre31Bits()) {
+      result = __ BitcastWord32ToSmi(__ Word32SignedSubDeoptOnOverflow(
+          __ BitcastSmiToWord32(Map(node->value_input())),
+          Smi::FromInt(1).ptr(), frame_state,
+          node->eager_deopt_info()->feedback_to_update()));
+    } else {
+      result = __ BitcastWordPtrToSmi(__ WordPtrSignedSubDeoptOnOverflow(
+          __ BitcastSmiToWordPtr(Map(node->value_input())),
+          Smi::FromInt(1).ptr(), frame_state,
+          node->eager_deopt_info()->feedback_to_update()));
+    }
+    SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
 

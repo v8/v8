@@ -6204,8 +6204,7 @@ struct EnsureWritableFastElementsOp
   EnsureWritableFastElementsOp(OpIndex object, OpIndex elements)
       : Base(object, elements) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -6229,14 +6228,14 @@ struct MaybeGrowFastElementsOp
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex object() const { return Base::input(0); }
-  OpIndex elements() const { return Base::input(1); }
-  OpIndex index() const { return Base::input(2); }
-  OpIndex elements_length() const { return Base::input(3); }
-  OpIndex frame_state() const { return Base::input(4); }
+  V<Object> object() const { return Base::input<Object>(0); }
+  V<Object> elements() const { return Base::input<Object>(1); }
+  V<Word32> index() const { return Base::input<Word32>(2); }
+  V<Word32> elements_length() const { return Base::input<Word32>(3); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(4); }
 
-  MaybeGrowFastElementsOp(OpIndex object, OpIndex elements, OpIndex index,
-                          OpIndex elements_length, OpIndex frame_state,
+  MaybeGrowFastElementsOp(V<Object> object, V<Object> elements, V<Word32> index,
+                          V<Word32> elements_length, V<FrameState> frame_state,
                           GrowFastElementsMode mode,
                           const FeedbackSource& feedback)
       : Base(object, elements, index, elements_length, frame_state),

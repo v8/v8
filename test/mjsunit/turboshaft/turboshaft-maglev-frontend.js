@@ -1023,3 +1023,39 @@ assertOptimized(simple_loop);
   %PrepareFunctionForOptimization(test_osr);
   assertEquals(570, test_osr(3, 42.42));
 }
+
+// Testing Array.prototype.push/pop.
+{
+  function array_push_pop(arr, x) {
+    let v = arr.pop();
+    arr.push(x); // This doesn't require growing the array.
+    return v + arr[5];
+  }
+
+  let arr = [0, 1, 2, 3, 4, 5];
+
+  %PrepareFunctionForOptimization(array_push_pop);
+  assertEquals(16, array_push_pop(arr, 11));
+
+  arr[5] = 5;
+  %OptimizeFunctionOnNextCall(array_push_pop);
+  assertEquals(16, array_push_pop(arr, 11));
+  assertOptimized(array_push_pop);
+
+  function array_push_grow_once(arr, x, y) {
+    // The 1st push will have to grow the array.
+    arr.push(x);
+    arr.push(y);
+    return arr.at(-1) + arr.at(-2) + arr.at(-3);
+  }
+
+  arr = [0, 1, 2, 3, 4, 5];
+
+  %PrepareFunctionForOptimization(array_push_grow_once);
+  assertEquals(29, array_push_grow_once(arr, 11, 13));
+
+  arr = [0, 1, 2, 3, 4, 5];
+  %OptimizeFunctionOnNextCall(array_push_grow_once);
+  assertEquals(29, array_push_grow_once(arr, 11, 13));
+  assertOptimized(array_push_grow_once);
+}
