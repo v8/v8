@@ -668,6 +668,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
 
+  void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
+
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
   template <bool for_loop_revisit = false>

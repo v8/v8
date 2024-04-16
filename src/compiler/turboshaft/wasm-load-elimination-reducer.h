@@ -453,6 +453,8 @@ class WasmLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
 
+  void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
+
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
   template <bool for_loop_revisit = false>
@@ -615,11 +617,6 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // We rely on having no raw "Store" operations operating on Wasm
         // objects at this point in the pipeline.
         // TODO(jkummerow): Is there any way to DCHECK that?
-      case Opcode::kFrameState:
-        // We explicitely break for FrameStates so that we don't call
-        // InvalidateAllNonAliasingInputs on their inputs, since they don't
-        // really create aliases. (and also, FrameStates don't write so it's
-        // fine to break)
       case Opcode::kAssumeMap:
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
@@ -632,9 +629,36 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kParameter:
-        // We explicitely break for those operations that have can_write effects
+        // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
+
+      case Opcode::kWordBinop:
+        // A WordBinop should never invalidate aliases (since the only time when
+        // it should take a non-aliasing object as input is for Smi checks).
+        DcheckWordBinop(op_idx, op.Cast<WordBinopOp>());
+        break;
+
+      case Opcode::kFrameState:
+      case Opcode::kDeoptimizeIf:
+      case Opcode::kComparison:
+      case Opcode::kTrapIf:
+        // We explicitly break for these opcodes so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they don't
+        // really create aliases. (and also, they don't write so it's
+        // fine to break)
+        DCHECK(!op.Effects().can_write());
+        break;
+
+      case Opcode::kDeoptimize:
+      case Opcode::kReturn:
+        // We explicitly break for these opcodes so that we don't call
+        // InvalidateAllNonAliasingInputs on their inputs, since they are block
+        // terminators without successors, meaning that it's not useful for the
+        // rest of the analysis to invalidate anything here.
+        DCHECK(op.IsBlockTerminator() && SuccessorBlocks(op).empty());
+        break;
+
       default:
         // Operations that `can_write` should invalidate the state. All such
         // operations should be already handled above, which means that we don't
@@ -853,6 +877,29 @@ void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // object could actually have aliases.
     non_aliasing_objects_.Set(*key, false);
   }
+}
+
+// The only time an Allocate should flow into a WordBinop is for Smi checks
+// (which, by the way, should be removed by MachineOptimizationReducer (since
+// Allocate never returns a Smi), but there is no guarantee that this happens
+// before load elimination). So, there is no need to invalidate non-aliases, and
+// we just DCHECK in this function that indeed, nothing else than a Smi check
+// happens on non-aliasing objects.
+void WasmLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
+                                                  const WordBinopOp& binop) {
+#ifdef DEBUG
+  auto check = [&](V<Word> left, V<Word> right) {
+    if (auto key = non_aliasing_objects_.TryGetKeyFor(left);
+        key.has_value() && non_aliasing_objects_.Get(*key)) {
+      int64_t cst;
+      DCHECK_EQ(binop.kind, WordBinopOp::Kind::kBitwiseAnd);
+      DCHECK(OperationMatcher(graph_).MatchSignedIntegralConstant(right, &cst));
+      DCHECK_EQ(cst, kSmiTagMask);
+    }
+  };
+  check(binop.left(), binop.right());
+  check(binop.right(), binop.left());
+#endif
 }
 
 void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
