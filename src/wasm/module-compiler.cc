@@ -1279,6 +1279,12 @@ void ThrowLazyCompilationError(Isolate* isolate,
                                              std::move(decode_result).error()));
 }
 
+// The main purpose of this class is to copy the feedback vectors that live in
+// `FixedArray`s on the JavaScript heap to a C++ datastructure on the `module`
+// that is accessible to the background compilation threads.
+// While we are at it, we also do some light processing here, e.g., mapping the
+// feedback to functions, identified by their function index, and filtering out
+// feedback for calls to imported functions (which we currently don't inline).
 class TransitiveTypeFeedbackProcessor {
  public:
   static void Process(Isolate* isolate,
@@ -1354,7 +1360,7 @@ class FeedbackMaker {
     result_.reserve(num_calls);
   }
 
-  void AddCandidate(Tagged<WasmFuncRef> funcref, int count) {
+  void AddCallRefCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
         WasmFuncRef::cast(funcref)->internal(isolate_);
     // Only consider wasm function declared in this instance.
@@ -1427,10 +1433,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       instance_data_->feedback_vectors()->get(which_vector);
   if (!IsFixedArray(maybe_feedback)) return;
   Tagged<FixedArray> feedback = FixedArray::cast(maybe_feedback);
-  base::Vector<uint32_t> call_direct_targets =
+  base::Vector<uint32_t> call_targets =
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
-  DCHECK_EQ(feedback->length(), call_direct_targets.size() * 2);
+
+  DCHECK_EQ(feedback->length(), call_targets.size() * 2);
   FeedbackMaker fm(isolate_, instance_data_, func_index,
                    feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
@@ -1438,18 +1445,18 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
     if (IsWasmFuncRef(value)) {
       // Monomorphic.
       int count = Smi::cast(feedback->get(i + 1)).value();
-      fm.AddCandidate(WasmFuncRef::cast(value), count);
+      fm.AddCallRefCandidate(WasmFuncRef::cast(value), count);
     } else if (IsFixedArray(value)) {
       // Polymorphic.
       Tagged<FixedArray> polymorphic = FixedArray::cast(value);
       for (int j = 0; j < polymorphic->length(); j += 2) {
         Tagged<Object> func_ref = polymorphic->get(j);
         int count = Smi::cast(polymorphic->get(j + 1)).value();
-        fm.AddCandidate(WasmFuncRef::cast(func_ref), count);
+        fm.AddCallRefCandidate(WasmFuncRef::cast(func_ref), count);
       }
     } else if (IsSmi(value)) {
       // Uninitialized, or a direct call collecting call count.
-      uint32_t target = call_direct_targets[i / 2];
+      uint32_t target = call_targets[i / 2];
       if (target != FunctionTypeFeedback::kNonDirectCall) {
         int count = Smi::cast(value).value();
         fm.AddCall(static_cast<int>(target), count);

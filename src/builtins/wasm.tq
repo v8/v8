@@ -587,8 +587,8 @@ builtin WasmI64AtomicWait(
 //
 // TODO(rstz): The counter might overflow if it exceeds the range of a Smi.
 // This can lead to incorrect inlining decisions.
-macro UpdateIC(vector: FixedArray, index: intptr, funcref: WasmFuncRef):
-    void {
+macro UpdateCallRefIC(
+    vector: FixedArray, index: intptr, funcref: WasmFuncRef): void {
   const value = vector.objects[index];
   if (value == funcref) {
     // Monomorphic hit. Check for this case first to maximize its performance.
@@ -660,7 +660,7 @@ struct TargetAndRef {
 builtin CallRefIC(vector: FixedArray, index: intptr, funcref: WasmFuncRef):
     TargetAndRef {
   dcheck(Is<WasmFuncRef>(funcref));
-  UpdateIC(vector, index, funcref);
+  UpdateCallRefIC(vector, index, funcref);
 
   const internal = funcref.internal;
   return TargetAndRef{target: internal.call_target, ref: internal.ref};

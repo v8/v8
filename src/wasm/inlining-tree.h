@@ -22,11 +22,16 @@ namespace v8::internal::wasm {
 
 // Represents a tree of inlining decisions.
 // A node in the tree represents a function frame, and `function_calls_`
-// represent all direct/call_ref function calls in this frame. Each element of
-// `function_calls_` is itself a `Vector` of `InliningTree`s, corresponding to
-// the different speculative candidates for a call_ref; for a direct call, it
-// has a single element. If an transitive element of `function_calls_` has its `
-// `is_inlined_` field set, it should be inlined into the caller.
+// represent all direct/call_ref function calls in this frame.
+// Each element of `function_calls_` is itself a `Vector` of `InliningTree`s,
+// corresponding to the different speculative candidates for a call_ref;
+// for a direct call, it has a single element.
+// If a transitive element of `function_calls_` has its `is_inlined_` field set,
+// it should be inlined into the caller.
+// We have this additional datastructure for Turboshaft, since nodes in the
+// Turboshaft IR aren't as easily expanded incrementally, so all the inlining
+// decisions are already done before graph building on this abstracted form of
+// the code.
 class InliningTree : public ZoneObject {
  public:
   using CasesPerCallSite = base::Vector<InliningTree*>;

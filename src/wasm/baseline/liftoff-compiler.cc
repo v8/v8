@@ -4037,7 +4037,7 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    CallIndirect(decoder, imm, kNoTailCall);
+    CallIndirectImpl(decoder, imm, kNoTailCall);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -4055,7 +4055,7 @@ class LiftoffCompiler {
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallIndirect(decoder, imm, kTailCall);
+    CallIndirectImpl(decoder, imm, kTailCall);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
@@ -7991,8 +7991,8 @@ class LiftoffCompiler {
     }
   }
 
-  void CallIndirect(FullDecoder* decoder, const CallIndirectImmediate& imm,
-                    TailCall tail_call) {
+  void CallIndirectImpl(FullDecoder* decoder, const CallIndirectImmediate& imm,
+                        TailCall tail_call) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -8224,13 +8224,15 @@ class LiftoffCompiler {
       Register first_param = temps.Acquire(kGpReg).gp();
       Register target = temps.Acquire(kGpReg).gp();
 
-      // Load ref and target from the dispatch table.
-      __ LoadProtectedPointer(
-          first_param, dispatch_table_base.gp_reg(),
-          dispatch_table_offset + WasmDispatchTable::kRefBias);
-      __ Load(LiftoffRegister(target), dispatch_table_base.gp_reg(), no_reg,
-              dispatch_table_offset + WasmDispatchTable::kTargetBias,
-              LoadType::ForValueKind(kIntPtrKind));
+      {
+        SCOPED_CODE_COMMENT("Load ref and target from dispatch table");
+        __ LoadProtectedPointer(
+            first_param, dispatch_table_base.gp_reg(),
+            dispatch_table_offset + WasmDispatchTable::kRefBias);
+        __ Load(LiftoffRegister(target), dispatch_table_base.gp_reg(), no_reg,
+                dispatch_table_offset + WasmDispatchTable::kTargetBias,
+                LoadType::ForValueKind(kIntPtrKind));
+      }
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
