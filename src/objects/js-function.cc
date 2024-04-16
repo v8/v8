@@ -1268,7 +1268,8 @@ bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
     builder.AppendString(prefix);
     builder.AppendCharacter(' ');
     builder.AppendString(function_name);
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name, builder.Finish(),
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
+                                     indirect_handle(builder.Finish(), isolate),
                                      false);
   }
   RETURN_ON_EXCEPTION_VALUE(
@@ -1288,7 +1289,7 @@ Handle<String> NativeCodeFunctionSourceString(
   builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return builder.Finish().ToHandleChecked();
+  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
 }  // namespace

@@ -27,6 +27,8 @@ constexpr NullMaybeHandleType kNullMaybeHandle;
 template <typename T>
 class MaybeHandle final {
  public:
+  using handle_type = Handle<T>;
+
   V8_INLINE MaybeHandle() = default;
 
   V8_INLINE MaybeHandle(NullMaybeHandleType) {}
@@ -140,6 +142,8 @@ class MaybeObjectHandle {
 template <typename T>
 class MaybeDirectHandle final {
  public:
+  using handle_type = DirectHandle<T>;
+
   V8_INLINE MaybeDirectHandle() = default;
 
   V8_INLINE MaybeDirectHandle(NullMaybeHandleType) {}
