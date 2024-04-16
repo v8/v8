@@ -1455,6 +1455,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvCmp:
 #ifdef V8_TARGET_ARCH_RISCV64
     case kRiscvCmp32:
+    case kRiscvCmpZero32:
 #endif
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
@@ -3948,6 +3949,17 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     } else if (i.InputOrZeroRegister(0) != zero_reg) {
       __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
     }
+#ifdef V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvCmpZero32) {
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    if (i.InputOrZeroRegister(0) == zero_reg && IsInludeEqual(cc)) {
+      __ Branch(tlabel);
+    } else if (i.InputOrZeroRegister(0) != zero_reg) {
+      Register temp0 = i.TempRegister(0);
+      __ slliw(temp0, i.InputRegister(0), 0);
+      __ Branch(tlabel, cc, temp0, Operand(zero_reg));
+    }
+#endif
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
@@ -4242,6 +4254,72 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         UNREACHABLE();
     }
     return;
+#ifdef V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvCmpZero32) {
+    auto trim_reg = [&](Register in) -> Register {
+        Register temp = i.TempRegister(0);
+        __ slliw(temp, in, 0);
+        return temp;
+    };
+    auto trim_op = [&](Operand in) -> Register {
+        Register temp = i.TempRegister(0);
+        if (in.is_reg()) {
+          __ slliw(temp, in.rm(), 0);
+        } else {
+          __ Li(temp, in.immediate());
+          __ slliw(temp, temp, 0);
+        }
+        return temp;
+    };
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    switch (cc) {
+      case eq: {
+        auto left = trim_reg(i.InputOrZeroRegister(0));
+        __ Sltu(result, left, 1);
+        break;
+      }
+      case ne: {
+        auto left = trim_reg(i.InputOrZeroRegister(0));
+        __ Sltu(result, zero_reg, left);
+        break;
+      }
+      case lt:
+      case ge: {
+        auto left = trim_reg(i.InputOrZeroRegister(0));
+        __ Slt(result, left, zero_reg);
+        if (cc == ge) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case gt:
+      case le: {
+        auto left = trim_op(i.InputOperand(0));
+        __ Slt(result, zero_reg, left);
+        if (cc == le) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Uless:
+      case Ugreater_equal: {
+        auto left = trim_reg(i.InputOrZeroRegister(0));
+        __ Sltu(result, left, zero_reg);
+        if (cc == Ugreater_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      case Ugreater:
+      case Uless_equal: {
+        auto right = trim_op(i.InputOperand(0));
+        __ Sltu(result, zero_reg, right);
+        if (cc == Uless_equal) {
+          __ Xor(result, result, 1);
+        }
+      } break;
+      default:
+        UNREACHABLE();
+    }
+    return;
+#endif
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Register lhs_register = sp;
     uint32_t offset;

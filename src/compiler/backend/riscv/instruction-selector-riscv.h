@@ -725,6 +725,19 @@ void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector,
                                  g.UseRegisterOrImmediateZero(value), cont);
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
+template <typename Adapter>
+void EmitWord32CompareZero(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t value,
+                         FlagsContinuationT<Adapter>* cont) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  InstructionOperand inputs[] = {g.UseRegisterOrImmediateZero(value)};
+  InstructionOperand temps[] = {g.TempRegister()};
+  selector->EmitWithContinuation(kRiscvCmpZero32, 0, nullptr, arraysize(inputs),
+                                 inputs, arraysize(temps), temps, cont);
+}
+#endif
+
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat32Equal(node_t node) {

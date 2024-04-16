@@ -2373,7 +2373,7 @@ bool CanCoverTrap(Node* user, Node* value) {
       user->opcode() != IrOpcode::kTrapIf)
     return true;
   if (value->opcode() == IrOpcode::kWord32Equal ||
-      value->opcode() == IrOpcode::kInt32LessThanOrEqual ||
+      value->opcode() == IrOpcode::kInt32LessThan ||
       value->opcode() == IrOpcode::kInt32LessThanOrEqual ||
       value->opcode() == IrOpcode::kUint32LessThan ||
       value->opcode() == IrOpcode::kUint32LessThanOrEqual)
@@ -2507,7 +2507,33 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
 
     // Continuation could not be combined with a compare, emit compare against
     // 0.
+#ifdef V8_TARGET_ARCH_RISCV64
+#ifdef V8_COMPRESS_POINTERS
+    switch (user->opcode()) {
+      case IrOpcode::kWord64Equal:
+      case IrOpcode::kInt64LessThan:
+      case IrOpcode::kInt64LessThanOrEqual:
+      case IrOpcode::kUint64LessThan:
+      case IrOpcode::kUint64LessThanOrEqual:
+        return EmitWordCompareZero(this, value, cont);
+      default:
+        return EmitWord32CompareZero(this, value, cont);
+    }
+#else
+    switch (user->opcode()) {
+      case IrOpcode::kWord32Equal:
+      case IrOpcode::kInt32LessThan:
+      case IrOpcode::kInt32LessThanOrEqual:
+      case IrOpcode::kUint32LessThan:
+      case IrOpcode::kUint32LessThanOrEqual:
+        return EmitWord32CompareZero(this, value, cont);
+      default:
+        return EmitWordCompareZero(this, value, cont);
+    }
+#endif
+#else
     EmitWordCompareZero(this, value, cont);
+#endif
 }
 
 template <>

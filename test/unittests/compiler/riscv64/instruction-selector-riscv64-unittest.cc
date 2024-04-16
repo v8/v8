@@ -1415,7 +1415,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kRiscvCmpZero, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmpZero32, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1427,7 +1427,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kRiscvCmpZero, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmpZero32, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1451,7 +1451,7 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
   }
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    m.Return(m.Word64Equal(m.Int32Constant(0), m.Parameter(0)));
+    m.Return(m.Word64Equal(m.Int64Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kRiscvCmpZero, s[0]->arch_opcode());
