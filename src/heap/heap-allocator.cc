@@ -25,20 +25,29 @@ void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
     spaces_[i] = heap_->space(i);
   }
 
-  if (heap_->new_space() && local_heap_->is_main_thread()) {
-    new_space_allocator_.emplace(local_heap_, heap_->new_space(),
-                                 new_allocation_info);
+  if ((heap_->new_space() || v8_flags.sticky_mark_bits) &&
+      local_heap_->is_main_thread()) {
+    new_space_allocator_.emplace(
+        local_heap_,
+        v8_flags.sticky_mark_bits
+            ? static_cast<SpaceWithLinearArea*>(heap_->old_space())
+            : static_cast<SpaceWithLinearArea*>(heap_->new_space()),
+        MainAllocator::IsNewGeneration::kYes, new_allocation_info);
   }
 
   old_space_allocator_.emplace(local_heap_, heap_->old_space(),
+                               MainAllocator::IsNewGeneration::kNo,
                                old_allocation_info);
 
-  trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space());
-  code_space_allocator_.emplace(local_heap_, heap_->code_space());
+  trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space(),
+                                   MainAllocator::IsNewGeneration::kNo);
+  code_space_allocator_.emplace(local_heap_, heap_->code_space(),
+                                MainAllocator::IsNewGeneration::kNo);
 
   if (heap_->isolate()->has_shared_space()) {
     shared_space_allocator_.emplace(local_heap_,
-                                    heap_->shared_allocation_space());
+                                    heap_->shared_allocation_space(),
+                                    MainAllocator::IsNewGeneration::kNo);
     shared_lo_space_ = heap_->shared_lo_allocation_space();
   }
 }

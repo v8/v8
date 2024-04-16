@@ -149,11 +149,14 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
+  enum class IsNewGeneration { kNo, kYes };
+
   // Use this constructor on main/background threads. `allocation_info` can be
   // used for allocation support in generated code (currently new and old
   // space).
   V8_EXPORT_PRIVATE MainAllocator(
       LocalHeap* heap, SpaceWithLinearArea* space,
+      IsNewGeneration is_new_generation,
       LinearAllocationArea* allocation_info = nullptr);
 
   // Use this constructor for GC LABs/allocations.
@@ -257,6 +260,14 @@ class MainAllocator {
       AllocationOrigin origin);
 
  private:
+  enum class BlackAllocation {
+    kAlwaysEnabled,
+    kAlwaysDisabled,
+    kEnabledOnMarking
+  };
+
+  static constexpr BlackAllocation ComputeBlackAllocation(IsNewGeneration);
+
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enough to fit the object.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
@@ -349,6 +360,7 @@ class MainAllocator {
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 
   const bool supports_extending_lab_;
+  const BlackAllocation black_allocation_;
 
   friend class AllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;

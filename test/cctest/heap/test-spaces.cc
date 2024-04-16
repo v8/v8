@@ -309,6 +309,7 @@ TEST(SemiSpaceNewSpace) {
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
+                          MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
   CHECK(new_space->MaximumCapacity());
 
@@ -340,6 +341,7 @@ TEST(PagedNewSpace) {
   auto new_space = std::make_unique<PagedNewSpace>(
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
+                          MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
@@ -376,6 +378,7 @@ TEST(OldSpace) {
 
   auto old_space = std::make_unique<OldSpace>(heap);
   MainAllocator allocator(heap->main_thread_local_heap(), old_space.get(),
+                          MainAllocator::IsNewGeneration::kNo,
                           &allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 
