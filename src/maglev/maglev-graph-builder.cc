@@ -7201,6 +7201,9 @@ ReduceResult MaglevGraphBuilder::TryReduceMathPow(
     }
     return GetRootConstant(RootIndex::kNanValue);
   }
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
   // If both arguments are tagged, it is cheaper to call Math.Pow builtin,
   // instead of Float64Exponentiate, since we are still making a call and we
   // don't need to unbox both inputs. See https://crbug.com/1393643.
