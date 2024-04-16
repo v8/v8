@@ -822,7 +822,7 @@ String::FlatContent String::GetFlatContent(
 
 Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
   DCHECK(v8_flags.shared_string_table);
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (
       isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {
     case StringTransitionStrategy::kCopy:

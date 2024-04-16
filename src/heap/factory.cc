@@ -914,7 +914,7 @@ Handle<String> Factory::NewInternalizedStringImpl(DirectHandle<String> string,
 }
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
-    DirectHandle<String> string, MaybeHandle<Map>* internalized_map) {
+    DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map) {
   // The serializer requires internalized strings to be in ReadOnlySpace s.t.
   // other objects referencing the string can be allocated in RO space
   // themselves.
@@ -951,7 +951,7 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
 template <class StringClass>
 Handle<StringClass> Factory::InternalizeExternalString(
     DirectHandle<String> string) {
-  Handle<Map> map =
+  DirectHandle<Map> map =
       GetInPlaceInternalizedStringMap(string->map()).ToHandleChecked();
   Tagged<StringClass> external_string =
       Tagged<StringClass>::cast(New(map, AllocationType::kOld));
@@ -971,7 +971,7 @@ template Handle<ExternalTwoByteString> Factory::InternalizeExternalString<
     ExternalTwoByteString>(DirectHandle<String>);
 
 StringTransitionStrategy Factory::ComputeSharingStrategyForString(
-    DirectHandle<String> string, MaybeHandle<Map>* shared_map) {
+    DirectHandle<String> string, MaybeDirectHandle<Map>* shared_map) {
   DCHECK(v8_flags.shared_string_table);
   // TODO(pthier): Avoid copying LO-space strings. Update page flags instead.
   if (!InAnySharedSpace(*string)) {
