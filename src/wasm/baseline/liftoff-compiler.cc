@@ -8276,20 +8276,24 @@ class LiftoffCompiler {
 
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
-      LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      size_t vector_slot = encountered_call_instructions_.size() * 2;
+      // A constant `uint32_t` is sufficient for the vector slot index.
+      // The number of call instructions (and hence feedback vector slots) is
+      // capped by the number of instructions, which is capped by the maximum
+      // function body size.
+      static_assert(kV8MaxWasmFunctionSize <
+                    std::numeric_limits<uint32_t>::max() / 2);
+      uint32_t vector_slot =
+          static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
       encountered_call_instructions_.push_back(
           FunctionTypeFeedback::kNonDirectCall);
-      // TODO(clemensb): Can we make this a 32-bit integer and pass as constant?
-      __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
-      VarState index_var(kIntPtrKind, index, 0);
+      VarState index_var(kI32, vector_slot, 0);
 
-      // CallRefIC(vector: FixedArray, index: intptr,
+      // CallRefIC(vector: FixedArray, index: int32,
       //           funcref: WasmFuncRef) -> <target, ref>
-      CallBuiltin(Builtin::kCallRefIC,
-                  MakeSig::Returns(kIntPtrKind, kIntPtrKind)
-                      .Params(kRef, kIntPtrKind, kRef),
-                  {vector_var, index_var, func_ref_var}, decoder->position());
+      CallBuiltin(
+          Builtin::kCallRefIC,
+          MakeSig::Returns(kIntPtrKind, kIntPtrKind).Params(kRef, kI32, kRef),
+          {vector_var, index_var, func_ref_var}, decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       first_param_reg = kReturnRegister1;
     } else {  // inlining_enabled(decoder)

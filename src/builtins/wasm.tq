@@ -657,10 +657,10 @@ struct TargetAndRef {
   ref: WasmTrustedInstanceData|WasmApiFunctionRef;
 }
 
-builtin CallRefIC(vector: FixedArray, index: intptr, funcref: WasmFuncRef):
+builtin CallRefIC(vector: FixedArray, index: int32, funcref: WasmFuncRef):
     TargetAndRef {
   dcheck(Is<WasmFuncRef>(funcref));
-  UpdateCallRefIC(vector, index, funcref);
+  UpdateCallRefIC(vector, Convert<intptr>(index), funcref);
 
   const internal = funcref.internal;
   return TargetAndRef{target: internal.call_target, ref: internal.ref};
