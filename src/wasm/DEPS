@@ -41,6 +41,11 @@ specific_include_rules = {
     "+src/compiler/turboshaft/variable-reducer.h",
     "+src/compiler/turboshaft/wasm-assembler-helpers.h"
   ],
+  "wasm-deopt-data\.cc": [
+    # The deopt data uses DeoptimizationLiteral.
+    # TODO(mliedtke): Move this to src/objects/deoptimization-data.h.
+    "+src/compiler/backend/code-generator.h",
+  ],
   "wasm-engine\.h": [
     # The WasmEngine may cache common call descriptors.
     "+src/compiler/wasm-call-descriptors.h",

@@ -4529,13 +4529,16 @@ WasmCode* CompileImportWrapper(
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity, suspend);
 
+  DCHECK(result.inlining_positions.empty());
+  DCHECK(result.deopt_data.empty());
+
   std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
       result.func_index, result.code_desc, result.frame_slot_count,
       result.tagged_parameter_slots,
       result.protected_instructions_data.as_vector(),
       result.source_positions.as_vector(),
-      result.inlining_positions.as_vector(), GetCodeKind(result),
-      ExecutionTier::kNone, kNotForDebugging);
+      result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
+      GetCodeKind(result), ExecutionTier::kNone, kNotForDebugging);
   WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
   (*cache_scope)[key] = published_code;
   published_code->IncRef();

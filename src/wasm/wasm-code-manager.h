@@ -176,6 +176,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return {source_positions().end(),
             static_cast<size_t>(inlining_positions_size_)};
   }
+  base::Vector<const uint8_t> deopt_data() const {
+    return {inlining_positions().end(), static_cast<size_t>(deopt_data_size_)};
+  }
 
   int index() const { return index_; }
   // Anonymous functions are functions that don't carry an index.
@@ -319,18 +322,20 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> protected_instructions_data,
            base::Vector<const uint8_t> reloc_info,
            base::Vector<const uint8_t> source_position_table,
-           base::Vector<const uint8_t> inlining_positions, Kind kind,
+           base::Vector<const uint8_t> inlining_positions,
+           base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        meta_data_(
-            ConcatenateBytes({protected_instructions_data, reloc_info,
-                              source_position_table, inlining_positions})),
+        meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
+                                     source_position_table, inlining_positions,
+                                     deopt_data})),
         instructions_size_(instructions.length()),
         reloc_info_size_(reloc_info.length()),
         source_positions_size_(source_position_table.length()),
         inlining_positions_size_(inlining_positions.length()),
+        deopt_data_size_(deopt_data.length()),
         protected_instructions_size_(protected_instructions_data.length()),
         index_(index),
         constant_pool_offset_(constant_pool_offset),
@@ -383,14 +388,16 @@ class V8_EXPORT_PRIVATE WasmCode final {
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
   //  - source positions of size {source_positions_size_}
+  //  - deopt data of size {deopt_data_size_}
   // Note that the protected instructions come first to ensure alignment.
   std::unique_ptr<const uint8_t[]> meta_data_;
   const int instructions_size_;
   const int reloc_info_size_;
   const int source_positions_size_;
   const int inlining_positions_size_;
+  const int deopt_data_size_;
   const int protected_instructions_size_;
-  const int index_;
+  const int index_;  // The wasm function-index within the module.
   const int constant_pool_offset_;
   const int stack_slots_;
   // Number and position of tagged parameters passed to this function via the
@@ -515,7 +522,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions,
       base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
+      base::Vector<const uint8_t> inlining_positions,
+      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
@@ -552,7 +560,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> protected_instructions_data,
       base::Vector<const uint8_t> reloc_info,
       base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
+      base::Vector<const uint8_t> inlining_positions,
+      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
@@ -817,7 +826,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions_data,
       base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions, WasmCode::Kind kind,
+      base::Vector<const uint8_t> inlining_positions,
+      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
       bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);

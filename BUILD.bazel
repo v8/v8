@@ -2872,6 +2872,8 @@ filegroup(
             "src/wasm/wasm-code-manager.h",
             "src/wasm/wasm-debug.cc",
             "src/wasm/wasm-debug.h",
+            "src/wasm/wasm-deopt-data.cc",
+            "src/wasm/wasm-deopt-data.h",
             "src/wasm/wasm-disassembler.cc",
             "src/wasm/wasm-disassembler.h",
             "src/wasm/wasm-disassembler-impl.h",

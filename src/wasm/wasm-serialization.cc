@@ -208,6 +208,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // reloc size
                                    sizeof(int) +  // source positions size
                                    sizeof(int) +  // inlining positions size
+                                   sizeof(int) +  // deopt data size
                                    sizeof(int) +  // protected instructions size
                                    sizeof(WasmCode::Kind) +  // code kind
                                    sizeof(ExecutionTier);    // tier
@@ -325,7 +326,7 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->inlining_positions().size() +
-         code->protected_instructions_data().size();
+         code->protected_instructions_data().size() + code->deopt_data().size();
 }
 
 size_t NativeModuleSerializer::Measure() const {
@@ -407,6 +408,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->reloc_info().length());
   writer->Write(code->source_positions().length());
   writer->Write(code->inlining_positions().length());
+  writer->Write(code->deopt_data().length());
   writer->Write(code->protected_instructions_data().length());
   writer->Write(code->kind());
   writer->Write(code->tier());
@@ -421,6 +423,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->WriteVector(code->reloc_info());
   writer->WriteVector(code->source_positions());
   writer->WriteVector(code->inlining_positions());
+  writer->WriteVector(code->deopt_data());
   writer->WriteVector(code->protected_instructions_data());
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC ||      \
     V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV32 || \
@@ -802,6 +805,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   int reloc_size = reader->Read<int>();
   int source_position_size = reader->Read<int>();
   int inlining_position_size = reader->Read<int>();
+  int deopt_data_size = reader->Read<int>();
+  // TODO(mliedtke): protected_instructions_data is the first part of the
+  // meta_data_ array. Ideally the sizes would be in the same order...
   int protected_instructions_size = reader->Read<int>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
@@ -825,6 +831,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto reloc_info = reader->ReadVector<uint8_t>(reloc_size);
   auto source_pos = reader->ReadVector<uint8_t>(source_position_size);
   auto inlining_pos = reader->ReadVector<uint8_t>(inlining_position_size);
+  auto deopt_data = reader->ReadVector<uint8_t>(deopt_data_size);
   auto protected_instructions =
       reader->ReadVector<uint8_t>(protected_instructions_size);
 
@@ -837,7 +844,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       fn_index, instructions, stack_slot_count, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comment_offset, unpadded_binary_size, protected_instructions,
-      reloc_info, source_pos, inlining_pos, kind, tier);
+      reloc_info, source_pos, inlining_pos, deopt_data, kind, tier);
   unit.jump_tables = current_jump_tables_;
   return unit;
 }

@@ -78,6 +78,7 @@ struct WasmCompilationResult {
   base::OwnedVector<uint8_t> source_positions;
   base::OwnedVector<uint8_t> inlining_positions;
   base::OwnedVector<uint8_t> protected_instructions_data;
+  base::OwnedVector<uint8_t> deopt_data;
   std::unique_ptr<AssumptionsJournal> assumptions;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier result_tier = ExecutionTier::kNone;

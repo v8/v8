@@ -259,6 +259,11 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
   return result;
 }
 
+base::Vector<const uint8_t> FrameTranslationBuilder::ToFrameTranslationWasm() {
+  DCHECK(!v8_flags.turbo_compress_frame_translations);
+  return base::VectorOf(contents_);
+}
+
 void FrameTranslationBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;

@@ -3509,6 +3509,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   result->inlining_positions = SerializeInliningPositions(inlining_positions);
   result->protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
+  result->deopt_data = code_generator->GenerateWasmDeoptimizationData();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
 
   if (data.info()->trace_turbo_json()) {

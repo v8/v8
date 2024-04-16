@@ -21,6 +21,10 @@
 #include "src/utils/address-map.h"
 #include "src/utils/utils.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-deopt-data.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -993,6 +997,60 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   return data;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
+  int deopt_count = static_cast<int>(deoptimization_exits_.size());
+  if (deopt_count == 0) {
+    return {};
+  }
+  // Lazy deopts are not supported in wasm.
+  DCHECK_EQ(lazy_deopt_count_, 0);
+  // Wasm doesn't use the JS inlining handling via deopt info.
+  // TODO(mliedtke): Re-evaluate if this would offer benefits.
+  DCHECK_EQ(inlined_function_count_, 0);
+
+  auto deopt_entries =
+      base::OwnedVector<wasm::WasmDeoptEntry>::New(deopt_count);
+  // Populate deoptimization entries.
+  for (int i = 0; i < deopt_count; i++) {
+    const DeoptimizationExit* deoptimization_exit = deoptimization_exits_[i];
+    CHECK_NOT_NULL(deoptimization_exit);
+    DCHECK_EQ(i, deoptimization_exit->deoptimization_id());
+    deopt_entries[i] = {deoptimization_exit->bailout_id(),
+                        deoptimization_exit->translation_id()};
+  }
+
+  base::Vector<const uint8_t> frame_translations =
+      translations_.ToFrameTranslationWasm();
+  base::OwnedVector<uint8_t> result = wasm::WasmDeoptDataProcessor::Serialize(
+      deopt_exit_start_offset_, eager_deopt_count_, frame_translations,
+      base::VectorOf(deopt_entries), deoptimization_literals_);
+#if DEBUG
+  // Verify that the serialized data can be deserialized.
+  wasm::WasmDeoptView view(base::VectorOf(result));
+  wasm::WasmDeoptData data = view.GetDeoptData();
+  DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
+  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
+  DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
+  DCHECK_EQ(data.translation_array_size, frame_translations.size());
+  for (int i = 0; i < deopt_count; i++) {
+    const DeoptimizationExit* exit = deoptimization_exits_[i];
+    wasm::WasmDeoptEntry entry = view.GetDeoptEntry(i);
+    DCHECK_EQ(exit->bailout_id(), entry.bytecode_offset);
+    DCHECK_EQ(exit->translation_id(), entry.translation_index);
+  }
+  std::vector<DeoptimizationLiteral> literals =
+      view.BuildDeoptimizationLiteralArray();
+  DCHECK_EQ(literals.size(), deoptimization_literals_.size());
+  for (size_t i = 0; i < deoptimization_literals_.size(); ++i) {
+    DCHECK_EQ(literals[i], deoptimization_literals_[i]);
+  }
+#endif
+  return result;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
   jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets, target_count);
   return jump_tables_->label();
@@ -1089,15 +1147,28 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
   Handle<SharedFunctionInfo> shared_info;
   if (!descriptor->shared_info().ToHandle(&shared_info)) {
-    if (!info()->has_shared_info()) {
+    if (!info()->has_shared_info()
+#if V8_ENABLE_WEBASSEMBLY
+        && descriptor->type() != compiler::FrameStateType::kLiftoffFunction
+#endif
+    ) {
       return;  // Stub with no SharedFunctionInfo.
     }
     shared_info = info()->shared_info();
   }
 
   const BytecodeOffset bailout_id = descriptor->bailout_id();
+
   const int shared_info_id =
+#if V8_ENABLE_WEBASSEMBLY
+      shared_info.is_null()
+          ? DefineDeoptimizationLiteral(DeoptimizationLiteral(uint64_t{0}))
+          : DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
+  CHECK_IMPLIES(shared_info.is_null(), v8_flags.wasm_deopt);
+#else
       DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
+#endif
+
   const unsigned int height =
       static_cast<unsigned int>(descriptor->GetHeight());
 
