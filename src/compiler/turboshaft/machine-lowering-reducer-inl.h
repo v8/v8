@@ -2676,13 +2676,13 @@ class MachineLoweringReducer : public Next {
     return CompareMapAgainstMultipleMaps(__ LoadMapField(heap_object), maps);
   }
 
-  OpIndex REDUCE(CheckMaps)(V<HeapObject> heap_object,
+  V<None> REDUCE(CheckMaps)(V<HeapObject> heap_object,
                             V<FrameState> frame_state,
                             const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
     if (maps.is_empty()) {
       __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
-      return OpIndex::Invalid();
+      return {};
     }
 
     if (flags & CheckMapsFlag::kTryMigrateInstance) {
@@ -2702,7 +2702,7 @@ class MachineLoweringReducer : public Next {
     // Inserting a AssumeMap so that subsequent optimizations know the map of
     // this object.
     __ AssumeMap(heap_object, maps);
-    return OpIndex::Invalid();
+    return {};
   }
 
   V<Float> REDUCE(FloatUnary)(V<Float> input, FloatUnaryOp::Kind kind,

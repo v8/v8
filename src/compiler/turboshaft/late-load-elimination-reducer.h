@@ -804,12 +804,12 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
     return Next::ReduceInputGraphTaggedBitcast(ig_index, bitcast);
   }
 
-  OpIndex REDUCE(AssumeMap)(OpIndex, ZoneRefSet<Map>) {
+  V<None> REDUCE(AssumeMap)(V<HeapObject>, ZoneRefSet<Map>) {
     // AssumeMaps are currently not used after Load Elimination. We thus remove
     // them now. If they ever become needed for later optimizations, we could
     // consider leaving them in the graph and just ignoring them in the
     // Instruction Selector.
-    return OpIndex::Invalid();
+    return {};
   }
 
  private:

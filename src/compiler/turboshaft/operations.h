@@ -1353,10 +1353,10 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
 
   V<Object> left() const { return input<Object>(0); }
   V<Object> right() const { return input<Object>(1); }
-  OpIndex frame_state() const { return input(2); }
+  V<FrameState> frame_state() const { return input<FrameState>(2); }
   V<Context> context() const { return input<Context>(3); }
 
-  GenericBinopOp(V<Object> left, V<Object> right, OpIndex frame_state,
+  GenericBinopOp(V<Object> left, V<Object> right, V<FrameState> frame_state,
                  V<Context> context, Kind kind)
       : Base(left, right, frame_state, context), kind(kind) {}
 
@@ -1390,10 +1390,10 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
   V<Context> context() const { return Base::input<Context>(2); }
 
-  GenericUnopOp(V<Object> input, OpIndex frame_state, V<Context> context,
+  GenericUnopOp(V<Object> input, V<FrameState> frame_state, V<Context> context,
                 Kind kind)
       : Base(input, frame_state, context), kind(kind) {}
 
@@ -3646,13 +3646,12 @@ struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex condition() const { return Base::input(0); }
+  V<Word32> condition() const { return Base::input<Word32>(0); }
 
-  StaticAssertOp(OpIndex condition, const char* source)
+  StaticAssertOp(V<Word32> condition, const char* source)
       : Base(condition), source(source) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{source}; }
 };
 
@@ -5780,13 +5779,12 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex heap_object() const { return Base::input(0); }
+  V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
 
-  CompareMapsOp(OpIndex heap_object, ZoneRefSet<Map> maps)
+  CompareMapsOp(V<HeapObject> heap_object, ZoneRefSet<Map> maps)
       : Base(heap_object), maps(std::move(maps)) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
 };
@@ -5809,11 +5807,12 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex heap_object() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
 
-  CheckMapsOp(OpIndex heap_object, OpIndex frame_state, ZoneRefSet<Map> maps,
-              CheckMapsFlags flags, const FeedbackSource& feedback)
+  CheckMapsOp(V<HeapObject> heap_object, V<FrameState> frame_state,
+              ZoneRefSet<Map> maps, CheckMapsFlags flags,
+              const FeedbackSource& feedback)
       : Base(heap_object, frame_state),
         flags(flags),
         maps(std::move(maps)),
@@ -5844,13 +5843,12 @@ struct AssumeMapOp : FixedArityOperationT<1, AssumeMapOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex heap_object() const { return Base::input(0); }
+  V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
 
-  AssumeMapOp(OpIndex heap_object, ZoneRefSet<Map> maps)
+  AssumeMapOp(V<HeapObject> heap_object, ZoneRefSet<Map> maps)
       : Base(heap_object), maps(std::move(maps)) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
 };

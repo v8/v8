@@ -62,7 +62,7 @@ class DebugFeatureLoweringReducer : public Next {
     return {};
   }
 
-  OpIndex REDUCE(StaticAssert)(OpIndex condition, const char* source) {
+  V<None> REDUCE(StaticAssert)(V<Word32> condition, const char* source) {
     // Static asserts should be (statically asserted and) removed by turboshaft.
     UnparkedScopeIfNeeded scope(broker_);
     AllowHandleDereference allow_handle_dereference;

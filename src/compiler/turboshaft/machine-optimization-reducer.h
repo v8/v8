@@ -1808,7 +1808,7 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(StaticAssert)(OpIndex condition, const char* source) {
+  V<None> REDUCE(StaticAssert)(V<Word32> condition, const char* source) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStaticAssert(condition, source);
     }
