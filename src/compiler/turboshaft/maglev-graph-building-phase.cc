@@ -657,7 +657,7 @@ class GraphBuilder {
     if (!node->is_used()) return maglev::ProcessResult::kRemove;
     int size = 0;
     for (auto alloc : node->allocation_list()) {
-      if (alloc->HasEscaped()) {
+      if (!alloc->HasBeenAnalysed() || alloc->HasEscaped()) {
         alloc->set_offset(size);
         size += alloc->size();
       }
@@ -669,7 +669,9 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::InlinedAllocation* node,
                                 const maglev::ProcessingState& state) {
-    if (!node->HasEscaped()) return maglev::ProcessResult::kRemove;
+    if (node->HasBeenAnalysed() && node->HasBeenElided()) {
+      return maglev::ProcessResult::kRemove;
+    }
     V<HeapObject> alloc = Map(node->allocation_block());
     SetMap(node, __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
                      __ BitcastHeapObjectToWordPtr(alloc), node->offset())));

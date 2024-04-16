@@ -35,6 +35,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/arguments.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
@@ -1030,6 +1031,17 @@ struct CapturedAllocation {
   size_t InputLocationSizeNeeded() const {
     if (type != kObject) return 0;
     return object.InputLocationSizeNeeded();
+  }
+
+  int size() const {
+    switch (type) {
+      case kObject:
+        return object.slot_count() * kTaggedSize;
+      case kFixedDoubleArray:
+        return FixedDoubleArray::SizeFor(fixed_double_array.length);
+      case kHeapNumber:
+        return sizeof(HeapNumber);
+    }
   }
 
   int id;
@@ -4997,17 +5009,23 @@ class CreateShallowObjectLiteral
   const int flags_;
 };
 
+enum class EscapeAnalysisResult {
+  kUnknown,
+  kElided,
+  kEscaped,
+};
+
 class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   using Base = FixedInputValueNodeT<1, InlinedAllocation>;
 
  public:
   using List = base::ThreadedList<InlinedAllocation>;
 
-  explicit InlinedAllocation(uint64_t bitfield, int size,
+  explicit InlinedAllocation(uint64_t bitfield,
                              CapturedAllocation captured_allocation)
       : Base(bitfield),
-        size_(size),
-        captured_allocation_(captured_allocation) {}
+        captured_allocation_(captured_allocation),
+        escape_analysis_result_(EscapeAnalysisResult::kUnknown) {}
 
   Input& allocation_block() { return input(0); }
 
@@ -5021,7 +5039,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 
-  int size() const { return size_; }
+  int size() const { return captured_allocation_.size(); }
 
   const CapturedAllocation& captured_allocation() const {
     return captured_allocation_;
@@ -5035,19 +5053,44 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
   int non_escaping_use_count() const { return non_escaping_use_count_; }
 
-  void AddNonEscapingUses(int n = 1) { non_escaping_use_count_ += n; }
-  bool IsEscaping() const { return use_count_ > non_escaping_use_count_; }
-  void ForceEscaping() { non_escaping_use_count_ = 0; }
+  void AddNonEscapingUses(int n = 1) {
+    DCHECK(!HasBeenAnalysed());
+    non_escaping_use_count_ += n;
+  }
+  bool IsEscaping() const {
+    DCHECK(!HasBeenAnalysed());
+    return use_count_ > non_escaping_use_count_;
+  }
+  void ForceEscaping() {
+    DCHECK(!HasBeenAnalysed());
+    non_escaping_use_count_ = 0;
+  }
 
-  void SetHasEscaped(bool value) { has_escaped_ = value; }
-  bool HasEscaped() const { return has_escaped_; }
+  void SetElided() {
+    DCHECK_EQ(escape_analysis_result_, EscapeAnalysisResult::kUnknown);
+    escape_analysis_result_ = EscapeAnalysisResult::kElided;
+  }
+  void SetEscaped() {
+    // We allow transitions from elided to escaped.
+    DCHECK_NE(escape_analysis_result_, EscapeAnalysisResult::kEscaped);
+    escape_analysis_result_ = EscapeAnalysisResult::kEscaped;
+  }
+  bool HasBeenElided() const {
+    DCHECK(HasBeenAnalysed());
+    return escape_analysis_result_ == EscapeAnalysisResult::kElided;
+  }
+  bool HasEscaped() const {
+    DCHECK(HasBeenAnalysed());
+    return escape_analysis_result_ == EscapeAnalysisResult::kEscaped;
+  }
+  bool HasBeenAnalysed() const {
+    return escape_analysis_result_ != EscapeAnalysisResult::kUnknown;
+  }
 
  private:
-  int size_;
   CapturedAllocation captured_allocation_;
-
+  EscapeAnalysisResult escape_analysis_result_;
   int non_escaping_use_count_ = 0;
-  bool has_escaped_ = true;  // Escaped by default.
   int offset_ = -1;  // Set by AllocationBlock.
 
   InlinedAllocation* next_ = nullptr;

@@ -1444,7 +1444,7 @@ class MaglevFrameTranslationBuilder {
     DCHECK(!value->Is<Identity>());
     size_t input_locations_to_advance = 1;
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-      if (!alloc->HasEscaped()) {
+      if (alloc->HasBeenElided()) {
         input_location++;
         BuildCapturedAllocation(alloc->captured_allocation(), input_location);
         return;

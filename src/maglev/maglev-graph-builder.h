@@ -2027,7 +2027,7 @@ class MaglevGraphBuilder {
       compiler::FeedbackSource feedback_source);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      int size, AllocationType allocation_type, CapturedAllocation value);
+      AllocationType allocation_type, CapturedAllocation value);
   void ClearCurrentAllocationBlock();
 
   inline void AddDeoptUse(ValueNode* node) {

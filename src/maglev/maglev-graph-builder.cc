@@ -3625,7 +3625,9 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 void MaglevGraphBuilder::BuildInitializeStoreTaggedField(
     InlinedAllocation* object, ValueNode* value, int offset) {
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
-    graph()->allocations().Union(object, inlined_value);
+    auto deps = graph()->allocations().find(object);
+    CHECK(deps != graph()->allocations().end());
+    deps->second.push_back(inlined_value);
     inlined_value->AddNonEscapingUses();
   }
   BuildStoreTaggedField(object, value, offset);
@@ -9228,8 +9230,8 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 }
 
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
-    int size, AllocationType allocation_type, CapturedAllocation value) {
-  DCHECK_LT(size, kMaxRegularHeapObjectSize);
+    AllocationType allocation_type, CapturedAllocation value) {
+  DCHECK_LT(value.size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ ||
       current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new) {
@@ -9238,15 +9240,15 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   }
 
   int current_size = current_allocation_block_->size();
-  if (current_size + size > kMaxRegularHeapObjectSize) {
+  if (current_size + value.size() > kMaxRegularHeapObjectSize) {
     current_allocation_block_ =
         AddNewNode<AllocationBlock>({}, allocation_type);
   }
 
   DCHECK_GE(current_size, 0);
   InlinedAllocation* allocation =
-      AddNewNode<InlinedAllocation>({current_allocation_block_}, size, value);
-  graph()->allocations().MakeSet(allocation);
+      AddNewNode<InlinedAllocation>({current_allocation_block_}, value);
+  graph()->allocations().emplace(allocation, zone());
   current_allocation_block_->Add(allocation);
   return allocation;
 }
@@ -9305,7 +9307,7 @@ ValueNode* MaglevGraphBuilder::GetValueNodeFromCapturedValue(
 ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
     Float64 number, AllocationType allocation_type) {
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      sizeof(HeapNumber), allocation_type, CapturedAllocation(number));
+      allocation_type, CapturedAllocation(number));
   AddNonEscapingUses(allocation, 2);
   AddNewNode<StoreMap>({allocation}, broker()->heap_number_map());
   AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(number)},
@@ -9317,8 +9319,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
 ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
     CapturedFixedDoubleArray array, AllocationType allocation_type) {
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      FixedDoubleArray::SizeFor(array.length), allocation_type,
-      CapturedAllocation(NewObjectId(), array));
+      allocation_type, CapturedAllocation(NewObjectId(), array));
   AddNonEscapingUses(allocation, array.length + 2);
   AddNewNode<StoreMap>({allocation}, broker()->fixed_double_array_map());
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
@@ -9358,8 +9359,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
     values[i] = node;
   }
   InlinedAllocation* allocation = ExtendOrReallocateCurrentAllocationBlock(
-      object.slot_count() * kTaggedSize, allocation_type,
-      CapturedAllocation(NewObjectId(), object));
+      allocation_type, CapturedAllocation(NewObjectId(), object));
   AddNonEscapingUses(allocation, object.slot_count());
   BuildStoreMap(allocation, object.GetMap());
   for (int i = 1; i < object.slot_count(); i++) {

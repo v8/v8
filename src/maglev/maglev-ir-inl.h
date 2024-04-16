@@ -104,7 +104,7 @@ void DeepForEachInputAndDeoptObject(
       if (const_if_function_first_arg_not_reference<InlinedAllocation,
                                                     Function>* alloc =
               node->template TryCast<InlinedAllocation>()) {
-        if (!alloc->HasEscaped()) {
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
           input_location++;  // Reserved for the inlined allocation.
           return DeepForCapturedAllocation(alloc->captured_allocation(),
                                            input_location, lambda);

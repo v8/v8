@@ -205,48 +205,61 @@ class AnyUseMarkingProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {
-    EscapeDependentAllocationsIfNeeded(graph->allocations());
-    DropUseOfValueInStoresToNonEscapingAllocations();
+    RunEscapeAnalysis(graph);
+    DropUseOfValueInStoresToCapturedAllocations();
   }
 
  private:
   std::vector<Node*> stores_to_allocations_;
 
-  void EscapeDependentAllocationsIfNeeded(
-      DisjointZoneSet<InlinedAllocation*>& allocations) {
-    // Create a map from root to strongly connected components.
-    std::unordered_map<InlinedAllocation*, std::vector<InlinedAllocation*>>
-        components;
-    for (auto it : allocations.parent()) {
-      InlinedAllocation* root = allocations.Find(it.first);
-      components[root].push_back(it.first);
-    }
-    // If all nodes are not escaping in a strong connected set, then set all of
-    // them as not escaped.
-    for (auto component : components) {
-      auto& elements = component.second;
-      bool are_not_escaping = std::all_of(
-          elements.begin(), elements.end(),
-          [](InlinedAllocation* alloc) { return !alloc->IsEscaping(); });
-      if (are_not_escaping) {
-        for (auto alloc : elements) {
-          if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Allocation " << PrintNodeLabel(labeller_, alloc)
-                      << " has not escaped" << std::endl;
-          }
-          alloc->SetHasEscaped(false);
-        }
-      }
+  void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
+                        Graph::AllocationDependencies& deps) {
+    if (alloc->HasBeenAnalysed() && alloc->HasEscaped()) return;
+    alloc->SetEscaped();
+    for (auto dep : deps) {
+      EscapeAllocation(graph, dep, graph->allocations().find(dep)->second);
     }
   }
 
-  void DropUseOfValueInStoresToNonEscapingAllocations() {
+  void VerifyEscapeAnalysis(Graph* graph) {
+#ifdef DEBUG
+    for (auto it : graph->allocations()) {
+      auto alloc = it.first;
+      DCHECK(alloc->HasBeenAnalysed());
+      if (alloc->HasEscaped()) {
+        for (auto dep : it.second) {
+          DCHECK(dep->HasEscaped());
+        }
+      }
+    }
+#endif  // DEBUG
+  }
+
+  void RunEscapeAnalysis(Graph* graph) {
+    for (auto it : graph->allocations()) {
+      auto alloc = it.first;
+      if (alloc->HasBeenAnalysed()) continue;
+      // Check if all its uses are non escaping.
+      if (alloc->IsEscaping()) {
+        // Escape this allocation and all its dependencies.
+        EscapeAllocation(graph, alloc, it.second);
+      } else {
+        // Try to capture the allocation. This can still change if a escaped
+        // allocation has this value as one of its dependencies.
+        alloc->SetElided();
+      }
+    }
+    // Check that we've reached a fixpoint.
+    VerifyEscapeAnalysis(graph);
+  }
+
+  void DropUseOfValueInStoresToCapturedAllocations() {
     for (Node* node : stores_to_allocations_) {
       InlinedAllocation* alloc =
           node->input(0).node()->Cast<InlinedAllocation>();
       // Since we don't analyze if allocations will escape until a fixpoint,
       // this could drop an use of an allocation and turn it non-escaping.
-      if (!alloc->HasEscaped()) {
+      if (alloc->HasBeenElided()) {
         // Skip first input.
         for (int i = 1; i < node->input_count(); i++) {
           DropInputUses(node->input(i));

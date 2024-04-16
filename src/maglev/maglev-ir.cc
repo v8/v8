@@ -166,7 +166,7 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
       DCHECK_GT(node->input_count(), 0);
       if (InlinedAllocation* alloc =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        return !alloc->HasEscaped();
+        return alloc->HasBeenAnalysed() && alloc->HasBeenElided();
       }
       return false;
     default:
@@ -206,8 +206,8 @@ void PrintResult(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   if (!node->has_id()) {
     os << ", " << node->use_count() << " uses";
     if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      os << " (" << alloc->non_escaping_use_count() << " stores + deopt info)";
-      if (!alloc->HasEscaped()) {
+      os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
+      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
         os << " 🪦";
       }
     } else if (!node->is_used()) {
