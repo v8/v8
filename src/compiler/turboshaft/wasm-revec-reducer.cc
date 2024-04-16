@@ -586,6 +586,18 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       PackNode* pnode = NewPackNodeAndRecurs(node_group, 1, 1, recursion_depth);
       return pnode;
     }
+    case Opcode::kPhi: {
+      TRACE("Added a vector of phi nodes.\n");
+      const PhiOp& phi = graph().Get(node0).Cast<PhiOp>();
+      if (phi.rep != RegisterRepresentation::Simd128() ||
+          op0.input_count != op1.input_count) {
+        TRACE("Failed due to invalid phi\n");
+        return nullptr;
+      }
+      PackNode* pnode =
+          NewPackNodeAndRecurs(node_group, 0, value_in_count, recursion_depth);
+      return pnode;
+    }
     case Opcode::kSimd128Unary: {
 #define UNARY_CASE(op_128, not_used) case Simd128UnaryOp::Kind::k##op_128:
 #define UNARY_SING_EXTENSION_CASE(op_low, not_used1, not_used2) \

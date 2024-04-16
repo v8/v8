@@ -437,6 +437,10 @@ class InputsRepFactory {
       MaybeRegisterRepresentation::Compressed(),
       MaybeRegisterRepresentation::Simd128(),
       MaybeRegisterRepresentation::Simd128(),
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+      MaybeRegisterRepresentation::Simd256(),
+      MaybeRegisterRepresentation::Simd256(),
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
   };
 };
 

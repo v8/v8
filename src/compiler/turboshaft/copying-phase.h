@@ -257,6 +257,122 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return new_block;
   }
 
+  template <typename FunctionType>
+  OpIndex ResolvePhi(const PhiOp& op, FunctionType&& map,
+                     RegisterRepresentation rep) {
+    if (op.input_count == 1) {
+      // If, in the previous CopyingPhase, a loop header was turned into a
+      // regular blocks, its PendingLoopPhis became Phis with a single input. We
+      // can now just get rid of these Phis.
+      return map(op.input(0), -1);
+    }
+
+    OpIndex ig_index = Asm().input_graph().Index(op);
+    if (Asm().current_block()->IsLoop()) {
+      DCHECK_EQ(op.input_count, 2);
+      OpIndex og_index = map(op.input(0), -1);
+      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+        // Avoid emitting a Loop Phi which points to itself, instead
+        // emit it's 0'th input.
+        return og_index;
+      }
+      return Asm().PendingLoopPhi(og_index, rep);
+    }
+
+    base::Vector<const OpIndex> old_inputs = op.inputs();
+    base::SmallVector<OpIndex, 64> new_inputs;
+    int predecessor_count = Asm().current_block()->PredecessorCount();
+    Block* old_pred = current_input_block_->LastPredecessor();
+    Block* new_pred = Asm().current_block()->LastPredecessor();
+    // Control predecessors might be missing after the optimization phase. So we
+    // need to skip phi inputs that belong to control predecessors that have no
+    // equivalent in the new graph.
+
+    // We first assume that the order if the predecessors of the current block
+    // did not change. If it did, {new_pred} won't be nullptr at the end of this
+    // loop, and we'll instead fall back to the slower code below to compute the
+    // inputs of the Phi.
+    int predecessor_index = predecessor_count - 1;
+    for (OpIndex input : base::Reversed(old_inputs)) {
+      if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
+        // Phis inputs have to come from predecessors. We thus have to
+        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
+        // is from a predecessor rather than one that comes from a Variable
+        // merged in the current block.
+        new_inputs.push_back(map(input, predecessor_index));
+        new_pred = new_pred->NeighboringPredecessor();
+        predecessor_index--;
+      }
+      old_pred = old_pred->NeighboringPredecessor();
+    }
+    DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
+
+    if (new_pred != nullptr) {
+      // If {new_pred} is not nullptr, then the order of the predecessors
+      // changed. This should only happen with blocks that were introduced in
+      // the previous graph. For instance, consider this (partial) dominator
+      // tree:
+      //
+      //     ╠ 7
+      //     ║ ╠ 8
+      //     ║ ╚ 10
+      //     ╠ 9
+      //     ╚ 11
+      //
+      // Where the predecessors of block 11 are blocks 9 and 10 (in that order).
+      // In dominator visit order, block 10 will be visited before block 9.
+      // Since blocks are added to predecessors when the predecessors are
+      // visited, it means that in the new graph, the predecessors of block 11
+      // are [10, 9] rather than [9, 10].
+      // To account for this, we reorder the inputs of the Phi, and get rid of
+      // inputs from blocks that vanished.
+
+#ifdef DEBUG
+      // To check that indices are set properly, we zap them in debug builds.
+      for (auto& block : Asm().modifiable_input_graph().blocks()) {
+        block.clear_custom_data();
+      }
+#endif
+      uint32_t pos = current_input_block_->PredecessorCount() - 1;
+      for (old_pred = current_input_block_->LastPredecessor();
+           old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
+        // Store the current index of the {old_pred}.
+        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
+      }
+
+      // Filling {new_inputs}: we iterate the new predecessors, and, for each
+      // predecessor, we check the index of the input corresponding to the old
+      // predecessor, and we put it next in {new_inputs}.
+      new_inputs.clear();
+      int predecessor_index = predecessor_count - 1;
+      for (new_pred = Asm().current_block()->LastPredecessor();
+           new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
+        const Block* origin = new_pred->OriginForBlockEnd();
+        DCHECK_NOT_NULL(origin);
+        OpIndex input = old_inputs[origin->get_custom_data(
+            Block::CustomDataKind::kPhiInputIndex)];
+        // Phis inputs have to come from predecessors. We thus have to
+        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
+        // is from a predecessor rather than one that comes from a Variable
+        // merged in the current block.
+        new_inputs.push_back(map(input, predecessor_index));
+        predecessor_index--;
+      }
+    }
+
+    DCHECK_EQ(new_inputs.size(), Asm().current_block()->PredecessorCount());
+
+    if (new_inputs.size() == 1) {
+      // This Operation used to be a Phi in a Merge, but since one (or more) of
+      // the inputs of the merge have been removed, there is no need for a Phi
+      // anymore.
+      return new_inputs[0];
+    }
+
+    std::reverse(new_inputs.begin(), new_inputs.end());
+    return Asm().ReducePhi(base::VectorOf(new_inputs), rep);
+  }
+
   // The block from the input graph that corresponds to the current block as a
   // branch destination. Such a block might not exist, and this function uses a
   // trick to compute such a block in almost all cases, but might rarely fail
@@ -710,116 +826,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         MapToNewGraph(op.default_case), op.default_hint);
   }
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
-    if (op.input_count == 1) {
-      // If, in the previous CopyingPhase, a loop header was turned into a
-      // regular blocks, its PendingLoopPhis became Phis with a single input. We
-      // can now just get rid of these Phis.
-      return MapToNewGraph(op.input(0));
-    }
-
-    OpIndex ig_index = Asm().input_graph().Index(op);
-    if (Asm().current_block()->IsLoop()) {
-      DCHECK_EQ(op.input_count, 2);
-      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
-        // Avoid emitting a Loop Phi which points to itself, instead
-        // emit it's 0'th input.
-        return MapToNewGraph(op.input(0));
-      }
-      return Asm().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep);
-    }
-
-    base::Vector<const OpIndex> old_inputs = op.inputs();
-    base::SmallVector<OpIndex, 64> new_inputs;
-    int predecessor_count = Asm().current_block()->PredecessorCount();
-    Block* old_pred = current_input_block_->LastPredecessor();
-    Block* new_pred = Asm().current_block()->LastPredecessor();
-    // Control predecessors might be missing after the optimization phase. So we
-    // need to skip phi inputs that belong to control predecessors that have no
-    // equivalent in the new graph.
-
-    // We first assume that the order if the predecessors of the current block
-    // did not change. If it did, {new_pred} won't be nullptr at the end of this
-    // loop, and we'll instead fall back to the slower code below to compute the
-    // inputs of the Phi.
-    int predecessor_index = predecessor_count - 1;
-    for (OpIndex input : base::Reversed(old_inputs)) {
-      if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
-        // Phis inputs have to come from predecessors. We thus have to
-        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
-        // is from a predecessor rather than one that comes from a Variable
-        // merged in the current block.
-        new_inputs.push_back(MapToNewGraph(input, predecessor_index));
-        new_pred = new_pred->NeighboringPredecessor();
-        predecessor_index--;
-      }
-      old_pred = old_pred->NeighboringPredecessor();
-    }
-    DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
-
-    if (new_pred != nullptr) {
-      // If {new_pred} is not nullptr, then the order of the predecessors
-      // changed. This should only happen with blocks that were introduced in
-      // the previous graph. For instance, consider this (partial) dominator
-      // tree:
-      //
-      //     ╠ 7
-      //     ║ ╠ 8
-      //     ║ ╚ 10
-      //     ╠ 9
-      //     ╚ 11
-      //
-      // Where the predecessors of block 11 are blocks 9 and 10 (in that order).
-      // In dominator visit order, block 10 will be visited before block 9.
-      // Since blocks are added to predecessors when the predecessors are
-      // visited, it means that in the new graph, the predecessors of block 11
-      // are [10, 9] rather than [9, 10].
-      // To account for this, we reorder the inputs of the Phi, and get rid of
-      // inputs from blocks that vanished.
-
-#ifdef DEBUG
-      // To check that indices are set properly, we zap them in debug builds.
-      for (auto& block : Asm().modifiable_input_graph().blocks()) {
-        block.clear_custom_data();
-      }
-#endif
-      uint32_t pos = current_input_block_->PredecessorCount() - 1;
-      for (old_pred = current_input_block_->LastPredecessor();
-           old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
-        // Store the current index of the {old_pred}.
-        old_pred->set_custom_data(pos--, Block::CustomDataKind::kPhiInputIndex);
-      }
-
-      // Filling {new_inputs}: we iterate the new predecessors, and, for each
-      // predecessor, we check the index of the input corresponding to the old
-      // predecessor, and we put it next in {new_inputs}.
-      new_inputs.clear();
-      int predecessor_index = predecessor_count - 1;
-      for (new_pred = Asm().current_block()->LastPredecessor();
-           new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
-        const Block* origin = new_pred->OriginForBlockEnd();
-        DCHECK_NOT_NULL(origin);
-        OpIndex input = old_inputs[origin->get_custom_data(
-            Block::CustomDataKind::kPhiInputIndex)];
-        // Phis inputs have to come from predecessors. We thus have to
-        // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
-        // is from a predecessor rather than one that comes from a Variable
-        // merged in the current block.
-        new_inputs.push_back(MapToNewGraph(input, predecessor_index));
-        predecessor_index--;
-      }
-    }
-
-    DCHECK_EQ(new_inputs.size(), Asm().current_block()->PredecessorCount());
-
-    if (new_inputs.size() == 1) {
-      // This Operation used to be a Phi in a Merge, but since one (or more) of
-      // the inputs of the merge have been removed, there is no need for a Phi
-      // anymore.
-      return new_inputs[0];
-    }
-
-    std::reverse(new_inputs.begin(), new_inputs.end());
-    return Asm().ReducePhi(base::VectorOf(new_inputs), op.rep);
+    return ResolvePhi(
+        op,
+        [this](OpIndex ind, int predecessor_index) {
+          return MapToNewGraph(ind, predecessor_index);
+        },
+        op.rep);
   }
   OpIndex AssembleOutputGraphPendingLoopPhi(const PendingLoopPhiOp& op) {
     UNREACHABLE();

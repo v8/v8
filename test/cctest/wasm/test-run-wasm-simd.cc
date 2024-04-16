@@ -4837,6 +4837,69 @@ TEST(RunWasmTurbofan_F64x4Splat) {
   }
 }
 
+TEST(RunWasmTurbofan_Phi) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  constexpr int32_t iteration = 8;
+  constexpr uint32_t lanes = kSimd128Size / sizeof(int32_t);
+  constexpr int32_t count = 2 * iteration * lanes;
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(count);
+  // Build fn perform add on 128 bit vectors a, store the result in b:
+  // int32_t func(simd128* a, simd128* b) {
+  //   simd128 sum1 = sum2 = 0;
+  //   for (int i = 0; i < 8; i++) {
+  //     sum1 += *a;
+  //     sum2 += *(a+1);
+  //     a += 2;
+  //   }
+  //   *b = sum1;
+  //   *(b+1) = sum2;
+  // }
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t index = r.AllocateLocal(kWasmI32);
+  uint8_t sum1 = r.AllocateLocal(kWasmS128);
+  uint8_t sum2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, compiler::IrOpcode::kPhi, WASM_LOCAL_SET(index, WASM_I32V(0)),
+      WASM_LOCAL_SET(sum1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(0))),
+      WASM_LOCAL_SET(sum2, WASM_LOCAL_GET(sum1)),
+      WASM_LOOP(
+          WASM_LOCAL_SET(sum1, WASM_SIMD_BINOP(
+                                   kExprI32x4Add, WASM_LOCAL_GET(sum1),
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+          WASM_LOCAL_SET(sum2,
+                         WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(sum2),
+                                         WASM_SIMD_LOAD_MEM_OFFSET(
+                                             offset, WASM_LOCAL_GET(param1)))),
+          WASM_IF(WASM_I32_LTS(WASM_INC_LOCAL(index), WASM_I32V(iteration)),
+                  WASM_BR(1))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(sum1)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                 WASM_LOCAL_GET(sum2)),
+      WASM_ONE);
+
+  for (int32_t x : compiler::ValueHelper::GetVector<int32_t>()) {
+    for (int32_t y : compiler::ValueHelper::GetVector<int32_t>()) {
+      for (int32_t i = 0; i < iteration; i++) {
+        for (uint32_t j = 0; j < lanes; j++) {
+          r.builder().WriteMemory(&memory[i * 2 * lanes + j], x);
+          r.builder().WriteMemory(&memory[i * 2 * lanes + j + lanes], y);
+        }
+      }
+      r.Call(0, iteration * 2 * kSimd128Size);
+      int32_t* output = reinterpret_cast<int32_t*>(memory + count);
+      for (uint32_t i = 0; i < lanes; i++) {
+        CHECK_EQ(x * iteration, output[i]);
+        CHECK_EQ(y * iteration, output[i + lanes]);
+      }
+    }
+  }
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 template <typename S, typename T>

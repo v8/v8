@@ -568,6 +568,68 @@ class WasmRevecReducer : public Next {
     return Next::ReduceInputGraphStore(ig_index, store);
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Phi)(OpIndex ig_index, const PhiOp& phi) {
+    if (phi.rep == RegisterRepresentation::Simd128()) {
+      if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+        OpIndex og_index = pnode->RevectorizedNode();
+
+        // Don't reduce revectorized node.
+        if (!og_index.valid()) {
+          base::SmallVector<OpIndex, 16> elements;
+          og_index = __ ResolvePhi(
+              phi,
+              [&](OpIndex ind, int block_id) {
+                return analyzer_.GetReduced(ind);
+              },
+              RegisterRepresentation::Simd256());
+          pnode->SetRevectorizedNode(og_index);
+        }
+
+        OpIndex extract_op_index =
+            GetExtractOpIfNeeded(pnode, ig_index, og_index);
+        // If phis are not be mapped to anything in the new graph,
+        // they will be skipped in FixLoopPhis in copying-phase.
+        // return og_index to create the mapping.
+        if (extract_op_index == OpIndex::Invalid()) {
+          return og_index;
+        } else {
+          return extract_op_index;
+        }
+      }
+    }
+
+    // no_change
+    return Next::ReduceInputGraphPhi(ig_index, phi);
+  }
+
+  void FixLoopPhi(const PhiOp& input_phi, OpIndex output_index,
+                  Block* output_graph_loop) {
+    if (input_phi.rep == RegisterRepresentation::Simd128()) {
+      OpIndex phi_index = __ input_graph().Index(input_phi);
+      DCHECK(phi_index.valid());
+      if (auto* pnode = analyzer_.GetPackNode(phi_index)) {
+        auto pending_index = pnode->RevectorizedNode();
+        DCHECK(pending_index.valid());
+        if (pending_index.valid() &&
+            output_graph_loop->Contains(pending_index)) {
+          // Need skip replaced op
+          if (auto* pending_phi = __ output_graph()
+                                      .Get(pending_index)
+                                      .template TryCast<PendingLoopPhiOp>()) {
+            __ output_graph().template Replace<PhiOp>(
+                pending_index,
+                base::VectorOf({pending_phi -> first(),
+                                analyzer_.GetReduced(input_phi.input(1))}),
+                RegisterRepresentation::Simd256());
+          }
+        }
+      }
+      return;
+    }
+
+    return Next::FixLoopPhi(input_phi, output_index, output_graph_loop);
+  }
+
   OpIndex REDUCE_INPUT_GRAPH(Simd128Unary)(OpIndex ig_index,
                                            const Simd128UnaryOp& unary) {
     if (auto pnode = analyzer_.GetPackNode(ig_index)) {
