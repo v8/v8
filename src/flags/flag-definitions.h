@@ -1594,6 +1594,18 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_wasm_inlining_call_indirect,
+    "enable speculative inlining of Wasm indirect calls, also enables "
+    "--experimental-wasm-inlining and requires --turboshaft-wasm")
+// Requires basic inlining machinery, e.g., for allocating feedback vectors.
+DEFINE_IMPLICATION(experimental_wasm_inlining_call_indirect,
+                   experimental_wasm_inlining)
+// This is not implemented for Turbofan, so make sure users are aware by
+// forcing them to explicitly enable Turboshaft (until it's the default anyway).
+DEFINE_NEG_NEG_IMPLICATION(turboshaft_wasm,
+                           experimental_wasm_inlining_call_indirect)
+
 DEFINE_SIZE_T(wasm_inlining_budget, 5000,
               "maximum graph size (in TF nodes) that allows inlining more")
 DEFINE_SIZE_T(wasm_inlining_max_size, 500,
