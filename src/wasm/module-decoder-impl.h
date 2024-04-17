@@ -303,15 +303,12 @@ class ModuleDecoderImpl : public Decoder {
  public:
   ModuleDecoderImpl(WasmFeatures enabled_features,
                     base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin,
-                    PopulateExplicitRecGroups populate_explicit_rec_groups =
-                        kDoNotPopulateExplicitRecGroups,
                     ITracer* tracer = ITracer::NoTrace)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
         module_(std::make_shared<WasmModule>(origin)),
         module_start_(wire_bytes.begin()),
         module_end_(wire_bytes.end()),
-        populate_explicit_rec_groups_(populate_explicit_rec_groups),
         tracer_(tracer) {}
 
   void onFirstError() override {
@@ -638,10 +635,6 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pc(), "Type definition count exceeds maximum %zu",
                  kV8MaxWasmTypes);
           return;
-        }
-        if (populate_explicit_rec_groups_ == kPopulateExplicitRecGroups) {
-          module_->explicit_recursive_type_groups.emplace(
-              static_cast<uint32_t>(module_->types.size()), group_size);
         }
         // We need to resize types before decoding the type definitions in this
         // group, so that the correct type size is visible to type definitions.
@@ -2534,7 +2527,6 @@ class ModuleDecoderImpl : public Decoder {
   const std::shared_ptr<WasmModule> module_;
   const uint8_t* module_start_ = nullptr;
   const uint8_t* module_end_ = nullptr;
-  PopulateExplicitRecGroups populate_explicit_rec_groups_;
   ITracer* tracer_;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;

@@ -651,8 +651,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
-  // First index -> size. Used for fuzzing only.
-  std::unordered_map<uint32_t, uint32_t> explicit_recursive_type_groups;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;

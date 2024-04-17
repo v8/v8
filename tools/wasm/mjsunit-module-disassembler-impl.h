@@ -1009,13 +1009,14 @@ class MjsunitModuleDis {
  public:
   MjsunitModuleDis(MultiLineStringBuilder& out, const WasmModule* module,
                    NamesProvider* names, const ModuleWireBytes wire_bytes,
-                   AccountingAllocator* allocator)
+                   AccountingAllocator* allocator, bool has_error = false)
       : out_(out),
         module_(module),
         names_provider_(names),
         mjsunit_names_(module, wire_bytes),
         wire_bytes_(wire_bytes),
-        zone_(allocator, "disassembler") {
+        zone_(allocator, "disassembler"),
+        has_error_(has_error) {
     offsets_.CollectOffsets(module, wire_bytes.module_bytes());
   }
 

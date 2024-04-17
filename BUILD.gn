@@ -7750,6 +7750,7 @@ if (v8_enable_webassembly) {
     sources = [
       "test/fuzzer/wasm-fuzzer-common.cc",
       "test/fuzzer/wasm-fuzzer-common.h",
+      "tools/wasm/mjsunit-module-disassembler-impl.h",
     ]
 
     deps = [

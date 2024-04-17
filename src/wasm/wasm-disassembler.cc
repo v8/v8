@@ -662,8 +662,7 @@ void OffsetsProvider::CollectOffsets(const WasmModule* module,
   data_offsets_.reserve(module->data_segments.size());
   recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
-                            kDoNotPopulateExplicitRecGroups, this};
+  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin, this};
   constexpr bool kNoVerifyFunctions = false;
   decoder.DecodeModule(kNoVerifyFunctions);
 }
