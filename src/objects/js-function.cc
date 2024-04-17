@@ -1057,7 +1057,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // Fast case, new.target is a subclass of constructor. The map is cacheable
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
-  if (IsJSFunction(*new_target)) {
+  InstanceType new_target_instance_type = new_target->map()->instance_type();
+  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
     if (FastInitializeDerivedMap(isolate, function, constructor,
                                  constructor_initial_map)) {
@@ -1065,21 +1066,19 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     }
   }
 
-  // Slow path, new.target is either a proxy or can't cache the map.
+  // Slow path, new.target is either a proxy object or can't cache the map.
   // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
   // fall back to the intrinsicDefaultProto.
   Handle<Object> prototype;
-  if (IsJSFunction(*new_target)) {
+  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type) &&
+      Handle<JSFunction>::cast(new_target)->has_prototype_slot()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
-    if (function->has_prototype_slot()) {
-      // Make sure the new.target.prototype is cached.
-      EnsureHasInitialMap(function);
-      prototype = handle(function->prototype(), isolate);
-    } else {
-      // No prototype property, use the intrinsict default proto further down.
-      prototype = isolate->factory()->undefined_value();
-    }
+    // Make sure the new.target.prototype is cached.
+    EnsureHasInitialMap(function);
+    prototype = handle(function->prototype(), isolate);
   } else {
+    // The new.target is a constructor but it's not a JSFunction with
+    // a prototype slot, so get the prototype property.
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, prototype,
