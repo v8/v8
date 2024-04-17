@@ -939,6 +939,8 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachEagerDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      // This check prevents us from speculating during builtin inlining when we
+      // shouldn't. Doing so could lead to deopt loops.
       DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
       node->SetEagerDeoptInfo(zone(), GetLatestCheckpointedFrame(),
                               current_speculation_feedback_);
@@ -948,7 +950,6 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachLazyDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
       auto [register_result, register_count] = GetResultLocationAndSize();
       new (node->lazy_deopt_info()) LazyDeoptInfo(
           zone(), GetDeoptFrameForLazyDeopt(register_result, register_count),
