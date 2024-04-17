@@ -942,15 +942,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           CodeEntrypointTag tag);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
+  void DCheckReceiver(ConvertReceiverMode mode, TNode<Object> receiver);
+
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
   // JSFunction or proxy) rather than a InstructionStream object.
-  template <class... TArgs>
-  inline TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
+  template <typename TCallable, class... TArgs>
+  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
+                            ConvertReceiverMode mode, TNode<Object> receiver,
+                            TArgs... args);
+  template <typename TCallable, class... TArgs>
+  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
                             TNode<JSReceiver> receiver, TArgs... args);
-  template <class... TArgs>
-  inline TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
+  template <typename TCallable, class... TArgs>
+  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
                             TNode<Object> receiver, TArgs... args);
+  template <class... TArgs>
+  inline TNode<Object> CallFunction(TNode<Context> context,
+                                    TNode<JSFunction> callable,
+                                    ConvertReceiverMode mode,
+                                    TNode<Object> receiver, TArgs... args);
+  template <class... TArgs>
+  inline TNode<Object> CallFunction(TNode<Context> context,
+                                    TNode<JSFunction> callable,
+                                    TNode<JSReceiver> receiver, TArgs... args);
+  template <class... TArgs>
+  inline TNode<Object> CallFunction(TNode<Context> context,
+                                    TNode<JSFunction> callable,
+                                    TNode<Object> receiver, TArgs... args);
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
                                 TNode<Int32T> argc, TNode<Object> data,

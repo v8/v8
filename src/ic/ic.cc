@@ -1005,9 +1005,11 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         if (holder->HasFastProperties()) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
-          if (holder_is_lookup_start_object)
+          DCHECK(IsJSFunction(*getter));
+          if (holder_is_lookup_start_object) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
             return MaybeObjectHandle::Weak(accessor_pair);
+          }
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorFromPrototypeDH);
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder,
@@ -2127,11 +2129,12 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }
 
+        DCHECK(IsJSFunction(*setter));
         Handle<Smi> smi_handler =
             StoreHandler::StoreAccessor(isolate(), lookup->GetAccessorIndex());
 
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
         if (receiver.is_identical_to(holder)) {
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
           return MaybeObjectHandle(smi_handler);
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorOnPrototypeDH);

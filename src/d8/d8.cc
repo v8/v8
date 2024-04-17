@@ -3301,6 +3301,42 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
   return div_element;
 }
 
+namespace {
+
+// If the callback is called without arguments then it returns the value of
+// |globalThis.document_all_property|. If the callback is called with arguments
+// it sets the |globalThis.document_all_property| to the first argument and
+// returns boolean indicating the result of set operation.
+void DocumentAllCallback(const FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto global = context->Global();
+  auto key = v8::String::NewFromUtf8Literal(isolate, "document_all_property");
+  if (info.Length() == 0) {
+    Local<Value> result;
+    if (!global->Get(context, key).ToLocal(&result)) {
+      return;
+    }
+    info.GetReturnValue().Set(result);
+  } else {
+    bool result;
+    if (!global->Set(context, key, info[0]).To(&result)) {
+      return;
+    }
+    info.GetReturnValue().Set(result);
+  }
+}
+
+// Creates undetectable callable object template for testing purposes.
+Local<ObjectTemplate> CreateDocumentAllTemplate(Isolate* isolate) {
+  Local<ObjectTemplate> all_template = ObjectTemplate::New(isolate);
+  all_template->MarkAsUndetectable();
+  all_template->SetCallAsFunctionHandler(DocumentAllCallback);
+  return all_template;
+}
+
+}  // namespace
+
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(Symbol::GetToStringTag(isolate),
@@ -3484,6 +3520,8 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     dom_template->Set(isolate, "EventTarget", event_target);
     dom_template->Set(isolate, "Div",
                       Shell::CreateNodeTemplates(isolate, event_target));
+    dom_template->Set(isolate, "Document_all",
+                      CreateDocumentAllTemplate(isolate));
     d8_template->Set(isolate, "dom", dom_template);
   }
   {

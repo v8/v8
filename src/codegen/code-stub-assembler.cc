@@ -7438,6 +7438,7 @@ TNode<BoolT> CodeStubAssembler::IsNullOrJSReceiver(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsNullOrUndefined(TNode<Object> value) {
+  // TODO(ishell): consider using Select<BoolT>() here.
   return UncheckedCast<BoolT>(Word32Or(IsUndefined(value), IsNull(value)));
 }
 
@@ -12103,6 +12104,20 @@ void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
   GotoIf(IsInRange(name_ptr, first_ptr, last_ptr), if_protector);
 }
 
+void CodeStubAssembler::DCheckReceiver(ConvertReceiverMode mode,
+                                       TNode<Object> receiver) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      CSA_DCHECK(this, IsNullOrUndefined(receiver));
+      break;
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      CSA_DCHECK(this, Word32BinaryNot(IsNullOrUndefined(receiver)));
+      break;
+    case ConvertReceiverMode::kAny:
+      break;
+  }
+}
+
 TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {
   TVARIABLE(Map, value);
   Label vtrue(this, Label::kDeferred), vfalse(this), end(this);
@@ -15668,7 +15683,9 @@ TNode<Boolean> CodeStubAssembler::InstanceOf(TNode<Object> object,
     GotoIf(IsUndefined(inst_of_handler), &if_nohandler);
 
     // Call the {inst_of_handler} for {callable} and {object}.
-    TNode<Object> result = Call(context, inst_of_handler, callable, object);
+    TNode<Object> result =
+        Call(context, inst_of_handler, ConvertReceiverMode::kNotNullOrUndefined,
+             callable, object);
 
     // Convert the {result} to a Boolean.
     BranchIfToBooleanIsTrue(result, &return_true, &return_false);
