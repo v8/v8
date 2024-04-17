@@ -142,6 +142,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-builtin-list.h"
+#include "src/wasm/wasm-disassembler.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -536,7 +537,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
 
 #if V8_ENABLE_WEBASSEMBLY
 TurbofanPipelineStatistics* CreatePipelineStatistics(
-    wasm::FunctionBody function_body, const wasm::WasmModule* wasm_module,
+    WasmCompilationData& compilation_data, const wasm::WasmModule* wasm_module,
     OptimizedCompilationInfo* info, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
@@ -553,11 +554,18 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
     json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
-    AccountingAllocator allocator;
     std::ostringstream disassembly;
-    std::vector<int> source_positions;
-    wasm::PrintRawWasmCode(&allocator, function_body, wasm_module,
-                           wasm::kPrintLocals, disassembly, &source_positions);
+    std::vector<uint32_t> source_positions;
+    base::Vector<const uint8_t> function_bytes{compilation_data.func_body.start,
+                                               compilation_data.body_size()};
+    base::Vector<const uint8_t> module_bytes{nullptr, 0};
+    base::Optional<wasm::ModuleWireBytes> maybe_wire_bytes =
+        compilation_data.wire_bytes_storage->GetModuleBytes();
+    if (maybe_wire_bytes) module_bytes = maybe_wire_bytes->module_bytes();
+
+    wasm::DisassembleFunction(
+        wasm_module, compilation_data.func_index, function_bytes, module_bytes,
+        compilation_data.func_body.offset, disassembly, &source_positions);
     for (const auto& c : disassembly.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
@@ -3148,8 +3156,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   }
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(compilation_data.func_body, module, info,
-                               &zone_stats));
+      CreatePipelineStatistics(compilation_data, module, info, &zone_stats));
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(),
                     compilation_data.source_positions,
@@ -3347,8 +3354,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   }
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(compilation_data.func_body, module, info,
-                               &zone_stats));
+      CreatePipelineStatistics(compilation_data, module, info, &zone_stats));
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(),
                     compilation_data.source_positions,

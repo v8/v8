@@ -35,6 +35,8 @@ void NamesProvider::DecodeNamesIfNotYetDone() {
 void NamesProvider::ComputeFunctionNamesFromImportsExports() {
   DCHECK(!has_computed_function_import_names_);
   has_computed_function_import_names_ = true;
+  // When tracing streaming compilations, we might not yet have wire bytes.
+  if (wire_bytes_.empty()) return;
   for (const WasmImport& import : module_->import_table) {
     if (import.kind != kExternalFunction) continue;
     if (module_->lazily_generated_names.Has(import.index)) continue;
@@ -50,6 +52,8 @@ void NamesProvider::ComputeFunctionNamesFromImportsExports() {
 void NamesProvider::ComputeNamesFromImportsExports() {
   DCHECK(!has_computed_import_names_);
   has_computed_import_names_ = true;
+  // When tracing streaming compilations, we might not yet have wire bytes.
+  if (wire_bytes_.empty()) return;
   DCHECK(has_decoded_);
   for (const WasmImport import : module_->import_table) {
     switch (import.kind) {

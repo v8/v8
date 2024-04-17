@@ -66,6 +66,51 @@ void MultiLineStringBuilder::ToDisassemblyCollector(
   }
 }
 
+void DisassembleFunctionImpl(const WasmModule* module, int func_index,
+                             base::Vector<const uint8_t> function_body,
+                             ModuleWireBytes module_bytes, NamesProvider* names,
+                             std::ostream& os, std::vector<uint32_t>* offsets) {
+  MultiLineStringBuilder sb;
+  const wasm::WasmFunction& func = module->functions[func_index];
+  AccountingAllocator allocator;
+  Zone zone(&allocator, "Wasm disassembler");
+  bool shared = module->types[func.sig_index].is_shared;
+  WasmFeatures detected;
+  FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
+                             func.sig, function_body.begin(),
+                             function_body.end(), func.code.offset(),
+                             module_bytes, names);
+  d.DecodeAsWat(sb, {0, 2}, FunctionBodyDisassembler::kPrintHeader);
+  const bool print_offsets = false;
+  sb.WriteTo(os, print_offsets, offsets);
+}
+
+void DisassembleFunction(const WasmModule* module, int func_index,
+                         base::Vector<const uint8_t> wire_bytes,
+                         NamesProvider* names, std::ostream& os) {
+  DCHECK(func_index < static_cast<int>(module->functions.size()) &&
+         func_index >= static_cast<int>(module->num_imported_functions));
+  ModuleWireBytes module_bytes(wire_bytes);
+  base::Vector<const uint8_t> code =
+      module_bytes.GetFunctionBytes(&module->functions[func_index]);
+  std::vector<uint32_t>* collect_offsets = nullptr;
+  DisassembleFunctionImpl(module, func_index, code, module_bytes, names, os,
+                          collect_offsets);
+}
+
+void DisassembleFunction(const WasmModule* module, int func_index,
+                         base::Vector<const uint8_t> function_body,
+                         base::Vector<const uint8_t> maybe_wire_bytes,
+                         uint32_t function_body_offset, std::ostream& os,
+                         std::vector<uint32_t>* offsets) {
+  DCHECK(func_index < static_cast<int>(module->functions.size()) &&
+         func_index >= static_cast<int>(module->num_imported_functions));
+  NamesProvider fake_names(module, maybe_wire_bytes);
+  DisassembleFunctionImpl(module, func_index, function_body,
+                          ModuleWireBytes{nullptr, 0}, &fake_names, os,
+                          offsets);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers.
 
@@ -574,6 +619,10 @@ class ImmediatesPrinter {
   void StringConst(StringConstImmediate& imm) {
     if (imm.index >= owner_->module_->stringref_literals.size()) {
       out_ << " " << imm.index << " INVALID";
+      return;
+    }
+    if (owner_->wire_bytes_.start() == nullptr) {
+      out_ << " " << imm.index;
       return;
     }
     out_ << " \"";
