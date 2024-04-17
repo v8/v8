@@ -822,10 +822,8 @@ class Internals {
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
-  static const int kIsolateFastCCallThrewExceptionOffset =
-      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
-      kIsolateFastCCallThrewExceptionOffset + kApiSystemPointerSize;
+      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateThreadLocalTopOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
   static const int kIsolateHandleScopeDataOffset =
@@ -861,11 +859,11 @@ class Internals {
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
 
-#if V8_HOST_ARCH_64_BIT
+// #if V8_HOST_ARCH_64_BIT
   static const int kWasm64OOBOffsetAlignmentPaddingSize = 0;
-#else
-  static const int kWasm64OOBOffsetAlignmentPaddingSize = 4;
-#endif  // V8_HOST_ARCH_64_BIT
+// #else
+//   static const int kWasm64OOBOffsetAlignmentPaddingSize = 4;
+// #endif  // V8_HOST_ARCH_64_BIT
   static const int kWasm64OOBOffsetOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize +
       kWasm64OOBOffsetAlignmentPaddingSize;

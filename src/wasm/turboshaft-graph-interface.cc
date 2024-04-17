@@ -1932,11 +1932,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
 
-    OpIndex threw_exception =
+    V<Object> exception =
         __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::UintPtr(),
-                IsolateData::fast_c_call_threw_exception_offset());
-    IF (__ WordPtrEqual(threw_exception, 1)) {
+                MemoryRepresentation::TaggedPointer(),
+                IsolateData::exception_offset());
+    IF_NOT (LIKELY(
+                __ TaggedEqual(exception, LOAD_ROOT(TheHoleValue)))) {
       CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmPropagateException>(
           decoder, {}, CheckForException::kCatchInThisFrame);

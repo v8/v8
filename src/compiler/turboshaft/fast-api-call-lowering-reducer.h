@@ -115,11 +115,15 @@ class FastApiCallLoweringReducer : public Next {
                                            base::VectorOf(args));
 
       Label<> trigger_exception(this);
-      V<WordPtr> threw_exception =
-          __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::UintPtr(),
-                  IsolateData::fast_c_call_threw_exception_offset());
-      GOTO_IF(__ WordPtrEqual(threw_exception, 1), trigger_exception);
+
+      V<Object> exception = __ Load(__ ExternalConstant(
+          ExternalReference::Create(IsolateAddressId::kExceptionAddress,
+                                    isolate_)), LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::TaggedPointer());
+      GOTO_IF_NOT(LIKELY(__ TaggedEqual(
+                      exception,
+                      __ HeapConstant(isolate_->factory()->the_hole_value()))),
+                  trigger_exception);
 
       V<Object> fast_call_result =
           ConvertReturnValue(c_signature, c_call_result);
