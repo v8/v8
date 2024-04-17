@@ -163,7 +163,7 @@ let main = {
           currentTimestampCorrection += tick.tm - file.ticks[i - 1].tm;
           timestampCorrections.push({
             tm: tick.tm,
-            correction: timestampCorrection
+            correction: currentTimestampCorrection
           });
         }
       } else if (currentTimestampCorrection == 0) {
