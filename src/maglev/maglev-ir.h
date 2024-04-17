@@ -651,6 +651,14 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
 NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 #undef DEFINE_NODE_TYPE_CHECK
 
+inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
+  if (NodeTypeIsBoolean(type)) return false;
+  if (NodeTypeIsNumber(type)) return false;
+  if (NodeTypeIsJSReceiver(type)) return false;
+  if (NodeTypeIsName(type)) return false;
+  return true;
+}
+
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
   kNumberOrOddball,
