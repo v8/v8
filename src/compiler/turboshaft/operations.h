@@ -5057,11 +5057,12 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
-  OpIndex frame_state() const { return Base::input(2); }
+  V<BigInt> left() const { return Base::input<BigInt>(0); }
+  V<BigInt> right() const { return Base::input<BigInt>(1); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
 
-  BigIntBinopOp(OpIndex left, OpIndex right, OpIndex frame_state, Kind kind)
+  BigIntBinopOp(V<BigInt> left, V<BigInt> right, V<FrameState> frame_state,
+                Kind kind)
       : Base(left, right, frame_state), kind(kind) {}
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
@@ -5096,14 +5097,13 @@ struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
 
   static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
+  V<BigInt> left() const { return Base::input<BigInt>(0); }
+  V<BigInt> right() const { return Base::input<BigInt>(1); }
 
-  BigIntComparisonOp(OpIndex left, OpIndex right, Kind kind)
+  BigIntComparisonOp(V<BigInt> left, V<BigInt> right, Kind kind)
       : Base(left, right), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };

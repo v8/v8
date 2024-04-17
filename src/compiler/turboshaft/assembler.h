@@ -3522,13 +3522,13 @@ class TurboshaftAssemblerOpInterface
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
 
-  V<Object> BigIntBinop(V<Object> left, V<Object> right,
+  V<BigInt> BigIntBinop(V<BigInt> left, V<BigInt> right,
                         V<turboshaft::FrameState> frame_state,
                         BigIntBinopOp::Kind kind) {
     return ReduceIfReachableBigIntBinop(left, right, frame_state, kind);
   }
 #define BIGINT_BINOP(kind)                                        \
-  V<Object> BigInt##kind(V<Object> left, V<Object> right,         \
+  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,         \
                          V<turboshaft::FrameState> frame_state) { \
     return BigIntBinop(left, right, frame_state,                  \
                        BigIntBinopOp::Kind::k##kind);             \
@@ -3545,20 +3545,18 @@ class TurboshaftAssemblerOpInterface
   BIGINT_BINOP(ShiftRightArithmetic)
 #undef BIGINT_BINOP
 
-  V<Boolean> BigIntComparison(V<Object> left, V<Object> right,
+  V<Boolean> BigIntComparison(V<BigInt> left, V<BigInt> right,
                               BigIntComparisonOp::Kind kind) {
     return ReduceIfReachableBigIntComparison(left, right, kind);
   }
-  V<Boolean> BigIntEqual(V<Object> left, V<Object> right) {
-    return BigIntComparison(left, right, BigIntComparisonOp::Kind::kEqual);
+#define BIGINT_COMPARE(kind)                                                 \
+  V<Boolean> BigInt##kind(V<BigInt> left, V<BigInt> right) {                 \
+    return BigIntComparison(left, right, BigIntComparisonOp::Kind::k##kind); \
   }
-  V<Boolean> BigIntLessThan(V<Object> left, V<Object> right) {
-    return BigIntComparison(left, right, BigIntComparisonOp::Kind::kLessThan);
-  }
-  V<Boolean> BigIntLessThanOrEqual(V<Object> left, V<Object> right) {
-    return BigIntComparison(left, right,
-                            BigIntComparisonOp::Kind::kLessThanOrEqual);
-  }
+  BIGINT_COMPARE(Equal)
+  BIGINT_COMPARE(LessThan)
+  BIGINT_COMPARE(LessThanOrEqual)
+#undef BIGINT_COMPARE
 
   V<BigInt> BigIntUnary(V<BigInt> input, BigIntUnaryOp::Kind kind) {
     return ReduceIfReachableBigIntUnary(input, kind);

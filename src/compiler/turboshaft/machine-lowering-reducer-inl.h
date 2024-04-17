@@ -2032,8 +2032,9 @@ class MachineLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(BigIntBinop)(V<Object> left, V<Object> right,
-                              OpIndex frame_state, BigIntBinopOp::Kind kind) {
+  V<BigInt> REDUCE(BigIntBinop)(V<BigInt> left, V<BigInt> right,
+                                V<FrameState> frame_state,
+                                BigIntBinopOp::Kind kind) {
     const Builtin builtin = GetBuiltinForBigIntBinop(kind);
     switch (kind) {
       case BigIntBinopOp::Kind::kAdd:
@@ -2042,18 +2043,18 @@ class MachineLoweringReducer : public Next {
       case BigIntBinopOp::Kind::kBitwiseXor:
       case BigIntBinopOp::Kind::kShiftLeft:
       case BigIntBinopOp::Kind::kShiftRightArithmetic: {
-        V<Object> result = CallBuiltinForBigIntOp(builtin, {left, right});
+        V<Numeric> result = CallBuiltinForBigIntOp(builtin, {left, right});
 
         // Check for exception sentinel: Smi 0 is returned to signal
         // BigIntTooBig.
         __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
                         DeoptimizeReason::kBigIntTooBig, FeedbackSource{});
-        return result;
+        return V<BigInt>::Cast(result);
       }
       case BigIntBinopOp::Kind::kMul:
       case BigIntBinopOp::Kind::kDiv:
       case BigIntBinopOp::Kind::kMod: {
-        V<Object> result = CallBuiltinForBigIntOp(builtin, {left, right});
+        V<Numeric> result = CallBuiltinForBigIntOp(builtin, {left, right});
 
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
@@ -2069,7 +2070,7 @@ class MachineLoweringReducer : public Next {
                             ? DeoptimizeReason::kBigIntTooBig
                             : DeoptimizeReason::kDivisionByZero,
                         FeedbackSource{});
-        return result;
+        return V<BigInt>::Cast(result);
       }
       case BigIntBinopOp::Kind::kBitwiseOr: {
         return CallBuiltinForBigIntOp(builtin, {left, right});
@@ -2080,7 +2081,7 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Boolean> REDUCE(BigIntComparison)(V<Object> left, V<Object> right,
+  V<Boolean> REDUCE(BigIntComparison)(V<BigInt> left, V<BigInt> right,
                                       BigIntComparisonOp::Kind kind) {
     switch (kind) {
       case BigIntComparisonOp::Kind::kEqual:
