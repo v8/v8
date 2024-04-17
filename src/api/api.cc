@@ -6323,8 +6323,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTag tag) {
-  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(
-                             reinterpret_cast<i::Address>(wrapper_obj))))
+  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(wrapper_obj)))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
                            static_cast<i::ExternalPointerTag>(tag));
 }
@@ -6332,8 +6331,7 @@ void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
 // static
 void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                       CppHeapPointerTag tag, void* wrappable) {
-  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(
-                             reinterpret_cast<i::Address>(wrapper_obj))))
+  return i::JSApiWrapper(i::JSObject::cast(i::Tagged<i::Object>(wrapper_obj)))
       .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
                            static_cast<i::ExternalPointerTag>(tag));
 }
