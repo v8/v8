@@ -4591,11 +4591,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
 
   using ForEachKeyValueFunction =
-      std::function<void(TNode<Name> key, TNode<Object> value)>;
+      std::function<void(TNode<Name> key, LazyNode<Object> value)>;
 
   // For each JSObject property (in DescriptorArray order), check if the key is
   // enumerable, and if so, load the value from the receiver and evaluate the
-  // closure.
+  // closure. The value is provided as a LazyNode, which lazily evaluates
+  // accessors if present.
   void ForEachEnumerableOwnProperty(TNode<Context> context, TNode<Map> map,
                                     TNode<JSObject> object,
                                     PropertiesEnumerationMode mode,

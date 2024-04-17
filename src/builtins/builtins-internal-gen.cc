@@ -1025,16 +1025,16 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
         TNode<BoolT> target_is_simple_receiver = IsSimpleObjectMap(target_map);
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
-            [=](TNode<Name> key, TNode<Object> value) {
+            [=](TNode<Name> key, LazyNode<Object> value) {
               KeyedStoreGenericGenerator::SetProperty(
                   state(), context, target, target_is_simple_receiver, key,
-                  value, LanguageMode::kStrict);
+                  value(), LanguageMode::kStrict);
             },
             if_runtime);
       } else {
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
-            [=](TNode<Name> key, TNode<Object> value) {
+            [=](TNode<Name> key, LazyNode<Object> value) {
               Label skip(this);
               if (excluded_property_count.has_value()) {
                 BuildFastLoop<IntPtrT>(
@@ -1053,7 +1053,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
               }
 
               CallBuiltin(Builtin::kCreateDataProperty, context, target, key,
-                          value);
+                          value());
               Goto(&skip);
               Bind(&skip);
             },

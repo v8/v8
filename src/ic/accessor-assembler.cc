@@ -5111,8 +5111,8 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   // similar here?
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
-      [=](TNode<Name> key, TNode<Object> value) {
-        CreateDataProperty(context, result, key, value);
+      [=](TNode<Name> key, LazyNode<Object> value) {
+        CreateDataProperty(context, result, key, value());
       },
       &runtime_copy);
   Return(result);
