@@ -2998,61 +2998,6 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     }
 
     iterator.Advance();
-    // While usually the next instruction is a Star, sometimes we store and
-    // reload from context first.
-    if (iterator.done()) {
-      return false;
-    }
-    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot) {
-      // Step over patterns like:
-      //     StaCurrentContextSlot [x]
-      //     LdaImmutableCurrentContextSlot [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
-      iterator.Advance();
-      if (!iterator.done() &&
-          (iterator.current_bytecode() ==
-               Bytecode::kLdaImmutableCurrentContextSlot ||
-           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot)) {
-        if (iterator.GetIndexOperand(0) != slot) {
-          return false;
-        }
-        iterator.Advance();
-      }
-    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot) {
-      // Step over patterns like:
-      //     StaContextSlot r_x [y] [z]
-      //     LdaContextSlot r_x [y] [z]
-      int context = iterator.GetRegisterOperand(0).index();
-      unsigned int slot = iterator.GetIndexOperand(1);
-      unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
-      iterator.Advance();
-      if (!iterator.done() &&
-          (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
-           iterator.current_bytecode() == Bytecode::kLdaContextSlot)) {
-        if (iterator.GetRegisterOperand(0).index() != context ||
-            iterator.GetIndexOperand(1) != slot ||
-            iterator.GetUnsignedImmediateOperand(2) != depth) {
-          return false;
-        }
-        iterator.Advance();
-      }
-    } else if (iterator.current_bytecode() == Bytecode::kStaLookupSlot) {
-      // Step over patterns like:
-      //     StaLookupSlot [x] [_]
-      //     LdaLookupSlot [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
-      iterator.Advance();
-      if (!iterator.done() &&
-          (iterator.current_bytecode() == Bytecode::kLdaLookupSlot ||
-           iterator.current_bytecode() ==
-               Bytecode::kLdaLookupSlotInsideTypeof)) {
-        if (iterator.GetIndexOperand(0) != slot) {
-          return false;
-        }
-        iterator.Advance();
-      }
-    }
-
     // Next instruction should be a Star (store accumulator to register)
     if (iterator.done() || !Bytecodes::IsAnyStar(iterator.current_bytecode())) {
       return false;
