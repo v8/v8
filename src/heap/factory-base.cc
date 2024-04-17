@@ -729,8 +729,7 @@ template <typename Impl>
 template <class StringTableKey>
 Handle<String> FactoryBase<Impl>::InternalizeStringWithKey(
     StringTableKey* key) {
-  return indirect_handle(isolate()->string_table()->LookupKey(isolate(), key),
-                         isolate());
+  return isolate()->string_table()->LookupKey(isolate(), key);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
@@ -1355,10 +1354,10 @@ FactoryBase<Impl>::NewFunctionTemplateRareData() {
 }
 
 template <typename Impl>
-MaybeDirectHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
+MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
     Tagged<Map> from_string_map) {
   InstanceType instance_type = from_string_map->instance_type();
-  MaybeDirectHandle<Map> map;
+  MaybeHandle<Map> map;
   switch (instance_type) {
     case SEQ_TWO_BYTE_STRING_TYPE:
     case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
