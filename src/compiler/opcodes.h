@@ -1234,7 +1234,11 @@
   V(F32x8Qfma)                     \
   V(F32x8Qfms)                     \
   V(F64x4Qfma)                     \
-  V(F64x4Qfms)
+  V(F64x4Qfms)                     \
+  V(I64x4RelaxedLaneSelect)        \
+  V(I32x8RelaxedLaneSelect)        \
+  V(I16x16RelaxedLaneSelect)       \
+  V(I8x32RelaxedLaneSelect)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \

@@ -714,7 +714,11 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, F32x8Qfma, Operator::kNoProperties, 3, 0, 1)                      \
   IF_WASM(V, F32x8Qfms, Operator::kNoProperties, 3, 0, 1)                      \
   IF_WASM(V, F64x4Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)
+  IF_WASM(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)                      \
+  IF_WASM(V, I64x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
+  IF_WASM(V, I32x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
+  IF_WASM(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)        \
+  IF_WASM(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

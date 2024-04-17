@@ -6760,7 +6760,7 @@ namespace {
 template <typename Adapter>
 void VisitRelaxedLaneSelect(InstructionSelectorT<Adapter>* selector,
                             typename Adapter::node_t node,
-                            InstructionCode code = kX64Pblendvb) {
+                            InstructionCode code) {
   X64OperandGeneratorT<Adapter> g(selector);
   DCHECK_EQ(selector->value_input_count(node), 3);
   // pblendvb/blendvps/blendvpd copies src2 when mask is set, opposite from Wasm
@@ -6784,21 +6784,50 @@ void VisitRelaxedLaneSelect(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16RelaxedLaneSelect(node_t node) {
-  VisitRelaxedLaneSelect(this, node);
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Pblendvb | VectorLengthField::encode(kV128));
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x8RelaxedLaneSelect(node_t node) {
-  VisitRelaxedLaneSelect(this, node);
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Pblendvb | VectorLengthField::encode(kV128));
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4RelaxedLaneSelect(node_t node) {
-  VisitRelaxedLaneSelect(this, node, kX64Blendvps);
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Blendvps | VectorLengthField::encode(kV128));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(node_t node) {
-  VisitRelaxedLaneSelect(this, node, kX64Blendvpd);
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Blendvpd | VectorLengthField::encode(kV128));
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x32RelaxedLaneSelect(node_t node) {
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Pblendvb | VectorLengthField::encode(kV256));
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x16RelaxedLaneSelect(node_t node) {
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Pblendvb | VectorLengthField::encode(kV256));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedLaneSelect(node_t node) {
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Blendvps | VectorLengthField::encode(kV256));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x4RelaxedLaneSelect(node_t node) {
+  VisitRelaxedLaneSelect(this, node,
+                         kX64Blendvpd | VectorLengthField::encode(kV256));
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 namespace {
 // Used for pmin/pmax and relaxed min/max.

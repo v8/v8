@@ -8219,7 +8219,12 @@ struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd256ShiftOp::Kind kind);
 
-#define FOREACH_SIMD_256_TERNARY_MASK_OPCODE(V) V(S256Select)
+#define FOREACH_SIMD_256_TERNARY_MASK_OPCODE(V) \
+  V(S256Select)                                 \
+  V(I8x32RelaxedLaneSelect)                     \
+  V(I16x16RelaxedLaneSelect)                    \
+  V(I32x8RelaxedLaneSelect)                     \
+  V(I64x4RelaxedLaneSelect)
 
 #define FOREACH_SIMD_256_TERNARY_OTHER_OPCODE(V) \
   V(F32x8Qfma)                                   \

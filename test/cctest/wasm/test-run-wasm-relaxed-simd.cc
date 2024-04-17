@@ -6,6 +6,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/base/safe_conversions.h"
+#include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "test/cctest/cctest.h"
@@ -642,6 +643,119 @@ TEST(RunWasm_F64x4Qfms_turbofan) {
   }
 }
 
+template <typename T, int kElems>
+void RelaxedLaneSelectRevecTest(const T l1[kElems], const T l2[kElems],
+                                const T r1[kElems], const T r2[kElems],
+                                const T s1[kElems], const T s2[kElems],
+                                const T expected[2 * kElems],
+                                WasmOpcode laneselect) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  const auto vector_gap = static_cast<int>(16 / sizeof(T));
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  T* memory = r.builder().AddMemoryElems<T>(8 * vector_gap);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t param4 = 3;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  r.Build(
+      {WASM_LOCAL_SET(
+           temp1,
+           WASM_SIMD_OPN(laneselect, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                         WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)),
+                         WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param3)))),
+       WASM_LOCAL_SET(
+           temp2,
+           WASM_SIMD_OPN(
+               laneselect,
+               WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+               WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)),
+               WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param3)))),
+       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param4), WASM_LOCAL_GET(temp1)),
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param4),
+                                  WASM_LOCAL_GET(temp2)),
+       WASM_ONE});
+  for (int i = 0; i < static_cast<int>(16 / sizeof(T)); i++) {
+    r.builder().WriteMemory(&memory[0 * vector_gap + i], l1[i]);
+    r.builder().WriteMemory(&memory[1 * vector_gap + i], l2[i]);
+    r.builder().WriteMemory(&memory[2 * vector_gap + i], r1[i]);
+    r.builder().WriteMemory(&memory[3 * vector_gap + i], r2[i]);
+    r.builder().WriteMemory(&memory[4 * vector_gap + i], s1[i]);
+    r.builder().WriteMemory(&memory[5 * vector_gap + i], s2[i]);
+  }
+
+  CHECK_EQ(1, r.Call(0, 32, 64, 96));
+
+  for (auto i = 0; i < 2 * kElems; i++) {
+    CHECK_EQ(expected[i], memory[6 * vector_gap + i]);
+  }
+}
+
+TEST(RunWasm_I64x4RelaxedLaneSelect) {
+  constexpr int kElems = 2;
+  uint64_t l1[kElems] = {0, 1};
+  uint64_t l2[kElems] = {2, 3};
+  uint64_t r1[kElems] = {4, 5};
+  uint64_t r2[kElems] = {6, 7};
+  uint64_t s1[kElems] = {0, 0xFFFF'FFFF'FFFF'FFFF};
+  uint64_t s2[kElems] = {0xFFFF'FFFF'FFFF'FFFF, 0};
+  constexpr uint64_t expected[2 * kElems] = {4, 1, 2, 7};
+  RelaxedLaneSelectRevecTest<uint64_t, kElems>(l1, l2, r1, r2, s1, s2, expected,
+                                               kExprI64x2RelaxedLaneSelect);
+}
+
+TEST(RunWasm_I32x8RelaxedLaneSelect) {
+  constexpr int kElems = 4;
+  uint32_t l1[kElems] = {0, 1, 2, 3};
+  uint32_t l2[kElems] = {8, 9, 10, 11};
+  uint32_t r1[kElems] = {4, 5, 6, 7};
+  uint32_t r2[kElems] = {12, 13, 14, 15};
+  uint32_t s1[kElems] = {0, 0xFFFF'FFFF, 0, 0xFFFF'FFFF};
+  uint32_t s2[kElems] = {0, 0xFFFF'FFFF, 0, 0xFFFF'FFFF};
+  constexpr uint32_t expected[2 * kElems] = {4, 1, 6, 3, 12, 9, 14, 11};
+  RelaxedLaneSelectRevecTest<uint32_t, kElems>(l1, l2, r1, r2, s1, s2, expected,
+                                               kExprI32x4RelaxedLaneSelect);
+}
+
+TEST(RunWasm_I16x16RelaxedLaneSelect) {
+  constexpr int kElems = 8;
+  uint16_t l1[kElems] = {0, 1, 2, 3, 4, 5, 6, 7};
+  uint16_t r1[kElems] = {8, 9, 10, 11, 12, 13, 14, 15};
+  uint16_t l2[kElems] = {16, 17, 18, 19, 20, 21, 22, 23};
+  uint16_t r2[kElems] = {24, 25, 26, 27, 28, 29, 30, 31};
+  uint16_t s1[kElems] = {0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF};
+  uint16_t s2[kElems] = {0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0};
+  constexpr uint16_t expected[2 * kElems] = {8,  1,  10, 3,  12, 5,  14, 7,
+                                             16, 25, 18, 27, 20, 29, 22, 31};
+  RelaxedLaneSelectRevecTest<uint16_t, kElems>(l1, l2, r1, r2, s1, s2, expected,
+                                               kExprI16x8RelaxedLaneSelect);
+}
+
+TEST(RunWasm_I8x32RelaxedLaneSelect) {
+  constexpr int kElems = 16;
+  uint8_t l1[kElems] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  uint8_t r1[kElems] = {16, 17, 18, 19, 20, 21, 22, 23,
+                        24, 25, 26, 27, 28, 29, 30, 31};
+  uint8_t l2[kElems] = {32, 33, 34, 35, 36, 37, 38, 39,
+                        40, 41, 42, 43, 44, 45, 46, 47};
+  uint8_t r2[kElems] = {48, 49, 50, 51, 52, 53, 54, 55,
+                        56, 57, 58, 59, 60, 61, 62, 63};
+
+  uint8_t s1[kElems] = {0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF,
+                        0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF};
+  uint8_t s2[kElems] = {0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0,
+                        0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF, 0};
+  constexpr uint8_t expected[2 * kElems] = {
+      16, 1,  18, 3,  20, 5,  22, 7,  24, 9,  26, 11, 28, 13, 30, 15,
+      32, 49, 34, 51, 36, 53, 38, 55, 40, 57, 42, 59, 44, 61, 46, 63};
+  RelaxedLaneSelectRevecTest<uint8_t, kElems>(l1, l2, r1, r2, s1, s2, expected,
+                                              kExprI8x16RelaxedLaneSelect);
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace v8::internal::wasm
