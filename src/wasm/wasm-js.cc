@@ -2135,14 +2135,15 @@ bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
 
 i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Isolate* i_isolate, i::Handle<i::WasmExportedFunctionData> data,
-    ErrorThrower& thrower) {
+    ErrorThrower& thrower, bool with_suspender_param) {
   i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
       i::WasmTrustedInstanceData::cast(
           data->func_ref()->internal(i_isolate)->ref()),
       i_isolate);
   int func_index = data->function_index();
   i::Handle<i::Code> wrapper =
-      BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
+      with_suspender_param ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
+                           : BUILTIN_CODE(i_isolate, WasmPromising);
 
   int sig_index =
       trusted_instance_data->module()->functions[func_index].sig_index;
@@ -2326,8 +2327,9 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Incompatible signature for promising function");
       return;
     }
-    i::Handle<i::JSFunction> result =
-        NewPromisingWasmExportedFunction(i_isolate, data, thrower);
+    bool with_suspender_param = promise == i::wasm::kPromiseWithSuspender;
+    i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
+        i_isolate, data, thrower, with_suspender_param);
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;
   }
@@ -2375,8 +2377,9 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Handle<i::WasmExportedFunctionData> data(
       wasm_exported_function->shared()->wasm_exported_function_data(),
       i_isolate);
-  i::Handle<i::JSFunction> result =
-      NewPromisingWasmExportedFunction(i_isolate, data, thrower);
+  bool with_suspender_param = false;
+  i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
+      i_isolate, data, thrower, with_suspender_param);
   info.GetReturnValue().Set(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(result)));
   return;
@@ -2435,10 +2438,15 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
       // wrapper function's signature. The wrapper function also returns a
       // promise as an externref instead of the original return type.
       size_t param_count = sig->parameter_count();
-      DCHECK_GE(param_count, 1);
-      DCHECK_EQ(sig->GetParam(0), i::wasm::kWasmExternRef);
-      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count - 1);
-      for (size_t i = 1; i < param_count; ++i) {
+      int suspender_count =
+          promise_flags == internal::wasm::kPromiseWithSuspender ? 1 : 0;
+      if (suspender_count == 1) {
+        DCHECK_GE(param_count, 1);
+        DCHECK_EQ(sig->GetParam(0), i::wasm::kWasmExternRef);
+      }
+      i::wasm::FunctionSig::Builder builder(&zone, 1,
+                                            param_count - suspender_count);
+      for (size_t i = suspender_count; i < param_count; ++i) {
         builder.AddParam(sig->GetParam(i));
       }
       builder.AddReturn(i::wasm::kWasmExternRef);

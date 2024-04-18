@@ -16,7 +16,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true, false).exportAs('g');
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprI32Const, 42,
           kExprGlobalSet, 0,
@@ -31,7 +31,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   import_index = builder.addImport('m', 'import', kSig_i_v);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
@@ -67,20 +67,20 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // for (i = 0; i < 5; ++i) {
   //   g = g + import();
   // }
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addLocals(kWasmI32, 1)
       .addBody([
           kExprI32Const, 5,
-          kExprLocalSet, 1,
+          kExprLocalSet, 0,
           kExprLoop, kWasmVoid,
             kExprCallFunction, import_index, // suspend
             kExprGlobalGet, 0, // resume
             kExprI32Add,
             kExprGlobalSet, 0,
-            kExprLocalGet, 1,
+            kExprLocalGet, 0,
             kExprI32Const, 1,
             kExprI32Sub,
-            kExprLocalTee, 1,
+            kExprLocalTee, 0,
             kExprBrIf, 0,
           kExprEnd,
           kExprI32Const, 0,
@@ -103,7 +103,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let gc_index = builder.addImport('m', 'gc', kSig_v_v);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, gc_index,
           kExprI32Const, 0
@@ -118,11 +118,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchGC2() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let export_sig = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
   let import_index = builder.addImport('m', 'import', kSig_i_i);
-  builder.addFunction("test", export_sig)
+  builder.addFunction("test", kSig_i_i)
       .addBody([
-          kExprLocalGet, 1,
+          kExprLocalGet, 0,
           kExprCallFunction, import_index,
       ]).exportFunc();
   let js_import = new WebAssembly.Suspending((v) => { return Promise.resolve(v) });
@@ -139,7 +138,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true, false).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_v);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, import_index, // suspend
           kExprGlobalSet, 0, // resume
@@ -166,14 +165,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let params = [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
       kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32];
   let sig = makeSig(params, [kWasmI32]);
-  let export_sig = makeSig([kWasmExternRef].concat(params), [kWasmI32]);
   import_index = builder.addImport('m', 'import', sig);
-  builder.addFunction("test", export_sig)
+  builder.addFunction("test", sig)
       .addBody([
-          kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 3,
+          kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 3,
           kExprLocalGet, 4, kExprLocalGet, 5, kExprLocalGet, 6, kExprLocalGet, 7,
           kExprLocalGet, 8, kExprLocalGet, 9, kExprLocalGet, 10, kExprLocalGet, 11,
-          kExprLocalGet, 12, kExprLocalGet, 13,
+          kExprLocalGet, 12,
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
   function js_import(i1, i2, i3, i4, i5, i6, f1, f2, f3, f4, f5, f6, f7) {
@@ -192,9 +190,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchReturnFloat() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let export_sig = makeSig([kWasmExternRef], [kWasmF32]);
   import_index = builder.addImport('m', 'import', kSig_f_v);
-  builder.addFunction("test", export_sig)
+  builder.addFunction("test", kSig_f_v)
       .addBody([
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
@@ -215,7 +212,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let tag = builder.addTag(kSig_v_v);
-  builder.addFunction("throw", kSig_i_r)
+  builder.addFunction("throw", kSig_i_v)
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.throw);
@@ -230,7 +227,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   import_index = builder.addImport('m', 'import', kSig_i_v);
   tag_index = builder.addImportedTag('m', 'tag', kSig_v_v);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, import_index,
           kExprThrow, tag_index
@@ -252,7 +249,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   import_index = builder.addImport('m', 'import', kSig_i_v);
   tag_index = builder.addImportedTag('m', 'tag', kSig_v_i);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprTry, kWasmI32,
           kExprCallFunction, import_index,
@@ -283,11 +280,11 @@ function TestNestedSuspenders(suspend) {
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_v);
   outer_index = builder.addImport('m', 'outer', kSig_i_v);
-  builder.addFunction("outer", kSig_i_r)
+  builder.addFunction("outer", kSig_i_v)
       .addBody([
           kExprCallFunction, outer_index
       ]).exportFunc();
-  builder.addFunction("inner", kSig_i_r)
+  builder.addFunction("inner", kSig_i_v)
       .addBody([
           kExprCallFunction, inner_index
       ]).exportFunc();
@@ -317,8 +314,7 @@ function TestNestedSuspenders(suspend) {
   print(arguments.callee.name);
   // Check that a promising function with no return is allowed.
   let builder = new WasmModuleBuilder();
-  let sig_v_r = makeSig([kWasmExternRef], []);
-  builder.addFunction("export", sig_v_r).addBody([]).exportFunc();
+  builder.addFunction("export", kSig_v_v).addBody([]).exportFunc();
   let instance = builder.instantiate();
   let export_wrapper = WebAssembly.promising(instance.exports.export);
   let export_sig = export_wrapper.type();
@@ -329,9 +325,8 @@ function TestNestedSuspenders(suspend) {
 (function TestStackOverflow() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
-          kExprLocalGet, 0,
           kExprCallFunction, 0
           ]).exportFunc();
   let instance = builder.instantiate();
@@ -345,7 +340,7 @@ function TestNestedSuspenders(suspend) {
   let funcref_type = builder.addType(kSig_i_v);
   let table = builder.addTable(wasmRefNullType(funcref_type), 1)
                          .exportAs('table');
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprI32Const, 0, kExprTableGet, table.index,
           kExprCallRef, funcref_type,
@@ -368,7 +363,7 @@ function TestNestedSuspenders(suspend) {
   let table = builder.addTable(kWasmFuncRef, 10, 10);
   let callee = builder.addImport('m', 'f', kSig_i_v);
   builder.addActiveElementSegment(table, wasmI32Const(0), [callee]);
-  builder.addFunction("test", kSig_i_r)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprI32Const, 0,
           kExprCallIndirect, functype, table.index,
@@ -391,12 +386,9 @@ function TestNestedSuspenders(suspend) {
   let builder = new WasmModuleBuilder();
   let import1_index = builder.addImport("m", "import1", kSig_i_v);
   let import2_index = builder.addImport("m", "import2", kSig_i_v);
-  builder.addGlobal(kWasmExternRef, true, false);
-  builder.addFunction("export1", kSig_i_r)
+  builder.addFunction("export1", kSig_i_v)
       .addBody([
           // export1 -> import1 (unwrapped)
-          kExprLocalGet, 0,
-          kExprGlobalSet, 0,
           kExprCallFunction, import1_index,
       ]).exportFunc();
   builder.addFunction("export2", kSig_i_v)
@@ -438,13 +430,12 @@ function TestNestedSuspenders(suspend) {
   builder.addFunction("test2", kSig_i_r)
       .addBody([
         kExprI32Const, 1]).exportFunc();
-  let sig_l_r = makeSig([kWasmExternRef], [kWasmI64]);
-  builder.addFunction("test3", sig_l_r)
+  builder.addFunction("test3", kSig_l_v)
       .addBody([
         kExprCallFunction, new_space_full_index,
         ...wasmI64Const(0)
         ]).exportFunc();
-  builder.addFunction("test4", kSig_v_r)
+  builder.addFunction("test4", kSig_v_v)
       .addBody([
         kExprCallFunction, new_space_full_index,
         kExprI32Const, 1,
@@ -484,10 +475,9 @@ function TestNestedSuspenders(suspend) {
 (function TestSwitchingToTheCentralStackForJS() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  import_index = builder.addImport('m', 'import', kSig_i_r);
-  builder.addFunction("test", kSig_i_r)
+  import_index = builder.addImport('m', 'import', kSig_i_v);
+  builder.addFunction("test", kSig_i_v)
       .addBody([
-          kExprLocalGet, 0,
           kExprCallFunction, import_index,
       ]).exportFunc();
   let js_import = new WebAssembly.Suspending(
@@ -505,17 +495,14 @@ function TestNestedSuspenders(suspend) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   const num_params = 10;
-  let import_params = Array(num_params).fill(kWasmExternRef);
-  let export_params = Array(num_params + 1 /* suspender */).fill(kWasmExternRef);
-  const import_sig = makeSig(import_params, [kWasmExternRef]);
-  const export_sig = makeSig(export_params, [kWasmExternRef]);
-  const import_index = builder.addImport('m', 'import_', import_sig);
+  const sig = makeSig(Array(num_params).fill(kWasmExternRef), [kWasmExternRef]);
+  const import_index = builder.addImport('m', 'import_', sig);
   let body = [];
   for (let i = 0; i < num_params; ++i) {
-    body.push(kExprLocalGet, i + 1);
+    body.push(kExprLocalGet, i);
   }
   body.push(kExprCallFunction, import_index);
-  builder.addFunction("test", export_sig)
+  builder.addFunction("test", sig)
       .addBody(body).exportFunc();
   function import_js(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
     gc();
@@ -541,12 +528,12 @@ function TestNestedSuspenders(suspend) {
   outer_index = builder.addImport('m', 'outer', kSig_i_v);
   let stack_overflow = builder.addFunction('stack_overflow', kSig_v_v)
       .addBody([kExprCallFunction, 2]);
-  builder.addFunction("outer", kSig_i_r)
+  builder.addFunction("outer", kSig_i_v)
       .addBody([
           kExprCallFunction, outer_index,
           kExprCallFunction, stack_overflow.index,
       ]).exportFunc();
-  builder.addFunction("inner", kSig_i_r)
+  builder.addFunction("inner", kSig_i_v)
       .addBody([
           kExprCallFunction, inner_index
       ]).exportFunc();

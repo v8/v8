@@ -2171,7 +2171,8 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
   Tagged<Code> code = js_function->code(GetIsolateForSandbox(js_function));
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
-      code->builtin_id() != Builtin::kWasmReturnPromiseOnSuspend) {
+      code->builtin_id() != Builtin::kWasmPromising &&
+      code->builtin_id() != Builtin::kWasmPromisingWithSuspender) {
     return false;
   }
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
@@ -2232,7 +2233,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
        (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-        export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
+        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
+        export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
   Factory* factory = isolate->factory();
   Handle<WasmInstanceObject> instance_object{instance_data->instance_object(),
                                              isolate};
@@ -2240,8 +2242,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
   Handle<Map> rtt;
   wasm::Promise promise =
-      export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend
-          ? wasm::kPromise
+      export_wrapper->builtin_id() == Builtin::kWasmPromising ? wasm::kPromise
+      : export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender
+          ? wasm::kPromiseWithSuspender
           : wasm::kNoPromise;
   uint32_t sig_index = module->functions[func_index].sig_index;
   uint32_t canonical_type_index =

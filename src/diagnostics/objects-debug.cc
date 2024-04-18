@@ -2286,7 +2286,8 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
         wrapper->kind() == CodeKind::C_WASM_ENTRY ||
         (wrapper->is_builtin() &&
          (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
-          wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
+          wrapper->builtin_id() == Builtin::kWasmPromising ||
+          wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
