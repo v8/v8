@@ -129,6 +129,9 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
   inline Tagged<Object> Relaxed_Load() const;
   inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Address Relaxed_Load_Raw() const;
+  static inline Tagged<Object> RawToTagged(PtrComprCageBase cage_base,
+                                           Address raw);
   inline void Relaxed_Store(Tagged<Object> value) const;
   inline void Release_Store(Tagged<Object> value) const;
   inline Tagged<Object> Relaxed_CompareAndSwap(Tagged<Object> old,
@@ -166,6 +169,9 @@ class FullMaybeObjectSlot
 
   inline Tagged<MaybeObject> Relaxed_Load() const;
   inline Tagged<MaybeObject> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Address Relaxed_Load_Raw() const;
+  static inline Tagged<Object> RawToTagged(PtrComprCageBase cage_base,
+                                           Address raw);
   inline void Relaxed_Store(Tagged<MaybeObject> value) const;
   inline void Release_CompareAndSwap(Tagged<MaybeObject> old,
                                      Tagged<MaybeObject> target) const;

@@ -15,6 +15,7 @@
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
+#include "src/objects/compressed-slots.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
@@ -106,8 +107,12 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
     Tagged<HeapObject> host, TSlot start, TSlot end) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object =
-        slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+    const std::optional<Tagged<Object>> optional_object =
+        this->GetObjectFilterReadOnlyAndSmiFast(slot);
+    if (!optional_object) {
+      continue;
+    }
+    typename TSlot::TObject object = *optional_object;
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObjectIfStrong(&heap_object)) {
       // If the reference changes concurrently from strong to weak, the write

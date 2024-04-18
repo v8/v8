@@ -577,6 +577,12 @@ V8_INLINE bool InReadOnlySpace(Tagged<HeapObject> obj);
 static_assert(!kAllCodeObjectsLiveInTrustedSpace);
 V8_INLINE bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj);
 
+// Returns true if obj is guaranteed to be a read-only object or a specific
+// (small) Smi. If the method returns false, we need more checks for RO space
+// objects or Smis. This can be used for a fast RO space/Smi check which are
+// objects for e.g. GC than can be exlucded for processing.
+V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj);
+
 }  // namespace internal
 }  // namespace v8
 

@@ -180,8 +180,12 @@ template <typename YoungGenerationMarkingVisitor<
           typename TSlot>
 V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     TSlot slot) {
-  typename TSlot::TObject target =
-      slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+  const std::optional<Tagged<Object>> optional_object =
+      this->GetObjectFilterReadOnlyAndSmiFast(slot);
+  if (!optional_object) {
+    return false;
+  }
+  typename TSlot::TObject target = *optional_object;
 #ifdef V8_ENABLE_DIRECT_LOCAL
   if (target.ptr() == kTaggedNullAddress) return false;
 #endif

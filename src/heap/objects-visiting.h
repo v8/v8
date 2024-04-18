@@ -163,6 +163,12 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 
   template <typename T>
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+
+  // Inspects the slot and filters some well-known RO objects and Smis in a fast
+  // way. May still return Smis or RO objects.
+  template <typename TSlot>
+  std::optional<Tagged<Object>> GetObjectFilterReadOnlyAndSmiFast(
+      TSlot slot) const;
 };
 
 // These strings can be sources of safe string transitions. Transitions are safe

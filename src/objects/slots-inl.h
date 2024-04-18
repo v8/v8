@@ -85,6 +85,16 @@ Tagged<Object> FullObjectSlot::Relaxed_Load(PtrComprCageBase cage_base) const {
   return Relaxed_Load();
 }
 
+Address FullObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> FullObjectSlot::RawToTagged(PtrComprCageBase cage_base,
+                                           Address raw) {
+  return Tagged<Object>(raw);
+}
+
 void FullObjectSlot::Relaxed_Store(Tagged<Object> value) const {
   base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
@@ -131,6 +141,16 @@ Tagged<MaybeObject> FullMaybeObjectSlot::Relaxed_Load() const {
 Tagged<MaybeObject> FullMaybeObjectSlot::Relaxed_Load(
     PtrComprCageBase cage_base) const {
   return Relaxed_Load();
+}
+
+Address FullMaybeObjectSlot::Relaxed_Load_Raw() const {
+  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+}
+
+// static
+Tagged<Object> FullMaybeObjectSlot::RawToTagged(PtrComprCageBase cage_base,
+                                                Address raw) {
+  return Tagged<Object>(raw);
 }
 
 void FullMaybeObjectSlot::Relaxed_Store(Tagged<MaybeObject> value) const {

@@ -525,7 +525,12 @@ template <typename TSlot>
 void ScavengeVisitor::VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
                                         TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = *slot;
+    const std::optional<Tagged<Object>> optional_object =
+        this->GetObjectFilterReadOnlyAndSmiFast(slot);
+    if (!optional_object) {
+      continue;
+    }
+    typename TSlot::TObject object = *optional_object;
     Tagged<HeapObject> heap_object;
     // Treat weak references as strong.
     if (object.GetHeapObject(&heap_object)) {

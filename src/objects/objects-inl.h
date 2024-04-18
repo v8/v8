@@ -263,6 +263,19 @@ bool InReadOnlySpace(Tagged<HeapObject> obj) {
   return IsReadOnlyHeapObject(obj);
 }
 
+constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
+#if V8_STATIC_ROOTS_BOOL
+  // The following assert ensures that the page size check covers all our static
+  // roots. This is not strictly necessary and can be relaxed in future as the
+  // most prominent static roots are anyways allocated at the beginning of the
+  // first page.
+  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+  return obj < kRegularPageSize;
+#else   // !V8_STATIC_ROOTS_BOOL
+  return false;
+#endif  // !V8_STATIC_ROOTS_BOOL
+}
+
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #ifdef V8_ENABLE_SANDBOX
   return !InsideSandbox(obj.address()) || InReadOnlySpace(obj);
