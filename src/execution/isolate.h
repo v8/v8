@@ -218,7 +218,7 @@ class WasmOrphanedGlobalHandle;
   RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate, T) \
-  RETURN_VALUE_IF_EXCEPTION(isolate, {})
+  RETURN_VALUE_IF_EXCEPTION(isolate, MaybeHandle<T>())
 
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                        \
@@ -274,7 +274,7 @@ class WasmOrphanedGlobalHandle;
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, {})
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
 
 #define THROW_NEW_ERROR(isolate, call, T)                                \
   do {                                                                   \
@@ -381,7 +381,7 @@ class WasmOrphanedGlobalHandle;
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
  */
 #define RETURN_ON_EXCEPTION(isolate, call, T) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, {})
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
@@ -398,7 +398,7 @@ class WasmOrphanedGlobalHandle;
     if ((call).IsNothing()) return value; \
   } while (false)
 
-#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, {})
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
 #define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                  \
