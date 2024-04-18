@@ -309,6 +309,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_SUSPENDER_OBJECT_TYPE:
+    case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
     case WASM_EXCEPTION_PACKAGE_TYPE:

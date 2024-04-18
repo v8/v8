@@ -627,6 +627,16 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_valid = false;
 }
 
+Handle<WasmSuspendingObject> WasmSuspendingObject::New(
+    Isolate* isolate, Handle<JSReceiver> callable) {
+  Handle<JSFunction> suspending_ctor(
+      isolate->native_context()->wasm_suspending_constructor(), isolate);
+  auto suspending_obj = Handle<WasmSuspendingObject>::cast(
+      isolate->factory()->NewJSObject(suspending_ctor));
+  suspending_obj->set_callable(*callable);
+  return suspending_obj;
+}
+
 namespace {
 
 void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,

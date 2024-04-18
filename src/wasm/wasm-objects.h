@@ -1246,6 +1246,16 @@ class WasmSuspenderObject
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };
 
+class WasmSuspendingObject
+    : public TorqueGeneratedWasmSuspendingObject<WasmSuspendingObject,
+                                                 JSObject> {
+ public:
+  V8_EXPORT_PRIVATE static Handle<WasmSuspendingObject> New(
+      Isolate* isolate, Handle<JSReceiver> callable);
+  DECL_PRINTER(WasmSuspendingObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmSuspendingObject)
+};
+
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL

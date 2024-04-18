@@ -338,6 +338,7 @@ class StatsCounter;
           "wasm::WebAssemblyModuleCustomSections")                             \
   IF_WASM(V, wasm_WebAssemblyModuleExports, "wasm::WebAssemblyModuleExports")  \
   IF_WASM(V, wasm_WebAssemblyModuleImports, "wasm::WebAssemblyModuleImports")  \
+  IF_WASM(V, wasm_WebAssemblySuspending, "wasm::WebAssemblySuspending")        \
   IF_WASM(V, wasm_WebAssemblyTable, "wasm::WebAssemblyTable")                  \
   IF_WASM(V, wasm_WebAssemblyTableGet, "wasm::WebAssemblyTableGet")            \
   IF_WASM(V, wasm_WebAssemblyTableGetLength,                                   \

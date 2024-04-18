@@ -410,6 +410,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmCapiFunctionData;
     case WASM_SUSPENDER_OBJECT_TYPE:
       return kVisitWasmSuspenderObject;
+    case WASM_SUSPENDING_OBJECT_TYPE:
+      return kVisitWasmSuspendingObject;
     case WASM_NULL_TYPE:
       return kVisitWasmNull;
 #endif  // V8_ENABLE_WEBASSEMBLY

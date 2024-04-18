@@ -1253,6 +1253,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmTypeInfo);
     case WASM_SUSPENDER_OBJECT_TYPE:
       return CALL_APPLY(WasmSuspenderObject);
+    case WASM_SUSPENDING_OBJECT_TYPE:
+      return CALL_APPLY(WasmSuspendingObject);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:

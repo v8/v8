@@ -2133,6 +2133,52 @@ bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
 
 }  // namespace
 
+i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
+    i::Isolate* i_isolate, i::Handle<i::WasmExportedFunctionData> data,
+    ErrorThrower& thrower) {
+  i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
+      i::WasmTrustedInstanceData::cast(
+          data->func_ref()->internal(i_isolate)->ref()),
+      i_isolate);
+  int func_index = data->function_index();
+  i::Handle<i::Code> wrapper =
+      BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
+
+  int sig_index =
+      trusted_instance_data->module()->functions[func_index].sig_index;
+  // TODO(14034): Create funcref RTTs lazily?
+  i::Handle<i::Map> rtt =
+      handle(i::Map::cast(
+                 trusted_instance_data->managed_object_maps()->get(sig_index)),
+             i_isolate);
+
+  int num_imported_functions =
+      trusted_instance_data->module()->num_imported_functions;
+  i::Handle<i::ExposedTrustedObject> ref =
+      func_index >= num_imported_functions
+          ? trusted_instance_data
+          : i::Handle<i::ExposedTrustedObject>::cast(
+                i_isolate->factory()->NewWasmApiFunctionRef(handle(
+                    i::WasmApiFunctionRef::cast(
+                        trusted_instance_data->dispatch_table_for_imports()
+                            ->ref(func_index)),
+                    i_isolate)));
+
+  i::Handle<i::WasmInternalFunction> internal =
+      i_isolate->factory()->NewWasmInternalFunction(ref, func_index);
+  i::Handle<i::WasmFuncRef> func_ref =
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt);
+  internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
+  if (func_index < num_imported_functions) {
+    i::Handle<i::WasmApiFunctionRef>::cast(ref)->set_call_origin(*func_ref);
+  }
+
+  i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
+      i_isolate, trusted_instance_data, func_ref, func_index,
+      static_cast<int>(data->sig()->parameter_count()), wrapper);
+  return result;
+}
+
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -2220,17 +2266,24 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     builder.AddReturn(type);
   }
 
-  if (!info[1]->IsFunction()) {
+  if (!info[1]->IsObject()) {
     thrower.TypeError("Argument 1 must be a function");
     return;
   }
   const i::wasm::FunctionSig* sig = builder.Build();
-
-  i::Handle<i::JSReceiver> callable =
-      Utils::OpenHandle(*info[1].As<Function>());
-
   i::wasm::Suspend suspend = i::wasm::kNoSuspend;
   i::wasm::Promise promise = i::wasm::kNoPromise;
+
+  i::Handle<i::JSReceiver> callable = Utils::OpenHandle(*info[1].As<Object>());
+  if (i::IsWasmSuspendingObject(*callable)) {
+    suspend = i::wasm::kSuspend;
+    callable =
+        handle(i::WasmSuspendingObject::cast(*callable)->callable(), i_isolate);
+    DCHECK(i::IsCallable(*callable));
+  } else if (!i::IsCallable(*callable)) {
+    thrower.TypeError("Argument 1 must be a function");
+    return;
+  }
 
   if (i_isolate->IsWasmJSPIEnabled(i_isolate->native_context())) {
     // Optional third argument for JS Promise Integration.
@@ -2273,42 +2326,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Incompatible signature for promising function");
       return;
     }
-    i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
-        i::WasmTrustedInstanceData::cast(
-            data->func_ref()->internal(i_isolate)->ref()),
-        i_isolate);
-    int func_index = data->function_index();
-    i::Handle<i::Code> wrapper =
-        BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
-
-    int sig_index =
-        trusted_instance_data->module()->functions[func_index].sig_index;
-    // TODO(14034): Create funcref RTTs lazily?
-    i::Handle<i::Map> rtt = handle(
-        i::Map::cast(
-            trusted_instance_data->managed_object_maps()->get(sig_index)),
-        i_isolate);
-
-    int num_imported_functions =
-        trusted_instance_data->module()->num_imported_functions;
-    i::Handle<i::ExposedTrustedObject> ref =
-        func_index >= num_imported_functions
-            ? trusted_instance_data
-            : i::handle(
-                  i::ExposedTrustedObject::cast(
-                      trusted_instance_data->dispatch_table_for_imports()->ref(
-                          func_index)),
-                  i_isolate);
-
-    i::Handle<i::WasmInternalFunction> internal =
-        i_isolate->factory()->NewWasmInternalFunction(ref, func_index);
-    i::Handle<i::WasmFuncRef> func_ref =
-        i_isolate->factory()->NewWasmFuncRef(internal, rtt);
-    internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
-
-    i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
-        i_isolate, trusted_instance_data, func_ref, func_index,
-        static_cast<int>(data->sig()->parameter_count()), wrapper);
+    i::Handle<i::JSFunction> result =
+        NewPromisingWasmExportedFunction(i_isolate, data, thrower);
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;
   }
@@ -2332,6 +2351,61 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Handle<i::JSFunction> result =
       i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
   info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+// WebAssembly.promising(Function) -> Function
+void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
+  HandleScope scope(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.promising()");
+  if (!info[0]->IsFunction()) {
+    thrower.TypeError("Argument 0 must be a function");
+    return;
+  }
+  i::Handle<i::JSReceiver> callable =
+      Utils::OpenHandle(*info[0].As<Function>());
+
+  if (!i::WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    thrower.TypeError("Argument 0 must be a WebAssembly exported function");
+  }
+  auto wasm_exported_function = i::WasmExportedFunction::cast(*callable);
+  i::Handle<i::WasmExportedFunctionData> data(
+      wasm_exported_function->shared()->wasm_exported_function_data(),
+      i_isolate);
+  i::Handle<i::JSFunction> result =
+      NewPromisingWasmExportedFunction(i_isolate, data, thrower);
+  info.GetReturnValue().Set(
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(result)));
+  return;
+}
+
+// WebAssembly.Suspending(Function) -> Suspending
+void WebAssemblySuspendingImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
+  HandleScope scope(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Suspending()");
+  if (!info.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Suspending must be invoked with 'new'");
+    return;
+  }
+  if (!info[0]->IsFunction()) {
+    thrower.TypeError("Argument 0 must be a function");
+    return;
+  }
+  i::Handle<i::JSReceiver> callable =
+      Utils::OpenHandle(*info[0].As<Function>());
+
+  i::Handle<i::WasmSuspendingObject> result =
+      i::WasmSuspendingObject::New(i_isolate, callable);
+  info.GetReturnValue().Set(
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(result)));
 }
 
 // WebAssembly.Function.prototype.type() -> FunctionType
@@ -3366,7 +3440,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   // Create the Suspender object.
   if (enabled_features.has_jspi()) {
     isolate->WasmInitJSPIFeature();
-    InstallSuspenderConstructor(isolate, native_context, webassembly);
+    InstallJSPromiseIntegration(isolate, native_context, webassembly);
   }
 }
 
@@ -3401,26 +3475,42 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   // Install JSPI-related features.
   if (isolate->IsWasmJSPIEnabled(context)) {
     isolate->WasmInitJSPIFeature();
-
-    Handle<String> suspender_string = v8_str(isolate, "Suspender");
-    if (!JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
-             .FromMaybe(true)) {
-      InstallSuspenderConstructor(isolate, context, webassembly);
-    }
-
+    InstallJSPromiseIntegration(isolate, context, webassembly);
     InstallTypeReflection(isolate, context, webassembly);
   }
 }
 
 // static
-void WasmJs::InstallSuspenderConstructor(Isolate* isolate,
+void WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
                                          Handle<NativeContext> context,
                                          Handle<JSObject> webassembly) {
+  Handle<String> suspender_string = v8_str(isolate, "Suspender");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
+           .FromMaybe(true)) {
+    return;
+  }
+  Handle<String> suspending_string = v8_str(isolate, "Suspending");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly, suspending_string)
+           .FromMaybe(true)) {
+    return;
+  }
+  Handle<String> promising_string = v8_str(isolate, "promising");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly, promising_string)
+           .FromMaybe(true)) {
+    return;
+  }
   Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspender", WebAssemblySuspender);
   context->set_wasm_suspender_constructor(*suspender_constructor);
   SetupConstructor(isolate, suspender_constructor, WASM_SUSPENDER_OBJECT_TYPE,
                    WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
+  Handle<JSFunction> suspending_constructor = InstallConstructorFunc(
+      isolate, webassembly, "Suspending", WebAssemblySuspendingImpl);
+  context->set_wasm_suspending_constructor(*suspending_constructor);
+  SetupConstructor(
+      isolate, suspending_constructor, WASM_SUSPENDING_OBJECT_TYPE,
+      WasmSuspendingObject::kHeaderSize, "WebAssembly.Suspending");
+  InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
 }
 
 // static

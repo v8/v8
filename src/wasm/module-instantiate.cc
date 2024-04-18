@@ -651,6 +651,11 @@ ImportCallKind WasmImportData::ComputeKind(
     return ImportCallKind::kJSFunctionArityMatch;
   }
   Isolate* isolate = callable_->GetIsolate();
+  if (IsWasmSuspendingObject(*callable_)) {
+    suspend_ = kSuspend;
+    callable_ =
+        handle(WasmSuspendingObject::cast(*callable_)->callable(), isolate);
+  }
   if (WasmExportedFunction::IsWasmExportedFunction(*callable_)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable_);
     if (!imported_function->MatchesSignature(expected_canonical_type_index)) {
@@ -1872,9 +1877,12 @@ bool InstanceBuilder::ProcessImportedFunction(
     int func_index, Handle<Object> value, WellKnownImport preknown_import) {
   // Function imports must be callable.
   if (!IsCallable(*value)) {
-    thrower_->LinkError("%s: function import requires a callable",
-                        ImportName(import_index).c_str());
-    return false;
+    if (!IsWasmSuspendingObject(*value)) {
+      thrower_->LinkError("%s: function import requires a callable",
+                          ImportName(import_index).c_str());
+      return false;
+    }
+    DCHECK(IsCallable(WasmSuspendingObject::cast(*value)->callable()));
   }
   // Store any {WasmExternalFunction} callable in the instance before the call
   // is resolved to preserve its identity. This handles exported functions as
@@ -2336,7 +2344,7 @@ void InstanceBuilder::CompileImportWrappers(
   for (int index = 0; index < num_imports; ++index) {
     Handle<Object> value = sanitized_imports_[index];
     if (module_->import_table[index].kind != kExternalFunction ||
-        !IsCallable(*value)) {
+        (!IsCallable(*value) && !IsWasmSuspendingObject(*value))) {
       continue;
     }
     auto js_receiver = Handle<JSReceiver>::cast(value);

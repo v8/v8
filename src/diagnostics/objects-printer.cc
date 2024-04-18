@@ -2434,6 +2434,12 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmSuspendingObject::WasmSuspendingObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmSuspendingObject");
+  os << "\n - callable: " << callable();
+  os << "\n";
+}
+
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   JSObjectPrintHeader(os, *this, "WasmInstanceObject");

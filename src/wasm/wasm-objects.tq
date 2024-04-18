@@ -265,3 +265,7 @@ extern class WasmNull extends HeapObject {}
 
 extern macro WasmNullConstant(): WasmNull;
 const kWasmNull: WasmNull = WasmNullConstant();
+
+extern class WasmSuspendingObject extends JSObject {
+  callable: JSReceiver;
+}
