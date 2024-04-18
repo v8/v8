@@ -962,11 +962,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
   return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
 }
 
-ExternalReference ExternalReference::javascript_execution_assert(
-    Isolate* isolate) {
-  return ExternalReference(isolate->javascript_execution_assert_address());
-}
-
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acosh_function, base::ieee754::acosh,

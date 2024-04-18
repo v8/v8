@@ -386,6 +386,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
+
+  ExternalReference fast_c_call_fp =
+      ExternalReference::fast_c_call_caller_fp_address(masm->isolate());
+  ExternalReference fast_c_call_pc =
+      ExternalReference::fast_c_call_caller_pc_address(masm->isolate());
   {
     // Keep this static_assert to preserve a link between the offset constant
     // and the code location it refers to.
@@ -404,7 +409,18 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // If the c_entry_fp is not already zero and we don't clear it, the
     // StackFrameIteratorForProfiler will assume we are executing C++ and miss
     // the JS frames on top.
+    // Do the same for the fast C call fp and pc.
     __ Move(c_entry_fp_operand, 0);
+
+    Operand fast_c_call_fp_operand =
+        masm->ExternalReferenceAsOperand(fast_c_call_fp);
+    Operand fast_c_call_pc_operand =
+        masm->ExternalReferenceAsOperand(fast_c_call_pc);
+    __ Push(fast_c_call_fp_operand);
+    __ Move(fast_c_call_fp_operand, 0);
+
+    __ Push(fast_c_call_pc_operand);
+    __ Move(fast_c_call_pc_operand, 0);
   }
 
   // Store the context address in the previously-reserved slot.
@@ -468,6 +484,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Restore the top frame descriptor from the stack.
   {
+    Operand fast_c_call_pc_operand =
+        masm->ExternalReferenceAsOperand(fast_c_call_pc);
+    __ Pop(fast_c_call_pc_operand);
+
+    Operand fast_c_call_fp_operand =
+        masm->ExternalReferenceAsOperand(fast_c_call_fp);
+    __ Pop(fast_c_call_fp_operand);
+
     Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Pop(c_entry_fp_operand);
   }

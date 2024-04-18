@@ -763,16 +763,24 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   __ Bind(&done);
 
-  __ Push(x10, x11);
+  __ Mov(x9, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ Ldr(x7, MemOperand(x9));
+  __ Str(xzr, MemOperand(x9));
+  __ Mov(x9, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ Ldr(x8, MemOperand(x9));
+  __ Str(xzr, MemOperand(x9));
+  __ Push(x10, x11, x7, x8);
 
   // The frame set up looks like this:
-  // sp[0] : JS entry frame marker.
-  // sp[1] : C entry FP.
-  // sp[2] : stack frame marker (0).
-  // sp[3] : stack frame marker (type).
-  // sp[4] : saved fp   <- fp points here.
-  // sp[5] : saved lr
-  // sp[6,24) : other saved registers
+  // sp[0] : fast api call pc.
+  // sp[1] : fast api call fp.
+  // sp[2] : JS entry frame marker.
+  // sp[3] : C entry FP.
+  // sp[4] : stack frame marker (0).
+  // sp[5] : stack frame marker (type).
+  // sp[6] : saved fp   <- fp points here.
+  // sp[7] : saved lr
+  // sp[8,26) : other saved registers
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the exception.
@@ -847,13 +855,21 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // x0 holds the result.
   // The stack pointer points to the top of the entry frame pushed on entry from
   // C++ (at the beginning of this stub):
-  // sp[0] : JS entry frame marker.
-  // sp[1] : C entry FP.
-  // sp[2] : stack frame marker (0).
-  // sp[3] : stack frame marker (type).
-  // sp[4] : saved fp   <- fp might point here, or might be zero.
-  // sp[5] : saved lr
-  // sp[6,24) : other saved registers
+  // sp[0] : fast api call pc.
+  // sp[1] : fast api call fp.
+  // sp[2] : JS entry frame marker.
+  // sp[3] : C entry FP.
+  // sp[4] : stack frame marker (0).
+  // sp[5] : stack frame marker (type).
+  // sp[6] : saved fp   <- fp points here.
+  // sp[7] : saved lr
+  // sp[8,26) : other saved registers
+
+  __ Pop(x10, x11);
+  __ Mov(x8, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ Str(x10, MemOperand(x8));
+  __ Mov(x9, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ Str(x11, MemOperand(x9));
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
@@ -876,7 +892,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   static_assert(
       EntryFrameConstants::kFixedFrameSize % (2 * kSystemPointerSize) == 0,
       "Size of entry frame is not a multiple of 16 bytes");
-  __ Drop(EntryFrameConstants::kFixedFrameSize / kSystemPointerSize);
+  // fast_c_call_caller_fp and fast_c_call_caller_pc have already been popped.
+  int drop_count =
+      (EntryFrameConstants::kFixedFrameSize / kSystemPointerSize) - 2;
+  __ Drop(drop_count);
   // Restore the callee-saved registers and return.
   __ PopCalleeSavedRegisters();
   __ Ret();

@@ -52,6 +52,7 @@
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/base/bounds.h"
+#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
@@ -27942,9 +27943,12 @@ template <typename Value, typename Impl, typename Ret>
 bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
                BasicApiChecker<Value, Impl, Ret>* checker,
                const char* source_code, bool supports_fallback = true,
-               bool accept_any_receiver = true) {
+               bool accept_any_receiver = true, bool setup_try_catch = true) {
   v8::Isolate* isolate = CcTest::isolate();
-  v8::TryCatch try_catch(isolate);
+  v8::base::Optional<v8::TryCatch> try_catch;
+  if (setup_try_catch) {
+    try_catch.emplace(isolate);
+  }
 
   v8::CFunction c_func;
   if (supports_fallback) {
@@ -27996,7 +28000,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
             ->Set(env->local(), v8_str("value"), initial_value)
             .FromJust());
   USE(CompileRun(source_code));
-  return try_catch.HasCaught();
+  return setup_try_catch ? try_catch->HasCaught() : false;
 }
 
 template <typename I, std::enable_if_t<std::is_integral<I>::value, bool> = true>
@@ -28193,8 +28197,18 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
 };
 
 struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
-  explicit AllocationChecker(i::Isolate* isolate, int32_t expected_argument)
-      : isolate_(isolate), expected_argument_(expected_argument) {}
+  enum GCLocation {
+    kFromC,
+    kFromJS,
+  };
+
+  explicit AllocationChecker(i::Isolate* isolate, int32_t expected_argument,
+                             GCLocation gc_location,
+                             v8::Local<v8::Context> context)
+      : isolate_(isolate),
+        expected_argument_(expected_argument),
+        gc_location_(gc_location),
+        context_(context) {}
 
   static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
                            v8::FastApiCallbackOptions& options) {
@@ -28206,8 +28220,13 @@ struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
     i::HandleScope handle_scope(isolate);
     i::Handle<i::HeapNumber> number =
         isolate->factory()->NewHeapNumber(argument);
-    isolate->heap()->CollectGarbage(i::OLD_SPACE,
-                                    i::GarbageCollectionReason::kTesting);
+    if (receiver_ptr->gc_location_ == kFromC) {
+      isolate->heap()->CollectGarbage(i::OLD_SPACE,
+                                      i::GarbageCollectionReason::kTesting);
+    } else {
+      v8::Context::Scope context_scope(receiver_ptr->context_);
+      CompileRun("gc();");
+    }
     CHECK_EQ(receiver_ptr, GetInternalField<AllocationChecker>(*receiver));
     CHECK_EQ(receiver_ptr->expected_argument_, number->value());
   }
@@ -28225,6 +28244,45 @@ struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
  private:
   i::Isolate* isolate_;
   int32_t expected_argument_;
+  GCLocation gc_location_;
+  v8::Local<v8::Context> context_;
+};
+
+struct ThrowInReentrantJSChecker
+    : BasicApiChecker<int32_t, ThrowInReentrantJSChecker, void> {
+  explicit ThrowInReentrantJSChecker(i::Isolate* isolate,
+                                     v8::Local<v8::Context> context)
+      : isolate_(isolate), context_(context) {}
+
+  static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
+                           v8::FastApiCallbackOptions& options) {
+    ThrowInReentrantJSChecker* receiver_ptr =
+        GetInternalField<ThrowInReentrantJSChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+    i::Isolate* isolate = receiver_ptr->isolate_;
+    i::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(receiver_ptr->context_);
+    CompileRun("throw 'FastCallback exception';");
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    v8::Object* receiver_obj =
+        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
+    ThrowInReentrantJSChecker* receiver_ptr =
+        GetInternalField<ThrowInReentrantJSChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(receiver_ptr->context_);
+    info.GetReturnValue().Set(isolate->ThrowException(
+        v8::String::NewFromUtf8(isolate, "SlowCallback exception")
+            .ToLocalChecked()));
+  }
+
+ private:
+  i::Isolate* isolate_;
+  v8::Local<v8::Context> context_;
 };
 
 template <typename T>
@@ -28343,7 +28401,56 @@ void CallWithMoreArguments() {
   CHECK(checker.DidCallFast());
 }
 
-TEST(FastApiCallWithAllocationAndGC) {
+namespace {
+void FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation gc_location) {
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+
+  i::v8_flags.turbofan = true;
+  i::v8_flags.turbo_fast_api_calls = true;
+  i::v8_flags.allow_natives_syntax = true;
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  i::v8_flags.always_turbofan = false;
+  i::v8_flags.allow_allocation_in_fast_api_call = true;
+  i::v8_flags.expose_gc = true;
+  i::FlagList::EnforceFlagImplications();
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  v8::HandleScope scope(isolate);
+
+  LocalContext env;
+  v8::Local<v8::Value> initial_value(v8_num(42));
+  AllocationChecker checker(i_isolate, 42, gc_location,
+                            isolate->GetCurrentContext());
+  SetupTest(initial_value, &env, &checker,
+            "function func(arg) { receiver.api_func(arg); }"
+            "function wrapper(){"
+            "%PrepareFunctionForOptimization(func);"
+            "func(value);"
+            "%OptimizeFunctionOnNextCall(func);"
+            "func(value);"
+            "}wrapper(value);");
+
+  CHECK(checker.DidCallFast());
+}
+}  // namespace
+
+TEST(FastApiCallWithAllocationAndGCInC) {
+  FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation::kFromC);
+}
+
+TEST(FastApiCallWithAllocationAndGCInJS) {
+  FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation::kFromJS);
+}
+
+TEST(FastApiCallWithThrowInReentrantCode) {
   if (i::v8_flags.jitless) return;
   if (i::v8_flags.disable_optimizing_compilers) return;
 
@@ -28367,18 +28474,130 @@ TEST(FastApiCallWithAllocationAndGC) {
 
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
-  AllocationChecker checker(i_isolate, 42);
-  SetupTest(initial_value, &env, &checker,
-            "function func(arg) { receiver.api_func(arg); }"
+  ThrowInReentrantJSChecker checker(i_isolate, env.local());
+  bool result = SetupTest(initial_value, &env, &checker,
+                          "function func(arg) {"
+                          "  try {"
+                          "    receiver.api_func(arg);"
+                          "    return false;"
+                          "  } catch(e) { return true;}"
+                          "}"
+                          "function wrapper(){"
+                          "%PrepareFunctionForOptimization(func);"
+                          "func(value);"
+                          "%OptimizeFunctionOnNextCall(func);"
+                          "if (func(value)) throw 'exception happened';"
+                          "}wrapper(value);");
+  CHECK(result);
+  CHECK(checker.DidCallFast());
+}
+
+namespace {
+void DoFastReentrantCall(i::Isolate* i_isolate, LocalContext* env, int* sum,
+                         int value, bool inner_most_throws);
+
+struct RecursiveReentrantJSChecker
+    : BasicApiChecker<int32_t, RecursiveReentrantJSChecker, void> {
+  RecursiveReentrantJSChecker(i::Isolate* isolate, LocalContext* env, int* sum,
+                              bool inner_most_throws)
+      : isolate_(isolate),
+        env_(env),
+        sum_(sum),
+        inner_most_throws_(inner_most_throws) {}
+
+  static void FastCallback(v8::Local<v8::Object> receiver, int32_t argument,
+                           v8::FastApiCallbackOptions& options) {
+    RecursiveReentrantJSChecker* receiver_ptr =
+        GetInternalField<RecursiveReentrantJSChecker>(*receiver);
+    receiver_ptr->SetCallFast();
+    *(receiver_ptr->sum_) += argument;
+    i::Isolate* isolate = receiver_ptr->isolate_;
+    i::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(receiver_ptr->env_->local());
+    if (argument > 1) {
+      DoFastReentrantCall(receiver_ptr->isolate_, receiver_ptr->env_,
+                          receiver_ptr->sum_, argument - 1,
+                          receiver_ptr->inner_most_throws_);
+      if (receiver_ptr->isolate_->has_exception()) return;
+    } else if (receiver_ptr->inner_most_throws_) {
+      reinterpret_cast<v8::Isolate*>(receiver_ptr->isolate_)
+          ->ThrowError("Throw exception");
+    }
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    v8::Object* receiver_obj =
+        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
+    RecursiveReentrantJSChecker* receiver_ptr =
+        GetInternalField<RecursiveReentrantJSChecker>(receiver_obj);
+    receiver_ptr->SetCallSlow();
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(receiver_ptr->env_->local());
+    info.GetReturnValue().Set(v8_num(0));
+  }
+
+ private:
+  i::Isolate* isolate_;
+  LocalContext* env_;
+  int* sum_;
+  bool inner_most_throws_;
+};
+
+void DoFastReentrantCall(i::Isolate* i_isolate, LocalContext* env, int* sum,
+                         int value, bool inner_most_throws) {
+  v8::Local<v8::Value> initial_value(v8_num(value));
+  RecursiveReentrantJSChecker checker(i_isolate, env, sum, inner_most_throws);
+  SetupTest(initial_value, env, &checker,
+            "function func(arg) {"
+            "  receiver.api_func(arg);"
+            "}"
             "function wrapper(){"
             "%PrepareFunctionForOptimization(func);"
             "func(value);"
             "%OptimizeFunctionOnNextCall(func);"
             "func(value);"
-            "}wrapper(value);");
-
-  CHECK(checker.DidCallFast());
+            "}wrapper(value);",
+            true, true, false);
 }
+
+void FastApiCallRecursion(bool inner_most_throws) {
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+
+  i::v8_flags.turbofan = true;
+  i::v8_flags.turbo_fast_api_calls = true;
+  i::v8_flags.allow_natives_syntax = true;
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  i::v8_flags.always_turbofan = false;
+  i::v8_flags.allow_allocation_in_fast_api_call = true;
+  i::FlagList::EnforceFlagImplications();
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  v8::HandleScope scope(isolate);
+
+  LocalContext env;
+  int sum = 0;
+  v8::TryCatch try_catch(isolate);
+  printf("Do reentrant call now\n");
+  DoFastReentrantCall(i_isolate, &env, &sum, 6, inner_most_throws);
+  CHECK_EQ(try_catch.HasCaught(), inner_most_throws);
+  CHECK_EQ(sum, 21);
+}
+
+}  // namespace
+
+TEST(FastApiCallRecursionWithException) { FastApiCallRecursion(true); }
+
+TEST(FastApiCallRecursionNoException) { FastApiCallRecursion(false); }
 
 void CallWithUnexpectedReceiverType(v8::Local<v8::Value> receiver) {
   LocalContext env;

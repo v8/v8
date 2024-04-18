@@ -617,28 +617,8 @@ class FastApiCallLoweringReducer : public Next {
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::UintPtr());
 
-    // Disable JS execution.
-    OpIndex js_execution_assert = __ ExternalConstant(
-        ExternalReference::javascript_execution_assert(isolate_));
-    static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
-    if (v8_flags.debug_code) {
-      V<Word32> old_value =
-          __ LoadOffHeap(js_execution_assert, MemoryRepresentation::Int8());
-      IF_NOT(LIKELY(__ Word32Equal(old_value, 1))) {
-        // We expect that JS execution is enabled, otherwise assert.
-        __ Comment("JS execution is disabled");
-        __ Unreachable();
-      }
-    }
-    __ StoreOffHeap(js_execution_assert, __ Word32Constant(0),
-                    MemoryRepresentation::Int8());
-
     // Create the fast call.
     OpIndex result = __ Call(callee, frame_state, arguments, descriptor);
-
-    // Reenable JS exeuction.
-    __ StoreOffHeap(js_execution_assert, __ Word32Constant(1),
-                    MemoryRepresentation::Int8());
 
     // Reset the CPU profiler target address.
     __ StoreOffHeap(target_address, __ IntPtrConstant(0),

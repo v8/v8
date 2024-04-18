@@ -358,11 +358,21 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
   __ push(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
+  ExternalReference fast_c_call_fp =
+      ExternalReference::fast_c_call_caller_fp_address(masm->isolate());
+  __ push(__ ExternalReferenceAsOperand(fast_c_call_fp, edi));
+
+  ExternalReference fast_c_call_pc =
+      ExternalReference::fast_c_call_caller_pc_address(masm->isolate());
+  __ push(__ ExternalReferenceAsOperand(fast_c_call_pc, edi));
+
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
   // If the c_entry_fp is not already zero and we don't clear it, the
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
   __ mov(__ ExternalReferenceAsOperand(c_entry_fp, edi), Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(fast_c_call_fp, edi), Immediate(0));
+  __ mov(__ ExternalReferenceAsOperand(fast_c_call_pc, edi), Immediate(0));
 
   // Store the context address in the previously-reserved slot.
   ExternalReference context_address = ExternalReference::Create(
@@ -396,6 +406,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference exception = ExternalReference::Create(
       IsolateAddressId::kExceptionAddress, masm->isolate());
   __ mov(__ ExternalReferenceAsOperand(exception, edi), eax);
+
   __ Move(eax, masm->isolate()->factory()->exception());
   __ jmp(&exit);
 
@@ -420,6 +431,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
+  __ pop(__ ExternalReferenceAsOperand(fast_c_call_pc, edi));
+  __ pop(__ ExternalReferenceAsOperand(fast_c_call_fp, edi));
   __ pop(__ ExternalReferenceAsOperand(c_entry_fp, edi));
 
   // Restore callee-saved registers (C calling conventions).

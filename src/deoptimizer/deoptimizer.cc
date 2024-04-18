@@ -330,8 +330,8 @@ class ActivationsFinder : public ThreadVisitor {
                 isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           } else {
-            SafepointEntry safepoint =
-                SafepointTable::FindEntry(isolate, code, it.frame()->pc());
+            SafepointEntry safepoint = SafepointTable::FindEntry(
+                isolate, code, it.frame()->maybe_unauthenticated_pc());
             trampoline_pc = safepoint.trampoline_pc();
           }
           // TODO(saelo): currently we have to use full pointer comparison as
@@ -343,9 +343,12 @@ class ActivationsFinder : public ThreadVisitor {
           CHECK_GE(trampoline_pc, 0);
           // Replace the current pc on the stack with the trampoline.
           // TODO(v8:10026): avoid replacing a signed pointer.
-          Address* pc_addr = it.frame()->pc_address();
-          Address new_pc = code->instruction_start() + trampoline_pc;
-          PointerAuthentication::ReplacePC(pc_addr, new_pc, kSystemPointerSize);
+          if (!it.frame()->InFastCCall()) {
+            Address* pc_addr = it.frame()->pc_address();
+            Address new_pc = code->instruction_start() + trampoline_pc;
+            PointerAuthentication::ReplacePC(pc_addr, new_pc,
+                                             kSystemPointerSize);
+          }
         }
       }
     }
@@ -383,8 +386,8 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
             MaglevSafepointTable::FindEntry(isolate, code, it.frame()->pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       } else {
-        SafepointEntry safepoint =
-            SafepointTable::FindEntry(isolate, code, it.frame()->pc());
+        SafepointEntry safepoint = SafepointTable::FindEntry(
+            isolate, code, it.frame()->maybe_unauthenticated_pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       }
 

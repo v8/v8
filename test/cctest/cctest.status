@@ -1076,10 +1076,6 @@
 
 ##############################################################################
 ['variant == turboshaft', {
-  # TODO(v8:12783, nicohartmann@): FastApiCalls temporarily disabled on
-  # Turboshaft until support has been properly ported.
-  'test-api/FastApiCalls': [SKIP],
-
   # The 'turboshaft' variant sets the '--no-liftoff' flag, which means that Wasm
   # compiles directly to Turboshaft. This makes the cache no longer incremental,
   # and these tests don't make sense.
@@ -1142,8 +1138,12 @@
   'test-verify-type/TestVerifyType': [FAIL],
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [FAIL],
-  'test-api/FastApiCallWithAllocationAndGC': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGCInJS': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGCInC': [FAIL],
   'test-api/FastApiSequenceOverloads': [FAIL],
+  'test-api/FastApiCallRecursionNoException': [FAIL],
+  'test-api/FastApiCallRecursionWithException': [FAIL],
+  'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
   # Maglev doesn't produce optimized enough code to match heap tests
   # expectations.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],

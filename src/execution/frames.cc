@@ -963,6 +963,15 @@ void EntryFrame::ComputeCallerState(State* state) const {
 }
 
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
+  const Address fast_c_call_caller_fp =
+      Memory<Address>(fp() + EntryFrameConstants::kNextFastCallFrameFPOffset);
+  if (fast_c_call_caller_fp != kNullAddress) {
+    Address caller_pc_address =
+        fp() + EntryFrameConstants::kNextFastCallFramePCOffset;
+    Address caller_pc = Memory<Address>(caller_pc_address);
+    return GetStateForFastCCallCallerFP(isolate(), fast_c_call_caller_fp,
+                                        caller_pc, caller_pc_address, state);
+  }
   Address next_exit_frame_fp =
       Memory<Address>(fp() + EntryFrameConstants::kNextExitFrameFPOffset);
   return ExitFrame::GetStateForFramePointer(next_exit_frame_fp, state);
