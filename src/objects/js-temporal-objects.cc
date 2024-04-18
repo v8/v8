@@ -1566,7 +1566,7 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
     builder.AppendCharacter('T');
     builder.AppendString(time_part.Finish().ToHandleChecked());
   }
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 void ToZeroPaddedDecimalString(IncrementalStringBuilder* builder, int32_t n,
@@ -1642,7 +1642,7 @@ Handle<String> TemporalTimeToString(Isolate* isolate, const TimeRecord& time,
                           time.microsecond, time.nanosecond, precision);
   // 5. Return the string-concatenation of hour, the code unit 0x003A (COLON),
   // minute, and seconds.
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 Handle<String> TemporalTimeToString(Isolate* isolate,
@@ -3163,7 +3163,7 @@ Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   }
   // 12. Return the string-concatenation of sign, h, the code unit 0x003A
   // (COLON), m, and post.
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
@@ -3194,7 +3194,7 @@ Handle<String> FormatISOTimeZoneOffsetString(Isolate* isolate,
   ToZeroPaddedDecimalString(&builder, minutes, 2);
   // 9. Return the string-concatenation of sign, h, the code unit 0x003A
   // (COLON), and m.
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 int32_t DecimalLength(int32_t n) {
@@ -3253,7 +3253,7 @@ Handle<String> FormatCalendarAnnotation(Isolate* isolate, Handle<String> id,
   builder.AppendCStringLiteral("[u-ca=");
   builder.AppendString(id);
   builder.AppendCharacter(']');
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal-maybeformatcalendarannotation
@@ -3300,7 +3300,7 @@ MaybeHandle<String> TemporalDateToString(
   // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, and
   // calendar.
   builder.AppendString(calendar);
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal-temporalmonthdaytostring
@@ -3340,7 +3340,7 @@ MaybeHandle<String> TemporalMonthDayToString(
   // 9. Set result to the string-concatenation of result and calendarString.
   builder.AppendString(calendar_string);
   // 10. Return result.
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal-temporalyearmonthtostring
@@ -3380,7 +3380,7 @@ MaybeHandle<String> TemporalYearMonthToString(
   // 9. Set result to the string-concatenation of result and calendarString.
   builder.AppendString(calendar_string);
   // 10. Return result.
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal-builtintimezonegetoffsetstringfor
@@ -10639,7 +10639,7 @@ MaybeHandle<String> JSTemporalCalendar::MonthCode(
   }
   builder.AppendInt(month);
 
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 // #sec-temporal.calendar.prototype.month
@@ -12834,7 +12834,7 @@ MaybeHandle<String> TemporalDateTimeToString(Isolate* isolate,
   // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, 0x0054
   // (LATIN CAPITAL LETTER T), hour, the code unit 0x003A (COLON), minute,
   builder.AppendString(calendar_string);
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 }  // namespace
 
@@ -16917,7 +16917,7 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
   // 15. Return the string-concatenation of dateTimeString, offsetString,
   // timeZoneString, and calendarString.
   builder.AppendString(calendar_string);
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 // #sec-temporal-temporalzoneddatetimetostring
@@ -18266,7 +18266,7 @@ MaybeHandle<String> TemporalInstantToString(Isolate* isolate,
   }
 
   // 10. Return the string-concatenation of dateTimeString and timeZoneString.
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 }  // namespace
