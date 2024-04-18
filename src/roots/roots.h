@@ -313,6 +313,9 @@ class RootVisitor;
     AsyncGeneratorReturnClosedRejectSharedFun)                                 \
   V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(SharedFunctionInfo,                                                        \
+    async_from_sync_iterator_close_sync_and_rethrow_shared_fun,                \
+    AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \

@@ -2493,28 +2493,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  # https://crbug.com/v8/12594
-  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-iterator-next-rejected-promise-close': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-next-rejected-promise-close': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-wrapper': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/next/next-result-poisoned-wrapper': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-iterator-next-rejected-promise-close': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-next-rejected-promise-close': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/iterator-result-rejected-promise-close': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-result-poisoned-wrapper': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-get-return-undefined': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-poisoned-return': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-not-object': [SKIP],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-object': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],

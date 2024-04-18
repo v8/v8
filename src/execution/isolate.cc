@@ -757,6 +757,15 @@ bool IsBuiltinAsyncRejectHandler(Isolate* isolate, Tagged<HeapObject> object) {
                            Builtin::kAsyncGeneratorAwaitRejectClosure);
 }
 
+// Check if the function is one of the known builtin rejection handlers that
+// rethrows the exception instead of catching it.
+bool IsBuiltinForwardingRejectHandler(Isolate* isolate,
+                                      Tagged<HeapObject> object) {
+  return IsBuiltinFunction(isolate, object, Builtin::kPromiseCatchFinally) ||
+         IsBuiltinFunction(isolate, object,
+                           Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow);
+}
+
 MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
     Isolate* isolate, Handle<PromiseReaction> reaction) {
   // Check if the {reaction} has one of the known async function or
@@ -2858,8 +2867,7 @@ bool WalkPromiseTreeInternal(
           reject_handler =
               handle(JSReceiver::cast(reaction->reject_handler()), isolate);
           if (!ReceiverIsForwardingHandler(isolate, reject_handler) &&
-              !IsBuiltinFunction(isolate, reaction->reject_handler(),
-                                 Builtin::kPromiseCatchFinally)) {
+              !IsBuiltinForwardingRejectHandler(isolate, *reject_handler)) {
             caught = true;
           }
         }

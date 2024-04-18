@@ -101,6 +101,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AsyncGeneratorYieldWithAwaitResolveSharedFun,                              \
     async_generator_yield_with_await_resolve_shared_fun,                       \
     AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
+  V(AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun,                         \
+    async_from_sync_iterator_close_sync_and_rethrow_shared_fun,                \
+    AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
   V(AsyncIteratorValueUnwrapSharedFun, async_iterator_value_unwrap_shared_fun, \
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
