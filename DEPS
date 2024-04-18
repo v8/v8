@@ -73,14 +73,14 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:d823fd85da3fb83146f734377da454473b93a2b2',
+  'gn_version': 'git_revision:155c53952ec2dc324b0438ce5b9bd4a286577d25',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:437716714a744e272fabdf1377b8878ccac26b43',
+  'siso_version': 'git_revision:44d2b8f5b840adf521bb4912ccac31848f6d1448',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:239be4fd8499df782db6bddb0f55832bf4f01307',
@@ -128,7 +128,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fc6b52cdab4ab14baa78ddd484498f390f01560c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '26a5b4411e33a0cb68316519d1ca7554424cdb87',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5eb927f0a922dfacf10cfa84ee76f39dcf2a7311',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '12e53bce0326eda9bf9c1e12ef70a027a3a9c339',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e939ac77bb9471acc10f49e82cfe65790068c3d1',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '22de5fb71755dc55d735e942b86e97c0c1f91bde',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6aaae85821254406042a11254d49b14c9d1b44f3',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '65354bf09a2479945b4683c42948695d4f2f7c07',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '5197b1a8e6a1ef9f214f4aa537b0be17cbf91946',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '5a37b517ad4ab6738556f0284c256cae1466c5b4',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a622de35ac311c5ad390a7af80724634e5dc61ed',
   'third_party/instrumented_libs': {
