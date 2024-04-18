@@ -89,11 +89,8 @@ class Sweeper::ConcurrentMinorSweeper final {
   }
 
   bool ConcurrentSweepPromotedPages(JobDelegate* delegate) {
-    while (!delegate->ShouldYield()) {
-      MutablePageMetadata* chunk = sweeper_->GetPromotedPageSafe();
-      if (chunk == nullptr) return true;
-      local_sweeper_.ParallelIterateAndSweepPromotedPage(chunk);
-    }
+    if (local_sweeper_.ParallelIterateAndSweepPromotedPages(delegate))
+      return true;
     TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Preempted");
     return false;
   }
@@ -344,18 +341,6 @@ void Sweeper::SweepingState<scope>::Resume() {
       std::make_unique<SweeperJob>(sweeper_->heap_->isolate(), sweeper_));
 }
 
-void Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration() {
-  if (!sweeper_->sweeping_in_progress()) return;
-  if (!sweeper_->IsIteratingPromotedPages()) return;
-  ParallelIterateAndSweepPromotedPages();
-  base::MutexGuard guard(
-      &sweeper_->promoted_pages_iteration_notification_mutex_);
-  // Check again that iteration is not yet finished.
-  if (!sweeper_->IsIteratingPromotedPages()) return;
-  sweeper_->promoted_pages_iteration_notification_variable_.Wait(
-      &sweeper_->promoted_pages_iteration_notification_mutex_);
-}
-
 bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
                                                SweepingMode sweeping_mode,
                                                uint32_t max_pages) {
@@ -414,11 +399,24 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
   }
 }
 
-void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPages() {
-  MutablePageMetadata* chunk = nullptr;
-  while ((chunk = sweeper_->GetPromotedPageSafe()) != nullptr) {
-    ParallelIterateAndSweepPromotedPage(chunk);
-  }
+bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration(
+    JobDelegate* delegate) {
+  return ContributeAndWaitForPromotedPagesIterationImpl(
+      [delegate]() { return delegate->ShouldYield(); });
+}
+
+bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration() {
+  return ContributeAndWaitForPromotedPagesIterationImpl([]() { return false; });
+}
+
+bool Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPages(
+    JobDelegate* delegate) {
+  return ParallelIterateAndSweepPromotedPagesImpl(
+      [delegate]() { return delegate->ShouldYield(); });
+}
+
+bool Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPages() {
+  return ParallelIterateAndSweepPromotedPagesImpl([]() { return false; });
 }
 
 namespace {
