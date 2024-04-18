@@ -1738,6 +1738,10 @@ class WasmDecoder : public Decoder {
       DecodeError(pc, "function index #%u is out of bounds", imm.index);
       return false;
     }
+    if (is_shared_ && !module_->function_is_shared(imm.index)) {
+      DecodeError(pc, "cannot call non-shared function %u", imm.index);
+      return false;
+    }
     V8_ASSUME(imm.index < num_functions);
     imm.sig = module_->functions[imm.index].sig;
     return true;
@@ -1749,7 +1753,10 @@ class WasmDecoder : public Decoder {
       return false;
     }
     ValueType table_type = module_->tables[imm.table_imm.index].type;
-    if (!VALIDATE(IsSubtypeOf(table_type, kWasmFuncRef, module_))) {
+    if (!VALIDATE(IsSubtypeOf(table_type, kWasmFuncRef, module_) ||
+                  IsSubtypeOf(table_type,
+                              ValueType::RefNull(HeapType::kFuncShared),
+                              module_))) {
       DecodeError(
           pc, "call_indirect: immediate table #%u is not of a function type",
           imm.table_imm.index);

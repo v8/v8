@@ -745,9 +745,14 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 void WasmMemoryObject::UseInInstance(
     Isolate* isolate, Handle<WasmMemoryObject> memory,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     int memory_index_in_instance) {
   SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
                     memory_index_in_instance);
+  if (!shared_trusted_instance_data.is_null()) {
+    SetInstanceMemory(*shared_trusted_instance_data, memory->array_buffer(),
+                      memory_index_in_instance);
+  }
   Handle<WeakArrayList> instances{memory->instances(), isolate};
   auto weak_instance_object = MaybeObjectHandle::Weak(
       trusted_instance_data->instance_object(), isolate);
@@ -1077,10 +1082,10 @@ constexpr std::array<uint16_t, 16> WasmTrustedInstanceData::kTaggedFieldOffsets;
 constexpr std::array<const char*, 16>
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 4>
+constexpr std::array<uint16_t, 5>
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 4>
+constexpr std::array<const char*, 5>
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 // static
@@ -1185,6 +1190,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_imported_mutable_globals(*imported_mutable_globals);
     trusted_data->set_dispatch_table0(*empty_dispatch_table);
     trusted_data->set_dispatch_tables(*empty_protected_fixed_array);
+    trusted_data->set_shared_part(*trusted_data);  // TODO(14616): Good enough?
     trusted_data->set_data_segment_starts(*data_segment_starts);
     trusted_data->set_data_segment_sizes(*data_segment_sizes);
     trusted_data->set_element_segments(empty_fixed_array);
@@ -1235,6 +1241,8 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
   instance_object->set_trusted_data(*trusted_data);
   instance_object->set_module_object(*module_object);
+  // TODO(14616): Good enough?
+  instance_object->set_shared_part(*instance_object);
   instance_object->set_exports_object(*exports_object);
   trusted_data->set_instance_object(*instance_object);
 
@@ -1328,6 +1336,7 @@ bool WasmTrustedInstanceData::CopyTableEntries(
 // static
 base::Optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
     uint32_t count) {
   AccountingAllocator allocator;
@@ -1336,18 +1345,29 @@ base::Optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
   // here.
   Zone zone(&allocator, "LoadElemSegment");
 
+  const WasmModule* module = trusted_instance_data->module();
+
+  bool table_is_shared = module->tables[table_index].shared;
+  bool segment_is_shared = module->elem_segments[segment_index].shared;
+
   Handle<WasmTableObject> table_object = handle(
-      WasmTableObject::cast(trusted_instance_data->tables()->get(table_index)),
+      WasmTableObject::cast((table_is_shared ? shared_trusted_instance_data
+                                             : trusted_instance_data)
+                                ->tables()
+                                ->get(table_index)),
       isolate);
 
   // If needed, try to lazily initialize the element segment.
   base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate, trusted_instance_data, segment_index);
+      &zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+      segment_index);
   if (opt_error.has_value()) return opt_error;
 
   Handle<FixedArray> elem_segment =
-      handle(FixedArray::cast(
-                 trusted_instance_data->element_segments()->get(segment_index)),
+      handle(FixedArray::cast((segment_is_shared ? shared_trusted_instance_data
+                                                 : trusted_instance_data)
+                                  ->element_segments()
+                                  ->get(segment_index)),
              isolate);
   if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length())) {
     return {MessageTemplate::kWasmTrapTableOutOfBounds};

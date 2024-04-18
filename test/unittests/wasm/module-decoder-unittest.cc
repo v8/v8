@@ -1829,9 +1829,9 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
 
   EXPECT_FAILURE_WITH_MSG(
       data,
-      "An active element segment with function indices as "
-      "elements must reference a table of a subtype of type funcref. "
-      "Instead, table 0 of type externref is referenced.");
+      "An active element segment with function indices as elements must "
+      "reference a table of a subtype of type funcref or (ref null shared "
+      "func). Instead, table 0 of type externref is referenced.");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithFuncRefNull) {

@@ -796,7 +796,20 @@ struct BuiltinCallDescriptor {
 
   struct WasmTableSetFuncRef : public Descriptor<WasmTableSetFuncRef> {
     static constexpr auto kFunction = Builtin::kWasmTableSetFuncRef;
-    using arguments_t = std::tuple<V<WordPtr>, V<Word32>, V<Object>>;
+    using arguments_t = std::tuple<V<WordPtr>, V<Word32>, V<WasmFuncRef>>;
+    using results_t = std::tuple<V<Object>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanWriteMemory();
+  };
+
+  struct WasmSharedTableSetFuncRefFromUnshared
+      : public Descriptor<WasmSharedTableSetFuncRefFromUnshared> {
+    static constexpr auto kFunction =
+        Builtin::kWasmSharedTableSetFuncRefFromUnshared;
+    using arguments_t = std::tuple<V<WordPtr>, V<Word32>, V<WasmFuncRef>>;
     using results_t = std::tuple<V<Object>>;
 
     static constexpr bool kNeedsFrameState = false;

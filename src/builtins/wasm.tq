@@ -109,6 +109,8 @@ extern macro WasmBuiltinsAssembler::LoadInstanceDataFromFrame():
 // TODO(bbudge) Eliminate these functions when Torque is ready.
 extern macro WasmBuiltinsAssembler::LoadContextFromInstanceData(
     WasmTrustedInstanceData): NativeContext;
+extern macro WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
+    WasmTrustedInstanceData): WasmTrustedInstanceData;
 extern macro WasmBuiltinsAssembler::LoadTablesFromInstanceData(
     WasmTrustedInstanceData): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadFuncRefsFromInstanceData(
@@ -312,10 +314,10 @@ builtin WasmFunctionTableGet(tableIndex: intptr, index: int32): Object {
       SmiFromIntPtr(tableIndex), SmiFromInt32(index));
 }
 
-builtin WasmTableSetFuncRef(
-    tableIndex: intptr, index: uint32, value: WasmFuncRef): Object {
+builtin WasmTableSetFuncRefImpl(
+    trustedData: WasmTrustedInstanceData, tableIndex: intptr, index: uint32,
+    value: WasmFuncRef): Object {
   dcheck(Is<WasmFuncRef>(value) || Is<WasmNull>(value));
-  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   const entryIndex: intptr = Signed(ChangeUint32ToWord(index));
   try {
     dcheck(IsValidPositiveSmi(tableIndex));
@@ -333,6 +335,20 @@ builtin WasmTableSetFuncRef(
   } label IndexOutOfRange deferred {
     tail ThrowWasmTrapTableOutOfBounds();
   }
+}
+
+builtin WasmTableSetFuncRef(
+    tableIndex: intptr, index: uint32, value: WasmFuncRef): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  tail WasmTableSetFuncRefImpl(trustedData, tableIndex, index, value);
+}
+
+builtin WasmSharedTableSetFuncRefFromUnshared(
+    tableIndex: intptr, index: uint32, value: WasmFuncRef): Object {
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  const sharedTrustedData: WasmTrustedInstanceData =
+      LoadSharedPartFromInstanceData(trustedData);
+  tail WasmTableSetFuncRefImpl(sharedTrustedData, tableIndex, index, value);
 }
 
 builtin WasmRefFunc(index: uint32): Object {

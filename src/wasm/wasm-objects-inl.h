@@ -220,6 +220,8 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
                    Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, shared_part,
+                            WasmTrustedInstanceData, kProtectedSharedPartOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
                             WasmDispatchTable, kProtectedDispatchTable0Offset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,

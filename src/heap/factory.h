@@ -762,6 +762,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {MessageTemplate} if computing the array's elements leads to an error.
   Handle<Object> NewWasmArrayFromElementSegment(
       Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
       DirectHandle<Map> map);
   Handle<WasmContinuationObject> NewWasmContinuationObject(

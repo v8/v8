@@ -16,6 +16,7 @@ extern class WasmInstanceObject extends JSObject {
       IndirectPointer<WasmTrustedInstanceData>;
   @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData;
   module_object: WasmModuleObject;
+  shared_part: WasmInstanceObject;
   exports_object: JSObject;
 }
 

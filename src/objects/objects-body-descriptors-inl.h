@@ -874,6 +874,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
                           IndirectPointerMode::kStrong,
                           kWasmTrustedInstanceDataIndirectPointerTag);
     IteratePointer(obj, kModuleObjectOffset, v);
+    IteratePointer(obj, kSharedPartOffset, v);
     IteratePointer(obj, kExportsObjectOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }

@@ -1364,7 +1364,14 @@ DEFINE_WEAK_IMPLICATION(turboshaft_csa, turboshaft_instruction_selection)
 DEFINE_WEAK_IMPLICATION(turboshaft_future,
                         turboshaft_wasm_instruction_selection_staged)
 
+#if V8_ENABLE_WEBASSEMBLY
+// Shared-everything is implemented on turboshaft only for now.
+DEFINE_IMPLICATION(experimental_wasm_shared, turboshaft_wasm)
+DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
+#endif
+
 #ifdef DEBUG
+
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
               "of steps, useful for bisecting optimization bugs")

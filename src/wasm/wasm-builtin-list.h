@@ -45,6 +45,7 @@ namespace v8::internal::wasm {
   V(WasmTableSet)                                                              \
   V(WasmTableGetFuncRef)                                                       \
   V(WasmTableSetFuncRef)                                                       \
+  V(WasmSharedTableSetFuncRefFromUnshared)                                     \
   V(WasmFunctionTableGet)                                                      \
   V(WasmStackGuard)                                                            \
   V(WasmStackOverflow)                                                         \

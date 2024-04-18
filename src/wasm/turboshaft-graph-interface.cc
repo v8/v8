@@ -349,7 +349,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Zone* zone, CompilationEnv* env, Assembler& assembler,
       AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-      const WireBytesStorage* wire_bytes)
+      bool shared, const WireBytesStorage* wire_bytes)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(kRegular),
         block_phis_(zone),
@@ -360,6 +360,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         inlining_positions_(inlining_positions),
         ssa_env_(zone),
         func_index_(func_index),
+        shared_(shared),
         wire_bytes_(wire_bytes),
         return_phis_(nullptr),
         is_inlined_tail_call_(false) {}
@@ -369,9 +370,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Zone* zone, CompilationEnv* env, Assembler& assembler, Mode mode,
       InstanceCache& instance_cache, AssumptionsJournal* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-      const WireBytesStorage* wire_bytes, base::Vector<OpIndex> real_parameters,
-      TSBlock* return_block, BlockPhis* return_phis, TSBlock* catch_block,
-      bool is_inlined_tail_call)
+      bool shared, const WireBytesStorage* wire_bytes,
+      base::Vector<OpIndex> real_parameters, TSBlock* return_block,
+      BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -381,6 +382,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         inlining_positions_(inlining_positions),
         ssa_env_(zone),
         func_index_(func_index),
+        shared_(shared),
         wire_bytes_(wire_bytes),
         real_parameters_(real_parameters),
         return_block_(return_block),
@@ -895,7 +897,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    result->op = __ WasmRefFunc(trusted_instance_data(), function_index);
+    uint32_t sig_index = decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->types[sig_index].is_shared;
+    result->op = __ WasmRefFunc(trusted_instance_data(shared), function_index);
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -922,12 +926,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    result->op = __ GlobalGet(trusted_instance_data(), imm.global);
+    bool shared = decoder->module_->globals[imm.index].shared;
+    result->op = __ GlobalGet(trusted_instance_data(shared), imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    __ GlobalSet(trusted_instance_data(), value.op, imm.global);
+    bool shared = decoder->module_->globals[imm.index].shared;
+    __ GlobalSet(trusted_instance_data(shared), value.op, imm.global);
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
@@ -1831,9 +1837,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          const Value args[], Value returns[]) {
     uint32_t func_index = imm.index;
     V<Object> receiver = args[0].op;
-    V<FixedArray> imports_array =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), WellKnownImports,
-                                      MemoryRepresentation::TaggedPointer());
+    // TODO(14616): Fix this.
+    V<FixedArray> imports_array = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(false), WellKnownImports,
+        MemoryRepresentation::TaggedPointer());
     V<Object> data = __ LoadFixedArrayElement(imports_array, func_index);
     V<Object> cached_map = __ Load(data, LoadOp::Kind::TaggedBase(),
                                    MemoryRepresentation::TaggedPointer(),
@@ -1954,7 +1961,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     IF (__ Load(options_object, LoadOp::Kind::RawAligned(),
                 MemoryRepresentation::Uint32(),
                 offsetof(v8::FastApiCallbackOptions, fallback))) {
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      auto [target, ref] =
+          BuildImportedFunctionTargetAndRef(decoder, imm.index);
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
       __ SetVariable(result, returns[0].op);
     } ELSE {
@@ -2353,7 +2361,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (HandleWellKnownImport(decoder, imm, args, returns)) {
         return;
       }
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      auto [target, ref] =
+          BuildImportedFunctionTargetAndRef(decoder, imm.index);
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
     } else {
       // Locally defined function.
@@ -2369,8 +2378,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       } else {
         V<WordPtr> callee =
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, imm.sig, callee, trusted_instance_data(), args,
-                      returns);
+        BuildWasmCall(decoder, imm.sig, callee,
+                      trusted_instance_data(
+                          decoder->module_->function_is_shared(imm.index)),
+                      args, returns);
       }
     }
   }
@@ -2379,7 +2390,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   const Value args[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      auto [target, ref] =
+          BuildImportedFunctionTargetAndRef(decoder, imm.index);
       BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
     } else {
       // Locally defined function.
@@ -2397,7 +2409,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BuildWasmMaybeReturnCall(
             decoder, imm.sig,
             __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
-            trusted_instance_data(), args);
+            trusted_instance_data(
+                decoder->module_->function_is_shared(imm.index)),
+            args);
       }
     }
   }
@@ -2423,8 +2437,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      V<FixedArray> func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), FuncRefs,
+      // These will be shared if we are in a shared function already, and
+      // non-shared otherwise.
+      V<FixedArray> maybe_shared_func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), FuncRefs,
+                                        MemoryRepresentation::TaggedPointer());
+      V<FixedArray> shared_func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(true), FuncRefs,
                                         MemoryRepresentation::TaggedPointer());
       size_t return_count = sig->return_count();
       base::Vector<InliningTree*> feedback_cases =
@@ -2454,8 +2473,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        V<Object> inlined_func_ref =
-            __ LoadFixedArrayElement(func_refs, inlined_index);
+        uint32_t sig_index =
+            decoder->module_->functions[inlined_index].sig_index;
+        bool shared = decoder->module_->types[sig_index].is_shared;
+        V<Object> inlined_func_ref = __ LoadFixedArrayElement(
+            shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
         bool is_last_case = (i == case_count - 1);
         if (use_deopt && is_last_case) {
           DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
@@ -2533,8 +2555,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (inlining_enabled(decoder) &&
         should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      V<FixedArray> func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), FuncRefs,
+      // These will be shared if we are in a shared function already, and
+      // non-shared otherwise.
+      V<FixedArray> maybe_shared_func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), FuncRefs,
+                                        MemoryRepresentation::TaggedPointer());
+      V<FixedArray> shared_func_refs =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(true), FuncRefs,
                                         MemoryRepresentation::TaggedPointer());
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
@@ -2551,8 +2578,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        V<Object> inlined_func_ref =
-            __ LoadFixedArrayElement(func_refs, inlined_index);
+        uint32_t sig_index =
+            decoder->module_->functions[inlined_index].sig_index;
+        bool shared = decoder->module_->types[sig_index].is_shared;
+        V<Object> inlined_func_ref = __ LoadFixedArrayElement(
+            shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
         BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -2888,8 +2918,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
+    // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
     auto tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
@@ -2914,8 +2945,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
+    // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
@@ -3032,8 +3064,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
+    // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
         instance_tags, catch_case.maybe_tag.tag_imm.index));
@@ -3392,9 +3425,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::UintPtr(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::Uint32());
+    // TODO(14616): Fix sharedness.
     V<Word32> result =
         CallC(&sig, ExternalReference::wasm_memory_init(),
-              {__ BitcastHeapObjectToWordPtr(trusted_instance_data()),
+              {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
                __ Word32Constant(imm.memory.index), dst_uintptr, src.op,
                __ Word32Constant(imm.data_segment.index), size.op});
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
@@ -3414,9 +3448,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::UintPtr(),
                            MachineType::UintPtr(), MachineType::UintPtr());
+    // TODO(14616): Fix sharedness.
     V<Word32> result =
         CallC(&sig, ExternalReference::wasm_memory_copy(),
-              {__ BitcastHeapObjectToWordPtr(trusted_instance_data()),
+              {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
                __ Word32Constant(imm.memory_dst.index),
                __ Word32Constant(imm.memory_src.index), dst_uintptr,
                src_uintptr, size_uintptr});
@@ -3434,18 +3469,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::UintPtr(), MachineType::Uint8(),
                            MachineType::UintPtr());
+    // TODO(14616): Fix sharedness.
     V<Word32> result = CallC(
         &sig, ExternalReference::wasm_memory_fill(),
-        {__ BitcastHeapObjectToWordPtr(trusted_instance_data()),
+        {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
          __ Word32Constant(imm.index), dst_uintptr, value.op, size_uintptr});
 
     __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    V<FixedUInt32Array> data_segment_sizes =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), DataSegmentSizes,
-                                      MemoryRepresentation::TaggedPointer());
+    bool shared = decoder->module_->data_segments[imm.index].shared;
+    V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(shared), DataSegmentSizes,
+        MemoryRepresentation::TaggedPointer());
     __ Store(data_segment_sizes, __ Word32Constant(0),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
              compiler::kNoWriteBarrier,
@@ -3455,7 +3492,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const IndexImmediate& imm) {
     ValueType element_type = decoder->module_->tables[imm.index].type;
-    V<WasmTableObject> table = LoadTable(imm.index);
+    V<WasmTableObject> table = LoadTable(decoder, imm.index);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
@@ -3467,7 +3504,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     OpIndex entry =
         __ LoadFixedArrayElement(entries, __ ChangeInt32ToIntPtr(index.op));
 
-    if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_)) {
+    if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_) ||
+        IsSubtypeOf(element_type, ValueType::RefNull(HeapType::kFuncShared),
+                    decoder->module_)) {
       // If the entry has map type Tuple2, call WasmFunctionTableGet which will
       // initialize the function table entry.
       Label<Object> resolved(&asm_);
@@ -3497,10 +3536,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
                 const IndexImmediate& imm) {
-    ValueType element_type = decoder->module_->tables[imm.index].type;
-    if (IsSubtypeOf(element_type, kWasmFuncRef, decoder->module_)) {
-      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
-          decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
+    const WasmTable* table = &decoder->module_->tables[imm.index];
+
+    if (IsSubtypeOf(table->type, kWasmFuncRef, decoder->module_) ||
+        IsSubtypeOf(table->type, ValueType::RefNull(HeapType::kFuncShared),
+                    decoder->module_)) {
+      if (!shared_ && table->shared) {
+        CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmSharedTableSetFuncRefFromUnshared>(
+            decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
+      } else {
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
+            decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
+      }
     } else {
       CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSet>(
           decoder, {__ IntPtrConstant(imm.index), index.op, value.op});
@@ -3541,16 +3589,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         decoder, {__ NumberConstant(imm.index), start.op, count.op, value.op});
   }
 
-  V<WasmTableObject> LoadTable(uint32_t table_index) {
-    V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(), Tables, MemoryRepresentation::TaggedPointer());
+  V<WasmTableObject> LoadTable(FullDecoder* decoder, uint32_t table_index) {
+    bool shared = decoder->module_->tables[table_index].shared;
+    V<FixedArray> tables =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(shared), Tables,
+                                      MemoryRepresentation::TaggedPointer());
     return V<WasmTableObject>::Cast(
         __ LoadFixedArrayElement(tables, table_index));
   }
 
   void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
                  Value* result) {
-    V<WasmTableObject> table = LoadTable(imm.index);
+    V<WasmTableObject> table = LoadTable(decoder, imm.index);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
@@ -3558,9 +3608,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    V<FixedArray> elem_segments =
-        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), ElementSegments,
-                                      MemoryRepresentation::TaggedPointer());
+    bool shared = decoder->module_->elem_segments[imm.index].shared;
+    V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(shared), ElementSegments,
+        MemoryRepresentation::TaggedPointer());
     __ StoreFixedArrayElement(elem_segments, imm.index,
                               LOAD_ROOT(EmptyFixedArray),
                               compiler::kFullWriteBarrier);
@@ -3573,7 +3624,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
-    result->op = StructNewImpl(imm, args_vector.data());
+    result->op = StructNewImpl(decoder, imm, args_vector.data());
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
@@ -3584,7 +3635,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
     }
-    result->op = StructNewImpl(imm, args.data());
+    result->op = StructNewImpl(decoder, imm, args.data());
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -3690,15 +3741,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
       IF (__ Uint32LessThan(array_copy_max_loop_length, length.op)) {
         // Builtin
-        MachineType arg_types[]{
-            MachineType::TaggedPointer(), MachineType::TaggedPointer(),
-            MachineType::Uint32(),        MachineType::TaggedPointer(),
-            MachineType::Uint32(),        MachineType::Uint32()};
-        MachineSignature sig(0, 6, arg_types);
+        MachineType arg_types[]{MachineType::TaggedPointer(),
+                                MachineType::Uint32(),
+                                MachineType::TaggedPointer(),
+                                MachineType::Uint32(), MachineType::Uint32()};
+        MachineSignature sig(0, 5, arg_types);
 
         CallC(&sig, ExternalReference::wasm_array_copy(),
-              {trusted_instance_data(), dst_array, dst_index.op, src_array,
-               src_index.op, length.op});
+              {dst_array, dst_index.op, src_array, src_index.op, length.op});
       } ELSE {
         V<Word32> src_end_index =
             __ Word32Sub(__ Word32Add(src_index.op, length.op), 1);
@@ -3761,8 +3811,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     wasm::ValueType element_type = type->element_type();
     int element_count = length_imm.index;
     // Initialize the array header.
-    V<Map> rtt =
-        __ RttCanon(instance_cache_.managed_object_maps(), array_imm.index);
+    bool shared = decoder->module_->types[array_imm.index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
@@ -3776,13 +3826,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
+    bool shared = decoder->module_->types[array_imm.index].is_shared;
     V<WasmArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayNewSegment>(
             decoder,
             {__ Word32Constant(segment_imm.index), offset.op, length.op,
              __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
-             __ RttCanon(instance_cache_.managed_object_maps(),
-                         array_imm.index)});
+             __ RttCanon(managed_object_maps(shared), array_imm.index)});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -3852,7 +3902,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                Value* result, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), ref_index);
+    bool shared = decoder->module_->types[ref_index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
                          ref_index, null_succeeds ? kNullable : kNonNullable)};
@@ -3875,7 +3926,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Forward(decoder, object, result);
       return;
     }
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), ref_index);
+    bool shared = decoder->module_->types[ref_index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     DCHECK_EQ(result->type.is_nullable(), null_succeeds);
     compiler::WasmTypeCheckConfig config{object.type, result->type};
     result->op = __ WasmTypeCast(object.op, rtt, config);
@@ -3900,7 +3952,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                 Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), ref_index);
+    bool shared = decoder->module_->types[ref_index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
                          ref_index, null_succeeds ? kNullable : kNonNullable)};
@@ -3922,7 +3975,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), ref_index);
+    bool shared = decoder->module_->types[ref_index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
                          ref_index, null_succeeds ? kNullable : kNonNullable)};
@@ -5031,7 +5085,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // The first input is the closure for JS; Wasm adds the
     // WasmTrustedInstanceData as a dummy value instead. (The code generator
     // will just skip this input as the liftoff frame doesn't have a closure.)
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+    // TODO(14616): Fix sharedness.
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
     // Add the parameters.
     size_t param_count = decoder->sig_->parameter_count();
     for (size_t i = 0; i < param_count; ++i) {
@@ -5039,7 +5094,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // Add the context. Wasm doesn't have a JS context, so this is another
     // value skipped by the instruction selector.
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+    // TODO(14616): Fix sharedness.
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
 
     // Add the wasm locals.
     for (size_t i = param_count; i < ssa_env_.size(); ++i) {
@@ -5064,7 +5120,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     builder.AddInput(func_ref.type.machine_type(), func_ref.op);
     // Add the wasm trusted instance as a real input.
-    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data());
+    // TODO(14616): Fix sharedness.
+    builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
     constexpr size_t kExtraLocals = 3;  // closure, context, instance
     size_t local_count = callee_sig->parameter_count() + kExtraLocals +
                          decoder->stack_size() - callee_sig->return_count();
@@ -6270,8 +6327,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_start();
     } else {
+      // TODO(14616): Fix sharedness.
       V<TrustedFixedAddressArray> instance_memories =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(),
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(false),
                                                   MemoryBasesAndSizes,
                                                   TrustedFixedAddressArray);
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
@@ -6291,9 +6349,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_size();
     } else {
+      // TODO(14616): Fix sharedness.
       V<TrustedByteArray> instance_memories =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              trusted_instance_data(), MemoryBasesAndSizes, TrustedByteArray);
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(false),
+                                                  MemoryBasesAndSizes,
+                                                  TrustedByteArray);
       return __ Load(
           instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
           MemoryRepresentation::UintPtr(),
@@ -6348,9 +6408,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
  private:
   std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
-      ConstOrV<Word32> function_index) {
+      FullDecoder* decoder, uint32_t function_index) {
+    uint32_t sig_index = decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->types[sig_index].is_shared;
     return WasmGraphBuilderBase::BuildImportedFunctionTargetAndRef(
-        function_index, instance_cache_.trusted_instance_data());
+        function_index, trusted_instance_data(shared));
   }
 
   // Returns the call target and the ref (WasmTrustedInstanceData or
@@ -6366,13 +6428,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     /* Step 1: Load the indirect function tables for this table. */
     V<WasmDispatchTable> dispatch_table;
+    bool shared = decoder->module_->tables[table_index].shared;
     if (table_index == 0) {
       dispatch_table = LOAD_PROTECTED_INSTANCE_FIELD(
-          trusted_instance_data(), DispatchTable0, WasmDispatchTable);
+          trusted_instance_data(shared), DispatchTable0, WasmDispatchTable);
     } else {
       V<ProtectedFixedArray> dispatch_tables =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              trusted_instance_data(), DispatchTables, ProtectedFixedArray);
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(shared),
+                                                  DispatchTables,
+                                                  ProtectedFixedArray);
       dispatch_table = V<WasmDispatchTable>::Cast(
           __ LoadProtectedFixedArrayElement(dispatch_tables, table_index));
     }
@@ -6403,8 +6467,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         WasmDispatchTable::kEntriesOffset);
 
     if (needs_type_check) {
+      // We store the isorecursive canonical types array in both the shared
+      // and non-shared part of the instance.
+      constexpr bool kShared = false;
       V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          trusted_instance_data(), IsorecursiveCanonicalTypes,
+          trusted_instance_data(kShared), IsorecursiveCanonicalTypes,
           MemoryRepresentation::UintPtr());
       V<Word32> expected_sig_id =
           __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
@@ -6426,9 +6493,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           __ TrapIf(__ Word32Equal(loaded_sig, -1), OpIndex::Invalid(),
                     TrapId::kTrapFuncSigMismatch);
         }
-
-        V<Map> formal_rtt =
-            __ RttCanon(instance_cache_.managed_object_maps(), sig_index);
+        bool shared = decoder->module_->types[sig_index].is_shared;
+        V<Map> formal_rtt = __ RttCanon(managed_object_maps(shared), sig_index);
         int rtt_depth = GetSubtypingDepth(decoder->module_, sig_index);
         DCHECK_GE(rtt_depth, 0);
 
@@ -7077,7 +7143,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                              const ArrayType* array_type, V<Word32> length,
                              V<Any> initial_value) {
     // Initialize the array header.
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), index);
+    bool shared = decoder->module_->types[index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
@@ -7085,8 +7152,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return array;
   }
 
-  V<HeapObject> StructNewImpl(const StructIndexImmediate& imm, OpIndex args[]) {
-    V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), imm.index);
+  V<HeapObject> StructNewImpl(FullDecoder* decoder,
+                              const StructIndexImmediate& imm, OpIndex args[]) {
+    bool shared = decoder->module_->types[imm.index].is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), imm.index);
 
     V<HeapObject> struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
@@ -7210,7 +7279,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
-    inlinee_args[0] = trusted_instance_data();
+    bool inlinee_is_shared = decoder->module_->function_is_shared(func_index);
+    inlinee_args[0] = trusted_instance_data(inlinee_is_shared);
     for (size_t i = 0; i < inlinee.sig->parameter_count(); i++) {
       inlinee_args[i + 1] = args[i].op;
     }
@@ -7218,11 +7288,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     base::Vector<const uint8_t> function_bytes =
         wire_bytes_->GetCode(inlinee.code);
 
-    bool is_shared = decoder->module_->types[inlinee.sig_index].is_shared;
-
-    const wasm::FunctionBody inlinee_body{inlinee.sig, inlinee.code.offset(),
-                                          function_bytes.begin(),
-                                          function_bytes.end(), is_shared};
+    const wasm::FunctionBody inlinee_body{
+        inlinee.sig, inlinee.code.offset(), function_bytes.begin(),
+        function_bytes.end(), inlinee_is_shared};
 
     // If the inlinee was not validated before, do that now.
     if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
@@ -7236,8 +7304,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // will be triggered again when actually compiling the invalid function.
         V<WordPtr> callee =
             __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, sig, callee, trusted_instance_data(), args,
-                      returns);
+        BuildWasmCall(decoder, sig, callee,
+                      trusted_instance_data(
+                          decoder->module_->function_is_shared(func_index)),
+                      args, returns);
         return;
       }
       decoder->module_->set_function_validated(func_index);
@@ -7285,9 +7355,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         decoder->detected_, inlinee_body, decoder->zone_,
                         nullptr, asm_, inlinee_mode, instance_cache_,
                         assumptions_, inlining_positions_, func_index,
-                        wire_bytes_, base::VectorOf(inlinee_args),
-                        callee_return_block, inlinee_return_phis,
-                        callee_catch_block, is_tail_call);
+                        inlinee_is_shared, wire_bytes_,
+                        base::VectorOf(inlinee_args), callee_return_block,
+                        inlinee_return_phis, callee_catch_block, is_tail_call);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined
@@ -7483,8 +7553,25 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     no_liftoff_inlining_budget_ = no_liftoff_inlining_budget;
   }
 
-  V<WasmTrustedInstanceData> trusted_instance_data() {
-    return instance_cache_.trusted_instance_data();
+  V<WasmTrustedInstanceData> trusted_instance_data(bool element_is_shared) {
+    DCHECK_IMPLIES(shared_, element_is_shared);
+    return (element_is_shared && !shared_)
+               ? LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+                     instance_cache_.trusted_instance_data(), SharedPart,
+                     WasmTrustedInstanceData)
+               : instance_cache_.trusted_instance_data();
+  }
+
+  V<FixedArray> managed_object_maps(bool type_is_shared) {
+    DCHECK_IMPLIES(shared_, type_is_shared);
+    if (type_is_shared && !shared_) {
+      V<WasmTrustedInstanceData> shared_instance = trusted_instance_data(true);
+      return LOAD_IMMUTABLE_INSTANCE_FIELD(
+          shared_instance, ManagedObjectMaps,
+          MemoryRepresentation::TaggedPointer());
+    } else {
+      return instance_cache_.managed_object_maps();
+    }
   }
 
  private:
@@ -7507,6 +7594,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           ? compiler::NullCheckStrategy::kTrapHandler
           : compiler::NullCheckStrategy::kExplicit;
   int func_index_;
+  bool shared_;
   const WireBytesStorage* wire_bytes_;
   const BranchHintMap* branch_hints_ = nullptr;
   InliningTree* inlining_decisions_ = nullptr;
@@ -7543,7 +7631,7 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,
-              func_index, wire_bytes);
+              func_index, func_body.is_shared, wire_bytes);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.

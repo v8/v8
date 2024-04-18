@@ -556,6 +556,7 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       shared = true;
+      module_->has_shared_part = true;
       kind = consume_u8("shared ", tracer_);
     }
     if (tracer_) tracer_->Description(TypeKindName(kind));
@@ -760,6 +761,7 @@ class ModuleDecoderImpl : public Decoder {
           auto [has_maximum, shared] = consume_table_flags("element count");
           table->has_maximum_size = has_maximum;
           table->shared = shared;
+          if (shared) module_->has_shared_part = true;
           consume_resizable_limits(
               "element count", "elements", std::numeric_limits<uint32_t>::max(),
               &table->initial_size, table->has_maximum_size,
@@ -819,6 +821,7 @@ class ModuleDecoderImpl : public Decoder {
           }
           global->mutability = mutability;
           global->shared = shared;
+          if (shared) module_->has_shared_part = true;
           if (global->mutability) {
             module_->num_imported_mutable_globals++;
           }
@@ -915,6 +918,7 @@ class ModuleDecoderImpl : public Decoder {
       auto [has_maximum, shared] = consume_table_flags("table elements");
       table->has_maximum_size = has_maximum;
       table->shared = shared;
+      if (shared) module_->has_shared_part = true;
       consume_resizable_limits("table elements", "elements",
                                std::numeric_limits<uint32_t>::max(),
                                &table->initial_size, table->has_maximum_size,
@@ -994,6 +998,7 @@ class ModuleDecoderImpl : public Decoder {
       ConstantExpression init = consume_init_expr(module_.get(), type, shared);
       module_->globals.push_back(
           {type, mutability, init, {0}, shared, false, false});
+      if (shared) module_->has_shared_part = true;
     }
   }
 
@@ -1947,6 +1952,12 @@ class ModuleDecoderImpl : public Decoder {
              flags);
     }
 
+    if (is_shared && v8_flags.experimental_wasm_shared) {
+      error(pc() - 1,
+            "shared memories are not supported with "
+            "--experimental-wasm-shared yet.");
+    }
+
     // Tracing.
     if (tracer_) {
       if (is_shared) tracer_->Description(" shared");
@@ -2326,6 +2337,7 @@ class ModuleDecoderImpl : public Decoder {
              flag);
       return {};
     }
+    if (is_shared) module_->has_shared_part = true;
 
     const WasmElemSegment::Status status =
         (flag & kNonActiveMask) ? (flag & kHasTableIndexOrIsDeclarativeMask)
@@ -2417,11 +2429,15 @@ class ModuleDecoderImpl : public Decoder {
         // as such an index doesn't refer to a unique object instance unlike
         // functions.)
         if (V8_UNLIKELY(
-                !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()))) {
+                !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()) &&
+                !IsSubtypeOf(table_type,
+                             ValueType::RefNull(HeapType::kFuncShared),
+                             this->module_.get()))) {
           errorf(pos,
                  "An active element segment with function indices as elements "
-                 "must reference a table of a subtype of type funcref. "
-                 "Instead, table %u of type %s is referenced.",
+                 "must reference a table of a subtype of type funcref or "
+                 "(ref null shared func). Instead, table %u of type %s is "
+                 "referenced.",
                  table_index, table_type.name().c_str());
           return {};
         }
@@ -2474,6 +2490,8 @@ class ModuleDecoderImpl : public Decoder {
       return {};
     }
 
+    if (is_shared) module_->has_shared_part = true;
+
     if (tracer_) {
       if (is_shared) tracer_->Description(" shared");
       tracer_->NextLine();
@@ -2511,7 +2529,8 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
     ValueType entry_type = ValueType::Ref(func->sig_index);
-    if (V8_LIKELY(expected == kWasmFuncRef)) {
+    if (V8_LIKELY(expected == kWasmFuncRef &&
+                  !v8_flags.experimental_wasm_shared)) {
       DCHECK(IsSubtypeOf(entry_type, expected, module));
     } else if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
       errorf(initial_pc,

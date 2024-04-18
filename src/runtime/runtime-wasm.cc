@@ -865,11 +865,15 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
       WasmTableObject::cast(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(
-      IsUndefined(table->instance())
-          ? table->type() == wasm::kWasmFuncRef
-          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                        WasmInstanceObject::cast(table->instance())->module()));
+  DCHECK(IsUndefined(table->instance())
+             ? table->type() == wasm::kWasmFuncRef
+             : (IsSubtypeOf(
+                    table->type(), wasm::kWasmFuncRef,
+                    WasmInstanceObject::cast(table->instance())->module()) ||
+                IsSubtypeOf(
+                    table->type(),
+                    wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
+                    WasmInstanceObject::cast(table->instance())->module())));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -895,10 +899,11 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 
   DCHECK(!isolate->context().is_null());
 
+  // TODO(14616): Pass the correct instance data.
   base::Optional<MessageTemplate> opt_error =
-      WasmTrustedInstanceData::InitTableEntries(isolate, trusted_instance_data,
-                                                table_index, elem_segment_index,
-                                                dst, src, count);
+      WasmTrustedInstanceData::InitTableEntries(
+          isolate, trusted_instance_data, trusted_instance_data, table_index,
+          elem_segment_index, dst, src, count);
   if (opt_error.has_value()) {
     return ThrowWasmError(isolate, opt_error.value());
   }
@@ -1177,8 +1182,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }
+    // TODO(14616): Pass the correct instance data.
     Handle<Object> result = isolate->factory()->NewWasmArrayFromElementSegment(
-        trusted_instance_data, segment_index, offset, length, rtt);
+        trusted_instance_data, trusted_instance_data, segment_index, offset,
+        length, rtt);
     if (IsSmi(*result)) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(Smi::cast(*result).value()));
@@ -1260,8 +1267,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // now.
     AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-        &zone, isolate, trusted_instance_data, segment_index);
+    // TODO(14616): Fix the instance data.
+    base::Optional<MessageTemplate> opt_error =
+        wasm::InitializeElementSegment(&zone, isolate, trusted_instance_data,
+                                       trusted_instance_data, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }

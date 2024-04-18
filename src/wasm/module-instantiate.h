@@ -119,11 +119,13 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index);
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, int type_index,
-    Handle<WasmInstanceObject> instance_object, Handle<FixedArray> maps);
+    Handle<WasmInstanceObject> instance_object,
+    Handle<FixedArray> maybe_shared_maps);
 
 // A union tagged on the code-kind for wrapper graph building data. The rest of
 // the wrapper compilation pipeline is independent of the code kind.

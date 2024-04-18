@@ -271,9 +271,12 @@ class WasmMemoryObject
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
   // fields of the instance to reference this memory's buffer.
+  // Note that we update both the non-shared and shared (if any) parts of the
+  // instance for faster access to shared memory.
   V8_EXPORT_PRIVATE static void UseInInstance(
       Isolate* isolate, Handle<WasmMemoryObject> memory,
       Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
       int memory_index_in_instance);
   inline bool has_maximum_pages();
 
@@ -350,6 +353,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   DECL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
   DECL_ACCESSORS(native_context, Tagged<Context>)
+  // WasmTrustedInstanceData|Undefined
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
   DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, Tagged<JSArrayBuffer>)
   DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, Tagged<FixedArray>)
@@ -359,6 +363,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table_for_imports,
                                    WasmDispatchTable)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
+  DECL_PROTECTED_POINTER_ACCESSORS(shared_part, WasmTrustedInstanceData)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
@@ -428,6 +433,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kElementSegmentsOffset, kTaggedSize)                                  \
   V(kInstanceObjectOffset, kTaggedSize)                                   \
   V(kNativeContextOffset, kTaggedSize)                                    \
+  V(kProtectedSharedPartOffset, kTaggedSize)                              \
   V(kMemoryObjectsOffset, kTaggedSize)                                    \
   V(kUntaggedGlobalsBufferOffset, kTaggedSize)                            \
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
@@ -479,6 +485,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
   V(kElementSegmentsOffset, "element_segments")
 #define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                     \
+  V(kProtectedSharedPartOffset, "shared_part")                     \
   V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes") \
   V(kProtectedDispatchTable0Offset, "dispatch_table0")             \
   V(kProtectedDispatchTablesOffset, "dispatch_tables")             \
@@ -491,9 +498,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
   static constexpr std::array<const char*, 16> kTaggedFieldNames = {
       WASM_TAGGED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
-  static constexpr std::array<uint16_t, 4> kProtectedFieldOffsets = {
+  static constexpr std::array<uint16_t, 5> kProtectedFieldOffsets = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_OFFSET)};
-  static constexpr std::array<const char*, 4> kProtectedFieldNames = {
+  static constexpr std::array<const char*, 5> kProtectedFieldNames = {
       WASM_PROTECTED_INSTANCE_DATA_FIELDS(WASM_INSTANCE_FIELD_NAME)};
 
 #undef WASM_INSTANCE_FIELD_OFFSET
@@ -533,6 +540,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // with the error {MessageTemplate} if it fails.
   static base::Optional<MessageTemplate> InitTableEntries(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
       uint32_t count) V8_WARN_UNUSED_RESULT;
 

@@ -2439,6 +2439,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "WasmInstanceObject");
   os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   os << "\n - module_object: " << Brief(module_object());
+  os << "\n - shared_part: " << Brief(shared_part());
   os << "\n - exports_object: " << Brief(exports_object());
   JSObjectPrintBody(os, *this);
   os << "\n";
@@ -2458,6 +2459,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmTrustedInstanceData");
   PRINT_WASM_INSTANCE_FIELD(instance_object, Brief);
   PRINT_WASM_INSTANCE_FIELD(native_context, Brief);
+  PRINT_WASM_INSTANCE_FIELD(shared_part, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_objects, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);

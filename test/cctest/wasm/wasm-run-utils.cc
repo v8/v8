@@ -152,7 +152,9 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   mem0_size_ = size;
   CHECK(size == 0 || mem0_start_);
 
+  // TODO(14616): Add shared_trusted_instance_data_.
   WasmMemoryObject::UseInInstance(isolate_, memory_object,
+                                  trusted_instance_data_,
                                   trusted_instance_data_, 0);
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
@@ -217,6 +219,7 @@ void TestingModuleBuilder::InitializeWrapperCache() {
   Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(test_module_->types.size()));
   for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+    // TODO(14616): Support shared types.
     CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
                      maps);
   }

@@ -6008,13 +6008,12 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
     gasm_->Bind(&builtin);
     Node* function =
         gasm_->ExternalConstant(ExternalReference::wasm_array_copy());
-    MachineType arg_types[]{
-        MachineType::TaggedPointer(), MachineType::TaggedPointer(),
-        MachineType::Uint32(),        MachineType::TaggedPointer(),
-        MachineType::Uint32(),        MachineType::Uint32()};
-    MachineSignature sig(0, 6, arg_types);
-    BuildCCall(&sig, function, GetInstanceData(), dst_array, dst_index,
-               src_array, src_index, length);
+    MachineType arg_types[]{MachineType::TaggedPointer(), MachineType::Uint32(),
+                            MachineType::TaggedPointer(), MachineType::Uint32(),
+                            MachineType::Uint32()};
+    MachineSignature sig(0, 5, arg_types);
+    BuildCCall(&sig, function, dst_array, dst_index, src_array, src_index,
+               length);
     gasm_->Goto(&end);
   }
 

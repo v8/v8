@@ -145,9 +145,9 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       int type_index, Handle<WasmInstanceObject> instance,
-                      Handle<FixedArray> maps) {
+                      Handle<FixedArray> maybe_shared_maps) {
   // Recursive calls for supertypes may already have created this map.
-  if (IsMap(maps->get(type_index))) return;
+  if (IsMap(maybe_shared_maps->get(type_index))) return;
 
   Handle<WeakArrayList> canonical_rtts;
   uint32_t canonical_type_index =
@@ -161,7 +161,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       canonical_rtts->Get(canonical_type_index);
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
-    maps->set(type_index, maybe_canonical_map.GetHeapObject());
+    maybe_shared_maps->set(type_index, maybe_canonical_map.GetHeapObject());
     return;
   }
 
@@ -173,8 +173,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   if (supertype != kNoSuperType) {
     // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
     // number of recursive steps, so we won't overflow the stack.
-    CreateMapForType(isolate, module, supertype, instance, maps);
-    rtt_parent = handle(Map::cast(maps->get(supertype)), isolate);
+    CreateMapForType(isolate, module, supertype, instance, maybe_shared_maps);
+    // We look up the supertype in {maybe_shared_maps} as a shared type can only
+    // inherit from a shared type and vice verca.
+    rtt_parent = handle(Map::cast(maybe_shared_maps->get(supertype)), isolate);
   }
   Handle<Map> map;
   switch (module->types[type_index].kind) {
@@ -189,7 +191,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       break;
   }
   canonical_rtts->Set(canonical_type_index, MakeWeak(*map));
-  maps->set(type_index, *map);
+  maybe_shared_maps->set(type_index, *map);
 }
 
 namespace {
@@ -792,8 +794,11 @@ class InstanceBuilder {
   MaybeHandle<JSReceiver> ffi_;
   MaybeHandle<JSArrayBuffer> asmjs_memory_buffer_;
   Handle<JSArrayBuffer> untagged_globals_;
+  Handle<JSArrayBuffer> shared_untagged_globals_;
   Handle<FixedArray> tagged_globals_;
+  Handle<FixedArray> shared_tagged_globals_;
   std::vector<Handle<WasmTagObject>> tags_wrappers_;
+  std::vector<Handle<WasmTagObject>> shared_tags_wrappers_;
   Handle<JSFunction> start_function_;
   std::vector<Handle<Object>> sanitized_imports_;
   std::vector<WellKnownImport> well_known_imports_;
@@ -837,7 +842,9 @@ class InstanceBuilder {
                                       Handle<String> import_name);
 
   // Load data segments into the memory.
-  void LoadDataSegments(Handle<WasmTrustedInstanceData> trusted_instance_data);
+  void LoadDataSegments(
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   void WriteGlobalValue(const WasmGlobal& global, const WasmValue& value);
 
@@ -879,7 +886,9 @@ class InstanceBuilder {
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions, or {-1} on error.
-  int ProcessImports(Handle<WasmTrustedInstanceData> trusted_instance_data);
+  int ProcessImports(
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   // Process all imported memories, placing the WasmMemoryObjects in the
   // supplied {FixedArray}.
@@ -889,16 +898,23 @@ class InstanceBuilder {
   T* GetRawUntaggedGlobalPtr(const WasmGlobal& global);
 
   // Process initialization of globals.
-  void InitGlobals(Handle<WasmTrustedInstanceData> trusted_instance_data);
+  void InitGlobals(
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
-  void ProcessExports(Handle<WasmTrustedInstanceData> trusted_instance_data);
+  void ProcessExports(
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   void SetTableInitialValues(
-      Handle<WasmTrustedInstanceData> trusted_instance_data);
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
-  void LoadTableSegments(Handle<WasmTrustedInstanceData> trusted_instance_data);
+  void LoadTableSegments(
+      Handle<WasmTrustedInstanceData> trusted_instance_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   // Creates new tags. Note that some tags might already exist if they were
   // imported, those tags will be re-used.
@@ -1083,6 +1099,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       WasmTrustedInstanceData::New(isolate_, module_object_);
   Handle<WasmInstanceObject> instance_object{trusted_data->instance_object(),
                                              isolate_};
+  bool shared = module_object_->module()->has_shared_part;
+  Handle<WasmTrustedInstanceData> shared_trusted_data =
+      shared ? WasmTrustedInstanceData::New(isolate_, module_object_)
+             : Handle<WasmTrustedInstanceData>();
+  if (shared) {
+    trusted_data->set_shared_part(*shared_trusted_data);
+    instance_object->set_shared_part(shared_trusted_data->instance_object());
+  }
 
   //--------------------------------------------------------------------------
   // Set up the memory buffers and memory objects and attach them to the
@@ -1116,13 +1140,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
     constexpr int kMemoryIndexZero = 0;
     WasmMemoryObject::UseInInstance(isolate_, memory_object, trusted_data,
-                                    kMemoryIndexZero);
+                                    shared_trusted_data, kMemoryIndexZero);
     trusted_data->memory_objects()->set(kMemoryIndexZero, *memory_object);
   } else {
     CHECK(asmjs_memory_buffer_.is_null());
     Handle<FixedArray> memory_objects{trusted_data->memory_objects(), isolate_};
     // First process all imported memories, then allocate non-imported ones.
-    if (!ProcessImportedMemories(memory_objects)) return {};
+    if (!ProcessImportedMemories(memory_objects)) {
+      return {};
+    }
     // Actual Wasm modules can have multiple memories.
     static_assert(kV8MaxWasmMemories <= kMaxUInt32);
     uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
@@ -1140,7 +1166,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         return {};
       }
       WasmMemoryObject::UseInInstance(isolate_, memory_object, trusted_data,
-                                      memory_index);
+                                      shared_trusted_data, memory_index);
     }
   }
 
@@ -1162,6 +1188,24 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     trusted_data->set_untagged_globals_buffer(*untagged_globals_);
     trusted_data->set_globals_start(
         reinterpret_cast<uint8_t*>(untagged_globals_->backing_store()));
+
+    // TODO(14616): Do this only if we have a shared untagged global.
+    if (shared) {
+      MaybeHandle<JSArrayBuffer> shared_result =
+          isolate_->factory()->NewJSArrayBufferAndBackingStore(
+              untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
+              AllocationType::kOld);
+
+      if (!shared_result.ToHandle(&shared_untagged_globals_)) {
+        thrower_->RangeError("Out of memory: wasm globals");
+        return {};
+      }
+
+      shared_trusted_data->set_untagged_globals_buffer(
+          *shared_untagged_globals_);
+      shared_trusted_data->set_globals_start(reinterpret_cast<uint8_t*>(
+          shared_untagged_globals_->backing_store()));
+    }
   }
 
   uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
@@ -1169,6 +1213,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     tagged_globals_ = isolate_->factory()->NewFixedArray(
         static_cast<int>(tagged_globals_buffer_size));
     trusted_data->set_tagged_globals_buffer(*tagged_globals_);
+    if (shared) {
+      shared_tagged_globals_ = isolate_->factory()->NewFixedArray(
+          static_cast<int>(tagged_globals_buffer_size));
+      shared_trusted_data->set_tagged_globals_buffer(*shared_tagged_globals_);
+    }
   }
 
   //--------------------------------------------------------------------------
@@ -1181,6 +1230,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<FixedArray> buffers_array = isolate_->factory()->NewFixedArray(
         module_->num_imported_mutable_globals, AllocationType::kOld);
     trusted_data->set_imported_mutable_globals_buffers(*buffers_array);
+    if (shared) {
+      Handle<FixedArray> shared_buffers_array =
+          isolate_->factory()->NewFixedArray(
+              module_->num_imported_mutable_globals, AllocationType::kOld);
+      shared_trusted_data->set_imported_mutable_globals_buffers(
+          *shared_buffers_array);
+    }
   }
 
   //--------------------------------------------------------------------------
@@ -1192,13 +1248,27 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
     trusted_data->set_tags_table(*tag_table);
     tags_wrappers_.resize(tags_count);
+    if (shared) {
+      Handle<FixedArray> shared_tag_table =
+          isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
+      shared_trusted_data->set_tags_table(*shared_tag_table);
+      shared_tags_wrappers_.resize(tags_count);
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // Set up isorecursive canonical types array.
+  //--------------------------------------------------------------------------
+  trusted_data->set_isorecursive_canonical_types(
+      module_->isorecursive_canonical_type_ids.data());
+  if (shared) {
+    shared_trusted_data->set_isorecursive_canonical_types(
+        module_->isorecursive_canonical_type_ids.data());
   }
 
   //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
-  trusted_data->set_isorecursive_canonical_types(
-      module_->isorecursive_canonical_type_ids.data());
   int table_count = static_cast<int>(module_->tables.size());
   {
     for (int i = 0; i < table_count; i++) {
@@ -1213,6 +1283,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
 
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
+    Handle<FixedArray> shared_tables =
+        shared ? isolate_->factory()->NewFixedArray(table_count)
+               : Handle<FixedArray>();
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       // Initialize tables with null for now. We will initialize non-defaultable
@@ -1223,25 +1296,41 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           IsSubtypeOf(table.type, kWasmExternRef, module_)
               ? Handle<HeapObject>{isolate_->factory()->null_value()}
               : Handle<HeapObject>{isolate_->factory()->wasm_null()});
-      tables->set(i, *table_obj);
+      (table.shared ? shared_tables : tables)->set(i, *table_obj);
     }
     trusted_data->set_tables(*tables);
+    if (shared) shared_trusted_data->set_tables(*shared_tables);
   }
 
   if (table_count > 0) {
     Handle<ProtectedFixedArray> dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_count);
+    Handle<ProtectedFixedArray> shared_dispatch_tables =
+        shared ? isolate_->factory()->NewProtectedFixedArray(table_count)
+               : Handle<ProtectedFixedArray>();
     for (int i = 0; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
-      if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
+      if (!IsSubtypeOf(table.type, kWasmFuncRef, module_) &&
+          !IsSubtypeOf(table.type, ValueType::RefNull(HeapType::kFuncShared),
+                       module_)) {
+        continue;
+      }
       Handle<WasmDispatchTable> dispatch_table =
           WasmDispatchTable::New(isolate_, table.initial_size);
-      dispatch_tables->set(i, *dispatch_table);
+      (table.shared ? shared_dispatch_tables : dispatch_tables)
+          ->set(i, *dispatch_table);
     }
     trusted_data->set_dispatch_tables(*dispatch_tables);
     if (dispatch_tables->get(0) != Smi::zero()) {
       trusted_data->set_dispatch_table0(
           WasmDispatchTable::cast(dispatch_tables->get(0)));
+    }
+    if (shared) {
+      shared_trusted_data->set_dispatch_tables(*shared_dispatch_tables);
+      if (shared_dispatch_tables->get(0) != Smi::zero()) {
+        shared_trusted_data->set_dispatch_table0(
+            WasmDispatchTable::cast(shared_dispatch_tables->get(0)));
+      }
     }
   }
 
@@ -1249,7 +1338,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Process the imports for the module.
   //--------------------------------------------------------------------------
   if (!module_->import_table.empty()) {
-    int num_imported_functions = ProcessImports(trusted_data);
+    int num_imported_functions =
+        ProcessImports(trusted_data, shared_trusted_data);
     if (num_imported_functions < 0) return {};
     wasm_module_instantiated.imported_function_count = num_imported_functions;
   }
@@ -1264,14 +1354,23 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     isolate_->heap()->EnsureWasmCanonicalRttsSize(
         module_->MaxCanonicalTypeIndex() + 1);
   }
-  Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
+  Handle<FixedArray> non_shared_maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(module_->types.size()));
+  Handle<FixedArray> shared_maps =
+      shared ? isolate_->factory()->NewFixedArray(
+                   static_cast<int>(module_->types.size()))
+             : Handle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
-    CreateMapForType(isolate_, module_, index, instance_object, maps);
+    bool shared = module_->types[index].is_shared;
+    CreateMapForType(isolate_, module_, index, instance_object,
+                     shared ? shared_maps : non_shared_maps);
   }
-  trusted_data->set_managed_object_maps(*maps);
+  trusted_data->set_managed_object_maps(*non_shared_maps);
+  if (shared) shared_trusted_data->set_managed_object_maps(*shared_maps);
 #if DEBUG
   for (uint32_t index = 0; index < module_->types.size(); index++) {
+    Handle<FixedArray> maps =
+        module_->types[index].is_shared ? shared_maps : non_shared_maps;
     Tagged<Object> o = maps->get(index);
     DCHECK(IsMap(o));
     Tagged<Map> map = Map::cast(o);
@@ -1295,12 +1394,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<FixedArray> vectors = isolate_->factory()->NewFixedArrayWithZeroes(
         num_functions, AllocationType::kOld);
     trusted_data->set_feedback_vectors(*vectors);
+    if (shared) {
+      Handle<FixedArray> shared_vectors =
+          isolate_->factory()->NewFixedArrayWithZeroes(num_functions,
+                                                       AllocationType::kOld);
+      shared_trusted_data->set_feedback_vectors(*shared_vectors);
+    }
   }
 
   //--------------------------------------------------------------------------
   // Process the initialization for the module's globals.
   //--------------------------------------------------------------------------
-  InitGlobals(trusted_data);
+  InitGlobals(trusted_data, shared_trusted_data);
 
   //--------------------------------------------------------------------------
   // Initialize the indirect function tables and dispatch tables. We do this
@@ -1312,19 +1417,29 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        table_index < static_cast<int>(module_->tables.size()); ++table_index) {
     const WasmTable& table = module_->tables[table_index];
 
-    if (!IsSubtypeOf(table.type, kWasmFuncRef, module_)) continue;
+    if (!IsSubtypeOf(table.type, kWasmFuncRef, module_) &&
+        !IsSubtypeOf(table.type, ValueType::RefNull(HeapType::kFuncShared),
+                     module_)) {
+      continue;
+    }
     WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
-        isolate_, trusted_data, table_index, table.initial_size);
+        isolate_, table.shared ? shared_trusted_data : trusted_data,
+        table_index, table.initial_size);
     auto table_object =
-        handle(WasmTableObject::cast(trusted_data->tables()->get(table_index)),
+        handle(WasmTableObject::cast(
+                   (table.shared ? shared_trusted_data : trusted_data)
+                       ->tables()
+                       ->get(table_index)),
                isolate_);
-    WasmTableObject::AddUse(isolate_, table_object, trusted_data, table_index);
+    WasmTableObject::AddUse(isolate_, table_object,
+                            table.shared ? shared_trusted_data : trusted_data,
+                            table_index);
   }
 
   //--------------------------------------------------------------------------
   // Initialize non-defaultable tables.
   //--------------------------------------------------------------------------
-  SetTableInitialValues(trusted_data);
+  SetTableInitialValues(trusted_data, shared_trusted_data);
 
   //--------------------------------------------------------------------------
   // Initialize the tags table.
@@ -1336,7 +1451,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the exports object for the new instance.
   //--------------------------------------------------------------------------
-  ProcessExports(trusted_data);
+  ProcessExports(trusted_data, shared_trusted_data);
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
@@ -1345,24 +1460,29 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (!module_->elem_segments.empty()) {
     Handle<FixedArray> elements = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->elem_segments.size()));
+    Handle<FixedArray> shared_elements =
+        shared ? isolate_->factory()->NewFixedArray(
+                     static_cast<int>(module_->elem_segments.size()))
+               : Handle<FixedArray>();
     for (int i = 0; i < static_cast<int>(module_->elem_segments.size()); i++) {
       // Initialize declarative segments as empty. The rest remain
       // uninitialized.
       bool is_declarative = module_->elem_segments[i].status ==
                             WasmElemSegment::kStatusDeclarative;
-      elements->set(
-          i, is_declarative
-                 ? Object::cast(*isolate_->factory()->empty_fixed_array())
-                 : *isolate_->factory()->undefined_value());
+      (module_->elem_segments[i].shared ? shared_elements : elements)
+          ->set(i, is_declarative
+                       ? Object::cast(*isolate_->factory()->empty_fixed_array())
+                       : *isolate_->factory()->undefined_value());
     }
     trusted_data->set_element_segments(*elements);
+    if (shared) shared_trusted_data->set_element_segments(*shared_elements);
   }
 
   //--------------------------------------------------------------------------
   // Load element segments into tables.
   //--------------------------------------------------------------------------
   if (table_count > 0) {
-    LoadTableSegments(trusted_data);
+    LoadTableSegments(trusted_data, shared_trusted_data);
     if (thrower_->error()) return {};
   }
 
@@ -1370,7 +1490,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Initialize the memory by loading data segments.
   //--------------------------------------------------------------------------
   if (!module_->data_segments.empty()) {
-    LoadDataSegments(trusted_data);
+    LoadDataSegments(trusted_data, shared_trusted_data);
     if (thrower_->error()) return {};
   }
 
@@ -1397,9 +1517,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (start_function_.is_null()) {
       // TODO(clemensb): Don't generate an exported function for the start
       // function. Use CWasmEntry instead.
+      bool function_is_shared = module_->types[function.sig_index].is_shared;
       Handle<WasmFuncRef> func_ref =
-          WasmTrustedInstanceData::GetOrCreateFuncRef(isolate_, trusted_data,
-                                                      start_index);
+          WasmTrustedInstanceData::GetOrCreateFuncRef(
+              isolate_, function_is_shared ? shared_trusted_data : trusted_data,
+              start_index);
       Handle<WasmInternalFunction> internal{func_ref->internal(isolate_),
                                             isolate_};
       start_function_ = WasmInternalFunction::GetOrCreateExternal(internal);
@@ -1573,8 +1695,10 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
 }
 
 // Load data segments into the memory.
+// TODO(14616): Consider what to do with shared memories.
 void InstanceBuilder::LoadDataSegments(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   base::Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
@@ -1586,9 +1710,9 @@ void InstanceBuilder::LoadDataSegments(
     const WasmMemory& dst_memory = module_->memories[segment.memory_index];
     size_t dest_offset;
     if (dst_memory.is_memory64) {
-      ValueOrError result =
-          EvaluateConstantExpression(&init_expr_zone_, segment.dest_addr,
-                                     kWasmI64, isolate_, trusted_instance_data);
+      ValueOrError result = EvaluateConstantExpression(
+          &init_expr_zone_, segment.dest_addr, kWasmI64, isolate_,
+          trusted_instance_data, shared_trusted_instance_data);
       if (MaybeMarkError(result, thrower_)) return;
       uint64_t dest_offset_64 = to_value(result).to_u64();
 
@@ -1598,9 +1722,9 @@ void InstanceBuilder::LoadDataSegments(
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      ValueOrError result =
-          EvaluateConstantExpression(&init_expr_zone_, segment.dest_addr,
-                                     kWasmI32, isolate_, trusted_instance_data);
+      ValueOrError result = EvaluateConstantExpression(
+          &init_expr_zone_, segment.dest_addr, kWasmI32, isolate_,
+          trusted_instance_data, shared_trusted_instance_data);
       if (MaybeMarkError(result, thrower_)) return;
       dest_offset = to_value(result).to_u32();
     }
@@ -2266,7 +2390,8 @@ void InstanceBuilder::CompileImportWrappers(
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
 int InstanceBuilder::ProcessImports(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
 
@@ -2285,8 +2410,12 @@ int InstanceBuilder::ProcessImports(
       case kExternalFunction: {
         uint32_t func_index = import.index;
         DCHECK_EQ(num_imported_functions, func_index);
-        if (!ProcessImportedFunction(trusted_instance_data, index, func_index,
-                                     value, preknown_imports.get(func_index))) {
+        uint32_t sig_index = module_->functions[func_index].sig_index;
+        bool function_is_shared = module_->types[sig_index].is_shared;
+        if (!ProcessImportedFunction(
+                function_is_shared ? shared_trusted_instance_data
+                                   : trusted_instance_data,
+                index, func_index, value, preknown_imports.get(func_index))) {
           return -1;
         }
         num_imported_functions++;
@@ -2295,8 +2424,10 @@ int InstanceBuilder::ProcessImports(
       case kExternalTable: {
         uint32_t table_index = import.index;
         DCHECK_EQ(table_index, num_imported_tables);
-        if (!ProcessImportedTable(trusted_instance_data, index, table_index,
-                                  value)) {
+        bool table_is_shared = module_->tables[table_index].shared;
+        if (!ProcessImportedTable(table_is_shared ? shared_trusted_instance_data
+                                                  : trusted_instance_data,
+                                  index, table_index, value)) {
           return -1;
         }
         num_imported_tables++;
@@ -2308,13 +2439,17 @@ int InstanceBuilder::ProcessImports(
         // {ProcessImportedMemories}.
         break;
       case kExternalGlobal: {
-        if (!ProcessImportedGlobal(trusted_instance_data, index, import.index,
-                                   value)) {
+        bool global_is_shared = module_->globals[import.index].shared;
+        if (!ProcessImportedGlobal(global_is_shared
+                                       ? shared_trusted_instance_data
+                                       : trusted_instance_data,
+                                   index, import.index, value)) {
           return -1;
         }
         break;
       }
       case kExternalTag: {
+        // TODO(14616): Implement shared tags.
         if (!IsWasmTagObject(*value)) {
           thrower_->LinkError("%s: tag import requires a WebAssembly.Tag",
                               ImportName(index).c_str());
@@ -2430,24 +2565,28 @@ bool InstanceBuilder::ProcessImportedMemories(
 
 template <typename T>
 T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
-  return reinterpret_cast<T*>(raw_buffer_ptr(untagged_globals_, global.offset));
+  return reinterpret_cast<T*>(raw_buffer_ptr(
+      global.shared ? shared_untagged_globals_ : untagged_globals_,
+      global.offset));
 }
 
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   for (const WasmGlobal& global : module_->globals) {
     if (global.mutability && global.imported) continue;
     // Happens with imported globals.
     if (!global.init.is_set()) continue;
 
-    ValueOrError result =
-        EvaluateConstantExpression(&init_expr_zone_, global.init, global.type,
-                                   isolate_, trusted_instance_data);
+    ValueOrError result = EvaluateConstantExpression(
+        &init_expr_zone_, global.init, global.type, isolate_,
+        trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
 
     if (global.type.is_reference()) {
-      tagged_globals_->set(global.offset, *to_value(result).to_ref());
+      (global.shared ? shared_tagged_globals_ : tagged_globals_)
+          ->set(global.offset, *to_value(result).to_ref());
     } else {
       to_value(result).CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
     }
@@ -2479,7 +2618,8 @@ MaybeHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
 // Process the exports, creating wrappers for functions, tables, memories,
 // globals, and exceptions.
 void InstanceBuilder::ProcessExports(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   std::unordered_map<int, Handle<Object>> imported_globals;
 
   // If an imported WebAssembly function or global gets exported, the export
@@ -2541,9 +2681,12 @@ void InstanceBuilder::ProcessExports(
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
+        bool shared = module_->function_is_shared(exp.index);
         Handle<WasmFuncRef> func_ref =
             WasmTrustedInstanceData::GetOrCreateFuncRef(
-                isolate_, trusted_instance_data, exp.index);
+                isolate_,
+                shared ? shared_trusted_instance_data : trusted_instance_data,
+                exp.index);
         Handle<WasmInternalFunction> internal_function{
             func_ref->internal(isolate_), isolate_};
         Handle<JSFunction> wasm_external_function =
@@ -2562,8 +2705,10 @@ void InstanceBuilder::ProcessExports(
         break;
       }
       case kExternalTable: {
-        value =
-            handle(trusted_instance_data->tables()->get(exp.index), isolate_);
+        bool shared = module_->tables[exp.index].shared;
+        Handle<WasmTrustedInstanceData> data =
+            shared ? shared_trusted_instance_data : trusted_instance_data;
+        value = handle(data->tables()->get(exp.index), isolate_);
         break;
       }
       case kExternalMemory: {
@@ -2576,6 +2721,9 @@ void InstanceBuilder::ProcessExports(
       }
       case kExternalGlobal: {
         const WasmGlobal& global = module_->globals[exp.index];
+        Handle<WasmTrustedInstanceData> maybe_shared_trusted_instance_data =
+            global.shared ? shared_trusted_instance_data
+                          : trusted_instance_data;
         if (global.imported) {
           auto cached_global = imported_globals.find(exp.index);
           if (cached_global != imported_globals.end()) {
@@ -2589,7 +2737,8 @@ void InstanceBuilder::ProcessExports(
 
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
-              trusted_instance_data->imported_mutable_globals_buffers(),
+              maybe_shared_trusted_instance_data
+                  ->imported_mutable_globals_buffers(),
               isolate_);
           if (global.type.is_reference()) {
             tagged_buffer = handle(
@@ -2597,14 +2746,14 @@ void InstanceBuilder::ProcessExports(
             // For externref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
             offset = static_cast<uint32_t>(
-                trusted_instance_data->imported_mutable_globals()->get(
-                    global.index));
+                maybe_shared_trusted_instance_data->imported_mutable_globals()
+                    ->get(global.index));
           } else {
             untagged_buffer =
                 handle(JSArrayBuffer::cast(buffers_array->get(global.index)),
                        isolate_);
             Address global_addr =
-                trusted_instance_data->imported_mutable_globals()
+                maybe_shared_trusted_instance_data->imported_mutable_globals()
                     ->get_sandboxed_pointer(global.index);
 
             size_t buffer_size = untagged_buffer->byte_length();
@@ -2617,10 +2766,12 @@ void InstanceBuilder::ProcessExports(
         } else {
           if (global.type.is_reference()) {
             tagged_buffer = handle(
-                trusted_instance_data->tagged_globals_buffer(), isolate_);
+                maybe_shared_trusted_instance_data->tagged_globals_buffer(),
+                isolate_);
           } else {
             untagged_buffer = handle(
-                trusted_instance_data->untagged_globals_buffer(), isolate_);
+                maybe_shared_trusted_instance_data->untagged_globals_buffer(),
+                isolate_);
           }
           offset = global.offset;
         }
@@ -2704,23 +2855,26 @@ V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
 }  // namespace
 
 void InstanceBuilder::SetTableInitialValues(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   for (int table_index = 0;
        table_index < static_cast<int>(module_->tables.size()); ++table_index) {
     const WasmTable& table = module_->tables[table_index];
+    Handle<WasmTrustedInstanceData> maybe_shared_trusted_instance_data =
+        table.shared ? shared_trusted_instance_data : trusted_instance_data;
     if (table.initial_value.is_set()) {
-      auto table_object =
-          handle(WasmTableObject::cast(
-                     trusted_instance_data->tables()->get(table_index)),
-                 isolate_);
+      auto table_object = handle(
+          WasmTableObject::cast(
+              maybe_shared_trusted_instance_data->tables()->get(table_index)),
+          isolate_);
       bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
       if (is_function_table &&
           table.initial_value.kind() == ConstantExpression::kRefFunc) {
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
-          SetFunctionTablePlaceholder(isolate_, trusted_instance_data,
-                                      table_object, entry_index,
-                                      table.initial_value.index());
+          SetFunctionTablePlaceholder(
+              isolate_, maybe_shared_trusted_instance_data, table_object,
+              entry_index, table.initial_value.index());
         }
       } else if (is_function_table &&
                  table.initial_value.kind() == ConstantExpression::kRefNull) {
@@ -2731,7 +2885,7 @@ void InstanceBuilder::SetTableInitialValues(
       } else {
         ValueOrError result = EvaluateConstantExpression(
             &init_expr_zone_, table.initial_value, table.type, isolate_,
-            trusted_instance_data);
+            maybe_shared_trusted_instance_data, shared_trusted_instance_data);
         if (MaybeMarkError(result, thrower_)) return;
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
@@ -2754,6 +2908,7 @@ enum FunctionComputationMode { kLazyFunctionsAndNull, kStrictFunctionsAndNull };
 ValueOrError ConsumeElementSegmentEntry(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     const WasmElemSegment& segment, Decoder& decoder,
     FunctionComputationMode function_mode) {
   if (segment.element_type == WasmElemSegment::kFunctionIndexElements) {
@@ -2761,7 +2916,8 @@ ValueOrError ConsumeElementSegmentEntry(
     return function_mode == kStrictFunctionsAndNull
                ? EvaluateConstantExpression(
                      zone, ConstantExpression::RefFunc(function_index),
-                     segment.type, isolate, trusted_instance_data)
+                     segment.type, isolate, trusted_instance_data,
+                     shared_trusted_instance_data)
                : ValueOrError(WasmValue(function_index));
   }
 
@@ -2775,7 +2931,8 @@ ValueOrError ConsumeElementSegmentEntry(
         return function_mode == kStrictFunctionsAndNull
                    ? EvaluateConstantExpression(
                          zone, ConstantExpression::RefFunc(function_index),
-                         segment.type, isolate, trusted_instance_data)
+                         segment.type, isolate, trusted_instance_data,
+                         shared_trusted_instance_data)
                    : ValueOrError(WasmValue(function_index));
       }
       break;
@@ -2791,7 +2948,8 @@ ValueOrError ConsumeElementSegmentEntry(
                                                 ConstantExpression::RefNull(
                                                     heap_type.representation()),
                                                 segment.type, isolate,
-                                                trusted_instance_data)
+                                                trusted_instance_data,
+                                                shared_trusted_instance_data)
                    : WasmValue(int32_t{-1});
       }
       break;
@@ -2816,7 +2974,7 @@ ValueOrError ConsumeElementSegmentEntry(
                     kConstantExpression>
         full_decoder(zone, trusted_instance_data->module(), WasmFeatures::All(),
                      &detected, body, trusted_instance_data->module(), isolate,
-                     trusted_instance_data);
+                     trusted_instance_data, shared_trusted_instance_data);
 
     full_decoder.DecodeFunctionBody();
 
@@ -2837,13 +2995,15 @@ ValueOrError ConsumeElementSegmentEntry(
 base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index) {
-  if (!IsUndefined(
-          trusted_instance_data->element_segments()->get(segment_index)))
-    return {};
+  bool shared =
+      trusted_instance_data->module()->elem_segments[segment_index].shared;
+  Handle<WasmTrustedInstanceData> data =
+      shared ? shared_trusted_instance_data : trusted_instance_data;
+  if (!IsUndefined(data->element_segments()->get(segment_index))) return {};
 
-  const NativeModule* native_module =
-      trusted_instance_data->module_object()->native_module();
+  const NativeModule* native_module = data->module_object()->native_module();
   const WasmModule* module = native_module->module();
   const WasmElemSegment& elem_segment = module->elem_segments[segment_index];
 
@@ -2857,38 +3017,43 @@ base::Optional<MessageTemplate> InitializeElementSegment(
 
   for (size_t i = 0; i < elem_segment.element_count; ++i) {
     ValueOrError value = ConsumeElementSegmentEntry(
-        zone, isolate, trusted_instance_data, elem_segment, decoder,
-        kStrictFunctionsAndNull);
+        zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+        elem_segment, decoder, kStrictFunctionsAndNull);
     if (is_error(value)) return {to_error(value)};
     result->set(static_cast<int>(i), *to_value(value).to_ref());
   }
 
-  trusted_instance_data->element_segments()->set(segment_index, *result);
+  data->element_segments()->set(segment_index, *result);
 
   return {};
 }
 
 void InstanceBuilder::LoadTableSegments(
-    Handle<WasmTrustedInstanceData> trusted_instance_data) {
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   for (uint32_t segment_index = 0;
        segment_index < module_->elem_segments.size(); ++segment_index) {
-    const WasmElemSegment& elem_segment =
-        trusted_instance_data->module()->elem_segments[segment_index];
+    const WasmElemSegment& elem_segment = module_->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     const uint32_t table_index = elem_segment.table_index;
-    ValueOrError maybe_dst =
-        EvaluateConstantExpression(&init_expr_zone_, elem_segment.offset,
-                                   kWasmI32, isolate_, trusted_instance_data);
+
+    bool table_is_shared = module_->tables[table_index].shared;
+
+    ValueOrError maybe_dst = EvaluateConstantExpression(
+        &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_,
+        trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(maybe_dst, thrower_)) return;
     const uint32_t dst = to_value(maybe_dst).to_u32();
     const size_t count = elem_segment.element_count;
 
-    Handle<WasmTableObject> table_object =
-        handle(WasmTableObject::cast(
-                   trusted_instance_data->tables()->get(table_index)),
-               isolate_);
+    Handle<WasmTableObject> table_object = handle(
+        WasmTableObject::cast((table_is_shared ? shared_trusted_instance_data
+                                               : trusted_instance_data)
+                                  ->tables()
+                                  ->get(table_index)),
+        isolate_);
     if (!base::IsInBounds<size_t>(dst, count, table_object->current_length())) {
       thrower_->RuntimeError("%s",
                              MessageFormatter::TemplateString(
@@ -2908,8 +3073,9 @@ void InstanceBuilder::LoadTableSegments(
       for (size_t i = 0; i < count; i++) {
         int entry_index = static_cast<int>(dst + i);
         ValueOrError computed_element = ConsumeElementSegmentEntry(
-            &init_expr_zone_, isolate_, trusted_instance_data, elem_segment,
-            decoder, kLazyFunctionsAndNull);
+            &init_expr_zone_, isolate_, trusted_instance_data,
+            shared_trusted_instance_data, elem_segment, decoder,
+            kLazyFunctionsAndNull);
         if (MaybeMarkError(computed_element, thrower_)) return;
 
         WasmValue computed_value = to_value(computed_element);
@@ -2931,8 +3097,9 @@ void InstanceBuilder::LoadTableSegments(
       for (size_t i = 0; i < count; i++) {
         int entry_index = static_cast<int>(dst + i);
         ValueOrError computed_element = ConsumeElementSegmentEntry(
-            &init_expr_zone_, isolate_, trusted_instance_data, elem_segment,
-            decoder, kStrictFunctionsAndNull);
+            &init_expr_zone_, isolate_, trusted_instance_data,
+            shared_trusted_instance_data, elem_segment, decoder,
+            kStrictFunctionsAndNull);
         if (MaybeMarkError(computed_element, thrower_)) return;
         WasmTableObject::Set(isolate_, table_object, entry_index,
                              to_value(computed_element).to_ref());
@@ -2940,8 +3107,9 @@ void InstanceBuilder::LoadTableSegments(
     }
     // Active segment have to be set to empty after instance initialization
     // (much like passive segments after dropping).
-    trusted_instance_data->element_segments()->set(
-        segment_index, *isolate_->factory()->empty_fixed_array());
+    (elem_segment.shared ? shared_trusted_instance_data : trusted_instance_data)
+        ->element_segments()
+        ->set(segment_index, *isolate_->factory()->empty_fixed_array());
   }
 }
 

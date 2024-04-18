@@ -1891,6 +1891,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
 
 Handle<Object> Factory::NewWasmArrayFromElementSegment(
     Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
     DirectHandle<Map> map) {
   DCHECK(WasmArray::type(*map)->element_type().is_reference());
@@ -1900,7 +1901,8 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   base::Optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate(), trusted_instance_data, segment_index);
+      &zone, isolate(), trusted_instance_data, shared_trusted_instance_data,
+      segment_index);
   if (opt_error.has_value()) {
     return handle(Smi::FromEnum(opt_error.value()), isolate());
   }

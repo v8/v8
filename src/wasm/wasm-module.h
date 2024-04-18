@@ -646,6 +646,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WireBytesRef name_section = {0, 0};
   // Set to true if this module has wasm-gc types in its type section.
   bool is_wasm_gc = false;
+  // Set to true if this module has any shared elements other than memories.
+  bool has_shared_part = false;
 
   std::vector<TypeDefinition> types;  // by type index
   // Maps each type index to its global (cross-module) canonical index as per
@@ -773,6 +775,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
     if (isorecursive_canonical_type_ids.empty()) return -1;
     return *std::max_element(isorecursive_canonical_type_ids.begin(),
                              isorecursive_canonical_type_ids.end());
+  }
+
+  bool function_is_shared(int func_index) const {
+    return types[functions[func_index].sig_index].is_shared;
   }
 
   bool function_was_validated(int func_index) const {

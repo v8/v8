@@ -1441,6 +1441,10 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/speculative-inlining': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
+
+  # Only implemented in turboshaft for now.
+  # TODO(14616): Enable again when implemented in liftoff.
+  'wasm/shared-everything/basic': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
