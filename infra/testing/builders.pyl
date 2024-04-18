@@ -733,6 +733,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
     ],
   },
   'v8_linux64_tsan_dbg': {
@@ -1770,6 +1771,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
     ],
   },
   'V8 Linux64 TSAN - debug': {
