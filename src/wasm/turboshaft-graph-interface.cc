@@ -1939,10 +1939,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
 
-    V<Object> exception =
-        __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::TaggedPointer(),
-                IsolateData::exception_offset());
+    V<Object> exception = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::UintPtr(), IsolateData::exception_offset());
     IF_NOT (LIKELY(
                 __ TaggedEqual(exception, LOAD_ROOT(TheHoleValue)))) {
       CallBuiltinThroughJumptable<

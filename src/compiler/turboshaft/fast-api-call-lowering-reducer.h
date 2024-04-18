@@ -116,10 +116,10 @@ class FastApiCallLoweringReducer : public Next {
 
       Label<> trigger_exception(this);
 
-      V<Object> exception = __ Load(__ ExternalConstant(
-          ExternalReference::Create(IsolateAddressId::kExceptionAddress,
-                                    isolate_)), LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::TaggedPointer());
+      V<Object> exception =
+          __ Load(__ ExternalConstant(ExternalReference::Create(
+                      IsolateAddressId::kExceptionAddress, isolate_)),
+                  LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
       GOTO_IF_NOT(LIKELY(__ TaggedEqual(
                       exception,
                       __ HeapConstant(isolate_->factory()->the_hole_value()))),
