@@ -9973,8 +9973,10 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
-  enum_index =
-      SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
+  // We ignore overflow of |enum_index| here and accept potentially
+  // broken enumeration order (https://crbug.com/41432983).
+  enum_index = UnsignedSmiShl(enum_index,
+                              PropertyDetails::DictionaryStorageField::kShift);
   // We OR over the actual index below, so we expect the initial value to be 0.
   DCHECK_EQ(0, d.dictionary_index());
   TVARIABLE(Smi, var_details, SmiOr(SmiConstant(d.AsSmi()), enum_index));
@@ -9982,8 +9984,8 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(
   // Private names must be marked non-enumerable.
   Label not_private(this, &var_details);
   GotoIfNot(IsPrivateSymbol(name), &not_private);
-  TNode<Smi> dont_enum =
-      SmiShl(SmiConstant(DONT_ENUM), PropertyDetails::AttributesField::kShift);
+  TNode<Smi> dont_enum = UnsignedSmiShl(
+      SmiConstant(DONT_ENUM), PropertyDetails::AttributesField::kShift);
   var_details = SmiOr(var_details.value(), dont_enum);
   Goto(&not_private);
   BIND(&not_private);

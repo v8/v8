@@ -733,9 +733,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TrySmiSub(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
   TNode<Smi> TrySmiAbs(TNode<Smi> a, Label* if_overflow);
 
+  TNode<Smi> UnsignedSmiShl(TNode<Smi> a, int shift) {
+    if (SmiValuesAre32Bits()) {
+      return BitcastWordToTaggedSigned(
+          WordShl(BitcastTaggedToWordForTagAndSmiBits(a), shift));
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Word32Shl(
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+          Int32Constant(shift))));
+    }
+  }
+
   TNode<Smi> SmiShl(TNode<Smi> a, int shift) {
-    TNode<Smi> result = BitcastWordToTaggedSigned(
-        WordShl(BitcastTaggedToWordForTagAndSmiBits(a), shift));
+    TNode<Smi> result = UnsignedSmiShl(a, shift);
     // Smi shift have different result to int32 shift when the inputs are not
     // strictly limited. The CSA_DCHECK is to ensure valid inputs.
     CSA_DCHECK(
