@@ -493,7 +493,7 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
     }
   }
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 }  // namespace
@@ -535,7 +535,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
       builder.AppendString(isolate->factory()->NewSubString(
           fun_str, fun_str->length() - 2, fun_str->length()));
 
-      return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+      return builder.Finish().ToHandleChecked();
     }
     return fun_str;
   } else if (IsSymbol(*input)) {
@@ -563,7 +563,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     }
     builder.AppendCharacter(')');
 
-    return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+    return builder.Finish().ToHandleChecked();
   } else if (IsJSReceiver(*input)) {
     // -- J S R e c e i v e r
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
@@ -597,7 +597,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
           builder.AppendString(ctor_name);
           builder.AppendCharacter('>');
 
-          return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+          return builder.Finish().ToHandleChecked();
         }
       }
     }
@@ -645,7 +645,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
   builder.AppendString(tag);
   builder.AppendCharacter(']');
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 // static
@@ -3990,7 +3990,7 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name) {
   builder.AppendCharacter('[');
   builder.AppendString(Handle<String>::cast(description));
   builder.AppendCharacter(']');
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 // static
@@ -4003,7 +4003,7 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name,
   builder.AppendString(prefix);
   builder.AppendCharacter(' ');
   builder.AppendString(name_string);
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {

@@ -2549,7 +2549,7 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
     if (i != frames->length() - 1) builder.AppendCharacter('\n');
   }
 
-  DirectHandle<String> stack_trace = builder.Finish().ToHandleChecked();
+  Handle<String> stack_trace = builder.Finish().ToHandleChecked();
   stack_trace->PrintOn(out);
 }
 

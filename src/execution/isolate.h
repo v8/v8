@@ -248,14 +248,14 @@ class WasmOrphanedGlobalHandle;
  */
 #define RETURN_RESULT_OR_FAILURE(isolate, call)      \
   do {                                               \
-    typename decltype(call)::handle_type __result__; \
+    Handle<Object> __result__;                       \
     Isolate* __isolate__ = (isolate);                \
     if (!(call).ToHandle(&__result__)) {             \
       DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
     DCHECK(!__isolate__->has_exception());           \
-    return Tagged<Object>::cast(*__result__);        \
+    return *__result__;                              \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \

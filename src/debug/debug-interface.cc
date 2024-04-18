@@ -163,7 +163,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
         builder.AppendCStringLiteral("function ");
         builder.AppendString(debug_name);
         builder.AppendCStringLiteral("() { [native code] }");
-        return Utils::ToLocal(builder.Finish().ToHandleChecked(), i_isolate);
+        return Utils::ToLocal(builder.Finish().ToHandleChecked());
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -399,7 +399,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     }
   }
 
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 Handle<String> MessageFormatter::Format(
@@ -530,7 +530,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
           args.size() - remaining_args.size(), args.size(), template_string);
   }
 
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
@@ -740,8 +740,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
   builder.AppendString(msg);
 
   Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, indirect_handle(builder.Finish(), isolate), String);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, builder.Finish(), String);
   return result;
 }
 
@@ -825,7 +824,7 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
     builder.AppendString(isolate->factory()->NumberToString(object));
   }
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
