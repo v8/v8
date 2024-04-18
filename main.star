@@ -219,13 +219,57 @@ grantInvocationCreator(["ci", "ci-hp"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
-luci.bucket(name = "ci", acls = waterfall_acls)
-luci.bucket(name = "ci-hp", acls = waterfall_hp_acls)
-luci.bucket(name = "try", acls = tryserver_acls)
-luci.bucket(name = "try.triggered", acls = tryserver_acls)
-luci.bucket(name = "ci.br.beta", acls = waterfall_acls)
-luci.bucket(name = "ci.br.stable", acls = waterfall_acls)
-luci.bucket(name = "ci.br.extended", acls = waterfall_acls)
+def led_config(service_accounts, pools = None, groups = None):
+    return struct(
+        service_accounts = service_accounts,
+        pools = pools,
+        groups = groups or LED_GROUPS,
+    )
+
+def bucket(name, acls, led_config = None):
+    bindings, constraints = None, None
+    if led_config:
+        constraints = luci.bucket_constraints(
+            service_accounts = led_config.service_accounts,
+            pools = led_config.pools or ["pools/%s" % name],
+        )
+        bindings = [
+            luci.binding(
+                roles = "role/buildbucket.creator",
+                groups = led_config.groups,
+            ),
+        ]
+    return luci.bucket(
+        name = name,
+        acls = acls,
+        shadows = name,
+        bindings = bindings,
+        constraints = constraints,
+    )
+
+bucket(
+    name = "ci",
+    acls = waterfall_acls,
+    led_config = led_config([V8_CI_ACCOUNT]),
+)
+bucket(
+    name = "ci-hp",
+    acls = waterfall_hp_acls,
+    led_config = led_config(
+        V8_HP_SERVICE_ACCOUNTS,
+        ["pools/highly-privileged"],
+        ["google/v8-infra-users-highly-privileged@twosync.google.com"],
+    ),
+)
+bucket(
+    name = "try",
+    acls = tryserver_acls,
+    led_config = led_config([V8_TRY_ACCOUNT]),
+)
+bucket(name = "try.triggered", acls = tryserver_acls)
+bucket(name = "ci.br.beta", acls = waterfall_acls)
+bucket(name = "ci.br.stable", acls = waterfall_acls)
+bucket(name = "ci.br.extended", acls = waterfall_acls)
 
 exec("//lib/recipes.star")
 
