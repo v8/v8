@@ -2048,6 +2048,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
 
+      if (IsAnyDefineOwn()) {
+        set_slow_stub_reason("define own with existing accessor");
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+      }
       if (!holder->HasFastProperties()) {
         set_slow_stub_reason("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
