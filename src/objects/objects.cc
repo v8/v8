@@ -2207,19 +2207,12 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
 template void HeapObject::RehashBasedOnMap(Isolate* isolate);
 template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
-void DescriptorArray::GeneralizeAllFields(TransitionKindFlag transition_kind) {
+void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(length)) {
     PropertyDetails details = GetDetails(i);
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == PropertyLocation::kField) {
-      // Since constness is not propagated across proto transitions we must
-      // clear the flag here.
-      // TODO(olivf): Evaluate if we should apply field updates over proto
-      // transitions (either forward only, or forward and backwards).
-      if (transition_kind == PROTOTYPE_TRANSITION) {
-        details = details.CopyWithConstness(PropertyConstness::kMutable);
-      }
       DCHECK_EQ(PropertyKind::kData, details.kind());
       SetValue(i, FieldType::Any());
     }

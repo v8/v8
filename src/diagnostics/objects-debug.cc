@@ -578,6 +578,10 @@ void Map::MapVerify(Isolate* isolate) {
       Tagged<Map> parent = Map::cast(GetBackPointer());
       CHECK(!parent->is_stable());
       Tagged<DescriptorArray> descriptors = instance_descriptors(isolate);
+      if (!is_deprecated() && !parent->is_deprecated()) {
+        CHECK_EQ(IsInobjectSlackTrackingInProgress(),
+                 parent->IsInobjectSlackTrackingInProgress());
+      }
       if (descriptors == parent->instance_descriptors(isolate)) {
         if (NumberOfOwnDescriptors() == parent->NumberOfOwnDescriptors() + 1) {
           // Descriptors sharing through property transitions takes over
@@ -2654,14 +2658,25 @@ static bool CheckOneBackPointer(Tagged<Map> current_map, Tagged<Map> target) {
 }
 
 bool TransitionsAccessor::IsConsistentWithBackPointers() {
-  int num_transitions = NumberOfTransitions();
-  for (int i = 0; i < num_transitions; i++) {
-    Tagged<Map> target = GetTarget(i);
-    // Ensure maps belong to the same NativeContext (i.e. have the same
-    // meta map).
+  DisallowGarbageCollection no_gc;
+  bool success = true;
+  ForEachTransition(&no_gc, [&](Tagged<Map> target) {
+    // Ensure maps belong to the same NativeContext (i.e. have
+    // the same meta map).
     DCHECK_EQ(map_->map(), target->map());
-    if (!CheckOneBackPointer(map_, target)) return false;
-  }
+#ifdef DEBUG
+    if (!map_->is_deprecated() && !target->is_deprecated()) {
+      DCHECK_EQ(map_->IsInobjectSlackTrackingInProgress(),
+                target->IsInobjectSlackTrackingInProgress());
+      // Check prototype transitions are first.
+      DCHECK_IMPLIES(map_->prototype() != target->prototype(),
+                     IsUndefined(map_->GetBackPointer()));
+    }
+#endif  // DEBUG
+    if (!CheckOneBackPointer(map_, target)) {
+      success = false;
+    }
+  });
   return true;
 }
 
