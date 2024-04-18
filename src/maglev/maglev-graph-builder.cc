@@ -7128,6 +7128,55 @@ ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
   return GetRootConstant(RootIndex::kTrueValue);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceGetProto(ValueNode* object) {
+  NodeInfo* info = known_node_aspects().TryGetInfoFor(object);
+  if (!info || !info->possible_maps_are_known()) {
+    return ReduceResult::Fail();
+  }
+  auto& possible_maps = info->possible_maps();
+  if (possible_maps.is_empty()) {
+    return ReduceResult::DoneWithAbort();
+  }
+  auto it = possible_maps.begin();
+  compiler::MapRef map = *it;
+  if (IsSpecialReceiverInstanceType(map.instance_type())) {
+    return ReduceResult::Fail();
+  }
+  DCHECK(!map.IsPrimitiveMap() && map.IsJSReceiverMap());
+  compiler::HeapObjectRef proto = map.prototype(broker());
+  ++it;
+  for (; it != possible_maps.end(); ++it) {
+    map = *it;
+    if (IsSpecialReceiverInstanceType(map.instance_type()) ||
+        !proto.equals(map.prototype(broker()))) {
+      return ReduceResult::Fail();
+    }
+    DCHECK(!map.IsPrimitiveMap() && map.IsJSReceiverMap());
+  }
+  return GetConstant(proto);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeGetProto(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() != 0) {
+    return ReduceResult::Fail();
+  }
+  return TryReduceGetProto(args.receiver());
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceObjectGetPrototypeOf(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() != 1) {
+    return ReduceResult::Fail();
+  }
+  return TryReduceGetProto(args[0]);
+}
+
+ReduceResult MaglevGraphBuilder::TryReduceReflectGetPrototypeOf(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceObjectGetPrototypeOf(target, args);
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
   return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);

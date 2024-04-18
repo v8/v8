@@ -1710,6 +1710,9 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeSetFloat64)   \
   V(FunctionPrototypeCall)         \
   V(FunctionPrototypeHasInstance)  \
+  V(ObjectPrototypeGetProto)       \
+  V(ObjectGetPrototypeOf)          \
+  V(ReflectGetPrototypeOf)         \
   V(ObjectPrototypeHasOwnProperty) \
   V(MathCeil)                      \
   V(MathFloor)                     \
@@ -1729,6 +1732,8 @@ class MaglevGraphBuilder {
                                CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
+
+  ReduceResult TryReduceGetProto(ValueNode* node);
 
   template <typename MapKindsT, typename IndexToElementsKindFunc,
             typename BuildKindSpecificFunc>
