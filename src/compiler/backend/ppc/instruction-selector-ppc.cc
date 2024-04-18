@@ -1313,8 +1313,39 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
     PPCOperandGeneratorT<Adapter> g(this);
-    // TODO(miladfarca): Implement for Turboshaft.
-    if constexpr (!Adapter::IsTurboshaft) {
+    if constexpr (Adapter::IsTurboshaft) {
+      using namespace turboshaft;  // NOLINT(build/namespaces)
+      DCHECK(this->Get(node).template Cast<ShiftOp>().IsRightShift());
+      const ShiftOp& shift = this->Get(node).template Cast<ShiftOp>();
+      const Operation& lhs = this->Get(shift.left());
+      int64_t constant_rhs;
+
+      if (lhs.Is<LoadOp>() &&
+          this->MatchIntegralWord64Constant(shift.right(), &constant_rhs) &&
+          constant_rhs == 32 && this->CanCover(node, shift.left())) {
+        // Just load and sign-extend the interesting 4 bytes instead. This
+        // happens, for example, when we're loading and untagging SMIs.
+        const LoadOp& load = lhs.Cast<LoadOp>();
+        int64_t offset = 0;
+        if (load.index().has_value()) {
+          int64_t index_constant;
+          if (this->MatchIntegralWord64Constant(load.index().value(),
+                                                &index_constant)) {
+            DCHECK_EQ(load.element_size_log2, 0);
+            offset = index_constant;
+          }
+        } else {
+          offset = load.offset;
+        }
+        offset = SmiWordOffset(offset);
+        if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
+          Emit(kPPC_LoadWordS32 | AddressingModeField::encode(kMode_MRI),
+               g.DefineAsRegister(node), g.UseRegister(load.base()),
+               g.TempImmediate(offset), g.UseImmediate(0));
+          return;
+        }
+      }
+    } else {
       Int64BinopMatcher m(node);
       if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
           m.right().Is(32)) {
