@@ -1998,6 +1998,10 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
 
 DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
+DEFINE_BOOL(idle_gc_on_context_disposal, false, "idle gc on context disposal")
+
+DEFINE_BOOL(trace_context_disposal, false, "trace context disposal")
+
 // v8::CppHeap flags that allow fine-grained control of how C++ memory is
 // reclaimed in the garbage collector.
 DEFINE_BOOL(cppheap_incremental_marking, false,

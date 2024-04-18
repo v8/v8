@@ -287,6 +287,8 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->FlushPretenuringFeedback();
   }
   CHECK(heap_->concurrent_marking()->IsStopped());
+  heap_->tracer()->SampleConcurrencyEsimate(
+      heap_->concurrent_marking()->FetchAndResetConcurrencyEstimate());
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
   }

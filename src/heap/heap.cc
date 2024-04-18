@@ -21,6 +21,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
@@ -116,6 +117,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
@@ -1973,13 +1975,98 @@ void Heap::CollectGarbage(AllocationSpace space,
   }
 }
 
+class IdleTaskOnContextDispose : public CancelableIdleTask {
+ public:
+  static void TryPostJob(Heap* heap) {
+    const auto runner = heap->GetForegroundTaskRunner();
+    if (runner->IdleTasksEnabled()) {
+      runner->PostIdleTask(
+          std::make_unique<IdleTaskOnContextDispose>(heap->isolate()));
+    }
+  }
+
+  explicit IdleTaskOnContextDispose(Isolate* isolate)
+      : CancelableIdleTask(isolate), isolate_(isolate) {}
+
+  void RunInternal(double deadline_in_seconds) override {
+    auto* heap = isolate_->heap();
+    const base::TimeDelta time_to_run = base::TimeTicks::Now() - creation_time_;
+    // The provided delta uses embedder timestamps.
+    const base::TimeDelta idle_time = base::TimeDelta::FromMillisecondsD(
+        (deadline_in_seconds * 1000) - heap->MonotonicallyIncreasingTimeInMs());
+    const bool time_to_run_exceeded = time_to_run > kMaxTimeToRun;
+    if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
+      isolate_->PrintWithTimestamp(
+          "[context-disposal/idle task] time-to-run: %fms (max delay: %fms), "
+          "idle time: %fms%s\n",
+          time_to_run.InMillisecondsF(), kMaxTimeToRun.InMillisecondsF(),
+          idle_time.InMillisecondsF(),
+          time_to_run_exceeded ? ", not starting any action" : "");
+    }
+    if (time_to_run_exceeded) {
+      return;
+    }
+    TryRunMinorGC(idle_time);
+  }
+
+ private:
+  static constexpr base::TimeDelta kFrameTime =
+      base::TimeDelta::FromMillisecondsD(16);
+
+  // We limit any idle time actions here by a maximum time to run of a single
+  // frame. This avoids that these tasks are executed too late and causes
+  // (unpredictable) side effects with e.g. promotion of newly allocated
+  // objects.
+  static constexpr base::TimeDelta kMaxTimeToRun = kFrameTime + kFrameTime;
+
+  void TryRunMinorGC(const base::TimeDelta idle_time) {
+    // The following logic estimates whether a young generation GC would fit in
+    // `idle_time.` We bail out for a young gen below 1MB to avoid executing GC
+    // when the mutator is not actually active.
+    static constexpr size_t kMinYounGenSize = 1 * MB;
+
+    auto* heap = isolate_->heap();
+    const double young_gen_gc_speed =
+        heap->tracer()->YoungGenerationSpeedInBytesPerMillisecond(
+            YoungGenerationSpeedMode::kUpToAndIncludingAtomicPause);
+    const size_t young_gen_bytes = heap->YoungGenerationSizeOfObjects();
+    const base::TimeDelta young_gen_estimate =
+        base::TimeDelta::FromMillisecondsD(young_gen_bytes /
+                                           young_gen_gc_speed);
+    const bool run_young_gen_gc =
+        young_gen_estimate < idle_time && young_gen_bytes > kMinYounGenSize;
+    if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
+      isolate_->PrintWithTimestamp(
+          "[context-disposal/idle task] young generation size: %zuKB (min: "
+          "%zuKB), GC speed: %fKB/ms, estimated time: %fms%s\n",
+          young_gen_bytes / KB, kMinYounGenSize / KB, young_gen_gc_speed / KB,
+          young_gen_estimate.InMillisecondsF(),
+          run_young_gen_gc ? ", performing young gen GC"
+                           : ", not starting young gen GC");
+    }
+    if (run_young_gen_gc) {
+      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+    }
+  }
+
+  Isolate* isolate_;
+  const base::TimeTicks creation_time_ = base::TimeTicks::Now();
+};
+
 int Heap::NotifyContextDisposed(bool has_dependent_context) {
+  if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
+    isolate()->PrintWithTimestamp(
+        "[context-disposal] Disposing %s context\n",
+        has_dependent_context ? "nested" : "top-level");
+  }
   if (!has_dependent_context) {
     tracer()->ResetSurvivalEvents();
     ResetOldGenerationAndGlobalAllocationLimit();
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
     }
+  } else if (v8_flags.idle_gc_on_context_disposal) {
+    IdleTaskOnContextDispose::TryPostJob(this);
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
@@ -1987,6 +2074,7 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     isolate()->raw_native_context()->set_retained_maps(
         ReadOnlyRoots(this).empty_weak_array_list());
   }
+
   return ++contexts_disposed_;
 }
 
@@ -3746,7 +3834,8 @@ bool Heap::HasLowYoungGenerationAllocationRate() {
   double mu = ComputeMutatorUtilization(
       "Young generation",
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond(),
-      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
+      tracer()->YoungGenerationSpeedInBytesPerMillisecond(
+          YoungGenerationSpeedMode::kOnlyAtomicPause));
   constexpr double kHighMutatorUtilization = 0.993;
   return mu > kHighMutatorUtilization;
 }

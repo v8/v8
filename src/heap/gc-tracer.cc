@@ -340,9 +340,7 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
   const bool is_young = Heap::IsYoungGenerationCollector(collector);
   if (is_young) {
-    recorded_minor_gcs_total_.Push(
-        BytesAndDuration(current_.young_object_size, duration));
-    recorded_minor_gcs_survived_.Push(
+    recorded_minor_gc_atomic_pause_.Push(
         BytesAndDuration(current_.survived_young_object_size, duration));
     long_task_stats->gc_young_wall_clock_duration_us +=
         duration.InMicroseconds();
@@ -428,6 +426,23 @@ void GCTracer::StopAtomicPause() {
   current_.state = Event::State::SWEEPING;
 }
 
+namespace {
+
+// Estimate of young generation wall time across all threads up to and including
+// the atomic pause.
+constexpr v8::base::TimeDelta YoungGenerationWallTime(
+    const GCTracer::Event& event) {
+  return
+      // Scavenger events.
+      event.scopes[GCTracer::Scope::SCAVENGER] +
+      event.scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
+      // Minor MS events.
+      event.scopes[GCTracer::Scope::MINOR_MS] +
+      event.scopes[GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING];
+}
+
+}  // namespace
+
 void GCTracer::StopCycle(GarbageCollector collector) {
   DCHECK_EQ(Event::State::SWEEPING, current_.state);
   current_.state = Event::State::NOT_RUNNING;
@@ -438,6 +453,11 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
+
+    const v8::base::TimeDelta per_thread_wall_time =
+        YoungGenerationWallTime(current_) / current_.concurrency_estimate;
+    recorded_minor_gc_per_thread_.Push(BytesAndDuration(
+        current_.survived_young_object_size, per_thread_wall_time));
 
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
@@ -620,6 +640,13 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
     heap_->mb_->UpdateAllocationRate(old_generation_allocated_bytes,
                                      allocation_duration);
   }
+}
+
+void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
+  // For now, we only expect a single sample.
+  DCHECK_EQ(current_.concurrency_estimate, 1);
+  DCHECK_GT(concurrency, 0);
+  current_.concurrency_estimate = concurrency;
 }
 
 void GCTracer::NotifyMarkingStart() {
@@ -829,10 +856,11 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
           incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
           current_scope(Scope::MC_INCREMENTAL),
-          ScavengeSpeedInBytesPerMillisecond(), current_.start_object_size,
-          current_.end_object_size, current_.start_holes_size,
-          current_.end_holes_size, allocated_since_last_gc,
-          heap_->promoted_objects_size(),
+          YoungGenerationSpeedInBytesPerMillisecond(
+              YoungGenerationSpeedMode::kOnlyAtomicPause),
+          current_.start_object_size, current_.end_object_size,
+          current_.start_holes_size, current_.end_holes_size,
+          allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
@@ -1208,13 +1236,15 @@ double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
   return recorded_embedder_speed_;
 }
 
-double GCTracer::ScavengeSpeedInBytesPerMillisecond(
-    ScavengeSpeedMode mode) const {
-  if (mode == kForAllObjects) {
-    return BoundedAverageSpeed(recorded_minor_gcs_total_);
-  } else {
-    return BoundedAverageSpeed(recorded_minor_gcs_survived_);
+double GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
+    YoungGenerationSpeedMode mode) const {
+  switch (mode) {
+    case YoungGenerationSpeedMode::kUpToAndIncludingAtomicPause:
+      return BoundedAverageSpeed(recorded_minor_gc_per_thread_);
+    case YoungGenerationSpeedMode::kOnlyAtomicPause:
+      return BoundedAverageSpeed(recorded_minor_gc_atomic_pause_);
   }
+  UNREACHABLE();
 }
 
 double GCTracer::CompactionSpeedInBytesPerMillisecond() const {
@@ -1717,10 +1747,8 @@ void GCTracer::ReportYoungCycleToRecorder() {
 
   // Total:
   const base::TimeDelta total_wall_clock_duration =
-      current_.scopes[Scope::SCAVENGER] +
-      current_.scopes[Scope::MINOR_MARK_SWEEPER] +
-      current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
-      current_.scopes[Scope::MINOR_MS_BACKGROUND_MARKING];
+      YoungGenerationWallTime(current_);
+
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
   // (both for the case of the scavenger and the minor mark-sweeper).
   event.total_wall_clock_duration_in_us =
