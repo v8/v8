@@ -28,7 +28,8 @@ def presubmit_builder(
         project,
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
-        timeout = 8 * 60):
+        timeout = 8 * 60,
+        caches = None):
     try_builder(
         name = "%s_presubmit" % project,
         bucket = "try",
@@ -39,6 +40,7 @@ def presubmit_builder(
         execution_timeout = timeout + 2 * 60,
         properties = {"runhooks": True, "timeout": timeout},
         priority = 25,
+        caches = caches,
     )
 
 presubmit_builder(
@@ -46,7 +48,16 @@ presubmit_builder(
     cq_properties = CQ.BLOCK_NO_REUSE,
     cq_branch_properties = CQ.BLOCK_NO_REUSE,
 )
-presubmit_builder("crossbench", timeout = 900)
+presubmit_builder(
+    "crossbench",
+    timeout = 900,
+    caches = [
+        swarming.cache(
+            name = "crossbench_presubmit_cache",
+            path = "builder",
+        ),
+    ],
+)
 
 try_builder(
     name = "v8_android_arm_compile_rel",
