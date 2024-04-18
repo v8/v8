@@ -79,6 +79,10 @@ class JSSynchronizationPrimitive
                                    WaiterQueueNode* waiter_head,
                                    StateT new_state);
 
+  // Set the new state without modifying bits outside the waiter queue mask.
+  static void SetWaiterQueueStateOnly(std::atomic<StateT>* state,
+                                      StateT new_state);
+
   static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
                                          StateT& expected);
 
@@ -88,6 +92,8 @@ class JSSynchronizationPrimitive
       JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject>::set_state;
 
   static constexpr StateT kEmptyState = 0;
+  static constexpr StateT kWaiterQueueMask =
+      base::BitFieldUnion<HasWaitersField, IsWaiterQueueLockedField>::kMask;
 
  private:
   friend class WaiterQueueLockGuard;
@@ -241,8 +247,6 @@ class JSAtomicsMutex
                                           WaiterQueueNode* timed_out_waiter);
 
   static bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
-  static void UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
-                                            StateT new_state);
   // Returns nullopt if the JS mutex is acquired, otherwise return an optional
   // with a `WaiterQueueLockGuard` object.
   static std::optional<WaiterQueueLockGuard> LockWaiterQueueOrJSMutex(
@@ -315,11 +319,11 @@ class JSAtomicsCondition
   friend class Factory;
   friend class WaiterQueueNode;
 
-  using DequeueAction = std::function<WaiterQueueNode*(WaiterQueueNode**)>;
-  static WaiterQueueNode* DequeueExplicit(Isolate* requester,
-                                          Handle<JSAtomicsCondition> cv,
-                                          std::atomic<StateT>* state,
-                                          const DequeueAction& dequeue_action);
+  using DequeueAction = std::function<uint32_t(WaiterQueueNode**)>;
+  static uint32_t DequeueExplicit(Isolate* requester,
+                                  Handle<JSAtomicsCondition> cv,
+                                  std::atomic<StateT>* state,
+                                  const DequeueAction& dequeue_action);
 };
 
 }  // namespace internal

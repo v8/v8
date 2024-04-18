@@ -83,6 +83,19 @@ bool JSSynchronizationPrimitive::TryLockWaiterQueueExplicit(
       std::memory_order_acquire, std::memory_order_relaxed);
 }
 
+// static
+void JSSynchronizationPrimitive::SetWaiterQueueStateOnly(
+    std::atomic<StateT>* state, StateT new_state) {
+  // Set the new state changing only the waiter queue bits.
+  DCHECK_EQ(new_state & ~kWaiterQueueMask, 0);
+  StateT expected = state->load(std::memory_order_relaxed);
+  StateT desired;
+  do {
+    desired = new_state | (expected & ~kWaiterQueueMask);
+  } while (!state->compare_exchange_weak(
+      expected, desired, std::memory_order_release, std::memory_order_relaxed));
+}
+
 Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
     Isolate* requester) {
   DisallowGarbageCollection no_gc;
@@ -94,12 +107,17 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
 
   int num_waiters;
   {
-    // Take the queue lock.
-    WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
+    // If this is counting the number of waiters on a mutex, the js mutex
+    // can be taken by another thread without acquiring the queue lock. We
+    // handle the state manually to release the queue lock without changing the
+    // "is locked" bit.
+    while (!TryLockWaiterQueueExplicit(state, current_state)) {
+      YIELD_PROCESSOR;
+    }
 
     if (!HasWaitersField::decode(current_state)) {
       // The queue was emptied while waiting for the queue lock.
-      waiter_queue_lock_guard.set_new_state(current_state);
+      SetWaiterQueueStateOnly(state, kEmptyState);
       return Smi::FromInt(0);
     }
 
@@ -112,9 +130,9 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
     // new state.
     DCHECK_EQ(state->load(),
               IsWaiterQueueLockedField::update(current_state, true));
-    StateT new_state =
-        SetWaiterQueueHead(requester, waiter_head, current_state);
-    waiter_queue_lock_guard.set_new_state(new_state);
+    StateT new_state = SetWaiterQueueHead(requester, waiter_head, kEmptyState);
+    new_state = IsWaiterQueueLockedField::update(new_state, false);
+    SetWaiterQueueStateOnly(state, new_state);
   }
 
   return Smi::FromInt(num_waiters);
@@ -145,19 +163,6 @@ std::optional<WaiterQueueLockGuard> JSAtomicsMutex::LockWaiterQueueOrJSMutex(
   }
 }
 
-// static
-void JSAtomicsMutex::UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
-                                                   StateT new_state) {
-  // Set the new state without changing the "is locked" bit.
-  DCHECK_EQ(IsLockedField::update(new_state, false), new_state);
-  StateT expected = state->load(std::memory_order_relaxed);
-  StateT desired;
-  do {
-    desired = IsLockedField::update(new_state, IsLockedField::decode(expected));
-  } while (!state->compare_exchange_weak(
-      expected, desired, std::memory_order_release, std::memory_order_relaxed));
-}
-
 bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     Isolate* requester, std::atomic<StateT>* state,
     WaiterQueueNode* timed_out_waiter) {
@@ -178,7 +183,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     // The queue is empty but the js mutex lock may be held by another thread,
     // release the waiter queue bit without changing the "is locked" bit.
     DCHECK(!HasWaitersField::decode(current_state));
-    UnlockWaiterQueueWithNewState(state, kUnlockedUncontended);
+    SetWaiterQueueStateOnly(state, kUnlockedUncontended);
     return false;
   }
 
@@ -220,7 +225,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     return false;
   }
 
-  UnlockWaiterQueueWithNewState(state, new_state);
+  SetWaiterQueueStateOnly(state, new_state);
   return false;
 }
 
@@ -393,9 +398,10 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
         std::atomic<StateT>* state = cv->AtomicStatePtr();
         DequeueExplicit(
             requester, cv, state, [&](WaiterQueueNode** waiter_head) {
-              return WaiterQueueNode::DequeueMatching(
+              WaiterQueueNode* dequeued = WaiterQueueNode::DequeueMatching(
                   waiter_head,
                   [&](WaiterQueueNode* node) { return node == &this_waiter; });
+              return dequeued ? 1 : 0;
             });
       }
     } else {
@@ -408,13 +414,13 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
 }
 
 // static
-WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
+uint32_t JSAtomicsCondition::DequeueExplicit(
     Isolate* requester, Handle<JSAtomicsCondition> cv,
     std::atomic<StateT>* state, const DequeueAction& action_under_lock) {
   // First acquire the queue lock, which is itself a spinlock.
   StateT current_state = state->load(std::memory_order_relaxed);
 
-  if (!HasWaitersField::decode(current_state)) return nullptr;
+  if (!HasWaitersField::decode(current_state)) return 0;
   WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
 
   // Get the waiter queue head.
@@ -425,10 +431,10 @@ WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
   if (waiter_head == nullptr) {
     StateT new_state = kEmptyState;
     waiter_queue_lock_guard.set_new_state(new_state);
-    return nullptr;
+    return 0;
   }
 
-  WaiterQueueNode* old_head = action_under_lock(&waiter_head);
+  uint32_t num_dequeued_waiters = action_under_lock(&waiter_head);
 
   // Release the queue lock and install the new waiter queue head.
   DCHECK_EQ(state->load(),
@@ -437,7 +443,7 @@ WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
       cv->SetWaiterQueueHead(requester, waiter_head, current_state);
   waiter_queue_lock_guard.set_new_state(new_state);
 
-  return old_head;
+  return num_dequeued_waiters;
 }
 
 // static
@@ -445,34 +451,28 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
                                     Handle<JSAtomicsCondition> cv,
                                     uint32_t count) {
   std::atomic<StateT>* state = cv->AtomicStatePtr();
-  uint32_t num_notified_waiters = 0;
 
   // Dequeue count waiters.
-  DequeueExplicit(requester, cv, state,
-                  [=, &num_notified_waiters](
-                      WaiterQueueNode** waiter_head) -> WaiterQueueNode* {
-                    WaiterQueueNode* old_head;
-                    if (count == 1) {
-                      old_head = WaiterQueueNode::Dequeue(waiter_head);
-                      if (!old_head) return nullptr;
-                      num_notified_waiters = 1;
-                      old_head->Notify();
-                      return old_head;
-                    }
-                    if (count == kAllWaiters) {
-                      old_head = *waiter_head;
-                      *waiter_head = nullptr;
-                    } else {
-                      old_head = WaiterQueueNode::Split(waiter_head, count);
-                    }
-                    if (!old_head) return old_head;
-                    // Notify while holding the queue lock to avoid notifying
-                    // waiters that have been deleted in other threads.
-                    num_notified_waiters = old_head->NotifyAllInList();
-                    return old_head;
-                  });
-
-  return num_notified_waiters;
+  return DequeueExplicit(
+      requester, cv, state, [=](WaiterQueueNode** waiter_head) -> uint32_t {
+        WaiterQueueNode* old_head;
+        if (count == 1) {
+          old_head = WaiterQueueNode::Dequeue(waiter_head);
+          if (!old_head) return 0;
+          old_head->Notify();
+          return 1;
+        }
+        if (count == kAllWaiters) {
+          old_head = *waiter_head;
+          *waiter_head = nullptr;
+        } else {
+          old_head = WaiterQueueNode::Split(waiter_head, count);
+        }
+        if (!old_head) return 0;
+        // Notify while holding the queue lock to avoid notifying
+        // waiters that have been deleted in other threads.
+        return old_head->NotifyAllInList();
+      });
 }
 
 }  // namespace internal
