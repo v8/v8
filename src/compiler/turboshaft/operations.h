@@ -2309,7 +2309,7 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
     return InitVectorOf(storage, {RegisterRepresentation::Word32(), rep, rep});
   }
 
-  SelectOp(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+  SelectOp(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
            RegisterRepresentation rep, BranchHint hint, Implementation implem)
       : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {}
 
@@ -2325,9 +2325,9 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
                         SupportedOperations::float64_select()));
   }
 
-  OpIndex cond() const { return input(0); }
-  OpIndex vtrue() const { return input(1); }
-  OpIndex vfalse() const { return input(2); }
+  V<Word32> cond() const { return input<Word32>(0); }
+  V<Any> vtrue() const { return input<Any>(1); }
+  V<Any> vfalse() const { return input<Any>(2); }
 
   auto options() const { return std::tuple{rep, hint, implem}; }
 };
@@ -4125,17 +4125,16 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Word32> input() const { return Base::input<Word32>(0); }
 
-  SwitchOp(OpIndex input, base::Vector<Case> cases, Block* default_case,
+  SwitchOp(V<Word32> input, base::Vector<Case> cases, Block* default_case,
            BranchHint default_hint)
       : Base(input),
         default_hint(default_hint),
         cases(cases),
         default_case(default_case) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{cases, default_case, default_hint}; }
 };

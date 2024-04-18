@@ -1621,7 +1621,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     V<Word32> cond = RootEqual(node->object_input(), RootIndex::kTheHoleValue);
     SetMap(node, __ Select(cond, __ HeapConstant(factory_->undefined_value()),
-                           Map(node->object_input()),
+                           Map<Object>(node->object_input()),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
                            SelectOp::Implementation::kBranch));
     return maglev::ProcessResult::kContinue;

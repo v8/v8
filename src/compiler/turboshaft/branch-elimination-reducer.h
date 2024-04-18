@@ -274,9 +274,9 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                         RegisterRepresentation rep, BranchHint hint,
-                         SelectOp::Implementation implem) {
+  V<Any> REDUCE(Select)(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
+                        RegisterRepresentation rep, BranchHint hint,
+                        SelectOp::Implementation implem) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }

@@ -995,7 +995,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                      RegisterRepresentation::Tagged());
   }
 
-  OpIndex REDUCE(Switch)(OpIndex input, base::Vector<SwitchOp::Case> cases,
+  V<None> REDUCE(Switch)(V<Word32> input, base::Vector<SwitchOp::Case> cases,
                          Block* default_case, BranchHint default_hint) {
 #ifdef DEBUG
     // Making sure that all cases and {default_case} are different. If we ever
@@ -1009,7 +1009,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     }
 #endif
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex =
+    V<None> new_opindex =
         Base::ReduceSwitch(input, cases, default_case, default_hint);
     for (SwitchOp::Case c : cases) {
       Asm().AddPredecessor(saved_current_block, c.destination, true);
@@ -2694,17 +2694,30 @@ class TurboshaftAssemblerOpInterface
 
   OpIndex LoadRootRegister() { return ReduceIfReachableLoadRootRegister(); }
 
-  OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+  template <typename T = Any, typename U = T>
+  V<std::common_type_t<T, U>> Select(ConstOrV<Word32> cond, V<T> vtrue,
+                                     V<U> vfalse, RegisterRepresentation rep,
+                                     BranchHint hint,
+                                     SelectOp::Implementation implem) {
+    return ReduceIfReachableSelect(resolve(cond), vtrue, vfalse, rep, hint,
+                                   implem);
+  }
+
+  // TODO(chromium:331100916): remove this overload once Turboshaft has been
+  // entirely V<>ified.
+  OpIndex Select(ConstOrV<Word32> cond, OpIndex vtrue, OpIndex vfalse,
                  RegisterRepresentation rep, BranchHint hint,
                  SelectOp::Implementation implem) {
-    return ReduceIfReachableSelect(cond, vtrue, vfalse, rep, hint, implem);
+    return Select(cond, V<Any>::Cast(vtrue), V<Any>::Cast(vfalse), rep, hint,
+                  implem);
   }
-#define DEF_SELECT(Rep)                                             \
-  V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,    \
-                     ConstOrV<Rep> vfalse) {                        \
-    return Select(resolve(cond), resolve(vtrue), resolve(vfalse),   \
-                  RegisterRepresentation::Rep(), BranchHint::kNone, \
-                  SelectOp::Implementation::kCMove);                \
+
+#define DEF_SELECT(Rep)                                                  \
+  V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,         \
+                     ConstOrV<Rep> vfalse) {                             \
+    return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
+                       RegisterRepresentation::Rep(), BranchHint::kNone, \
+                       SelectOp::Implementation::kCMove);                \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)

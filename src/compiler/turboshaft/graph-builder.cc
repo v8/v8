@@ -1100,9 +1100,9 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kSelect: {
-      OpIndex cond = Map(node->InputAt(0));
-      OpIndex vtrue = Map(node->InputAt(1));
-      OpIndex vfalse = Map(node->InputAt(2));
+      V<Word32> cond = Map(node->InputAt(0));
+      V<Any> vtrue = Map(node->InputAt(1));
+      V<Any> vfalse = Map(node->InputAt(2));
       const SelectParameters& params = SelectParametersOf(op);
       return __ Select(cond, vtrue, vfalse,
                        RegisterRepresentation::FromMachineRepresentation(
@@ -1110,13 +1110,15 @@ OpIndex GraphBuilder::Process(
                        params.hint(), SelectOp::Implementation::kBranch);
     }
     case IrOpcode::kWord32Select:
-      return __ Select(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                       Map(node->InputAt(2)), RegisterRepresentation::Word32(),
-                       BranchHint::kNone, SelectOp::Implementation::kCMove);
+      return __ Select(
+          Map<Word32>(node->InputAt(0)), Map<Word32>(node->InputAt(1)),
+          Map<Word32>(node->InputAt(2)), RegisterRepresentation::Word32(),
+          BranchHint::kNone, SelectOp::Implementation::kCMove);
     case IrOpcode::kWord64Select:
-      return __ Select(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                       Map(node->InputAt(2)), RegisterRepresentation::Word64(),
-                       BranchHint::kNone, SelectOp::Implementation::kCMove);
+      return __ Select(
+          Map<Word32>(node->InputAt(0)), Map<Word64>(node->InputAt(1)),
+          Map<Word64>(node->InputAt(2)), RegisterRepresentation::Word64(),
+          BranchHint::kNone, SelectOp::Implementation::kCMove);
 
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:

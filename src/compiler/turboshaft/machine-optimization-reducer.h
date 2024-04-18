@@ -1792,9 +1792,9 @@ class MachineOptimizationReducer : public Next {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                         RegisterRepresentation rep, BranchHint hint,
-                         SelectOp::Implementation implem) {
+  V<Any> REDUCE(Select)(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
+                        RegisterRepresentation rep, BranchHint hint,
+                        SelectOp::Implementation implem) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
@@ -1824,7 +1824,7 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Switch)(OpIndex input, base::Vector<SwitchOp::Case> cases,
+  V<None> REDUCE(Switch)(V<Word32> input, base::Vector<SwitchOp::Case> cases,
                          Block* default_case, BranchHint default_hint) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceSwitch(input, cases, default_case, default_hint);
@@ -1834,11 +1834,11 @@ class MachineOptimizationReducer : public Next {
       for (const SwitchOp::Case& if_value : cases) {
         if (if_value.value == value) {
           __ Goto(if_value.destination);
-          return OpIndex::Invalid();
+          return {};
         }
       }
       __ Goto(default_case);
-      return OpIndex::Invalid();
+      return {};
     }
     goto no_change;
   }
