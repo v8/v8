@@ -1106,7 +1106,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  V8_DEPRECATE_SOON("Use SetHandler instead")
+  V8_DEPRECATED("Use SetHandler instead")
   void SetIndexedPropertyHandler(
       IndexedPropertyGetterCallback getter,
       IndexedPropertySetterCallback setter = nullptr,
