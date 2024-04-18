@@ -82,6 +82,7 @@ void SetupOptimizedAndNonOptimizedHandle(v8::Isolate* isolate,
 TEST_F(EmbedderRootsHandlerTest,
        TracedReferenceNoDestructorReclaimedOnScavenge) {
   if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   ManualGCScope manual_gc(i_isolate());
   v8::HandleScope scope(v8_isolate());
@@ -251,6 +252,7 @@ TEST_F(
     EmbedderRootsHandlerTest,
     TracedReferenceToUnmodifiedJSApiObjectDiesOnScavengeWhenExcludedFromRoots) {
   if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   ManualGCScope manual_gc(i_isolate());
   ClearingEmbedderRootsHandler handler;
