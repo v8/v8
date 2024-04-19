@@ -2806,6 +2806,7 @@ filegroup(
             "src/wasm/baseline/liftoff-compiler.cc",
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",
+            "src/wasm/baseline/liftoff-varstate.h",
             "src/wasm/baseline/parallel-move.cc",
             "src/wasm/baseline/parallel-move.h",
             "src/wasm/baseline/parallel-move-inl.h",
