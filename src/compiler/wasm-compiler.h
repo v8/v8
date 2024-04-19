@@ -61,7 +61,7 @@ struct DecodeStruct;
 class WasmCode;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
-enum Suspend : bool;
+enum Suspend : int;
 enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
 

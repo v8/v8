@@ -764,8 +764,9 @@ ImportCallKind WasmImportData::ComputeKind(
       return ImportCallKind::kUseCallBuiltin;
     }
 
+    int suspender_count = suspend_ == kSuspendWithSuspender ? 1 : 0;
     if (shared->internal_formal_parameter_count_without_receiver() ==
-        expected_sig->parameter_count() - suspend_) {
+        expected_sig->parameter_count() - suspender_count) {
       return ImportCallKind::kJSFunctionArityMatch;
     }
 
@@ -1983,8 +1984,9 @@ bool InstanceBuilder::ProcessImportedFunction(
                                    expected_sig);
         break;
       }
-      int expected_arity = static_cast<int>(expected_sig->parameter_count()) -
-                           resolved.suspend();
+      int suspender_count = resolved.suspend() == kSuspendWithSuspender ? 1 : 0;
+      int expected_arity =
+          static_cast<int>(expected_sig->parameter_count()) - suspender_count;
       if (kind == ImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         Tagged<SharedFunctionInfo> shared = function->shared();
@@ -2367,8 +2369,9 @@ void InstanceBuilder::CompileImportWrappers(
       continue;
     }
 
+    int suspender_count = resolved.suspend() == kSuspendWithSuspender ? 1 : 0;
     int expected_arity =
-        static_cast<int>(sig->parameter_count() - resolved.suspend());
+        static_cast<int>(sig->parameter_count() - suspender_count);
     if (kind == ImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function =
           Handle<JSFunction>::cast(resolved.callable());

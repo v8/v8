@@ -86,8 +86,8 @@ class StructType;
 struct WasmElemSegment;
 class WasmValue;
 enum class OnResume : int;
-enum Suspend : bool;
-enum Promise : bool;
+enum Suspend : int;
+enum Promise : int;
 class ValueType;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm

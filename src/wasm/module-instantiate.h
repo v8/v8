@@ -29,7 +29,8 @@ class Zone;
 
 namespace wasm {
 class ErrorThrower;
-enum Suspend : bool;
+enum Suspend : int { kSuspend, kSuspendWithSuspender, kNoSuspend };
+enum Promise : int { kPromise, kPromiseWithSuspender, kNoPromise };
 struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the
@@ -103,7 +104,7 @@ class WasmImportData {
 
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
-  Suspend suspend_{false};
+  Suspend suspend_{kNoSuspend};
   Handle<JSReceiver> callable_;
 };
 

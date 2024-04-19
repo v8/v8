@@ -2297,12 +2297,12 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       Local<Object> usage_obj = Local<Object>::Cast(info[2]);
       if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
                                       "suspending")) {
-        suspend = i::wasm::kSuspend;
+        suspend = i::wasm::kSuspendWithSuspender;
         i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
       }
       if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
                                       "promising")) {
-        promise = i::wasm::kPromise;
+        promise = i::wasm::kPromiseWithSuspender;
         i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
       }
     }
@@ -2312,12 +2312,12 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::WasmExportedFunction::IsWasmExportedFunction(*callable);
   bool is_wasm_js_function = i::WasmJSFunction::IsWasmJSFunction(*callable);
 
-  if (is_wasm_exported_function && suspend) {
+  if (is_wasm_exported_function && suspend != i::wasm::kNoSuspend) {
     // TODO(thibaudm): Support wasm-to-wasm calls with suspending behavior, and
     // also with combined promising+suspending behavior.
     UNIMPLEMENTED();
   }
-  if (is_wasm_exported_function && promise) {
+  if (is_wasm_exported_function && promise != i::wasm::kNoPromise) {
     auto wasm_exported_function = i::WasmExportedFunction::cast(*callable);
     i::Handle<i::WasmExportedFunctionData> data(
         wasm_exported_function->shared()->wasm_exported_function_data(),
@@ -2331,7 +2331,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     info.GetReturnValue().Set(Utils::ToLocal(result));
     return;
   }
-  if (is_wasm_js_function && promise) {
+  if (is_wasm_js_function && promise != i::wasm::kNoPromise) {
     // TODO(thibaudm): This case has no practical use. The generated suspender
     // would be unusable since the stack would always contain at least one JS
     // frame. But for now the spec would require us to add specific JS-to-JS and
@@ -2339,7 +2339,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // now.
     UNIMPLEMENTED();
   }
-  if (is_wasm_js_function && suspend) {
+  if (is_wasm_js_function && suspend != i::wasm::kNoSuspend) {
     auto wasm_js_function = i::WasmJSFunction::cast(*callable);
     const i::wasm::FunctionSig* inner_sig =
         wasm_js_function->GetSignature(&zone);
@@ -2427,7 +2427,9 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::Handle<i::WasmExportedFunctionData> data =
         handle(sfi->wasm_exported_function_data(), i_isolate);
     sig = wasm_exported_function->sig();
-    if (i::WasmFunctionData::PromiseField::decode(data->js_promise_flags())) {
+    i::wasm::Promise promise_flags =
+        i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());
+    if (promise_flags != i::wasm::kNoPromise) {
       // If this export is "promising", the first parameter of the original
       // function is an externref (suspender) which does not appear in the
       // wrapper function's signature. The wrapper function also returns a
