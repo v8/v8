@@ -16,6 +16,7 @@
 #include "src/codegen/compiler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
@@ -80,6 +81,7 @@ struct WasmCompilationResult {
   base::OwnedVector<uint8_t> protected_instructions_data;
   base::OwnedVector<uint8_t> deopt_data;
   std::unique_ptr<AssumptionsJournal> assumptions;
+  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> liftoff_frame_descriptions;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier result_tier = ExecutionTier::kNone;
   Kind kind = kFunction;

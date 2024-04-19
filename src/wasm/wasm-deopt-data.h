@@ -10,6 +10,7 @@
 
 #include "src/base/memory.h"
 #include "src/utils/utils.h"
+#include "src/wasm/baseline/liftoff-varstate.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler {
@@ -90,6 +91,25 @@ class WasmDeoptDataProcessor {
       base::Vector<const uint8_t> translation_array,
       base::Vector<wasm::WasmDeoptEntry> deopt_entries,
       const ZoneDeque<compiler::DeoptimizationLiteral>& deopt_literals);
+};
+
+// The frame "layout" of a liftoff function for a single deopt point.
+struct LiftoffFrameDescription {
+  uint32_t wire_bytes_offset = 0;
+  uint32_t pc_offset = 0;
+  std::vector<LiftoffVarState> var_state = {};
+  // If the trusted_instance is cached in a register additionally to the stack
+  // slot, this register needs to be updated as well.
+  // TODO(14667): The memory start and memory instance are other fields that can
+  // be cached in liftoff and need to be initialized when performing a deopt.
+  Register trusted_instance = no_reg;
+};
+
+// The set of frame descriptions for all deopt points for a single liftoff
+// function.
+struct LiftoffFrameDescriptionsForDeopt {
+  std::vector<LiftoffFrameDescription> descriptions;
+  int total_frame_size = 0;
 };
 
 }  // namespace v8::internal::wasm

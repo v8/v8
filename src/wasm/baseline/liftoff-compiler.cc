@@ -639,6 +639,10 @@ class LiftoffCompiler {
     return asm_.ReleaseBuffer();
   }
 
+  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> ReleaseFrameDescriptions() {
+    return std::move(frame_descriptions_);
+  }
+
   base::OwnedVector<uint8_t> GetSourcePositionTable() {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
@@ -1198,6 +1202,10 @@ class LiftoffCompiler {
         DCHECK_EQ(call_targets.as_vector(),
                   base::VectorOf(encountered_call_instructions_));
       }
+    }
+
+    if (frame_descriptions_) {
+      frame_descriptions_->total_frame_size = __ GetTotalFrameSize();
     }
   }
 
@@ -8261,6 +8269,23 @@ class LiftoffCompiler {
     Register first_param_reg = no_reg;
 
     if (inlining_enabled(decoder)) {
+      // TODO(14667): This creates extra work whenever wasm deopts are enabled
+      // for liftoff compilations. The frame descriptions should only be
+      // generated if the liftoff compilation is requested by the deoptimizer.
+      // TODO(14667): If we only collect frame descriptions for the deoptimizer
+      // compilation run, it should also be enough to collect it for the single
+      // deopt point the deoptimizer is interested in.
+      if (v8_flags.wasm_deopt) {
+        if (!frame_descriptions_) {
+          frame_descriptions_ =
+              std::make_unique<LiftoffFrameDescriptionsForDeopt>();
+        }
+        frame_descriptions_->descriptions.push_back(
+            {decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+             std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
+                                          __ cache_state()->stack_state.end()),
+             __ cache_state()->cached_instance_data});
+      }
       LiftoffRegList pinned;
       LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -8713,6 +8738,8 @@ class LiftoffCompiler {
   int32_t* max_steps_;
   int32_t* nondeterminism_;
 
+  std::unique_ptr<LiftoffFrameDescriptionsForDeopt> frame_descriptions_;
+
   const compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? compiler::NullCheckStrategy::kTrapHandler
@@ -8804,6 +8831,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.for_debugging = compiler_options.for_debugging;
   result.frame_has_feedback_slot =
       env->enabled_features.has_inlining() || env->module->is_wasm_gc;
+  result.liftoff_frame_descriptions = compiler->ReleaseFrameDescriptions();
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
