@@ -7902,6 +7902,22 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   RETURN_ESCAPED(result);
 }
 
+MaybeLocal<Value> v8::Date::Parse(Local<Context> context,
+                                  Local<String> value) {
+  PREPARE_FOR_EXECUTION(context, Date, Parse);
+  auto string = Utils::OpenHandle(*value);
+  double time = ParseDateTimeString(i_isolate, string);
+
+  Local<Value> result;
+  has_exception =
+      !ToLocal<Value>(i::JSDate::New(i_isolate->date_function(),
+                                     i_isolate->date_function(), time),
+                      &result);
+
+  RETURN_ON_FAILED_EXECUTION(Value)
+  RETURN_ESCAPED(result);
+}
+
 double v8::Date::ValueOf() const {
   auto obj = Utils::OpenDirectHandle(this);
   auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
@@ -7917,6 +7933,20 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
   i::DateBuffer buffer = i::ToDateString(i::Object::Number(jsdate->value()),
                                          i_isolate->date_cache(),
                                          i::ToDateStringMode::kISODateAndTime);
+  i::Handle<i::String> str = i_isolate->factory()
+                                 ->NewStringFromUtf8(base::VectorOf(buffer))
+                                 .ToHandleChecked();
+  return Utils::ToLocal(str);
+}
+
+v8::Local<v8::String> v8::Date::ToUTCString() const {
+  auto obj = Utils::OpenDirectHandle(this);
+  auto jsdate = i::DirectHandle<i::JSDate>::cast(obj);
+  i::Isolate* i_isolate = jsdate->GetIsolate();
+  API_RCS_SCOPE(i_isolate, Date, NumberValue);
+  i::DateBuffer buffer = i::ToDateString(i::Object::Number(jsdate->value()),
+                                         i_isolate->date_cache(),
+                                         i::ToDateStringMode::kUTCDateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
