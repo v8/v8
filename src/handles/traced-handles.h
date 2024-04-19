@@ -93,6 +93,8 @@ class TracedNode final {
     return Markbit::decode(flags);
   }
 
+  bool FlagsAreCleared() const { return flags_ == 0; }
+
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
 
   bool has_old_host() const { return HasOldHost::decode(flags_); }
@@ -197,10 +199,18 @@ class TracedNodeBlock final {
     }
   };
 
+  struct YoungListTraits : BaseListTraits<YoungListTraits> {
+    static ListNode& GetListNode(TracedNodeBlock* tnb) {
+      return tnb->young_list_node_;
+    }
+  };
+
   using OverallList =
       v8::base::DoublyThreadedList<TracedNodeBlock*, OverallListTraits>;
   using UsableList =
       v8::base::DoublyThreadedList<TracedNodeBlock*, UsableListTraits>;
+  using YoungList =
+      v8::base::DoublyThreadedList<TracedNodeBlock*, YoungListTraits>;
   using Iterator = NodeIteratorImpl;
 
 #if defined(V8_USE_ADDRESS_SANITIZER)
@@ -252,15 +262,21 @@ class TracedNodeBlock final {
     return sizeof(*this) + capacity_ * sizeof(TracedNode);
   }
 
+  bool InYoungList() const { return in_young_list_; }
+
+  void SetInYoungList(bool in_young_list) { in_young_list_ = in_young_list; }
+
  private:
   TracedNodeBlock(TracedHandles&, TracedNode::IndexType);
 
   ListNode overall_list_node_;
   ListNode usable_list_node_;
+  ListNode young_list_node_;
   TracedHandles& traced_handles_;
   TracedNode::IndexType used_ = 0;
   const TracedNode::IndexType capacity_ = 0;
   TracedNode::IndexType first_free_node_ = 0;
+  bool in_young_list_ = false;
 };
 
 // TracedHandles hold handles that must go through cppgc's tracing methods. The
@@ -298,9 +314,6 @@ class V8_EXPORT_PRIVATE TracedHandles final {
 
   // Updates the list of young nodes that is maintained separately.
   void UpdateListOfYoungNodes();
-  // Clears the list of young nodes, assuming that the young generation is
-  // empty.
-  void ClearListOfYoungNodes();
 
   // Deletes empty blocks. Sweeping must not be running.
   void DeleteEmptyBlocks();
@@ -331,7 +344,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   bool HasYoung() const;
 
  private:
-  V8_INLINE TracedNode* AllocateNode();
+  V8_INLINE std::pair<TracedNodeBlock*, TracedNode*> AllocateNode();
   V8_NOINLINE V8_PRESERVE_MOST void RefillUsableNodeBlocks();
   void FreeNode(TracedNode*);
 
@@ -350,11 +363,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   TracedNodeBlock::OverallList blocks_;
   size_t num_blocks_ = 0;
   TracedNodeBlock::UsableList usable_blocks_;
-  // List of young nodes. May refer to nodes in `blocks_`, `usable_blocks_`, and
-  // `empty_block_candidates_`.
-  std::vector<TracedNode*> young_nodes_;
-  // Empty blocks that are still referred to from `young_nodes_`.
-  std::vector<TracedNodeBlock*> empty_block_candidates_;
+  TracedNodeBlock::YoungList young_blocks_;
   // Fully empty blocks that are neither referenced from any stale references in
   // destructors nor from young nodes.
   std::vector<TracedNodeBlock*> empty_blocks_;

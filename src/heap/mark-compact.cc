@@ -817,7 +817,6 @@ void MarkCompactCollector::Finish() {
 
   auto* isolate = heap_->isolate();
   isolate->global_handles()->ClearListOfYoungNodes();
-  isolate->traced_handles()->ClearListOfYoungNodes();
 
   SweepArrayBufferExtensions();
 

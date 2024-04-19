@@ -21,22 +21,24 @@ TracedNode* TracedNodeBlock::AllocateNode() {
   return node;
 }
 
-TracedNode* TracedHandles::AllocateNode() {
+std::pair<TracedNodeBlock*, TracedNode*> TracedHandles::AllocateNode() {
   if (V8_UNLIKELY(usable_blocks_.empty())) {
     RefillUsableNodeBlocks();
   }
   TracedNodeBlock* block = usable_blocks_.Front();
   auto* node = block->AllocateNode();
+  DCHECK(node->FlagsAreCleared());
   if (V8_UNLIKELY(block->IsFull())) {
     usable_blocks_.Remove(block);
   }
   used_nodes_++;
-  return node;
+  return std::make_pair(block, node);
 }
 
 bool TracedHandles::NeedsTrackingInYoungNodes(Tagged<Object> object,
                                               TracedNode* node) const {
-  return ObjectInYoungGeneration(object) && !node->is_in_young_list();
+  DCHECK(!node->is_in_young_list());
+  return ObjectInYoungGeneration(object);
 }
 
 CppHeap* TracedHandles::GetCppHeapIfUnifiedYoungGC(Isolate* isolate) const {
@@ -87,10 +89,8 @@ FullObjectSlot TracedNode::Publish(Tagged<Object> object,
                                    bool needs_young_bit_update,
                                    bool needs_black_allocation,
                                    bool has_old_host, bool is_droppable_value) {
-  DCHECK(!is_in_use());
-  DCHECK(!is_weak());
-  DCHECK(!markbit());
-  DCHECK(!is_droppable());
+  DCHECK(FlagsAreCleared());
+
   if (needs_young_bit_update) {
     set_is_in_young_list(true);
   }
@@ -115,7 +115,7 @@ FullObjectSlot TracedHandles::Create(
     TracedReferenceHandling reference_handling) {
   DCHECK_NOT_NULL(slot);
   Tagged<Object> object(value);
-  auto* node = AllocateNode();
+  auto [block, node] = AllocateNode();
   const bool needs_young_bit_update = NeedsTrackingInYoungNodes(object, node);
   const bool has_old_host = NeedsToBeRemembered(object, node, slot, store_mode);
   const bool needs_black_allocation =
@@ -127,8 +127,10 @@ FullObjectSlot TracedHandles::Create(
                     has_old_host, is_droppable);
   // Write barrier and young node tracking may be reordered, so move them below
   // `Publish()`.
-  if (needs_young_bit_update) {
-    young_nodes_.push_back(node);
+  if (needs_young_bit_update && !block->InYoungList()) {
+    young_blocks_.PushFront(block);
+    block->SetInYoungList(true);
+    DCHECK(block->InYoungList());
   }
   if (needs_black_allocation) {
     WriteBarrier::MarkingFromGlobalHandle(object);
