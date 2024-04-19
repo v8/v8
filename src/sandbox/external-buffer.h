@@ -17,11 +17,10 @@ class ExternalBufferMember {
  public:
   ExternalBufferMember() = default;
 
-  void Init(IsolateForSandbox isolate, std::pair<Address, size_t> value);
+  void Init(Address host_address, IsolateForSandbox isolate,
+            std::pair<Address, size_t> value);
 
   inline std::pair<Address, size_t> load(const IsolateForSandbox isolate) const;
-  inline void store(IsolateForSandbox isolate,
-                    std::pair<Address, size_t> value);
 
   Address storage_address() { return reinterpret_cast<Address>(storage_); }
 
@@ -32,26 +31,16 @@ class ExternalBufferMember {
 // Creates and initializes an entry in the external buffer table and writes the
 // handle for that entry to the field.
 template <ExternalPointerTag tag>
-V8_INLINE void InitExternalBufferField(Address field_address,
+V8_INLINE void InitExternalBufferField(Address host_address,
+                                       Address field_address,
                                        IsolateForSandbox isolate,
                                        std::pair<Address, size_t> value);
 
-// If the sandbox is enabled: reads the ExternalBufferHandle from the field and
-// loads the corresponding (external pointer, size) tuple from the external
-// buffer table. If the sandbox is disabled: loads the (external pointer,
-// kEmptySize) from the field.
+// Reads the ExternalBufferHandle from the field and loads the corresponding
+// (external pointer, size) tuple from the external buffer table.
 template <ExternalPointerTag tag>
 V8_INLINE std::pair<Address, size_t> ReadExternalBufferField(
     Address field_address, IsolateForSandbox isolate);
-
-// If the sandbox is enabled: reads the ExternalBufferHandle from the field and
-// stores the (external pointer, size) tuple to the corresponding entry in the
-// external buffer table. If the sandbox is disabled: stores the external
-// pointer to the field.
-template <ExternalPointerTag tag>
-V8_INLINE void WriteExternalBufferField(Address field_address,
-                                        IsolateForSandbox isolate,
-                                        std::pair<Address, size_t> value);
 
 }  // namespace internal
 }  // namespace v8

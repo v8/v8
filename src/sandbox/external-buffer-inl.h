@@ -17,10 +17,11 @@ namespace v8 {
 namespace internal {
 
 template <ExternalPointerTag tag>
-inline void ExternalBufferMember<tag>::Init(IsolateForSandbox isolate,
+inline void ExternalBufferMember<tag>::Init(Address host_address,
+                                            IsolateForSandbox isolate,
                                             std::pair<Address, size_t> value) {
-  InitExternalBufferField<tag>(reinterpret_cast<Address>(storage_), isolate,
-                               value);
+  InitExternalBufferField<tag>(
+      host_address, reinterpret_cast<Address>(storage_), isolate, value);
 }
 
 template <ExternalPointerTag tag>
@@ -31,28 +32,22 @@ inline std::pair<Address, size_t> ExternalBufferMember<tag>::load(
 }
 
 template <ExternalPointerTag tag>
-inline void ExternalBufferMember<tag>::store(IsolateForSandbox isolate,
-                                             std::pair<Address, size_t> value) {
-  WriteExternalBufferField<tag>(reinterpret_cast<Address>(storage_), isolate,
-                                value);
-}
-
-template <ExternalPointerTag tag>
-V8_INLINE void InitExternalBufferField(Address field_address,
+V8_INLINE void InitExternalBufferField(Address host_address,
+                                       Address field_address,
                                        IsolateForSandbox isolate,
                                        std::pair<Address, size_t> value) {
 #ifdef V8_ENABLE_SANDBOX
   static_assert(tag != kExternalPointerNullTag);
   ExternalBufferTable& table = isolate.GetExternalBufferTableFor(tag);
   ExternalBufferHandle handle = table.AllocateAndInitializeEntry(
-      isolate.GetExternalBufferTableSpaceFor(tag, field_address), value, tag);
+      isolate.GetExternalBufferTableSpaceFor(tag, host_address), value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
   auto location = reinterpret_cast<ExternalBufferHandle*>(field_address);
   base::AsAtomic32::Release_Store(location, handle);
 #else
-  WriteMaybeUnalignedValue<Address>(field_address, value.first);
+  UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -70,22 +65,7 @@ V8_INLINE std::pair<Address, size_t> ReadExternalBufferField(
   ExternalBufferHandle handle = base::AsAtomic32::Relaxed_Load(location);
   return isolate.GetExternalBufferTableFor(tag).Get(handle, tag);
 #else
-  return {ReadMaybeUnalignedValue<Address>(field_address), 0};
-#endif  // V8_ENABLE_SANDBOX
-}
-
-template <ExternalPointerTag tag>
-V8_INLINE void WriteExternalBufferField(Address field_address,
-                                        IsolateForSandbox isolate,
-                                        std::pair<Address, size_t> value) {
-#ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
-  // See comment above for why this is a Relaxed_Load.
-  auto location = reinterpret_cast<ExternalBufferHandle*>(field_address);
-  ExternalBufferHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  isolate.GetExternalBufferTableFor(tag).Set(handle, value, tag);
-#else
-  WriteMaybeUnalignedValue<Address>(field_address, value.first);
+  UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
 }
 

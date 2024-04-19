@@ -26,7 +26,7 @@ namespace internal {
  *    containing the index of the next free entry in the lower 32 bits of the
  *    first pointer-size word, or
  *  - An evacuation entry, tagged with the kExternalPointerEvacuationEntryTag
- *    and containing the address of the ExternalPointerSlot referencing the
+ *    and containing the address of the ExternalBufferSlot referencing the
  *    entry that will be evacuated into this entry. See the compaction
  *    algorithm overview for more details about these entries.
  */
@@ -42,11 +42,6 @@ struct ExternalBufferTableEntry {
   // resulting pointer will be invalid and cannot be dereferenced.
   inline std::pair<Address, size_t> GetExternalBuffer(
       ExternalPointerTag tag) const;
-
-  // Tag and store the given external buffer in this entry.
-  // This entry must be an external buffer entry.
-  inline void SetExternalBuffer(std::pair<Address, size_t> buffer,
-                                ExternalPointerTag tag);
 
   // Returns true if this entry contains an external buffer with the given tag.
   inline bool HasExternalBuffer(ExternalPointerTag tag) const;
@@ -221,22 +216,15 @@ class V8_EXPORT_PRIVATE ExternalBufferTable
     inline void NotifyExternalPointerFieldInvalidated(Address field_address);
   };
 
+  // Note: The table currently does not support a setter method since
+  // we cannot guarantee atomicity of the method with the getter.
+
   // Retrieves the entry referenced by the given handle.
-  //
-  // This method is atomic and can be called from background threads.
   inline std::pair<Address, size_t> Get(ExternalBufferHandle handle,
                                         ExternalPointerTag tag) const;
 
-  // Sets the entry referenced by the given handle.
-  //
-  // This method is atomic and can be called from background threads.
-  inline void Set(ExternalBufferHandle handle,
-                  std::pair<Address, size_t> buffer, ExternalPointerTag tag);
-
   // Allocates a new entry in the given space. The caller must provide the
   // initial value and tag for the entry.
-  //
-  // This method is atomic and can be called from background threads.
   inline ExternalBufferHandle AllocateAndInitializeEntry(
       Space* space, std::pair<Address, size_t> initial_buffer,
       ExternalPointerTag tag);

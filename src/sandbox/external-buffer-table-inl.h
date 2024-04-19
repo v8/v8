@@ -33,17 +33,6 @@ std::pair<Address, size_t> ExternalBufferTableEntry::GetExternalBuffer(
   return {payload.Untag(tag), size};
 }
 
-void ExternalBufferTableEntry::SetExternalBuffer(
-    std::pair<Address, size_t> buffer, ExternalPointerTag tag) {
-  DCHECK_EQ(0, buffer.first & kExternalPointerTagMask);
-  DCHECK(IsExternalBufferTag(tag));
-  DCHECK(payload_.load(std::memory_order_relaxed).ContainsExternalPointer());
-
-  Payload new_payload(buffer.first, tag);
-  payload_.store(new_payload, std::memory_order_relaxed);
-  size_.store(buffer.second, std::memory_order_relaxed);
-}
-
 bool ExternalBufferTableEntry::HasExternalBuffer(ExternalPointerTag tag) const {
   DCHECK(IsExternalBufferTag(tag));
   auto payload = payload_.load(std::memory_order_relaxed);
@@ -116,14 +105,6 @@ std::pair<Address, size_t> ExternalBufferTable::Get(
   uint32_t index = HandleToIndex(handle);
   DCHECK(index == 0 || at(index).HasExternalBuffer(tag));
   return at(index).GetExternalBuffer(tag);
-}
-
-void ExternalBufferTable::Set(ExternalBufferHandle handle,
-                              std::pair<Address, size_t> buffer,
-                              ExternalPointerTag tag) {
-  DCHECK_NE(kNullExternalBufferHandle, handle);
-  uint32_t index = HandleToIndex(handle);
-  at(index).SetExternalBuffer(buffer, tag);
 }
 
 ExternalBufferHandle ExternalBufferTable::AllocateAndInitializeEntry(

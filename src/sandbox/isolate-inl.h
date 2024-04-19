@@ -44,11 +44,11 @@ ExternalBufferTable& IsolateForSandbox::GetExternalBufferTableFor(
 }
 
 ExternalBufferTable::Space* IsolateForSandbox::GetExternalBufferTableSpaceFor(
-    ExternalPointerTag tag, Address owning_slot) {
+    ExternalPointerTag tag, Address host) {
   DCHECK_NE(tag, kExternalPointerNullTag);
 
   if (V8_UNLIKELY(IsSharedExternalPointerType(tag))) {
-    DCHECK(!ReadOnlyHeap::Contains(owning_slot));
+    DCHECK(!ReadOnlyHeap::Contains(host));
     return isolate_->shared_external_buffer_space();
   }
 
