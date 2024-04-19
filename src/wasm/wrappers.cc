@@ -1174,10 +1174,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   void BuildSwitchBackFromCentralStack(OpIndex old_sp, OpIndex receiver) {
-    OpIndex stack_limit = __ WordPtrAdd(
-        __ FramePointer(),
-        __ UintPtrConstant(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
+    OpIndex stack_limit =
+        __ Load(__ FramePointer(), LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr(),
+                WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
 
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
     MachineSignature sig(0, 2, reps);
