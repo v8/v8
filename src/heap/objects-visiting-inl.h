@@ -248,14 +248,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
       object);
-#ifdef V8_ENABLE_SANDBOX
-  // The following types have external pointers, which must be visited.
-  // TODO(v8:10391) Consider adding custom visitor IDs for these and making
-  // this block not depend on V8_ENABLE_SANDBOX.
-  if (IsForeign(object, cage_base())) {
-    Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
-  }
-#endif  // V8_ENABLE_SANDBOX
   return static_cast<ResultType>(size);
 }
 
