@@ -1612,6 +1612,48 @@ class GraphBuilder {
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(
+      maglev::CheckedTruncateNumberOrOddballToInt32* node,
+      const maglev::ProcessingState& state) {
+    TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement input_requirement;
+    switch (node->conversion_type()) {
+      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
+        input_requirement =
+            TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement::kNumber;
+        break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
+        input_requirement = TruncateJSPrimitiveToUntaggedOrDeoptOp::
+            InputRequirement::kNumberOrOddball;
+        break;
+    }
+    SetMap(
+        node,
+        __ TruncateJSPrimitiveToUntaggedOrDeopt(
+            Map(node->input()), BuildFrameState(node->eager_deopt_info()),
+            TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32,
+            input_requirement, node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::TruncateNumberOrOddballToInt32* node,
+                                const maglev::ProcessingState& state) {
+    // In Maglev, TruncateNumberOrOddballToInt32 does the same thing for both
+    // NumberOrOddball and Number; except when debug_code is enabled: then,
+    // Maglev inserts runtime checks ensuring that the input is indeed a Number
+    // or NumberOrOddball. Turboshaft doesn't typically introduce such runtime
+    // checks, so we instead just lower both Number and NumberOrOddball to the
+    // NumberOrOddball variant.
+    SetMap(node, __ TruncateJSPrimitiveToUntagged(
+                     Map(node->input()),
+                     TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32,
+                     TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
+                         kNumberOrOddball));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::TruncateFloat64ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ JSTruncateFloat64ToWord32(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::HoleyFloat64ToMaybeNanFloat64* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Float64SilenceNaN(Map(node->input())));
