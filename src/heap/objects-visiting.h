@@ -39,6 +39,7 @@ namespace internal {
   V(ExternalString)                    \
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
+  V(Foreign)                           \
   V(FunctionTemplateInfo)              \
   V(Hole)                              \
   V(JSArrayBuffer)                     \

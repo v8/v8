@@ -340,9 +340,11 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitJSSynchronizationPrimitive;
 
     case FILLER_TYPE:
-    case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
       return kVisitDataObject;
+
+    case FOREIGN_TYPE:
+      return kVisitForeign;
 
     case BIGINT_TYPE:
       return kVisitBigInt;

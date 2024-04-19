@@ -54,6 +54,7 @@ enum InstanceType : uint16_t;
   V(ExternalPointerArray)              \
   V(ExternalString)                    \
   V(FeedbackCell)                      \
+  V(Foreign)                           \
   V(FreeSpace)                         \
   V(FunctionTemplateInfo)              \
   V(Hole)                              \
