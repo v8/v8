@@ -645,10 +645,6 @@ class V8_EXPORT_PRIVATE Debug {
     // to what "BreakOnNextFunctionCall" does.
     bool scheduled_break_on_next_function_call_;
 
-    // Throwing an exception may cause a Promise rejection.  For this purpose
-    // we keep track of a stack of nested promises.
-    Tagged<Object> promise_stack_;
-
     // Frame ID for the frame that needs to be restarted. StackFrameId::NO_ID
     // otherwise. The unwinder uses the id to restart execution in this frame
     // instead of any potential catch handler.

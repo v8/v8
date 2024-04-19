@@ -228,23 +228,6 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
                                  JSGeneratorObject::kResumeModeOffset,
                                  SmiConstant(resume_mode));
 
-  // Push the promise for the {async_generator_object} back onto the catch
-  // prediction stack to handle exceptions thrown after resuming from the
-  // await properly.
-  Label if_instrumentation(this, Label::kDeferred),
-      if_instrumentation_done(this);
-  Branch(IsDebugActive(), &if_instrumentation, &if_instrumentation_done);
-  BIND(&if_instrumentation);
-  {
-    TNode<AsyncGeneratorRequest> request =
-        CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
-    TNode<JSPromise> promise = LoadObjectField<JSPromise>(
-        request, AsyncGeneratorRequest::kPromiseOffset);
-    CallRuntime(Runtime::kDebugPushPromise, context, promise);
-    Goto(&if_instrumentation_done);
-  }
-  BIND(&if_instrumentation_done);
-
   CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
               async_generator_object);
 
@@ -511,18 +494,6 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     // Remember the {resume_type} for the {generator}.
     StoreObjectFieldNoWriteBarrier(
         generator, JSGeneratorObject::kResumeModeOffset, resume_type);
-
-    Label if_instrumentation(this, Label::kDeferred),
-        if_instrumentation_done(this);
-    Branch(IsDebugActive(), &if_instrumentation, &if_instrumentation_done);
-    BIND(&if_instrumentation);
-    {
-      const TNode<JSPromise> promise = LoadObjectField<JSPromise>(
-          next, AsyncGeneratorRequest::kPromiseOffset);
-      CallRuntime(Runtime::kDebugPushPromise, context, promise);
-      Goto(&if_instrumentation_done);
-    }
-    BIND(&if_instrumentation_done);
 
     CallBuiltin(Builtin::kResumeGeneratorTrampoline, context,
                 LoadValueFromAsyncGeneratorRequest(next), generator);

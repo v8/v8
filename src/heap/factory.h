@@ -428,9 +428,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int bytecode_offset_or_source_position,
       DirectHandle<String> function_name, bool is_constructor);
 
-  Handle<PromiseOnStack> NewPromiseOnStack(DirectHandle<Object> prev,
-                                           Handle<JSObject> promise);
-
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(DirectHandle<JSReceiver> callable,
                                        DirectHandle<Context> context);

@@ -920,11 +920,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top()->Free(); }
 
-  // Push and pop a promise and the current try-catch handler.
-  void PushPromise(Handle<JSObject> promise);
-  void PopPromise();
-  bool IsPromiseStackEmpty() const;
-
   // Walks the call stack and promise tree and calls a callback on every
   // function an exception is likely to hit. Used in catch prediction.
   // Returns true if the exception is expected to be caught.

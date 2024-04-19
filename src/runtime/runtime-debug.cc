@@ -719,22 +719,6 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  Handle<JSObject> promise = args.at<JSObject>(0);
-  isolate->PushPromise(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
-  DCHECK_EQ(0, args.length());
-  SealHandleScope shs(isolate);
-  isolate->PopPromise();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 namespace {
 Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
   Factory* factory = isolate->factory();
