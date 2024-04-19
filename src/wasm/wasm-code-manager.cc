@@ -580,7 +580,8 @@ size_t WasmCode::EstimateCurrentMemoryConsumption() const {
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
-            source_positions_size_ + inlining_positions_size_;
+            source_positions_size_ + inlining_positions_size_ +
+            deopt_data_size_;
   return result;
 }
 

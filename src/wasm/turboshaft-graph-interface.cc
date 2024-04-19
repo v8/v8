@@ -5107,9 +5107,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // the callee and the arguments were already popped from the stack and the
     // returns are pushed. Therefore skip the results and manually add the
     // call_ref stack values.
-    for (uint32_t i = static_cast<uint32_t>(callee_sig->return_count());
-         i < decoder->stack_size(); ++i) {
-      Value* val = decoder->stack_value(i + 1);
+    for (int32_t i = decoder->stack_size();
+         i > static_cast<int32_t>(callee_sig->return_count()); --i) {
+      Value* val = decoder->stack_value(i);
       builder.AddInput(val->type.machine_type(), val->op);
     }
     // Add the call_ref stack values.
@@ -5121,9 +5121,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Add the wasm trusted instance as a real input.
     // TODO(14616): Fix sharedness.
     builder.AddInput(MachineType::AnyTagged(), trusted_instance_data(false));
-    constexpr size_t kExtraLocals = 3;  // closure, context, instance
+    // The call_ref (callee) & the wasm instance.
+    constexpr size_t kExtraLocals = 2;
+    size_t wasm_local_count = ssa_env_.size() - param_count;
     size_t local_count = callee_sig->parameter_count() + kExtraLocals +
-                         decoder->stack_size() - callee_sig->return_count();
+                         decoder->stack_size() + wasm_local_count -
+                         callee_sig->return_count();
     Handle<SharedFunctionInfo> shared_info;
     Zone* zone = compiler::turboshaft::PipelineData::Get().shared_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
