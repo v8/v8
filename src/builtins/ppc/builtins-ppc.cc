@@ -941,6 +941,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // r6: receiver
   // r7: argc
   // r8: argv
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
+  // JS frames on top.
   __ li(r0, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ push(r0);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
@@ -950,22 +954,29 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ mov(r0, Operand(StackFrame::TypeToMarker(type)));
   __ push(r0);
   __ push(r0);
-  // Save copies of the top frame descriptor on the stack.
-  __ Move(r3, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                        masm->isolate()));
-  __ LoadU64(r0, MemOperand(r3));
-  __ push(r0);
 
-  // Clear c_entry_fp, now we've pushed its previous value to the stack.
-  // If the c_entry_fp is not already zero and we don't clear it, the
-  // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
-  // JS frames on top.
-  __ li(r0, Operand::Zero());
-  __ StoreU64(r0, MemOperand(r3));
+  __ mov(r0, Operand::Zero());
+  __ Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                        masm->isolate()));
+  __ LoadU64(r3, MemOperand(ip));
+  __ StoreU64(r0, MemOperand(ip));
+  __ push(r3);
+
+  __ Move(ip,
+          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadU64(r3, MemOperand(ip));
+  __ StoreU64(r0, MemOperand(ip));
+  __ push(r3);
+
+  __ Move(ip,
+          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadU64(r3, MemOperand(ip));
+  __ StoreU64(r0, MemOperand(ip));
+  __ push(r3);
 
   Register scratch = r9;
   // Set up frame pointer for the frame to be pushed.
-  __ addi(fp, sp, Operand(-EntryFrameConstants::kNextExitFrameFPOffset));
+  __ addi(fp, sp, Operand(-EntryFrameConstants::kNextFastCallFramePCOffset));
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -1044,6 +1055,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
+  __ pop(r6);
+  __ Move(scratch,
+          ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ StoreU64(r6, MemOperand(scratch));
+
+  __ pop(r6);
+  __ Move(scratch,
+          ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ StoreU64(r6, MemOperand(scratch));
+
   __ pop(r6);
   __ Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                              masm->isolate()));

@@ -19,6 +19,11 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kNextExitFrameFPOffset = V8_EMBEDDED_CONSTANT_POOL_BOOL
                                                     ? -4 * kSystemPointerSize
                                                     : -3 * kSystemPointerSize;
+
+  static constexpr int kNextFastCallFrameFPOffset =
+      kNextExitFrameFPOffset - kSystemPointerSize;
+  static constexpr int kNextFastCallFramePCOffset =
+      kNextFastCallFrameFPOffset - kSystemPointerSize;
 };
 
 class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
