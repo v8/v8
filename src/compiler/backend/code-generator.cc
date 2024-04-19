@@ -512,6 +512,8 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
+    DCHECK(info()->has_bytecode_array());
+    builder.set_parameter_count(info()->bytecode_array()->parameter_count());
   }
 
   MaybeHandle<Code> maybe_code = builder.TryBuild();

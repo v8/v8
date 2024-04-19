@@ -554,6 +554,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   unsigned size = ComputeInputFrameSize();
   const int parameter_count =
       function->shared()->internal_formal_parameter_count_with_receiver();
+  // The parameter count from the (in-sandbox) SFI must match the actual
+  // parameter count of the Code that we are deoptimizing. For now, we use a
+  // SBXCHECK here to ensure that these values are always equal. In the future,
+  // we should change the deoptimizer to use the (trusted) parameter count from
+  // the Code object everywhere, at which point we could drop this again.
+  SBXCHECK_EQ(parameter_count, compiled_code_->parameter_count());
   input_ = new (size) FrameDescription(size, parameter_count, isolate_);
 
   DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);

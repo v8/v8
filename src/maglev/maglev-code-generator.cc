@@ -1792,6 +1792,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
                   handler_table_offset_);
   return Factory::CodeBuilder{local_isolate, desc, CodeKind::MAGLEV}
       .set_stack_slots(stack_slot_count_with_fixed_frame())
+      .set_parameter_count(parameter_count())
       .set_deoptimization_data(deopt_data)
       .set_empty_source_position_table()
       .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())

@@ -58,6 +58,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
                              source_position_mode),
       register_optimizer_(nullptr) {
   DCHECK_GE(parameter_count_, 0);
+  DCHECK_LE(parameter_count_, std::numeric_limits<uint16_t>::max());
   DCHECK_GE(local_register_count_, 0);
 
   if (v8_flags.ignition_reo) {

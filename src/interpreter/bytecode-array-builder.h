@@ -56,10 +56,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 #endif
 
   // Get the number of parameters expected by function.
-  int parameter_count() const {
-    DCHECK_GE(parameter_count_, 0);
-    return parameter_count_;
-  }
+  uint16_t parameter_count() const { return parameter_count_; }
 
   // Get the number of locals required for bytecode array.
   int locals_count() const {
@@ -661,7 +658,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  int parameter_count_;
+  uint16_t parameter_count_;
   int local_register_count_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;

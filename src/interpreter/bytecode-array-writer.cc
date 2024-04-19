@@ -39,7 +39,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
 
 template <typename IsolateT>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    IsolateT* isolate, int register_count, int parameter_count,
+    IsolateT* isolate, int register_count, uint16_t parameter_count,
     Handle<TrustedByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
@@ -55,11 +55,11 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-        Isolate* isolate, int register_count, int parameter_count,
+        Isolate* isolate, int register_count, uint16_t parameter_count,
         Handle<TrustedByteArray> handler_table);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-        LocalIsolate* isolate, int register_count, int parameter_count,
+        LocalIsolate* isolate, int register_count, uint16_t parameter_count,
         Handle<TrustedByteArray> handler_table);
 
 template <typename IsolateT>
