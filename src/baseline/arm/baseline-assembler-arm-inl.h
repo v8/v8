@@ -550,11 +550,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
-  Label corrected_args_count;
-  __ JumpIf(kGreaterThanEqual, params_size, Operand(actual_params_size),
-            &corrected_args_count);
-  __ masm()->mov(params_size, actual_params_size);
-  __ Bind(&corrected_args_count);
+  __ masm()->cmp(params_size, actual_params_size);
+  __ masm()->mov(params_size, actual_params_size, LeaveCC, kLessThan);
 
   // Leave the frame (also dropping the register file).
   __ masm()->LeaveFrame(StackFrame::BASELINE);

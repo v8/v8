@@ -825,7 +825,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   __ cmp(params_size, actual_params_size);
-  __ mov(params_size, actual_params_size, LeaveCC, lt);
+  __ mov(params_size, actual_params_size, LeaveCC, kLessThan);
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
