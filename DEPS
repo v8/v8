@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6aaae85821254406042a11254d49b14c9d1b44f3',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1a61eb625d4b062bb2d6f0902b4979b48def4d33',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -342,7 +342,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7d77fb7fd66d8a5640618ad32c71fdeb7d3e02df',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '78c03ab18cb89612654b8faf957eb30635316466',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '591cd4bd88d76a54165f48c8774069fa824e052b',
   'tools/luci-go': {
       'packages': [
         {
