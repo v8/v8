@@ -5062,6 +5062,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   Handle<FixedArray> host_defined_options =
       isolate->factory()->empty_fixed_array();
   TryCallScope try_call_scope(isolate);
+  // Blink generally assumes that context creation (where extension compilation
+  // is part) cannot be interrupted.
+  PostponeInterruptsScope postpone(isolate);
   return !Execution::TryCallScript(isolate, fun, receiver, host_defined_options)
               .is_null();
 }
