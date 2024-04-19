@@ -190,6 +190,11 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
                      processed_microtask_count);
   }
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  isolate->isolate_data()->set_continuation_preserved_embedder_data(
+      *continuation_preserved_embedder_data);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
   if (isolate->is_execution_terminating()) {
     DCHECK(isolate->has_exception());
     DCHECK(maybe_result.is_null());
@@ -202,11 +207,6 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     OnCompleted(isolate);
     return -1;
   }
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  isolate->isolate_data()->set_continuation_preserved_embedder_data(
-      *continuation_preserved_embedder_data);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
   DCHECK_EQ(0, size());
   OnCompleted(isolate);
