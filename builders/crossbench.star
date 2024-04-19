@@ -4,7 +4,7 @@
 
 load("//lib/service-accounts.star", "V8_TRY_ACCOUNT")
 
-def crossbench_cbb_builder(builder_name, recipe_path, os, cpu):
+def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, properties = None):
     """
     Adds a new crossbench-cbb builder
 
@@ -29,6 +29,8 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu):
             cipd_package = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
         ),
         service_account = V8_TRY_ACCOUNT,
+        caches = caches or [],
+        properties = properties,
     )
 
     # Add the builder to the "crossbench" list in milo
@@ -39,6 +41,19 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu):
 
 crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
 crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-20", "x86-64")
+crossbench_cbb_builder(
+    "Crossbench Pytype Try",
+    "perf/pytype",
+    "Ubuntu-20",
+    "x86-64",
+    caches = [
+        swarming.cache(
+            name = "crossbench_pytype_cache",
+            path = "pytype",
+        ),
+    ],
+    properties = {"timeout": 1200},
+)
 
 luci.cq_group(
     name = "crossbench-main-cq",
@@ -64,6 +79,11 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Linux x64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench Pytype Try",
+            includable_only = True,
+            cancel_stale = False,
         ),
     ],
 )

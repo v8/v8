@@ -33,6 +33,7 @@ def define_all_recipes():
         "chromium_integration",
         "chromium_trybot",
         "lkgr_finder",
+        "perf/pytype",
         "run_presubmit",
         "v8",
         "v8/archive",
