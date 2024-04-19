@@ -1953,11 +1953,20 @@ OpIndex GraphBuilder::Process(
         resolution_result =
             fast_api_call::ResolveOverloads(c_functions, c_arg_count);
         if (!resolution_result.is_valid()) {
-          return __ Call(
+          auto result = __ Call(
               slow_call_callee, dominating_frame_state,
               base::VectorOf(slow_call_arguments),
               TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
                                        __ graph_zone()));
+
+          if (is_final_control) {
+            // The `__ Call()` before has already created exceptional
+            // control flow and bound a new block for the success case. So we
+            // can just `Goto` the block that Turbofan designated as the
+            // `IfSuccess` successor.
+            __ Goto(Map(block->SuccessorAt(0)));
+          }
+          return result;
         }
       }
 
