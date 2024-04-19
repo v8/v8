@@ -324,7 +324,7 @@ class MjsunitNamesProvider {
     out << "] -> [";
     for (uint32_t i = 0; i < sig->return_count(); i++) {
       if (i > 0) out << ", ";
-      PrintValueType(out, sig->GetParam(i));
+      PrintValueType(out, sig->GetReturn(i));
     }
     out << "]";
   }
