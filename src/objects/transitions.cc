@@ -42,7 +42,6 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
                                  Handle<Name> name, Handle<Map> target,
                                  TransitionKindFlag flag) {
-  DCHECK_NE(flag, PROTOTYPE_TRANSITION);
   Encoding encoding = GetEncoding(isolate, map);
   DCHECK_NE(kPrototypeInfo, encoding);
   target->SetBackPointer(*map);
@@ -390,18 +389,15 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  Handle<Map> map,
                                                  Handle<Object> prototype,
                                                  Handle<Map> target_map) {
-  DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(HeapObject::cast(*prototype)->map()));
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return;
   if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions) return;
 
-  target_map->SetBackPointer(*map);
-
   const int header = TransitionArray::kProtoTransitionHeaderSize;
 
-  Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map), isolate);
+  Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, map), isolate);
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
@@ -447,9 +443,10 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
 }
 
 // static
-base::Optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
-    Isolate* isolate, Tagged<Map> map, Tagged<Object> prototype) {
+Handle<Map> TransitionsAccessor::GetPrototypeTransition(
+    Isolate* isolate, Handle<Map> map, Handle<Object> prototype_handle) {
   DisallowGarbageCollection no_gc;
+  Tagged<Object> prototype = *prototype_handle;
   Tagged<WeakFixedArray> cache = GetPrototypeTransitions(isolate, map);
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
@@ -460,16 +457,16 @@ base::Optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
     if (target.GetHeapObjectIfWeak(&heap_object)) {
       Tagged<Map> target_map = Map::cast(heap_object);
       if (target_map->prototype() == prototype) {
-        return target_map;
+        return handle(target_map, isolate);
       }
     }
   }
-  return {};
+  return Handle<Map>();
 }
 
 // static
 Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions(
-    Isolate* isolate, Tagged<Map> map) {
+    Isolate* isolate, Handle<Map> map) {
   Tagged<MaybeObject> raw_transitions =
       map->raw_transitions(isolate, kAcquireLoad);
   if (GetEncoding(isolate, raw_transitions) != kFullTransitionArray) {
@@ -501,19 +498,6 @@ int TransitionsAccessor::NumberOfTransitions() {
       return 1;
     case kFullTransitionArray:
       return transitions()->number_of_transitions();
-  }
-  UNREACHABLE();
-}
-
-bool TransitionsAccessor::HasPrototypeTransitions() {
-  switch (encoding()) {
-    case kPrototypeInfo:
-    case kUninitialized:
-    case kMigrationTarget:
-    case kWeakRef:
-      return false;
-    case kFullTransitionArray:
-      return transitions()->HasPrototypeTransitions();
   }
   UNREACHABLE();
 }

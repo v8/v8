@@ -563,15 +563,14 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
-      Handle<HeapObject> new_prototype, PropertyNormalizationMode mode,
-      bool use_cache, const char* reason);
-  V8_EXPORT_PRIVATE static Handle<Map> Normalize(
-      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
-      Handle<HeapObject> new_prototype, PropertyNormalizationMode mode,
-      const char* reason) {
+      PropertyNormalizationMode mode, bool use_cache, const char* reason);
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
+                                                 Handle<Map> map,
+                                                 ElementsKind new_elements_kind,
+                                                 PropertyNormalizationMode mode,
+                                                 const char* reason) {
     const bool kUseCache = true;
-    return Normalize(isolate, map, new_elements_kind, new_prototype, mode,
-                     kUseCache, reason);
+    return Normalize(isolate, map, new_elements_kind, mode, kUseCache, reason);
   }
 
   inline static Handle<Map> Normalize(Isolate* isolate, Handle<Map> fast_map,
@@ -809,8 +808,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a copy of the map, prepared for inserting into the transition
   // tree as a prototype transition.
   static Handle<Map> CopyForPrototypeTransition(Isolate* isolate,
-                                                Handle<Map> map,
-                                                Handle<HeapObject> prototype);
+                                                Handle<Map> map);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -843,8 +841,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
-  // Compute the hash assuming another prototype.
-  int Hash(Tagged<HeapObject> prototype);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
@@ -888,6 +884,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                : ObjectFields::kMaybePointers;
   }
 
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionRootMapToPrototypeForNewObject(
+      Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
   V8_EXPORT_PRIVATE static Handle<Map> TransitionToUpdatePrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype);
 
@@ -899,13 +897,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   class BodyDescriptor;
 
   // Compares this map to another to see if they describe equivalent objects,
-  // up to the given |elements_kind| and |prototype|. If |mode| is set to
-  // CLEAR_INOBJECT_PROPERTIES, |other| is treated as if it had exactly zero
-  // inobject properties. The "shared" flags of both this map and |other| are
-  // ignored.
+  // up to the given |elements_kind|.
+  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
+  // it had exactly zero inobject properties.
+  // The "shared" flags of both this map and |other| are ignored.
   bool EquivalentToForNormalization(const Tagged<Map> other,
                                     ElementsKind elements_kind,
-                                    Tagged<HeapObject> prototype,
                                     PropertyNormalizationMode mode) const;
   inline bool EquivalentToForNormalization(
       const Tagged<Map> other, PropertyNormalizationMode mode) const;
@@ -1039,7 +1036,6 @@ class NormalizedMapCache : public WeakFixedArray {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
                                              ElementsKind elements_kind,
-                                             Tagged<HeapObject> prototype,
                                              PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
@@ -1052,7 +1048,7 @@ class NormalizedMapCache : public WeakFixedArray {
 
   static const int kEntries = 64;
 
-  static inline int GetIndex(Tagged<Map> map, Tagged<HeapObject> prototype);
+  static inline int GetIndex(Handle<Map> map);
 
   // The following declarations hide base class methods.
   Tagged<Object> get(int index);

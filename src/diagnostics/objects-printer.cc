@@ -3624,30 +3624,14 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
 }
 
 void TransitionArray::PrintInternal(std::ostream& os) {
-  {
-    int num_transitions = number_of_transitions();
-    os << "Transition array #" << num_transitions << ":";
-    for (int i = 0; i < num_transitions; i++) {
-      Tagged<Name> key = GetKey(i);
-      Tagged<Map> target = GetTarget(i);
-      TransitionsAccessor::PrintOneTransition(os, key, target);
-    }
-    os << "\n" << std::flush;
+  int num_transitions = number_of_transitions();
+  os << "Transition array #" << num_transitions << ":";
+  for (int i = 0; i < num_transitions; i++) {
+    Tagged<Name> key = GetKey(i);
+    Tagged<Map> target = GetTarget(i);
+    TransitionsAccessor::PrintOneTransition(os, key, target);
   }
-
-  if (HasPrototypeTransitions()) {
-    auto prototype_transitions = GetPrototypeTransitions();
-    int num_transitions = NumberOfPrototypeTransitions(prototype_transitions);
-    os << "Prototype transitions #" << num_transitions << ":";
-    for (int i = 0; i < num_transitions; i++) {
-      auto maybe = prototype_transitions->get(i);
-      Tagged<HeapObject> target;
-      if (maybe.GetHeapObject(&target)) {
-        os << "* " << Brief(target) << "\n";
-      }
-    }
-    os << "\n" << std::flush;
-  }
+  os << "\n" << std::flush;
 }
 
 void TransitionsAccessor::PrintTransitions(std::ostream& os) {
@@ -3722,10 +3706,9 @@ void TransitionsAccessor::PrintTransitionTree(
 
 void JSObject::PrintTransitions(std::ostream& os) {
   TransitionsAccessor ta(GetIsolate(), map());
-  if (ta.NumberOfTransitions() != 0 || ta.HasPrototypeTransitions()) {
-    os << "\n - transitions";
-    ta.PrintTransitions(os);
-  }
+  if (ta.NumberOfTransitions() == 0) return;
+  os << "\n - transitions";
+  ta.PrintTransitions(os);
 }
 
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
