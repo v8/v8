@@ -2736,4 +2736,37 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/RegExp/property-escapes/generated/Alphabetic': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Assigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Letter': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/IDS_Binary_Operator': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/ID_Continue': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/ID_Start': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Ideographic': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Han': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Malayalam': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sharada': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sinhala': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Sentence_Terminal': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Unified_Ideograph': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/XID_Continue': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/XID_Start': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
