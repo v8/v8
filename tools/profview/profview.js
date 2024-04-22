@@ -186,13 +186,14 @@ let main = {
       let end = corrections.length - 1;
       while (start <= end) {
         let middle = (start + end) >> 1;
-        if (tm > corrections[middle].tm) {
+        if (corrections[middle].tm <= tm) {
           start = middle + 1;
         } else {
           end = middle - 1;
         }
       }
-      return corrections[start].correction
+      if (start == 0) return 0;
+      return corrections[start - 1].correction
     }
 
     let filtered_code = [];
