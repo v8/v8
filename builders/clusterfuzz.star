@@ -2,7 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/builders.star", "v8_builder")
+load("//lib/gclient.star", "GCLIENT_VARS")
+load("//lib/lib.star", "BARRIER", "greedy_batching_of_1", "in_console")
+load("//lib/reclient.star", "RECLIENT")
 
 def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, default_target = "v8_clusterfuzz", **kwargs):
     properties = dict(properties or {})

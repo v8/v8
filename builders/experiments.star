@@ -2,7 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "defaults_ci", "in_console", "v8_builder", "v8_failure_notifier")
+load("//lib/builders.star", "v8_builder")
+load("//lib/lib.star", "ci_pair_factory", "in_console", "v8_failure_notifier")
+load("//lib/gclient.star", "GCLIENT_VARS")
+load("//lib/reclient.star", "RECLIENT")
 
 def experiment_builder(**kwargs):
     notify_owners = kwargs.pop("notify_owners", None)

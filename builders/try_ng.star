@@ -2,15 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load(
-    "//lib/lib.star",
-    "CQ",
-    "GCLIENT_VARS",
-    "RECLIENT",
-    "defaults_triggered",
-    "defaults_try",
-    "v8_builder",
-)
+load("//lib/bucket-defaults.star", "bucket_defaults")
+load("//lib/builders.star", "v8_builder")
+load("//lib/gclient.star", "GCLIENT_VARS")
+load("//lib/lib.star", "CQ")
+load("//lib/reclient.star", "RECLIENT")
 
 def with_cancel(cq_properties):
     result = dict(cq_properties)
@@ -42,7 +38,7 @@ def trybot_pair(
 
     # Generate orchestrator trybot.
     v8_builder(
-        defaults_triggered,
+        bucket_defaults["try.triggered"],
         name = name,
         bucket = "try",
         execution_timeout = total_timeout,
@@ -58,7 +54,7 @@ def trybot_pair(
 
     # Generate compilator trybot.
     v8_builder(
-        defaults_try,
+        bucket_defaults["try"],
         name = compilator_name,
         bucket = "try",
         execution_timeout = build_timeout,

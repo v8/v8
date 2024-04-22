@@ -3,13 +3,6 @@
 # found in the LICENSE file.
 
 load("//definitions.star", "versions")
-load("//lib/description.star", "to_html")
-load(
-    "//lib/service-accounts.star",
-    "V8_CI_ACCOUNT",
-    "V8_HP_SERVICE_ACCOUNTS",
-    "V8_TRY_ACCOUNT",
-)
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
@@ -32,14 +25,14 @@ def branch_descriptor(
         bucket = bucket,
         version = version,
         poller_name = poller_name,
-        create_consoles = branch_console_builder(bucket, version_tag, refs) if has_console_name_prefix else main_console_builder(),
+        create_consoles = branch_console_factory(bucket, version_tag, refs) if has_console_name_prefix else main_console_factory(),
         refs = refs,
         priority = priority,
         console_id_by_name = console_id_resolver(bucket, has_console_name_prefix),
     )
 
-def main_console_builder():
-    def builder():
+def main_console_factory():
+    def factory():
         console_view("main", add_headless = True, add_builder_tester = True)
         console_view("memory", add_headless = True, add_builder_tester = True)
         console_view("ports", add_headless = True, add_builder_tester = True)
@@ -47,10 +40,10 @@ def main_console_builder():
         console_view("memory-dev")
         console_view("ports-dev")
 
-    return builder
+    return factory
 
-def branch_console_builder(bucket, version_tag, refs):
-    def builder():
+def branch_console_factory(bucket, version_tag, refs):
+    def factory():
         base_name = bucket[3:]
         base_display_name = version_tag + " "
         header = "//consoles/header_branch.textpb"
@@ -58,7 +51,7 @@ def branch_console_builder(bucket, version_tag, refs):
         console_view(base_name + ".memory", title = base_display_name + "memory", refs = refs, header = header)
         console_view(base_name + ".ports", title = base_display_name + "ports", refs = refs, header = header)
 
-    return builder
+    return factory
 
 def console_id_resolver(bucket, has_console_name_prefix):
     def resolver(console_kind):
@@ -128,170 +121,6 @@ CQ = struct(
     on_files = cq_on_files,
 )
 
-waterfall_acls = [
-    acl.entry(
-        roles = acl.BUILDBUCKET_TRIGGERER,
-        users = V8_CI_ACCOUNT,
-        groups = ["service-account-v8-bot"],
-    ),
-]
-
-waterfall_hp_acls = [
-    acl.entry(
-        roles = acl.BUILDBUCKET_TRIGGERER,
-        users = V8_HP_SERVICE_ACCOUNTS,
-    ),
-]
-
-tryserver_acls = [
-    acl.entry(
-        roles = acl.BUILDBUCKET_TRIGGERER,
-        groups = [
-            "service-account-cq",
-            "project-v8-tryjob-access",
-            "service-account-v8-bot",
-        ],
-    ),
-]
-
-defaults_ci = {
-    "executable": "recipe:v8",
-    "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"host_class": "default"},
-    "service_account": "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
-    "execution_timeout": 7200,
-    "build_numbers": True,
-    "resultdb_bq_table_prefix": "ci",
-}
-
-defaults_ci_hp = {
-    "dimensions": {"os": "Linux", "pool": "luci.v8.highly-privileged"},
-    "resultdb_bq_table_prefix": "ci_hp",
-}
-
-defaults_ci_br = dict(defaults_ci)
-defaults_ci_br["dimensions"]["pool"] = "luci.v8.ci"
-
-defaults_try = {
-    "executable": "recipe:v8",
-    "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"host_class": "default", "pool": "luci.v8.try"},
-    "service_account": V8_TRY_ACCOUNT,
-    "execution_timeout": 1800,
-    "properties": {"builder_group": "tryserver.v8"},
-    "resultdb_bq_table_prefix": "try",
-}
-
-defaults_triggered = {
-    "executable": "recipe:v8",
-    "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
-    "service_account": V8_TRY_ACCOUNT,
-    "execution_timeout": 4500,
-    "properties": {"builder_group": "tryserver.v8"},
-    "resultdb_bq_table_prefix": "try",
-    "caches": [
-        swarming.cache(
-            path = "builder",
-            name = "v8_builder_cache_nowait",
-        ),
-    ],
-}
-
-defaults_dict = {
-    "ci": defaults_ci,
-    "ci-hp": defaults_ci_hp,
-    "try": defaults_try,
-    "try.triggered": defaults_triggered,
-    "ci.br.beta": defaults_ci_br,
-    "ci.br.stable": defaults_ci_br,
-    "ci.br.extended": defaults_ci_br,
-}
-
-RECLIENT = struct(
-    DEFAULT = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-    },
-    DEFAULT_UNTRUSTED = {
-        "instance": "rbe-chromium-untrusted",
-        "metrics_project": "chromium-reclient-metrics",
-    },
-    CACHE_SILO = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "cache_silo": True,
-    },
-    COMPARE = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "compare": True,
-    },
-    NO = {"use_remoteexec": False},
-    NONE = {},
-)
-
-RECLIENT_JOBS = struct(
-    J500 = 500,
-)
-
-def _reclient_properties(use_remoteexec, reclient_jobs, name, scandeps_server):
-    if use_remoteexec == None:
-        return {}
-
-    if use_remoteexec == RECLIENT.NONE or use_remoteexec == RECLIENT.NO:
-        return {
-            "$build/v8": {"use_remoteexec": False},
-        }
-
-    reclient = dict(use_remoteexec)
-    rewrapper_env = {}
-    if reclient.get("cache_silo"):
-        reclient.pop("cache_silo")
-        rewrapper_env.update({
-            "RBE_cache_silo": name,
-        })
-
-    if reclient.get("compare"):
-        reclient.pop("compare")
-        rewrapper_env.update({
-            "RBE_compare": "true",
-        })
-        reclient["ensure_verified"] = True
-
-    if rewrapper_env:
-        reclient["rewrapper_env"] = rewrapper_env
-
-    if reclient_jobs:
-        reclient["jobs"] = reclient_jobs
-
-    if scandeps_server:
-        reclient["scandeps_server"] = True
-
-    return {
-        "$build/reclient": reclient,
-        "$build/v8": {"use_remoteexec": True},
-    }
-
-# These settings enable overwriting variables in V8's DEPS file.
-GCLIENT_VARS = struct(
-    CENTIPEDE = {"checkout_centipede_deps": "True"},
-    INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
-    ITTAPI = {"checkout_ittapi": "True"},
-    V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
-    GCMOLE = {"download_gcmole": "True"},
-    JSFUNFUZZ = {"download_jsfunfuzz": "True"},
-)
-
-def _gclient_vars_properties(props):
-    gclient_vars = {}
-    for prop in props:
-        gclient_vars.update(prop)
-    if gclient_vars:
-        return {"gclient_vars": gclient_vars}
-    else:
-        return {}
-
 BARRIER = struct(
     LKGR_TREE_CLOSER = struct(
         closes_tree = True,
@@ -318,96 +147,6 @@ multibot_caches = [
     ),
 ]
 
-def v8_builder(defaults = None, **kwargs):
-    bucket_name = kwargs["bucket"]
-    in_console = kwargs.pop("in_console", None)
-    in_list = kwargs.pop("in_list", None)
-    defaults = defaults or defaults_dict[bucket_name]
-    barrier = kwargs.pop("barrier", BARRIER.NONE)
-    if barrier.closes_tree:
-        notifies = kwargs.pop("notifies", [])
-        if kwargs.get("executable") != "recipe:v8":
-            notifies.append("generic tree closer")
-        notifies.append("infra-failure")
-        kwargs["notifies"] = notifies
-    parent_builder = kwargs.pop("parent_builder", None)
-    if parent_builder:
-        resolve_parent_triggering(kwargs, bucket_name, parent_builder)
-    kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
-    add_barrier_properties(barrier, kwargs)
-    v8_basic_builder(defaults, **kwargs)
-    if in_console:
-        splited = in_console.split("/")
-        console_name = splited[0]
-        category_name = None
-        if len(splited) > 1:
-            category_name = splited[1]
-        luci.console_view_entry(
-            console_view = console_name,
-            builder = "%s/%s" % (bucket_name, kwargs["name"]),
-            category = category_name,
-        )
-    if in_list:
-        luci.list_view_entry(
-            list_view = in_list,
-            builder = kwargs["name"],
-        )
-    return kwargs["name"]
-
-def v8_basic_builder(defaults, **kwargs):
-    cq_properties = kwargs.pop("cq_properties", None)
-    if cq_properties != None:
-        luci.cq_tryjob_verifier(
-            kwargs["name"],
-            cq_group = "v8-cq",
-            **cq_properties
-        )
-    cq_branch_properties = kwargs.pop("cq_branch_properties", None)
-    if cq_branch_properties != None:
-        luci.cq_tryjob_verifier(
-            kwargs["name"],
-            cq_group = "v8-branch-cq",
-            **cq_branch_properties
-        )
-    properties = dict(kwargs.pop("properties", {}))
-
-    # TODO(https://crbug.com/1372352): Temporary name property for investigation.
-    # Should be replaced by the description below at some point.
-    properties["__builder_name__"] = kwargs["name"]
-
-    scandeps_server = kwargs.get("dimensions", {}).get("os", "").lower() == "mac"
-    properties.update(_reclient_properties(
-        kwargs.pop("use_remoteexec", None),
-        kwargs.pop("reclient_jobs", None),
-        kwargs["name"],
-        scandeps_server,
-    ))
-    properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
-
-    # Fake property to move WIP builders to a special console by a generator
-    # in the end.
-    properties["__wip__"] = kwargs.pop("work_in_progress", False)
-
-    kwargs["properties"] = properties
-    kwargs = fix_args(defaults, **kwargs)
-
-    description = kwargs.pop("description", None)
-    if description:
-        kwargs["description_html"] = to_html(
-            kwargs["name"],
-            kwargs["bucket"],
-            description,
-        )
-
-    rdb_export_disabled = kwargs.pop("disable_resultdb_exports", False)
-    resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
-    kwargs["resultdb_settings"] = resultdb.settings(
-        enable = True,
-        bq_exports = bq_exports(rdb_export_disabled, resultdb_bq_table_prefix),
-    )
-
-    luci.builder(**kwargs)
-
 def bq_exports(rdb_export_disabled, resultdb_bq_table_prefix):
     if rdb_export_disabled:
         return None
@@ -421,56 +160,10 @@ def bq_exports(rdb_export_disabled, resultdb_bq_table_prefix):
         ),
     ]
 
-def multibranch_builder(**kwargs):
-    added_builders = []
-    barrier = kwargs.pop("barrier", BARRIER.TREE_CLOSER)
-    for branch in branch_descriptors:
-        args = dict(kwargs)
-        parent_builder = args.pop("parent_builder", None)
-        if parent_builder:
-            args["triggered_by_gitiles"] = False
-            resolve_parent_triggering(args, branch.bucket, parent_builder)
-        triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
-        first_branch_version = args.pop("first_branch_version", None)
-        if triggered_by_gitiles:
-            args.setdefault("triggered_by", []).append(branch.poller_name)
-            args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
-        args["priority"] = branch.priority
-
-        if branch.bucket == "ci":
-            if barrier.closes_tree:
-                notifies = args.pop("notifies", [])
-                if parent_builder:
-                    notifies.append("v8 tree closer")
-                else:
-                    notifies.append("generic tree closer")
-                args["notifies"] = notifies
-        else:
-            args["disable_resultdb_exports"] = True
-            if _builder_is_not_supported(branch.bucket, first_branch_version):
-                continue
-        add_barrier_properties(barrier, args)
-        properties = args.get("properties", {})
-        properties.update(barrier.properties)
-        args["properties"] = properties
-        v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)
-        added_builders.append(branch.bucket + "/" + kwargs["name"])
-    return added_builders
-
 def add_barrier_properties(barrier, properties_holder):
     properties = properties_holder.get("properties", {})
     properties.update(barrier.properties)
     properties_holder["properties"] = properties
-
-def main_multibranch_builder(**kwargs):
-    props = kwargs.pop("properties", {})
-    props["builder_group"] = "client.v8"
-    kwargs["properties"] = props
-    if "notifies" in kwargs["properties"]:
-        kwargs["properties"]["notifies"].append("V8 Flake Sheriff")
-    else:
-        kwargs["properties"]["notifies"] = ["V8 Flake Sheriff"]
-    return multibranch_builder(**kwargs)
 
 def resolve_parent_triggering(args, bucket_name, parent_builder):
     # By the time the generators are executed the parent_builder property
@@ -484,7 +177,7 @@ def resolve_parent_triggering(args, bucket_name, parent_builder):
         bucket_name + "/" + parent_builder,
     )
 
-def _builder_is_not_supported(bucket_name, first_branch_version):
+def skip_builder(bucket_name, first_branch_version):
     # do we need to skip the builder in this bucket?
     if first_branch_version:
         branch_version = branch_by_name(bucket_name).version

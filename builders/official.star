@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/builders.star", "v8_builder")
+load("//lib/lib.star", "greedy_batching_of_1", "in_console")
+load("//lib/reclient.star", "RECLIENT")
 
 in_category = in_console("official")
 

@@ -6,7 +6,7 @@
 lucicfg.check_version("1.33.7", "Please update depot_tools")
 
 load(
-    "//lib/lib.star",
+    "//lib/acls.star",
     "tryserver_acls",
     "waterfall_acls",
     "waterfall_hp_acls",
@@ -136,7 +136,7 @@ LED_GROUPS = ["project-v8-led-users", "mdb/v8-infra"]
 
 # Allow indviduals (via groups) to use LED and "Debug" button on try and ci
 # builders without additional approval.
-def led_users(*, pool_realm, builder_realms, groups):
+def led_users(*, pool_realm, bucket_realms, groups):
     luci.realm(
         name = pool_realm,
         bindings = [luci.binding(
@@ -145,7 +145,7 @@ def led_users(*, pool_realm, builder_realms, groups):
             users = V8_SERVICE_ACCOUNTS,
         )],
     )
-    for br in builder_realms:
+    for br in bucket_realms:
         luci.binding(
             realm = br,
             roles = [
@@ -158,7 +158,7 @@ def led_users(*, pool_realm, builder_realms, groups):
 
 led_users(
     pool_realm = "pools/ci",
-    builder_realms = [
+    bucket_realms = [
         "ci",
         "ci.br.beta",
         "ci.br.stable",
@@ -169,14 +169,14 @@ led_users(
 
 led_users(
     pool_realm = "pools/try",
-    builder_realms = ["try", "try.triggered"],
+    bucket_realms = ["try", "try.triggered", "crossbench.try"],
     groups = LED_GROUPS,
 )
 
 # Allow this AoD group to use all pools and trigger all builders
 led_users(
     pool_realm = "@root",
-    builder_realms = ["@root"],
+    bucket_realms = ["@root"],
     groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
 )
 
@@ -214,7 +214,7 @@ def grantInvocationCreator(realms, users):
             ),
         ])
 
-grantInvocationCreator(["try", "try.triggered"], [V8_TRY_ACCOUNT])
+grantInvocationCreator(["try", "try.triggered", "crossbench.try"], [V8_TRY_ACCOUNT])
 grantInvocationCreator(["ci", "ci-hp"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
@@ -270,6 +270,8 @@ bucket(name = "try.triggered", acls = tryserver_acls)
 bucket(name = "ci.br.beta", acls = waterfall_acls)
 bucket(name = "ci.br.stable", acls = waterfall_acls)
 bucket(name = "ci.br.extended", acls = waterfall_acls)
+
+bucket(name = "crossbench.try", acls = tryserver_acls)
 
 exec("//lib/recipes.star")
 

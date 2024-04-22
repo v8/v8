@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 load("//lib/service-accounts.star", "V8_TRY_ACCOUNT")
+load("//lib/builders.star", "presubmit_builder")
 
 def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, properties = None):
     """
@@ -22,7 +23,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
 
     luci.builder(
         name = builder_name,
-        bucket = "try",
+        bucket = "crossbench.try",
         dimensions = dims,
         executable = luci.recipe(
             name = recipe_path,
@@ -39,6 +40,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
         builder = builder_name,
     )
 
+presubmit_builder("Crossbench Presubmit", "crossbench.try", timeout = 900, console = "crossbench")
 crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
 crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-20", "x86-64")
 crossbench_cbb_builder(
@@ -71,7 +73,7 @@ luci.cq_group(
     ],
     verifiers = [
         luci.cq_tryjob_verifier(
-            builder = "crossbench_presubmit",
+            builder = "Crossbench Presubmit",
             disable_reuse = True,
         ),
         luci.cq_tryjob_verifier(

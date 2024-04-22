@@ -2,7 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "BARRIER", "GCLIENT_VARS", "RECLIENT", "ci_pair_factory", "in_branch_console", "main_multibranch_builder", "multibranch_builder")
+load("//lib/builders.star", "main_multibranch_builder", "multibranch_builder")
+load("//lib/gclient.star", "GCLIENT_VARS")
+load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_branch_console")
+load("//lib/reclient.star", "RECLIENT")
 
 in_category = in_branch_console("memory")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)

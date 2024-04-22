@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "RECLIENT", "v8_builder")
+load("//lib/builders.star", "v8_builder")
+load("//lib/reclient.star", "RECLIENT")
 load("//lib/service-accounts.star", "V8_PGO_ACCOUNT")
 
 v8_builder(

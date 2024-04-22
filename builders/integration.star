@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "BARRIER", "RECLIENT", "in_console", "v8_builder")
+load("//lib/builders.star", "v8_builder")
+load("//lib/lib.star", "BARRIER", "in_console")
+load("//lib/reclient.star", "RECLIENT")
 
 def integration_builder(**kwargs):
     return v8_builder(disable_resultdb_exports = True, **kwargs)

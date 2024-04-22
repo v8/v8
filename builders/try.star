@@ -2,51 +2,17 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "CQ", "GCLIENT_VARS", "RECLIENT", "RECLIENT_JOBS", "v8_builder")
-
-def try_builder(
-        name,
-        bucket = "try",
-        cq_properties = CQ.NONE,
-        cq_branch_properties = CQ.NONE,
-        disable_resultdb_exports = True,
-        **kwargs):
-    # All unspecified branch trybots are per default optional.
-    if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
-        cq_branch_properties = CQ.OPTIONAL
-    v8_builder(
-        name = name,
-        bucket = bucket,
-        cq_properties = cq_properties,
-        cq_branch_properties = cq_branch_properties,
-        in_list = "tryserver",
-        disable_resultdb_exports = disable_resultdb_exports,
-        **kwargs
-    )
-
-def presubmit_builder(
-        project,
-        cq_properties = CQ.NONE,
-        cq_branch_properties = CQ.NONE,
-        timeout = 8 * 60):
-    try_builder(
-        name = "%s_presubmit" % project,
-        bucket = "try",
-        cq_properties = cq_properties,
-        cq_branch_properties = cq_branch_properties,
-        executable = "recipe:run_presubmit",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        execution_timeout = timeout + 2 * 60,
-        properties = {"runhooks": True, "timeout": timeout},
-        priority = 25,
-    )
+load("//lib/builders.star", "presubmit_builder", "try_builder", "v8_builder")
+load("//lib/gclient.star", "GCLIENT_VARS")
+load("//lib/lib.star", "CQ")
+load("//lib/reclient.star", "RECLIENT", "RECLIENT_JOBS")
 
 presubmit_builder(
-    "v8",
+    "v8_presubmit",
+    "try",
     cq_properties = CQ.BLOCK_NO_REUSE,
     cq_branch_properties = CQ.BLOCK_NO_REUSE,
 )
-presubmit_builder("crossbench", timeout = 900)
 
 try_builder(
     name = "v8_android_arm_compile_rel",

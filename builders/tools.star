@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "RECLIENT", "defaults_ci", "v8_builder")
+load("//lib/bucket-defaults.star", "bucket_defaults")
+load("//lib/builders.star", "v8_builder")
+load("//lib/reclient.star", "RECLIENT")
 load(
     "//lib/service-accounts.star",
     "V8_AUTOROLL_ACCOUNT",
@@ -12,7 +14,7 @@ load(
 )
 
 v8_builder(
-    defaults_ci,
+    bucket_defaults["ci"],
     name = "Infra Expriments",
     bucket = "ci",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -23,7 +25,7 @@ v8_builder(
 )
 
 v8_builder(
-    defaults_ci,
+    bucket_defaults["ci"],
     name = "Branch Monitor",
     bucket = "ci",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -36,7 +38,7 @@ v8_builder(
 )
 
 v8_builder(
-    defaults_ci,
+    bucket_defaults["ci"],
     name = "Canary Detector",
     bucket = "ci-hp",
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
