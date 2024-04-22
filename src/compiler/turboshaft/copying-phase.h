@@ -251,6 +251,11 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return result;
   }
 
+  template <bool can_be_invalid = false, typename T>
+  V<T> MapToNewGraph(V<T> old_index, int predecessor_index = -1) {
+    return V<T>::Cast(MapToNewGraph(static_cast<OpIndex>(old_index), -1));
+  }
+
   Block* MapToNewGraph(const Block* block) const {
     Block* new_block = block_mapping_[block->index()];
     DCHECK_NOT_NULL(new_block);

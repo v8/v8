@@ -129,8 +129,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     Next::Analyze();
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(WasmTypeCast)(OpIndex op_idx,
-                                           const WasmTypeCastOp& cast_op) {
+  V<Object> REDUCE_INPUT_GRAPH(WasmTypeCast)(V<Object> op_idx,
+                                             const WasmTypeCastOp& cast_op) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphWasmTypeCast(op_idx, cast_op);
     }
@@ -183,8 +183,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(WasmTypeCheck)(OpIndex op_idx,
-                                            const WasmTypeCheckOp& type_check) {
+  V<Word32> REDUCE_INPUT_GRAPH(WasmTypeCheck)(
+      V<Word32> op_idx, const WasmTypeCheckOp& type_check) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphWasmTypeCheck(op_idx, type_check);
     }

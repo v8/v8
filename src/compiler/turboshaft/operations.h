@@ -6514,10 +6514,10 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
-  explicit RttCanonOp(OpIndex rtts, uint32_t type_index)
+  explicit RttCanonOp(V<FixedArray> rtts, uint32_t type_index)
       : Base(rtts), type_index(type_index) {}
 
-  OpIndex rtts() const { return Base::input(0); }
+  V<FixedArray> rtts() const { return input<FixedArray>(0); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -6537,7 +6537,7 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
   static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
 
-  WasmTypeCheckOp(V<Object> object, OptionalV<Object> rtt,
+  WasmTypeCheckOp(V<Object> object, OptionalV<Map> rtt,
                   WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6552,8 +6552,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
   }
 
   V<Object> object() const { return Base::input<Object>(0); }
-  OptionalV<Object> rtt() const {
-    return input_count > 1 ? input<Object>(1) : V<Object>::Invalid();
+  OptionalV<Map> rtt() const {
+    return input_count > 1 ? input<Map>(1) : OptionalV<Map>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6573,8 +6573,7 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
   auto options() const { return std::tuple{config}; }
 
   static WasmTypeCheckOp& New(Graph* graph, V<Object> object,
-                              OptionalV<Object> rtt,
-                              WasmTypeCheckConfig config) {
+                              OptionalV<Map> rtt, WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }
 };
@@ -6584,7 +6583,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
 
-  WasmTypeCastOp(V<Object> object, OptionalV<Object> rtt,
+  WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
                  WasmTypeCheckConfig config)
       : Base(1 + rtt.valid()), config(config) {
     input(0) = object;
@@ -6599,8 +6598,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   }
 
   V<Object> object() const { return Base::input<Object>(0); }
-  OptionalV<Object> rtt() const {
-    return input_count > 1 ? input<Object>(1) : V<Object>::Invalid();
+  OptionalV<Map> rtt() const {
+    return input_count > 1 ? input<Map>(1) : OptionalV<Map>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -6619,8 +6618,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   auto options() const { return std::tuple{config}; }
 
-  static WasmTypeCastOp& New(Graph* graph, V<Object> object,
-                             OptionalV<Object> rtt,
+  static WasmTypeCastOp& New(Graph* graph, V<Object> object, OptionalV<Map> rtt,
                              WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
   }

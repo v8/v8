@@ -86,14 +86,14 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex REDUCE(RttCanon)(OpIndex rtts, uint32_t type_index) {
+  V<Map> REDUCE(RttCanon)(V<FixedArray> rtts, uint32_t type_index) {
     int map_offset = FixedArray::kHeaderSize + type_index * kTaggedSize;
     return __ Load(rtts, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
 
-  OpIndex REDUCE(WasmTypeCheck)(V<Object> object, OptionalV<Object> rtt,
-                                WasmTypeCheckConfig config) {
+  V<Word32> REDUCE(WasmTypeCheck)(V<Object> object, OptionalV<Map> rtt,
+                                  WasmTypeCheckConfig config) {
     if (rtt.has_value()) {
       return ReduceWasmTypeCheckRtt(object, rtt, config);
     } else {
@@ -101,8 +101,8 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(WasmTypeCast)(V<Object> object, OptionalV<Object> rtt,
-                               WasmTypeCheckConfig config) {
+  V<Object> REDUCE(WasmTypeCast)(V<Object> object, OptionalV<Map> rtt,
+                                 WasmTypeCheckConfig config) {
     if (rtt.has_value()) {
       return ReduceWasmTypeCastRtt(object, rtt, config);
     } else {
@@ -540,8 +540,8 @@ class WasmLoweringReducer : public Next {
 #endif  // V8_ENABLE_SANDBOX
   }
 
-  OpIndex ReduceWasmTypeCheckAbstract(V<Object> object,
-                                      WasmTypeCheckConfig config) {
+  V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
+                                        WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
@@ -549,7 +549,7 @@ class WasmLoweringReducer : public Next {
                           module_) ||
         config.from.heap_representation() == wasm::HeapType::kExtern;
 
-    OpIndex result;
+    V<Word32> result;
     Label<Word32> end_label(&Asm());
 
     wasm::HeapType::Representation to_rep = config.to.heap_representation();
@@ -613,8 +613,8 @@ class WasmLoweringReducer : public Next {
     return final_result;
   }
 
-  OpIndex ReduceWasmTypeCastAbstract(V<Object> object,
-                                     WasmTypeCheckConfig config) {
+  V<Object> ReduceWasmTypeCastAbstract(V<Object> object,
+                                       WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
@@ -690,8 +690,8 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Object> rtt,
-                                WasmTypeCheckConfig config) {
+  V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
+                                  WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
@@ -764,8 +764,8 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCheckRtt(V<Object> object, OptionalV<Object> rtt,
-                                 WasmTypeCheckConfig config) {
+  V<Word32> ReduceWasmTypeCheckRtt(V<Object> object, OptionalV<Map> rtt,
+                                   WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();

@@ -924,7 +924,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
 #endif
     Asm().output_graph().template Replace<PhiOp>(
         output_index,
-        base::VectorOf(
+        base::VectorOf<OpIndex>(
             {pending_phi.first(), Asm().MapToNewGraph(input_phi.input(1))}),
         input_phi.rep);
   }
