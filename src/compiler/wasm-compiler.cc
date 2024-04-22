@@ -3435,7 +3435,7 @@ Node* WasmGraphBuilder::CurrentMemoryPages(const wasm::WasmMemory* memory) {
   Node* mem_size = MemSize(memory->index);
   Node* result =
       gasm_->WordShr(mem_size, gasm_->IntPtrConstant(wasm::kWasmPageSizeLog2));
-  result = env_->module->memories[0].is_memory64
+  result = memory->is_memory64
                ? gasm_->BuildChangeIntPtrToInt64(result)
                : gasm_->BuildTruncateIntPtrToInt32(result);
   return result;

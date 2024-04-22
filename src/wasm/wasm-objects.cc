@@ -1118,7 +1118,7 @@ void WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
 
 void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
                                            size_t mem_size) {
-  CHECK_LE(memory_index, module()->memories.size());
+  CHECK_LT(memory_index, module()->memories.size());
 
   CHECK_LE(mem_size, module()->memories[memory_index].is_memory64
                          ? wasm::max_mem64_bytes()
