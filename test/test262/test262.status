@@ -2626,8 +2626,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Map/groupBy/string': [SKIP],
-  'built-ins/Object/groupBy/string': [SKIP],
   'built-ins/Temporal/Calendar/from/calendar-iso-string': [SKIP],
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-propertybag-calendar-iso-string': [SKIP],
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-propertybag-calendar-number': [SKIP],
