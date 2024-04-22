@@ -62,11 +62,11 @@ class TracedReferenceBase : public api_internal::IndirectHandleBase {
   V8_INLINE void Reset();
 
   /**
-   * Construct a Local<Value> from this handle.
+   * Construct a Local<Data> from this handle.
    */
-  V8_INLINE Local<Value> Get(Isolate* isolate) const {
-    if (IsEmpty()) return Local<Value>();
-    return Local<Value>::New(isolate, this->value<Value>());
+  V8_INLINE Local<Data> Get(Isolate* isolate) const {
+    if (IsEmpty()) return Local<Data>();
+    return Local<Data>::New(isolate, this->value<Data>());
   }
 
   /**

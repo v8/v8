@@ -794,6 +794,43 @@ TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
   EXPECT_EQ(1u, Wrappable2::destructor_call_count);
 }
 
+namespace {
+class WrappedData final : public cppgc::GarbageCollected<WrappedData> {
+ public:
+  WrappedData(v8::Isolate* isolate, v8::Local<v8::Private> data) {
+    data_.Reset(isolate, data);
+  }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(data_); }
+
+  v8::Local<v8::Private> data(v8::Isolate* isolate) {
+    return data_.Get(isolate);
+  }
+
+ private:
+  TracedReference<v8::Private> data_;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrapperWithTracedReferenceData) {
+  v8::Isolate* isolate = v8_isolate();
+
+  cppgc::Persistent<WrappedData> live_wrap;
+  {
+    live_wrap = cppgc::MakeGarbageCollected<WrappedData>(
+        allocation_handle(), isolate,
+        v8::Private::New(isolate,
+                         v8::String::NewFromUtf8Literal(isolate, "test")));
+  }
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  {
+    v8::Local<v8::Value> name = live_wrap.Get()->data(isolate)->Name();
+    CHECK(name->IsString());
+    CHECK(name.As<v8::String>()->StringEquals(
+        v8::String::NewFromUtf8Literal(isolate, "test")));
+  }
+}
+
 TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   if (!v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;

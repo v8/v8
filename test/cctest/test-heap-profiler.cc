@@ -1756,7 +1756,7 @@ class EmbedderGraphBuilderForNativeSnapshotObjectId final {
     BuildParameter* parameter = reinterpret_cast<BuildParameter*>(data);
     v8::Local<v8::String> local_str =
         v8::Local<v8::String>::New(isolate, *(parameter->wrapper));
-    auto* v8_node = graph->V8Node(local_str);
+    auto* v8_node = graph->V8Node(local_str.As<v8::Value>());
     CHECK(!v8_node->IsEmbedderNode());
     auto* root_node =
         graph->AddNode(std::unique_ptr<RootNode>(new RootNode("root")));

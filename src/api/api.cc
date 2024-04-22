@@ -11365,6 +11365,12 @@ void HeapProfiler::DeleteAllHeapSnapshots() {
   reinterpret_cast<i::HeapProfiler*>(this)->DeleteAllSnapshots();
 }
 
+v8::EmbedderGraph::Node* v8::EmbedderGraph::V8Node(
+    const v8::Local<v8::Data>& data) {
+  CHECK(data->IsValue());
+  return V8Node(data.As<v8::Value>());
+}
+
 void HeapProfiler::AddBuildEmbedderGraphCallback(
     BuildEmbedderGraphCallback callback, void* data) {
   reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(
