@@ -447,6 +447,7 @@ CapturedObject CapturedObject::CreateJSConstructor(
           constructor);
   int slot_count = prediction.instance_size() / kTaggedSize;
   CapturedObject object(zone, slot_count);
+  SBXCHECK_GE(slot_count, 3);
   object.set(JSObject::kMapOffset, constructor.initial_map(broker));
   object.set(JSObject::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
   object.set(JSObject::kElementsOffset, RootIndex::kEmptyFixedArray);
@@ -458,6 +459,7 @@ CapturedObject CapturedObject::CreateJSConstructor(
 CapturedObject CapturedObject::CreateJSArray(Zone* zone, compiler::MapRef map,
                                              ValueNode* length) {
   int slot_count = map.instance_size() / kTaggedSize;
+  SBXCHECK_GE(slot_count, 4);
   CapturedObject object(zone, slot_count);
   object.set(JSArray::kMapOffset, map);
   object.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
@@ -517,10 +519,10 @@ CapturedObject CapturedObject::CreateArgumentsObject(
   arguments.set(JSArray::kElementsOffset, elements);
   arguments.set(JSArray::kLengthOffset, length);
   if (callee.has_value()) {
-    DCHECK_EQ(slot_count, 5);
+    SBXCHECK_EQ(slot_count, 5);
     arguments.set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
   } else {
-    DCHECK_EQ(slot_count, 4);
+    SBXCHECK_EQ(slot_count, 4);
   }
   return arguments;
 }
