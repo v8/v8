@@ -6629,3 +6629,58 @@ TEST(CatchPredictionExceptionCaughtAsPromiseInCatchingFunction) {
     %PrepareFunctionForOptimization(thrower);
   )javascript");
 }
+
+TEST(CatchPredictionTopLevelEval) {
+  // Statement returning rejected promise is immediately followed by statement
+  // catching it in top level eval context.
+  RunExceptionCatchPredictionTest(false, R"javascript(
+    function test() {
+      eval(`let result = Promise.reject('f');
+      result.catch(()=>{});`);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionClosureCapture) {
+  // Statement returning rejected promise is immediately followed by statement
+  // catching it, but original promise is captured in a closure.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = Promise.reject('f');
+      result.catch(()=>{});
+      return (() => result);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionNestedContext) {
+  // Statement returning rejected promise stores in a variable in an outer
+  // context.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = null;
+      {
+        let otherObj = {};
+        result = Promise.reject('f');
+        result.catch(()=>otherObj);
+      }
+      return (() => result);
+    }
+  )javascript");
+}
+
+TEST(CatchPredictionWithContext) {
+  // Statement returning rejected promise stores in a variable outside a with
+  // context.
+  RunExceptionOptimizedCallstackWalkTest(false, 1, R"javascript(
+    function test() {
+      let result = null;
+      let otherObj = {};
+      with (otherObj) {
+        result = Promise.reject('f');
+        result.catch(()=>{});
+      }
+      return (() => result);
+    }
+  )javascript");
+}
