@@ -286,6 +286,40 @@ void SandboxGetInstanceTypeOfObjectAt(
   SandboxGetInstanceTypeOfImpl(info, &GetArgumentObjectPassedAsAddress);
 }
 
+static void SandboxGetInstanceTypeIdOfImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info,
+    ArgumentObjectExtractorFunction getArgumentObject) {
+  DCHECK(ValidateCallbackInfo(info));
+
+  Tagged<HeapObject> obj;
+  if (!getArgumentObject(info, &obj)) {
+    return;
+  }
+
+  InstanceType type = obj->map()->instance_type();
+  static_assert(std::is_same_v<std::underlying_type_t<InstanceType>, uint16_t>);
+  if (type > LAST_TYPE) {
+    // This can happen with corrupted objects. Canonicalize to a special
+    // "unknown" instance type to indicate that this is an unknown type.
+    const uint16_t kUnknownInstanceType = std::numeric_limits<uint16_t>::max();
+    type = static_cast<InstanceType>(kUnknownInstanceType);
+  }
+
+  info.GetReturnValue().Set(type);
+}
+
+// Sandbox.getInstanceTypeIdOf(Object) -> Number
+void SandboxGetInstanceTypeIdOf(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetInstanceTypeIdOfImpl(info, &GetArgumentObjectPassedAsReference);
+}
+
+// Sandbox.getInstanceTypeIdOfObjectAt(Number) -> Number
+void SandboxGetInstanceTypeIdOfObjectAt(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetInstanceTypeIdOfImpl(info, &GetArgumentObjectPassedAsAddress);
+}
+
 void SandboxGetTargetPage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -382,6 +416,10 @@ void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
                   "getInstanceTypeOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetInstanceTypeOfObjectAt,
                   "getInstanceTypeOfObjectAt", 1);
+  InstallFunction(isolate, sandbox, SandboxGetInstanceTypeIdOf,
+                  "getInstanceTypeIdOf", 1);
+  InstallFunction(isolate, sandbox, SandboxGetInstanceTypeIdOfObjectAt,
+                  "getInstanceTypeIdOfObjectAt", 1);
 
   if (mode() == Mode::kForTesting) {
     InstallGetter(isolate, sandbox, SandboxGetTargetPage, "targetPage");
