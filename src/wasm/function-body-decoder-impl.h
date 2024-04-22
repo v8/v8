@@ -818,7 +818,7 @@ struct MemoryAccessImmediate {
 
   template <typename ValidationTag>
   V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
-                                  uint32_t max_alignment, bool is_memory64,
+                                  uint32_t max_alignment, bool memory64_enabled,
                                   bool multi_memory_enabled,
                                   ValidationTag = {}) {
     // Check for the fast path (two single-byte LEBs, mem index 0).
@@ -830,7 +830,7 @@ struct MemoryAccessImmediate {
       offset = pc[1];
       length = 2;
     } else {
-      ConstructSlow<ValidationTag>(decoder, pc, max_alignment, is_memory64,
+      ConstructSlow<ValidationTag>(decoder, pc, max_alignment, memory64_enabled,
                                    multi_memory_enabled);
     }
     if (!VALIDATE(alignment <= max_alignment)) {
@@ -847,7 +847,7 @@ struct MemoryAccessImmediate {
   V8_NOINLINE V8_PRESERVE_MOST void ConstructSlow(Decoder* decoder,
                                                   const uint8_t* pc,
                                                   uint32_t max_alignment,
-                                                  bool is_memory64,
+                                                  bool memory64_enabled,
                                                   bool multi_memory_enabled) {
     uint32_t alignment_length;
     std::tie(alignment, alignment_length) =
@@ -863,7 +863,7 @@ struct MemoryAccessImmediate {
       mem_index = 0;
     }
     uint32_t offset_length;
-    if (is_memory64) {
+    if (memory64_enabled) {
       std::tie(offset, offset_length) =
           decoder->read_u64v<ValidationTag>(pc + length, "offset");
     } else {
