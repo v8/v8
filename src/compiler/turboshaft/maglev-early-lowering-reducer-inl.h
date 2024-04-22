@@ -58,18 +58,10 @@ class MaglevEarlyLoweringReducer : public Next {
                          frame_state, DeoptimizeReason::kWrongInstanceType,
                          feedback);
     } else {
-      V<Word32> instance_type = __ LoadInstanceTypeField(map);
-
-      V<Word32> cond;
-      if (first_instance_type == 0) {
-        cond = __ Uint32LessThanOrEqual(instance_type, last_instance_type);
-      } else {
-        cond = __ Uint32LessThanOrEqual(
-            __ Word32Sub(instance_type, first_instance_type),
-            last_instance_type - first_instance_type);
-      }
-      __ DeoptimizeIfNot(cond, frame_state,
-                         DeoptimizeReason::kWrongInstanceType, feedback);
+      __ DeoptimizeIfNot(CompareInstanceTypeRange(map, first_instance_type,
+                                                  last_instance_type),
+                         frame_state, DeoptimizeReason::kWrongInstanceType,
+                         feedback);
     }
   }
 
@@ -108,6 +100,62 @@ class MaglevEarlyLoweringReducer : public Next {
 
     BIND(done, result);
     return result;
+  }
+
+  V<Object> CheckConstructResult(V<Object> construct_result,
+                                 V<Object> implicit_receiver) {
+    // If the result is an object (in the ECMA sense), we should get rid
+    // of the receiver and use the result; see ECMA-262 version 5.1
+    // section 13.2.2-7 on page 74.
+    Label<Object> done(this);
+
+    GOTO_IF(
+        __ RootEqual(construct_result, RootIndex::kUndefinedValue, isolate_),
+        done, implicit_receiver);
+
+    // If the result is a smi, it is *not* an object in the ECMA sense.
+    GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);
+
+    // Check if the type of the result is not an object in the ECMA sense.
+    GOTO_IF(JSAnyIsNotPrimitive(construct_result), done, construct_result);
+
+    // Throw away the result of the constructor invocation and use the
+    // implicit receiver as the result.
+    GOTO(done, implicit_receiver);
+
+    BIND(done, result);
+    return result;
+  }
+
+ private:
+  V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
+    V<Map> map = __ LoadMapField(heap_object);
+    if (V8_STATIC_ROOTS_BOOL) {
+      // All primitive object's maps are allocated at the start of the read only
+      // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+      // addresses.
+      return __ Uint32LessThanOrEqual(
+          InstanceTypeChecker::kNonJsReceiverMapLimit,
+          __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(map)));
+    } else {
+      static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+      return __ Uint32LessThanOrEqual(FIRST_JS_RECEIVER_TYPE,
+                                      __ LoadInstanceTypeField(map));
+    }
+  }
+
+  V<Word32> CompareInstanceTypeRange(V<Map> map,
+                                     InstanceType first_instance_type,
+                                     InstanceType last_instance_type) {
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+    if (first_instance_type == 0) {
+      return __ Uint32LessThanOrEqual(instance_type, last_instance_type);
+    } else {
+      return __ Uint32LessThanOrEqual(
+          __ Word32Sub(instance_type, first_instance_type),
+          last_instance_type - first_instance_type);
+    }
   }
 
   LocalIsolate* isolate_ = PipelineData::Get().isolate()->AsLocalIsolate();

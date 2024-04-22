@@ -519,6 +519,12 @@ class GraphBuilder {
 
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckConstructResult* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ CheckConstructResult(Map(node->construct_result_input()),
+                                         Map(node->implicit_receiver_input())));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::SetKeyedGeneric* node,
                                 const maglev::ProcessingState& state) {
@@ -555,6 +561,14 @@ class GraphBuilder {
                        BuildFrameState(node->eager_deopt_info()),
                        DeoptimizeReason::kNotASmi,
                        node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckHeapObject* node,
+                                const maglev::ProcessingState& state) {
+    __ DeoptimizeIf(__ ObjectIsSmi(Map(node->receiver_input())),
+                    BuildFrameState(node->eager_deopt_info()),
+                    DeoptimizeReason::kSmi,
+                    node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckMaps* node,
@@ -1746,33 +1760,86 @@ class GraphBuilder {
   }
 
   V<FrameState> BuildFrameState(maglev::LazyDeoptInfo* lazy_deopt_info) {
-    DCHECK_EQ(lazy_deopt_info->top_frame().type(),
-              maglev::DeoptFrame::FrameType::kInterpretedFrame);
-    maglev::InterpretedDeoptFrame& frame =
-        lazy_deopt_info->top_frame().as_interpreted();
-    if (lazy_deopt_info->result_size() == 1) {
-      DCHECK_EQ(lazy_deopt_info->result_location(),
-                interpreter::Register::virtual_accumulator());
-      return BuildFrameState(frame, OutputFrameStateCombine::PokeAt(0), true);
-    } else if (lazy_deopt_info->result_size() == 0) {
-      return BuildFrameState(frame, OutputFrameStateCombine::Ignore(), true);
-    } else {
-      // TODO(dmercadier): handle cases where the lazy deopt has multiple return
-      // values.
-      UNIMPLEMENTED();
+    switch (lazy_deopt_info->top_frame().type()) {
+      case maglev::DeoptFrame::FrameType::kInterpretedFrame:
+        if (lazy_deopt_info->result_size() == 1) {
+          DCHECK_EQ(lazy_deopt_info->result_location(),
+                    interpreter::Register::virtual_accumulator());
+          return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
+                                 OutputFrameStateCombine::PokeAt(0), true);
+        } else if (lazy_deopt_info->result_size() == 0) {
+          return BuildFrameState(lazy_deopt_info->top_frame().as_interpreted(),
+                                 OutputFrameStateCombine::Ignore(), true);
+        } else {
+          // TODO(dmercadier): handle cases where the lazy deopt has multiple
+          // return values.
+          UNIMPLEMENTED();
+        }
+      case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
+        return BuildFrameState(
+            lazy_deopt_info->top_frame().as_construct_stub());
+
+      case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        UNIMPLEMENTED();
     }
+  }
+
+  V<FrameState> BuildParentFrameState(maglev::DeoptFrame& frame) {
+    // Only the topmost frame should have a non-ignore OutputFrameStateCombine.
+    // One reason for this is that, in Maglev, the PokeAt is not an attribute of
+    // the DeoptFrame but rather of the LazyDeoptInfo (to which the topmost
+    // frame is attached).
+    const OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore();
+    const bool is_topmost = false;
+
+    switch (frame.type()) {
+      case maglev::DeoptFrame::FrameType::kInterpretedFrame:
+        return BuildFrameState(frame.as_interpreted(), combine, is_topmost);
+      case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
+        return BuildFrameState(frame.as_construct_stub());
+      case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        UNIMPLEMENTED();
+    }
+  }
+
+  V<FrameState> BuildFrameState(maglev::ConstructInvokeStubDeoptFrame& frame) {
+    FrameStateData::Builder builder;
+    if (frame.parent() != nullptr) {
+      V<FrameState> parent_frame = BuildParentFrameState(*frame.parent());
+      builder.AddParentFrameState(parent_frame);
+    }
+
+    // Closure
+    // TODO(dmercadier): ConstructInvokeStub frames don't have a Closure input,
+    // but the instruction selector assumes that they do and that it should be
+    // skipped. We thus use SmiConstant(0) as a fake Closure input here, but it
+    // would be nicer to fix the instruction selector to not require this input
+    // at all for such frames.
+    V<Any> fake_closure_input = __ SmiConstant(0);
+    builder.AddInput(MachineType::AnyTagged(), fake_closure_input);
+
+    // Parameters
+    AddDeoptInput(builder, frame.receiver());
+
+    // Context
+    AddDeoptInput(builder, frame.context());
+
+    const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame);
+    return __ FrameState(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(*frame_state_info, graph_zone()));
   }
 
   V<FrameState> BuildFrameState(maglev::InterpretedDeoptFrame& frame,
                                 OutputFrameStateCombine combine,
                                 bool is_topmost) {
+    DCHECK_IMPLIES(!is_topmost, combine.IsOutputIgnored());
     FrameStateData::Builder builder;
 
     if (frame.parent() != nullptr) {
-      DCHECK_EQ(frame.parent()->type(),
-                maglev::DeoptFrame::FrameType::kInterpretedFrame);
-      OpIndex parent_frame =
-          BuildFrameState(frame.parent()->as_interpreted(), combine, false);
+      V<FrameState> parent_frame = BuildParentFrameState(*frame.parent());
       builder.AddParentFrameState(parent_frame);
     }
 
@@ -1849,6 +1916,20 @@ class GraphBuilder {
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              combine, info);
+  }
+
+  const FrameStateInfo* MakeFrameStateInfo(
+      maglev::ConstructInvokeStubDeoptFrame& maglev_frame) {
+    FrameStateType type = FrameStateType::kConstructInvokeStub;
+    Handle<SharedFunctionInfo> shared_info =
+        maglev_frame.unit().shared_function_info().object();
+    constexpr int kParameterCount = 1;  // Only 1 parameter: the receiver.
+    constexpr int kLocalCount = 0;
+    FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
+        type, kParameterCount, kLocalCount, shared_info);
+
+    return graph_zone()->New<FrameStateInfo>(
+        BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), info);
   }
 
   enum class Sign { kSigned, kUnsigned };
@@ -1944,9 +2025,7 @@ class GraphBuilder {
   }
 
   V<Word32> RootEqual(maglev::Input input, RootIndex root) {
-    return __ TaggedEqual(
-        Map(input),
-        __ HeapConstant(Handle<HeapObject>::cast(isolate_->root_handle(root))));
+    return __ RootEqual(Map(input), root, isolate_);
   }
 
   std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(

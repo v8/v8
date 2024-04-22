@@ -1488,6 +1488,12 @@ class TurboshaftAssemblerOpInterface
     return Equal(left, right, RegisterRepresentation::Tagged());
   }
 
+  V<Word32> RootEqual(V<Object> input, RootIndex root, LocalIsolate* isolate) {
+    return __ TaggedEqual(
+        input,
+        __ HeapConstant(Handle<HeapObject>::cast(isolate->root_handle(root))));
+  }
+
 #define DECL_SINGLE_REP_EQUAL_V(name, tag)                            \
   V<Word32> name(ConstOrV<tag> left, ConstOrV<tag> right) {           \
     return ReduceIfReachableComparison(resolve(left), resolve(right), \
