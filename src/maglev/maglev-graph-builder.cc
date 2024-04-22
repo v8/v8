@@ -2085,6 +2085,20 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       if constexpr (kOperation == Operation::kAdd) {
         ValueNode* left = LoadRegisterTagged(0);
         ValueNode* right = GetAccumulatorTagged();
+        if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
+          if (root_constant->index() == RootIndex::kempty_string) {
+            BuildCheckString(right);
+            SetAccumulator(right);
+            return;
+          }
+        }
+        if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
+          if (root_constant->index() == RootIndex::kempty_string) {
+            BuildCheckString(left);
+            SetAccumulator(left);
+            return;
+          }
+        }
         BuildCheckString(left);
         BuildCheckString(right);
         SetAccumulator(AddNewNode<StringConcat>({left, right}));
