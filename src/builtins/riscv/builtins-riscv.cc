@@ -613,8 +613,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
   __ StoreWord(zero_reg, MemOperand(s5));
+
+  __ li(s1, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ LoadWord(s2, MemOperand(s1, 0));
+  __ StoreWord(zero_reg, MemOperand(s1, 0));
+  __ li(s1, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ LoadWord(s3, MemOperand(s1, 0));
+  __ StoreWord(zero_reg, MemOperand(s1, 0));
+  __ Push(s2, s3);
   // Set up frame pointer for the frame to be pushed.
-  __ AddWord(fp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
+  __ AddWord(fp, sp, -EntryFrameConstants::kNextFastCallFramePCOffset);
   // Registers:
   //  either
   //   a1: entry address
@@ -626,13 +634,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   a1: microtask_queue
   //
   // Stack:
+  // fast api call pc
+  // fast api call fp
   // caller fp          |
   // function slot      | entry frame
   // context slot       |
   // bad fp (0xFF...F)  |
   // callee saved registers + ra
-  // [ O32: 4 args slots]
-  // args
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -692,6 +700,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   a1: microtask_queue
   //
   // Stack:
+  // fast api call pc.
+  // fast api call fp.
+  // JS entry frame marker
+  // caller fp          |
+  // function slot      | entry frame
+  // context slot       |
+  // bad fp (0xFF...F)  |
   // handler frame
   // entry frame
   // callee saved registers + ra
@@ -707,6 +722,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   __ bind(&exit);  // a0 holds result
   // Check if the current stack frame is marked as the outermost JS frame.
+
   Label non_outermost_js_2;
   __ pop(a5);
   __ Branch(&non_outermost_js_2, ne, a5,
@@ -716,6 +732,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreWord(zero_reg, MemOperand(a5));
   __ bind(&non_outermost_js_2);
 
+  __ Pop(s2, s3);
+  __ li(s1, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ StoreWord(s2, MemOperand(s1, 0));
+  __ li(s1, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
+  __ StoreWord(s3, MemOperand(s1, 0));
   // Restore the top frame descriptors from the stack.
   __ pop(a5);
   __ li(a4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
