@@ -1391,6 +1391,9 @@
 
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],
+
+  # Requires tier-up.
+  'regress/wasm/regress-334687959': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1441,6 +1444,7 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/speculative-inlining': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
+  'regress/wasm/regress-334687959': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
