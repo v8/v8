@@ -426,22 +426,17 @@ void FeedbackVector::reset_flags() {
             LogNextExecutionBit::encode(false) |
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
-            OsrTieringStateBit::encode(TieringState::kNone) |
+            OsrTieringInProgressBit::encode(false) |
             MaybeHasMaglevOsrCodeBit::encode(false) |
             MaybeHasTurbofanOsrCodeBit::encode(false));
 }
 
-TieringState FeedbackVector::osr_tiering_state() {
-  return OsrTieringStateBit::decode(flags());
+bool FeedbackVector::osr_tiering_in_progress() {
+  return OsrTieringInProgressBit::decode(flags());
 }
 
-void FeedbackVector::set_osr_tiering_state(TieringState marker) {
-  DCHECK(marker == TieringState::kNone || marker == TieringState::kInProgress);
-  static_assert(TieringState::kNone <= OsrTieringStateBit::kMax);
-  static_assert(TieringState::kInProgress <= OsrTieringStateBit::kMax);
-  int32_t state = flags();
-  state = OsrTieringStateBit::update(state, marker);
-  set_flags(state);
+void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
+  set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(

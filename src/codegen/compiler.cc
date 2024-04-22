@@ -80,7 +80,8 @@ constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
 void SetTieringState(IsolateForSandbox isolate, Tagged<JSFunction> function,
                      BytecodeOffset osr_offset, TieringState value) {
   if (IsOSR(osr_offset)) {
-    function->set_osr_tiering_state(value);
+    DCHECK(value == TieringState::kInProgress || value == TieringState::kNone);
+    function->set_osr_tiering_in_progress(IsInProgress(value));
   } else {
     function->set_tiering_state(isolate, value);
   }
@@ -1361,7 +1362,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
   if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
           .ToHandle(&cached_code)) {
     if (IsOSR(osr_offset)) {
-      if (!IsInProgress(function->osr_tiering_state())) {
+      if (!function->osr_tiering_in_progress()) {
         function->feedback_vector()->reset_osr_urgency();
       }
     } else {
@@ -1372,7 +1373,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
   if (IsOSR(osr_offset)) {
     // One OSR job per function at a time.
-    if (IsInProgress(function->osr_tiering_state())) {
+    if (function->osr_tiering_in_progress()) {
       return {};
     }
 

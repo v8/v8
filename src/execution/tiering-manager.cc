@@ -280,15 +280,14 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
                                         CodeKind current_code_kind) {
   const TieringState tiering_state =
       function->feedback_vector()->tiering_state();
-  const TieringState osr_tiering_state =
-      function->feedback_vector()->osr_tiering_state();
+  const bool osr_in_progress =
+      function->feedback_vector()->osr_tiering_in_progress();
   // Attenzione! Update this constant in case the condition below changes.
   static_assert(kTieringStateInProgressBlocksTierup);
   if (V8_UNLIKELY(IsInProgress(tiering_state)) ||
-      V8_UNLIKELY(IsInProgress(osr_tiering_state))) {
+      V8_UNLIKELY(osr_in_progress)) {
     if (v8_flags.concurrent_recompilation_front_running &&
-        (IsRequestTurbofan(tiering_state) ||
-         IsRequestTurbofan(osr_tiering_state))) {
+        IsRequestTurbofan(tiering_state)) {
       // TODO(olivf): In the case of Maglev we tried a queue with two
       // priorities, but it seems not actually beneficial. More
       // investigation is needed.

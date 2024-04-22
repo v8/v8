@@ -195,8 +195,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                            ConcurrencyMode mode);
 
-  inline TieringState osr_tiering_state();
-  inline void set_osr_tiering_state(TieringState marker);
+  inline bool osr_tiering_in_progress();
+  inline void set_osr_tiering_in_progress(bool osr_in_progress);
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
