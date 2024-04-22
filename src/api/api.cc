@@ -5311,8 +5311,10 @@ bool v8::Object::IsConstructor() const {
 
 bool v8::Object::IsApiWrapper() const {
   auto self = i::DirectHandle<i::JSObject>::cast(Utils::OpenDirectHandle(this));
-  // Objects with embedder fields can wrap API objects.
-  return self->MayHaveEmbedderFields();
+  // This checks whether an object of a given instance type can serve as API
+  // object. It does not check whether the JS object is wrapped via embedder
+  // fields or Wrap()/Unwrap() API.
+  return IsJSApiWrapperObject(*self);
 }
 
 bool v8::Object::IsUndetectable() const {

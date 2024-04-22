@@ -722,11 +722,15 @@ class V8_EXPORT Object : public Value {
   bool IsConstructor() const;
 
   /**
-   * True if this object can carry information relevant to the embedder in its
-   * embedder fields, false otherwise. This is generally true for objects
-   * constructed through function templates but also holds for other types where
-   * V8 automatically adds internal fields at compile time, such as e.g.
-   * v8::ArrayBuffer.
+   * Returns true if this object can be generally used to wrap object objects.
+   * This means that the object either follows the convention of using embedder
+   * fields to denote type/instance pointers or is using the Wrap()/Unwrap()
+   * APIs for the same purpose. Returns false otherwise.
+   *
+   * Note that there may be other objects that use embedder fields but are not
+   * used as API wrapper objects. E.g., v8::Promise may in certain configuration
+   * use embedder fields but promises are not generally supported as API
+   * wrappers. The method will return false in those cases.
    */
   bool IsApiWrapper() const;
 
