@@ -5841,7 +5841,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     break; /* to generic mem access code below */ \
   }
       ATOMIC_STORE_OP_LIST(CASE_ATOMIC_STORE_OP)
-#undef CASE_ATOMIC_OP
+#undef CASE_ATOMIC_STORE_OP
 #define CASE_ATOMIC_OP(Name, Type)                \
   case kExpr##Name: {                             \
     memtype = MachineType::Type();                \

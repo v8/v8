@@ -172,6 +172,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitByte(uint8_t b);
   void EmitI32V(int32_t val);
   void EmitU32V(uint32_t val);
+  void EmitU64V(uint64_t val);
   void EmitCode(const uint8_t* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
   void EmitWithPrefix(WasmOpcode opcode);
@@ -435,6 +436,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   int NumDeclaredFunctions() { return static_cast<int>(functions_.size()); }
 
   int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
+
+  bool IsMemory64(uint32_t index) { return memories_[index].is_memory64; }
 
   const FunctionSig* GetTagType(int index) {
     return types_[tags_[index]].function_sig;
