@@ -5341,12 +5341,10 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
       // In the spec the Await is a separate operation, but they are combined
       // here to reduce bytecode size.
       RegisterAllocationScope register_scope(this);
-      RegisterList args = register_allocator()->NewRegisterList(3);
+      RegisterList args = register_allocator()->NewRegisterList(2);
       builder()
           ->MoveRegister(generator_object(), args[0])  // generator
           .StoreAccumulatorInRegister(args[1])         // value
-          .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
-          .StoreAccumulatorInRegister(args[2])  // is_caught
           .CallRuntime(Runtime::kInlineAsyncGeneratorYieldWithAwait, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the
@@ -5680,13 +5678,9 @@ void BytecodeGenerator::BuildAwait(int position) {
 
     Runtime::FunctionId await_intrinsic_id;
     if (IsAsyncGeneratorFunction(function_kind())) {
-      await_intrinsic_id = catch_prediction() == HandlerTable::ASYNC_AWAIT
-                               ? Runtime::kInlineAsyncGeneratorAwaitUncaught
-                               : Runtime::kInlineAsyncGeneratorAwaitCaught;
+      await_intrinsic_id = Runtime::kInlineAsyncGeneratorAwait;
     } else {
-      await_intrinsic_id = catch_prediction() == HandlerTable::ASYNC_AWAIT
-                               ? Runtime::kInlineAsyncFunctionAwaitUncaught
-                               : Runtime::kInlineAsyncFunctionAwaitCaught;
+      await_intrinsic_id = Runtime::kInlineAsyncFunctionAwait;
     }
     RegisterList args = register_allocator()->NewRegisterList(2);
     builder()

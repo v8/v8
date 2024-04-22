@@ -132,7 +132,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_DEBUG(F, I)          \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
-  F(DebugAsyncFunctionSuspended, 4, 1)          \
+  F(DebugAsyncFunctionSuspended, 3, 1)          \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugGetLoadedScriptIds, 0, 1)              \
@@ -184,21 +184,18 @@ namespace internal {
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionIsAPIFunction, 1, 1)
 
-#define FOR_EACH_INTRINSIC_GENERATOR(F, I)    \
-  I(AsyncFunctionAwaitCaught, 2, 1)           \
-  I(AsyncFunctionAwaitUncaught, 2, 1)         \
-  I(AsyncFunctionEnter, 2, 1)                 \
-  I(AsyncFunctionReject, 2, 1)                \
-  I(AsyncFunctionResolve, 2, 1)               \
-  I(AsyncGeneratorAwaitCaught, 2, 1)          \
-  I(AsyncGeneratorAwaitUncaught, 2, 1)        \
-  F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \
-  I(AsyncGeneratorReject, 2, 1)               \
-  I(AsyncGeneratorResolve, 3, 1)              \
-  I(AsyncGeneratorYieldWithAwait, 3, 1)       \
-  I(CreateJSGeneratorObject, 2, 1)            \
-  I(GeneratorClose, 1, 1)                     \
-  F(GeneratorGetFunction, 1, 1)               \
+#define FOR_EACH_INTRINSIC_GENERATOR(F, I) \
+  I(AsyncFunctionAwait, 2, 1)              \
+  I(AsyncFunctionEnter, 2, 1)              \
+  I(AsyncFunctionReject, 2, 1)             \
+  I(AsyncFunctionResolve, 2, 1)            \
+  I(AsyncGeneratorAwait, 2, 1)             \
+  I(AsyncGeneratorReject, 2, 1)            \
+  I(AsyncGeneratorResolve, 3, 1)           \
+  I(AsyncGeneratorYieldWithAwait, 2, 1)    \
+  I(CreateJSGeneratorObject, 2, 1)         \
+  I(GeneratorClose, 1, 1)                  \
+  F(GeneratorGetFunction, 1, 1)            \
   I(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_INTL_SUPPORT

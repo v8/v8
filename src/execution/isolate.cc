@@ -783,6 +783,13 @@ MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
   return MaybeHandle<JSGeneratorObject>();
 }
 
+int GetGeneratorBytecodeOffset(Handle<JSGeneratorObject> generator_object) {
+  // The stored bytecode offset is relative to a different base than what
+  // is used in the source position table, hence the subtraction.
+  return Smi::ToInt(generator_object->input_or_debug_pos()) -
+         (BytecodeArray::kHeaderSize - kHeapObjectTag);
+}
+
 class CallSiteBuilder {
  public:
   CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
@@ -829,10 +836,7 @@ class CallSiteBuilder {
     Handle<Object> receiver(generator_object->receiver(), isolate_);
     Handle<BytecodeArray> code(function->shared()->GetBytecodeArray(isolate_),
                                isolate_);
-    // The stored bytecode offset is relative to a different base than what
-    // is used in the source position table, hence the subtraction.
-    int offset = Smi::ToInt(generator_object->input_or_debug_pos()) -
-                 (BytecodeArray::kHeaderSize - kHeapObjectTag);
+    int offset = GetGeneratorBytecodeOffset(generator_object);
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
     if (V8_UNLIKELY(v8_flags.detailed_error_stack_trace)) {
@@ -2440,6 +2444,15 @@ HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {
   }
 }
 
+HandlerTable::CatchPrediction PredictExceptionFromBytecode(
+    Tagged<BytecodeArray> bytecode, int code_offset) {
+  HandlerTable table(bytecode);
+  HandlerTable::CatchPrediction prediction;
+  int index = table.LookupRange(code_offset, nullptr, &prediction);
+  if (index <= 0) return HandlerTable::UNCAUGHT;
+  return prediction;
+}
+
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
                                                Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
@@ -2450,12 +2463,15 @@ HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
 
   // Must have been constructed from a bytecode array.
   CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
-  int code_offset = summary.code_offset();
-  HandlerTable table(code->GetBytecodeArray());
-  HandlerTable::CatchPrediction prediction;
-  int index = table.LookupRange(code_offset, nullptr, &prediction);
-  if (index <= 0) return HandlerTable::UNCAUGHT;
-  return prediction;
+  return PredictExceptionFromBytecode(code->GetBytecodeArray(),
+                                      summary.code_offset());
+}
+
+HandlerTable::CatchPrediction PredictExceptionFromGenerator(
+    Handle<JSGeneratorObject> generator, Isolate* isolate) {
+  return PredictExceptionFromBytecode(
+      generator->function()->shared()->GetBytecodeArray(isolate),
+      GetGeneratorBytecodeOffset(generator));
 }
 
 Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
@@ -2856,9 +2872,9 @@ bool WalkPromiseTreeInternal(
         // Pass each handler to the callback
         Handle<JSGeneratorObject> async_function;
         if (TryGetAsyncGenerator(isolate, reaction).ToHandle(&async_function)) {
-          // TODO(leese): Can we stop relying on handled_hint and instead look
-          // up the catch prediction table at the generator position?
-          caught = caught || promise->handled_hint();
+          caught = caught ||
+                   PredictExceptionFromGenerator(async_function, isolate) ==
+                       HandlerTable::CAUGHT;
           // Look at the async function, not the individual handlers
           callback({async_function->function()->shared(), true});
         } else {

@@ -809,13 +809,12 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   Handle<JSPromise> promise = args.at<JSPromise>(0);
   Handle<JSPromise> outer_promise = args.at<JSPromise>(1);
   Handle<JSFunction> reject_handler = args.at<JSFunction>(2);
   Handle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
-  bool is_predicted_as_caught = Boolean::cast(args[4])->ToBool(isolate);
 
   // Allocate the throwaway promise and fire the appropriate init
   // hook for the throwaway promise (passing the {promise} as its
@@ -835,7 +834,6 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
                         StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Check();
-    promise->set_handled_hint(is_predicted_as_caught);
 
     // Mark the dependency to {outer_promise} in case the {throwaway}
     // Promise is found on the Promise stack
