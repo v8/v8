@@ -866,7 +866,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // sp[8,26) : other saved registers
 
   __ Pop(x10, x11);
-  __ Mov(x8, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
+  __ Mov(x8, ExternalReference::fast_c_call_caller_pc_address(masm->isolate()));
   __ Str(x10, MemOperand(x8));
   __ Mov(x9, ExternalReference::fast_c_call_caller_fp_address(masm->isolate()));
   __ Str(x11, MemOperand(x9));
