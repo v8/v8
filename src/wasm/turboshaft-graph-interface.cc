@@ -7306,10 +7306,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // will be triggered again when actually compiling the invalid function.
         V<WordPtr> callee =
             __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
-        BuildWasmCall(decoder, sig, callee,
-                      trusted_instance_data(
-                          decoder->module_->function_is_shared(func_index)),
-                      args, returns);
+        if (is_tail_call) {
+          BuildWasmMaybeReturnCall(
+              decoder, sig, callee,
+              trusted_instance_data(
+                  decoder->module_->function_is_shared(func_index)),
+              args);
+        } else {
+          BuildWasmCall(decoder, sig, callee,
+                        trusted_instance_data(
+                            decoder->module_->function_is_shared(func_index)),
+                        args, returns);
+        }
         return;
       }
       decoder->module_->set_function_validated(func_index);
