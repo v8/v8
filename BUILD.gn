@@ -2732,6 +2732,7 @@ action("v8_dump_build_config") {
     "verify_csa=$v8_enable_verify_csa",
     "verify_heap=$v8_enable_verify_heap",
     "verify_predictable=$v8_enable_verify_predictable",
+    "memory_corruption_api=$v8_enable_memory_corruption_api",
   ]
 }
 

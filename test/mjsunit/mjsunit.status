@@ -285,6 +285,13 @@
   'asm/embenchen/lua_binarytrees': [SKIP],
 }],  # novfp3
 
+################################################################################
+['not memory_corruption_api', {
+  # Sandbox regression tests are only expected to run with the memory
+  # corruption API enabled.
+  'regress/sandbox/*': [SKIP],
+}],
+
 ##############################################################################
 # TODO(ahaas): Port multiple return values to MIPS.
 ['arch in (mips64, mips64el)', {
