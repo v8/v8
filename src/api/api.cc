@@ -10784,6 +10784,26 @@ Local<StackTrace> Exception::GetStackTrace(Local<Value> exception) {
   return Utils::StackTraceToLocal(i_isolate->GetDetailedStackTrace(js_obj));
 }
 
+Maybe<bool> Exception::CaptureStackTrace(Local<Context> context, Local<Object> object) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  ENTER_V8_NO_SCRIPT(i_isolate, context, Exception, CaptureStackTrace,
+                     i::HandleScope);
+  auto obj = Utils::OpenHandle(*object);
+  if (!IsJSObject(*obj)) return Just(false);
+
+  auto js_obj = i::Handle<i::JSObject>::cast(obj);
+
+  i::FrameSkipMode mode = i::FrameSkipMode::SKIP_FIRST;
+
+  auto result = i::ErrorUtils::CaptureStackTrace(i_isolate, js_obj, mode,
+      i::Handle<i::Object>());
+
+  i::Handle<i::Object> handle;
+  has_exception = !result.ToHandle(&handle);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
 v8::MaybeLocal<v8::Array> v8::Object::PreviewEntries(bool* is_key_value) {
   auto object = Utils::OpenHandle(this);
   i::Isolate* i_isolate = object->GetIsolate();
