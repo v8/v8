@@ -29,9 +29,9 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
       ExternalPointerTag tag, Address host);
 
-  inline ExternalBufferTable& GetExternalBufferTableFor(ExternalPointerTag tag);
+  inline ExternalBufferTable& GetExternalBufferTableFor(ExternalBufferTag tag);
   inline ExternalBufferTable::Space* GetExternalBufferTableSpaceFor(
-      ExternalPointerTag tag, Address host);
+      ExternalBufferTag tag, Address host);
 
   inline CodePointerTable::Space* GetCodePointerTableSpaceFor(
       Address owning_slot);

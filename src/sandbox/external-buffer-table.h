@@ -8,6 +8,7 @@
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/sandbox/compactible-external-entity-table.h"
+#include "src/sandbox/external-buffer-tag.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -34,17 +35,17 @@ struct ExternalBufferTableEntry {
   // Make this entry an external buffer entry containing the given pointer
   // tagged with the given tag and the given buffer size.
   inline void MakeExternalBufferEntry(std::pair<Address, size_t> buffer,
-                                      ExternalPointerTag tag);
+                                      ExternalBufferTag tag);
 
   // Load and untag the external buffer stored in this entry.
   // This entry must be an external buffer entry.
   // If the specified tag doesn't match the actual tag of this entry, the
   // resulting pointer will be invalid and cannot be dereferenced.
   inline std::pair<Address, size_t> GetExternalBuffer(
-      ExternalPointerTag tag) const;
+      ExternalBufferTag tag) const;
 
   // Returns true if this entry contains an external buffer with the given tag.
-  inline bool HasExternalBuffer(ExternalPointerTag tag) const;
+  inline bool HasExternalBuffer(ExternalBufferTag tag) const;
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -76,34 +77,34 @@ struct ExternalBufferTableEntry {
   // TODO(v8:14585): Investigate a reusable "TaggedPayload" class for external
   // pointer tables and trusted pointer tables.
   struct Payload {
-    Payload(Address pointer, ExternalPointerTag tag)
+    Payload(Address pointer, ExternalBufferTag tag)
         : encoded_word_(Tag(pointer, tag)) {}
 
-    Address Untag(ExternalPointerTag tag) const { return encoded_word_ & ~tag; }
+    Address Untag(ExternalBufferTag tag) const { return encoded_word_ & ~tag; }
 
-    static Address Tag(Address pointer, ExternalPointerTag tag) {
+    static Address Tag(Address pointer, ExternalBufferTag tag) {
       return pointer | tag;
     }
 
-    bool IsTaggedWith(ExternalPointerTag tag) const {
+    bool IsTaggedWith(ExternalBufferTag tag) const {
       // We have to explicitly ignore the marking bit (which is part of the
       // tag) since an unmarked entry with tag kXyzTag is still considered to
       // be tagged with kXyzTag.
-      uint64_t expected = tag & ~kExternalPointerMarkBit;
-      uint64_t actual = encoded_word_ & kExternalPointerTagMaskWithoutMarkBit;
+      uint64_t expected = tag & ~kExternalBufferMarkBit;
+      uint64_t actual = encoded_word_ & kExternalBufferTagMaskWithoutMarkBit;
       return expected == actual;
     }
 
-    void SetMarkBit() { encoded_word_ |= kExternalPointerMarkBit; }
+    void SetMarkBit() { encoded_word_ |= kExternalBufferMarkBit; }
 
-    void ClearMarkBit() { encoded_word_ &= ~kExternalPointerMarkBit; }
+    void ClearMarkBit() { encoded_word_ &= ~kExternalBufferMarkBit; }
 
     bool HasMarkBitSet() const {
-      return (encoded_word_ & kExternalPointerMarkBit) != 0;
+      return (encoded_word_ & kExternalBufferMarkBit) != 0;
     }
 
     bool ContainsFreelistLink() const {
-      return IsTaggedWith(kExternalPointerFreeEntryTag);
+      return IsTaggedWith(kExternalBufferFreeEntryTag);
     }
 
     uint32_t ExtractFreelistLink() const {
@@ -111,11 +112,11 @@ struct ExternalBufferTableEntry {
     }
 
     bool ContainsEvacuationEntry() const {
-      return IsTaggedWith(kExternalPointerEvacuationEntryTag);
+      return IsTaggedWith(kExternalBufferEvacuationEntryTag);
     }
 
     Address ExtractEvacuationEntryHandleLocation() const {
-      return Untag(kExternalPointerEvacuationEntryTag);
+      return Untag(kExternalBufferEvacuationEntryTag);
     }
 
     bool ContainsExternalPointer() const {
@@ -221,13 +222,13 @@ class V8_EXPORT_PRIVATE ExternalBufferTable
 
   // Retrieves the entry referenced by the given handle.
   inline std::pair<Address, size_t> Get(ExternalBufferHandle handle,
-                                        ExternalPointerTag tag) const;
+                                        ExternalBufferTag tag) const;
 
   // Allocates a new entry in the given space. The caller must provide the
   // initial value and tag for the entry.
   inline ExternalBufferHandle AllocateAndInitializeEntry(
       Space* space, std::pair<Address, size_t> initial_buffer,
-      ExternalPointerTag tag);
+      ExternalBufferTag tag);
 
   // Marks the specified entry as alive.
   //

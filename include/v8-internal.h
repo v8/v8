@@ -582,13 +582,6 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
   return tag >= kFirstManagedResourceTag && tag <= kLastManagedResourceTag;
 }
 
-// True if the external pointer must be accessed from external buffer table.
-// If we run out of external pointer tags, we can reuse tags for external
-// buffers as they use a separate table.
-V8_INLINE static constexpr bool IsExternalBufferTag(ExternalPointerTag tag) {
-  return tag == kExternalStringResourceDataTag;
-}
-
 // Sanity checks.
 #define CHECK_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
   static_assert(IsSharedExternalPointerType(Tag));

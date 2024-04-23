@@ -2321,6 +2321,7 @@ filegroup(
         "src/sandbox/indirect-pointer-inl.h",
         "src/sandbox/code-entrypoint-tag.h",
         "src/sandbox/external-buffer.h",
+        "src/sandbox/external-buffer-tag.h",
         "src/sandbox/external-buffer-inl.h",
         "src/sandbox/external-buffer-table.cc",
         "src/sandbox/external-buffer-table-inl.h",

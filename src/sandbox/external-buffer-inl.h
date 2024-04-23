@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-template <ExternalPointerTag tag>
+template <ExternalBufferTag tag>
 inline void ExternalBufferMember<tag>::Init(Address host_address,
                                             IsolateForSandbox isolate,
                                             std::pair<Address, size_t> value) {
@@ -24,20 +24,20 @@ inline void ExternalBufferMember<tag>::Init(Address host_address,
       host_address, reinterpret_cast<Address>(storage_), isolate, value);
 }
 
-template <ExternalPointerTag tag>
+template <ExternalBufferTag tag>
 inline std::pair<Address, size_t> ExternalBufferMember<tag>::load(
     const IsolateForSandbox isolate) const {
   return ReadExternalBufferField<tag>(reinterpret_cast<Address>(storage_),
                                       isolate);
 }
 
-template <ExternalPointerTag tag>
+template <ExternalBufferTag tag>
 V8_INLINE void InitExternalBufferField(Address host_address,
                                        Address field_address,
                                        IsolateForSandbox isolate,
                                        std::pair<Address, size_t> value) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
+  static_assert(tag != kExternalBufferNullTag);
   ExternalBufferTable& table = isolate.GetExternalBufferTableFor(tag);
   ExternalBufferHandle handle = table.AllocateAndInitializeEntry(
       isolate.GetExternalBufferTableSpaceFor(tag, host_address), value, tag);
@@ -51,11 +51,11 @@ V8_INLINE void InitExternalBufferField(Address host_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-template <ExternalPointerTag tag>
+template <ExternalBufferTag tag>
 V8_INLINE std::pair<Address, size_t> ReadExternalBufferField(
     Address field_address, IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
+  static_assert(tag != kExternalBufferNullTag);
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
   // be reordered before the load of the handle due to the data dependency

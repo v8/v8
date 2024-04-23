@@ -4073,6 +4073,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/external-buffer-inl.h",
     "src/sandbox/external-buffer-table-inl.h",
     "src/sandbox/external-buffer-table.h",
+    "src/sandbox/external-buffer-tag.h",
     "src/sandbox/external-buffer.h",
     "src/sandbox/external-entity-table-inl.h",
     "src/sandbox/external-entity-table.h",

@@ -7,7 +7,6 @@
 
 #include "src/sandbox/compactible-external-entity-table-inl.h"
 #include "src/sandbox/external-buffer-table.h"
-#include "src/sandbox/external-pointer.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -15,9 +14,11 @@ namespace v8 {
 namespace internal {
 
 void ExternalBufferTableEntry::MakeExternalBufferEntry(
-    std::pair<Address, size_t> buffer, ExternalPointerTag tag) {
-  DCHECK_EQ(0, buffer.first & kExternalPointerTagMask);
-  DCHECK(IsExternalBufferTag(tag));
+    std::pair<Address, size_t> buffer, ExternalBufferTag tag) {
+  DCHECK_EQ(0, buffer.first & kExternalBufferTagMask);
+  DCHECK(tag & kExternalBufferMarkBit);
+  DCHECK_NE(tag, kExternalBufferFreeEntryTag);
+  DCHECK_NE(tag, kExternalBufferEvacuationEntryTag);
 
   Payload new_payload(buffer.first, tag);
   payload_.store(new_payload, std::memory_order_relaxed);
@@ -25,24 +26,21 @@ void ExternalBufferTableEntry::MakeExternalBufferEntry(
 }
 
 std::pair<Address, size_t> ExternalBufferTableEntry::GetExternalBuffer(
-    ExternalPointerTag tag) const {
-  DCHECK(IsExternalBufferTag(tag));
+    ExternalBufferTag tag) const {
   auto payload = payload_.load(std::memory_order_relaxed);
   auto size = size_.load(std::memory_order_relaxed);
   DCHECK(payload.ContainsExternalPointer());
   return {payload.Untag(tag), size};
 }
 
-bool ExternalBufferTableEntry::HasExternalBuffer(ExternalPointerTag tag) const {
-  DCHECK(IsExternalBufferTag(tag));
+bool ExternalBufferTableEntry::HasExternalBuffer(ExternalBufferTag tag) const {
   auto payload = payload_.load(std::memory_order_relaxed);
-  return tag == kAnyExternalPointerTag || payload.IsTaggedWith(tag);
+  return payload.IsTaggedWith(tag);
 }
 
 void ExternalBufferTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   // The next freelist entry is stored in the lower bits of the entry.
-  static_assert(kMaxExternalPointers <= std::numeric_limits<uint32_t>::max());
-  Payload new_payload(next_entry_index, kExternalPointerFreeEntryTag);
+  Payload new_payload(next_entry_index, kExternalBufferFreeEntryTag);
   payload_.store(new_payload, std::memory_order_relaxed);
   size_.store(0, std::memory_order_relaxed);
 }
@@ -70,7 +68,7 @@ void ExternalBufferTableEntry::Mark() {
 }
 
 void ExternalBufferTableEntry::MakeEvacuationEntry(Address handle_location) {
-  Payload new_payload(handle_location, kExternalPointerEvacuationEntryTag);
+  Payload new_payload(handle_location, kExternalBufferEvacuationEntryTag);
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
@@ -94,14 +92,14 @@ void ExternalBufferTableEntry::MigrateInto(ExternalBufferTableEntry& other) {
   // so we'd like to avoid them. See the compaction algorithm explanation in
   // compactible-external-entity-table.h for more details.
   constexpr Address kClobberedEntryMarker = static_cast<Address>(-1);
-  Payload clobbered(kClobberedEntryMarker, kExternalPointerNullTag);
+  Payload clobbered(kClobberedEntryMarker, kExternalBufferNullTag);
   DCHECK_NE(payload, clobbered);
   payload_.store(clobbered, std::memory_order_relaxed);
 #endif  // DEBUG
 }
 
 std::pair<Address, size_t> ExternalBufferTable::Get(
-    ExternalBufferHandle handle, ExternalPointerTag tag) const {
+    ExternalBufferHandle handle, ExternalBufferTag tag) const {
   uint32_t index = HandleToIndex(handle);
   DCHECK(index == 0 || at(index).HasExternalBuffer(tag));
   return at(index).GetExternalBuffer(tag);
@@ -109,11 +107,8 @@ std::pair<Address, size_t> ExternalBufferTable::Get(
 
 ExternalBufferHandle ExternalBufferTable::AllocateAndInitializeEntry(
     Space* space, std::pair<Address, size_t> initial_buffer,
-    ExternalPointerTag tag) {
+    ExternalBufferTag tag) {
   DCHECK(space->BelongsTo(this));
-  // TODO(v8:14585): The table cannot handle managed resources, consider
-  // introducing ExternalBufferTag enum to make this explicit.
-  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = AllocateEntry(space);
   at(index).MakeExternalBufferEntry(initial_buffer, tag);
 
