@@ -1342,7 +1342,7 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
                             "build the Turboshaft graph from Maglev")
 
-DEFINE_BOOL(turboshaft_csa, false, "run the CSA pipeline with turboshaft")
+DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
                             "run (parts of) the frontend in Turboshaft")
