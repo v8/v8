@@ -128,9 +128,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '761ef39eb4cc96d068baca277a6e179c06231d75',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c7d168ab6d2622e714b19a5e65b940a505a04990',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5eb927f0a922dfacf10cfa84ee76f39dcf2a7311',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '571c37f17dd4d1de37cc2efb6b32ff1032e47be2',
   'buildtools/linux64': {
     'packages': [
       {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e939ac77bb9471acc10f49e82cfe65790068c3d1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4066874f50a7808fce4e0a6a92979a2b2b4d3257',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -252,7 +252,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6ba67afd6fb7718743af91b847ddf1907f3ee9a6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f8d1ff28d211ecfa872cf2562f8ad11e86052f3c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '581ac1c79dd9d9f6f4e8b2934e7a55c7becf0799',
   'third_party/fuchsia-gn-sdk': {
@@ -342,7 +342,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7d77fb7fd66d8a5640618ad32c71fdeb7d3e02df',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e0d0c28dbe379471d0e61c017291665a80310492',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'bca0c9f60a365ef2294c42e216420c561093f06f',
   'tools/luci-go': {
       'packages': [
         {
