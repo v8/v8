@@ -55,7 +55,7 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_.Finish().ToHandleChecked();
+  return indirect_handle(builder_.Finish().ToHandleChecked(), isolate_);
 }
 
 

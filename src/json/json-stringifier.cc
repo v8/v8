@@ -694,14 +694,14 @@ class CircularStructureMessageBuilder {
     AppendConstructorName(start_object);
   }
 
-  void AppendNormalLine(Handle<Object> key, Handle<Object> object) {
+  void AppendNormalLine(DirectHandle<Object> key, Handle<Object> object) {
     builder_.AppendCString(kLinePrefix);
     AppendKey(key);
     builder_.AppendCStringLiteral(" -> object with constructor ");
     AppendConstructorName(object);
   }
 
-  void AppendClosingLine(Handle<Object> closing_key) {
+  void AppendClosingLine(DirectHandle<Object> closing_key) {
     builder_.AppendCString(kEndPrefix);
     AppendKey(closing_key);
     builder_.AppendCStringLiteral(" closes the circle");
@@ -712,7 +712,7 @@ class CircularStructureMessageBuilder {
     builder_.AppendCStringLiteral("...");
   }
 
-  MaybeHandle<String> Finish() { return builder_.Finish(); }
+  MaybeDirectHandle<String> Finish() { return builder_.Finish(); }
 
  private:
   void AppendConstructorName(Handle<Object> object) {
@@ -724,7 +724,7 @@ class CircularStructureMessageBuilder {
   }
 
   // A key can either be a string, the empty string or a Smi.
-  void AppendKey(Handle<Object> key) {
+  void AppendKey(DirectHandle<Object> key) {
     if (IsSmi(*key)) {
       builder_.AppendCStringLiteral("index ");
       AppendSmi(Smi::cast(*key));
@@ -732,7 +732,7 @@ class CircularStructureMessageBuilder {
     }
 
     CHECK(IsString(*key));
-    Handle<String> key_as_string = Handle<String>::cast(key);
+    DirectHandle<String> key_as_string = DirectHandle<String>::cast(key);
     if (key_as_string->length() == 0) {
       builder_.AppendCStringLiteral("<anonymous>");
     } else {
@@ -789,7 +789,8 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   builder.AppendClosingLine(last_key);
 
   Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, result, builder.Finish(),
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, result,
+                                   indirect_handle(builder.Finish(), isolate_),
                                    factory()->empty_string());
   return result;
 }
