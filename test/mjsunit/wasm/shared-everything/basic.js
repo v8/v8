@@ -296,8 +296,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let mul = builder.addFunction("mul", sig)
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Mul]);
   builder.addActiveElementSegment(
-    table.index, [kExprI32Const, 0], [add.index, mul.index],
-    /* type = */ undefined /* i.e. indices-as-elements */, true);
+    table.index, [kExprI32Const, 0],
+    [[kExprRefFunc, add.index], [kExprRefFunc, mul.index]],
+    wasmRefNullType(kWasmFuncRef, true), true);
 
   builder.addFunction("call", kSig_i_iii)
     .addBody([

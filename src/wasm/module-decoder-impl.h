@@ -2399,14 +2399,6 @@ class ModuleDecoderImpl : public Decoder {
         type = consume_value_type();
         if (failed()) return {};
       }
-      if (V8_UNLIKELY(is_active &&
-                      !IsSubtypeOf(type, table_type, this->module_.get()))) {
-        errorf(pos,
-               "Element segment of type %s is not a subtype of referenced "
-               "table %u (of type %s)",
-               type.name().c_str(), table_index, table_type.name().c_str());
-        return {};
-      }
     } else {
       if (!backwards_compatible_mode) {
         // We have to check that there is an element kind of type Function. All
@@ -2419,29 +2411,16 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
       }
-      if (!is_active) {
-        // Declarative and passive segments without explicit type are funcref.
-        type = kWasmFuncRef;
-      } else {
-        type = table_type;
-        // Active segments with function indices must reference a function
-        // table. (Using struct / array indices doesn't provide any value
-        // as such an index doesn't refer to a unique object instance unlike
-        // functions.)
-        if (V8_UNLIKELY(
-                !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()) &&
-                !IsSubtypeOf(table_type,
-                             ValueType::RefNull(HeapType::kFuncShared),
-                             this->module_.get()))) {
-          errorf(pos,
-                 "An active element segment with function indices as elements "
-                 "must reference a table of a subtype of type funcref or "
-                 "(ref null shared func). Instead, table %u of type %s is "
-                 "referenced.",
-                 table_index, table_type.name().c_str());
-          return {};
-        }
-      }
+      type = kWasmFuncRef.AsNonNull();
+    }
+
+    if (V8_UNLIKELY(is_active &&
+                    !IsSubtypeOf(type, table_type, this->module_.get()))) {
+      errorf(pos,
+             "Element segment of type %s is not a subtype of referenced "
+             "table %u (of type %s)",
+             type.name().c_str(), table_index, table_type.name().c_str());
+      return {};
     }
 
     uint32_t num_elem =
