@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/turboshaft/maglev-graph-building-phase.h"
+
 #include <type_traits>
 
 #include "src/base/small-vector.h"
@@ -10,9 +11,11 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -829,7 +832,11 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::ArgumentsLength* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ ArgumentsLength());
+    // TODO(dmercadier): ArgumentsLength in Maglev returns a raw Word32, while
+    // in Turboshaft, it returns a Smi. We thus untag this Smi here to match
+    // Maglev's behavior, but it would be more efficient to change Turboshaft's
+    // ArgumentsLength operation to return a raw Word32 as well.
+    SetMap(node, __ UntagSmi(__ ArgumentsLength()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ArgumentsElements* node,
@@ -1849,6 +1856,7 @@ class GraphBuilder {
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildFrameState(frame.as_construct_stub());
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        return BuildFrameState(frame.as_inlined_arguments());
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
         UNIMPLEMENTED();
     }
@@ -1875,6 +1883,36 @@ class GraphBuilder {
 
     // Context
     AddDeoptInput(builder, frame.context());
+
+    const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame);
+    return __ FrameState(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(*frame_state_info, graph_zone()));
+  }
+
+  V<FrameState> BuildFrameState(maglev::InlinedArgumentsDeoptFrame& frame) {
+    FrameStateData::Builder builder;
+    if (frame.parent() != nullptr) {
+      V<FrameState> parent_frame = BuildParentFrameState(*frame.parent());
+      builder.AddParentFrameState(parent_frame);
+    }
+
+    // Closure
+    AddDeoptInput(builder, frame.closure());
+
+    // Parameters
+    for (const maglev::ValueNode* arg : frame.arguments()) {
+      AddDeoptInput(builder, arg);
+    }
+
+    // Context
+    // TODO(dmercadier): InlinedExtraArguments frames don't have a Context
+    // input, but the instruction selector assumes that they do and that it
+    // should be skipped. We thus use SmiConstant(0) as a fake Context input
+    // here, but it would be nicer to fix the instruction selector to not
+    // require this input at all for such frames.
+    V<Any> fake_context_input = __ SmiConstant(0);
+    builder.AddInput(MachineType::AnyTagged(), fake_context_input);
 
     const FrameStateInfo* frame_state_info = MakeFrameStateInfo(frame);
     return __ FrameState(
@@ -1949,7 +1987,7 @@ class GraphBuilder {
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
-                     maglev::ValueNode* node) {
+                     const maglev::ValueNode* node) {
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
   }
 
@@ -1966,6 +2004,21 @@ class GraphBuilder {
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              combine, info);
+  }
+
+  const FrameStateInfo* MakeFrameStateInfo(
+      maglev::InlinedArgumentsDeoptFrame& maglev_frame) {
+    FrameStateType type = FrameStateType::kInlinedExtraArguments;
+    int parameter_count = static_cast<int>(maglev_frame.arguments().size());
+    int local_count = 0;
+    Handle<SharedFunctionInfo> shared_info =
+        maglev_frame.unit().shared_function_info().object();
+    FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
+        type, parameter_count, local_count, shared_info);
+
+    return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
+                                             OutputFrameStateCombine::Ignore(),
+                                             info);
   }
 
   const FrameStateInfo* MakeFrameStateInfo(

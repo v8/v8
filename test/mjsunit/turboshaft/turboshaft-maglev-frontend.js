@@ -1242,3 +1242,29 @@ assertOptimized(simple_loop);
   assertEquals(before, after);
   assertOptimized(load_named_generic);
 }
+
+// Testing function over- and and under-application (calling a function with
+// more or fewer arguments that it expects).
+{
+  function h() { return 42; }
+  function g(x, y) {
+    if (x == 0) {
+      %DeoptimizeNow();
+    }
+    return x + (y | 17);
+  }
+
+  function f(x, y) {
+    return h(x) + g(x) * y;
+  }
+
+  %PrepareFunctionForOptimization(h);
+  %PrepareFunctionForOptimization(g);
+  %PrepareFunctionForOptimization(f);
+  assertEquals(108, f(5, 3));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(108, f(5, 3));
+  assertOptimized(f);
+  assertEquals(93, f(0, 3));
+  assertUnoptimized(f);
+}
