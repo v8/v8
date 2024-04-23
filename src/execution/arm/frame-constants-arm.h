@@ -97,6 +97,12 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kNativeModuleOffset = 0;
 };
 
+class WasmLiftoffFrameConstants : public TypedFrameConstants {
+ public:
+  static constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+  static constexpr int kInstanceDataOffset = 2 * kSystemPointerSize;
+};
+
 // Frame constructed by the {WasmDebugBreak} builtin.
 // After pushing the frame type marker, the builtin pushes all Liftoff cache
 // registers (see liftoff-assembler-defs.h).

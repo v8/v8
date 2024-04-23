@@ -41,17 +41,12 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
                   .is_empty(),
               "scratch registers must not be used as cache registers");
 
-// rbp-8 holds the stack marker.
-// rbp-16 is the instance parameter.
-constexpr int kInstanceOffset = 16;
-// rbp-24 is the feedback vector.
-constexpr int kFeedbackVectorOffset = 24;
-
 inline constexpr Operand GetStackSlot(int offset) {
   return Operand(rbp, -offset);
 }
 
-constexpr Operand kInstanceDataOperand = GetStackSlot(kInstanceOffset);
+constexpr Operand kInstanceDataOperand =
+    GetStackSlot(WasmLiftoffFrameConstants::kInstanceDataOffset);
 
 constexpr Operand kOSRTargetSlot = GetStackSlot(kOSRTargetOffset);
 

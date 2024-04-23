@@ -44,10 +44,6 @@ namespace liftoff {
 //
 //
 
-constexpr int32_t kInstanceDataOffset =
-    (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
-constexpr int kFeedbackVectorOffset =
-    (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 4 : 3) * kSystemPointerSize;
 
 // TODO(tpearson): Much of this logic is already implemented in
 // the MacroAssembler GenerateMemoryOperationWithAlignPrefixed()
@@ -93,7 +89,7 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 }
 
 inline MemOperand GetInstanceDataOperand() {
-  return GetStackSlot(kInstanceDataOffset);
+  return GetStackSlot(WasmLiftoffFrameConstants::kInstanceDataOffset);
 }
 
 inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
@@ -270,7 +266,7 @@ void LiftoffAssembler::AbortCompilation() { FinishCode(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return WasmLiftoffFrameConstants::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {

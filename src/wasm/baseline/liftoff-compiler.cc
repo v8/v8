@@ -7966,7 +7966,8 @@ class LiftoffCompiler {
       // feedback vector currently depends on this flag.
       if (inlining_enabled(decoder)) {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
-        __ Fill(vector, liftoff::kFeedbackVectorOffset, kIntPtrKind);
+        __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset,
+                kIntPtrKind);
         __ IncrementSmi(vector,
                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                             static_cast<int>(vector_slot)));
@@ -8292,7 +8293,7 @@ class LiftoffCompiler {
       MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
       VarState func_ref_var(kRef, func_ref, 0);
 
-      __ Fill(vector, liftoff::kFeedbackVectorOffset, kRef);
+      __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
       // A constant `uint32_t` is sufficient for the vector slot index.
       // The number of call instructions (and hence feedback vector slots) is
