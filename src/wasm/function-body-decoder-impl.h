@@ -1898,7 +1898,7 @@ class WasmDecoder : public Decoder {
                   imm.mem_index, num_memories);
       return false;
     }
-    if (!VALIDATE(this->module_->memories[0].is_memory64 ||
+    if (!VALIDATE(this->module_->memories[imm.mem_index].is_memory64 ||
                   imm.offset <= kMaxUInt32)) {
       this->DecodeError(pc, "memory offset outside 32-bit range: %" PRIu64,
                         imm.offset);
