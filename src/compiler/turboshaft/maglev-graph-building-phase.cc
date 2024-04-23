@@ -471,6 +471,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::ThrowReferenceErrorIfHole* node,
                                 const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
     IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
       OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowAccessedUninitializedVariable(
@@ -484,6 +486,8 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::CreateFunctionContext* node,
                                 const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
     OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Context> context = Map(node->context());
     V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
@@ -568,6 +572,35 @@ class GraphBuilder {
                            Map(node->context())};
 
     SetMap(node, GenerateBuiltinCall(node, Builtin::kKeyedLoadIC, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::SetNamedGeneric* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {Map(node->object_input()),
+                           __ HeapConstant(node->name().object()),
+                           Map(node->value_input()),
+                           __ TaggedIndexConstant(node->feedback().index()),
+                           __ HeapConstant(node->feedback().vector),
+                           Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kStoreIC, frame_state,
+                                     base::VectorOf(arguments)));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadNamedGeneric* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+
+    OpIndex arguments[] = {
+        Map(node->object_input()), __ HeapConstant(node->name().object()),
+        __ TaggedIndexConstant(node->feedback().index()),
+        __ HeapConstant(node->feedback().vector), Map(node->context())};
+
+    SetMap(node, GenerateBuiltinCall(node, Builtin::kLoadIC, frame_state,
                                      base::VectorOf(arguments)));
     return maglev::ProcessResult::kContinue;
   }

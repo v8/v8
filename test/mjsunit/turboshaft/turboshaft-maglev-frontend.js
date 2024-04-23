@@ -1204,3 +1204,41 @@ assertOptimized(simple_loop);
                   // `true` as input to `create_deopt`.
   assertEquals(o1, o3);
 }
+
+// Testing SetNamedGeneric.
+{
+  function set_named_generic() {
+    let iterator = new Set().values();
+    iterator.x = 0;
+    return iterator;
+  }
+
+  %PrepareFunctionForOptimization(set_named_generic);
+  let before = set_named_generic();
+  %OptimizeFunctionOnNextCall(set_named_generic);
+  let after = set_named_generic();
+  assertEquals(before, after);
+  assertOptimized(set_named_generic);
+}
+
+// Testing LoadNamedGeneric.
+{
+  let v1 = {};
+
+  function load_named_generic() {
+    let v2 = v1.Intl;
+    try {
+      return v2.supportedValuesOf();
+    } catch(e) {
+      // Stringifying the exception for easier comparison.
+      return "123" + e + v2;
+    }
+  }
+
+  %PrepareFunctionForOptimization(load_named_generic);
+  let before = load_named_generic();
+  %OptimizeFunctionOnNextCall(load_named_generic);
+  let after = load_named_generic();
+  assertEquals(before, after);
+  assertOptimized(load_named_generic);
+}
