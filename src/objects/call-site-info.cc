@@ -264,7 +264,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   } else {
     builder.AppendCStringLiteral("<anonymous>");
   }
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 }  // namespace
@@ -869,7 +869,7 @@ MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
                                           Handle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 }  // namespace internal
