@@ -181,7 +181,7 @@ let main = {
     function applyTimestampCorrection(tm) {
       let corrections = timestampCorrections;
 
-      if (corrections.length == 0) return 0;
+      if (corrections.length == 0) return tm;
       let start = 0;
       let end = corrections.length - 1;
       while (start <= end) {
@@ -192,8 +192,8 @@ let main = {
           end = middle - 1;
         }
       }
-      if (start == 0) return 0;
-      return corrections[start - 1].correction
+      if (start == 0) return tm;
+      return tm - corrections[start - 1].correction
     }
 
     let filtered_code = [];
