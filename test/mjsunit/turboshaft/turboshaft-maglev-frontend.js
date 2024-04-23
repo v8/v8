@@ -366,7 +366,7 @@ assertOptimized(simple_loop);
   assertUnoptimized(f);
 }
 
-// Testing exceptions.
+// Testing exceptions (but ignoring the exception value).
 {
   function h(x) {
     if (x) { willThrow(); }
@@ -379,8 +379,7 @@ assertOptimized(simple_loop);
     try {
       r = h(a);
       return h(b) + r;
-    }
-    catch {
+    } catch {
       return r * b;
     }
   }
@@ -394,6 +393,63 @@ assertOptimized(simple_loop);
   assertEquals(187, f(0, 11));
   assertEquals(0, f(7, 0));
   assertOptimized(f);
+}
+
+// Testing exceptions (single throwing point, using the exception value).
+{
+  function h(x) {
+    if (x) { willThrow(); }
+    else { return 17; }
+  }
+  %NeverOptimizeFunction(h);
+
+  function exc_f(a) {
+    try {
+      return h(a);
+    } catch(e) {
+      // Stringifying the exception for easier comparison.
+      return "abc" + e;
+    }
+  }
+
+  %PrepareFunctionForOptimization(exc_f);
+  assertEquals(17, exc_f(0));
+  let err = exc_f(1); // Will cause an exception.
+  %OptimizeFunctionOnNextCall(exc_f);
+  assertEquals(17, exc_f(0));
+  assertEquals(err, exc_f(1));
+  assertOptimized(exc_f);
+}
+
+// Testing exceptions (multiple throwing points, using the exception value).
+{
+  function h(x) {
+    if (x) { willThrow(); }
+    else { return 17; }
+  }
+  %NeverOptimizeFunction(h);
+
+  function multi_exc_f(a, b) {
+    let r = a;
+    try {
+      r = h(a);
+      return h(b) + r;
+    }
+    catch(e) {
+      // Stringifying the exception for easier comparison.
+      return "abc" + e + r;
+    }
+  }
+
+  %PrepareFunctionForOptimization(multi_exc_f);
+  assertEquals(34, multi_exc_f(0, 0)); // Won't cause an exception.
+  let err1 = multi_exc_f(0, 11); // Will cause an exception on the 2nd call to h.
+  let err2 = multi_exc_f(7, 0); // Will cause an exception on the 1st call to h.
+  %OptimizeFunctionOnNextCall(multi_exc_f);
+  assertEquals(34, multi_exc_f(0, 0));
+  assertEquals(err1, multi_exc_f(0, 11));
+  assertEquals(err2, multi_exc_f(7, 0));
+  assertOptimized(multi_exc_f);
 }
 
 // Testing builtin calls

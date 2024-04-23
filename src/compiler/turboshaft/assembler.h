@@ -3409,7 +3409,89 @@ class TurboshaftAssemblerOpInterface
                                                   successful);
   }
 
-  OpIndex CatchBlockBegin() { return ReduceIfReachableCatchBlockBegin(); }
+  // CatchBlockBegin should always be the 1st operation of a catch handler, and
+  // returns the value of the exception that was caught. Because of split-edge
+  // form, catch handlers cannot have multiple predecessors (since their
+  // predecessors always end with CheckException, which has 2 successors). As
+  // such, when multiple CheckException go to the same catch handler,
+  // Assembler::AddPredecessor and Assembler::SplitEdge take care of introducing
+  // additional intermediate catch handlers, which are then wired to the
+  // original catch handler. When calling `__ CatchBlockBegin` at the begining
+  // of the original catch handler, a Phi of the CatchBlockBegin of the
+  // predecessors is emitted instead. Here is an example:
+  //
+  // Initial graph:
+  //
+  //                   + B1 ----------------+
+  //                   | ...                |
+  //                   | 1: CallOp(...)     |
+  //                   | 2: CheckException  |
+  //                   +--------------------+
+  //                     /              \
+  //                    /                \
+  //                   /                  \
+  //     + B2 ----------------+        + B3 ----------------+
+  //     | 3: DidntThrow(1)   |        | 4: CatchBlockBegin |
+  //     |  ...               |        | 5: SomeOp(4)       |
+  //     |  ...               |        | ...                |
+  //     +--------------------+        +--------------------+
+  //                   \                  /
+  //                    \                /
+  //                     \              /
+  //                   + B4 ----------------+
+  //                   | 6: Phi(3, 4)       |
+  //                   |  ...               |
+  //                   +--------------------+
+  //
+  //
+  // Let's say that we lower the CallOp to 2 throwing calls. We'll thus get:
+  //
+  //
+  //                             + B1 ----------------+
+  //                             | ...                |
+  //                             | 1: CallOp(...)     |
+  //                             | 2: CheckException  |
+  //                             +--------------------+
+  //                               /              \
+  //                              /                \
+  //                             /                  \
+  //               + B2 ----------------+        + B4 ----------------+
+  //               | 3: DidntThrow(1)   |        | 7: CatchBlockBegin |
+  //               | 4: CallOp(...)     |        | 8: Goto(B6)        |
+  //               | 5: CheckException  |        +--------------------+
+  //               +--------------------+                        \
+  //                   /              \                           \
+  //                  /                \                           \
+  //                 /                  \                           \
+  //     + B3 ----------------+        + B5 ----------------+       |
+  //     | 6: DidntThrow(4)   |        | 9: CatchBlockBegin |       |
+  //     |  ...               |        | 10: Goto(B6)       |       |
+  //     |  ...               |        +--------------------+       |
+  //     +--------------------+                   \                 |
+  //                    \                          \                |
+  //                     \                          \               |
+  //                      \                      + B6 ----------------+
+  //                       \                     | 11: Phi(7, 9)      |
+  //                        \                    | 12: SomeOp(11)     |
+  //                         \                   | ...                |
+  //                          \                  +--------------------+
+  //                           \                     /
+  //                            \                   /
+  //                             \                 /
+  //                           + B7 ----------------+
+  //                           | 6: Phi(6, 11)      |
+  //                           |  ...               |
+  //                           +--------------------+
+  //
+  // Note B6 in the output graph corresponds to B3 in the input graph and that
+  // `11: Phi(7, 9)` was emitted when calling `CatchBlockBegin` in order to map
+  // `4: CatchBlockBegin` from the input graph.
+  //
+  // Besides AddPredecessor and SplitEdge in Assembler, most of the machinery to
+  // make this work is in GenericReducerBase (in particular,
+  // `REDUCE(CatchBlockBegin)`, `REDUCE(Call)`, `REDUCE(CheckException)` and
+  // `CatchIfInCatchScope`).
+  V<Object> CatchBlockBegin() { return ReduceIfReachableCatchBlockBegin(); }
 
   void Goto(Block* destination) {
     bool is_backedge = destination->IsBound();

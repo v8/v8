@@ -135,6 +135,7 @@ class GraphBuilder {
 #ifdef DEBUG
     loop_phis_first_input_.clear();
     loop_phis_first_input_index_ = -1;
+    catch_block_begin_ = V<Object>::Invalid();
 #endif
 
     if (block->is_loop() &&
@@ -150,7 +151,18 @@ class GraphBuilder {
       // and in both Turboshaft and Maglev, the backedge is always the last
       // predecessors, so we never need to reorder phi inputs.
       return;
+    } else if (block->is_exception_handler_block()) {
+      // We need to emit the CatchBlockBegin at the begining of this block. Note
+      // that if this block has multiple predecessors (because multiple throwing
+      // operations are caught by the same catch handler), then edge splitting
+      // will have already created CatchBlockBegin operations in the
+      // predecessors, and calling `__ CatchBlockBegin` now will actually only
+      // emit a Phi of the CatchBlockBegin of the predecessors (which is exactly
+      // what we want). See the comment above CatchBlockBegin in
+      // TurboshaftAssemblerOpInterface.
+      catch_block_begin_ = __ CatchBlockBegin();
     }
+
     // Because of edge splitting in Maglev (which happens on Bind rather than on
     // Goto), predecessors in the Maglev graph are not always ordered by their
     // position in the graph (ie, block 4 could be the second predecessor and
@@ -309,7 +321,12 @@ class GraphBuilder {
     RegisterRepresentation rep =
         RegisterRepresentationFor(node->value_representation());
     if (node->is_exception_phi()) {
-      SetMap(node, __ GetVariable(regs_to_vars_[node->owner().index()]));
+      if (node->owner() == interpreter::Register::virtual_accumulator()) {
+        DCHECK(catch_block_begin_.valid());
+        SetMap(node, catch_block_begin_);
+      } else {
+        SetMap(node, __ GetVariable(regs_to_vars_[node->owner().index()]));
+      }
       return maglev::ProcessResult::kContinue;
     }
     if (__ current_block()->IsLoop()) {
@@ -2211,6 +2228,14 @@ class GraphBuilder {
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
+
+  // In Turboshaft, exception blocks start with a CatchBlockBegin. In Maglev,
+  // there is no such operation, and the exception is instead populated into the
+  // accumulator by the throwing code, and is then loaded in Maglev through an
+  // exception phi. When emitting a Turboshaft exception block, we thus store
+  // the CatchBlockBegin in {catch_block_begin_}, which we then use when trying
+  // to map the exception phi corresponding to the accumulator.
+  V<Object> catch_block_begin_ = OpIndex::Invalid();
 
   // Maglev loops can have multiple forward edges, while Turboshaft should only
   // have a single one. When a Maglev loop has multiple forward edge, we create
