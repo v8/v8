@@ -2773,4 +2773,35 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DurationFormat/prototype/format/negative-duration-style-default-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-style-short-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-default-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-digital-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-long-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-narrow-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-duration-with-leading-zero-style-short-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-durationstyle-digital-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-durationstyle-long-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/negative-durationstyle-narrow-en': [SKIP],
+  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds-with-auto-display': [SKIP],
+  'intl402/DurationFormat/prototype/format/numeric-hour-with-zero-minutes-and-non-zero-seconds-with-auto-display-and-zero-fractional': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-default-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-digital-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-long-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-narrow-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-formatToParts-style-short-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-default-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-digital-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-long-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-narrow-en': [SKIP],
+  'intl402/DurationFormat/prototype/formatToParts/negative-duration-with-leading-zero-style-short-en': [SKIP],
+  'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [SKIP],
+  'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
