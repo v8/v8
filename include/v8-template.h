@@ -892,7 +892,7 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Provide interceptor callbacks with new signatures instead "
       "(IndexedPropertyXxxCallbackV2)")
   IndexedPropertyHandlerConfiguration(
@@ -933,7 +933,7 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Provide interceptor callbacks with new signatures instead "
       "(IndexedPropertyXxxCallbackV2)")
   explicit IndexedPropertyHandlerConfiguration(
@@ -973,7 +973,7 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(WithNewSignatureFlag(flags)) {}
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Provide interceptor callbacks with new signatures instead "
       "(IndexedPropertyXxxCallbackV2)")
   IndexedPropertyHandlerConfiguration(
@@ -1062,34 +1062,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    * callbacks to invoke when accessing a property.
    */
   void SetHandler(const NamedPropertyHandlerConfiguration& configuration);
-
-  /**
-   * Sets an indexed property handler on the object template.
-   *
-   * Whenever an indexed property is accessed on objects created from
-   * this object template, the provided callback is invoked instead of
-   * accessing the property directly on the JavaScript object.
-   *
-   * \param getter The callback to invoke when getting a property.
-   * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check if an object has a property.
-   * \param deleter The callback to invoke when deleting a property.
-   * \param enumerator The callback to invoke to enumerate all the indexed
-   *   properties of an object.
-   * \param data A piece of data that will be passed to the callbacks
-   *   whenever they are invoked.
-   */
-  V8_DEPRECATED("Use SetHandler instead")
-  void SetIndexedPropertyHandler(
-      IndexedPropertyGetterCallback getter,
-      IndexedPropertySetterCallback setter = nullptr,
-      IndexedPropertyQueryCallback query = nullptr,
-      IndexedPropertyDeleterCallback deleter = nullptr,
-      IndexedPropertyEnumeratorCallback enumerator = nullptr,
-      Local<Value> data = Local<Value>()) {
-    SetHandler(IndexedPropertyHandlerConfiguration(getter, setter, query,
-                                                   deleter, enumerator, data));
-  }
 
   /**
    * Sets an indexed property handler on the object template.
