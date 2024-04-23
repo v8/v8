@@ -81,7 +81,8 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kInstanceDataOffset - offset + half_offset);
+  return MemOperand(fp, -WasmLiftoffFrameConstants::kInstanceDataOffset -
+                            offset + half_offset);
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {

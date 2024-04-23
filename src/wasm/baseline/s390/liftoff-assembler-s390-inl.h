@@ -41,8 +41,6 @@ namespace liftoff {
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
-constexpr int32_t kInstanceDataOffset = 2 * kSystemPointerSize;
-constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
 inline MemOperand GetStackSlot(uint32_t offset) {
   return MemOperand(fp, -offset);
 }
