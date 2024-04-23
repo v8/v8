@@ -500,6 +500,14 @@ class DirectHandle final : public DirectHandleBase {
     return address() == other.address();
   }
 
+  // Sets this DirectHandle's value. This is equivalent to handle assignment,
+  // except for the check that is equivalent to that performed in
+  // Handle<T>::PatchValue.
+  void PatchValue(Tagged<T> new_value) {
+    SLOW_DCHECK(obj_ != kTaggedNullAddress && IsDereferenceAllowed());
+    obj_ = new_value.ptr();
+  }
+
  private:
   // DirectHandles of different classes are allowed to access each other's
   // obj_.

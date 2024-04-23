@@ -15,7 +15,7 @@ namespace internal {
 class FixedArrayBuilder {
  public:
   explicit FixedArrayBuilder(Isolate* isolate, int initial_capacity);
-  explicit FixedArrayBuilder(Handle<FixedArray> backing_store);
+  explicit FixedArrayBuilder(DirectHandle<FixedArray> backing_store);
 
   // Creates a FixedArrayBuilder which allocates its backing store lazily when
   // EnsureCapacity is called.
@@ -27,7 +27,7 @@ class FixedArrayBuilder {
   void Add(Tagged<Object> value);
   void Add(Tagged<Smi> value);
 
-  Handle<FixedArray> array() { return array_; }
+  DirectHandle<FixedArray> array() { return array_; }
 
   int length() { return length_; }
 
@@ -36,14 +36,14 @@ class FixedArrayBuilder {
  private:
   explicit FixedArrayBuilder(Isolate* isolate);
 
-  Handle<FixedArray> array_;
+  DirectHandle<FixedArray> array_;
   int length_;
   bool has_non_smi_elements_;
 };
 
 class ReplacementStringBuilder {
  public:
-  ReplacementStringBuilder(Heap* heap, Handle<String> subject,
+  ReplacementStringBuilder(Heap* heap, DirectHandle<String> subject,
                            int estimated_part_count);
 
   // Caution: Callers must ensure the builder has enough capacity.
@@ -52,9 +52,9 @@ class ReplacementStringBuilder {
 
   inline void AddSubjectSlice(int from, int to);
 
-  void AddString(Handle<String> string);
+  void AddString(DirectHandle<String> string);
 
-  MaybeHandle<String> ToString();
+  MaybeDirectHandle<String> ToString();
 
   void IncrementCharacterCount(int by) {
     if (character_count_ > String::kMaxLength - by) {
@@ -66,12 +66,12 @@ class ReplacementStringBuilder {
   }
 
  private:
-  void AddElement(Handle<Object> element);
+  void AddElement(DirectHandle<Object> element);
   void EnsureCapacity(int elements);
 
   Heap* heap_;
   FixedArrayBuilder array_builder_;
-  Handle<String> subject_;
+  DirectHandle<String> subject_;
   int character_count_;
   bool is_one_byte_;
 };
@@ -103,9 +103,9 @@ class IncrementalStringBuilder {
   // serialized without allocating a new string part.
   V8_INLINE int EscapedLengthIfCurrentPartFits(int length);
 
-  void AppendString(Handle<String> string);
+  void AppendString(DirectHandle<String> string);
 
-  MaybeHandle<String> Finish();
+  MaybeDirectHandle<String> Finish();
 
   V8_INLINE bool HasOverflowed() const { return overflowed_; }
 
@@ -162,20 +162,20 @@ class IncrementalStringBuilder {
  private:
   V8_INLINE Factory* factory();
 
-  V8_INLINE Handle<String> accumulator() { return accumulator_; }
+  V8_INLINE DirectHandle<String> accumulator() { return accumulator_; }
 
-  V8_INLINE void set_accumulator(Handle<String> string) {
+  V8_INLINE void set_accumulator(DirectHandle<String> string) {
     accumulator_.PatchValue(*string);
   }
 
-  V8_INLINE Handle<String> current_part() { return current_part_; }
+  V8_INLINE DirectHandle<String> current_part() { return current_part_; }
 
-  V8_INLINE void set_current_part(Handle<String> string) {
+  V8_INLINE void set_current_part(DirectHandle<String> string) {
     current_part_.PatchValue(*string);
   }
 
   // Add the current part to the accumulator.
-  void Accumulate(Handle<String> new_part);
+  void Accumulate(DirectHandle<String> new_part);
 
   // Finish the current part and allocate a new part.
   void Extend();
@@ -185,8 +185,8 @@ class IncrementalStringBuilder {
   // Shrink current part to the right size.
   V8_INLINE void ShrinkCurrentPart();
 
-  void AppendStringByCopy(Handle<String> string);
-  bool CanAppendByCopy(Handle<String> string);
+  void AppendStringByCopy(DirectHandle<String> string);
+  bool CanAppendByCopy(DirectHandle<String> string);
 
   static const int kInitialPartLength = 32;
   static const int kMaxPartLength = 16 * 1024;
@@ -198,8 +198,8 @@ class IncrementalStringBuilder {
   bool overflowed_;
   int part_length_;
   int current_index_;
-  Handle<String> accumulator_;
-  Handle<String> current_part_;
+  DirectHandle<String> accumulator_;
+  DirectHandle<String> current_part_;
 };
 
 }  // namespace internal

@@ -248,7 +248,7 @@ class WasmOrphanedGlobalHandle;
  */
 #define RETURN_RESULT_OR_FAILURE(isolate, call)      \
   do {                                               \
-    Handle<Object> __result__;                       \
+    DirectHandle<Object> __result__;                 \
     Isolate* __isolate__ = (isolate);                \
     if (!(call).ToHandle(&__result__)) {             \
       DCHECK(__isolate__->has_exception());          \
