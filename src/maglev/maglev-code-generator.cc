@@ -1042,8 +1042,7 @@ class MaglevFrameTranslationBuilder {
         masm_(masm),
         translation_array_builder_(translation_array_builder),
         deopt_literals_(deopt_literals),
-        object_ids_(10),
-        arguments_elements_id_(kNotDuplicated) {}
+        object_ids_(10) {}
 
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
     BuildBeginDeopt(deopt_info);
@@ -1103,7 +1102,6 @@ class MaglevFrameTranslationBuilder {
 
   void BuildBeginDeopt(DeoptInfo* deopt_info) {
     object_ids_.clear();
-    arguments_elements_id_ = kNotDuplicated;
     auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(
@@ -1399,17 +1397,12 @@ class MaglevFrameTranslationBuilder {
             GetDeoptLiteral(Smi::FromInt(value.smi)));
         break;
       case CapturedValue::kArgumentsElements:
-        if (arguments_elements_id_ == kNotDuplicated) {
-          translation_array_builder_->ArgumentsElements(
-              value.arguments_elements->type());
-          // We simulate the deoptimizer deduplication machinery, for that, we
-          // need to push something to get fresh ids. We push -1, since no
-          // object should have id -1.
-          object_ids_.push_back(-1);
-          arguments_elements_id_ = static_cast<int>(object_ids_.size());
-        } else {
-          translation_array_builder_->DuplicateObject(arguments_elements_id_);
-        }
+        translation_array_builder_->ArgumentsElements(
+            value.arguments_elements->type());
+        // We simulate the deoptimizer deduplication machinery, which will give
+        // a fresh id to the ArgumentsElements. For that, we need to push
+        // something object_ids_ We push -1, since no object should have id -1.
+        object_ids_.push_back(-1);
         break;
       case CapturedValue::kArgumentsLength:
         translation_array_builder_->ArgumentsLength();
@@ -1565,7 +1558,6 @@ class MaglevFrameTranslationBuilder {
 
   static const int kNotDuplicated = -1;
   std::vector<int> object_ids_;
-  int arguments_elements_id_;
 };
 
 }  // namespace
