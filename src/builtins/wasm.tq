@@ -1178,8 +1178,8 @@ builtin WasmStringViewWtf8Advance(view: ByteArray, pos: uint32, bytes: uint32):
   return AlignWtf8PositionBackward(view, clampedPos + bytes);
 }
 struct NewPositionAndBytesWritten {
-  newPosition: uintptr;
-  bytesWritten: uintptr;
+  newPosition: uint32;
+  bytesWritten: uint32;
 }
 builtin WasmStringViewWtf8Encode(
     addr: uintptr, pos: uint32, bytes: uint32, view: ByteArray, memory: Smi,
@@ -1195,8 +1195,8 @@ builtin WasmStringViewWtf8Encode(
       WasmUint32ToNumber(start), WasmUint32ToNumber(end), memory);
 
   return NewPositionAndBytesWritten{
-    newPosition: Convert<uintptr>(end),
-    bytesWritten: Convert<uintptr>(end - start)
+    newPosition: end,
+    bytesWritten: end - start
   };
 }
 builtin WasmStringViewWtf8Slice(view: ByteArray, start: uint32, end: uint32):

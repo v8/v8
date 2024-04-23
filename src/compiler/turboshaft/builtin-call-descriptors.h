@@ -1061,7 +1061,7 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmStringViewWtf8Encode;
     using arguments_t = std::tuple<V<WordPtr>, V<Word32>, V<Word32>,
                                    V<ByteArray>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<WordPtr>, V<WordPtr>>;
+    using results_t = std::tuple<V<Word32>, V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
