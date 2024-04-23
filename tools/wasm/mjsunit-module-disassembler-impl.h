@@ -30,6 +30,11 @@ StringBuilder& operator<<(StringBuilder& sb, base::Vector<const char> chars) {
   return sb;
 }
 
+enum PreferShortCode : bool {
+  kCode = true,
+  kFullType = false,
+};
+
 class MjsunitNamesProvider {
  public:
   static constexpr const char* kLocalPrefix = "$var";
@@ -203,18 +208,24 @@ class MjsunitNamesProvider {
   V(kNoExtern, kWasmNullExternRef, kNullExternRefCode)            \
   V(kNoFunc, kWasmNullFuncRef, kNullFuncRefCode)                  \
   V(kString, kWasmStringRef, kStringRefCode)                      \
-  V(kStringViewWtf16, kWasmStringViewWtf16, kStringViewWtf16Code) \
-  V(kStringViewWtf8, kWasmStringViewWtf8, kStringViewWtf8Code)    \
-  V(kStringViewIter, kWasmStringViewIter, kStringViewIterCode)    \
   V(kStruct, kWasmStructRef, kStructRefCode)
 
-  void PrintHeapType(StringBuilder& out, HeapType type) {
+// Same, but for types where the shorthand is non-nullable.
+#define ABSTRACT_NN_TYPE_LIST(V)                                  \
+  V(kStringViewWtf16, kWasmStringViewWtf16, kStringViewWtf16Code) \
+  V(kStringViewWtf8, kWasmStringViewWtf8, kStringViewWtf8Code)    \
+  V(kStringViewIter, kWasmStringViewIter, kStringViewIterCode)
+
+  // {prefer_code}: Print "kAnyRefCode" instead of "kWasmAnyRef" etc.
+  void PrintHeapType(StringBuilder& out, HeapType type,
+                     PreferShortCode prefer_code) {
     switch (type.representation()) {
-#define CASE(kCpp, JS, JSCode) \
-  case HeapType::kCpp:         \
-    out << #JS;                \
+#define CASE(kCpp, JS, JSCode)                     \
+  case HeapType::kCpp:                             \
+    out << (prefer_code == kCode ? #JSCode : #JS); \
     return;
       ABSTRACT_TYPE_LIST(CASE)
+      ABSTRACT_NN_TYPE_LIST(CASE)
 #undef CASE
       case HeapType::kBottom:
         UNREACHABLE();
@@ -223,22 +234,9 @@ class MjsunitNamesProvider {
     }
   }
 
-  void PrintHeapTypeCode(StringBuilder& out, HeapType type) {
-    switch (type.representation()) {
-#define CASE(kCpp, JS, JSCode) \
-  case HeapType::kCpp:         \
-    out << #JSCode;            \
-    return;
-      ABSTRACT_TYPE_LIST(CASE)
-#undef CASE
-      case HeapType::kBottom:
-        UNREACHABLE();
-      default:
-        PrintTypeIndex(out, type.ref_index());
-    }
-  }
-
-  void PrintValueType(StringBuilder& out, ValueType type) {
+  // {prefer_code}: Print "kAnyRefCode" instead of "kWasmAnyRef" etc.
+  void PrintValueType(StringBuilder& out, ValueType type,
+                      PreferShortCode prefer_code) {
     switch (type.kind()) {
         // clang-format off
       case kI8:   out << "kWasmI8";   return;
@@ -254,7 +252,7 @@ class MjsunitNamesProvider {
 #define CASE(kCpp, _, _2) case HeapType::kCpp:
           ABSTRACT_TYPE_LIST(CASE)
 #undef CASE
-          return PrintHeapType(out, type.heap_type());
+          return PrintHeapType(out, type.heap_type(), prefer_code);
           case HeapType::kBottom:
             UNREACHABLE();
           default:
@@ -263,7 +261,17 @@ class MjsunitNamesProvider {
         }
         break;
       case kRef:
-        out << "wasmRefType(";
+        switch (type.heap_representation()) {
+#define CASE(kCpp, _, _2) case HeapType::kCpp:
+          ABSTRACT_NN_TYPE_LIST(CASE)
+#undef CASE
+          return PrintHeapType(out, type.heap_type(), prefer_code);
+          case HeapType::kBottom:
+            UNREACHABLE();
+          default:
+            out << "wasmRefType(";
+            break;
+        }
         break;
       case kBottom:
         out << "/*<bot>*/";
@@ -272,7 +280,7 @@ class MjsunitNamesProvider {
       case kVoid:
         UNREACHABLE();
     }
-    PrintHeapType(out, type.heap_type());
+    PrintHeapType(out, type.heap_type(), prefer_code);
     out << ")";
   }
 
@@ -302,12 +310,12 @@ class MjsunitNamesProvider {
     out << "makeSig([";
     for (size_t i = 0; i < sig->parameter_count(); i++) {
       if (i > 0) out << ", ";
-      PrintValueType(out, sig->GetParam(i));
+      PrintValueType(out, sig->GetParam(i), kFullType);
     }
     out << "], [";
     for (size_t i = 0; i < sig->return_count(); i++) {
       if (i > 0) out << ", ";
-      PrintValueType(out, sig->GetReturn(i));
+      PrintValueType(out, sig->GetReturn(i), kFullType);
     }
     out << "])";
   }
@@ -319,12 +327,12 @@ class MjsunitNamesProvider {
       if (sig->parameter_count() > 3) {
         out << kLocalPrefix << i << ":";
       }
-      PrintValueType(out, sig->GetParam(i));
+      PrintValueType(out, sig->GetParam(i), kFullType);
     }
     out << "] -> [";
     for (uint32_t i = 0; i < sig->return_count(); i++) {
       if (i > 0) out << ", ";
-      PrintValueType(out, sig->GetReturn(i));
+      PrintValueType(out, sig->GetReturn(i), kFullType);
     }
     out << "]";
   }
@@ -518,7 +526,7 @@ void MjsunitFunctionDis::WriteMjsunit(MultiLineStringBuilder& out) {
       }
       if (pos > num_params) out << indentation_;
       out << ".addLocals(";
-      names()->PrintValueType(out, type);
+      names()->PrintValueType(out, type, kFullType);
       out << ", " << count << ")  // ";
       names()->PrintLocalName(out, pos);
       if (count > 1) {
@@ -722,24 +730,24 @@ class MjsunitImmediatesPrinter {
       out_ << " kWasmVoid,";
     } else {
       out_ << " ";
-      // TODO(jkummerow): This is not correct, it should prefer the one-byte
-      // "Code" versions (e.g. kNullRefCode instead of kWasmNullRef).
-      names()->PrintValueType(out_, imm.sig.GetReturn());
+      names()->PrintValueType(out_, imm.sig.GetReturn(), kCode);
       out_ << ",";
     }
   }
 
   void HeapType(HeapTypeImmediate& imm) {
     out_ << " ";
-    names()->PrintHeapTypeCode(out_, imm.type);
+    names()->PrintHeapType(out_, imm.type, kCode);
     out_ << ",";
   }
 
   void ValueType(HeapTypeImmediate& imm, bool is_nullable) {
     out_ << " ";
     names()->PrintValueType(
-        out_, ValueType::RefMaybeNull(imm.type,
-                                      is_nullable ? kNullable : kNonNullable));
+        out_,
+        ValueType::RefMaybeNull(imm.type,
+                                is_nullable ? kNullable : kNonNullable),
+        kCode);
     out_ << ",";
   }
 
@@ -801,7 +809,7 @@ class MjsunitImmediatesPrinter {
 
   void SelectType(SelectTypeImmediate& imm) {
     out_ << " 1, ";  // One type.
-    names()->PrintValueType(out_, imm.type);
+    names()->PrintValueType(out_, imm.type, kCode);
     out_ << ",";
   }
 
@@ -1087,7 +1095,7 @@ class MjsunitModuleDis {
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
           if (fi > 0) out_ << ", ";
           out_ << "makeField(";
-          names()->PrintValueType(out_, struct_type->field(fi));
+          names()->PrintValueType(out_, struct_type->field(fi), kFullType);
           out_ << ", " << (struct_type->mutability(fi) ? "true" : "false");
           out_ << ")";
         }
@@ -1103,7 +1111,7 @@ class MjsunitModuleDis {
         const ArrayType* array_type = module_->types[i].array_type;
         names()->PrintArrayType(out_, i);
         out_ << " = builder.addArray(";
-        names()->PrintValueType(out_, array_type->element_type());
+        names()->PrintValueType(out_, array_type->element_type(), kFullType);
         out_ << ", ";
         out_ << (array_type->mutability() ? "true" : "false") << ", ";
         if (supertype != kNoSuperType) {
@@ -1170,7 +1178,7 @@ class MjsunitModuleDis {
           } else {
             out_ << "undefined, ";
           }
-          names()->PrintValueType(out_, table.type);
+          names()->PrintValueType(out_, table.type, kFullType);
           break;
         }
         case kExternalGlobal: {
@@ -1178,7 +1186,7 @@ class MjsunitModuleDis {
           out_ << " = builder.addImportedGlobal('" << V(imported.module_name);
           out_ << "', '" << V(imported.field_name) << "', ";
           const WasmGlobal& global = module_->globals[imported.index];
-          names()->PrintValueType(out_, global.type);
+          names()->PrintValueType(out_, global.type, kFullType);
           if (global.mutability || global.shared) {
             out_ << ", " << (global.mutability ? "true" : "false");
           }
@@ -1335,7 +1343,7 @@ class MjsunitModuleDis {
       out_ << "let ";
       names()->PrintGlobalName(out_, i);
       out_ << " = builder.addGlobal(";
-      names()->PrintValueType(out_, global.type);
+      names()->PrintValueType(out_, global.type, kFullType);
       out_ << ", " << (global.mutability ? "true" : "false") << ", ";
       out_ << (global.shared ? "true" : "false") << ", ";
       DecodeAndAppendInitExpr(global.init, global.type);
@@ -1355,7 +1363,7 @@ class MjsunitModuleDis {
       out_ << "let ";
       names()->PrintTableName(out_, i);
       out_ << " = builder.addTable(";
-      names()->PrintValueType(out_, table.type);
+      names()->PrintValueType(out_, table.type, kFullType);
       out_ << ", " << table.initial_size << ", ";
       if (table.has_maximum_size) {
         out_ << table.maximum_size;
@@ -1415,7 +1423,7 @@ class MjsunitModuleDis {
       out_ << "]";
       if (segment.element_type == WasmElemSegment::kExpressionElements) {
         out_ << ", ";
-        names()->PrintValueType(out_, segment.type);
+        names()->PrintValueType(out_, segment.type, kFullType);
       }
       if (segment.shared) out_ << ", true";
       out_ << ");";
@@ -1568,7 +1576,7 @@ class MjsunitModuleDis {
         break;
       case ConstantExpression::kRefNull:
         out_ << "[kExprRefNull, ";
-        names()->PrintHeapTypeCode(out_, HeapType(init.repr()));
+        names()->PrintHeapType(out_, HeapType(init.repr()), kCode);
         out_ << "]";
         break;
       case ConstantExpression::kRefFunc:
