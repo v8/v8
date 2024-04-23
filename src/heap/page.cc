@@ -153,7 +153,8 @@ size_t PageMetadata::ShrinkToHighWaterMark() {
 
 void PageMetadata::CreateBlackArea(Address start, Address end) {
   DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK(v8_flags.sticky_mark_bits ||
+         heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(PageMetadata::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
@@ -161,11 +162,13 @@ void PageMetadata::CreateBlackArea(Address start, Address end) {
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(static_cast<intptr_t>(end - start));
+  owner()->NotifyBlackAreaCreated(end - start);
 }
 
 void PageMetadata::DestroyBlackArea(Address start, Address end) {
   DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK(v8_flags.sticky_mark_bits ||
+         heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(PageMetadata::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
@@ -173,6 +176,7 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(-static_cast<intptr_t>(end - start));
+  owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
 }  // namespace internal

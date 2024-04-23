@@ -137,8 +137,10 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
   CHECK(IsMap(heap_object->map(cage_base())));
-  CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
-                Heap::InToPage(heap_object));
+  // Heap::InToPage() is not available with sticky mark-bits.
+  CHECK_IMPLIES(
+      !v8_flags.sticky_mark_bits && Heap::InYoungGeneration(heap_object),
+      Heap::InToPage(heap_object));
 }
 
 void VerifyPointersVisitor::VerifyCodeObjectImpl(
@@ -535,7 +537,9 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
 
   bool ShouldHaveBeenRecorded(Tagged<HeapObject> host,
                               Tagged<MaybeObject> target) override {
-    DCHECK_IMPLIES(target.IsStrongOrWeak() && Heap::InYoungGeneration(target),
+    // Heap::InToPage() is not available with sticky mark-bits.
+    DCHECK_IMPLIES(!v8_flags.sticky_mark_bits && target.IsStrongOrWeak() &&
+                       Heap::InYoungGeneration(target),
                    Heap::InToPage(target));
     return target.IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
            !Heap::InYoungGeneration(host);
@@ -691,7 +695,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
-  if (Heap::InYoungGeneration(object)) {
+  if (!v8_flags.sticky_mark_bits && Heap::InYoungGeneration(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
 

@@ -345,7 +345,7 @@ class MainAllocator {
 
   // Returns the space's heap. Note that this might differ from `isolate_heap()`
   // for shared space in worker isolates.
-  Heap* space_heap() const;
+  V8_EXPORT_PRIVATE Heap* space_heap() const;
 
   // The current main or background thread's LocalHeap. nullptr for GC threads.
   LocalHeap* const local_heap_;

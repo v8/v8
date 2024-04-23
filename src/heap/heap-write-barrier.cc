@@ -20,6 +20,14 @@ namespace {
 thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace
 
+bool HeapObjectInYoungGenerationSticky(MemoryChunk* chunk,
+                                       Tagged<HeapObject> object) {
+  DCHECK(v8_flags.sticky_mark_bits);
+  return !chunk->IsReadOnlyOrMajorMarkingOn() &&
+         !MarkingBitmap::MarkBitFromAddress(object.address())
+              .template Get<AccessMode::ATOMIC>();
+}
+
 MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(
     Tagged<HeapObject> verification_candidate) {
   MarkingBarrier* marking_barrier = current_marking_barrier;

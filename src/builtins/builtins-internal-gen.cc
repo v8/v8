@@ -153,37 +153,6 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     return WordEqual(WordAnd(Load<IntPtrT>(cell), mask), IntPtrConstant(0));
   }
 
-  void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
-                  TNode<IntPtrT>* mask) {
-    TNode<IntPtrT> page = PageMetadataFromAddress(object);
-    TNode<IntPtrT> bitmap = IntPtrAdd(
-        page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
-
-    {
-      // Temp variable to calculate cell offset in bitmap.
-      TNode<WordT> r0;
-      int shift = MarkingBitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
-                  MarkingBitmap::kBytesPerCellLog2;
-      r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(r0,
-                   IntPtrConstant(
-                       (MemoryChunk::GetAlignmentMaskForAssembler() >> shift) &
-                       ~(MarkingBitmap::kBytesPerCell - 1)));
-      *cell = IntPtrAdd(bitmap, Signed(r0));
-    }
-    {
-      // Temp variable to calculate bit offset in cell.
-      TNode<WordT> r1;
-      r1 = WordShr(object, IntPtrConstant(kTaggedSizeLog2));
-      r1 = WordAnd(r1,
-                   IntPtrConstant((1 << MarkingBitmap::kBitsPerCellLog2) - 1));
-      // It seems that LSB(e.g. cl) is automatically used, so no manual masking
-      // is needed. Uncomment the following line otherwise.
-      // WordAnd(r1, IntPtrConstant((1 << kBitsPerByte) - 1)));
-      *mask = WordShl(IntPtrConstant(1), r1);
-    }
-  }
-
   void InsertIntoRememberedSet(TNode<IntPtrT> object, TNode<IntPtrT> slot,
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
@@ -319,10 +288,15 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     InYoungGeneration(value, &generational_barrier, &shared_barrier);
 
     BIND(&generational_barrier);
-    CSA_DCHECK(this,
-               IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
+    if (!v8_flags.sticky_mark_bits) {
+      CSA_DCHECK(this,
+                 IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
+    }
     GenerationalBarrierSlow(slot, next, fp_mode);
 
+    // TODO(333906585): With sticky-mark bits and without the shared barrier
+    // support, we actually never jump here. Don't put it under the flag though,
+    // since the assert below has been useful.
     BIND(&shared_barrier);
     CSA_DCHECK(this, IsPageFlagSet(value, MemoryChunk::kInSharedHeap));
     SharedBarrierSlow(slot, next, fp_mode);
@@ -395,10 +369,20 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
                          Label* false_label) {
-    TNode<BoolT> object_is_young =
-        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
+    if (v8_flags.sticky_mark_bits) {
+      Label not_read_only(this);
 
-    Branch(object_is_young, true_label, false_label);
+      TNode<BoolT> is_read_only_page = IsPageFlagSet(
+          object, MemoryChunk::kIsInReadOnlyHeapOrMajorGCInProgressMask);
+      Branch(is_read_only_page, false_label, &not_read_only);
+
+      BIND(&not_read_only);
+      Branch(IsUnmarked(object), true_label, false_label);
+    } else {
+      TNode<BoolT> object_is_young =
+          IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
+      Branch(object_is_young, true_label, false_label);
+    }
   }
 
   void InSharedHeap(TNode<IntPtrT> object, Label* true_label,

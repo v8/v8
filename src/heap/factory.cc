@@ -1365,6 +1365,17 @@ Handle<Context> Factory::NewFunctionContext(
   return handle(context, isolate());
 }
 
+#if V8_SINGLE_GENERATION_BOOL
+#define DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate, object)
+#elif V8_ENABLE_STICKY_MARK_BITS_BOOL
+#define DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate, object)             \
+  DCHECK_IMPLIES(!isolate->heap()->incremental_marking()->IsMajorMarking(), \
+                 Heap::InYoungGeneration(object))
+#else
+#define DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate, object) \
+  DCHECK(Heap::InYoungGeneration(object))
+#endif
+
 Handle<Context> Factory::NewCatchContext(DirectHandle<Context> previous,
                                          DirectHandle<ScopeInfo> scope_info,
                                          DirectHandle<Object> thrown_object) {
@@ -1376,7 +1387,7 @@ Handle<Context> Factory::NewCatchContext(DirectHandle<Context> previous,
       isolate()->catch_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  DCHECK_IMPLIES(!v8_flags.single_generation, Heap::InYoungGeneration(context));
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object,
@@ -1398,7 +1409,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(
                          Context::SizeFor(variadic_part_length),
                          variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  DCHECK_IMPLIES(!v8_flags.single_generation, Heap::InYoungGeneration(context));
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
   context->set_extension(*ext, SKIP_WRITE_BARRIER);
@@ -1418,7 +1429,7 @@ Handle<Context> Factory::NewWithContext(DirectHandle<Context> previous,
       isolate()->with_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  DCHECK_IMPLIES(!v8_flags.single_generation, Heap::InYoungGeneration(context));
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
   context->set_extension(*extension, SKIP_WRITE_BARRIER);
@@ -1434,7 +1445,7 @@ Handle<Context> Factory::NewBlockContext(DirectHandle<Context> previous,
       isolate()->block_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  DCHECK_IMPLIES(!v8_flags.single_generation, Heap::InYoungGeneration(context));
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
   return handle(context, isolate());
@@ -1447,7 +1458,7 @@ Handle<Context> Factory::NewBuiltinContext(
       isolate()->function_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  DCHECK_IMPLIES(!v8_flags.single_generation, Heap::InYoungGeneration(context));
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(read_only_roots().empty_scope_info(),
                           SKIP_WRITE_BARRIER);
   context->set_previous(*native_context, SKIP_WRITE_BARRIER);
@@ -2335,7 +2346,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
           adjusted_object_size, AllocationType::kYoung);
 
-  DCHECK(Heap::InYoungGeneration(raw_clone) || v8_flags.single_generation);
+  DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), raw_clone);
 
   Heap::CopyBlock(raw_clone.address(), source->address(), object_size);
   Handle<JSObject> clone(JSObject::cast(raw_clone), isolate());

@@ -292,6 +292,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   bool TryExpand(LocalHeap* local_heap, AllocationOrigin origin);
 
   void RefineAllocatedBytesAfterSweeping(PageMetadata* page);
+  virtual void AdjustDifferenceInAllocatedBytes(size_t diff) {}
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -428,7 +429,7 @@ class CompactionSpaceCollection : public Malloced {
 // -----------------------------------------------------------------------------
 // Old generation regular object space.
 
-class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
+class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -445,6 +446,50 @@ class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
+};
+
+// -----------------------------------------------------------------------------
+// StickySpace is a paged space that contain mixed young and old objects. Note
+// that its identity type is OLD_SPACE.
+
+class V8_EXPORT_PRIVATE StickySpace final : public OldSpace {
+ public:
+  using OldSpace::OldSpace;
+
+  static StickySpace* From(OldSpace* space) {
+    DCHECK(v8_flags.sticky_mark_bits);
+    return static_cast<StickySpace*>(space);
+  }
+
+  size_t young_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return Size() - allocated_old_size_;
+  }
+
+  size_t old_objects_size() const {
+    DCHECK_GE(Size(), allocated_old_size_);
+    return allocated_old_size_;
+  }
+
+  void set_old_objects_size(size_t allocated_old_size) {
+    allocated_old_size_ = allocated_old_size;
+  }
+
+  void NotifyBlackAreaCreated(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ += size;
+  }
+
+  void NotifyBlackAreaDestroyed(size_t size) override {
+    DCHECK_LE(size, Capacity());
+    allocated_old_size_ -= size;
+  }
+
+ private:
+  void AdjustDifferenceInAllocatedBytes(size_t) override;
+
+  // TODO(333906585): Consider tracking the young bytes instead.
+  size_t allocated_old_size_ = 0;
 };
 
 // -----------------------------------------------------------------------------

@@ -290,7 +290,11 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // that have a progress bar and are scanned in increments.
   class ProgressBar progress_bar_;
 
-  // Count of bytes marked black on page.
+  // Count of bytes marked black on page. With sticky mark-bits, the counter
+  // represents the size of the old objects allocated on the page. This is
+  // handy, since this counter is then used when starting sweeping to set the
+  // approximate allocated size on the space (before it gets refined due to
+  // right/left-trimming or slack tracking).
   std::atomic<intptr_t> live_byte_count_{0};
 
   base::Mutex* mutex_;

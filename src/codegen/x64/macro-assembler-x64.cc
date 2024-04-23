@@ -876,6 +876,9 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     JumpIfSmi(value, &done);
   }
 
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  // TODO(333906585): Implement sticky barrier.
+#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
   CheckPageFlag(value,
                 value,  // Used as scratch.
                 MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
@@ -885,6 +888,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                 value,  // Used as scratch.
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
                 Label::kNear);
+#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
 
   if (slot.contains_direct_pointer()) {
     CallRecordWriteStub(object, slot_address, fp_mode,

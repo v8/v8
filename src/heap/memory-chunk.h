@@ -9,6 +9,12 @@
 #include "src/base/functional.h"
 #include "src/flags/flags.h"
 
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+#define UNREACHABLE_WITH_STICKY_MARK_BITS() UNREACHABLE()
+#else
+#define UNREACHABLE_WITH_STICKY_MARK_BITS()
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -102,6 +108,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // enabled, the trusted space is located outside of the sandbox and so its
     // content cannot be corrupted by an attacker.
     IS_TRUSTED = 1u << 19,
+
+    // Used in young generation checks. When sticky mark-bits are enabled and
+    // major GC in progress, treat all objects as old.
+    IS_MAJOR_GC_IN_PROGRESS = 1u << 20,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -115,6 +125,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       EVACUATION_CANDIDATE;
   static constexpr MainThreadFlags kIsInYoungGenerationMask =
       MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
+  static constexpr MainThreadFlags kIsInReadOnlyHeapMask = READ_ONLY_HEAP;
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
   static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
   static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
@@ -127,6 +138,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
       MainThreadFlags(POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(INCREMENTAL_MARKING);
+
+  static constexpr MainThreadFlags kIsInReadOnlyHeapOrMajorGCInProgressMask =
+      kIsInReadOnlyHeapMask | IS_MAJOR_GC_IN_PROGRESS;
 
   MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
 
@@ -165,6 +179,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
   V8_INLINE bool InYoungGeneration() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
     if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
     constexpr uintptr_t kYoungGenerationMask = FROM_PAGE | TO_PAGE;
     return GetFlags() & kYoungGenerationMask;
@@ -210,6 +225,12 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE void ClearFlagsNonExecutable(MainThreadFlags flags) {
     return ClearFlagsUnlocked(flags);
   }
+  V8_INLINE void SetMajorGCInProgress() {
+    SetFlagUnlocked(IS_MAJOR_GC_IN_PROGRESS);
+  }
+  V8_INLINE void ResetMajorGCInProgress() {
+    ClearFlagUnlocked(IS_MAJOR_GC_IN_PROGRESS);
+  }
 
   V8_INLINE Heap* GetHeap();
 
@@ -250,14 +271,23 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
-  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
-  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
+  bool IsFromPage() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
+    return IsFlagSet(FROM_PAGE);
+  }
+  bool IsToPage() const {
+    UNREACHABLE_WITH_STICKY_MARK_BITS();
+    return IsFlagSet(TO_PAGE);
+  }
   bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
   bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
   bool InNewLargeObjectSpace() const {
     return InYoungGeneration() && IsLargePage();
   }
   bool IsPinned() const { return IsFlagSet(PINNED); }
+  bool IsReadOnlyOrMajorMarkingOn() const {
+    return InReadOnlySpace() || IsFlagSet(IS_MAJOR_GC_IN_PROGRESS);
+  }
 
   V8_INLINE static constexpr bool IsAligned(Address address) {
     return (address & kAlignmentMask) == 0;
@@ -398,5 +428,7 @@ struct hash<i::MemoryChunk*> {
 }  // namespace base
 
 }  // namespace v8
+
+#undef UNREACHABLE_WITH_STICKY_MARK_BITS
 
 #endif  // V8_HEAP_MEMORY_CHUNK_H_

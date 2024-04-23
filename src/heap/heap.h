@@ -127,6 +127,7 @@ class SharedLargeObjectSpace;
 class SharedReadOnlySpace;
 class SharedSpace;
 class Space;
+class StickySpace;
 class StressScavengeObserver;
 class TimedHistogram;
 class TrustedLargeObjectSpace;
@@ -762,6 +763,7 @@ class Heap final {
   inline PagedNewSpace* paged_new_space() const;
   inline SemiSpaceNewSpace* semi_space_new_space() const;
   OldSpace* old_space() const { return old_space_; }
+  inline StickySpace* sticky_space() const;
   CodeSpace* code_space() const { return code_space_; }
   SharedSpace* shared_space() const { return shared_space_; }
   OldLargeObjectSpace* lo_space() const { return lo_space_; }
@@ -1601,6 +1603,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void MakeHeapIterable();
 
   V8_EXPORT_PRIVATE void Unmark();
+  V8_EXPORT_PRIVATE void DeactivateMajorGCInProgressFlag();
 
   // Free all LABs in the heap.
   V8_EXPORT_PRIVATE void FreeLinearAllocationAreas();

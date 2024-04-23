@@ -190,13 +190,13 @@ PagedSpace* Heap::paged_space(int idx) const {
 Space* Heap::space(int idx) const { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_
+  return new_space_ || v8_flags.sticky_mark_bits
              ? isolate()->isolate_data()->new_allocation_info_.top_address()
              : nullptr;
 }
 
 Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_
+  return new_space_ || v8_flags.sticky_mark_bits
              ? isolate()->isolate_data()->new_allocation_info_.limit_address()
              : nullptr;
 }
@@ -268,12 +268,15 @@ void Heap::FinalizeExternalString(Tagged<String> string) {
 }
 
 Address Heap::NewSpaceTop() {
-  return new_space_ ? allocator()->new_space_allocator()->top() : kNullAddress;
+  return new_space_ || v8_flags.sticky_mark_bits
+             ? allocator()->new_space_allocator()->top()
+             : kNullAddress;
 }
 
 Address Heap::NewSpaceLimit() {
-  return new_space_ ? allocator()->new_space_allocator()->limit()
-                    : kNullAddress;
+  return new_space_ || v8_flags.sticky_mark_bits
+             ? allocator()->new_space_allocator()->limit()
+             : kNullAddress;
 }
 
 bool Heap::InYoungGeneration(Tagged<Object> object) {
@@ -290,6 +293,12 @@ bool Heap::InYoungGeneration(Tagged<MaybeObject> object) {
 // static
 bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
+  if (v8_flags.sticky_mark_bits) {
+    return !MemoryChunk::FromHeapObject(heap_object)
+                ->IsReadOnlyOrMajorMarkingOn() &&
+           !MarkBit::From(heap_object.address())
+                .template Get<AccessMode::ATOMIC>();
+  }
   bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
 #ifdef DEBUG
   // If in the young generation, then check we're either not in the middle of
@@ -343,7 +352,8 @@ bool Heap::InOldSpace(Tagged<Object> object) {
     return object.IsHeapObject() &&
            third_party_heap::Heap::InOldSpace(object.ptr());
   }
-  return old_space_->Contains(object);
+  return old_space_->Contains(object) &&
+         (!v8_flags.sticky_mark_bits || !Heap::InYoungGeneration(object));
 }
 
 // static
@@ -546,6 +556,11 @@ PagedNewSpace* Heap::paged_new_space() const {
 
 SemiSpaceNewSpace* Heap::semi_space_new_space() const {
   return SemiSpaceNewSpace::From(new_space());
+}
+
+StickySpace* Heap::sticky_space() const {
+  DCHECK(v8_flags.sticky_mark_bits);
+  return StickySpace::From(old_space());
 }
 
 IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {

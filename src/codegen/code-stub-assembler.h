@@ -4752,6 +4752,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TNode<Int32T> num_args,
                                    TNode<FixedArray> args);
 
+  TNode<BoolT> IsMarked(TNode<Object> object);
+
+  void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
+                  TNode<IntPtrT>* mask);
+
  private:
   friend class CodeStubArguments;
 

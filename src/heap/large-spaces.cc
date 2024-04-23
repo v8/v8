@@ -132,7 +132,8 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
   if (local_heap->is_main_thread() && identity() != SHARED_LO_SPACE) {
     UpdatePendingObject(object);
   }
-  if (heap()->incremental_marking()->black_allocation()) {
+  if (v8_flags.sticky_mark_bits ||
+      heap()->incremental_marking()->black_allocation()) {
     heap()->marking_state()->TryMarkAndAccountLiveBytes(object, object_size);
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
