@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//lib/lib.star", "CQ_MODE")
+
 luci.cq(
     submit_max_burst = 1,
     submit_burst_delay = 60 * time.second,
@@ -36,6 +38,20 @@ luci.cq_group(
             "refs/heads/main",
         ],
     ),
+    additional_modes = [
+        cq.run_mode(
+            name = CQ_MODE.MEGA_CQ_DRY_RUN_NAME,
+            cq_label_value = 1,
+            triggering_label = "Mega-CQ",
+            triggering_value = 1,
+        ),
+        cq.run_mode(
+            name = CQ_MODE.MEGA_CQ_FULL_RUN_NAME,
+            cq_label_value = 2,
+            triggering_label = "Mega-CQ",
+            triggering_value = 1,
+        ),
+    ],
     tree_status_host = "v8-status.appspot.com",
     retry_config = cq.retry_config(
         single_quota = 2,
@@ -67,6 +83,7 @@ luci.cq_group(
                 cq.location_filter(path_regexp = "src/common/message-template\\.h"),
                 cq.location_filter(path_regexp = "test/inspector/.+"),
             ],
+            mode_allowlist = [CQ_MODE.MEGA_CQ_DRY_RUN_NAME, CQ_MODE.MEGA_CQ_FULL_RUN_NAME],
         ),
         luci.cq_tryjob_verifier(
             "node-ci:try/node_ci_linux64_rel",

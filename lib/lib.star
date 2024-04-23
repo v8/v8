@@ -121,6 +121,11 @@ CQ = struct(
     on_files = cq_on_files,
 )
 
+CQ_MODE = struct(
+    MEGA_CQ_DRY_RUN_NAME = "CQ_MODE_MEGA_DRY_RUN",
+    MEGA_CQ_FULL_RUN_NAME = "CQ_MODE_MEGA_FULL_RUN",
+)
+
 BARRIER = struct(
     LKGR_TREE_CLOSER = struct(
         closes_tree = True,
