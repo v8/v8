@@ -1424,6 +1424,10 @@ class WasmModuleBuilder {
         return wasmF64Const(0.0);
       case kWasmS128:
         return [kSimdPrefix, kExprS128Const, ...(new Array(16).fill(0))];
+      case kWasmStringViewIter:
+      case kWasmStringViewWtf8:
+      case kWasmStringViewWtf16:
+        throw new Error("String views are non-defaultable");
       default:
         if ((typeof type) != 'number' && type.opcode != kWasmRefNull) {
           throw new Error("Non-defaultable type");

@@ -339,7 +339,11 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, false).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {ValueType::RefNull(HeapType::from_code(code, false)), 1};
+      // String views are not nullable, so interpret the shorthand accordingly.
+      ValueType type = code == kStringRefCode
+                           ? kWasmStringRef
+                           : ValueType::Ref(HeapType::from_code(code, false));
+      return {type, 1};
     }
     case kI32Code:
       return {kWasmI32, 1};
@@ -354,6 +358,12 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
       Nullability nullability = code == kRefNullCode ? kNullable : kNonNullable;
       auto [heap_type, length] =
           read_heap_type<ValidationTag>(decoder, pc + 1, enabled);
+      if (!VALIDATE(!heap_type.is_string_view() ||
+                    nullability == kNonNullable)) {
+        DecodeError<ValidationTag>(decoder, pc,
+                                   "nullable string views don't exist");
+        return {kWasmBottom, 0};
+      }
       ValueType type = heap_type.is_bottom()
                            ? kWasmBottom
                            : ValueType::RefMaybeNull(heap_type, nullability);
@@ -3729,6 +3739,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->Add(kFeature_reftypes);
     HeapTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    if (!VALIDATE(!this->enabled_.has_stringref() ||
+                  !imm.type.is_string_view())) {
+      this->DecodeError(this->pc_ + 1, "cannot create null string view");
+      return 0;
+    }
     ValueType type = ValueType::RefNull(imm.type);
     Value* value = Push(type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefNull, type, value);
@@ -4669,19 +4684,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
              expected_type.representation() == HeapType::kNoExtern ||
              expected_type.representation() == HeapType::kNoExn));
   }
-  bool TypeCheckAlwaysFails(Value obj, uint32_t ref_index) {
-    // All old casts / checks treat null as failure.
-    const bool kNullSucceeds = false;
-    return TypeCheckAlwaysFails(obj, HeapType(ref_index), kNullSucceeds);
-  }
 
   // Checks if {obj} is a subtype of type, thus checking will always
   // succeed.
   bool TypeCheckAlwaysSucceeds(Value obj, HeapType type) {
     return IsSubtypeOf(obj.type, ValueType::RefNull(type), this->module_);
-  }
-  bool TypeCheckAlwaysSucceeds(Value obj, uint32_t ref_index) {
-    return TypeCheckAlwaysSucceeds(obj, HeapType(ref_index));
   }
 
 #define NON_CONST_ONLY                                                    \

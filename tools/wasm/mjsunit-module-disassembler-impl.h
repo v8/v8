@@ -722,6 +722,8 @@ class MjsunitImmediatesPrinter {
       out_ << " kWasmVoid,";
     } else {
       out_ << " ";
+      // TODO(jkummerow): This is not correct, it should prefer the one-byte
+      // "Code" versions (e.g. kNullRefCode instead of kWasmNullRef).
       names()->PrintValueType(out_, imm.sig.GetReturn());
       out_ << ",";
     }
@@ -1054,6 +1056,8 @@ class MjsunitModuleDis {
 
     // Types.
     // TODO(14616): Support shared types.
+    // TODO(jkummerow): Support self-referential types, i.e. structs/sigs
+    // that contain a (ref $self).
     uint32_t recgroup_index = 0;
     OffsetsProvider::RecGroup recgroup = offsets_.recgroup(recgroup_index++);
     bool in_explicit_recgroup = false;
