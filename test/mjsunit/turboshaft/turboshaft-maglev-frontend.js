@@ -1083,6 +1083,7 @@ assertOptimized(simple_loop);
 // Testing construct (= new).
 {
   function A() { this.x = 42; return 42; }
+  %NeverOptimizeFunction(A);
 
   function create(c) {
     let x = { "a" : 42, c }; // Creating an object before the Construct call so
@@ -1122,6 +1123,7 @@ assertOptimized(simple_loop);
     }
     this.x = "abc";
   }
+  %NeverOptimizeFunction(A);
 
   function create_deopt(c) {
     let x = { "a" : 42, c }; // Creating an object before the Construct call so
