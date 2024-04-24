@@ -139,7 +139,10 @@ void InliningTree::Inline() {
 
 struct TreeNodeOrdering {
   bool operator()(InliningTree* t1, InliningTree* t2) {
-    return t1->score() < t2->score();
+    // Prefer callees with a higher score, and if the scores are equal,
+    // those with a lower function index (to make the queue ordering strict).
+    return std::make_pair(t1->score(), t2->function_index()) <
+           std::make_pair(t2->score(), t1->function_index());
   }
 };
 

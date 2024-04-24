@@ -105,7 +105,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "nooptimization": [
         "--turbofan", "--always-turbofan", "--turboshaft",
         "--turboshaft-future", "--maglev", "--no-liftoff", "--wasm-tier-up",
-        "--validate-asm", "--track-field-types", "--stress-concurrent-inlining"
+        "--wasm-dynamic-tiering", "--validate-asm", "--track-field-types",
+        "--stress-concurrent-inlining"
     ],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [
