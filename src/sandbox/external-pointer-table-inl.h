@@ -170,8 +170,8 @@ Address ExternalPointerTable::Get(ExternalPointerHandle handle,
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
-  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
+  FreeManagedResourceIfPresent(index);
   at(index).SetExternalPointer(value, tag);
 }
 
@@ -208,7 +208,7 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
 
   // If we allocated the entry for a managed resource, we need to also
   // initialize that resource's back reference to the table entry.
-  if (IsManagedExternalPointerType(tag)) {
+  if (IsManagedExternalPointerType(tag) && initial_value != kNullAddress) {
     ManagedResource* resource =
         reinterpret_cast<ManagedResource*>(initial_value);
     DCHECK_EQ(resource->ept_entry_, kNullExternalPointerHandle);
@@ -312,6 +312,18 @@ void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
     owning_table_->Zap(ept_entry_);
   }
   ept_entry_ = kNullExternalPointerHandle;
+}
+
+void ExternalPointerTable::FreeManagedResourceIfPresent(uint32_t entry_index) {
+  // In the future, this would be where we actually delete the external
+  // resource. Currently, the deletion still happens elsewhere, and so here we
+  // instead set the resource's handle to the null handle so that the resource
+  // does not attempt to zap its entry when it is eventually destroyed.
+  if (Address addr = at(entry_index).ExtractManagedResourceOrNull()) {
+    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
+    DCHECK_EQ(resource->ept_entry_, IndexToHandle(entry_index));
+    resource->ept_entry_ = kNullExternalPointerHandle;
+  }
 }
 
 }  // namespace internal

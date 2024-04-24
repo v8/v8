@@ -86,16 +86,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     current_freelist_head = entry_index;
     current_freelist_length++;
   };
-  auto CheckAndHandleFreedManagedResourceEntry = [&](uint32_t entry_index) {
-    // When freeing the entry of a managed resource, set its handle to the
-    // null handle so that the resource does not attempt to zap its entry
-    // when it is destroyed.
-    if (Address addr = at(entry_index).ExtractManagedResourceOrNull()) {
-      ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
-      DCHECK_EQ(resource->ept_entry_, IndexToHandle(entry_index));
-      resource->ept_entry_ = kNullExternalPointerHandle;
-    }
-  };
 
   std::vector<Segment> segments_to_deallocate;
   for (auto segment : base::Reversed(space->segments_)) {
@@ -155,7 +145,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
         DCHECK(at(i).GetRawPayload().ContainsExternalPointer());
         DCHECK(!at(i).GetRawPayload().HasMarkBitSet());
       } else if (!payload.HasMarkBitSet()) {
-        CheckAndHandleFreedManagedResourceEntry(i);
+        FreeManagedResourceIfPresent(i);
         AddToFreelist(i);
       } else {
         auto new_payload = payload;

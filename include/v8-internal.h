@@ -518,8 +518,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   /* External resources whose lifetime is tied to */     \
   /* their entry in the external pointer table but */    \
   /* which are not referenced via a Managed */           \
-  V(kLastManagedResourceTag,                    TAG(56)) \
-  V(kArrayBufferExtensionTag,                   TAG(57))
+  V(kArrayBufferExtensionTag,                   TAG(57)) \
+  V(kLastManagedResourceTag,                    TAG(57)) \
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \
