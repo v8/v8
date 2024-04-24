@@ -135,6 +135,18 @@ assertOptimized(math_float);
   assertEquals(false, cmp_float64(3, 20.25, 10.25));
   assertEquals(true, cmp_float64(3, 15.25, 15.25));
   assertOptimized(cmp_float64);
+
+  // Number equality should deopt when passed an Oddball (because undefined's
+  // value is NaN, which leads to undefined != undefined without the deopt).
+  function equal_num(a, b) { return a == b; }
+
+  %PrepareFunctionForOptimization(equal_num);
+  assertEquals(true, equal_num(.5, .5));
+  %OptimizeFunctionOnNextCall(equal_num);
+  assertEquals(true, equal_num(.5, .5));
+  assertOptimized(equal_num);
+  assertEquals(true, equal_num(undefined, undefined));
+  assertUnoptimized(equal_num);
 }
 
 function bitwise_smi(a, b) {

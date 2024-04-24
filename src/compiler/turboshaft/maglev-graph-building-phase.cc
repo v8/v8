@@ -1642,18 +1642,30 @@ class GraphBuilder {
 
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ ConvertJSPrimitiveToUntaggedOrDeopt(
-               Map(node->input()), BuildFrameState(node->eager_deopt_info()),
-               ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-                   kNumberOrOddball,
-               ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
-               CheckForMinusZeroMode::kCheckForMinusZero,
-               node->eager_deopt_info()->feedback_to_update()));
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
+    switch (node->conversion_type()) {
+      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+        break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+            kNumberOrOddball;
+        break;
+    }
+    SetMap(
+        node,
+        __ ConvertJSPrimitiveToUntaggedOrDeopt(
+            Map(node->input()), BuildFrameState(node->eager_deopt_info()), kind,
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
+            CheckForMinusZeroMode::kCheckForMinusZero,
+            node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UncheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
+    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
+    // and Oddballs, the Float64 value is at the same index (and this node never
+    // deopts, regardless of its input).
     SetMap(node, __ ConvertJSPrimitiveToUntagged(
                      Map(node->input()),
                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
