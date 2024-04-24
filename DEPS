@@ -696,6 +696,7 @@ hooks = [
       'python3',
       'tools/builtins-pgo/download_profiles.py',
       'download',
+      '--quiet',
     ],
   },
   {
