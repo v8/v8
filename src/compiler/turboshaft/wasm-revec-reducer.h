@@ -521,8 +521,11 @@ class WasmRevecReducer : public Next {
                                   .TryCast<LoadOp>();
         DCHECK_EQ(start->base(), load.base());
 
-        auto base = __ MapToNewGraph(start->base());
-        auto index = __ MapToNewGraph(start->index());
+        auto base = __ MapToNewGraph(load.base());
+        // We need to use load's index here due to there would be different
+        // ChangeOps from the same index. If start is not load, it's possible
+        // that the ChangeOp of start index is not visited yet.
+        auto index = __ MapToNewGraph(load.index());
         og_index = __ Load(base, index, load.kind,
                            MemoryRepresentation::Simd256(), start->offset);
         pnode->SetRevectorizedNode(og_index);
@@ -547,8 +550,11 @@ class WasmRevecReducer : public Next {
                 .TryCast<StoreOp>();
         DCHECK_EQ(start->base(), store.base());
 
-        auto base = __ MapToNewGraph(start->base());
-        auto index = __ MapToNewGraph(start->index());
+        auto base = __ MapToNewGraph(store.base());
+        // We need to use store's index here due to there would be different
+        // ChangeOps from the same index. If start is not store, it's possible
+        // that the ChangeOp of start index is not visited yet.
+        auto index = __ MapToNewGraph(store.index());
         OpIndex value = analyzer_.GetReduced(start->value());
         DCHECK(value.valid());
 
