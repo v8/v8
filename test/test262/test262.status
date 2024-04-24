@@ -2362,9 +2362,6 @@
 
 ['system == android', {
   # Android Arm64 failures
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9845
-  'intl402/DateTimeFormat/prototype/formatToParts/related-year': [FAIL],
-
   # https://crbug.com/42204676
   'intl402/Temporal/Instant/prototype/toLocaleString/dateStyle': [FAIL],
   'intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle': [FAIL],
