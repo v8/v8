@@ -3696,15 +3696,13 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
 
 #undef EMIT_QFMOP
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
-                                             MemOperand oob_offset) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Lsr(scratch.X(), index.X(), oob_shift);
-
-  Register scratch2 = temps.AcquireX();
-  ldr(scratch2, oob_offset);
-  Csel(scratch.X(), scratch2, index.X(), ne);
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
+                                             uint64_t oob_index) {
+  Label done;
+  Cmp(index, oob_size);
+  B(&done, kUnsignedLessThan);
+  Mov(index, oob_index);
+  bind(&done);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

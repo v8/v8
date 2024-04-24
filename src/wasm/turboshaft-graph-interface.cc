@@ -6293,16 +6293,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64) {
-        V<Word32> cond = __ Word64Equal(
-            __ Word64ShiftRightLogical(V<Word64>::Cast(converted_index),
-                                       memory->GetMemory64GuardsShift()),
-            0);
-        V<WordPtr> vtrue = converted_index;
-        V<WordPtr> vfalse =
-            __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                    MemoryRepresentation::UintPtr(),
-                    IsolateData::wasm64_oob_offset_offset());
-        converted_index = __ WordPtrSelect(cond, vtrue, vfalse);
+        Label<WordPtr> no_oom(&asm_);
+        V<Word32> cond = __ UintPtrLessThan(
+            converted_index,
+            __ UintPtrConstant(memory->GetMemory64GuardsSize()));
+        GOTO_IF(LIKELY(cond), no_oom, converted_index);
+
+        // This will cause a memory access at memory[max_memory_size + offset],
+        // which is guaranteeed to cause an access to hit the memory guard
+        // region because we checked that offset < max_memory_size.
+        converted_index = __ UintPtrConstant(memory->max_memory_size);
+        GOTO(no_oom, converted_index);
+
+        BIND(no_oom, modified_index);
+        return {modified_index, compiler::BoundsCheckResult::kTrapHandler};
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }

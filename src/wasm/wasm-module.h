@@ -137,6 +137,9 @@ struct WasmMemory {
     return GetMemory64GuardsShift(maximum_pages * kWasmPageSize);
   }
   static int GetMemory64GuardsShift(uint64_t max_memory_size);
+  inline uint64_t GetMemory64GuardsSize() const {
+    return 1ull << GetMemory64GuardsShift();
+  }
 };
 
 inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {

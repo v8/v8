@@ -4640,8 +4640,8 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
             liftoff::kScratchDoubleReg);
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
-                                             MemOperand oob_offset) {
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
+                                             uint64_t oob_index) {
   UNREACHABLE();
 }
 

@@ -851,17 +851,8 @@ class Internals {
 #endif  // V8_COMPRESS_POINTERS
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
-
-// #if V8_HOST_ARCH_64_BIT
-  static const int kWasm64OOBOffsetAlignmentPaddingSize = 0;
-// #else
-//   static const int kWasm64OOBOffsetAlignmentPaddingSize = 4;
-// #endif  // V8_HOST_ARCH_64_BIT
-  static const int kWasm64OOBOffsetOffset =
-      kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize +
-      kWasm64OOBOffsetAlignmentPaddingSize;
   static const int kIsolateRootsOffset =
-      kWasm64OOBOffsetOffset + sizeof(int64_t);
+      kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
 #if V8_STATIC_ROOTS_BOOL
 

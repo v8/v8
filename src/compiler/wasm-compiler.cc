@@ -3664,15 +3664,18 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   if (bounds_checks == wasm::kTrapHandler &&
       enforce_check == EnforceBoundsCheck::kCanOmitBoundsCheck) {
     if (memory->is_memory64) {
-      Node* true_node =
-          gasm_->LoadImmutable(MachineType::Uint64(), BuildLoadIsolateRoot(),
-                               IsolateData::wasm64_oob_offset_offset());
-      Node* cond = gasm_->Word64Shr(
-          converted_index, Int64Constant(memory->GetMemory64GuardsShift()));
-      Node* modified_index =
-          mcgraph()->graph()->NewNode(mcgraph()->machine()->Word64Select().op(),
-                                      cond, true_node, converted_index);
-      return {modified_index, BoundsCheckResult::kTrapHandler};
+      auto done = gasm_->MakeLabel(MachineRepresentation::kWord64);
+      Node* cond = gasm_->Uint64LessThan(
+          converted_index, Int64Constant(memory->GetMemory64GuardsSize()));
+      gasm_->GotoIf(cond, &done, BranchHint::kTrue, converted_index);
+
+      // This will cause a memory access at memory[max_memory_size + offset],
+      // which is guaranteeed to cause an access to hit the memory guard region
+      // because we checked that offset < max_memory_size.
+      gasm_->Goto(&done, Int64Constant(memory->max_memory_size));
+
+      gasm_->Bind(&done);
+      return {done.PhiAt(0), BoundsCheckResult::kTrapHandler};
     } else {
       return {converted_index, BoundsCheckResult::kTrapHandler};
     }

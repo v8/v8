@@ -4009,9 +4009,6 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(OFFSET_OF(
                Isolate, isolate_data_.continuation_preserved_embedder_data_)),
            Internals::kContinuationPreservedEmbedderDataOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.wasm64_oob_offset_)),
-      Internals::kWasm64OOBOffsetOffset);
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);

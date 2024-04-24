@@ -3349,9 +3349,8 @@ class LiftoffCompiler {
         // If index is outside the guards pages, sets index to a value that will
         // certainly cause (memory_start + offset + index) to be not accessible,
         // to make sure that the OOB access will be caught by the trap handler.
-        __ set_trap_on_oob_mem64(
-            index_ptrsize, memory->GetMemory64GuardsShift(),
-            MemOperand(kRootRegister, IsolateData::wasm64_oob_offset_offset()));
+        __ set_trap_on_oob_mem64(index_ptrsize, memory->GetMemory64GuardsSize(),
+                                 memory->max_memory_size);
       }
 
       // With trap handlers we should not have a register pair as input (we

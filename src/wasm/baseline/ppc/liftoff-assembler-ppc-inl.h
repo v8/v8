@@ -2605,8 +2605,8 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                          kScratchSimd128Reg);
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, int oob_shift,
-                                             MemOperand oob_offset) {
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
+                                             uint64_t oob_index) {
   UNREACHABLE();
 }
 
