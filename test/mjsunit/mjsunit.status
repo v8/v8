@@ -287,9 +287,8 @@
 
 ################################################################################
 ['not memory_corruption_api', {
-  # Sandbox regression tests are only expected to run with the memory
-  # corruption API enabled.
-  'regress/sandbox/*': [SKIP],
+  # Sandbox tests require the memory corruption API.
+  'sandbox/*': [SKIP],
 }],
 
 ##############################################################################
