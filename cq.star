@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//lib/lib.star", "CQ_MODE")
+
 luci.cq(
     submit_max_burst = 1,
     submit_burst_delay = 60 * time.second,
@@ -90,4 +92,45 @@ luci.cq_group(
         transient_failure_weight = 1,
         timeout_weight = 4,
     ),
+)
+
+luci.cq_group(
+    name = "v8-branch-mega-cq",
+    watch = cq.refset(
+        repo = "https://chromium.googlesource.com/v8/v8",
+        refs = [
+            "refs/branch-heads/.+",
+        ],
+    ),
+    additional_modes = [
+        cq.run_mode(
+            name = CQ_MODE.MEGA_CQ_DRY_RUN_NAME,
+            cq_label_value = 1,
+            triggering_label = "Mega-CQ",
+            triggering_value = 1,
+        ),
+        cq.run_mode(
+            name = CQ_MODE.MEGA_CQ_FULL_RUN_NAME,
+            cq_label_value = 2,
+            triggering_label = "Mega-CQ",
+            triggering_value = 1,
+        ),
+    ],
+    retry_config = cq.retry_config(
+        single_quota = 2,
+        global_quota = 4,
+        failure_weight = 2,
+        transient_failure_weight = 1,
+        timeout_weight = 4,
+    ),
+    verifiers = [
+        luci.cq_tryjob_verifier(
+            "v8:try/v8_linux_noi18n_compile_dbg",
+            mode_allowlist = [CQ_MODE.MEGA_CQ_DRY_RUN_NAME, CQ_MODE.MEGA_CQ_FULL_RUN_NAME],
+        ),
+        luci.cq_tryjob_verifier(
+            "v8:try/v8_linux_noi18n_rel",
+            mode_allowlist = [CQ_MODE.MEGA_CQ_DRY_RUN_NAME, CQ_MODE.MEGA_CQ_FULL_RUN_NAME],
+        ),
+    ],
 )
