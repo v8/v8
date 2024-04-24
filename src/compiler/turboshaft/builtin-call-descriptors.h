@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/objects/js-function.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -452,6 +453,19 @@ struct BuiltinCallDescriptor {
       CreateFunctionContext<Builtin::kFastNewFunctionContextFunction>;
   using FastNewFunctionContextEval =
       CreateFunctionContext<Builtin::kFastNewFunctionContextEval>;
+
+  struct FastNewClosure : public Descriptor<FastNewClosure> {
+    static constexpr auto kFunction = Builtin::kFastNewClosure;
+    using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
+    using results_t = std::tuple<V<JSFunction>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kEliminatable | Operator::kNoThrow;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanWriteMemory().CanAllocate();
+  };
 
   struct Typeof : public Descriptor<Typeof> {
     static constexpr auto kFunction = Builtin::kTypeof;

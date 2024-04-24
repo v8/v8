@@ -515,6 +515,24 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::FastCreateClosure* node,
+                                const maglev::ProcessingState& state) {
+    DCHECK(!node->properties().can_throw());
+
+    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Context> context = Map(node->context());
+    V<SharedFunctionInfo> shared_function_info =
+        __ HeapConstant(node->shared_function_info().object());
+    V<FeedbackCell> feedback_cell =
+        __ HeapConstant(node->feedback_cell().object());
+
+    SetMap(node, __ CallBuiltin_FastNewClosure(
+                     isolate_->GetMainThreadIsolateUnsafe(), frame_state,
+                     context, shared_function_info, feedback_cell));
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Construct* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);

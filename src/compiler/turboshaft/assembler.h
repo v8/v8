@@ -3145,6 +3145,13 @@ class TurboshaftAssemblerOpInterface
         typename BuiltinCallDescriptor::FastNewFunctionContextEval>(
         isolate, frame_state, context, {scope_info, resolve(slot_count)});
   }
+  V<JSFunction> CallBuiltin_FastNewClosure(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<SharedFunctionInfo> shared_function_info,
+      V<FeedbackCell> feedback_cell) {
+    return CallBuiltin<typename BuiltinCallDescriptor::FastNewClosure>(
+        isolate, frame_state, context, {shared_function_info, feedback_cell});
+  }
   V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::Typeof>(isolate,
                                                                {object});
