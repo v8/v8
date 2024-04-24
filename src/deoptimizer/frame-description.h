@@ -56,7 +56,6 @@ class FrameDescription {
         top_(kZapUint32),
         pc_(kZapUint32),
         fp_(kZapUint32),
-        context_(kZapUint32),
         constant_pool_(kZapUint32),
         isolate_(isolate) {
     USE(isolate_);
@@ -156,9 +155,6 @@ class FrameDescription {
   intptr_t GetFp() const { return fp_; }
   void SetFp(intptr_t fp) { fp_ = fp; }
 
-  intptr_t GetContext() const { return context_; }
-  void SetContext(intptr_t context) { context_ = context; }
-
   intptr_t GetConstantPool() const { return constant_pool_; }
   void SetConstantPool(intptr_t constant_pool) {
     constant_pool_ = constant_pool;
@@ -203,7 +199,6 @@ class FrameDescription {
   intptr_t top_;
   intptr_t pc_;
   intptr_t fp_;
-  intptr_t context_;
   intptr_t constant_pool_;
 
   Isolate* isolate_;
