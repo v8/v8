@@ -38,15 +38,19 @@ void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
 
     for (auto it = phis.begin(); it != phis.end(); ++it) {
       Phi* phi = *it;
-      ProcessPhiResult res = ProcessPhi(phi);
-      if (res == ProcessPhiResult::kChanged) {
-        any_change = true;
-      } else if (ProcessPhiResult::kRetryOnChange) {
-        if (end_retry == first_retry) {
-          first_retry = it;
-        }
-        end_retry = it;
-        ++end_retry;
+      switch (ProcessPhi(phi)) {
+        case ProcessPhiResult::kNone:
+          break;
+        case ProcessPhiResult::kChanged:
+          any_change = true;
+          break;
+        case ProcessPhiResult::kRetryOnChange:
+          if (end_retry == first_retry) {
+            first_retry = it;
+          }
+          end_retry = it;
+          ++end_retry;
+          break;
       }
     }
     // Give it one more shot in case an earlier phi has a later one as input.
