@@ -2372,6 +2372,7 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   if (!i::WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     thrower.TypeError("Argument 0 must be a WebAssembly exported function");
+    return;
   }
   auto wasm_exported_function = i::WasmExportedFunction::cast(*callable);
   i::Handle<i::WasmExportedFunctionData> data(
