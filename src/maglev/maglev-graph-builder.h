@@ -1711,6 +1711,7 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeSetInt32)     \
   V(DataViewPrototypeGetFloat64)   \
   V(DataViewPrototypeSetFloat64)   \
+  V(FunctionPrototypeApply)        \
   V(FunctionPrototypeCall)         \
   V(FunctionPrototypeHasInstance)  \
   V(ObjectPrototypeGetProto)       \
@@ -1807,9 +1808,11 @@ class MaglevGraphBuilder {
       compiler::OptionalSharedFunctionInfoRef maybe_shared,
       compiler::OptionalJSObjectRef api_holder, CallArguments& args);
   ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
-      ValueNode* target_node, compiler::JSFunctionRef receiver,
-      CallArguments& args, const compiler::FeedbackSource& feedback_source,
-      SpeculationMode speculation_mode);
+      compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args);
+  ReduceResult ReduceCallWithArrayLikeForArgumentsObject(ValueNode* target_node,
+                                                         CallArguments& args);
+  ReduceResult ReduceCallWithArrayLike(ValueNode* target_node,
+                                       CallArguments& args);
   ReduceResult ReduceCall(
       ValueNode* target_node, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
@@ -2048,6 +2051,8 @@ class MaglevGraphBuilder {
   }
   void AddDeoptUse(const CapturedAllocation& alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
+
+  bool IsNonEscapingArgumentsObject(ValueNode* value);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);

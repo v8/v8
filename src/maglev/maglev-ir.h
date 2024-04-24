@@ -150,6 +150,7 @@ class MergePointInterpreterFrameState;
   V(Call)                                           \
   V(CallBuiltin)                                    \
   V(CallCPPBuiltin)                                 \
+  V(CallForwardVarargs)                             \
   V(CallRuntime)                                    \
   V(CallWithArrayLike)                              \
   V(CallWithSpread)                                 \
@@ -8083,6 +8084,58 @@ class CallCPPBuiltin : public ValueNodeT<CallCPPBuiltin> {
 
  private:
   Builtin builtin_;
+};
+
+class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
+  using Base = ValueNodeT<CallForwardVarargs>;
+
+ public:
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kContextIndex = 1;
+  static constexpr int kFixedInputCount = 2;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallForwardVarargs(uint64_t bitfield, ValueNode* function, ValueNode* context,
+                     int start_index, Call::TargetType target_type)
+      : Base(bitfield), start_index_(start_index), target_type_(target_type) {
+    set_input(kFunctionIndex, function);
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& function() { return input(kFunctionIndex); }
+  const Input& function() const { return input(kFunctionIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  auto args() {
+    return base::make_iterator_range(
+        std::make_reverse_iterator(&arg(-1)),
+        std::make_reverse_iterator(&arg(num_args() - 1)));
+  }
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing();
+#endif
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  int start_index_;
+  Call::TargetType target_type_;
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {

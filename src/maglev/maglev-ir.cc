@@ -852,6 +852,21 @@ void Call::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
+void CallForwardVarargs::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+#ifdef V8_COMPRESS_POINTERS
+void CallForwardVarargs::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+#endif
+
 void CallWithArrayLike::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
@@ -5225,6 +5240,34 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
     }
   }
 
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int CallForwardVarargs::MaxCallStackArgs() const { return num_args(); }
+void CallForwardVarargs::SetValueLocationConstraints() {
+  using D = CallTrampolineDescriptor;
+  UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+  UseAny(arg(0));
+  for (int i = 1; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void CallForwardVarargs::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  __ PushReverse(args());
+  switch (target_type_) {
+    case Call::TargetType::kJSFunction:
+      __ CallBuiltin<Builtin::kCallFunctionForwardVarargs>(
+          context(), function(), num_args(), start_index_);
+      break;
+    case Call::TargetType::kAny:
+      __ CallBuiltin<Builtin::kCallForwardVarargs>(context(), function(),
+                                                   num_args(), start_index_);
+      break;
+  }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
