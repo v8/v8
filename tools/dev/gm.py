@@ -155,8 +155,8 @@ V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
-BUILD_DISTRIBUTION_RE = re.compile(r"use_(remoteexec|goma) = (false|true)")
-RECLIENT_CFG_RE = re.compile(r"rbe_cfg_dir = \"[^\"]+\"\n")
+BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
+RECLIENT_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
 
 class Reclient(IntEnum):
   NONE = 0
@@ -247,7 +247,7 @@ def detect_goma():
 RECLIENT_MODE = detect_reclient()
 GOMADIR = detect_goma()
 
-# Let reclient have precendence over goma.
+# Let reclient have precedence over goma.
 IS_GOMA_MACHINE = not RECLIENT_MODE and GOMADIR is not None
 
 if platform.system() == "Linux":
@@ -257,17 +257,16 @@ else:
 
 BUILD_DISTRIBUTION_LINE = ""
 if RECLIENT_MODE:
-  BUILD_DISTRIBUTION_LINE = "use_remoteexec = true"
+  BUILD_DISTRIBUTION_LINE = "\nuse_remoteexec = true"
   if RECLIENT_MODE == Reclient.CUSTOM:
     BUILD_DISTRIBUTION_LINE += f"\nrbe_cfg_dir = \"{RECLIENT_CFG_REL}\""
 elif IS_GOMA_MACHINE:
-  BUILD_DISTRIBUTION_LINE = "use_goma = true"
+  BUILD_DISTRIBUTION_LINE = "\nuse_goma = true"
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
 is_debug = false
-%s
-{BUILD_DISTRIBUTION_LINE}
+%s{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
@@ -279,8 +278,7 @@ DEBUG_ARGS_TEMPLATE = f"""\
 is_component_build = true
 is_debug = true
 symbol_level = 2
-%s
-{BUILD_DISTRIBUTION_LINE}
+%s{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
@@ -291,8 +289,7 @@ OPTDEBUG_ARGS_TEMPLATE = f"""\
 is_component_build = true
 is_debug = true
 symbol_level = 1
-%s
-{BUILD_DISTRIBUTION_LINE}
+%s{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
@@ -434,7 +431,7 @@ class RawConfig:
     new_gn_args = BUILD_DISTRIBUTION_RE.sub(BUILD_DISTRIBUTION_LINE,
                                             new_gn_args)
     if gn_args != new_gn_args:
-      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
+      print(f"# Updated gn args:{BUILD_DISTRIBUTION_LINE}")
       _write(args_gn, new_gn_args, log=False)
 
   def build(self):
