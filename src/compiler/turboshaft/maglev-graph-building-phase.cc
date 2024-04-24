@@ -124,6 +124,14 @@ class GraphBuilder {
       new_target_param_ = __ Parameter(
           new_target_index, RegisterRepresentation::Tagged(), "%new.target");
     }
+
+    // Maglev nodes often don't have the NativeContext as input, but instead
+    // rely on the MaglevAssembler to provide it during code generation, unlike
+    // Turboshaft nodes, which need the NativeContext as an explicit input if
+    // they use it. We thus emit a single NativeContext constant here, which we
+    // reuse later to construct Turboshaft nodes.
+    native_context_ =
+        __ HeapConstant(broker_->target_native_context().object());
   }
 
   void PostProcessGraph(maglev::Graph* graph) {}
@@ -708,6 +716,23 @@ class GraphBuilder {
                     DeoptimizeReason::kHole,
                     node->eager_deopt_info()->feedback_to_update());
     SetMap(node, Map(node->object_input()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CheckConstTrackingLetCellTagged* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ CheckConstTrackingLetCellTagged(
+        Map(node->context_input()), Map(node->value_input()), node->index(),
+        frame_state, node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckConstTrackingLetCell* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ CheckConstTrackingLetCell(
+        Map(node->context_input()), node->index(), frame_state,
+        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -2298,10 +2323,7 @@ class GraphBuilder {
   }
 
   V<Context> native_context() {
-    if (!native_context_.valid()) {
-      native_context_ =
-          __ HeapConstant(broker_->target_native_context().object());
-    }
+    DCHECK(native_context_.valid());
     return native_context_;
   }
 

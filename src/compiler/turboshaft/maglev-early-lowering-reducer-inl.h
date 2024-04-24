@@ -127,6 +127,36 @@ class MaglevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  void CheckConstTrackingLetCellTagged(V<Context> context, V<Object> value,
+                                       int index, V<FrameState> frame_state,
+                                       const FeedbackSource& feedback) {
+    V<Object> old_value =
+        __ LoadTaggedField(context, Context::OffsetOfElementAt(index));
+    IF_NOT (__ TaggedEqual(old_value, value)) {
+      CheckConstTrackingLetCell(context, index, frame_state, feedback);
+    }
+  }
+
+  void CheckConstTrackingLetCell(V<Context> context, int index,
+                                 V<FrameState> frame_state,
+                                 const FeedbackSource& feedback) {
+    // Load the const tracking let side data.
+    V<Object> side_data = __ LoadTaggedField(
+        context, Context::OffsetOfElementAt(
+                     Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+    V<Object> index_data = __ LoadTaggedField(
+        side_data, FixedArray::OffsetOfElementAt(
+                       index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+    // If the field is already marked as "not a constant", storing a
+    // different value is fine. But if it's anything else (including the hole,
+    // which means no value was stored yet), deopt this code. The lower tier
+    // code will update the side data and invalidate DependentCode if needed.
+    V<Word32> is_const = __ TaggedEqual(
+        index_data, __ SmiConstant(ConstTrackingLetCell::kNonConstMarker));
+    __ DeoptimizeIfNot(is_const, frame_state,
+                       DeoptimizeReason::kConstTrackingLet, feedback);
+  }
+
  private:
   V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);

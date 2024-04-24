@@ -5980,6 +5980,8 @@ class CheckConstTrackingLetCell
 
   auto options() const { return std::tuple{index_}; }
 
+  int index() const { return index_; }
+
  private:
   int index_;
 };
@@ -6013,6 +6015,8 @@ class CheckConstTrackingLetCellTagged
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   auto options() const { return std::tuple{index_}; }
+
+  int index() const { return index_; }
 
  private:
   int index_;
