@@ -6804,7 +6804,16 @@ void AllocationBlock::PrintParams(std::ostream& os,
 
 void InlinedAllocation::PrintParams(std::ostream& os,
                                     MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << size() << ")";
+  switch (captured_allocation_.type) {
+    case CapturedAllocation::kHeapNumber:
+      os << "(HeapNumber)";
+      break;
+    case CapturedAllocation::kFixedDoubleArray:
+      os << "(FixedDoubleArray)";
+      break;
+    case CapturedAllocation::kObject:
+      os << "(" << *captured_allocation_.object.GetMap().object() << ")";
+  }
 }
 
 void Abort::PrintParams(std::ostream& os,
