@@ -949,6 +949,8 @@ class DescriptorArray;
 #ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandle;
+template <typename T>
+class DirectHandleVector;
 #endif
 class TransitionArray;
 class ExternalReference;

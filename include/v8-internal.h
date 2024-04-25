@@ -1226,7 +1226,7 @@ class V8_EXPORT StrongRootAllocatorBase {
 
  protected:
   explicit StrongRootAllocatorBase(Heap* heap) : heap_(heap) {}
-  explicit StrongRootAllocatorBase(v8::Isolate* isolate);
+  explicit StrongRootAllocatorBase(Isolate* isolate);
 
   // Allocate/deallocate a range of n elements of type internal::Address.
   Address* allocate_impl(size_t n);
@@ -1242,17 +1242,15 @@ class V8_EXPORT StrongRootAllocatorBase {
 // and internal::StrongRootAllocator<v8::Local<T>> register the allocated range
 // as strong roots.
 template <typename T>
-class StrongRootAllocator : public StrongRootAllocatorBase,
-                            private std::allocator<T> {
+class StrongRootAllocator : private std::allocator<T> {
  public:
   using value_type = T;
 
-  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
-      : StrongRootAllocatorBase(isolate) {}
+  explicit StrongRootAllocator(Heap* heap) {}
+  explicit StrongRootAllocator(Isolate* isolate) {}
+  explicit StrongRootAllocator(v8::Isolate* isolate) {}
   template <typename U>
-  StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
-      : StrongRootAllocatorBase(other) {}
+  StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept {}
 
   using std::allocator<T>::allocate;
   using std::allocator<T>::deallocate;

@@ -671,7 +671,7 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 }
 
 void StringTable::InsertForIsolateDeserialization(
-    Isolate* isolate, const std::vector<Handle<String>>& strings) {
+    Isolate* isolate, const base::Vector<DirectHandle<String>>& strings) {
   DCHECK_EQ(NumberOfElements(), 0);
 
   const int length = static_cast<int>(strings.size());
@@ -680,7 +680,7 @@ void StringTable::InsertForIsolateDeserialization(
 
     Data* const data = EnsureCapacity(isolate, length);
 
-    for (const Handle<String>& s : strings) {
+    for (const DirectHandle<String>& s : strings) {
       StringTableInsertionKey key(
           isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
       InternalIndex entry =

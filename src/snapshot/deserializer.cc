@@ -380,7 +380,7 @@ uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
 }  // namespace
 
 StringTableInsertionKey::StringTableInsertionKey(
-    Isolate* isolate, Handle<String> string,
+    Isolate* isolate, DirectHandle<String> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
@@ -391,7 +391,7 @@ StringTableInsertionKey::StringTableInsertionKey(
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
-    LocalIsolate* isolate, Handle<String> string,
+    LocalIsolate* isolate, DirectHandle<String> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {

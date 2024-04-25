@@ -7595,8 +7595,8 @@ uint8_t* Heap::IsMinorMarkingFlagAddress() {
   return &isolate()->isolate_data()->is_minor_marking_flag_;
 }
 
-StrongRootAllocatorBase::StrongRootAllocatorBase(v8::Isolate* isolate)
-    : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)->heap()) {}
+StrongRootAllocatorBase::StrongRootAllocatorBase(Isolate* isolate)
+    : StrongRootAllocatorBase(isolate->heap()) {}
 
 // StrongRootBlocks are allocated as a block of addresses, prefixed with a
 // StrongRootsEntry pointer:

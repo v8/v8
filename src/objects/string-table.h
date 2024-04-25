@@ -74,7 +74,7 @@ class V8_EXPORT_PRIVATE StringTable {
 
   // Insert a range of strings. Only for use during isolate deserialization.
   void InsertForIsolateDeserialization(
-      Isolate* isolate, const std::vector<Handle<String>>& strings);
+      Isolate* isolate, const base::Vector<DirectHandle<String>>& strings);
 
   // Insert the single empty string. Only for use during heap bootstrapping.
   void InsertEmptyStringForBootstrapping(Isolate* isolate);
