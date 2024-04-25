@@ -520,8 +520,6 @@ template <typename Adapter>
 bool ProduceWord32Result(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(miladfarca): Hanlde the following: unary ops, Int32MulHigh,
-    // Uint32MulHigh, Float64ExtractLowWord32 and Float64ExtractHighWord32.
     using namespace turboshaft;  // NOLINT(build/namespaces)
     const Operation& op = selector->Get(node);
     switch (op.opcode) {
@@ -537,7 +535,9 @@ bool ProduceWord32Result(InstructionSelectorT<Adapter>* selector,
                binop.kind == WordBinopOp::Kind::kUnsignedMod ||
                binop.kind == WordBinopOp::Kind::kBitwiseAnd ||
                binop.kind == WordBinopOp::Kind::kBitwiseOr ||
-               binop.kind == WordBinopOp::Kind::kBitwiseXor;
+               binop.kind == WordBinopOp::Kind::kBitwiseXor ||
+               binop.kind == WordBinopOp::Kind::kSignedMulOverflownBits ||
+               binop.kind == WordBinopOp::Kind::kUnsignedMulOverflownBits;
       }
       case Opcode::kWordUnary: {
         const auto& unop = op.Cast<WordUnaryOp>();
@@ -547,9 +547,51 @@ bool ProduceWord32Result(InstructionSelectorT<Adapter>* selector,
                unop.kind == WordUnaryOp::Kind::kSignExtend8 ||
                unop.kind == WordUnaryOp::Kind::kSignExtend16;
       }
+      case Opcode::kChange: {
+        const auto& changeop = op.Cast<ChangeOp>();
+        switch (changeop.kind) {
+          // Float64ExtractLowWord32
+          // Float64ExtractHighWord32
+          case ChangeOp::Kind::kExtractLowHalf:
+          case ChangeOp::Kind::kExtractHighHalf:
+            CHECK_EQ(changeop.from, FloatRepresentation::Float64());
+            CHECK_EQ(changeop.to, WordRepresentation::Word32());
+            return true;
+          // BitcastFloat32ToInt32
+          case ChangeOp::Kind::kBitcast:
+            return changeop.from == FloatRepresentation::Float32() &&
+                   changeop.to == WordRepresentation::Word32();
+          case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
+          case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
+            // RoundFloat64ToInt32
+            // ChangeFloat64ToInt32
+            // TruncateFloat64ToUint32
+            // ChangeFloat64ToUint32
+            if (changeop.from == FloatRepresentation::Float64() &&
+                changeop.to == WordRepresentation::Word32()) {
+              return true;
+            }
+            // TruncateFloat32ToInt32
+            // TruncateFloat32ToUint32
+            if (changeop.from == FloatRepresentation::Float32() &&
+                changeop.to == WordRepresentation::Word32()) {
+              return true;
+            }
+            return false;
+          default:
+            return false;
+        }
+        return false;
+      }
       case Opcode::kShift: {
         const auto& shift = op.Cast<ShiftOp>();
-        return shift.rep == WordRepresentation::Word32();
+        if (shift.rep != WordRepresentation::Word32()) return false;
+        return shift.kind == ShiftOp::Kind::kShiftRightArithmetic ||
+               shift.kind == ShiftOp::Kind::kShiftRightLogical ||
+               shift.kind ==
+                   ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros ||
+               shift.kind == ShiftOp::Kind::kShiftLeft ||
+               shift.kind == ShiftOp::Kind::kRotateRight;
       }
       case Opcode::kOverflowCheckedBinop: {
         const auto& ovfbinop = op.Cast<OverflowCheckedBinopOp>();
