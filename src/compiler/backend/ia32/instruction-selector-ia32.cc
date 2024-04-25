@@ -1163,7 +1163,7 @@ template <typename Adapter>
 void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node, ArchOpcode opcode,
                          MachineRepresentation rep) {
-  using node_t = Adapter::node_t;
+  using node_t = typename Adapter::node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
   node_t base = selector->input_at(node, 0);
   node_t index = selector->input_at(node, 1);
@@ -1734,7 +1734,7 @@ template <typename Adapter>
 void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
                           InstructionCode opcode,
                           typename Adapter::node_t node) {
-  using node_t = Adapter::node_t;
+  using node_t = typename Adapter::node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
 
   node_t shift = selector->input_at(node, 2);
@@ -2471,7 +2471,7 @@ template <typename Adapter>
 void VisitAtomicBinOp(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, ArchOpcode opcode,
                       MachineRepresentation rep) {
-  using node_t = Adapter::node_t;
+  using node_t = typename Adapter::node_t;
   AddressingMode addressing_mode;
   IA32OperandGeneratorT<Adapter> g(selector);
   node_t base = selector->input_at(node, 0);
@@ -2492,7 +2492,7 @@ void VisitAtomicBinOp(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector,
                           typename Adapter::node_t node, ArchOpcode opcode) {
-  using node_t = Adapter::node_t;
+  using node_t = typename Adapter::node_t;
   IA32OperandGeneratorT<Adapter> g(selector);
   node_t base = selector->input_at(node, 0);
   node_t index = selector->input_at(node, 1);
