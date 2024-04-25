@@ -57,7 +57,7 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"$depot_tools/osx_sdk": {"sdk_version": "14c18"}, "target_platform": "ios"},
+    properties = {"$depot_tools/osx_sdk": {"sdk_version": "15e204a"}, "target_platform": "ios"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
