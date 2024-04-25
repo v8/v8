@@ -3157,6 +3157,73 @@ class TurboshaftAssemblerOpInterface
                                                                {object});
   }
 
+  V<Object> CallBuiltinWithVarStackArgs(
+      Isolate* isolate, Zone* graph_zone, Builtin builtin,
+      V<turboshaft::FrameState> frame_state, int num_stack_args,
+      base::Vector<OpIndex> arguments) {
+    Callable callable = Builtins::CallableFor(isolate, builtin);
+    const CallInterfaceDescriptor& descriptor = callable.descriptor();
+    CallDescriptor* call_descriptor =
+        Linkage::GetStubCallDescriptor(graph_zone, descriptor, num_stack_args,
+                                       CallDescriptor::kNeedsFrameState);
+    V<Code> stub_code = __ HeapConstant(callable.code());
+
+    return Call<Object>(
+        stub_code, frame_state, arguments,
+        TSCallDescriptor::Create(call_descriptor, CanThrow::kYes, graph_zone));
+  }
+
+  V<Object> CallBuiltin_CallWithSpread(Isolate* isolate, Zone* graph_zone,
+                                       V<turboshaft::FrameState> frame_state,
+                                       V<Context> context, V<Object> function,
+                                       int num_args_no_spread, V<Object> spread,
+                                       base::Vector<V<Object>> args_no_spread) {
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(function);
+    arguments.push_back(Word32Constant(num_args_no_spread));
+    arguments.push_back(spread);
+    arguments.insert(arguments.end(), args_no_spread.begin(),
+                     args_no_spread.end());
+
+    arguments.push_back(context);
+
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, Builtin::kCallWithSpread, frame_state,
+        num_args_no_spread, base::VectorOf(arguments));
+  }
+  V<Object> CallBuiltin_CallWithArrayLike(Isolate* isolate, Zone* graph_zone,
+                                          V<turboshaft::FrameState> frame_state,
+                                          V<Context> context,
+                                          V<Object> receiver,
+                                          V<Object> function,
+                                          V<Object> arguments_list) {
+    // CallWithArrayLike is a weird builtin that expects a receiver as top of
+    // the stack, but doesn't explicitly list it as an extra argument. We thus
+    // manually create the call descriptor with 1 stack argument.
+    constexpr int kNumberOfStackArguments = 1;
+
+    OpIndex arguments[] = {function, arguments_list, receiver, context};
+
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, Builtin::kCallWithArrayLike, frame_state,
+        kNumberOfStackArguments, base::VectorOf(arguments));
+  }
+  V<Object> CallBuiltin_CallFunctionForwardVarargs(
+      Isolate* isolate, Zone* graph_zone, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<JSFunction> function, int num_args, int start_index,
+      base::Vector<V<Object>> args) {
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(function);
+    arguments.push_back(__ Word32Constant(num_args));
+    arguments.push_back(__ Word32Constant(start_index));
+    arguments.insert(arguments.end(), args.begin(), args.end());
+    arguments.push_back(context);
+
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, Builtin::kCallFunctionForwardVarargs, frame_state,
+        num_args, base::VectorOf(arguments));
+  }
+
   template <typename Descriptor>
   std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, V<turboshaft::FrameState> frame_state,

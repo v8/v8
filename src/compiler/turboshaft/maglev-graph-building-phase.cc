@@ -6,6 +6,7 @@
 
 #include <type_traits>
 
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -468,7 +469,7 @@ class GraphBuilder {
 
     arguments.push_back(Map(node->context()));
 
-    OptionalOpIndex frame_state = OpIndex::Invalid();
+    OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
     if (call_descriptor->NeedsFrameState()) {
       frame_state = BuildFrameState(node->lazy_deopt_info());
     }
@@ -485,7 +486,7 @@ class GraphBuilder {
     ThrowingScope throwing_scope(this, node);
 
     IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
-      OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+      V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
       __ CallRuntime_ThrowAccessedUninitializedVariable(
           isolate_->GetMainThreadIsolateUnsafe(), frame_state, native_context(),
           __ HeapConstant(node->name().object()));
@@ -499,7 +500,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Context> context = Map(node->context());
     V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
     if (node->scope_type() == FUNCTION_SCOPE) {
@@ -519,7 +520,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     DCHECK(!node->properties().can_throw());
 
-    OpIndex frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
     V<Context> context = Map(node->context());
     V<SharedFunctionInfo> shared_function_info =
         __ HeapConstant(node->shared_function_info().object());
@@ -530,6 +531,75 @@ class GraphBuilder {
                      isolate_->GetMainThreadIsolateUnsafe(), frame_state,
                      context, shared_function_info, feedback_cell));
 
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CallWithArrayLike* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Context> context = Map(node->context());
+    V<Object> function = Map(node->function());
+    V<Object> receiver = Map(node->receiver());
+    V<Object> arguments_list = Map(node->arguments_list());
+
+    SetMap(node, __ CallBuiltin_CallWithArrayLike(
+                     isolate_->GetMainThreadIsolateUnsafe(), graph_zone(),
+                     frame_state, context, receiver, function, arguments_list));
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CallWithSpread* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Context> context = Map(node->context());
+    V<Object> function = Map(node->function());
+    V<Object> spread = Map(node->spread());
+
+    base::SmallVector<V<Object>, 16> arguments_no_spread;
+    for (auto arg : node->args_no_spread()) {
+      arguments_no_spread.push_back(Map(arg));
+    }
+
+    SetMap(node, __ CallBuiltin_CallWithSpread(
+                     isolate_->GetMainThreadIsolateUnsafe(), graph_zone(),
+                     frame_state, context, function, node->num_args_no_spread(),
+                     spread, base::VectorOf(arguments_no_spread)));
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::CallForwardVarargs* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<JSFunction> function = Map(node->function());
+    V<Context> context = Map(node->context());
+
+    base::SmallVector<V<Object>, 16> arguments;
+    for (auto arg : node->args()) {
+      arguments.push_back(Map(arg));
+    }
+    DCHECK_EQ(node->num_args(), arguments.size());
+
+    V<Object> call;
+    switch (node->target_type()) {
+      case maglev::Call::TargetType::kJSFunction:
+        call = __ CallBuiltin_CallFunctionForwardVarargs(
+            isolate_->GetMainThreadIsolateUnsafe(), graph_zone(), frame_state,
+            context, function, node->num_args(), node->start_index(),
+            base::VectorOf(arguments));
+        break;
+      case maglev::Call::TargetType::kAny:
+        UNIMPLEMENTED();
+    }
+
+    SetMap(node, call);
     return maglev::ProcessResult::kContinue;
   }
 

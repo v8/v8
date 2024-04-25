@@ -1323,7 +1323,7 @@ let glob_b = 3.35;
   assertOptimized(write);
 }
 
-// Test inner functions
+// Test inner functions.
 {
   function fun_with_inner(x) {
     let v = 42;
@@ -1341,4 +1341,49 @@ let glob_b = 3.35;
   assertEquals(105, fun_with_inner(5));
   %OptimizeFunctionOnNextCall(fun_with_inner);
   assertEquals(105, fun_with_inner(5));
+}
+
+// Testing CallWithArrayLike and CallWithSpread.
+{
+  function f(x, y, z) {
+    return x + y + z;
+  }
+  %NeverOptimizeFunction(f);
+  let arr = [17, 13, 5, 23];
+
+  function f_apply(arr) {
+    return f.apply(null, arr);
+  }
+
+  %PrepareFunctionForOptimization(f_apply);
+  assertEquals(35, f_apply(arr));
+  %OptimizeFunctionOnNextCall(f_apply);
+  assertEquals(35, f_apply(arr));
+  assertOptimized(f_apply);
+
+  function f_spread(arr) {
+    return f(...arr);
+  }
+
+  %PrepareFunctionForOptimization(f_spread);
+  assertEquals(35, f_spread(arr));
+  %OptimizeFunctionOnNextCall(f_spread);
+  assertEquals(35, f_spread(arr));
+  assertOptimized(f_spread);
+
+  let small_arr = [3, 5];
+  assertEquals(NaN, f_spread(small_arr));
+  assertOptimized(f_spread);
+
+  function f_forward_args() {
+    return f.apply(null, arguments);
+  }
+
+  %PrepareFunctionForOptimization(f_forward_args);
+  assertEquals(24, f_forward_args(12, 5, 7));
+  assertEquals(24, f_forward_args(12, 5, 7, 19));
+  %OptimizeFunctionOnNextCall(f_forward_args);
+  assertEquals(24, f_forward_args(12, 5, 7));
+  assertEquals(24, f_forward_args(12, 5, 7, 19));
+  assertOptimized(f_forward_args);
 }

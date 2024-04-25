@@ -8187,6 +8187,9 @@ class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  int start_index() const { return start_index_; }
+  Call::TargetType target_type() const { return target_type_; }
+
  private:
   int start_index_;
   Call::TargetType target_type_;
