@@ -238,6 +238,8 @@ class MaglevGraphBuilder {
   BasicBlock* EndPrologue();
   void PeelLoop();
 
+  void OsrAnalyzePrequel();
+
   void BuildBody() {
     while (!source_position_iterator_.done() &&
            source_position_iterator_.code_offset() < entrypoint_) {
@@ -245,8 +247,10 @@ class MaglevGraphBuilder {
       UpdateSourceAndBytecodePosition(source_position_iterator_.code_offset());
     }
 
-    // TODO(olivf) We might want to start collecting known_node_aspects_ for
-    // the whole bytecode array instead of starting at entrypoint_.
+    if (compilation_unit_->is_osr()) {
+      OsrAnalyzePrequel();
+    }
+
     for (iterator_.SetOffset(entrypoint_); !iterator_.done();
          iterator_.Advance()) {
       local_isolate_->heap()->Safepoint();

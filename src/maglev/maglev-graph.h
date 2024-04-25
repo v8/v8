@@ -42,7 +42,8 @@ class Graph final : public ZoneObject {
         register_inputs_(),
         constants_(zone),
         inlined_functions_(zone),
-        is_osr_(is_osr) {}
+        is_osr_(is_osr),
+        maybe_closed_over_osr_context_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -129,6 +130,11 @@ class Graph final : public ZoneObject {
 
   int NewObjectId() { return object_ids_++; }
 
+  ZoneUnorderedSet<compiler::SharedFunctionInfoRef>&
+  maybe_closed_over_osr_context() {
+    return maybe_closed_over_osr_context_;
+  }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -154,6 +160,8 @@ class Graph final : public ZoneObject {
   int total_inlined_bytecode_size_ = 0;
   bool is_osr_ = false;
   int object_ids_ = 0;
+  ZoneUnorderedSet<compiler::SharedFunctionInfoRef>
+      maybe_closed_over_osr_context_;
 };
 
 }  // namespace maglev

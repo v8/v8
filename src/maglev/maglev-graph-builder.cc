@@ -7676,13 +7676,29 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 
   ValueNode* closure = GetConstant(function);
   ValueNode* context = GetConstant(function.context(broker()));
+  bool maybe_closed_over_osr_context =
+      graph()->is_osr() &&
+      graph()->maybe_closed_over_osr_context().count(shared);
+  // TODO(olivf): Ideally we would track exactly which static context can alias
+  // with the osr context. Practically it's probably not worth it and we just
+  // clear the information before and after inlining (see regress-41494766.js
+  // on how to construct examples of aliasing contexts).
+  if (maybe_closed_over_osr_context) {
+    known_node_aspects().loaded_context_slots.clear();
+  }
+  ReduceResult res;
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
       !graph_->is_osr()) {
-    return BuildCallSelf(context, closure, new_target, shared, args);
+    res = BuildCallSelf(context, closure, new_target, shared, args);
+  } else {
+    res = TryBuildCallKnownJSFunction(context, closure, new_target, shared,
+                                      function.feedback_vector(broker()), args,
+                                      feedback_source);
   }
-  return TryBuildCallKnownJSFunction(context, closure, new_target, shared,
-                                     function.feedback_vector(broker()), args,
-                                     feedback_source);
+  if (maybe_closed_over_osr_context) {
+    known_node_aspects().loaded_context_slots.clear();
+  }
+  return res;
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -10227,6 +10243,24 @@ void MaglevGraphBuilder::PeelLoop() {
     predecessors_[loop_header] = 0;
   }
   iterator_.SetOffset(loop_header);
+}
+
+void MaglevGraphBuilder::OsrAnalyzePrequel() {
+  // TODO(olivf) We might want to start collecting known_node_aspects_ here.
+
+  for (iterator_.SetOffset(0); iterator_.current_offset() != entrypoint_;
+       iterator_.Advance()) {
+    switch (iterator_.current_bytecode()) {
+      case interpreter::Bytecode::kCreateClosure: {
+        compiler::SharedFunctionInfoRef shared_function_info =
+            GetRefOperand<SharedFunctionInfo>(0);
+        graph()->maybe_closed_over_osr_context().insert(shared_function_info);
+        break;
+      }
+      default:
+        continue;
+    }
+  }
 }
 
 void MaglevGraphBuilder::VisitJumpLoop() {
