@@ -268,7 +268,6 @@ class MaglevGraphBuilder {
     if (it == graph_->smi().end()) {
       SmiConstant* node =
           CreateNewConstantNode<SmiConstant>(0, Smi::FromInt(constant));
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->smi().emplace(constant, node);
       return node;
     }
@@ -281,7 +280,6 @@ class MaglevGraphBuilder {
     if (it == graph_->tagged_index().end()) {
       TaggedIndexConstant* node = CreateNewConstantNode<TaggedIndexConstant>(
           0, TaggedIndex::FromIntptr(constant));
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->tagged_index().emplace(constant, node);
       return node;
     }
@@ -294,7 +292,6 @@ class MaglevGraphBuilder {
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {
       Int32Constant* node = CreateNewConstantNode<Int32Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->int32().emplace(constant, node);
       return node;
     }
@@ -307,7 +304,6 @@ class MaglevGraphBuilder {
     auto it = graph_->uint32().find(constant);
     if (it == graph_->uint32().end()) {
       Uint32Constant* node = CreateNewConstantNode<Uint32Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->uint32().emplace(constant, node);
       return node;
     }
@@ -324,7 +320,6 @@ class MaglevGraphBuilder {
     if (it == graph_->float64().end()) {
       Float64Constant* node =
           CreateNewConstantNode<Float64Constant>(0, constant);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->float64().emplace(constant.get_bits(), node);
       return node;
     }
@@ -914,6 +909,12 @@ class MaglevGraphBuilder {
     static_assert(!NodeT::kProperties.can_lazy_deopt());
     static_assert(!NodeT::kProperties.can_throw());
     static_assert(!NodeT::kProperties.can_write());
+    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  " << node << "  "
+                << PrintNodeLabel(graph_labeller(), node) << ": "
+                << PrintNode(graph_labeller(), node) << std::endl;
+    }
     return node;
   }
 
@@ -1163,7 +1164,6 @@ class MaglevGraphBuilder {
     if (it == graph_->external_references().end()) {
       ExternalConstant* node =
           CreateNewConstantNode<ExternalConstant>(0, reference);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->external_references().emplace(reference.address(), node);
       return node;
     }
@@ -1174,7 +1174,6 @@ class MaglevGraphBuilder {
     auto it = graph_->root().find(index);
     if (it == graph_->root().end()) {
       RootConstant* node = CreateNewConstantNode<RootConstant>(0, index);
-      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
       graph_->root().emplace(index, node);
       return node;
     }

@@ -5252,7 +5252,6 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
   auto it = graph_->constants().find(constant);
   if (it == graph_->constants().end()) {
     Constant* node = CreateNewConstantNode<Constant>(0, constant);
-    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     graph_->constants().emplace(constant, node);
     return node;
   }
