@@ -6455,9 +6455,9 @@ struct IsNullOp : FixedArityOperationT<1, IsNullOp> {
   wasm::ValueType type;
   static constexpr OpEffects effects = OpEffects();
 
-  OpIndex object() const { return Base::input(0); }
+  V<Object> object() const { return input<Object>(0); }
 
-  IsNullOp(OpIndex object, wasm::ValueType type) : Base(object), type(type) {}
+  IsNullOp(V<Object> object, wasm::ValueType type) : Base(object), type(type) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
@@ -6484,9 +6484,9 @@ struct AssertNotNullOp : FixedArityOperationT<1, AssertNotNullOp> {
   static constexpr OpEffects effects =
       OpEffects().CanDependOnChecks().CanLeaveCurrentFunction();
 
-  OpIndex object() const { return Base::input(0); }
+  V<Object> object() const { return input<Object>(0); }
 
-  AssertNotNullOp(OpIndex object, wasm::ValueType type, TrapId trap_id)
+  AssertNotNullOp(V<Object> object, wasm::ValueType type, TrapId trap_id)
       : Base(object), type(type), trap_id(trap_id) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {

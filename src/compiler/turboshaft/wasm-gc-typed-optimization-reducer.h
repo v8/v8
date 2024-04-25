@@ -231,8 +231,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(AssertNotNull)(
-      OpIndex op_idx, const AssertNotNullOp& assert_not_null) {
+  V<Object> REDUCE_INPUT_GRAPH(AssertNotNull)(
+      V<Object> op_idx, const AssertNotNullOp& assert_not_null) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphAssertNotNull(op_idx, assert_not_null);
     }
@@ -245,7 +245,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE_INPUT_GRAPH(IsNull)(OpIndex op_idx, const IsNullOp& is_null) {
+  V<Word32> REDUCE_INPUT_GRAPH(IsNull)(V<Word32> op_idx,
+                                       const IsNullOp& is_null) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphIsNull(op_idx, is_null);
     }
@@ -323,7 +324,7 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  OpIndex REDUCE(AnyConvertExtern)(V<Object> object) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
     LABEL_BLOCK(no_change) { return Next::ReduceAnyConvertExtern(object); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 

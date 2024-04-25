@@ -42,23 +42,23 @@ class WasmLoweringReducer : public Next {
 
   OpIndex REDUCE(Null)(wasm::ValueType type) { return Null(type); }
 
-  OpIndex REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
+  V<Word32> REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
     // TODO(14616): Extend this for shared types.
     const bool is_wasm_null =
         !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
         !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
-    OpIndex null_value =
+    V<Object> null_value = V<Object>::Cast(
         __ UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
-                                        : StaticReadOnlyRoot::kNullValue);
+                                        : StaticReadOnlyRoot::kNullValue));
 #else
     OpIndex null_value = Null(type);
 #endif
     return __ TaggedEqual(object, null_value);
   }
 
-  OpIndex REDUCE(AssertNotNull)(OpIndex object, wasm::ValueType type,
-                                TrapId trap_id) {
+  V<Object> REDUCE(AssertNotNull)(V<Object> object, wasm::ValueType type,
+                                  TrapId trap_id) {
     if (trap_id == TrapId::kTrapNullDereference) {
       // Skip the check altogether if null checks are turned off.
       if (!v8_flags.experimental_wasm_skip_null_checks) {
@@ -110,7 +110,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(AnyConvertExtern)(V<Object> object) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
     Label<Object> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
@@ -191,7 +191,7 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(ExternConvertAny)(V<Object> object) {
+  V<Object> REDUCE(ExternConvertAny)(V<Object> object) {
     Label<Object> end(&Asm());
     GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
     GOTO(end, Null(wasm::kWasmExternRef));

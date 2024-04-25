@@ -4948,7 +4948,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // Perform a null check if the input type is nullable.
   V<Object> NullCheck(const Value& value,
                       TrapId trap_id = TrapId::kTrapNullDereference) {
-    OpIndex not_null_value = value.op;
+    V<Object> not_null_value = V<Object>::Cast(value.op);
     if (value.type.is_nullable()) {
       not_null_value = __ AssertNotNull(value.op, value.type, trap_id);
     }
