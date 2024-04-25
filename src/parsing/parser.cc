@@ -2887,7 +2887,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     bool uses_super_property;
     if (stack_overflow()) return true;
     {
-      base::Optional<UnparkedScope> unparked_scope;
+      base::Optional<UnparkedScopeIfOnBackground> unparked_scope;
       if (overall_parse_is_parked_) {
         unparked_scope.emplace(local_isolate_);
       }
@@ -3496,7 +3496,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
   {
     // We can park the isolate while parsing, it doesn't need to allocate or
     // access the main thread.
-    ParkedScope parked_scope(isolate);
+    ParkedScopeIfOnBackground parked_scope(isolate);
     overall_parse_is_parked_ = true;
 
     scanner_.Initialize();
