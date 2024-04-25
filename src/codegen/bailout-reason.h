@@ -103,7 +103,10 @@ namespace internal {
   V(kInvalidReceiver, "Expected JS object or primitive object")                \
   V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
   V(kTurboshaftTypeAssertionFailed,                                            \
-    "A type assertion failed in Turboshaft-generated code")
+    "A type assertion failed in Turboshaft-generated code")                    \
+  V(kMetadataAreaStartDoesNotMatch,                                            \
+    "The metadata doesn't belong to the "                                      \
+    "chunk")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \

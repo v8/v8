@@ -389,6 +389,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   // For access to the kMetadataPointerTableSizeMask;
   friend class CodeStubAssembler;
+  friend class MacroAssembler;
   // For access to the MetadataTableAddress;
   friend class ExternalReference;
 

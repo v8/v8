@@ -391,6 +391,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
 
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  Label* stub_call() { return &stub_call_; }
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
+
   void Generate() final {
     // When storing an indirect pointer, the value will always be a
     // full/decompressed pointer.
@@ -399,9 +403,26 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+    // TODO(333906585): Optimize this path.
+    Label stub_call_with_decompressed_value;
+    __ CheckPageFlag(value_, scratch0_, MemoryChunk::kIsInReadOnlyHeapMask,
+                     not_zero, exit());
+    __ CheckMarkBit(value_, scratch0_, scratch1_, carry, exit());
+    __ jmp(&stub_call_with_decompressed_value);
+
+    __ bind(&stub_call_);
+    if (COMPRESS_POINTERS_BOOL &&
+        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    __ bind(&stub_call_with_decompressed_value);
+#else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
+#endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
 
     __ leaq(scratch1_, operand_);
 
@@ -442,6 +463,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
   IndirectPointerTag indirect_pointer_tag_;
+#if V8_ENABLE_STICKY_MARK_BITS_BOOL
+  Label stub_call_;
+#endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 };
 
 template <std::memory_order order>
@@ -1740,7 +1764,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      // TODO(333906585): Implement sticky barrier.
+      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                       not_zero, ool->stub_call());
+      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1769,7 +1795,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      // TODO(333906585): Implement sticky barrier.
+      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                       not_zero, ool->stub_call());
+      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
