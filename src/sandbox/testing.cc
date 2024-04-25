@@ -320,6 +320,64 @@ void SandboxGetInstanceTypeIdOfObjectAt(
   SandboxGetInstanceTypeIdOfImpl(info, &GetArgumentObjectPassedAsAddress);
 }
 
+// Obtain the offset of a field in an object.
+//
+// This can be used to obtain the offsets of internal object fields in order to
+// avoid hardcoding offsets into testcases. It basically makes the various
+// Foo::kBarOffset constants accessible from JavaScript. The main benefit of
+// that is that testcases continue to work if the field offset changes.
+// Additionally, if a field is removed, testcases that use it will fail and can
+// then be deleted if they are no longer useful.
+void SandboxGetFieldOffsetImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info,
+    ArgumentObjectExtractorFunction getArgumentObject) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  Tagged<HeapObject> obj;
+  if (!getArgumentObject(info, &obj)) {
+    return;
+  }
+  InstanceType instance_type = HeapObject::cast(*obj)->map()->instance_type();
+
+  v8::String::Utf8Value field_name(isolate, info[1]);
+  if (!*field_name) {
+    isolate->ThrowError("Second argument must be a string");
+    return;
+  }
+
+  auto& all_fields = SandboxTesting::GetFieldOffsetMap();
+  if (all_fields.find(instance_type) == all_fields.end()) {
+    isolate->ThrowError(
+        "Unknown object type. If needed, add it in "
+        "SandboxTesting::GetFieldOffsetMap");
+    return;
+  }
+
+  auto& obj_fields = all_fields[instance_type];
+  if (obj_fields.find(*field_name) == obj_fields.end()) {
+    isolate->ThrowError(
+        "Unknown field. If needed, add it in "
+        "SandboxTesting::GetFieldOffsetMap");
+    return;
+  }
+
+  int offset = obj_fields[*field_name];
+  info.GetReturnValue().Set(offset);
+}
+
+// Sandbox.getFieldOffsetOf(Object, String) -> Number
+void SandboxGetFieldOffsetOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetFieldOffsetImpl(info, &GetArgumentObjectPassedAsReference);
+}
+
+// Sandbox.getFieldOffsetOfObjectAt(Number, String) -> Number
+void SandboxGetFieldOffsetOfObjectAt(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  SandboxGetFieldOffsetImpl(info, &GetArgumentObjectPassedAsAddress);
+}
+
+// Sandbox.targetPage
 void SandboxGetTargetPage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -420,6 +478,10 @@ void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
                   "getInstanceTypeIdOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetInstanceTypeIdOfObjectAt,
                   "getInstanceTypeIdOfObjectAt", 1);
+  InstallFunction(isolate, sandbox, SandboxGetFieldOffsetOf, "getFieldOffsetOf",
+                  2);
+  InstallFunction(isolate, sandbox, SandboxGetFieldOffsetOfObjectAt,
+                  "getFieldOffsetOfObjectAt", 2);
 
   if (mode() == Mode::kForTesting) {
     InstallGetter(isolate, sandbox, SandboxGetTargetPage, "targetPage");
@@ -748,6 +810,22 @@ void SandboxTesting::Enable(Mode mode) {
 bool SandboxTesting::IsInsideTargetPage(Address faultaddr) {
   return base::IsInHalfOpenRange(faultaddr, target_page_base(),
                                  target_page_base() + target_page_size());
+}
+
+SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
+  // This mechanism is currently very crude and needs to be manually maintained
+  // and extended (e.g. when adding a js test for the sandbox). In the future,
+  // it would be nice to somehow automatically generate this map from the
+  // object definitions and also support the class inheritance hierarchy.
+  static base::LeakyObject<FieldOffsetMap> g_known_fields;
+  auto& fields = *g_known_fields.get();
+  bool is_initialized = fields.size() != 0;
+  if (!is_initialized) {
+    fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
+    fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
+        offsetof(SlicedString, parent_);
+  }
+  return fields;
 }
 
 #endif  // V8_ENABLE_SANDBOX

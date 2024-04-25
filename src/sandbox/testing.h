@@ -6,6 +6,7 @@
 #define V8_SANDBOX_TESTING_H_
 
 #include "src/common/globals.h"
+#include "src/objects/instance-type.h"
 
 namespace v8 {
 namespace internal {
@@ -72,6 +73,13 @@ class SandboxTesting : public AllStatic {
 
   // Returns true if the access violation happened inside the target page.
   static bool IsInsideTargetPage(Address faultaddr);
+
+  // Returns a mapping of instance types to known field offsets. This is useful
+  // mainly for the Sandbox.getFieldOffsetOf API which provides access to
+  // internal field offsets of HeapObject to JavaScript.
+  using FieldOffsets = std::unordered_map<std::string, int>;
+  using FieldOffsetMap = std::unordered_map<InstanceType, FieldOffsets>;
+  static FieldOffsetMap& GetFieldOffsetMap();
 
  private:
   static Mode mode_;

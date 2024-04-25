@@ -4,13 +4,13 @@
 //
 // Flags: --sandbox-testing
 
-const kJSArrayLengthOffset = 12;
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
 let array = [0.0, 1.1, 2.2, 3.3, 4.4];
 
 // Corrupt the length of the JSArray and change it to a large value.
+const kJSArrayLengthOffset = Sandbox.getFieldOffsetOf(array, "length");
 memory.setUint32(
     Sandbox.getAddressOf(array) + kJSArrayLengthOffset,
     0x10000,

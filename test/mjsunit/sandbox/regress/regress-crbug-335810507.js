@@ -13,8 +13,9 @@ const two_byte_string = "⛱️📦"
 
 // Corrupt the parent pointer of the sliced string to point to the two-byte
 // string.
+const kParentOffset = Sandbox.getFieldOffsetOf(sliced_string, "parent");
 memory.setUint32(
-    Sandbox.getAddressOf(sliced_string) + 12,
+    Sandbox.getAddressOf(sliced_string) + kParentOffset,
     Sandbox.getAddressOf(two_byte_string),
     true);
 
