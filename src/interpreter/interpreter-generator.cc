@@ -13,7 +13,7 @@
 #include "src/ic/binary-op-assembler.h"
 #include "src/ic/ic.h"
 #include "src/ic/unary-op-assembler.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics-generator.h"

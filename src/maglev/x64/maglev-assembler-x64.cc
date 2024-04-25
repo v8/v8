@@ -6,7 +6,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-graph.h"

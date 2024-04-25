@@ -9,7 +9,7 @@
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecode-source-info.h"

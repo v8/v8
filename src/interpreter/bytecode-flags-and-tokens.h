@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTERPRETER_BYTECODE_FLAGS_H_
-#define V8_INTERPRETER_BYTECODE_FLAGS_H_
+#ifndef V8_INTERPRETER_BYTECODE_FLAGS_AND_TOKENS_H_
+#define V8_INTERPRETER_BYTECODE_FLAGS_AND_TOKENS_H_
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
@@ -97,8 +97,20 @@ class StoreLookupSlotFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);
 };
 
+enum class TryFinallyContinuationToken: int {
+  // Fixed value tokens for paths we know we need.
+  // Fallthrough is set to -1 to make it the fallthrough case of the jump table,
+  // where the remaining cases start at 0.
+  kFallthroughToken = -1,
+  // TODO(leszeks): Rethrow being 0 makes it use up a valuable LdaZero, which
+  // means that other commands (such as break or return) have to use LdaSmi.
+  // This can very slightly bloat bytecode, so perhaps token values should all
+  // be shifted down by 1.
+  kRethrowToken = 0
+};
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_INTERPRETER_BYTECODE_FLAGS_H_
+#endif  // V8_INTERPRETER_BYTECODE_FLAGS_AND_TOKENS_H_

@@ -31,7 +31,7 @@
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/maglev/maglev-compilation-info.h"

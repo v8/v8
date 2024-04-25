@@ -33,7 +33,7 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/arguments.h"

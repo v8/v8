@@ -9,7 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-ir.h"
 

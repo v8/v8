@@ -56,7 +56,7 @@ include_rules = [
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecode-array-random-iterator.h",
   "+src/interpreter/bytecode-decoder.h",
-  "+src/interpreter/bytecode-flags.h",
+  "+src/interpreter/bytecode-flags-and-tokens.h",
   "+src/interpreter/bytecode-register.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",

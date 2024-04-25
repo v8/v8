@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/baseline/baseline-compiler.h"
+
 #include <algorithm>
 #include <type_traits>
 
 #include "src/base/bits.h"
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
-#include "src/baseline/baseline-compiler.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins.h"
@@ -21,7 +22,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"

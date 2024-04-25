@@ -21,9 +21,9 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/interpreter/bytecode-flags.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-array.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
