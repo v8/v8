@@ -254,7 +254,7 @@ in_category(
         name = "V8 Win64 - msvc",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.TREE_CLOSER,
         disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
