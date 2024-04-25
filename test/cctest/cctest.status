@@ -219,6 +219,12 @@
 }],  # variant == nooptimization
 
 ##############################################################################
+['variant == stress_concurrent_allocation', {
+  # https://crbug.com/42204548
+  'test-mark-compact/MarkCompactCollector': [PASS, ['tsan', SKIP]],
+}],  # variant == stress_concurrent_allocation
+
+##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
 
