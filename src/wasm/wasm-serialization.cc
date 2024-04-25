@@ -203,6 +203,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // offset of code comments
                                    sizeof(int) +  // unpadded binary size
                                    sizeof(int) +  // stack slots
+                                   sizeof(int) +  // ool slots
                                    sizeof(int) +  // tagged parameter slots
                                    sizeof(int) +  // code size
                                    sizeof(int) +  // reloc size
@@ -403,6 +404,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->code_comments_offset());
   writer->Write(code->unpadded_binary_size());
   writer->Write(code->stack_slots());
+  writer->Write(code->ool_spills());
   writer->Write(code->raw_tagged_parameter_slots_for_serialization());
   writer->Write(code->instructions().length());
   writer->Write(code->reloc_info().length());
@@ -800,6 +802,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   int code_comment_offset = reader->Read<int>();
   int unpadded_binary_size = reader->Read<int>();
   int stack_slot_count = reader->Read<int>();
+  int ool_spill_count = reader->Read<int>();
   uint32_t tagged_parameter_slots = reader->Read<uint32_t>();
   int code_size = reader->Read<int>();
   int reloc_size = reader->Read<int>();
@@ -841,10 +844,11 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   remaining_code_size_ -= code_size;
 
   unit.code = native_module_->AddDeserializedCode(
-      fn_index, instructions, stack_slot_count, tagged_parameter_slots,
-      safepoint_table_offset, handler_table_offset, constant_pool_offset,
-      code_comment_offset, unpadded_binary_size, protected_instructions,
-      reloc_info, source_pos, inlining_pos, deopt_data, kind, tier);
+      fn_index, instructions, stack_slot_count, ool_spill_count,
+      tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
+      constant_pool_offset, code_comment_offset, unpadded_binary_size,
+      protected_instructions, reloc_info, source_pos, inlining_pos, deopt_data,
+      kind, tier);
   unit.jump_tables = current_jump_tables_;
   return unit;
 }

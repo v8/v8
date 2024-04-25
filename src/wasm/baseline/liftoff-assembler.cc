@@ -345,6 +345,10 @@ int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
          kSystemPointerSize;
 }
 
+int LiftoffAssembler::OolSpillCount() const {
+  return ool_spill_space_size_ / kSystemPointerSize;
+}
+
 namespace {
 
 AssemblerOptions DefaultLiftoffOptions() {

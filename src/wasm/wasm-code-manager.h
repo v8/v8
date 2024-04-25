@@ -197,6 +197,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int code_comments_offset() const { return code_comments_offset_; }
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
+  int ool_spills() const { return ool_spills_; }
   uint16_t first_tagged_parameter_slot() const {
     return tagged_parameter_slots_ >> 16;
   }
@@ -315,7 +316,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
 
   WasmCode(NativeModule* native_module, int index,
-           base::Vector<uint8_t> instructions, int stack_slots,
+           base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
            int handler_table_offset, int constant_pool_offset,
            int code_comments_offset, int unpadded_binary_size,
@@ -340,6 +341,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         index_(index),
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
+        ool_spills_(ool_spills),
         tagged_parameter_slots_(tagged_parameter_slots),
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
@@ -400,6 +402,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int index_;  // The wasm function-index within the module.
   const int constant_pool_offset_;
   const int stack_slots_;
+  const int ool_spills_;
   // Number and position of tagged parameters passed to this function via the
   // stack, packed into a single uint32. These values are used by the stack
   // walker (e.g. GC) to find references.
@@ -518,7 +521,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code below, i.e. it can be called concurrently from background threads.
   // The returned code still needs to be published via {PublishCode}.
   std::unique_ptr<WasmCode> AddCode(
-      int index, const CodeDesc& desc, int stack_slots,
+      int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions,
       base::Vector<const uint8_t> source_position_table,
@@ -554,9 +557,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<WasmCode> AddDeserializedCode(
       int index, base::Vector<uint8_t> instructions, int stack_slots,
-      uint32_t tagged_parameter_slots, int safepoint_table_offset,
-      int handler_table_offset, int constant_pool_offset,
-      int code_comments_offset, int unpadded_binary_size,
+      int ool_spills, uint32_t tagged_parameter_slots,
+      int safepoint_table_offset, int handler_table_offset,
+      int constant_pool_offset, int code_comments_offset,
+      int unpadded_binary_size,
       base::Vector<const uint8_t> protected_instructions_data,
       base::Vector<const uint8_t> reloc_info,
       base::Vector<const uint8_t> source_position_table,
@@ -822,7 +826,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                std::shared_ptr<NativeModule>* shared_this);
 
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
-      int index, const CodeDesc& desc, int stack_slots,
+      int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
       uint32_t tagged_parameter_slots,
       base::Vector<const uint8_t> protected_instructions_data,
       base::Vector<const uint8_t> source_position_table,

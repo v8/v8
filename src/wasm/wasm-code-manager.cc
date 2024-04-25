@@ -1027,6 +1027,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    kAnonymousFuncIndex,      // index
                    dst_code_bytes,           // instructions
                    stack_slots,              // stack_slots
+                   0,                        // ool_spills
                    0,                        // tagged_parameter_slots
                    safepoint_table_offset,   // safepoint_table_offset
                    handler_table_offset,     // handler_table_offset
@@ -1096,7 +1097,7 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
-    int index, const CodeDesc& desc, int stack_slots,
+    int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
     uint32_t tagged_parameter_slots,
     base::Vector<const uint8_t> protected_instructions_data,
     base::Vector<const uint8_t> source_position_table,
@@ -1118,14 +1119,14 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
       reinterpret_cast<Address>(code_space.begin()), code_space.size(),
       ThreadIsolation::JitAllocationType::kWasmCode);
   return AddCodeWithCodeSpace(
-      index, desc, stack_slots, tagged_parameter_slots,
+      index, desc, stack_slots, ool_spill_count, tagged_parameter_slots,
       protected_instructions_data, source_position_table, inlining_positions,
       deopt_data, kind, tier, for_debugging, frame_has_feedback_slot,
       code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
-    int index, const CodeDesc& desc, int stack_slots,
+    int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
     uint32_t tagged_parameter_slots,
     base::Vector<const uint8_t> protected_instructions_data,
     base::Vector<const uint8_t> source_position_table,
@@ -1191,12 +1192,26 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // relocation information.
   if (tier == ExecutionTier::kLiftoff) reloc_info = {};
 
-  std::unique_ptr<WasmCode> code{new WasmCode{
-      this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
-      safepoint_table_offset, handler_table_offset, constant_pool_offset,
-      code_comments_offset, instr_size, protected_instructions_data, reloc_info,
-      source_position_table, inlining_positions, deopt_data, kind, tier,
-      for_debugging, frame_has_feedback_slot}};
+  std::unique_ptr<WasmCode> code{new WasmCode{this,
+                                              index,
+                                              dst_code_bytes,
+                                              stack_slots,
+                                              ool_spill_count,
+                                              tagged_parameter_slots,
+                                              safepoint_table_offset,
+                                              handler_table_offset,
+                                              constant_pool_offset,
+                                              code_comments_offset,
+                                              instr_size,
+                                              protected_instructions_data,
+                                              reloc_info,
+                                              source_position_table,
+                                              inlining_positions,
+                                              deopt_data,
+                                              kind,
+                                              tier,
+                                              for_debugging,
+                                              frame_has_feedback_slot}};
 
   code->MaybePrint();
   code->Validate();
@@ -1373,7 +1388,7 @@ NativeModule::AllocateForDeserializedCode(size_t total_code_size) {
 
 std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     int index, base::Vector<uint8_t> instructions, int stack_slots,
-    uint32_t tagged_parameter_slots, int safepoint_table_offset,
+    int ool_spills, uint32_t tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int unpadded_binary_size,
     base::Vector<const uint8_t> protected_instructions_data,
@@ -1385,11 +1400,11 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
   UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
   return std::unique_ptr<WasmCode>{new WasmCode{
-      this, index, instructions, stack_slots, tagged_parameter_slots,
-      safepoint_table_offset, handler_table_offset, constant_pool_offset,
-      code_comments_offset, unpadded_binary_size, protected_instructions_data,
-      reloc_info, source_position_table, inlining_positions, deopt_data, kind,
-      tier, kNotForDebugging}};
+      this, index, instructions, stack_slots, ool_spills,
+      tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
+      constant_pool_offset, code_comments_offset, unpadded_binary_size,
+      protected_instructions_data, reloc_info, source_position_table,
+      inlining_positions, deopt_data, kind, tier, kNotForDebugging}};
 }
 
 std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
@@ -1488,6 +1503,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    kAnonymousFuncIndex,   // index
                    code_space,            // instructions
                    0,                     // stack_slots
+                   0,                     // ool_spills
                    0,                     // tagged_parameter_slots
                    0,                     // safepoint_table_offset
                    jump_table_size,       // handler_table_offset
@@ -2357,7 +2373,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     code_space += code_size;
     generated_code.emplace_back(AddCodeWithCodeSpace(
         result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
+        result.ool_spill_count, result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(),
         result.inlining_positions.as_vector(), result.deopt_data.as_vector(),

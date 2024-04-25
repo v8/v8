@@ -4534,7 +4534,7 @@ WasmCode* CompileImportWrapper(
 
   std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
       result.func_index, result.code_desc, result.frame_slot_count,
-      result.tagged_parameter_slots,
+      result.ool_spill_count, result.tagged_parameter_slots,
       result.protected_instructions_data.as_vector(),
       result.source_positions.as_vector(),
       result.inlining_positions.as_vector(), result.deopt_data.as_vector(),

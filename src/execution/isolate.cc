@@ -2171,9 +2171,16 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
+        // The stack slot count needs to be adjusted for Liftoff frames. It has
+        // two components: the fixed frame slots, and the maximum number of
+        // registers pushed on top of the frame in out-of-line code. We know
+        // that we are not currently in an OOL call, because OOL calls don't
+        // have exception handlers. So we subtract the OOL spill count from the
+        // total stack slot count to compute the actual frame size:
+        int stack_slots = wasm_code->stack_slots() - wasm_code->ool_spills();
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            wasm_code->stack_slots() * kSystemPointerSize;
+                            stack_slots * kSystemPointerSize;
 
         // This is going to be handled by WebAssembly, so we need to set the TLS
         // flag. The {SetThreadInWasmFlagScope} will set the flag after all

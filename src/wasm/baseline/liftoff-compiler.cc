@@ -656,6 +656,8 @@ class LiftoffCompiler {
     return __ GetTotalFrameSlotCountForGC();
   }
 
+  uint32_t OolSpillCount() const { return __ OolSpillCount(); }
+
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
     DCHECK_NE(kSuccess, reason);
@@ -8825,6 +8827,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.source_positions = compiler->GetSourcePositionTable();
   result.protected_instructions_data = compiler->GetProtectedInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();
+  result.ool_spill_count = compiler->OolSpillCount();
   auto* lowered_call_desc = GetLoweredCallDescriptor(&zone, call_descriptor);
   result.tagged_parameter_slots = lowered_call_desc->GetTaggedParameterSlots();
   result.func_index = compiler_options.func_index;

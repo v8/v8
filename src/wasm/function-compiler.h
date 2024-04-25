@@ -75,6 +75,7 @@ struct WasmCompilationResult {
   CodeDesc code_desc;
   std::unique_ptr<AssemblerBuffer> instr_buffer;
   uint32_t frame_slot_count = 0;
+  uint32_t ool_spill_count = 0;
   uint32_t tagged_parameter_slots = 0;
   base::OwnedVector<uint8_t> source_positions;
   base::OwnedVector<uint8_t> inlining_positions;
