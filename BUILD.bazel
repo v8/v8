@@ -1968,6 +1968,7 @@ filegroup(
         "src/objects/js-collection-inl.h",
         "src/objects/js-collection-iterator.h",
         "src/objects/js-collection-iterator-inl.h",
+        "src/objects/js-disposable-stack.cc",
         "src/objects/js-disposable-stack.h",
         "src/objects/js-disposable-stack-inl.h",
         "src/objects/js-function.cc",

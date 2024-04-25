@@ -2634,6 +2634,22 @@ Handle<Object> Factory::NewInvalidStringLengthError() {
   return NewRangeError(MessageTemplate::kInvalidStringLength);
 }
 
+Handle<JSObject> Factory::NewSuppressedErrorAtDisposal(
+    Isolate* isolate, Handle<Object> error, Handle<Object> suppressed_error) {
+  Handle<JSObject> err =
+      NewSuppressedError(MessageTemplate::kSuppressedErrorDuringDisposal);
+
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      err, isolate->factory()->error_string(), error, DONT_ENUM)
+      .Assert();
+
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      err, isolate->factory()->suppressed_string(), suppressed_error, DONT_ENUM)
+      .Assert();
+
+  return err;
+}
+
 #define DEFINE_ERROR(NAME, name)                                         \
   Handle<JSObject> Factory::New##NAME(                                   \
       MessageTemplate template_index,                                    \
@@ -2645,6 +2661,7 @@ DEFINE_ERROR(EvalError, eval_error)
 DEFINE_ERROR(RangeError, range_error)
 DEFINE_ERROR(ReferenceError, reference_error)
 DEFINE_ERROR(SyntaxError, syntax_error)
+DEFINE_ERROR(SuppressedError, suppressed_error)
 DEFINE_ERROR(TypeError, type_error)
 DEFINE_ERROR(WasmCompileError, wasm_compile_error)
 DEFINE_ERROR(WasmLinkError, wasm_link_error)

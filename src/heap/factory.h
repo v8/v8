@@ -875,6 +875,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                             MessageTemplate template_index,
                             base::Vector<const Handle<Object>> args);
 
+  Handle<JSObject> NewSuppressedErrorAtDisposal(
+      Isolate* isolate, Handle<Object> error, Handle<Object> suppressed_error);
+
   template <typename... Args,
             typename = std::enable_if_t<std::conjunction_v<
                 std::is_convertible<Args, Handle<Object>>...>>>
@@ -899,6 +902,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(EvalError)
   DECLARE_ERROR(RangeError)
   DECLARE_ERROR(ReferenceError)
+  DECLARE_ERROR(SuppressedError)
   DECLARE_ERROR(SyntaxError)
   DECLARE_ERROR(TypeError)
   DECLARE_ERROR(WasmCompileError)

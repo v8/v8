@@ -12,9 +12,12 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-disposable-stack-inl.h"
+#include "src/objects/js-disposable-stack.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/smi.h"
@@ -251,11 +254,35 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   Handle<Object> value = args.at<Object>(1);
 
   Handle<Object> dispose_method;
+
+  // i. If V is not an Object, throw a TypeError exception.
+  if (!IsJSReceiver(*value)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
+  }
+
+  // ii. Set method to ? GetDisposeMethod(V, hint).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, dispose_method,
       Object::GetProperty(isolate, value,
                           isolate->factory()->dispose_symbol()));
 
+  // iii. If method is undefined, throw a TypeError exception.
+  if (IsUndefined(*dispose_method)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->dispose_symbol()));
+  }
+
+  // a. If IsCallable(method) is false, throw a TypeError exception.
+  if (!IsJSFunction(*dispose_method)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotCallable,
+                              isolate->factory()->dispose_symbol()));
+  }
+
+  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
+  // hint, [[DisposeMethod]]: method }.
   JSDisposableStack::Add(isolate, stack, value, dispose_method);
 
   return *value;
@@ -263,11 +290,22 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
 
   Handle<JSDisposableStack> disposable_stack = args.at<JSDisposableStack>(0);
+  Handle<Smi> continuation_token = args.at<Smi>(1);
+  Handle<Object> continuation_error = args.at<Object>(2);
 
-  return JSDisposableStack::DisposeResources(isolate, disposable_stack);
+  MAYBE_RETURN(
+      JSDisposableStack::DisposeResources(
+          isolate, disposable_stack,
+          (*continuation_token !=
+           Smi::FromInt(static_cast<int>(
+               interpreter::TryFinallyContinuationToken::kRethrowToken)))
+              ? MaybeHandle<Object>()
+              : continuation_error),
+      ReadOnlyRoots(isolate).exception());
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 namespace {

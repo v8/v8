@@ -5492,6 +5492,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-collator.cc",
     "src/objects/js-date-time-format.cc",
     "src/objects/js-display-names.cc",
+    "src/objects/js-disposable-stack.cc",
     "src/objects/js-duration-format.cc",
     "src/objects/js-function.cc",
     "src/objects/js-list-format.cc",

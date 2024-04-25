@@ -739,7 +739,12 @@ namespace internal {
   /* AggregateError */                                                         \
   T(AllPromisesRejected, "All promises were rejected")                         \
   T(CannotDeepFreezeObject, "Cannot DeepFreeze object of type %")              \
-  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")
+  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")              \
+  /* SuppressedError */                                                        \
+  T(SuppressedErrorDuringDisposal, "An error was suppressed during disposal")  \
+  T(ExpectAnObjectWithUsing,                                                   \
+    "An object is expected with `using` "                                      \
+    "declarations")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

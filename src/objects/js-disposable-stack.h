@@ -37,8 +37,9 @@ class JSDisposableStack
   static void Add(Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
                   Handle<Object> value, Handle<Object> method);
 
-  static Tagged<Object> DisposeResources(
-      Isolate* isolate, Handle<JSDisposableStack> disposable_stack);
+  static Maybe<bool> DisposeResources(
+      Isolate* isolate, Handle<JSDisposableStack> disposable_stack,
+      MaybeHandle<Object> maybe_error);
 
   TQ_OBJECT_CONSTRUCTORS(JSDisposableStack)
 };

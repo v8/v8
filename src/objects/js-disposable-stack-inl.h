@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_JS_DISPOSABLE_STACK_INL_H_
 #define V8_OBJECTS_JS_DISPOSABLE_STACK_INL_H_
 
-#include "src/base/logging.h"
+#include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/factory.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/objects-inl.h"
 
@@ -41,32 +41,6 @@ inline void JSDisposableStack::Add(Isolate* isolate,
 
   disposable_stack->set_length(length);
   disposable_stack->set_stack(*array);
-}
-
-inline Tagged<Object> JSDisposableStack::DisposeResources(
-    Isolate* isolate, Handle<JSDisposableStack> disposable_stack) {
-  DCHECK(!IsUndefined(disposable_stack->stack()));
-  Handle<FixedArray> stack(disposable_stack->stack(), isolate);
-
-  int length = disposable_stack->length();
-  Handle<Object> exception_obj;
-
-  while (length > 0) {
-    Tagged<Object> tagged_method = stack->get(--length);
-    Handle<Object> method(tagged_method, isolate);
-
-    Tagged<Object> tagged_value = stack->get(--length);
-    Handle<Object> value(tagged_value, isolate);
-
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, exception_obj,
-        Execution::Call(isolate, method, value, 0, nullptr));
-  }
-
-  disposable_stack->set_length(0);
-  disposable_stack->set_state(DisposableStackState::kDisposed);
-
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

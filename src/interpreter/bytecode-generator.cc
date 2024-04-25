@@ -2593,7 +2593,7 @@ void BytecodeGenerator::BuildTryFinally(
       message);
 
   // Evaluate the finally-block.
-  finally_body_func(token);
+  finally_body_func(token, result);
   try_control_builder.EndFinally();
 
   // Pending message object is restored on exit.
@@ -2612,9 +2612,14 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func) {
       // Try block
       [&]() { wrapped_func(); },
       // Finally block
-      [&](Register body_continuation_token) {
-        builder()->CallRuntime(Runtime::kDisposeDisposableStack,
-                               current_disposables_stack_);
+      [&](Register body_continuation_token, Register body_continuation_result) {
+        RegisterList args = register_allocator()->NewRegisterList(3);
+        builder()
+            ->MoveRegister(current_disposables_stack_, args[0])
+            .MoveRegister(body_continuation_token, args[1])
+            .MoveRegister(body_continuation_result, args[2]);
+
+        builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
       },
       catch_prediction());
 }
@@ -2880,7 +2885,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
         VisitIterationBody(stmt, &loop_builder);
       },
       // Finally block.
-      [&](Register iteration_continuation_token) {
+      [&](Register iteration_continuation_token,
+          Register iteration_continuation_result) {
         // Finish the iteration in the finally block.
         BuildFinalizeIteration(iterator, done, iteration_continuation_token);
       },
@@ -2931,7 +2937,9 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
       // Try block.
       [&]() { Visit(stmt->try_block()); },
       // Finally block.
-      [&](Register body_continuation_token) { Visit(stmt->finally_block()); },
+      [&](Register body_continuation_token, Register body_continuation_result) {
+        Visit(stmt->finally_block());
+      },
       catch_prediction(), stmt);
 }
 
@@ -4928,7 +4936,8 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
         }
       },
       // Finally block.
-      [&](Register iteration_continuation_token) {
+      [&](Register iteration_continuation_token,
+          Register iteration_continuation_result) {
         // Finish the iteration in the finally block.
         BuildFinalizeIteration(iterator, done, iteration_continuation_token);
       },
