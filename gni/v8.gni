@@ -180,9 +180,9 @@ if (v8_enable_backtrace == "") {
   v8_enable_backtrace = is_debug && !v8_optimized_debug
 }
 
-# If chromium is configured to use the perfetto client library, v8 should also
+# Chromium is configured to use the perfetto client library, v8 should also
 # use perfetto for tracing.
-if (build_with_chromium && use_perfetto_client_library) {
+if (build_with_chromium) {
   v8_use_perfetto = true
 }
 
