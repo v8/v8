@@ -17,6 +17,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/common/message-template.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -44,6 +45,8 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-array.h"
+#include "src/objects/js-function.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/property-cell.h"
@@ -8420,13 +8423,142 @@ ValueNode* MaglevGraphBuilder::BuildGenericConstruct(
       feedback_source, target, new_target, context);
 }
 
+ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArray(
+    compiler::MapRef map, ValueNode* length, CapturedValue elements,
+    const compiler::SlackTrackingPrediction& slack_tracking_prediction,
+    AllocationType allocation_type) {
+  CapturedObject array = CapturedObject::CreateJSArray(
+      zone(), map, slack_tracking_prediction.instance_size(), length);
+  array.set(JSArray::kElementsOffset, elements);
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       i++) {
+    array.set(map.GetInObjectPropertyOffset(i), RootIndex::kUndefinedValue);
+  }
+  ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  return allocation;
+}
+
+namespace {
+CapturedValue BuildElementsArray(Zone* zone, compiler::JSHeapBroker* broker,
+                                 int length) {
+  if (length == 0) {
+    return CapturedValue(RootIndex::kEmptyFixedArray);
+  }
+  CapturedObject elements =
+      CapturedObject::CreateFixedArray(zone, broker->fixed_array_map(), length);
+  for (int i = 0; i < length; i++) {
+    elements.set(FixedArray::OffsetOfElementAt(i), RootIndex::kTheHoleValue);
+  }
+  return CapturedValue(elements);
+}
+}  // namespace
+
+ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
+    compiler::JSFunctionRef array_function, CallArguments& args,
+    compiler::AllocationSiteRef allocation_site) {
+  ElementsKind elements_kind = allocation_site.GetElementsKind();
+  // TODO(victorgomes): Support double elements array.
+  if (IsDoubleElementsKind(elements_kind)) return ReduceResult::Fail();
+
+  compiler::OptionalMapRef maybe_initial_map =
+      array_function.initial_map(broker()).AsElementsKind(broker(),
+                                                          elements_kind);
+  if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
+  compiler::MapRef initial_map = maybe_initial_map.value();
+  DCHECK(IsFastElementsKind(elements_kind));
+
+  compiler::SlackTrackingPrediction slack_tracking_prediction =
+      broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
+          array_function);
+  AllocationType allocation_type =
+      broker()->dependencies()->DependOnPretenureMode(allocation_site);
+  broker()->dependencies()->DependOnElementsKind(allocation_site);
+
+  if (args.count() == 0) {
+    return BuildAndAllocateJSArray(
+        initial_map, GetSmiConstant(0),
+        BuildElementsArray(zone(), broker(),
+                           JSArray::kPreallocatedArrayElements),
+        slack_tracking_prediction, allocation_type);
+  }
+
+  if (args.count() == 1) {
+    ValueNode* length_node = args[0];
+    std::optional<int> length;
+    switch (length_node->opcode()) {
+      case Opcode::kSmiConstant:
+        length = length_node->Cast<SmiConstant>()->value().value();
+        break;
+      case Opcode::kInt32Constant:
+        length = length_node->Cast<Int32Constant>()->value();
+        break;
+      case Opcode::kUint32Constant:
+        length = length_node->Cast<Uint32Constant>()->value();
+        break;
+      default:
+        break;
+    }
+
+    if (length.has_value() && *length >= 0 &&
+        *length < JSArray::kInitialMaxFastElementArray) {
+      return BuildAndAllocateJSArray(
+          initial_map, GetSmiConstant(*length),
+          BuildElementsArray(zone(), broker(), *length),
+          slack_tracking_prediction, allocation_type);
+    }
+
+    // TODO(victorgomes): If we know the argument cannot be a number, we should
+    // allocate an array with one element.
+
+    // We don't know anything about the length, so we rely on the allocation
+    // site to avoid deopt loops.
+    if (allocation_site.CanInlineCall()) {
+      // Constructing an Array via new Array(N) where N is an unsigned
+      // integer, always creates a holey backing store.
+      compiler::OptionalMapRef maybe_initial_map = initial_map.AsElementsKind(
+          broker(), GetHoleyElementsKind(elements_kind));
+      if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
+      ValueNode* int32_length = GetInt32(length_node);
+      return Select<BranchIfInt32Compare>(
+          [&] {
+            CapturedValue elements =
+                CapturedValue(AddNewNode<AllocateElementsArray>(
+                    {int32_length}, allocation_type));
+            return BuildAndAllocateJSArray(
+                *maybe_initial_map, GetTaggedValue(length_node), elements,
+                slack_tracking_prediction, allocation_type);
+          },
+          [&] {
+            ValueNode* error = GetSmiConstant(
+                static_cast<int>(MessageTemplate::kInvalidArrayLength));
+            return BuildCallRuntime(Runtime::kThrowRangeError, {error});
+          },
+          {int32_length, GetInt32Constant(0)}, Operation::kGreaterThanOrEqual);
+    }
+  }
+
+  // TODO(victorgomes): Support the constructor with argument count larger
+  // than 1.
+  return ReduceResult::Fail();
+}
+
 ReduceResult MaglevGraphBuilder::ReduceConstruct(
     compiler::HeapObjectRef feedback_target, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
   if (feedback_target.IsAllocationSite()) {
-    // TODO(victorgomes): Inline array constructors.
-    return ReduceResult::Fail();
+    // The feedback is an AllocationSite, which means we have called the
+    // Array function and collected transition (and pretenuring) feedback
+    // for the resulting arrays.  This has to be kept in sync with the
+    // implementation in Ignition.
+    compiler::JSFunctionRef array_function =
+        broker()->target_native_context().array_function(broker());
+    RETURN_IF_ABORT(BuildCheckValue(target, array_function));
+    return ReduceArrayConstructor(array_function, args,
+                                  feedback_target.AsAllocationSite());
   } else if (feedback_target.map(broker()).is_constructor()) {
     if (target != new_target) return ReduceResult::Fail();
     if (feedback_target.IsJSFunction()) {
@@ -9233,7 +9365,8 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   // Initial JSArray map shouldn't have any in-object properties.
   SBXCHECK_EQ(map.GetInObjectProperties(), 0);
   SetAccumulator(BuildInlinedAllocation(
-      CapturedObject::CreateJSArray(zone(), map, GetSmiConstant(0)),
+      CapturedObject::CreateJSArray(zone(), map, map.instance_size(),
+                                    GetSmiConstant(0)),
       AllocationType::kYoung));
   // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
   // effect clear it.
@@ -9308,7 +9441,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
   CapturedObject fast_literal =
       boilerplate_map.IsJSArrayMap()
           ? CapturedObject::CreateJSArray(
-                zone(), boilerplate_map,
+                zone(), boilerplate_map, boilerplate_map.instance_size(),
                 GetConstant(
                     boilerplate.AsJSArray().GetBoilerplateLength(broker())))
           : CapturedObject::CreateJSObject(zone(), boilerplate_map);

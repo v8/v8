@@ -13,30 +13,35 @@ namespace maglev {
 
 #define __ masm->
 
-void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
-                               Register object, int size_in_bytes,
-                               AllocationType alloc_type,
-                               AllocationAlignment alignment) {
-  DCHECK(allow_allocate());
+namespace {
+
+void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
+                         Register size_in_bytes) {
+  __ Sub(object, object, size_in_bytes);
+  __ Add(object, object, kHeapObjectTag);
+}
+
+void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
+                         int size_in_bytes) {
+  __ Add(object, object, kHeapObjectTag - size_in_bytes);
+}
+
+template <typename T>
+void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
+                 RegisterSnapshot register_snapshot, Register object,
+                 T size_in_bytes, AllocationType alloc_type,
+                 AllocationAlignment alignment) {
   // TODO(victorgomes): Call the runtime for large object allocation.
   // TODO(victorgomes): Support double alignment.
+  DCHECK(masm->allow_allocate());
   DCHECK_EQ(alignment, kTaggedAligned);
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  bool in_new_space = alloc_type == AllocationType::kYoung;
-  ExternalReference top =
-      in_new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate_)
-          : ExternalReference::old_space_allocation_top_address(isolate_);
-  ExternalReference limit =
-      in_new_space
-          ? ExternalReference::new_space_allocation_limit_address(isolate_)
-          : ExternalReference::old_space_allocation_limit_address(isolate_);
-
-  ZoneLabelRef done(this);
-  ScratchRegisterScope temps(this);
+  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
+  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  ZoneLabelRef done(masm);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   // We are a bit short on registers, so we use the same register for {object}
   // and {new_top}. Once we have defined {new_top}, we don't use {object} until
@@ -45,38 +50,34 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  Ldr(object, ExternalReferenceAsOperand(top, scratch));
-  Add(new_top, object, size_in_bytes);
-  Ldr(scratch, ExternalReferenceAsOperand(limit, scratch));
-  Cmp(new_top, scratch);
+  __ Ldr(object, __ ExternalReferenceAsOperand(top, scratch));
+  __ Add(new_top, object, size_in_bytes);
+  __ Ldr(scratch, __ ExternalReferenceAsOperand(limit, scratch));
+  __ Cmp(new_top, scratch);
   // Otherwise call runtime.
-  JumpToDeferredIf(
-      ge,
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         Register object, Builtin builtin, int size_in_bytes,
-         ZoneLabelRef done) {
-        // Remove {object} from snapshot, since it is the returned allocated
-        // HeapObject.
-        register_snapshot.live_registers.clear(object);
-        register_snapshot.live_tagged_registers.clear(object);
-        {
-          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
-          using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
-          __ CallBuiltin(builtin);
-          save_register_state.DefineSafepoint();
-          __ Move(object, kReturnRegister0);
-        }
-        __ B(*done);
-      },
-      register_snapshot, object,
-      in_new_space ? Builtin::kAllocateInYoungGeneration
-                   : Builtin::kAllocateInOldGeneration,
-      size_in_bytes, done);
+  __ JumpToDeferredIf(ge, AllocateSlow<T>, register_snapshot, object,
+                      AllocateBuiltin(alloc_type), size_in_bytes, done);
   // Store new top and tag object.
-  Move(ExternalReferenceAsOperand(top, scratch), new_top);
-  Add(object, object, kHeapObjectTag - size_in_bytes);
-  bind(*done);
+  __ Move(__ ExternalReferenceAsOperand(top, scratch), new_top);
+  SubSizeAndTagObject(masm, object, size_in_bytes);
+  __ bind(*done);
+}
+}  // namespace
+
+void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
+                               Register object, int size_in_bytes,
+                               AllocationType alloc_type,
+                               AllocationAlignment alignment) {
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
+}
+
+void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
+                               Register object, Register size_in_bytes,
+                               AllocationType alloc_type,
+                               AllocationAlignment alignment) {
+  AllocateRaw(this, isolate_, register_snapshot, object, size_in_bytes,
+              alloc_type, alignment);
 }
 
 void MaglevAssembler::OSRPrologue(Graph* graph) {

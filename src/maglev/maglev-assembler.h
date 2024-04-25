@@ -20,6 +20,32 @@ namespace maglev {
 class Graph;
 class MaglevAssembler;
 
+inline ExternalReference SpaceAllocationTopAddress(Isolate* isolate,
+                                                   AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return ExternalReference::new_space_allocation_top_address(isolate);
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return ExternalReference::old_space_allocation_top_address(isolate);
+}
+
+inline ExternalReference SpaceAllocationLimitAddress(
+    Isolate* isolate, AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return ExternalReference::new_space_allocation_limit_address(isolate);
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return ExternalReference::old_space_allocation_limit_address(isolate);
+}
+
+inline Builtin AllocateBuiltin(AllocationType alloc_type) {
+  if (alloc_type == AllocationType::kYoung) {
+    return Builtin::kAllocateInYoungGeneration;
+  }
+  DCHECK_EQ(alloc_type, AllocationType::kOld);
+  return Builtin::kAllocateInOldGeneration;
+}
+
 // Label allowed to be passed to deferred code.
 class ZoneLabelRef {
  public:
@@ -107,6 +133,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void Allocate(RegisterSnapshot register_snapshot, Register result,
                 int size_in_bytes,
+                AllocationType alloc_type = AllocationType::kYoung,
+                AllocationAlignment alignment = kTaggedAligned);
+
+  void Allocate(RegisterSnapshot register_snapshot, Register result,
+                Register size_in_bytes,
                 AllocationType alloc_type = AllocationType::kYoung,
                 AllocationAlignment alignment = kTaggedAligned);
 
@@ -337,6 +368,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void MaterialiseValueNode(Register dst, ValueNode* value);
 
   inline void IncrementInt32(Register reg);
+  inline void DecrementInt32(Register reg);
+  inline void AddInt32(Register reg, int amount);
+  inline void ShiftLeft(Register reg, int amount);
   inline void IncrementAddress(Register reg, int32_t delta);
   inline void LoadAddress(Register dst, MemOperand location);
 

@@ -22,6 +22,8 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/js-array.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
@@ -457,8 +459,9 @@ CapturedObject CapturedObject::CreateJSConstructor(
 
 // static
 CapturedObject CapturedObject::CreateJSArray(Zone* zone, compiler::MapRef map,
+                                             int instance_size,
                                              ValueNode* length) {
-  int slot_count = map.instance_size() / kTaggedSize;
+  int slot_count = instance_size / kTaggedSize;
   SBXCHECK_GE(slot_count, 4);
   CapturedObject object(zone, slot_count);
   object.set(JSArray::kMapOffset, map);
@@ -1400,6 +1403,65 @@ void ArgumentsElements::GenerateCode(MaglevAssembler* masm,
           __ GetFramePointer(), formal_parameter_count(), arguments_count);
       break;
   }
+}
+
+void AllocateElementsArray::SetValueLocationConstraints() {
+  UseAndClobberRegister(length_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register length = ToRegister(length_input());
+  Register elements = ToRegister(result());
+  Label allocate_elements, done;
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  // Be sure to save the length in the register snapshot.
+  RegisterSnapshot snapshot = register_snapshot();
+  snapshot.live_registers.set(length);
+
+  // Return empty fixed array if lenght equal zero.
+  __ CompareInt32AndJumpIf(length, 0, kNotEqual, &allocate_elements,
+                           Label::Distance::kNear);
+  __ LoadRoot(elements, RootIndex::kEmptyFixedArray);
+  __ Jump(&done);
+
+  // Allocate a fixed array object.
+  __ bind(&allocate_elements);
+  __ CompareInt32AndJumpIf(
+      length, JSArray::kInitialMaxFastElementArray, kGreaterThanEqual,
+      __ GetDeoptLabel(this,
+                       DeoptimizeReason::kGreaterThanMaxFastElementArray));
+  {
+    Register size_in_bytes = scratch;
+    __ Move(size_in_bytes, length);
+    __ ShiftLeft(size_in_bytes, kTaggedSizeLog2);
+    __ AddInt32(size_in_bytes, FixedArray::kHeaderSize);
+    __ Allocate(snapshot, elements, size_in_bytes, allocation_type_);
+    __ SetMapAsRoot(elements, RootIndex::kFixedArrayMap);
+  }
+  {
+    Register smi_length = scratch;
+    __ UncheckedSmiTagInt32(smi_length, length);
+    __ StoreTaggedFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                      smi_length);
+  }
+
+  // Initialize the array with holes.
+  {
+    Label loop;
+    Register the_hole = scratch;
+    __ LoadTaggedRoot(the_hole, RootIndex::kTheHoleValue);
+    __ bind(&loop);
+    __ DecrementInt32(length);
+    // TODO(victorgomes): This can be done more efficiently  by have the root
+    // (the_hole) as an immediate in the store.
+    __ StoreFixedArrayElementNoWriteBarrier(elements, length, the_hole);
+    __ CompareInt32AndJumpIf(length, 0, kGreaterThan, &loop,
+                             Label::Distance::kNear);
+  }
+  __ bind(&done);
 }
 
 namespace {

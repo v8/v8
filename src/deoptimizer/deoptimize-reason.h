@@ -82,6 +82,8 @@ namespace internal {
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
   V(ArrayLengthChanged, "the array length changed")                            \
+  V(GreaterThanMaxFastElementArray,                                            \
+    "length is greater than the maximum for fast elements array")              \
   V(Float16NotYetSupported, "float16 is not supported as machine operation")
 
 enum class DeoptimizeReason : uint8_t {

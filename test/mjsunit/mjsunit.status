@@ -2050,9 +2050,6 @@
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
 ['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
-  # Maglev doesn't inline Array constructors, so it won't bake in allocation
-  # site feedback.
-  'array-constructor-feedback': [FAIL],
   # Maglev deopts on non-int division, even if the result is truncated after.
   'shift-for-integer-div': [FAIL],
   # Maglev deopts on negative zero for int32, even if truncated afterward.

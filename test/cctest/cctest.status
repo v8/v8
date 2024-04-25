@@ -1144,9 +1144,6 @@
   'test-api/FastApiCallRecursionNoException': [FAIL],
   'test-api/FastApiCallRecursionWithException': [FAIL],
   'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
-  # Maglev doesn't produce optimized enough code to match heap tests
-  # expectations.
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ['conservative_stack_scanning', {

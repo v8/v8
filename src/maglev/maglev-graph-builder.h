@@ -1824,11 +1824,19 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  ValueNode* BuildAndAllocateJSArray(
+      compiler::MapRef map, ValueNode* length, CapturedValue elements,
+      const compiler::SlackTrackingPrediction& slack_tracking_prediction,
+      AllocationType allocation_type);
+
   ValueNode* BuildGenericConstruct(
       ValueNode* target, ValueNode* new_target, ValueNode* context,
       const CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
           compiler::FeedbackSource());
+  ReduceResult ReduceArrayConstructor(
+      compiler::JSFunctionRef array_function, CallArguments& args,
+      compiler::AllocationSiteRef allocation_site);
   ReduceResult ReduceConstruct(compiler::HeapObjectRef feedback_target,
                                ValueNode* target, ValueNode* new_target,
                                CallArguments& args,

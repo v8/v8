@@ -22,6 +22,7 @@
 #include "src/common/operation.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 // TODO(dmercadier): move the Turboshaft utils functions to shared code (in
@@ -254,6 +255,7 @@ class MergePointInterpreterFrameState;
   V(StringConcat)                                   \
   V(ToBoolean)                                      \
   V(ToBooleanLogicalNot)                            \
+  V(AllocateElementsArray)                          \
   V(TaggedEqual)                                    \
   V(TaggedNotEqual)                                 \
   V(TestInstanceOf)                                 \
@@ -871,7 +873,7 @@ class CapturedObject {
  public:
   static CapturedObject CreateJSObject(Zone* zone, compiler::MapRef map);
   static CapturedObject CreateJSArray(Zone* zone, compiler::MapRef map,
-                                      ValueNode* length);
+                                      int instance_size, ValueNode* length);
   static CapturedObject CreateJSConstructor(
       Zone* zone, compiler::JSHeapBroker* broker,
       compiler::JSFunctionRef constructor);
@@ -5203,6 +5205,35 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
  private:
   CreateArgumentsType type_;
   int formal_parameter_count_;
+};
+
+// TODO(victorgomes): This node is currently not eliminated by the escape
+// analysis.
+class AllocateElementsArray
+    : public FixedInputValueNodeT<1, AllocateElementsArray> {
+  using Base = FixedInputValueNodeT<1, AllocateElementsArray>;
+
+ public:
+  explicit AllocateElementsArray(uint64_t bitfield,
+                                 AllocationType allocation_type)
+      : Base(bitfield), allocation_type_(allocation_type) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::EagerDeopt() |
+      OpProperties::DeferredCall() | OpProperties::NotIdempotent();
+
+  Input& length_input() { return input(0); }
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  AllocationType allocation_type_;
 };
 
 class CreateFunctionContext
