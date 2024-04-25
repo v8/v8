@@ -372,7 +372,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
-  MaybeHandle<Map> GetInPlaceInternalizedStringMap(Tagged<Map> from_string_map);
+  MaybeDirectHandle<Map> GetInPlaceInternalizedStringMap(
+      Tagged<Map> from_string_map);
 
   AllocationType RefineAllocationTypeForInPlaceInternalizableString(
       AllocationType allocation, Tagged<Map> string_map);

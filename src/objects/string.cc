@@ -107,7 +107,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
   // Do not recursively call Share, so directly compute the sharing strategy for
   // the flat string, which could already be a copy or an existing string from
   // e.g. a shortcut ConsString.
-  MaybeHandle<Map> new_map;
+  MaybeDirectHandle<Map> new_map;
   switch (isolate->factory()->ComputeSharingStrategyForString(flat, &new_map)) {
     case StringTransitionStrategy::kCopy:
       break;

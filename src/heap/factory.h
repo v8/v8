@@ -215,9 +215,23 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                    bool convert_encoding = false);
 
   // Internalized strings are created in the old generation (data space).
-  inline Handle<String> InternalizeString(Handle<String> string);
+  template <typename T, typename = std::enable_if_t<
+                            std::is_convertible_v<Handle<T>, Handle<String>>>>
+  inline Handle<String> InternalizeString(Handle<T> string);
 
-  inline Handle<Name> InternalizeName(Handle<Name> name);
+  template <typename T, typename = std::enable_if_t<
+                            std::is_convertible_v<Handle<T>, Handle<Name>>>>
+  inline Handle<Name> InternalizeName(Handle<T> name);
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  template <typename T, typename = std::enable_if_t<std::is_convertible_v<
+                            DirectHandle<T>, DirectHandle<String>>>>
+  inline DirectHandle<String> InternalizeString(DirectHandle<T> string);
+
+  template <typename T, typename = std::enable_if_t<std::is_convertible_v<
+                            DirectHandle<T>, DirectHandle<Name>>>>
+  inline DirectHandle<Name> InternalizeName(DirectHandle<T> name);
+#endif
 
   // String creation functions.  Most of the string creation functions take
   // an AllocationType argument to optionally request that they be
@@ -306,8 +320,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // All other strings are internalized by flattening and copying and return
   // kCopy.
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
-  ComputeInternalizationStrategyForString(DirectHandle<String> string,
-                                          MaybeHandle<Map>* internalized_map);
+  ComputeInternalizationStrategyForString(
+      DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map);
 
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
@@ -326,7 +340,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // string then sharing that sequential string, and return kCopy.
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeSharingStrategyForString(DirectHandle<String> string,
-                                  MaybeHandle<Map>* shared_map);
+                                  MaybeDirectHandle<Map>* shared_map);
 
   // Create or lookup a single character string made up of a utf16 surrogate
   // pair.

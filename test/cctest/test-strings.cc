@@ -1916,16 +1916,17 @@ TEST(InternalizeExternalString) {
   const char* raw_string = "external";
   OneByteResource* resource =
       new OneByteResource(i::StrDup(raw_string), strlen(raw_string));
-  Handle<String> string =
+  DirectHandle<String> string =
       factory->NewExternalStringFromOneByte(resource).ToHandleChecked();
   CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
-  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  DirectHandle<ExternalString> external =
+      DirectHandle<ExternalString>::cast(string);
   CHECK(!external->is_uncached());
 
   // Internalize succesfully, without a copy.
-  Handle<String> internal = factory->InternalizeString(external);
+  DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
 }
@@ -1941,16 +1942,17 @@ TEST(InternalizeExternalStringTwoByte) {
   const char* raw_string = "external";
   Resource* resource =
       new Resource(AsciiToTwoByteString(raw_string), strlen(raw_string));
-  Handle<String> string =
+  DirectHandle<String> string =
       factory->NewExternalStringFromTwoByte(resource).ToHandleChecked();
   CHECK(IsExternalString(*string));
 
   // Check it is not uncached.
-  Handle<ExternalString> external = Handle<ExternalString>::cast(string);
+  DirectHandle<ExternalString> external =
+      DirectHandle<ExternalString>::cast(string);
   CHECK(!external->is_uncached());
 
   // Internalize succesfully, without a copy.
-  Handle<String> internal = factory->InternalizeString(external);
+  DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
 }
