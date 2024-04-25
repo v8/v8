@@ -25,8 +25,6 @@ no_check_targets = [
 ]
 
 default_args = {
-  # Disable js dependencies like the closure compiler.
-  enable_js_protobuf = false
   # Disable rust dependencies.
   enable_rust = false
 }
