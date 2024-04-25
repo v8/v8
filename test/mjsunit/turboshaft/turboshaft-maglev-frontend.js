@@ -1423,3 +1423,19 @@ let glob_b = 3.35;
   assertEquals(8, call_arg(add2, 3, 5, 7));
   assertOptimized(call_arg);
 }
+
+// Testing Undetectable detection.
+{
+  function check_undetectable(x) {
+    let r = x == null;
+    if (x == null) return 17;
+    return r;
+  };
+
+  %PrepareFunctionForOptimization(check_undetectable);
+  assertEquals(false, check_undetectable(42));
+  %OptimizeFunctionOnNextCall(check_undetectable);
+  assertEquals(false, check_undetectable(42));
+  assertEquals(17, check_undetectable(%GetUndetectable()));
+  assertOptimized(check_undetectable);
+}

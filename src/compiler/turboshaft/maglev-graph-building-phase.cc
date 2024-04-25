@@ -40,6 +40,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/objects.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -1385,6 +1386,22 @@ class GraphBuilder {
                      __ TaggedEqual(Map(node->lhs()), Map(node->rhs()))));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::TestUndetectable* node,
+                                const maglev::ProcessingState& state) {
+    ObjectIsOp::InputAssumptions assumption;
+    switch (node->check_type()) {
+      case maglev::CheckType::kCheckHeapObject:
+        assumption = ObjectIsOp::InputAssumptions::kNone;
+        break;
+      case maglev::CheckType::kOmitHeapObjectCheck:
+        assumption = ObjectIsOp::InputAssumptions::kHeapObject;
+        break;
+    }
+    SetMap(node, ConvertWord32ToJSBool(
+                     __ ObjectIs(Map(node->value()),
+                                 ObjectIsOp::Kind::kUndetectable, assumption)));
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::BranchIfToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
@@ -1455,6 +1472,22 @@ class GraphBuilder {
     __ GotoIf(RootEqual(node->condition_input(), RootIndex::kUndefinedValue),
               Map(node->if_true()));
     __ Branch(RootEqual(node->condition_input(), RootIndex::kNullValue),
+              Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfUndetectable* node,
+                                const maglev::ProcessingState& state) {
+    ObjectIsOp::InputAssumptions assumption;
+    switch (node->check_type()) {
+      case maglev::CheckType::kCheckHeapObject:
+        assumption = ObjectIsOp::InputAssumptions::kNone;
+        break;
+      case maglev::CheckType::kOmitHeapObjectCheck:
+        assumption = ObjectIsOp::InputAssumptions::kHeapObject;
+        break;
+    }
+    __ Branch(__ ObjectIs(Map(node->condition_input()),
+                          ObjectIsOp::Kind::kUndetectable, assumption),
               Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
