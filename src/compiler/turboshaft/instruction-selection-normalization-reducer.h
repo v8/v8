@@ -54,9 +54,9 @@ class InstructionSelectionNormalizationReducer : public Next {
     return Next::ReduceWordBinop(left, right, kind, rep);
   }
 
-  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
-                             ComparisonOp::Kind kind,
-                             RegisterRepresentation rep) {
+  V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
+                               ComparisonOp::Kind kind,
+                               RegisterRepresentation rep) {
     if (ComparisonOp::IsCommutative(kind)) {
       if (!IsSimpleConstant(right) && IsSimpleConstant(left)) {
         std::swap(left, right);
@@ -69,14 +69,14 @@ class InstructionSelectionNormalizationReducer : public Next {
 
  private:
   // Return true if {index} is a literal ConsantOp.
-  bool IsSimpleConstant(OpIndex index) {
+  bool IsSimpleConstant(V<Any> index) {
     return __ Get(index).template Is<ConstantOp>();
   }
   // Return true if {index} is a ConstantOp or a (chain of) Change/Cast/Bitcast
   // of a ConstantOp. Such an operation is succeptible to be recognized as a
   // constant by the instruction selector, and as such should rather be on the
   // right-hande side of commutative binops.
-  bool IsComplexConstant(OpIndex index) {
+  bool IsComplexConstant(V<Any> index) {
     const Operation& op = __ Get(index);
     switch (op.opcode) {
       case Opcode::kConstant:

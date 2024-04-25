@@ -315,9 +315,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
-                             ComparisonOp::Kind kind,
-                             RegisterRepresentation rep) {
+  V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
+                               ComparisonOp::Kind kind,
+                               RegisterRepresentation rep) {
     OpIndex index = Next::ReduceComparison(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 

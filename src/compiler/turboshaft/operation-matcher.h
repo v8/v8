@@ -318,26 +318,14 @@ class OperationMatcher {
     return false;
   }
 
-  bool MatchEqual(OpIndex matched, OpIndex* left, OpIndex* right,
-                  WordRepresentation rep) const {
+  template <typename T>
+  bool MatchEqual(OpIndex matched, V<T>* left, V<T>* right) const {
     const ComparisonOp* op = TryCast<ComparisonOp>(matched);
-    if (!op || op->kind != ComparisonOp::Kind::kEqual || rep != op->rep) {
+    if (!op || op->kind != ComparisonOp::Kind::kEqual || op->rep != V<T>::rep) {
       return false;
     }
-    *left = op->left();
-    *right = op->right();
-    return true;
-  }
-
-  bool MatchComparison(OpIndex matched, OpIndex* left, OpIndex* right,
-                       ComparisonOp::Kind* kind,
-                       RegisterRepresentation* rep) const {
-    const ComparisonOp* op = TryCast<ComparisonOp>(matched);
-    if (!op) return false;
-    *kind = op->kind;
-    *rep = op->rep;
-    *left = op->left();
-    *right = op->right();
+    *left = V<T>::Cast(op->left());
+    *right = V<T>::Cast(op->right());
     return true;
   }
 

@@ -1480,7 +1480,7 @@ class TurboshaftAssemblerOpInterface
     return ShiftLeft(left, this->Word32Constant(right), rep);
   }
 
-  V<Word32> Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+  V<Word32> Equal(V<Any> left, V<Any> right, RegisterRepresentation rep) {
     return Comparison(left, right, ComparisonOp::Kind::kEqual, rep);
   }
 

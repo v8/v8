@@ -89,15 +89,15 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceShift(left, right, kind, rep);
   }
 
-  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
-                             ComparisonOp::Kind kind,
-                             RegisterRepresentation rep) {
+  V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
+                               ComparisonOp::Kind kind,
+                               RegisterRepresentation rep) {
     if (rep != WordRepresentation::Word64()) {
       return Next::ReduceComparison(left, right, kind, rep);
     }
 
-    auto [left_low, left_high] = Unpack(left);
-    auto [right_low, right_high] = Unpack(right);
+    auto [left_low, left_high] = Unpack(V<Word64>::Cast(left));
+    auto [right_low, right_high] = Unpack(V<Word64>::Cast(right));
     V<Word32> high_comparison;
     V<Word32> low_comparison;
     switch (kind) {
