@@ -9087,12 +9087,12 @@ class TerminalControlNode : public ControlNode {
 };
 
 template <size_t InputCount, class Derived>
-class TeminalControlNodeT
+class TerminalControlNodeT
     : public FixedInputNodeTMixin<InputCount, TerminalControlNode, Derived> {
   static_assert(IsTerminalControlNode(NodeBase::opcode_of<Derived>));
 
  protected:
-  explicit TeminalControlNodeT(uint64_t bitfield)
+  explicit TerminalControlNodeT(uint64_t bitfield)
       : FixedInputNodeTMixin<InputCount, TerminalControlNode, Derived>(
             bitfield) {}
 };
@@ -9160,8 +9160,8 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   base::Vector<Input> used_node_locations_;
 };
 
-class Abort : public TeminalControlNodeT<0, Abort> {
-  using Base = TeminalControlNodeT<0, Abort>;
+class Abort : public TerminalControlNodeT<0, Abort> {
+  using Base = TerminalControlNodeT<0, Abort>;
 
  public:
   explicit Abort(uint64_t bitfield, AbortReason reason)
@@ -9182,8 +9182,8 @@ class Abort : public TeminalControlNodeT<0, Abort> {
   const AbortReason reason_;
 };
 
-class Return : public TeminalControlNodeT<1, Return> {
-  using Base = TeminalControlNodeT<1, Return>;
+class Return : public TerminalControlNodeT<1, Return> {
+  using Base = TerminalControlNodeT<1, Return>;
 
  public:
   explicit Return(uint64_t bitfield) : Base(bitfield) {
@@ -9200,8 +9200,8 @@ class Return : public TeminalControlNodeT<1, Return> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class Deopt : public TeminalControlNodeT<0, Deopt> {
-  using Base = TeminalControlNodeT<0, Deopt>;
+class Deopt : public TerminalControlNodeT<0, Deopt> {
+  using Base = TerminalControlNodeT<0, Deopt>;
 
  public:
   explicit Deopt(uint64_t bitfield, DeoptimizeReason reason)
