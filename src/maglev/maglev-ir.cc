@@ -367,6 +367,15 @@ size_t CapturedValue::InputLocationSizeNeeded() const {
   }
 }
 
+std::optional<CapturedObject> CapturedValue::GetObjectFromAllocation() const {
+  if (type != kRuntimeValue) return {};
+  if (!runtime_value->Is<InlinedAllocation>()) return {};
+  const CapturedAllocation& allocation =
+      runtime_value->Cast<InlinedAllocation>()->captured_allocation();
+  if (allocation.type != CapturedAllocation::kObject) return {};
+  return allocation.object;
+}
+
 void CapturedObject::set(int index, ValueNode* value) {
   // We unwrap any constant or special ValueNodes.
   switch (value->opcode()) {
@@ -477,10 +486,10 @@ CapturedObject CapturedObject::CreateFixedArray(Zone* zone,
                                                 compiler::MapRef map,
                                                 int length) {
   int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
-  CapturedObject array(zone, slot_count);
-  array.set(Context::kMapOffset, map);
-  array.set(Context::kLengthOffset, length);
-  array.ClearSlots(Context::kLengthOffset);
+  CapturedObject array(zone, slot_count, kFixedArray);
+  array.set(FixedArray::kMapOffset, map);
+  array.set(FixedArray::kLengthOffset, length);
+  array.ClearSlots(FixedArray::kLengthOffset);
   return array;
 }
 
@@ -511,12 +520,13 @@ CapturedObject CapturedObject::CreateContext(
 
 // static
 CapturedObject CapturedObject::CreateArgumentsObject(
-    Zone* zone, compiler::MapRef map, CapturedValue length,
-    CapturedValue elements, base::Optional<ValueNode*> callee) {
+    Zone* zone, CapturedObject::Tag argument_type, compiler::MapRef map,
+    CapturedValue length, CapturedValue elements,
+    base::Optional<ValueNode*> callee) {
   DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   int slot_count = map.instance_size() / kTaggedSize;
-  CapturedObject arguments(zone, slot_count);
+  CapturedObject arguments(zone, slot_count, argument_type);
   arguments.set(JSArray::kMapOffset, map);
   arguments.set(JSArray::kPropertiesOrHashOffset, RootIndex::kEmptyFixedArray);
   arguments.set(JSArray::kElementsOffset, elements);
@@ -527,6 +537,7 @@ CapturedObject CapturedObject::CreateArgumentsObject(
   } else {
     SBXCHECK_EQ(slot_count, 4);
   }
+  DCHECK(arguments.IsArgumentsObject());
   return arguments;
 }
 
@@ -7117,6 +7128,12 @@ void CallBuiltin::PrintParams(std::ostream& os,
 void CallCPPBuiltin::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << Builtins::name(builtin()) << ")";
+}
+
+void CallForwardVarargs::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  if (start_index_ == 0) return;
+  os << "(" << start_index_ << ")";
 }
 
 void CallRuntime::PrintParams(std::ostream& os,

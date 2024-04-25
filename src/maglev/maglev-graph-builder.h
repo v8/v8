@@ -1809,8 +1809,9 @@ class MaglevGraphBuilder {
       compiler::OptionalJSObjectRef api_holder, CallArguments& args);
   ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
       compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args);
-  ReduceResult ReduceCallWithArrayLikeForArgumentsObject(ValueNode* target_node,
-                                                         CallArguments& args);
+  ReduceResult ReduceCallWithArrayLikeForArgumentsObject(
+      ValueNode* target_node, CallArguments& args,
+      CapturedObject& arguments_object);
   ReduceResult ReduceCallWithArrayLike(ValueNode* target_node,
                                        CallArguments& args);
   ReduceResult ReduceCall(
@@ -2060,7 +2061,8 @@ class MaglevGraphBuilder {
   void AddDeoptUse(const CapturedAllocation& alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
-  bool IsNonEscapingArgumentsObject(ValueNode* value);
+  std::optional<CapturedObject> TryGetNonEscapingArgumentsObject(
+      ValueNode* value);
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);

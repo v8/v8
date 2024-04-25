@@ -7992,81 +7992,83 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
-    ValueNode* target_node, CallArguments& args) {
+    ValueNode* target_node, CallArguments& args,
+    CapturedObject& arguments_object) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
+  DCHECK(arguments_object.IsArgumentsObject());
   args.PopArrayLikeArgument();
+  CapturedValue elements_value =
+      arguments_object.get(JSArgumentsObject::kElementsOffset);
+  if (elements_value.type == CapturedValue::kArgumentsElements) {
+    Call::TargetType target_type = Call::TargetType::kAny;
+    // TODO(victorgomes): Add JSFunction node type in KNA and use the info here.
+    if (compiler::OptionalHeapObjectRef maybe_constant =
+            TryGetConstant(target_node)) {
+      if (maybe_constant->IsJSFunction()) {
+        target_type = Call::TargetType::kJSFunction;
+      }
+    }
+    int start_index = 0;
+    if (arguments_object.IsRestParameter()) {
+      ArgumentsElements* arguments_elements = elements_value.arguments_elements;
+      DCHECK_EQ(arguments_elements->type(),
+                CreateArgumentsType::kRestParameter);
+      start_index = arguments_elements->formal_parameter_count();
+    }
+    return AddNewCallNode<CallForwardVarargs>(args, target_node, GetContext(),
+                                              start_index, target_type);
+  }
 
-  if (is_inline()) {
-    base::SmallVector<ValueNode*, 8> arg_list;
-    DCHECK_NOT_NULL(args.receiver());
-    arg_list.push_back(args.receiver());
-    for (int i = 0; i < static_cast<int>(args.count()); i++) {
-      arg_list.push_back(args[i]);
-    }
-    for (int i = 1; i < static_cast<int>(inlined_arguments_.size()); i++) {
-      arg_list.push_back(inlined_arguments_[i]);
-    }
-    CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
+  if (elements_value.type == CapturedValue::kRootConstant) {
+    // Elements is the empty fixed array.
+    DCHECK_EQ(elements_value.root_constant, RootIndex::kEmptyFixedArray);
+    CallArguments new_args(ConvertReceiverMode::kAny, {args.receiver()});
     return ReduceCall(target_node, new_args);
   }
 
-  Call::TargetType target_type = Call::TargetType::kAny;
-  // TODO(victorgomes): Add JSFunction node type in KNA and use the info here.
-  if (compiler::OptionalHeapObjectRef maybe_constant =
-          TryGetConstant(target_node)) {
-    if (maybe_constant->IsJSFunction()) {
-      target_type = Call::TargetType::kJSFunction;
-    }
+  std::optional<CapturedObject> elements =
+      elements_value.GetObjectFromAllocation();
+  DCHECK(elements.has_value());
+  DCHECK(elements->IsFixedArray());
+
+  base::SmallVector<ValueNode*, 8> arg_list;
+  DCHECK_NOT_NULL(args.receiver());
+  arg_list.push_back(args.receiver());
+  for (int i = 0; i < static_cast<int>(args.count()); i++) {
+    arg_list.push_back(args[i]);
   }
-  return AddNewCallNode<CallForwardVarargs>(args, target_node, GetContext(), 0,
-                                            target_type);
+  DCHECK_EQ(elements->get(FixedArray::kLengthOffset).type, CapturedValue::kSmi);
+  int length = elements->get(FixedArray::kLengthOffset).smi;
+  for (int i = 0; i < length; i++) {
+    CapturedValue value = elements->get(FixedArray::OffsetOfElementAt(i));
+    arg_list.push_back(GetValueNodeFromCapturedValue(value));
+  }
+  CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
+  return ReduceCall(target_node, new_args);
 }
 
-bool MaglevGraphBuilder::IsNonEscapingArgumentsObject(ValueNode* value) {
+std::optional<CapturedObject>
+MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // Although the arguments object has not been changed so far, since it is not
   // escaping, it could be modified after this bytecode if it is inside a loop.
   if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) != -1) {
-    return false;
+    return {};
   }
-  if (!value->Is<InlinedAllocation>()) return false;
+  if (!value->Is<InlinedAllocation>()) return {};
   InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-  // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement
-  // here if we keep track of the arguments object changes so far.
-  if (alloc->IsEscaping()) return false;
+  // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement if
+  // we keep track of the arguments object changes so far.
+  if (alloc->IsEscaping()) return {};
   if (alloc->captured_allocation().type != CapturedAllocation::kObject) {
-    return false;
+    return {};
   }
   CapturedObject object = alloc->captured_allocation().object;
-  compiler::MapRef map = object.GetMap();
-  // Check if the object is an arguments object.
-  if (!map.IsJSArgumentsObjectMap()) return {};
-  // No restrictions for strict arguments.
-  compiler::NativeContextRef native_context = broker()->target_native_context();
-  if (native_context.strict_arguments_map(broker()).equals(map)) {
-    return true;
+  // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
+  // requirement if there is no stores to  the mapped arguments.
+  if (object.IsArgumentsObject() && !object.IsSloppyMappedArgumentsObject()) {
+    return object;
   }
-  // TODO(victorgomes): We can loose the mapped_count == 0 requirement if there
-  // is no stores to  the mapped arguments.
-  CapturedValue elements_value = object.get(JSArgumentsObject::kElementsOffset);
-  // If the elements array is not an allocation, then it is an unmapped
-  // elements array (either CoW or ArgumentsElements node).
-  if (elements_value.type != CapturedValue::kRuntimeValue) return true;
-  if (!elements_value.runtime_value->Is<InlinedAllocation>()) return false;
-  InlinedAllocation* elements_node =
-      elements_value.runtime_value->Cast<InlinedAllocation>();
-  DCHECK_EQ(elements_node->captured_allocation().type,
-            CapturedAllocation::kObject);
-  const CapturedObject& elements = elements_node->captured_allocation().object;
-  compiler::MapRef elements_map = elements.GetMap();
-  // If we have a sloppy arguments elements map, then mapped count must be
-  // different than zero.
-  if (!elements_map.IsSloppyArgumentsElementsMap()) return true;
-#ifdef DEBUG
-  CapturedValue length = elements.get(SloppyArgumentsElements::kLengthOffset);
-  DCHECK_EQ(length.type, CapturedValue::kSmi);
-  DCHECK_GT(length.smi, 0);
-#endif  // DEBUG
-  return false;
+  return {};
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(ValueNode* target_node,
@@ -8074,9 +8076,10 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(ValueNode* target_node,
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
 
   // TODO(victorgomes): Add the case for JSArrays and Rest parameter.
-  if (IsNonEscapingArgumentsObject(args.array_like_argument())) {
-    RETURN_IF_DONE(
-        ReduceCallWithArrayLikeForArgumentsObject(target_node, args));
+  if (std::optional<CapturedObject> arguments_object =
+          TryGetNonEscapingArgumentsObject(args.array_like_argument())) {
+    RETURN_IF_DONE(ReduceCallWithArrayLikeForArgumentsObject(
+        target_node, args, *arguments_object));
   }
 
   // On fallthrough, create a generic call.
@@ -9759,7 +9762,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
           int length = argument_count_without_receiver();
           CapturedValue elements = BuildInlinedArgumentsElements(0, length);
           return CapturedObject::CreateArgumentsObject(
-              zone(),
+              zone(), CapturedObject::kSloppyUnmappedArgumentsObject,
               broker()->target_native_context().sloppy_arguments_map(broker()),
               CapturedValue(length), elements, GetClosure());
         } else {
@@ -9769,7 +9772,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
               {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
               parameter_count_without_receiver());
           return CapturedObject::CreateArgumentsObject(
-              zone(),
+              zone(), CapturedObject::kSloppyUnmappedArgumentsObject,
               broker()->target_native_context().sloppy_arguments_map(broker()),
               CapturedValue(GetTaggedValue(length)), CapturedValue(elements),
               GetClosure());
@@ -9802,7 +9805,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
                 param_idx_in_ctxt);
           }
           return CapturedObject::CreateArgumentsObject(
-              zone(),
+              zone(), CapturedObject::kSloppyMappedArgumentsObject,
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
               CapturedValue(length), CapturedValue(elements), GetClosure());
@@ -9826,7 +9829,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
                 value);
           }
           return CapturedObject::CreateArgumentsObject(
-              zone(),
+              zone(), CapturedObject::kSloppyMappedArgumentsObject,
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
               CapturedValue(GetTaggedValue(length)), CapturedValue(elements),
@@ -9838,7 +9841,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
         int length = argument_count_without_receiver();
         CapturedValue elements = BuildInlinedArgumentsElements(0, length);
         return CapturedObject::CreateArgumentsObject(
-            zone(),
+            zone(), CapturedObject::kStrictArgumentsObject,
             broker()->target_native_context().strict_arguments_map(broker()),
             CapturedValue(length), elements);
       } else {
@@ -9848,7 +9851,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
             {GetTaggedValue(length)}, CreateArgumentsType::kUnmappedArguments,
             parameter_count_without_receiver());
         return CapturedObject::CreateArgumentsObject(
-            zone(),
+            zone(), CapturedObject::kStrictArgumentsObject,
             broker()->target_native_context().strict_arguments_map(broker()),
             CapturedValue(GetTaggedValue(length)), CapturedValue(elements));
       }
@@ -9860,7 +9863,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
         CapturedValue elements =
             BuildInlinedArgumentsElements(start_index, length);
         return CapturedObject::CreateArgumentsObject(
-            zone(),
+            zone(), CapturedObject::kRestParameter,
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
             CapturedValue(length), elements);
@@ -9873,7 +9876,7 @@ CapturedObject MaglevGraphBuilder::BuildCapturedArgumentsObject() {
         RestLength* rest_length =
             AddNewNode<RestLength>({}, parameter_count_without_receiver());
         return CapturedObject::CreateArgumentsObject(
-            zone(),
+            zone(), CapturedObject::kRestParameter,
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
             CapturedValue(rest_length), CapturedValue(elements));
