@@ -12,7 +12,7 @@
 %NeverOptimizeFunction(assertOptimized);
 %NeverOptimizeFunction(assertUnoptimized);
 
-function math_smi(x, y) {
+function math_smi(x, y, z) {
   let a = x * y;
   a = a + 152;
   a = a / x;
@@ -20,13 +20,14 @@ function math_smi(x, y) {
   a = a - y;
   a = a % 5;
   a--;
+  a = -z + a;
   return a;
 }
 %PrepareFunctionForOptimization(math_smi);
-assertEquals(3, math_smi(4, 3));
-assertEquals(3, math_smi(4, 3));
+assertEquals(8, math_smi(4, 3, -5));
+assertEquals(8, math_smi(4, 3, -5));
 %OptimizeFunctionOnNextCall(math_smi);
-assertEquals(3, math_smi(4, 3));
+assertEquals(8, math_smi(4, 3, -5));
 assertOptimized(math_smi);
 assertEquals(NaN, math_smi("a", "b"));
 assertUnoptimized(math_smi);
