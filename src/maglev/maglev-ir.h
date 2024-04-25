@@ -7909,6 +7909,9 @@ class Call : public ValueNodeT<Call> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
+  TargetType target_type() const { return target_type_; }
+
  private:
   ConvertReceiverMode receiver_mode_;
   TargetType target_type_;

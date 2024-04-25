@@ -157,6 +157,25 @@ class MaglevEarlyLoweringReducer : public Next {
                        DeoptimizeReason::kConstTrackingLet, feedback);
   }
 
+  V<Smi> UpdateJSArrayLength(V<Word32> length_raw, V<JSArray> object,
+                             V<Word32> index) {
+    Label<Smi> done(this);
+    IF (__ Uint32LessThan(index, length_raw)) {
+      GOTO(done, __ TagSmi(length_raw));
+    } ELSE {
+      V<Word32> new_length_raw =
+          __ Word32Add(index, 1);  // This cannot overflow.
+      V<Smi> new_length_tagged = __ TagSmi(new_length_raw);
+      __ Store(object, new_length_tagged, StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::TaggedSigned(),
+               WriteBarrierKind::kNoWriteBarrier, JSArray::kLengthOffset);
+      GOTO(done, new_length_tagged);
+    }
+
+    BIND(done, length_tagged);
+    return length_tagged;
+  }
+
  private:
   V<Word32> JSAnyIsNotPrimitive(V<Object> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);

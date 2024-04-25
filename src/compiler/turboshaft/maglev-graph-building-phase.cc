@@ -376,6 +376,56 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Call* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->lazy_deopt_info());
+    V<Object> function = Map(node->function());
+    V<Context> context = Map(node->context());
+
+    Builtin builtin;
+    switch (node->target_type()) {
+      case maglev::Call::TargetType::kAny:
+        switch (node->receiver_mode()) {
+          case ConvertReceiverMode::kNullOrUndefined:
+            builtin = Builtin::kCall_ReceiverIsNullOrUndefined;
+            break;
+          case ConvertReceiverMode::kNotNullOrUndefined:
+            builtin = Builtin::kCall_ReceiverIsNotNullOrUndefined;
+            break;
+          case ConvertReceiverMode::kAny:
+            builtin = Builtin::kCall_ReceiverIsAny;
+            break;
+        }
+        break;
+      case maglev::Call::TargetType::kJSFunction:
+        switch (node->receiver_mode()) {
+          case ConvertReceiverMode::kNullOrUndefined:
+            builtin = Builtin::kCallFunction_ReceiverIsNullOrUndefined;
+            break;
+          case ConvertReceiverMode::kNotNullOrUndefined:
+            builtin = Builtin::kCallFunction_ReceiverIsNotNullOrUndefined;
+            break;
+          case ConvertReceiverMode::kAny:
+            builtin = Builtin::kCallFunction_ReceiverIsAny;
+            break;
+        }
+        break;
+    }
+
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(function);
+    arguments.push_back(__ Word32Constant(node->num_args()));
+    for (auto arg : node->args()) {
+      arguments.push_back(Map(arg));
+    }
+    arguments.push_back(context);
+
+    SetMap(node,
+           GenerateBuiltinCall(node, builtin, frame_state,
+                               base::VectorOf(arguments), node->num_args()));
+
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
@@ -406,16 +456,19 @@ class GraphBuilder {
 
     return maglev::ProcessResult::kContinue;
   }
-  V<Any> GenerateBuiltinCall(maglev::NodeBase* node, Builtin builtin,
-                             V<FrameState> frame_state,
-                             base::Vector<const OpIndex> arguments) {
+  V<Any> GenerateBuiltinCall(
+      maglev::NodeBase* node, Builtin builtin, V<FrameState> frame_state,
+      base::Vector<const OpIndex> arguments,
+      base::Optional<int> stack_arg_count = base::nullopt) {
     ThrowingScope throwing_scope(this, node);
 
     Callable callable =
         Builtins::CallableFor(isolate_->GetMainThreadIsolateUnsafe(), builtin);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-        graph_zone(), descriptor, descriptor.GetStackParameterCount(),
+        graph_zone(), descriptor,
+        stack_arg_count.has_value() ? stack_arg_count.value()
+                                    : descriptor.GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState);
     V<Code> stub_code = __ HeapConstant(callable.code());
 
@@ -884,6 +937,14 @@ class GraphBuilder {
                Map(node->index_input()), Map(node->elements_length_input()),
                BuildFrameState(node->eager_deopt_info()), mode,
                node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::UpdateJSArrayLength* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ UpdateJSArrayLength(Map(node->length_input()),
+                                        Map(node->object_input()),
+                                        Map(node->index_input())));
     return maglev::ProcessResult::kContinue;
   }
 
