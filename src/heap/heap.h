@@ -1960,8 +1960,8 @@ class Heap final {
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
-  double PercentToOldGenerationLimit();
-  double PercentToGlobalMemoryLimit();
+  double PercentToOldGenerationLimit() const;
+  double PercentToGlobalMemoryLimit() const;
   enum class IncrementalMarkingLimit {
     kNoLimit,
     kSoftLimit,
@@ -2413,6 +2413,7 @@ class Heap final {
   friend class ArrayBufferSweeper;
   friend class ConcurrentMarking;
   friend class ConservativeTracedHandlesMarkingVisitor;
+  friend class CppHeap;
   friend class EmbedderStackStateScope;
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;

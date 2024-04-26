@@ -5555,22 +5555,32 @@ base::Optional<size_t> Heap::GlobalMemoryAvailable() {
   }
 }
 
-double Heap::PercentToOldGenerationLimit() {
-  double size_at_gc = old_generation_size_at_last_gc_;
-  double size_now =
-      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
-  double current_bytes = size_now - size_at_gc;
-  double total_bytes = old_generation_allocation_limit() - size_at_gc;
-  return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
+namespace {
+
+double PercentToLimit(size_t size_at_gc, size_t size_now, size_t limit) {
+  if (size_now < size_at_gc) {
+    return 0.0;
+  }
+  if (size_now > limit) {
+    return 100.0;
+  }
+  const size_t current_bytes = size_now - size_at_gc;
+  const size_t total_bytes = limit - size_at_gc;
+  DCHECK_LE(current_bytes, total_bytes);
+  return static_cast<double>(current_bytes) * 100 / total_bytes;
 }
 
-double Heap::PercentToGlobalMemoryLimit() {
-  double size_at_gc = global_memory_at_last_gc_;
-  double size_now =
-      GlobalSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
-  double current_bytes = size_now - size_at_gc;
-  double total_bytes = global_allocation_limit() - size_at_gc;
-  return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
+}  // namespace
+
+double Heap::PercentToOldGenerationLimit() const {
+  return PercentToLimit(old_generation_size_at_last_gc_,
+                        OldGenerationSizeOfObjects(),
+                        old_generation_allocation_limit());
+}
+
+double Heap::PercentToGlobalMemoryLimit() const {
+  return PercentToLimit(global_memory_at_last_gc_, GlobalSizeOfObjects(),
+                        global_allocation_limit());
 }
 
 // - kNoLimit means that either incremental marking is disabled or it is too

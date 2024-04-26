@@ -959,10 +959,19 @@ void CppHeap::FinishMarkingAndStartSweeping() {
             ? cppgc::internal::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
             : cppgc::internal::SweepingConfig::FreeMemoryHandling::
-                  kDoNotDiscard};
+                  kDoNotDiscard,
+        // CppHeap is initialized before V8 flags are necessarily set which
+        // prohibits us from reading the flag at creation.
+        v8_flags.cppheap_optimize_sweep_for_mutator
+            ? cppgc::internal::SweepingStrategy::kMinimizeMutatorInterference
+            : cppgc::internal::SweepingStrategy::kMinimizeMemory};
     DCHECK_IMPLIES(!isolate_,
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
-    sweeper().Start(sweeping_config);
+    // For detached GCs we set the initial heap limit to 100%, which avoids
+    // relying on idle tasks.
+    const double initial_heap_limit_percent =
+        heap_ ? heap_->PercentToGlobalMemoryLimit() : 100;
+    sweeper().Start(sweeping_config, initial_heap_limit_percent);
   }
 
   in_atomic_pause_ = false;
@@ -1002,6 +1011,11 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     used_size_.fetch_add(static_cast<size_t>(bytes_to_report),
                          std::memory_order_relaxed);
     allocated_size_ += bytes_to_report;
+
+    // Potentially update the sweeper with the latest limit to adjust its
+    // sweeping strategy.
+    sweeper_.UpdateHeapLimitPercentageIfRunning(
+        [this]() { return heap_->PercentToGlobalMemoryLimit(); });
 
     if (v8_flags.incremental_marking) {
       if (allocated_size_ > allocated_size_limit_for_check_) {
