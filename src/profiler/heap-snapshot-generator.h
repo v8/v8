@@ -525,8 +525,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);
   void ExtractWasmArrayReferences(Tagged<WasmArray> obj, HeapEntry* entry);
-  void ExtractWasmInstanceObjectReference(Tagged<WasmInstanceObject> obj,
-                                          HeapEntry* entry);
+  void ExtractWasmTrustedInstanceDataReferences(
+      Tagged<WasmTrustedInstanceData> obj, HeapEntry* entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool IsEssentialObject(Tagged<Object> object);
@@ -589,6 +589,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
+  size_t max_pointers_;
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;

@@ -1246,10 +1246,6 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
       ExtractJSGeneratorObjectReferences(entry, JSGeneratorObject::cast(obj));
     } else if (IsJSWeakRef(obj)) {
       ExtractJSWeakRefReferences(entry, JSWeakRef::cast(obj));
-#if V8_ENABLE_WEBASSEMBLY
-    } else if (IsWasmInstanceObject(obj)) {
-      ExtractWasmInstanceObjectReference(WasmInstanceObject::cast(obj), entry);
-#endif  // V8_ENABLE_WEBASSEMBLY
     }
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (IsString(obj)) {
@@ -1321,6 +1317,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractWasmStructReferences(WasmStruct::cast(obj), entry);
   } else if (IsWasmArray(obj)) {
     ExtractWasmArrayReferences(WasmArray::cast(obj), entry);
+  } else if (IsWasmTrustedInstanceData(obj)) {
+    ExtractWasmTrustedInstanceDataReferences(WasmTrustedInstanceData::cast(obj),
+                                             entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
@@ -2168,11 +2167,9 @@ void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
   }
 }
 
-void V8HeapExplorer::ExtractWasmInstanceObjectReference(
-    Tagged<WasmInstanceObject> instance_object, HeapEntry* entry) {
+void V8HeapExplorer::ExtractWasmTrustedInstanceDataReferences(
+    Tagged<WasmTrustedInstanceData> trusted_data, HeapEntry* entry) {
   PtrComprCageBase cage_base(heap_->isolate());
-  Tagged<WasmTrustedInstanceData> trusted_data =
-      instance_object->trusted_data(heap_->isolate());
   for (size_t i = 0; i < WasmTrustedInstanceData::kTaggedFieldOffsets.size();
        i++) {
     const uint16_t offset = WasmTrustedInstanceData::kTaggedFieldOffsets[i];
@@ -2307,12 +2304,10 @@ bool V8HeapExplorer::IterateAndExtractReferences(
        obj = iterator.Next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
-    size_t max_pointer = obj->Size(cage_base) / kTaggedSize;
-    if (max_pointer > visited_fields_.size()) {
-      // Clear the current bits.
-      std::vector<bool>().swap(visited_fields_);
+    max_pointers_ = obj->Size(cage_base) / kTaggedSize;
+    if (max_pointers_ > visited_fields_.size()) {
       // Reallocate to right size.
-      visited_fields_.resize(max_pointer, false);
+      visited_fields_.resize(max_pointers_, false);
     }
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
@@ -2336,10 +2331,12 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
     obj->Iterate(cage_base, &refs_extractor);
 
+#if DEBUG
     // Ensure visited_fields_ doesn't leak to the next object.
-    for (size_t i = 0; i < max_pointer; ++i) {
+    for (size_t i = 0; i < max_pointers_; ++i) {
       DCHECK(!visited_fields_[i]);
     }
+#endif  // DEBUG
 
     // Extract location for specific object types
     ExtractLocation(entry, obj);
@@ -2403,6 +2400,7 @@ void V8HeapExplorer::SetContextReference(HeapEntry* parent_entry,
 void V8HeapExplorer::MarkVisitedField(int offset) {
   if (offset < 0) return;
   int index = offset / kTaggedSize;
+  DCHECK_LT(index, max_pointers_);
   DCHECK(!visited_fields_[index]);
   visited_fields_[index] = true;
 }
