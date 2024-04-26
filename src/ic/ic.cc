@@ -959,7 +959,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         Handle<Object> getter(accessor_pair->getter(), isolate());
-        if (!IsJSFunction(*getter) && !IsFunctionTemplateInfo(*getter)) {
+        if (!IsCallableJSFunction(*getter) &&
+            !IsFunctionTemplateInfo(*getter)) {
           // TODO(jgruber): Update counter name.
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
@@ -1005,7 +1006,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         if (holder->HasFastProperties()) {
-          DCHECK(IsJSFunction(*getter));
+          DCHECK(IsCallableJSFunction(*getter));
           if (holder_is_lookup_start_object) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
             return MaybeObjectHandle::Weak(accessor_pair);
@@ -2090,7 +2091,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         Handle<AccessorPair> accessor_pair =
             Handle<AccessorPair>::cast(accessors);
         Handle<Object> setter(accessor_pair->setter(), isolate());
-        if (!IsJSFunction(*setter) && !IsFunctionTemplateInfo(*setter)) {
+        if (!IsCallableJSFunction(*setter) &&
+            !IsFunctionTemplateInfo(*setter)) {
           set_slow_stub_reason("setter not a function");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
@@ -2135,7 +2137,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }
 
-        DCHECK(IsJSFunction(*setter));
+        DCHECK(IsCallableJSFunction(*setter));
         if (receiver.is_identical_to(holder)) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
           return MaybeObjectHandle::Weak(accessor_pair);

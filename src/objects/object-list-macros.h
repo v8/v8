@@ -392,6 +392,7 @@ namespace internal {
   V(AwaitContext)                            \
   V(BlockContext)                            \
   V(CallableApiObject)                       \
+  V(CallableJSFunction)                      \
   V(CallableJSProxy)                         \
   V(CatchContext)                            \
   V(DebugEvaluateContext)                    \
