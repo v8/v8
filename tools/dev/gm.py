@@ -702,9 +702,12 @@ class ArgumentParser(object):
     actions = []
     tests = []
     clean = False
-    # Special handling for "mkgrokdump": build it for x64.release.
+    # Special handling for "mkgrokdump": build it for (arm64|x64).release.
     if argstring == "mkgrokdump":
-      self.populate_configs(["x64"], ["release"], ["mkgrokdump"], [], False)
+      arch = "x64"
+      if _get_machine() in ("aarch64", "arm64"):
+        arch = "arm64"
+      self.populate_configs([arch], ["release"], ["mkgrokdump"], [], False)
       return
     if argstring.startswith("--"):
       # Pass all other flags to test runner.
