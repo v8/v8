@@ -76,6 +76,8 @@ class Deoptimizer : public Malloced {
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
+  static void DeleteForWasm(Isolate* isolate);
+
   // The returned object with information on the optimized frame needs to be
   // freed before another one can be generated.
   static DeoptimizedFrameInfo* DebuggerInspectableFrame(JavaScriptFrame* frame,
@@ -159,6 +161,7 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
+  void DoComputeOutputFramesWasmImpl();
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,

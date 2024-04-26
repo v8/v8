@@ -4332,6 +4332,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
+  DCHECK_NULL(current_deoptimizer_);
 
   // The entry stack must be empty when we get here.
   DCHECK(entry_stack_ == nullptr ||

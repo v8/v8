@@ -83,7 +83,6 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
          << ", height=" << height << "}";
       break;
     }
-
 #endif
     case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
@@ -915,7 +914,7 @@ void TranslatedFrame::Handlify(Isolate* isolate) {
 }
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
-    DeoptimizationFrameTranslation::Iterator* iterator,
+    DeoptTranslationIterator* iterator,
     Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
     FILE* trace_file) {
   TranslationOpcode opcode = iterator->NextOpcode();
@@ -1196,13 +1195,13 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // infrastracture is not GC safe.
 // Thus we build a temporary structure in malloced space.
 // The TranslatedValue objects created correspond to the static translation
-// instructions from the DeoptimizationFrameTranslation::Iterator, except for
+// instructions from the DeoptTranslationIterator, except for
 // TranslationOpcode::ARGUMENTS_ELEMENTS, where the number and values of the
 // FixedArray elements depend on dynamic information from the optimized frame.
 // Returns the number of expected nested translations from the
-// DeoptimizationFrameTranslation::Iterator.
+// DeoptTranslationIterator.
 int TranslatedState::CreateNextTranslatedValue(
-    int frame_index, DeoptimizationFrameTranslation::Iterator* iterator,
+    int frame_index, DeoptTranslationIterator* iterator,
     Tagged<DeoptimizationLiteralArray> literal_array, Address fp,
     RegisterValues* registers, FILE* trace_file) {
   disasm::NameConverter converter;
@@ -1650,7 +1649,8 @@ int TranslatedState::CreateNextTranslatedValue(
 }
 
 Address TranslatedState::DecompressIfNeeded(intptr_t value) {
-  if (COMPRESS_POINTERS_BOOL) {
+  if (COMPRESS_POINTERS_BOOL &&
+      static_cast<uintptr_t>(value) <= std::numeric_limits<uint32_t>::max()) {
     return V8HeapCompressionScheme::DecompressTagged(
         isolate(), static_cast<uint32_t>(value));
   } else {
@@ -1678,7 +1678,7 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
 
 void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            Address stack_frame_pointer,
-                           DeoptimizationFrameTranslation::Iterator* iterator,
+                           DeoptTranslationIterator* iterator,
                            Tagged<DeoptimizationLiteralArray> literal_array,
                            RegisterValues* registers, FILE* trace_file,
                            int formal_parameter_count,
@@ -2554,7 +2554,7 @@ bool TranslatedState::DoUpdateFeedback() {
 }
 
 void TranslatedState::ReadUpdateFeedback(
-    DeoptimizationFrameTranslation::Iterator* iterator,
+    DeoptTranslationIterator* iterator,
     Tagged<DeoptimizationLiteralArray> literal_array, FILE* trace_file) {
   CHECK_EQ(TranslationOpcode::UPDATE_FEEDBACK, iterator->NextOpcode());
   feedback_vector_ =

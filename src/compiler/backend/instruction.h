@@ -1478,7 +1478,11 @@ class FrameStateDescriptor : public ZoneObject {
   MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasClosure() const {
-    return type_ != FrameStateType::kConstructInvokeStub;
+    return
+#if V8_ENABLE_WEBASSEMBLY
+        type_ != FrameStateType::kLiftoffFunction &&
+#endif
+        type_ != FrameStateType::kConstructInvokeStub;
   }
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||

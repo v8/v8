@@ -239,29 +239,42 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
   if (SizeInBytes() == 0) return result;
   memcpy(result->begin(), contents_.data(), contents_.size() * sizeof(uint8_t));
 #ifdef ENABLE_SLOW_DCHECKS
-  if (v8_flags.enable_slow_asserts) {
-    // Check that we can read back all of the same content we intended to write.
-    DeoptimizationFrameTranslation::Iterator it(*result, 0);
-    for (size_t i = 0; i < all_instructions_.size(); ++i) {
-      CHECK(it.HasNextOpcode());
-      const Instruction& instruction = all_instructions_[i];
-      CHECK_EQ(instruction.opcode, it.NextOpcode());
-      for (int j = 0; j < TranslationOpcodeOperandCount(instruction.opcode);
-           ++j) {
-        uint32_t operand = instruction.is_operand_signed[j]
-                               ? it.NextOperand()
-                               : it.NextOperandUnsigned();
-        CHECK_EQ(instruction.operands[j], operand);
-      }
-    }
-  }
+  DeoptimizationFrameTranslation::Iterator iter(*result, 0);
+  ValidateBytes(iter);
 #endif
   return result;
 }
 
 base::Vector<const uint8_t> FrameTranslationBuilder::ToFrameTranslationWasm() {
   DCHECK(!v8_flags.turbo_compress_frame_translations);
-  return base::VectorOf(contents_);
+  FinishPendingInstructionIfNeeded();
+  base::Vector<const uint8_t> result = base::VectorOf(contents_);
+#ifdef ENABLE_SLOW_DCHECKS
+  DeoptTranslationIterator iter(result, 0);
+  ValidateBytes(iter);
+#endif
+  return result;
+}
+
+void FrameTranslationBuilder::ValidateBytes(
+    DeoptTranslationIterator& iter) const {
+#ifdef ENABLE_SLOW_DCHECKS
+  if (v8_flags.enable_slow_asserts) {
+    // Check that we can read back all of the same content we intended to write.
+    for (size_t i = 0; i < all_instructions_.size(); ++i) {
+      CHECK(iter.HasNextOpcode());
+      const Instruction& instruction = all_instructions_[i];
+      CHECK_EQ(instruction.opcode, iter.NextOpcode());
+      for (int j = 0; j < TranslationOpcodeOperandCount(instruction.opcode);
+           ++j) {
+        uint32_t operand = instruction.is_operand_signed[j]
+                               ? iter.NextOperand()
+                               : iter.NextOperandUnsigned();
+        CHECK_EQ(instruction.operands[j], operand);
+      }
+    }
+  }
+#endif
 }
 
 void FrameTranslationBuilder::BeginBuiltinContinuationFrame(

@@ -3832,7 +3832,11 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   // TODO(v8:11429): Consider passing BASELINE instead, and checking for
   // IsJSFrame or similar. Could then unify with manual frame leaves in the
   // interpreter too.
-  if (v8_flags.debug_code && !StackFrame::IsJavaScript(type)) {
+  if (v8_flags.debug_code && !StackFrame::IsJavaScript(type)
+#if V8_ENABLE_WEBASSEMBLY
+      && (type != StackFrame::Type::WASM || !v8_flags.wasm_deopt)
+#endif
+  ) {
     cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);

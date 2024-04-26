@@ -4862,6 +4862,19 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ cmpq(rax, rdx);
   __ j(below, &outer_push_loop);
 
+  // Push pc and continuation from the last output frame.
+  __ PushQuad(Operand(rbx, FrameDescription::pc_offset()));
+#if V8_ENABLE_WEBASSEMBLY
+  __ movq(rax, Operand(rbx, FrameDescription::continuation_offset()));
+  // Skip pushing the continuation if it is zero. This is used as a marker for
+  // wasm deopts that do not use a builtin call to finish the deopt.
+  // Also skip setting the xmm registers for wasm as wasm performs a C call and
+  // needs to push these registers on the stack instead.
+  Label push_other_registers;
+  __ testq(rax, rax);
+  __ j(zero, &push_other_registers);
+  __ Push(rax);
+  // JS: Just set the double registers.
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
@@ -4869,9 +4882,10 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ Movsd(xmm_reg, Operand(rbx, src_offset));
   }
 
-  // Push pc and continuation from the last output frame.
-  __ PushQuad(Operand(rbx, FrameDescription::pc_offset()));
+  __ bind(&push_other_registers);
+#else
   __ PushQuad(Operand(rbx, FrameDescription::continuation_offset()));
+#endif
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -4880,7 +4894,37 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ PushQuad(Operand(rbx, offset));
   }
 
-  // Restore the registers from the stack.
+#if V8_ENABLE_WEBASSEMBLY
+  // For wasm call push the xmm registers onto the stack to save it.
+  // Then call the wasm_delete_optimizer() function to free the deoptimizer and
+  // restore the xmm registers to the values from the FrameDescription.
+  Label pop_registers;
+  __ testq(rax, rax);
+  __ j(not_zero, &pop_registers);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ PushQuad(Operand(rbx, src_offset));
+  }
+  {
+    __ pushq(rax);
+    __ PrepareCallCFunction(1);
+    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address(isolate));
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(ExternalReference::wasm_delete_deoptimizer(), 1);
+    __ popq(rax);
+  }
+  // Restore the double registers from the stack.
+  for (int i = config->num_allocatable_double_registers() - 1; i >= 0; --i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    __ popq(rax);
+    __ Movq(xmm_reg, rax);
+  }
+  __ bind(&pop_registers);
+#endif
+
+  // Restore the non-xmm registers from the stack.
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     Register r = Register::from_code(i);
     // Do not restore rsp, simply pop the value into the next register

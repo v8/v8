@@ -1973,6 +1973,14 @@
 }],
 
 ##############################################################################
+# TODO(mliedtke): Support deopts on all platforms.
+['(arch != x64)', {
+  # --wasm-deopt implementation experimental and not ported to most
+  # architectures, yet.
+  'wasm/deopt/*': [SKIP],
+}],
+
+##############################################################################
 # Skip failing tests in google3
 ['variant == google3_noicu or variant == google3_icu', {
   # timeouts on Google3:

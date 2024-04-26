@@ -141,6 +141,7 @@ class FrameTranslationBuilder {
   Zone* zone() const { return zone_; }
 
   void FinishPendingInstructionIfNeeded();
+  void ValidateBytes(DeoptTranslationIterator& iter) const;
 
   ZoneVector<uint8_t> contents_;
   ZoneVector<int32_t> contents_for_compression_;

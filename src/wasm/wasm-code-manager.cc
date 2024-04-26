@@ -1344,8 +1344,9 @@ bool NativeModule::should_update_code_table(WasmCode* new_code,
   // In kNoDebugging:
   // Install if the tier is higher than before or we replace debugging code with
   // non-debugging code.
+  // Also allow installing a lower tier if deopt support is enabled
   if (prior_code && !prior_code->for_debugging() &&
-      prior_code->tier() > new_code->tier()) {
+      prior_code->tier() > new_code->tier() && !v8_flags.wasm_deopt) {
     return false;
   }
   return true;
