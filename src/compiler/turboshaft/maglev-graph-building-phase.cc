@@ -981,6 +981,14 @@ class GraphBuilder {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckValueEqualsString* node,
+                                const maglev::ProcessingState& state) {
+    V<FrameState> frame_state = BuildFrameState(node->eager_deopt_info());
+    __ CheckValueEqualsString(Map(node->target_input()), node->value(),
+                              frame_state,
+                              node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::BuiltinStringFromCharCode* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ ConvertCharCodeToString(Map(node->code_input())));
@@ -1550,6 +1558,12 @@ class GraphBuilder {
     __ Branch(__ ObjectIs(Map(node->condition_input()),
                           ObjectIsOp::Kind::kUndetectable, assumption),
               Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BranchIfSmi* node,
+                                const maglev::ProcessingState& state) {
+    __ Branch(__ IsSmi(Map(node->condition_input())), Map(node->if_true()),
+              Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
 

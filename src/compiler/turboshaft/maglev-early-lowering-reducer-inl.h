@@ -102,6 +102,21 @@ class MaglevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  void CheckValueEqualsString(V<Object> object, InternalizedStringRef value,
+                              V<FrameState> frame_state,
+                              const FeedbackSource& feedback) {
+    IF_NOT (LIKELY(__ TaggedEqual(object, __ HeapConstant(value.object())))) {
+      __ DeoptimizeIfNot(__ ObjectIsString(object), frame_state,
+                         DeoptimizeReason::kNotAString, feedback);
+      V<Boolean> is_same_string_bool =
+          __ StringEqual(V<String>::Cast(object),
+                         __ template HeapConstant<String>(value.object()));
+      __ DeoptimizeIf(
+          __ RootEqual(is_same_string_bool, RootIndex::kFalseValue, isolate_),
+          frame_state, DeoptimizeReason::kWrongValue, feedback);
+    }
+  }
+
   V<Object> CheckConstructResult(V<Object> construct_result,
                                  V<Object> implicit_receiver) {
     // If the result is an object (in the ECMA sense), we should get rid

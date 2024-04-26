@@ -1495,3 +1495,36 @@ let glob_b = 3.35;
   assertEquals(19, f_switch(42));
   assertOptimized(f_switch);
 }
+
+// Testing load named on numbers.
+{
+  function array_length(arr) {
+    return arr.length;
+  }
+
+  %PrepareFunctionForOptimization(array_length);
+  assertEquals(3, array_length([1, 2, 3]));
+  assertEquals(undefined, array_length(3.45));
+  %OptimizeFunctionOnNextCall(array_length);
+  assertEquals(3, array_length([1, 2, 3]));
+  assertEquals(undefined, array_length(3.45));
+  assertEquals(undefined, array_length(1));
+  assertOptimized(array_length);
+}
+
+// Testing load with constant string key.
+{
+  let o = { "a" : 42, "b": 17 };
+
+  function load_const_key(k) {
+    return o[k];
+  }
+
+  %PrepareFunctionForOptimization(load_const_key);
+  assertEquals(42, load_const_key("a"));
+  %OptimizeFunctionOnNextCall(load_const_key);
+  assertEquals(42, load_const_key("a"));
+  assertOptimized(load_const_key);
+  assertEquals(17, load_const_key("b"));
+  assertUnoptimized(load_const_key);
+}

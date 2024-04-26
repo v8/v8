@@ -1754,6 +1754,10 @@ class TurboshaftAssemblerOpInterface
     return ObjectIs(object, ObjectIsOp::Kind::kSmi,
                     ObjectIsOp::InputAssumptions::kNone);
   }
+  V<Word32> ObjectIsString(V<Object> object) {
+    return ObjectIs(object, ObjectIsOp::Kind::kString,
+                    ObjectIsOp::InputAssumptions::kNone);
+  }
 
   V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
     return ReduceIfReachableFloat64Is(input, kind);
