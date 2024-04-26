@@ -4358,6 +4358,8 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
 
   auto options() const { return std::tuple{literal_}; }
 
+  interpreter::TestTypeOfFlags::LiteralFlag literal() const { return literal_; }
+
  private:
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };

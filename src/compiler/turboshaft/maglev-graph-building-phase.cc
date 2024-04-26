@@ -1402,6 +1402,67 @@ class GraphBuilder {
                                  ObjectIsOp::Kind::kUndetectable, assumption)));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::TestTypeOf* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> input = Map(node->value());
+    V<Boolean> result;
+    switch (node->literal()) {
+      case interpreter::TestTypeOfFlags::LiteralFlag::kNumber:
+        result = ConvertWord32ToJSBool(
+            __ ObjectIs(input, ObjectIsOp::Kind::kNumber,
+                        ObjectIsOp::InputAssumptions::kNone));
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kString:
+        result = ConvertWord32ToJSBool(
+            __ ObjectIs(input, ObjectIsOp::Kind::kString,
+                        ObjectIsOp::InputAssumptions::kNone));
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol:
+        result = ConvertWord32ToJSBool(
+            __ ObjectIs(input, ObjectIsOp::Kind::kSymbol,
+                        ObjectIsOp::InputAssumptions::kNone));
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt:
+        result = ConvertWord32ToJSBool(
+            __ ObjectIs(input, ObjectIsOp::Kind::kBigInt,
+                        ObjectIsOp::InputAssumptions::kNone));
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kFunction:
+        result = ConvertWord32ToJSBool(
+            __ ObjectIs(input, ObjectIsOp::Kind::kDetectableCallable,
+                        ObjectIsOp::InputAssumptions::kNone));
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
+        result = __ Select(__ RootEqual(input, RootIndex::kTrueValue, isolate_),
+                           __ HeapConstant(factory_->true_value()),
+                           __ HeapConstant(factory_->false_value()),
+                           RegisterRepresentation::Tagged(), BranchHint::kNone,
+                           SelectOp::Implementation::kBranch);
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kUndefined:
+        result = __ Select(__ RootEqual(input, RootIndex::kNullValue, isolate_),
+                           __ HeapConstant(factory_->false_value()),
+                           ConvertWord32ToJSBool(__ ObjectIs(
+                               input, ObjectIsOp::Kind::kUndetectable,
+                               ObjectIsOp::InputAssumptions::kNone)),
+                           RegisterRepresentation::Tagged(), BranchHint::kNone,
+                           SelectOp::Implementation::kBranch);
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kObject:
+        result = __ Select(__ ObjectIs(input, ObjectIsOp::Kind::kNonCallable,
+                                       ObjectIsOp::InputAssumptions::kNone),
+                           __ HeapConstant(factory_->true_value()),
+                           __ RootEqual(input, RootIndex::kNullValue, isolate_),
+                           RegisterRepresentation::Tagged(), BranchHint::kNone,
+                           SelectOp::Implementation::kBranch);
+        break;
+      case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
+        UNREACHABLE();  // Should never be emitted.
+    }
+
+    SetMap(node, result);
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::BranchIfToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
@@ -1489,6 +1550,34 @@ class GraphBuilder {
     __ Branch(__ ObjectIs(Map(node->condition_input()),
                           ObjectIsOp::Kind::kUndetectable, assumption),
               Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Switch* node,
+                                const maglev::ProcessingState& state) {
+    compiler::turboshaft::SwitchOp::Case* cases =
+        __ output_graph().graph_zone()
+            -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                             node->size());
+    int case_value_base = node->value_base();
+    for (int i = 0; i < node->size(); i++) {
+      cases[i] = {i + case_value_base, Map(node->targets()[i].block_ptr()),
+                  BranchHint::kNone};
+    }
+    Block* default_block;
+    bool emit_default_block = false;
+    if (node->has_fallthrough()) {
+      default_block = Map(state.next_block());
+    } else {
+      default_block = __ NewBlock();
+      emit_default_block = true;
+    }
+    __ Switch(Map(node->value()), base::VectorOf(cases, node->size()),
+              default_block);
+    if (emit_default_block) {
+      __ Bind(default_block);
+      __ Unreachable();
+    }
     return maglev::ProcessResult::kContinue;
   }
 
@@ -2387,6 +2476,7 @@ class GraphBuilder {
 
   void FixLoopPhis(maglev::BasicBlock* loop) {
     DCHECK(loop->is_loop());
+    if (!loop->has_phi()) return;
     for (maglev::Phi* maglev_phi : *loop->phis()) {
       OpIndex phi_index = Map(maglev_phi);
       PendingLoopPhiOp& pending_phi =
@@ -2423,7 +2513,7 @@ class GraphBuilder {
   // Branch leads to smaller graphs, which is generally beneficial. Still, once
   // the graph builder is finished, we should evaluate whether Select or Branch
   // is the best choice here.
-  V<Object> ConvertWord32ToJSBool(V<Word32> b, bool flip = false) {
+  V<Boolean> ConvertWord32ToJSBool(V<Word32> b, bool flip = false) {
     V<Boolean> true_idx = __ HeapConstant(factory_->true_value());
     V<Boolean> false_idx = __ HeapConstant(factory_->false_value());
     if (flip) std::swap(true_idx, false_idx);
