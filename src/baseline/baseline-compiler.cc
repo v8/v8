@@ -283,10 +283,8 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(local_isolate->allocator(), ZONE_NAME),
-      labels_(zone_.AllocateArray<BaselineLabelPointer>(bytecode_->length())) {
-  MemsetPointer(reinterpret_cast<Address*>(labels_), Address{0},
-                bytecode_->length());
-
+      labels_(zone_.AllocateArray<Label>(bytecode_->length())),
+      label_tags_(2*bytecode_->length(), &zone_) {
   // Empirically determined expected size of the offset table at the 95th %ile,
   // based on the size of the bytecode, to be:
   //
@@ -310,7 +308,7 @@ void BaselineCompiler::GenerateCode() {
     // when CFI is enabled, to allow indirect jumps into baseline code.
     HandlerTable table(*bytecode_);
     for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
-      labels_[table.GetRangeHandler(i)].MarkAsIndirectJumpTarget();
+      MarkIndirectJumpTarget(table.GetRangeHandler(i));
     }
     for (; !iterator_.done(); iterator_.Advance()) {
       PreVisitSingleBytecode();
@@ -504,11 +502,10 @@ void BaselineCompiler::VisitSingleBytecode() {
   effect_state_.clear();
 #endif
   int offset = iterator().current_offset();
-  BaselineLabelPointer label = labels_[offset];
-  if (label.GetPointer()) __ Bind(label.GetPointer());
+  if (IsJumpTarget(offset)) __ Bind(&labels_[offset]);
   // Mark position as valid jump target unconditionnaly when the deoptimizer can
   // jump to baseline code. This is required when CFI is enabled.
-  if (v8_flags.deopt_to_baseline || label.IsIndirectJumpTarget()) {
+  if (v8_flags.deopt_to_baseline || IsIndirectJumpTarget(offset)) {
     __ JumpTarget();
   }
 
@@ -2009,7 +2006,7 @@ void BaselineCompiler::VisitJumpLoop() {
 
   __ Bind(&osr_not_armed);
 #endif  // !V8_JITLESS
-  Label* label = labels_[iterator().GetJumpTargetOffset()].GetPointer();
+  Label* label = &labels_[iterator().GetJumpTargetOffset()];
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
   // We can pass in the same label twice since it's a back edge and thus already
