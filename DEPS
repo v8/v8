@@ -128,9 +128,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '29ac73db520575590c3aceb0a6f1f58dda8934f6',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e797b8d487c0d4b290e78672429c20761f317e95',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7b7e80a49a508370167793373c551b40f5d54f21',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9e1583d4869475a6ab346016c4bf0f1cdc555ee9',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '86bf72c93ecd1a6440a827041544a04fb7db744c',
   'buildtools/linux64': {
     'packages': [
       {
@@ -238,7 +238,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '774f822ffd967e31cb9c1b3b4025bdadf5cf60af',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd980d879d21edf5266cd049ded6cd17cba49eb28',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
