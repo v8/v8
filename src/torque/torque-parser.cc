@@ -17,6 +17,7 @@
 #include "src/torque/constants.h"
 #include "src/torque/declarations.h"
 #include "src/torque/earley-parser.h"
+#include "src/torque/global-context.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -47,7 +48,7 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
-    build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
+    build_flags_["TAGGED_SIZE_8_BYTES"] = TargetArchitecture::TaggedSize() == 8;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;
 #else
