@@ -1769,8 +1769,8 @@ class TurboshaftAssemblerOpInterface
     return Float64Is(input, NumericKind::kSmi);
   }
 
-  OpIndex ObjectIsNumericValue(OpIndex input, NumericKind kind,
-                               FloatRepresentation input_rep) {
+  V<Word32> ObjectIsNumericValue(V<Object> input, NumericKind kind,
+                                 FloatRepresentation input_rep) {
     return ReduceIfReachableObjectIsNumericValue(input, kind, input_rep);
   }
 

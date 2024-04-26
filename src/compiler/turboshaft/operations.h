@@ -4303,12 +4303,12 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Object> input() const { return Base::input<Object>(0); }
 
-  ObjectIsOp(OpIndex input, Kind kind, InputAssumptions input_assumptions)
+  ObjectIsOp(V<Object> input, Kind kind, InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
-  void Validate(const Graph& graph) const {
-  }
+
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -4353,7 +4353,7 @@ struct ObjectIsNumericValueOp
   NumericKind kind;
   FloatRepresentation input_rep;
 
-  ObjectIsNumericValueOp(OpIndex input, NumericKind kind,
+  ObjectIsNumericValueOp(V<Object> input, NumericKind kind,
                          FloatRepresentation input_rep)
       : Base(input), kind(kind), input_rep(input_rep) {}
 
@@ -4370,7 +4370,7 @@ struct ObjectIsNumericValueOp
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Object> input() const { return Base::input<Object>(0); }
 
   void Validate(const Graph& graph) const {
   }
@@ -4408,13 +4408,12 @@ struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Object> input() const { return Base::input<Object>(0); }
 
-  ConvertOp(OpIndex input, Kind from, Kind to)
+  ConvertOp(V<Object> input, Kind from, Kind to)
       : Base(input), from(from), to(to) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{from, to}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
