@@ -480,7 +480,9 @@ void Assembler::Align(int m) {
 
 void Assembler::CodeTargetAlign() {
   // Preferred alignment of jump targets on some ARM chips.
+#if !defined(V8_TARGET_OS_MACOS)
   Align(8);
+#endif
 }
 
 void Assembler::CheckLabelLinkChain(Label const* label) {
