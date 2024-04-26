@@ -112,7 +112,13 @@ class HeapObjectHeader {
   inline HeapObjectHeader* GetNextUnfinalized(uintptr_t cage_base) const;
 #endif  // defined(CPPGC_CAGED_HEAP)
 
+  // Default version will retrieve `HeapObjectNameForUnnamedObject` as it is
+  // configured at runtime.
   V8_EXPORT_PRIVATE HeapObjectName GetName() const;
+  // Override for verifying and testing where we always want to pass the naming
+  // option explicitly.
+  V8_EXPORT_PRIVATE HeapObjectName
+      GetName(HeapObjectNameForUnnamedObject) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
   void Trace(Visitor*) const;
