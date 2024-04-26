@@ -3444,6 +3444,34 @@ filegroup(
             "src/compiler/wasm-typer.h",
         ],
         "//conditions:default": [],
+    }) + select({
+        # Turboshaft's Maglev graph builder needs some Maglev files. We only
+        # include them explicitely when Maglev is disabled.
+        ":enable_maglev": [],
+        "//conditions:default": [
+            "src/maglev/maglev-basic-block.h",
+            "src/maglev/maglev-code-gen-state.h",
+            "src/maglev/maglev-compilation-info.cc",
+            "src/maglev/maglev-compilation-info.h",
+            "src/maglev/maglev-compilation-unit.cc",
+            "src/maglev/maglev-compilation-unit.h",
+            "src/maglev/maglev-graph-builder.cc",
+            "src/maglev/maglev-graph-builder.h",
+            "src/maglev/maglev-graph.h",
+            "src/maglev/maglev-graph-labeller.h",
+            "src/maglev/maglev-graph-printer.cc",
+            "src/maglev/maglev-graph-printer.h",
+            "src/maglev/maglev-graph-processor.h",
+            "src/maglev/maglev-graph-verifier.h",
+            "src/maglev/maglev-interpreter-frame-state.cc",
+            "src/maglev/maglev-interpreter-frame-state.h",
+            "src/maglev/maglev-ir.cc",
+            "src/maglev/maglev-ir.h",
+            "src/maglev/maglev-ir-inl.h",
+            "src/maglev/maglev-register-frame-array.h",
+            "src/maglev/maglev-phi-representation-selector.cc",
+            "src/maglev/maglev-phi-representation-selector.h",
+        ],
     }),
 )
 
@@ -3538,34 +3566,6 @@ filegroup(
             "src/builtins/builtins-wasm-gen.h",
         ],
         "//conditions:default": [],
-    }) + select({
-        # Turboshaft's Maglev graph builder needs some Maglev files. We only
-        # include them explicitely when Maglev is disabled.
-        ":enable_maglev": [],
-        "//conditions:default": [
-            "src/maglev/maglev-basic-block.h",
-            "src/maglev/maglev-code-gen-state.h",
-            "src/maglev/maglev-compilation-info.cc",
-            "src/maglev/maglev-compilation-info.h",
-            "src/maglev/maglev-compilation-unit.cc",
-            "src/maglev/maglev-compilation-unit.h",
-            "src/maglev/maglev-graph-builder.cc",
-            "src/maglev/maglev-graph-builder.h",
-            "src/maglev/maglev-graph.h",
-            "src/maglev/maglev-graph-labeller.h",
-            "src/maglev/maglev-graph-printer.cc",
-            "src/maglev/maglev-graph-printer.h",
-            "src/maglev/maglev-graph-processor.h",
-            "src/maglev/maglev-graph-verifier.h",
-            "src/maglev/maglev-interpreter-frame-state.cc",
-            "src/maglev/maglev-interpreter-frame-state.h",
-            "src/maglev/maglev-ir.cc",
-            "src/maglev/maglev-ir.h",
-            "src/maglev/maglev-ir-inl.h",
-            "src/maglev/maglev-register-frame-array.h",
-            "src/maglev/maglev-phi-representation-selector.cc",
-            "src/maglev/maglev-phi-representation-selector.h",
-        ],
     }),
 )
 
