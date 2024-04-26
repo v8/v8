@@ -826,12 +826,12 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
       address(), field_address(offset), isolate, value);
 }
 
-void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
-  i::ResetLazilyInitializedExternalPointerField(field_address(offset));
+void HeapObject::SetupLazilyInitializedExternalPointerField(size_t offset) {
+  i::SetupLazilyInitializedExternalPointerField(field_address(offset));
 }
 
-void HeapObject::ResetLazilyInitializedCppHeapPointerField(size_t offset) {
-  CppHeapPointerSlot(field_address(offset), kAnyExternalPointerTag).reset();
+void HeapObject::SetupLazilyInitializedCppHeapPointerField(size_t offset) {
+  CppHeapPointerSlot(field_address(offset), kAnyExternalPointerTag).init();
 }
 
 template <ExternalPointerTag tag>

@@ -482,8 +482,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Tagged<Map> map,
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = JSArrayBuffer::cast(*obj);
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
-      buffer->set_extension(nullptr);
       buffer->set_backing_store(main_thread_isolate(),
                                 EmptyBackingStoreBuffer());
     } else {

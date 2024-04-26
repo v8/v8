@@ -170,6 +170,7 @@ Address ExternalPointerTable::Get(ExternalPointerHandle handle,
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
   at(index).SetExternalPointer(value, tag);
 }
@@ -177,6 +178,7 @@ void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
   return at(index).ExchangeExternalPointer(value, tag);
 }
@@ -292,7 +294,11 @@ ExternalPointerHandle ExternalPointerTable::IndexToHandle(uint32_t index) {
 }
 
 void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
-    Address field_address) {
+    Address field_address, ExternalPointerTag tag) {
+  // We do not currently support invalidating fields containing managed
+  // external pointers. If this is ever needed, we would probably need to free
+  // the managed object here as we may otherwise fail to do so during sweeping.
+  DCHECK(!IsManagedExternalPointerType(tag));
 #ifdef DEBUG
   ExternalPointerHandle handle = base::AsAtomic32::Acquire_Load(
       reinterpret_cast<ExternalPointerHandle*>(field_address));

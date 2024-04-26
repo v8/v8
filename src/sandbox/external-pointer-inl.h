@@ -189,6 +189,16 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+V8_INLINE void SetupLazilyInitializedExternalPointerField(
+    Address field_address) {
+#ifdef V8_ENABLE_SANDBOX
+  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, kNullExternalPointerHandle);
+#else
+  WriteMaybeUnalignedValue<Address>(field_address, kNullAddress);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 template <ExternalPointerTag tag>
 V8_INLINE void WriteLazilyInitializedExternalPointerField(
     Address host_address, Address field_address, IsolateForSandbox isolate,
@@ -210,16 +220,6 @@ V8_INLINE void WriteLazilyInitializedExternalPointerField(
 #else
   WriteMaybeUnalignedValue<Address>(field_address, value);
 #endif  // V8_ENABLE_SANDBOX
-}
-
-V8_INLINE void ResetLazilyInitializedExternalPointerField(
-    Address field_address) {
-#ifdef V8_ENABLE_SANDBOX
-  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
-  base::AsAtomic32::Release_Store(location, kNullExternalPointerHandle);
-#else
-  WriteMaybeUnalignedValue<Address>(field_address, kNullAddress);
-#endif
 }
 
 }  // namespace internal

@@ -942,7 +942,6 @@ class ExternalPointerArray : public FixedArrayBase {
   inline Address get(int index, Isolate* isolate);
   template <ExternalPointerTag tag>
   inline void set(int index, Isolate* isolate, Address value);
-  inline void clear(int index);
 
   static inline Handle<ExternalPointerArray> New(
       Isolate* isolate, int length,

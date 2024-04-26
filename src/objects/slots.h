@@ -434,7 +434,7 @@ class CppHeapPointerSlot
 
   inline Address try_load(IsolateForPointerCompression isolate) const;
   inline void store(IsolateForPointerCompression isolate, Address value) const;
-  inline void reset() const;
+  inline void init() const;
 
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTag tag() const { return tag_; }

@@ -4125,7 +4125,7 @@ class ExternalPointerSlotInvalidator : public ObjectVisitor {
     ExternalPointerTable::Space* space =
         IsolateForSandbox(isolate_).GetExternalPointerTableSpaceFor(
             slot.tag(), host.address());
-    space->NotifyExternalPointerFieldInvalidated(slot.address());
+    space->NotifyExternalPointerFieldInvalidated(slot.address(), slot.tag());
     num_invalidated_slots++;
   }
 

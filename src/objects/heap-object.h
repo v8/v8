@@ -323,8 +323,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteLazilyInitializedExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value);
 
-  inline void ResetLazilyInitializedExternalPointerField(size_t offset);
-  inline void ResetLazilyInitializedCppHeapPointerField(size_t offset);
+  inline void SetupLazilyInitializedExternalPointerField(size_t offset);
+  inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
 
   template <ExternalPointerTag tag>
   inline void WriteLazilyInitializedCppHeapPointerField(

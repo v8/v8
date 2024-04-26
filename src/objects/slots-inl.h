@@ -326,7 +326,7 @@ void CppHeapPointerSlot::store(IsolateForPointerCompression isolate,
 #endif  // !V8_COMPRESS_POINTERS
 }
 
-void CppHeapPointerSlot::reset() const {
+void CppHeapPointerSlot::init() const {
 #ifdef V8_COMPRESS_POINTERS
   base::AsAtomic32::Release_Store(location(), kNullCppHeapPointerHandle);
 #else   // !V8_COMPRESS_POINTERS

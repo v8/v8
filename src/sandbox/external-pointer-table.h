@@ -292,7 +292,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // field, then again converted to a external pointer field, then it will be
     // re-initialized, at which point it will obtain a new entry in the
     // external pointer table which cannot be a candidate for evacuation.
-    inline void NotifyExternalPointerFieldInvalidated(Address field_address);
+    inline void NotifyExternalPointerFieldInvalidated(Address field_address,
+                                                      ExternalPointerTag tag);
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.
@@ -389,7 +390,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   static inline uint32_t HandleToIndex(ExternalPointerHandle handle);
   static inline ExternalPointerHandle IndexToHandle(uint32_t index);
 
-  bool TryResolveEvacuationEntryDuringSweeping(
+  void ResolveEvacuationEntryDuringSweeping(
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 

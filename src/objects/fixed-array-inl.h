@@ -1056,10 +1056,6 @@ inline void ExternalPointerArray::set(int index, Isolate* isolate,
                                                   isolate, value);
 }
 
-inline void ExternalPointerArray::clear(int index) {
-  ResetLazilyInitializedExternalPointerField(OffsetOfElementAt(index));
-}
-
 // static
 Handle<ExternalPointerArray> ExternalPointerArray::New(
     Isolate* isolate, int length, AllocationType allocation) {
