@@ -251,11 +251,14 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
-    Tagged<SharedFunctionInfo> shared = info->closure()->shared();
-    return GetJSCallDescriptor(
-        zone, info->is_osr(),
-        shared->internal_formal_parameter_count_with_receiver(),
-        CallDescriptor::kCanUseRoots);
+    DCHECK(info->has_bytecode_array());
+    DCHECK_EQ(info->closure()
+                  ->shared()
+                  ->internal_formal_parameter_count_with_receiver(),
+              info->bytecode_array()->parameter_count());
+    return GetJSCallDescriptor(zone, info->is_osr(),
+                               info->bytecode_array()->parameter_count(),
+                               CallDescriptor::kCanUseRoots);
   }
   return nullptr;  // TODO(titzer): ?
 }
