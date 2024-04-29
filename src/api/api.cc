@@ -1588,41 +1588,6 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
 }
 }  // namespace
 
-void Template::SetNativeDataProperty(v8::Local<String> name,
-                                     AccessorGetterCallback getter,
-                                     AccessorSetterCallback setter,
-                                     v8::Local<Value> data,
-                                     PropertyAttribute attribute,
-                                     v8::AccessControl settings,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, true, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void Template::SetNativeDataProperty(v8::Local<Name> name,
-                                     AccessorNameGetterCallback getter,
-                                     AccessorNameSetterCallback setter,
-                                     v8::Local<Value> data,
-                                     PropertyAttribute attribute,
-                                     v8::AccessControl settings,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, true, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void Template::SetNativeDataProperty(v8::Local<String> name,
-                                     AccessorGetterCallback getter,
-                                     AccessorSetterCallback setter,
-                                     v8::Local<Value> data,
-                                     PropertyAttribute attribute,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, true, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
 void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      AccessorNameGetterCallback getter,
                                      AccessorNameSetterCallback setter,
@@ -1655,18 +1620,6 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
   i::ApiNatives::AddDataProperty(i_isolate, templ, Utils::OpenHandle(*name),
                                  intrinsic,
                                  static_cast<i::PropertyAttributes>(attribute));
-}
-
-void ObjectTemplate::SetAccessor(v8::Local<String> name,
-                                 AccessorGetterCallback getter,
-                                 AccessorSetterCallback setter,
-                                 v8::Local<Value> data,
-                                 PropertyAttribute attribute,
-                                 SideEffectType getter_side_effect_type,
-                                 SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute,
-                      i::v8_flags.disable_old_api_accessors, false,
-                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void ObjectTemplate::SetAccessor(v8::Local<Name> name,

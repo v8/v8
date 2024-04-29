@@ -80,27 +80,6 @@ class V8_EXPORT Template : public Data {
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
-  V8_DEPRECATED("Use SetNativeDataProperty without AccessControl instead")
-  void SetNativeDataProperty(
-      Local<String> name, AccessorGetterCallback getter,
-      AccessorSetterCallback setter, Local<Value> data,
-      PropertyAttribute attribute, AccessControl settings,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Use SetNativeDataProperty without AccessControl instead")
-  void SetNativeDataProperty(
-      Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter, Local<Value> data,
-      PropertyAttribute attribute, AccessControl settings,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Use SetNativeDataProperty with Local<Name> instead")
-  void SetNativeDataProperty(
-      Local<String> name, AccessorGetterCallback getter,
-      AccessorSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
@@ -1063,13 +1042,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
-  V8_DEPRECATED("Use SetAccessor with Local<Name> instead")
-  void SetAccessor(
-      Local<String> name, AccessorGetterCallback getter,
-      AccessorSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetAccessor(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
