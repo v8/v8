@@ -64,6 +64,22 @@ V8_WARN_UNUSED_RESULT bool CrashUnlessFuzzingReturnFalse(Isolate* isolate) {
   return false;
 }
 
+V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
+    Isolate* isolate, Tagged<JSFunction> function) {
+  if (!ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                              function)) {
+    PrintF("Error: Function ");
+    ShortPrint(function);
+    PrintF(
+        " should be prepared for optimization with "
+        "%%PrepareFunctionForOptimization before  "
+        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
+        "%%OptimizeOsr ");
+    return false;
+  }
+  return true;
+}
+
 // Returns |value| unless correctness-fuzzer-supressions is enabled,
 // otherwise returns undefined_value.
 V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
@@ -298,10 +314,6 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
-  if (!function->shared()->allows_lazy_compilation()) {
-    return CrashUnlessFuzzingReturnFalse(isolate);
-  }
-
   // If function isn't compiled, compile it now.
   if (!is_compiled_scope->is_compiled() &&
       !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
@@ -325,8 +337,9 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
-                                                              *function);
+    if (!CheckMarkedForManualOptimization(isolate, *function)) {
+      return CrashUnlessFuzzingReturnFalse(isolate);
+    }
   }
 
   if (function->HasAvailableCodeKind(isolate, target_kind) ||
@@ -390,20 +403,24 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
                                      Handle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
-  // Check function allows lazy compilation.
-  if (!function->shared()->allows_lazy_compilation()) return false;
-
-  // If function isn't compiled, compile it now.
   *is_compiled_scope =
       function->shared()->is_compiled_scope(function->GetIsolate());
-  if (!is_compiled_scope->is_compiled() &&
-      !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
-                         is_compiled_scope)) {
-    return false;
+
+  // If function isn't compiled, compile it now.
+  if (!is_compiled_scope->is_compiled()) {
+    // Check function allows lazy compilation.
+    DCHECK(function->shared()->allows_lazy_compilation());
+    if (!Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
+                           is_compiled_scope)) {
+      return false;
+    }
   }
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
+  if (!function->shared()->HasFeedbackMetadata()) {
+    return false;
+  }
   JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
   return true;
 }
@@ -711,8 +728,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
-                                                              *function);
+    if (!CheckMarkedForManualOptimization(isolate, *function)) {
+      return CrashUnlessFuzzing(isolate);
+    }
   }
 
   if (function->HasAvailableOptimizedCode(isolate) &&
