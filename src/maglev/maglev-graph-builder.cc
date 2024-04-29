@@ -8520,6 +8520,15 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
         break;
     }
 
+    if (!length.has_value() || *length > 0) {
+      // Constructing an Array via new Array(N) where N is an unsigned
+      // integer, always creates a holey backing store.
+      compiler::OptionalMapRef maybe_initial_map = initial_map.AsElementsKind(
+          broker(), GetHoleyElementsKind(elements_kind));
+      if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
+      initial_map = maybe_initial_map.value();
+    }
+
     if (length.has_value() && *length >= 0 &&
         *length < JSArray::kInitialMaxFastElementArray) {
       return BuildAndAllocateJSArray(
@@ -8534,11 +8543,6 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
     // We don't know anything about the length, so we rely on the allocation
     // site to avoid deopt loops.
     if (allocation_site.CanInlineCall()) {
-      // Constructing an Array via new Array(N) where N is an unsigned
-      // integer, always creates a holey backing store.
-      compiler::OptionalMapRef maybe_initial_map = initial_map.AsElementsKind(
-          broker(), GetHoleyElementsKind(elements_kind));
-      if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
       ValueNode* int32_length = GetInt32(length_node);
       return Select<BranchIfInt32Compare>(
           [&] {
@@ -8546,7 +8550,7 @@ ReduceResult MaglevGraphBuilder::ReduceArrayConstructor(
                 CapturedValue(AddNewNode<AllocateElementsArray>(
                     {int32_length}, allocation_type));
             return BuildAndAllocateJSArray(
-                *maybe_initial_map, GetTaggedValue(length_node), elements,
+                initial_map, GetTaggedValue(length_node), elements,
                 slack_tracking_prediction, allocation_type);
           },
           [&] {
