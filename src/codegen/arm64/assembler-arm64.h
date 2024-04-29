@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "absl/container/btree_map.h"
+#include "absl/container/flat_hash_map.h"
 #include "src/base/optional.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
@@ -3243,8 +3244,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   int LinkAndGetByteOffsetTo(Label* label);
 
   // This is the same as LinkAndGetByteOffsetTo, but return an offset
-  // suitable for fields that take instruction offsets.
-  inline int LinkAndGetInstructionOffsetTo(Label* label);
+  // suitable for fields that take instruction offsets: branches.
+  inline int LinkAndGetBranchInstructionOffsetTo(Label* label);
 
   static constexpr int kStartOfLabelLinkChain = 0;
 
@@ -3354,6 +3355,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // always be positive but has the same type as the return value for
   // pc_offset() for convenience.
   absl::btree_map<int, Label*> unresolved_branches_;
+
+  // Back edge offsets for the link chain - the forward edge is stored in the
+  // generated code. This is used to accelerate removing branches from the
+  // link chain when emitting veneers.
+  absl::flat_hash_map<int, int> branch_link_chain_back_edge_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.

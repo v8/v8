@@ -515,13 +515,14 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
   Instruction* link = InstructionAt(label->pos());
   Instruction* prev_link = link;
   Instruction* next_link;
-  bool end_of_chain = false;
 
-  while (link != branch && !end_of_chain) {
-    next_link = link->ImmPCOffsetTarget();
-    end_of_chain = (link == next_link);
-    prev_link = link;
-    link = next_link;
+  if (link != branch) {
+    int i = static_cast<int>(InstructionOffset(branch));
+    // Currently, we don't support adr instructions sharing labels with
+    // branches in the link chain.
+    DCHECK(branch_link_chain_back_edge_.contains(i));
+    prev_link = InstructionAt(branch_link_chain_back_edge_.at(i));
+    link = branch;
   }
 
   DCHECK(branch == link);
@@ -532,24 +533,43 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     if (branch == next_link) {
       // It is also the last instruction in the chain, so it is the only branch
       // currently referring to this label.
+      //
+      // Label -> this branch -> start
       label->Unuse();
     } else {
+      // Label -> this branch -> 1+ branches -> start
       label->link_to(static_cast<int>(InstructionOffset(next_link)));
+      branch_link_chain_back_edge_.erase(
+          static_cast<int>(InstructionOffset(next_link)));
     }
-
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
+    //
+    // Label -> 1+ branches -> this branch -> start
     prev_link->SetImmPCOffsetTarget(options(), prev_link);
-
+    branch_link_chain_back_edge_.erase(
+        static_cast<int>(InstructionOffset(branch)));
   } else {
     // The branch is in the middle of the chain.
+    //
+    // Label -> 1+ branches -> this branch -> 1+ branches -> start
+    int n = static_cast<int>(InstructionOffset(next_link));
+    if (branch_link_chain_back_edge_.contains(n)) {
+      // Update back edge such that the branch after this branch points to the
+      // branch before it.
+      branch_link_chain_back_edge_[n] =
+          static_cast<int>(InstructionOffset(prev_link));
+      branch_link_chain_back_edge_.erase(
+          static_cast<int>(InstructionOffset(branch)));
+    }
+
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(options(), next_link);
     } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
       prev_link->SetImmPCOffsetTarget(options(), prev_link);
 
-      end_of_chain = false;
+      bool end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
@@ -648,6 +668,10 @@ void Assembler::bind(Label* label) {
     } else {
       link->SetImmPCOffsetTarget(options(),
                                  reinterpret_cast<Instruction*>(pc_));
+
+      // Discard back edge data for this link.
+      branch_link_chain_back_edge_.erase(
+          static_cast<int>(InstructionOffset(link)));
     }
 
     // Link the label to the previous link in the chain.
@@ -836,26 +860,30 @@ void Assembler::ret(const Register& xn) {
 
 void Assembler::b(int imm26) { Emit(B | ImmUncondBranch(imm26)); }
 
-void Assembler::b(Label* label) { b(LinkAndGetInstructionOffsetTo(label)); }
+void Assembler::b(Label* label) {
+  b(LinkAndGetBranchInstructionOffsetTo(label));
+}
 
 void Assembler::b(int imm19, Condition cond) {
   Emit(B_cond | ImmCondBranch(imm19) | cond);
 }
 
 void Assembler::b(Label* label, Condition cond) {
-  b(LinkAndGetInstructionOffsetTo(label), cond);
+  b(LinkAndGetBranchInstructionOffsetTo(label), cond);
 }
 
 void Assembler::bl(int imm26) { Emit(BL | ImmUncondBranch(imm26)); }
 
-void Assembler::bl(Label* label) { bl(LinkAndGetInstructionOffsetTo(label)); }
+void Assembler::bl(Label* label) {
+  bl(LinkAndGetBranchInstructionOffsetTo(label));
+}
 
 void Assembler::cbz(const Register& rt, int imm19) {
   Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void Assembler::cbz(const Register& rt, Label* label) {
-  cbz(rt, LinkAndGetInstructionOffsetTo(label));
+  cbz(rt, LinkAndGetBranchInstructionOffsetTo(label));
 }
 
 void Assembler::cbnz(const Register& rt, int imm19) {
@@ -863,7 +891,7 @@ void Assembler::cbnz(const Register& rt, int imm19) {
 }
 
 void Assembler::cbnz(const Register& rt, Label* label) {
-  cbnz(rt, LinkAndGetInstructionOffsetTo(label));
+  cbnz(rt, LinkAndGetBranchInstructionOffsetTo(label));
 }
 
 void Assembler::tbz(const Register& rt, unsigned bit_pos, int imm14) {
@@ -872,7 +900,7 @@ void Assembler::tbz(const Register& rt, unsigned bit_pos, int imm14) {
 }
 
 void Assembler::tbz(const Register& rt, unsigned bit_pos, Label* label) {
-  tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
+  tbz(rt, bit_pos, LinkAndGetBranchInstructionOffsetTo(label));
 }
 
 void Assembler::tbnz(const Register& rt, unsigned bit_pos, int imm14) {
@@ -881,7 +909,7 @@ void Assembler::tbnz(const Register& rt, unsigned bit_pos, int imm14) {
 }
 
 void Assembler::tbnz(const Register& rt, unsigned bit_pos, Label* label) {
-  tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
+  tbnz(rt, bit_pos, LinkAndGetBranchInstructionOffsetTo(label));
 }
 
 void Assembler::adr(const Register& rd, int imm21) {
@@ -4710,29 +4738,9 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
   const intptr_t max_pc_after_veneers =
       MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
 
-  // The `unresolved_branches_` map is sorted by max-reachable-pc in ascending
-  // order. For efficiency reasons, we want to call
-  // RemoveBranchFromLabelLinkChain in descending order. The actual veneers are
-  // then generated in ascending order.
-  // TODO(jgruber): This is still inefficient in multiple ways, thoughts on how
-  // we could improve in the future:
-  // - Refactor s.t. RemoveBranchFromLabelLinkChain does not need the linear
-  //   lookup in the link chain.
-
-  class FarBranchInfo {
-   public:
-    FarBranchInfo(int offset, Label* label)
-        : pc_offset_(offset), label_(label) {}
-    // Offset of the branch in the code generation buffer.
-    int pc_offset_;
-    // The label branched to.
-    Label* label_;
-  };
-
-  static constexpr int kStaticTasksSize = 16;  // Arbitrary.
-  base::SmallVector<FarBranchInfo, kStaticTasksSize> tasks;
-
   {
+    // The `unresolved_branches_` map is sorted by max-reachable-pc in ascending
+    // order.
     auto it = unresolved_branches_.begin();
     while (it != unresolved_branches_.end()) {
       const int max_reachable_pc = it->first & ~1;
@@ -4752,21 +4760,20 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
                       Instruction::ImmBranchRange(CompareBranchType));
         pc_offset -= Instruction::ImmBranchRange(CondBranchType);
       }
-      tasks.emplace_back(FarBranchInfo{pc_offset, it->second});
+#ifdef DEBUG
+      Label veneer_size_check;
+      bind(&veneer_size_check);
+#endif
+      Label* label = it->second;
+      Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
+      Instruction* branch = InstructionAt(pc_offset);
+      RemoveBranchFromLabelLinkChain(branch, label, veneer);
+      branch->SetImmPCOffsetTarget(options(), veneer);
+      b(label);  // This may end up pointing at yet another veneer later on.
+      DCHECK_EQ(SizeOfCodeGeneratedSince(&veneer_size_check),
+                static_cast<uint64_t>(kVeneerCodeSize));
       it = unresolved_branches_.erase(it);
     }
-  }
-
-  // Reminder: We iterate in reverse order to avoid duplicate linked-list
-  // iteration in RemoveBranchFromLabelLinkChain (which starts at the target
-  // label, and iterates backwards through linked branch instructions).
-
-  const int tasks_size = static_cast<int>(tasks.size());
-  for (int i = tasks_size - 1; i >= 0; i--) {
-    Instruction* branch = InstructionAt(tasks[i].pc_offset_);
-    Instruction* veneer = reinterpret_cast<Instruction*>(
-        reinterpret_cast<uintptr_t>(pc_) + i * kVeneerCodeSize);
-    RemoveBranchFromLabelLinkChain(branch, tasks[i].label_, veneer);
   }
 
   // Update next_veneer_pool_check_ (tightly coupled with unresolved_branches_).
@@ -4777,21 +4784,6 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
   } else {
     next_veneer_pool_check_ =
         unresolved_branches_first_limit() - kVeneerDistanceCheckMargin;
-  }
-
-  // Now emit the actual veneer and patch up the incoming branch.
-
-  for (const FarBranchInfo& info : tasks) {
-#ifdef DEBUG
-    Label veneer_size_check;
-    bind(&veneer_size_check);
-#endif
-    Instruction* branch = InstructionAt(info.pc_offset_);
-    Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
-    branch->SetImmPCOffsetTarget(options(), veneer);
-    b(info.label_);  // This may end up pointing at yet another veneer later on.
-    DCHECK_EQ(SizeOfCodeGeneratedSince(&veneer_size_check),
-              static_cast<uint64_t>(kVeneerCodeSize));
   }
 
   // Record the veneer pool size.
