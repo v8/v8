@@ -925,7 +925,15 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns the offset of the i-th operand of |bytecode| relative to the start
   // of the bytecode.
   static int GetOperandOffset(Bytecode bytecode, int i,
-                              OperandScale operand_scale);
+                              OperandScale operand_scale) {
+    DCHECK_LE(bytecode, Bytecode::kLast);
+    DCHECK_GE(operand_scale, OperandScale::kSingle);
+    DCHECK_LE(operand_scale, OperandScale::kLast);
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+                  OperandScale::kLast == OperandScale::kQuadruple);
+    int scale_index = static_cast<int>(operand_scale) >> 1;
+    return kOperandOffsets[scale_index][static_cast<size_t>(bytecode)][i];
+  }
 
   // Returns the size of the bytecode including its operands for the
   // given |operand_scale|.
@@ -1088,6 +1096,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   static const bool kIsScalable[];
   static const uint8_t kBytecodeSizes[3][kBytecodeCount];
   static const OperandSize* const kOperandSizes[3][kBytecodeCount];
+  static const int* const kOperandOffsets[3][kBytecodeCount];
   static OperandSize const
       kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount];
 };
