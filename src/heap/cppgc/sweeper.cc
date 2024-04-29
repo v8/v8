@@ -1028,8 +1028,8 @@ class Sweeper::SweeperImpl final {
 
   bool IsConcurrentSweepingDone() const {
     return !concurrent_sweeper_handle_ ||
-           (concurrent_sweeper_handle_->IsValid() &&
-            !concurrent_sweeper_handle_->IsActive());
+           !concurrent_sweeper_handle_->IsValid() ||
+           !concurrent_sweeper_handle_->IsActive();
   }
 
   void FinishIfOutOfWork() {
@@ -1135,7 +1135,7 @@ class Sweeper::SweeperImpl final {
             stats_collector_, internal_scope_id, "max_duration_ms",
             max_duration.InMillisecondsF(), "sweeping_mode",
             ToString(sweeping_mode));
-        bool sweep_complete =
+        const bool sweep_complete =
             sweeper.SweepWithDeadline(max_duration, sweeping_mode);
         if (!sweep_complete ||
             sweeping_mode != MutatorThreadSweepingMode::kAll) {
@@ -1283,11 +1283,24 @@ class Sweeper::SweeperImpl final {
 
   SweepResult SweepInForegroundTaskImpl(v8::base::TimeDelta max_duration,
                                         StatsCollector::ScopeId scope) {
-    const bool concurrent_sweep_complete = IsConcurrentSweepingDone();
-    const bool main_thread_sweep_complete = PerformSweepOnMutatorThread(
+    // First round of sweeping.
+    bool concurrent_sweep_complete = IsConcurrentSweepingDone();
+    const auto start = v8::base::TimeTicks::Now();
+    bool main_thread_sweep_complete = PerformSweepOnMutatorThread(
         max_duration, scope,
         concurrent_sweep_complete ? MutatorThreadSweepingMode::kAll
                                   : MutatorThreadSweepingMode::kOnlyFinalizers);
+    if (main_thread_sweep_complete && !concurrent_sweep_complete &&
+        IsConcurrentSweepingDone()) {
+      // Concurrent sweeping finished while processing the first round. Use the
+      // left over time for a second round to avoid scheduling another task.
+      max_duration -= (v8::base::TimeTicks::Now() - start);
+      if (max_duration > v8::base::TimeDelta::FromMilliseconds(0)) {
+        concurrent_sweep_complete = true;
+        main_thread_sweep_complete = PerformSweepOnMutatorThread(
+            max_duration, scope, MutatorThreadSweepingMode::kAll);
+      }
+    }
     if (main_thread_sweep_complete) {
       if (!concurrent_sweep_complete) {
         return SweepResult::kMainThreadDoneConcurrentInProgress;
