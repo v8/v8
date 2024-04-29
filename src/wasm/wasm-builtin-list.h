@@ -59,6 +59,7 @@ namespace v8::internal::wasm {
   V(BigIntToI32Pair)                                                           \
   V(BigIntToI64)                                                               \
   V(CallRefIC)                                                                 \
+  V(CallIndirectIC)                                                            \
   V(DoubleToI)                                                                 \
   V(I32PairToBigInt)                                                           \
   V(I64ToBigInt)                                                               \

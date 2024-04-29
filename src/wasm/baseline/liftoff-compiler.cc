@@ -8237,6 +8237,56 @@ class LiftoffCompiler {
                 LoadType::ForValueKind(kIntPtrKind));
       }
 
+      if (v8_flags.experimental_wasm_inlining_call_indirect) {
+        SCOPED_CODE_COMMENT("Feedback collection for speculative inlining");
+
+        ScopedTempRegister vector{std::move(dispatch_table_base)};
+        __ Fill(vector.reg(), WasmLiftoffFrameConstants::kFeedbackVectorOffset,
+                kRef);
+        VarState vector_var{kRef, vector.reg(), 0};
+
+        // A constant `uint32_t` is sufficient for the vector slot index.
+        // The number of call instructions (and hence feedback vector slots) is
+        // capped by the number of instructions, which is capped by the maximum
+        // function body size.
+        static_assert(kV8MaxWasmFunctionSize <
+                      std::numeric_limits<uint32_t>::max() / 2);
+        uint32_t vector_slot =
+            static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
+        encountered_call_instructions_.push_back(
+            FunctionTypeFeedback::kCallIndirect);
+        VarState index_var(kI32, vector_slot, 0);
+
+        // Thread the target and ref through the builtin call (i.e., pass them
+        // as parameters and return them unchanged) as `CallBuiltin` otherwise
+        // clobbers them. (The spilling code in `SpillAllRegisters` is only
+        // aware of registers used on Liftoff's abstract value stack, not the
+        // ones manually allocated above.)
+        // TODO(335082212): We could avoid this and reduce the code size for
+        // each call_indirect by moving the target and ref lookup into the
+        // builtin as well.
+        // However, then we would either (a) need to replicate the optimizations
+        // above for static indices etc., which increases code duplication and
+        // maintenance cost, or (b) regress performance even more than the
+        // builtin call itself already does.
+        // All in all, let's keep it simple at first, i.e., share the maximum
+        // amount of code when inlining is enabled vs. not.
+        VarState target_var(kIntPtrKind, LiftoffRegister(target), 0);
+        VarState first_param_var(kRef, LiftoffRegister(first_param), 0);
+
+        // CallIndirectIC(vector: FixedArray, vectorIndex: int32,
+        //                target: RawPtr,
+        //                ref: WasmTrustedInstanceData|WasmApiFunctionRef)
+        //               -> <target, ref>
+        CallBuiltin(Builtin::kCallIndirectIC,
+                    MakeSig::Returns(kIntPtrKind, kIntPtrKind)
+                        .Params(kRef, kI32, kIntPtrKind, kRef),
+                    {vector_var, index_var, target_var, first_param_var},
+                    decoder->position());
+        target = kReturnRegister0;
+        first_param = kReturnRegister1;
+      }
+
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
@@ -8304,11 +8354,10 @@ class LiftoffCompiler {
                     std::numeric_limits<uint32_t>::max() / 2);
       uint32_t vector_slot =
           static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
-      encountered_call_instructions_.push_back(
-          FunctionTypeFeedback::kNonDirectCall);
+      encountered_call_instructions_.push_back(FunctionTypeFeedback::kCallRef);
       VarState index_var(kI32, vector_slot, 0);
 
-      // CallRefIC(vector: FixedArray, index: int32,
+      // CallRefIC(vector: FixedArray, vectorIndex: int32,
       //           funcref: WasmFuncRef) -> <target, ref>
       CallBuiltin(
           Builtin::kCallRefIC,
@@ -8729,9 +8778,10 @@ class LiftoffCompiler {
   // defined yet.
   int last_safepoint_offset_ = -1;
 
-  // Updated during compilation on every "call" or "call_ref" instruction.
-  // Holds the call target, or {FunctionTypeFeedback::kNonDirectCall} for
-  // "call_ref".
+  // Updated during compilation on every "call", "call_indirect", and "call_ref"
+  // instruction.
+  // Holds the call target, or for "call_indirect" and "call_ref" the sentinels
+  // {FunctionTypeFeedback::kCallIndirect} / {FunctionTypeFeedback::kCallRef}.
   // After compilation, this is transferred into {WasmModule::type_feedback}.
   std::vector<uint32_t> encountered_call_instructions_;
 

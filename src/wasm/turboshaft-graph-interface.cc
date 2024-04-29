@@ -2418,6 +2418,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
+    if (v8_flags.experimental_wasm_inlining_call_indirect) {
+      feedback_slot_++;
+      // TODO(dlehmann): Actually inline the callee(s). See `CallRef`.
+    }
+
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
     BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
   }
@@ -2425,6 +2430,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
+    if (v8_flags.experimental_wasm_inlining_call_indirect) {
+      feedback_slot_++;
+      // TODO(dlehmann): Actually inline the callee(s). See `ReturnCallRef`.
+      // Do that after `CallIndirect` works.
+    }
+
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
     BuildWasmMaybeReturnCall(decoder, imm.sig, target, ref, args);
   }

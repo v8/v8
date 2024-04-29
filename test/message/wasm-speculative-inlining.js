@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-inlining --allow-natives-syntax
+// Flags: --experimental-wasm-inlining-call-indirect --allow-natives-syntax
 // Flags: --trace-wasm-inlining --turboshaft-wasm --wasm-dynamic-tiering
 // Explicitly set Turboshaft since the tracing output is slightly different in
 // TurboFan (which is also on its way out anyway).
@@ -12,16 +12,17 @@
 d8.file.execute('test/mjsunit/mjsunit.js');
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-function CallRefTest(callee_count) {
+function BuildTest(call_ref_or_indirect, callee_count) {
   print(
-      'Test call_ref speculative inlining with ' + callee_count +
-      ' different callees during feedback collection.');
+      'Test ' + call_ref_or_indirect + ' speculative inlining with ' +
+      callee_count + ' different callees during feedback collection.');
   let builder = new WasmModuleBuilder();
 
   let sig_index = builder.addType(kSig_i_i);
 
-  builder.addFunction("main", kSig_i_ii)
-    .addBody([
+  let main = builder.addFunction("main", kSig_i_ii).exportFunc();
+  if (call_ref_or_indirect === "call_ref") {
+    main.addBody([
       kExprLocalGet, 0,
 
       kExprLocalGet, 1,
@@ -29,8 +30,15 @@ function CallRefTest(callee_count) {
       kGCPrefix, kExprRefCast, sig_index,
 
       kExprCallRef, sig_index,
-    ])
-    .exportAs("main");
+    ]);
+  } else if (call_ref_or_indirect === "call_indirect") {
+    main.addBody([
+      kExprLocalGet, 0,
+
+      kExprLocalGet, 1,
+      kExprCallIndirect, sig_index, kTableZero,
+    ]);
+  }
 
   let callee = [];
   // Add one more function than what will be called before tier-up below,
@@ -64,7 +72,12 @@ function CallRefTest(callee_count) {
 
 const kMaxPolymorphism = 4;
 
-(function CallRefUninitializedFeedback() { CallRefTest(0); })();
-(function CallRefMonomorphic() { CallRefTest(1); })();
-(function CallRefPolymorphic() { CallRefTest(kMaxPolymorphism); })();
-(function CallRefMegamorphic() { CallRefTest(kMaxPolymorphism + 1); })();
+(function CallRefUninitializedFeedback() { BuildTest("call_ref", 0); })();
+(function CallRefMonomorphic() { BuildTest("call_ref", 1); })();
+(function CallRefPolymorphic() { BuildTest("call_ref", kMaxPolymorphism); })();
+(function CallRefMegamorphic() { BuildTest("call_ref", kMaxPolymorphism + 1); })();
+
+(function CallIndirectUninitializedFeedback() { BuildTest("call_indirect", 0); })();
+(function CallIndirectMonomorphic() { BuildTest("call_indirect", 1); })();
+(function CallIndirectPolymorphic() { BuildTest("call_indirect", kMaxPolymorphism); })();
+(function CallIndirectMegamorphic() { BuildTest("call_indirect", kMaxPolymorphism + 1); })();

@@ -570,9 +570,10 @@ struct FunctionTypeFeedback {
   // feedback vector by {TransitiveTypeFeedbackProcessor}.
   std::vector<CallSiteFeedback> feedback_vector;
 
-  // {call_targets} has one entry per "call" and "call_ref" in the function.
-  // For "call", it holds the index of the called function, for "call_ref" the
-  // value will be {kNonDirectCall}.
+  // {call_targets} has one entry per "call", "call_indirect", and "call_ref" in
+  // the function.
+  // For "call", it holds the index of the called function, for "call_indirect"
+  // and "call_ref" the value will be a sentinel {kCallIndirect} / {kCallRef}.
   base::OwnedVector<uint32_t> call_targets;
 
   // {tierup_priority} is updated and used when triggering tier-up.
@@ -583,7 +584,9 @@ struct FunctionTypeFeedback {
   // The size of the stack frame in liftoff in bytes.
   uint32_t liftoff_frame_size = kUninitializedLiftoffFrameSize;
 
-  static constexpr uint32_t kNonDirectCall = 0xFFFFFFFF;
+  static constexpr uint32_t kCallRef = 0xFFFFFFFF;
+  static constexpr uint32_t kCallIndirect = kCallRef - 1;
+  static_assert(kV8MaxWasmFunctions < kCallIndirect);
 };
 
 struct TypeFeedbackStorage {

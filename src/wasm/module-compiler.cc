@@ -24,6 +24,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/pgo.h"
 #include "src/wasm/std-object-sizes.h"
@@ -1370,6 +1371,38 @@ class FeedbackMaker {
     AddCall(internal_function->function_index(), count);
   }
 
+  void AddCallIndirectCandidate(Tagged<Smi> target_truncated_smi, int count) {
+    // We need to map a truncated call target back to a function index.
+    // Generally there may be multiple jump tables if code spaces are far apart
+    // (to ensure that direct calls can always use a near call to the closest
+    // jump table).
+    // However, here we are always handling call targets that are originally
+    // from the `WasmDispatchTable`, whose entries are always targets pointing
+    // into the main jump table, so we only need to check against that.
+
+    Address jt_start =
+        instance_data_->module_object()->native_module()->jump_table_start();
+    uint32_t jt_size = JumpTableAssembler::SizeForNumberOfSlots(
+        instance_data_->module()->num_declared_functions);
+    Address jt_end = jt_start + jt_size;
+
+    uint32_t jt_start_truncated = jt_start & kSmiMaxValue;
+    uint32_t jt_end_truncated = jt_end & kSmiMaxValue;
+    uint32_t target_truncated = target_truncated_smi.value();
+
+    if (target_truncated < jt_start_truncated ||
+        target_truncated >= jt_end_truncated) {
+      // Was not in the main table (e.g., because it's an imported function).
+      return;
+    }
+
+    uint32_t jt_offset = target_truncated - jt_start_truncated;
+    uint32_t jt_slot_idx = JumpTableAssembler::SlotOffsetToIndex(jt_offset);
+    uint32_t func_idx =
+        instance_data_->module()->num_imported_functions + jt_slot_idx;
+    AddCall(func_idx, count);
+  }
+
   void AddCall(int target, int count) {
     // Keep the cache sorted (using insertion-sort), highest count first.
     int insertion_index = 0;
@@ -1392,13 +1425,13 @@ class FeedbackMaker {
       result_.emplace_back();
     } else if (cache_usage_ == 1) {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call_ref #%zu inlineable (monomorphic)]\n",
+        PrintF("[function %d: call #%zu inlineable (monomorphic)]\n",
                func_index_, result_.size());
       }
       result_.emplace_back(targets_cache_[0], counts_cache_[0]);
     } else {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call_ref #%zu inlineable (polymorphic %d)]\n",
+        PrintF("[function %d: call #%zu inlineable (polymorphic %d)]\n",
                func_index_, result_.size(), cache_usage_);
       }
       CallSiteFeedback::PolymorphicCase* polymorphic =
@@ -1437,36 +1470,86 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
 
-  DCHECK_EQ(feedback->length(), call_targets.size() * 2);
+  // For each entry in {call_targets}, there are two {Object} slots in the
+  // {feedback} vector:
+  // +-------------------------+-----------------------+-------------------+
+  // |        Call Type        |   Feedback: Entry 1   |      Entry 2      |
+  // +-------------------------+-----------------------+-------------------+
+  // | direct                  | Smi(count)            | Smi(0), unused    |
+  // +-------------------------+-----------------------+-------------------+
+  // | ref, uninitialized      | Smi(0)                | Smi(0)            |
+  // | ref, monomorphic        | WasmFuncRef(target)   | Smi(count>0)      |
+  // | ref, polymorphic        | FixedArray            | Undefined         |
+  // | ref, megamoprhic        | MegamorphicSymbol     | Undefined         |
+  // +-------------------------+-----------------------+-------------------+
+  // | indirect, uninitialized | Smi(0)                | Smi(0)            |
+  // | indirect, monomorphic   | Smi(truncated_target) | Smi(count>0)      |
+  // | indirect, polymorphic   | FixedArray            | Undefined         |
+  // | indirect, megamoprhic   | MegamorphicSymbol     | Undefined         |
+  // +-------------------------+-----------------------+-------------------+
+  // The FixedArray entries for the polymorphic cases look like the monomorphic
+  // entries in the feedback vector itself.
+  // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
+  // Since this is combining untrusted data ({feedback} vector on the JS heap)
+  // with trusted data ({call_targets}), make sure to avoid an OOB access.
+  SBXCHECK_EQ(feedback->length(), call_targets.size() * 2);
   FeedbackMaker fm(isolate_, instance_data_, func_index,
                    feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
-    Tagged<Object> value = feedback->get(i);
-    if (IsWasmFuncRef(value)) {
-      // Monomorphic.
-      int count = Smi::cast(feedback->get(i + 1)).value();
-      fm.AddCallRefCandidate(WasmFuncRef::cast(value), count);
-    } else if (IsFixedArray(value)) {
-      // Polymorphic.
-      Tagged<FixedArray> polymorphic = FixedArray::cast(value);
-      for (int j = 0; j < polymorphic->length(); j += 2) {
-        Tagged<Object> func_ref = polymorphic->get(j);
-        int count = Smi::cast(polymorphic->get(j + 1)).value();
-        fm.AddCallRefCandidate(WasmFuncRef::cast(func_ref), count);
-      }
-    } else if (IsSmi(value)) {
-      // Uninitialized, or a direct call collecting call count.
-      uint32_t target = call_targets[i / 2];
-      if (target != FunctionTypeFeedback::kNonDirectCall) {
-        int count = Smi::cast(value).value();
-        fm.AddCall(static_cast<int>(target), count);
-      } else if (v8_flags.trace_wasm_inlining) {
+    uint32_t sentinel_or_target = call_targets[i / 2];
+    Tagged<Object> first_slot = feedback->get(i);
+    Tagged<Object> second_slot = feedback->get(i + 1);
+
+    if (sentinel_or_target != FunctionTypeFeedback::kCallRef &&
+        sentinel_or_target != FunctionTypeFeedback::kCallIndirect) {
+      // Direct call counts.
+      int count = Smi::ToInt(first_slot);
+      DCHECK_EQ(Smi::ToInt(second_slot), 0);
+      // TODO(dlehmann): Currently, TurboFan assumes that we add feedback even
+      // if the call count is zero. Once TurboFan is gone, revisit if we can
+      // avoid this (similar to how we do for call_ref/call_indirect today).
+      fm.AddCall(static_cast<int>(sentinel_or_target), count);
+    } else if (IsSmi(first_slot) && Smi::ToInt(second_slot) == 0) {
+      // Uninitialized call_ref or call_indirect.
+      DCHECK_EQ(Smi::ToInt(first_slot), 0);
+      if (v8_flags.trace_wasm_inlining) {
         PrintF("[function %d: call #%d: uninitialized]\n", func_index, i / 2);
       }
-    } else if (v8_flags.trace_wasm_inlining) {
-      if (value == ReadOnlyRoots{isolate_}.megamorphic_symbol()) {
+    } else if (IsWasmFuncRef(first_slot)) {
+      // Monomorphic call_ref.
+      DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallRef);
+      int count = Smi::ToInt(second_slot);
+      fm.AddCallRefCandidate(WasmFuncRef::cast(first_slot), count);
+    } else if (IsSmi(first_slot)) {
+      // Monomorphic call_indirect.
+      DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
+      int count = Smi::ToInt(second_slot);
+      fm.AddCallIndirectCandidate(Smi::cast(first_slot), count);
+    } else if (IsFixedArray(first_slot)) {
+      // Polymorphic call_ref or call_indirect.
+      Tagged<FixedArray> polymorphic = FixedArray::cast(first_slot);
+      DCHECK(IsUndefined(second_slot));
+      if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
+        for (int j = 0; j < polymorphic->length(); j += 2) {
+          Tagged<WasmFuncRef> target = WasmFuncRef::cast(polymorphic->get(j));
+          int count = Smi::ToInt(polymorphic->get(j + 1));
+          fm.AddCallRefCandidate(target, count);
+        }
+      } else {
+        DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
+        for (int j = 0; j < polymorphic->length(); j += 2) {
+          Tagged<Smi> target = Smi::cast(polymorphic->get(j));
+          int count = Smi::ToInt(polymorphic->get(j + 1));
+          fm.AddCallIndirectCandidate(target, count);
+        }
+      }
+    } else if (first_slot == ReadOnlyRoots{isolate_}.megamorphic_symbol()) {
+      DCHECK(IsUndefined(second_slot));
+      if (v8_flags.trace_wasm_inlining) {
         PrintF("[function %d: call #%d: megamorphic]\n", func_index, i / 2);
       }
+    } else {
+      UNREACHABLE();
     }
     fm.FinalizeCall();
   }
