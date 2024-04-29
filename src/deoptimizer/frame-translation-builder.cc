@@ -40,11 +40,7 @@ class UnsignedOperand : public OperandBase {
   explicit UnsignedOperand(uint32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
     base::VLQEncodeUnsigned(
-        [buffer](uint8_t value) {
-          buffer->push_back(value);
-          return &buffer->back();
-        },
-        value());
+        [buffer](uint8_t value) { buffer->push_back(value); }, value());
   }
   bool IsSigned() const { return false; }
 };
