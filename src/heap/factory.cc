@@ -107,9 +107,8 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       code_desc_(desc),
       kind_(kind) {}
 
-Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
-    int length, AllocationType allocation) {
-  return local_isolate_->factory()->NewByteArray(length, allocation);
+Handle<TrustedByteArray> Factory::CodeBuilder::NewTrustedByteArray(int length) {
+  return local_isolate_->factory()->NewTrustedByteArray(length);
 }
 
 Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
@@ -118,8 +117,8 @@ Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
-  Handle<ByteArray> reloc_info =
-      NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
+  Handle<TrustedByteArray> reloc_info =
+      NewTrustedByteArray(code_desc_.reloc_size);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if

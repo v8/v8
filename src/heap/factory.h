@@ -1163,7 +1163,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
-    Handle<ByteArray> NewByteArray(int length, AllocationType allocation);
+    Handle<TrustedByteArray> NewTrustedByteArray(int length);
     // Return an allocation suitable for InstructionStreams but without writing
     // the map.
     Tagged<HeapObject> AllocateUninitializedInstructionStream(

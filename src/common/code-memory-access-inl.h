@@ -143,7 +143,9 @@ V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
                                                                          tag);
       break;
     case InstructionStream::kRelocationInfoOffset:
-      WriteHeaderSlot<T, InstructionStream::kRelocationInfoOffset>(tagged, tag);
+      WriteProtectedPointerHeaderSlot<T,
+                                      InstructionStream::kRelocationInfoOffset>(
+          tagged, tag);
       break;
     default:
       UNREACHABLE();

@@ -996,9 +996,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  ObjectVisitor* v) {
     IterateProtectedPointer(obj, kCodeOffset, v);
-    // GC does not visit data/code in the header and in the body directly.
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
+    IterateProtectedPointer(obj, kRelocationInfoOffset, v);
 
     Tagged<InstructionStream> istream = InstructionStream::unchecked_cast(obj);
     if (istream->IsFullyInitialized()) {
