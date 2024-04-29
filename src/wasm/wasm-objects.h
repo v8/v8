@@ -769,7 +769,8 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data,
-      Handle<WasmFuncRef> func_ref, int func_index, int arity,
+      Handle<WasmFuncRef> func_ref,
+      Handle<WasmInternalFunction> internal_function, int arity,
       Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
@@ -843,15 +844,19 @@ class WasmExternalFunction : public JSFunction {
 };
 
 class WasmFunctionData
-    : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
+    : public TorqueGeneratedWasmFunctionData<WasmFunctionData,
+                                             ExposedTrustedObject> {
  public:
   DECL_CODE_POINTER_ACCESSORS(wrapper_code)
+  DECL_PROTECTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
 
   DECL_PRINTER(WasmFunctionData)
 
-  using BodyDescriptor =
-      StackedBodyDescriptor<FixedBodyDescriptorFor<WasmFunctionData>,
-                            WithStrongCodePointer<kWrapperCodeOffset>>;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedExposedTrustedObjectBodyDescriptor<
+          WasmFunctionData, kWasmFunctionDataIndirectPointerTag>,
+      WithStrongCodePointer<kWrapperCodeOffset>,
+      WithProtectedPointer<kProtectedInternalOffset>>;
 
   using SuspendField = base::BitField<wasm::Suspend, 0, 2>;
   using PromiseField = base::BitField<wasm::Promise, 2, 2>;
@@ -868,7 +873,7 @@ class WasmExportedFunctionData
  public:
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
-  DECL_EXTERNAL_POINTER_ACCESSORS(sig, wasm::FunctionSig*)
+  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::FunctionSig*)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -877,7 +882,7 @@ class WasmExportedFunctionData
   using BodyDescriptor = StackedBodyDescriptor<
       SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
                              FixedBodyDescriptorFor<WasmExportedFunctionData>>,
-      WithExternalPointer<kSigOffset, kWasmExportedFunctionDataSignatureTag>>;
+      WithStrongCodePointer<kCWrapperCodeOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };

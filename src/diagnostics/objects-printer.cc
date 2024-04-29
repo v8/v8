@@ -2522,6 +2522,7 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - func_ref: " << Brief(func_ref());
+  os << "\n - internal: " << Brief(internal());
   os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
   // No newline here; the caller prints it after printing additional fields.
@@ -2530,11 +2531,10 @@ void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmExportedFunctionData");
   WasmFunctionDataPrint(os);
-  Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - instance: " << Brief(instance());
   os << "\n - function_index: " << function_index();
-  os << "\n - signature: " << reinterpret_cast<void*>(sig(isolate));
-  os << "\n - wrapper_budget: " << wrapper_budget();
+  os << "\n - signature: " << reinterpret_cast<const void*>(sig());
+  os << "\n - wrapper_budget: " << wrapper_budget()->value();
   os << "\n";
 }
 

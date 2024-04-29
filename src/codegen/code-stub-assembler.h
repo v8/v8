@@ -1363,18 +1363,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);
   }
 
-  TNode<RawPtrT> LoadWasmExportedFunctionDataSigPtr(
-      TNode<WasmExportedFunctionData> object) {
-    return LoadExternalPointerFromObject(object,
-                                         WasmExportedFunctionData::kSigOffset,
-                                         kWasmExportedFunctionDataSignatureTag);
-  }
-
   TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
       TNode<WasmFuncRef> func_ref) {
     return CAST(LoadTrustedPointerFromObject(
         func_ref, WasmFuncRef::kTrustedInternalOffset,
         kWasmInternalFunctionIndirectPointerTag));
+  }
+
+  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFunctionData(
+      TNode<WasmFunctionData> data) {
+    return CAST(LoadProtectedPointerField(
+        data, WasmFunctionData::kProtectedInternalOffset));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

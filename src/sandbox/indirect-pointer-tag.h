@@ -47,7 +47,8 @@ constexpr uint64_t kTrustedPointerTableFreeEntryBit = 0x4000000000000000;
   IF_WASM(V, kWasmApiFunctionRefIndirectPointerTag,            \
           WASM_API_FUNCTION_REF_TYPE)                          \
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag,          \
-          WASM_INTERNAL_FUNCTION_TYPE)
+          WASM_INTERNAL_FUNCTION_TYPE)                         \
+  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WASM_FUNCTION_DATA_TYPE)
 
 #define MAKE_TAG(instance_type) \
   (uint64_t{instance_type} << kIndirectPointerTagShift)
@@ -133,9 +134,27 @@ static_assert(!IsValidIndirectPointerTag(kIndirectPointerNullTag));
 
 V8_INLINE IndirectPointerTag
 IndirectPointerTagFromInstanceType(InstanceType instance_type) {
-  auto tag = static_cast<IndirectPointerTag>(MAKE_TAG(instance_type));
-  DCHECK(IsValidIndirectPointerTag(tag));
-  return tag;
+  uint64_t raw = 0;
+  switch (instance_type) {
+#define CASE(name, instance_type)  \
+  case instance_type:              \
+    raw = MAKE_TAG(instance_type); \
+    break;
+    INDIRECT_POINTER_TAG_LIST(CASE)
+#undef CASE
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXPORTED_FUNCTION_DATA_TYPE:
+    case WASM_JS_FUNCTION_DATA_TYPE:
+    case WASM_CAPI_FUNCTION_DATA_TYPE:
+      // TODO(saelo): Consider adding support for inheritance hierarchies in
+      // our tag checking mechanism.
+      raw = kWasmFunctionDataIndirectPointerTag;
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<IndirectPointerTag>(raw);
 }
 
 V8_INLINE InstanceType

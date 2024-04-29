@@ -183,15 +183,13 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   DCHECK_EQ(1, args.length());
   Tagged<JSFunction> function = JSFunction::cast(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  Tagged<WasmFunctionData> func_data =
-      WasmExportedFunction::IsWasmExportedFunction(function)
-          ? Tagged<WasmFunctionData>{sfi->wasm_exported_function_data()}
-          : Tagged<WasmFunctionData>{sfi->wasm_js_function_data()};
-  Tagged<WasmInternalFunction> internal =
-      func_data->func_ref()->internal(isolate);
+  Tagged<Object> func_data = sfi->GetData(isolate);
+  if (!IsWasmFunctionData(func_data)) return isolate->heap()->ToBoolean(false);
+  Address call_target =
+      WasmFunctionData::cast(func_data)->internal()->call_target();
 
   Address wrapper = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
-  return isolate->heap()->ToBoolean(internal->call_target() == wrapper);
+  return isolate->heap()->ToBoolean(call_target == wrapper);
 }
 
 RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
@@ -207,7 +205,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
 
   Handle<JSFunction> external_function =
       WasmInternalFunction::GetOrCreateExternal(
-          handle(function_data->func_ref()->internal(isolate), isolate));
+          handle(function_data->internal(), isolate));
   Handle<Code> external_function_code =
       handle(external_function->code(isolate), isolate);
   Handle<Code> function_data_code =

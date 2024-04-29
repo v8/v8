@@ -3091,13 +3091,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
     Node* function_data) {
-  Node* func_ref = gasm_->LoadImmutableFromObject(
-      MachineType::TaggedPointer(), function_data,
-      wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kFuncRefOffset));
-  Node* internal = gasm_->LoadTrustedPointerFromObject(
-      func_ref,
-      wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
-      kWasmInternalFunctionIndirectPointerTag);
+  Node* internal = gasm_->LoadProtectedPointerFromObject(
+      function_data, wasm::ObjectAccess::ToTagged(
+                         WasmExportedFunctionData::kProtectedInternalOffset));
   return gasm_->LoadFromObject(
       MachineType::Pointer(), internal,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
@@ -7528,13 +7524,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        Node* func_ref = gasm_->LoadImmutableFromObject(
-            MachineType::TaggedPointer(), function_data,
-            wasm::ObjectAccess::ToTagged(WasmFunctionData::kFuncRefOffset));
-        Node* internal = gasm_->LoadTrustedPointerFromObject(
-            func_ref,
-            wasm::ObjectAccess::ToTagged(WasmFuncRef::kTrustedInternalOffset),
-            kWasmInternalFunctionIndirectPointerTag);
+        Node* internal = gasm_->LoadProtectedPointerFromObject(
+            function_data, wasm::ObjectAccess::ToTagged(
+                               WasmFunctionData::kProtectedInternalOffset));
         args[0] =
             gasm_->LoadFromObject(MachineType::Pointer(), internal,
                                   wasm::ObjectAccess::ToTagged(

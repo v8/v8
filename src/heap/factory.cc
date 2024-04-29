@@ -1746,9 +1746,11 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
       Tagged<WasmJSFunctionData>::cast(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, map));
+          map->instance_size(), AllocationType::kTrusted, map));
+  result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
+  result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
   result->set_serialized_signature(*serialized_sig);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
@@ -1771,21 +1773,26 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmInstanceObject> instance,
-    DirectHandle<WasmFuncRef> func_ref, int func_index,
+    DirectHandle<WasmFuncRef> func_ref,
+    DirectHandle<WasmInternalFunction> internal_function,
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
     int wrapper_budget, wasm::Promise promise) {
+  int func_index = internal_function->function_index();
+  Handle<Cell> wrapper_budget_cell = NewCell(Smi::FromInt(wrapper_budget));
   Tagged<Map> map = *wasm_exported_function_data_map();
   Tagged<WasmExportedFunctionData> result =
       Tagged<WasmExportedFunctionData>::cast(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, map));
+          map->instance_size(), AllocationType::kTrusted, map));
+  result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
+  result->set_internal(*internal_function);
   result->set_wrapper_code(*export_wrapper);
   result->set_instance(*instance);
   result->set_function_index(func_index);
-  result->init_sig(isolate(), sig);
+  result->set_sig(sig);
   result->set_canonical_type_index(canonical_type_index);
-  result->set_wrapper_budget(wrapper_budget);
+  result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
   result->set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
                              UPDATE_WRITE_BARRIER);
@@ -1809,9 +1816,11 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Tagged<WasmCapiFunctionData>::cast(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, map));
+          map->instance_size(), AllocationType::kTrusted, map));
+  result->init_self_indirect_pointer(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
+  result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
   result->set_serialized_signature(*serialized_sig);

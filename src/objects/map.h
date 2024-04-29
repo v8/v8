@@ -92,13 +92,9 @@ enum InstanceType : uint16_t;
   V(ThinString)                        \
   V(TransitionArray)                   \
   IF_WASM(V, WasmArray)                \
-  IF_WASM(V, WasmCapiFunctionData)     \
   IF_WASM(V, WasmContinuationObject)   \
-  IF_WASM(V, WasmExportedFunctionData) \
-  IF_WASM(V, WasmFunctionData)         \
   IF_WASM(V, WasmFuncRef)              \
   IF_WASM(V, WasmInstanceObject)       \
-  IF_WASM(V, WasmJSFunctionData)       \
   IF_WASM(V, WasmResumeData)           \
   IF_WASM(V, WasmStruct)               \
   IF_WASM(V, WasmSuspenderObject)      \

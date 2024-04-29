@@ -406,12 +406,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        V<WasmFuncRef> func_ref = V<WasmFuncRef>::Cast(__ LoadTaggedField(
-            function_data, WasmFunctionData::kFuncRefOffset));
-        V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-            __ LoadTrustedPointerField(func_ref, LoadOp::Kind::TaggedBase(),
-                                       kWasmInternalFunctionIndirectPointerTag,
-                                       WasmFuncRef::kTrustedInternalOffset));
+        V<WasmInternalFunction> internal =
+            V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
+                function_data, LoadOp::Kind::TaggedBase().Immutable(),
+                WasmExportedFunctionData::kProtectedInternalOffset));
         V<WordPtr> callee = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::UintPtr(),
                                     WasmInternalFunction::kCallTargetOffset);
@@ -465,10 +463,16 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 JSFunction::kSharedFunctionInfoOffset);
-    V<HeapObject> function_data =
-        __ Load(shared, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::TaggedPointer(),
-                SharedFunctionInfo::kFunctionDataOffset);
+#if V8_ENABLE_SANDBOX
+    static constexpr int kOffset =
+        SharedFunctionInfo::kTrustedFunctionDataOffset;
+#else
+    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
+#endif
+    V<WasmFunctionData> function_data =
+        V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
+            shared, LoadOp::Kind::TaggedBase(),
+            kWasmFunctionDataIndirectPointerTag, kOffset));
 
     if (!wasm::IsJSCompatibleSignature(sig_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
@@ -555,7 +559,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   void BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend, const WasmModule* module) {
     int suspender_count = suspend == kSuspendWithSuspender ? 1 : 0;
-    int wasm_count = static_cast<int>(sig_->parameter_count()) - suspender_count;
+    int wasm_count =
+        static_cast<int>(sig_->parameter_count()) - suspender_count;
 
     __ Bind(__ NewBlock());
     base::SmallVector<OpIndex, 16> wasm_params(wasm_count);
@@ -724,8 +729,16 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Object> function_node = __ LoadTaggedField(
         incoming_params[0], WasmApiFunctionRef::kCallableOffset);
     V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
-    V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
-        __ LoadTaggedField(shared, SharedFunctionInfo::kFunctionDataOffset));
+#if V8_ENABLE_SANDBOX
+    static constexpr int kOffset =
+        SharedFunctionInfo::kTrustedFunctionDataOffset;
+#else
+    static constexpr int kOffset = SharedFunctionInfo::kFunctionDataOffset;
+#endif
+    V<WasmFunctionData> function_data =
+        V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
+            shared, LoadOp::Kind::TaggedBase(),
+            kWasmFunctionDataIndirectPointerTag, kOffset));
     V<Object> host_data_foreign = __ LoadTaggedField(
         function_data, WasmCapiFunctionData::kEmbedderDataOffset);
 
@@ -1332,12 +1345,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   V<WordPtr> BuildLoadCallTargetFromExportedFunctionData(
       V<WasmFunctionData> function_data) {
-    V<WasmFuncRef> func_ref = V<WasmFuncRef>::Cast(__ LoadTaggedField(
-        function_data, WasmExportedFunctionData::kFuncRefOffset));
-    V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-        __ LoadTrustedPointerField(func_ref, LoadOp::Kind::TaggedBase(),
-                                   kWasmInternalFunctionIndirectPointerTag,
-                                   WasmFuncRef::kTrustedInternalOffset));
+    V<WasmInternalFunction> internal =
+        V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
+            function_data, LoadOp::Kind::TaggedBase().Immutable(),
+            WasmFunctionData::kProtectedInternalOffset));
     return __ Load(internal, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::UintPtr(),
                    WasmInternalFunction::kCallTargetOffset);

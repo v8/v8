@@ -375,12 +375,15 @@ TRUSTED_POINTER_ACCESSORS(WasmFuncRef, internal, WasmInternalFunction,
 // WasmFunctionData
 CODE_POINTER_ACCESSORS(WasmFunctionData, wrapper_code, kWrapperCodeOffset)
 
+PROTECTED_POINTER_ACCESSORS(WasmFunctionData, internal, WasmInternalFunction,
+                            kProtectedInternalOffset)
+
 // WasmExportedFunctionData
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 
-EXTERNAL_POINTER_ACCESSORS(WasmExportedFunctionData, sig, wasm::FunctionSig*,
-                           kSigOffset, kWasmExportedFunctionDataSignatureTag)
+PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::FunctionSig*,
+                    kSigOffset)
 
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {

@@ -2137,9 +2137,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Isolate* i_isolate, i::Handle<i::WasmExportedFunctionData> data,
     ErrorThrower& thrower, bool with_suspender_param) {
   i::Handle<i::WasmTrustedInstanceData> trusted_instance_data(
-      i::WasmTrustedInstanceData::cast(
-          data->func_ref()->internal(i_isolate)->ref()),
-      i_isolate);
+      i::WasmTrustedInstanceData::cast(data->internal()->ref()), i_isolate);
   int func_index = data->function_index();
   i::Handle<i::Code> wrapper =
       with_suspender_param ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
@@ -2175,7 +2173,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
   }
 
   i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
-      i_isolate, trusted_instance_data, func_ref, func_index,
+      i_isolate, trusted_instance_data, func_ref, internal,
       static_cast<int>(data->sig()->parameter_count()), wrapper);
   return result;
 }
@@ -2427,9 +2425,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
     auto wasm_exported_function =
         i::Handle<i::WasmExportedFunction>::cast(fun);
-    auto sfi = handle(wasm_exported_function->shared(), i_isolate);
-    i::Handle<i::WasmExportedFunctionData> data =
-        handle(sfi->wasm_exported_function_data(), i_isolate);
+    i::Tagged<i::WasmExportedFunctionData> data =
+        wasm_exported_function->shared()->wasm_exported_function_data();
     sig = wasm_exported_function->sig();
     i::wasm::Promise promise_flags =
         i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());

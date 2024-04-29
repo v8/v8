@@ -451,19 +451,21 @@ macro JSToWasmObject(
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): never {
-  const functionData = UnsafeCast<WasmExportedFunctionData>(
-      target.shared_function_info.function_data);
+  const functionData =
+      UnsafeCast<WasmExportedFunctionData>(target.shared_function_info.data);
 
   // Trigger a wrapper tier-up when this function got called often enough.
   const switchStack = promise != Promise::kNoPromise;
   if constexpr (!switchStack) {
-    functionData.wrapper_budget = functionData.wrapper_budget - 1;
-    if (functionData.wrapper_budget == 0) {
+    const budget: Smi =
+        UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
+    functionData.wrapper_budget.value = budget;
+    if (budget == SmiConstant(0)) {
       runtime::WasmCompileWrapper(kNoContext, functionData);
     }
   }
 
-  const sig = functionData.sig_ptr;
+  const sig = functionData.sig;
   const trustedInstanceData: WasmTrustedInstanceData =
       LoadTrustedDataFromInstance(functionData.instance);
 
@@ -661,7 +663,7 @@ macro JSToWasmWrapperHelper(
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
 
-  const callTarget = functionData.func_ref.internal.call_target;
+  const callTarget = functionData.internal.call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass

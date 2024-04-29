@@ -77,19 +77,22 @@ extern class WasmFuncRef extends HeapObject {
 extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
     WasmFuncRef): WasmInternalFunction;
 
-extern class WasmFunctionData extends HeapObject {
+extern class WasmFunctionData extends ExposedTrustedObject {
   // Used for calling this function from JavaScript.
   @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
   // The function reference for this function object. This is used when
-  // converting a JS function back to the wasm-side func ref, and for loading
-  // the call target in js-to-wasm wrappers.
-  // We could save one indirection there by storing either the
-  // WasmInternalFunction or the call target (via CPT) directly here.
+  // converting a JS function back to the wasm-side func ref.
   func_ref: WasmFuncRef;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
+  // Trusted-to-trusted pointer, to ensure that the pair of WasmFunctionData
+  // and WasmInternalFunction remains in an overall consistent state.
+  protected_internal: ProtectedPointer<WasmInternalFunction>;
 }
+
+extern operator '.internal' macro LoadWasmInternalFunctionFromFunctionData(
+    WasmFunctionData): WasmInternalFunction;
 
 extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of
@@ -97,18 +100,19 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // where the function is defined -- for the latter see WasmFunctionData::ref).
   instance: WasmInstanceObject;
   function_index: Smi;
-  wrapper_budget: Smi;
-  // The next two fields are for fast calling from C++. The contract is
-  // that they are lazily populated, and either all will be present or none.
-  packed_args_size: Smi;
+  // Contains a Smi; boxed so that generated code can update the value.
+  wrapper_budget: Cell;
   canonical_type_index: Smi;
+
+  // {packed_args_size} and {c_wrapper_code} are for fast calling from C++.
+  // The contract is that they are lazily populated, and either both will be
+  // present or neither.
+  packed_args_size: Smi;
   @if(V8_ENABLE_SANDBOX) c_wrapper_code: IndirectPointer<Code>;
   @ifnot(V8_ENABLE_SANDBOX) c_wrapper_code: Code;
-  sig: ExternalPointer;  // wasm::FunctionSig*
-}
 
-extern operator '.sig_ptr' macro LoadWasmExportedFunctionDataSigPtr(
-    WasmExportedFunctionData): RawPtr;
+  sig: RawPtr;  // wasm::FunctionSig*
+}
 
 extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;
