@@ -1731,6 +1731,7 @@ class MaglevGraphBuilder {
   V(StringFromCharCode)            \
   V(StringPrototypeCharCodeAt)     \
   V(StringPrototypeCodePointAt)    \
+  V(StringPrototypeIterator)       \
   V(StringPrototypeLocaleCompare)  \
   IEEE_754_UNARY_LIST(V)
 

@@ -622,6 +622,23 @@ CapturedObject CapturedObject::CreateJSIteratorResult(Zone* zone,
   return iter_result;
 }
 
+// static
+CapturedObject CapturedObject::CreateJSStringOperator(Zone* zone,
+                                                      compiler::MapRef map,
+                                                      ValueNode* string) {
+  static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);
+  int slot_count = JSStringIterator::kHeaderSize / kTaggedSize;
+  CapturedObject string_iter(zone, slot_count);
+  string_iter.set(JSStringIterator::kMapOffset, map);
+  string_iter.set(JSStringIterator::kPropertiesOrHashOffset,
+                  RootIndex::kEmptyFixedArray);
+  string_iter.set(JSStringIterator::kElementsOffset,
+                  RootIndex::kEmptyFixedArray);
+  string_iter.set(JSStringIterator::kStringOffset, string);
+  string_iter.set(JSStringIterator::kIndexOffset, 0);
+  return string_iter;
+}
+
 CapturedFixedDoubleArray::CapturedFixedDoubleArray(
     Zone* zone, compiler::FixedDoubleArrayRef elements, int length)
     : length(length), values(zone->AllocateArray<Float64>(length)) {

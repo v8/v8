@@ -6577,6 +6577,26 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
 }
 
+ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (current_speculation_mode_ == SpeculationMode::kDisallowSpeculation) {
+    return ReduceResult::Fail();
+  }
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+  // Ensure that {receiver} is actually a String.
+  BuildCheckString(receiver);
+  compiler::MapRef map =
+      broker()->target_native_context().initial_string_iterator_map(broker());
+  CapturedObject string_iterator =
+      CapturedObject::CreateJSStringOperator(zone(), map, receiver);
+  ValueNode* allocation =
+      BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  return allocation;
+}
+
 ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
     compiler::JSFunctionRef target, CallArguments& args) {
 #ifdef V8_INTL_SUPPORT

@@ -377,7 +377,7 @@ namespace {
 void PrintInputLocation(std::ostream& os, ValueNode* node,
                         const compiler::InstructionOperand& location) {
   if (InlinedAllocation* allocation = node->TryCast<InlinedAllocation>()) {
-    if (allocation->HasBeenElided()) {
+    if (allocation->HasBeenAnalysed() && allocation->HasBeenElided()) {
       os << "(elided)";
       return;
     }
