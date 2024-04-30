@@ -587,8 +587,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
     // FrameDescriptions.
     const int parameter_count = 0;
     unsigned input_frame_size = fp_to_sp_delta;
-    input_ = new (input_frame_size)
-        FrameDescription(input_frame_size, parameter_count, isolate_);
+    input_ =
+        FrameDescription::Create(input_frame_size, parameter_count, isolate_);
     return;
   }
 #endif
@@ -613,7 +613,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   // we should change the deoptimizer to use the (trusted) parameter count from
   // the Code object everywhere, at which point we could drop this again.
   SBXCHECK_EQ(parameter_count, compiled_code_->parameter_count());
-  input_ = new (size) FrameDescription(size, parameter_count, isolate_);
+  input_ = FrameDescription::Create(size, parameter_count, isolate_);
 
   DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
   // Calculate the deopt exit index from return address.
@@ -909,8 +909,8 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
     // TODO(mliedtke): Same as for the input frame, the output frame may also
     // have parameter stack slots.
     const uint32_t parameter_stack_slots = 0;
-    FrameDescription* output_frame = new (output_frame_size)
-        FrameDescription(output_frame_size, parameter_stack_slots, isolate());
+    FrameDescription* output_frame = FrameDescription::Create(
+        output_frame_size, parameter_stack_slots, isolate());
 
     Tagged<WasmTrustedInstanceData> wasm_trusted_instance;
     DCHECK_EQ(translated_state_.frames().size(), 1);
@@ -1327,8 +1327,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   }
 
   // Allocate and store the output frame description.
-  FrameDescription* output_frame = new (output_frame_size)
-      FrameDescription(output_frame_size, parameters_count, isolate());
+  FrameDescription* output_frame =
+      FrameDescription::Create(output_frame_size, parameters_count, isolate());
   FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
 
   CHECK(frame_index >= 0 && frame_index < output_count_);
@@ -1632,7 +1632,7 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
   }
 
   // Allocate and store the output frame description.
-  FrameDescription* output_frame = new (output_frame_size) FrameDescription(
+  FrameDescription* output_frame = FrameDescription::Create(
       output_frame_size, JSParameterCount(argument_count_without_receiver),
       isolate());
   // The top address of the frame is computed from the previous frame's top and
@@ -1688,8 +1688,8 @@ void Deoptimizer::DoComputeConstructCreateStubFrame(
   }
 
   // Allocate and store the output frame description.
-  FrameDescription* output_frame = new (output_frame_size)
-      FrameDescription(output_frame_size, parameters_count, isolate());
+  FrameDescription* output_frame =
+      FrameDescription::Create(output_frame_size, parameters_count, isolate());
   FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
   DCHECK(frame_index > 0 && frame_index < output_count_);
   DCHECK_NULL(output_[frame_index]);
@@ -1840,7 +1840,7 @@ void Deoptimizer::DoComputeConstructInvokeStubFrame(
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size, 0, isolate());
+      FrameDescription::Create(output_frame_size, 0, isolate());
   FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
   DCHECK(frame_index > 0 && frame_index < output_count_);
   DCHECK_NULL(output_[frame_index]);
@@ -2157,7 +2157,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
            frame_info.stack_parameter_count(), output_frame_size);
   }
 
-  FrameDescription* output_frame = new (output_frame_size) FrameDescription(
+  FrameDescription* output_frame = FrameDescription::Create(
       output_frame_size, frame_info.stack_parameter_count(), isolate());
   output_[frame_index] = output_frame;
   FrameWriter frame_writer(this, output_frame, verbose_trace_scope());

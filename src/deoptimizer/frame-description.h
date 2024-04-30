@@ -56,46 +56,10 @@ class RegisterValues {
 
 class FrameDescription {
  public:
-  FrameDescription(uint32_t frame_size, int parameter_count, Isolate* isolate)
-      : frame_size_(frame_size),
-        parameter_count_(parameter_count),
-        top_(kZapUint32),
-        pc_(kZapUint32),
-        fp_(kZapUint32),
-        constant_pool_(kZapUint32),
-        isolate_(isolate) {
-    USE(isolate_);
-    // Zap all the registers.
-    for (int r = 0; r < Register::kNumRegisters; r++) {
-      // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
-      // isn't used before the next safepoint, the GC will try to scan it as a
-      // tagged value. kZapUint32 looks like a valid tagged pointer, but it
-      // isn't.
-#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
-      // x18 is reserved as platform register on Windows arm64 platform
-      const int kPlatformRegister = 18;
-      if (r != kPlatformRegister) {
-        SetRegister(r, kZapUint32);
-      }
-#else
-      SetRegister(r, kZapUint32);
-#endif
-    }
-
-    // Zap all the slots.
-    for (unsigned o = 0; o < frame_size; o += kSystemPointerSize) {
-      SetFrameSlot(o, kZapUint32);
-    }
-  }
-
-  void* operator new(size_t size, uint32_t frame_size) {
-    // Subtracts kSystemPointerSize, as the member frame_content_ already
-    // supplies the first element of the area to store the frame.
-    return base::Malloc(size + frame_size - kSystemPointerSize);
-  }
-
-  void operator delete(void* pointer, uint32_t frame_size) {
-    base::Free(pointer);
+  static FrameDescription* Create(uint32_t frame_size, int parameter_count,
+                                  Isolate* isolate) {
+    return new (frame_size)
+        FrameDescription(frame_size, parameter_count, isolate);
   }
 
   void operator delete(void* description) { base::Free(description); }
@@ -212,6 +176,44 @@ class FrameDescription {
   }
 
  private:
+  FrameDescription(uint32_t frame_size, int parameter_count, Isolate* isolate)
+      : frame_size_(frame_size),
+        parameter_count_(parameter_count),
+        top_(kZapUint32),
+        pc_(kZapUint32),
+        fp_(kZapUint32),
+        constant_pool_(kZapUint32),
+        isolate_(isolate) {
+    USE(isolate_);
+    // Zap all the registers.
+    for (int r = 0; r < Register::kNumRegisters; r++) {
+      // TODO(jbramley): It isn't safe to use kZapUint32 here. If the register
+      // isn't used before the next safepoint, the GC will try to scan it as a
+      // tagged value. kZapUint32 looks like a valid tagged pointer, but it
+      // isn't.
+#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
+      // x18 is reserved as platform register on Windows arm64 platform
+      const int kPlatformRegister = 18;
+      if (r != kPlatformRegister) {
+        SetRegister(r, kZapUint32);
+      }
+#else
+      SetRegister(r, kZapUint32);
+#endif
+    }
+
+    // Zap all the slots.
+    for (unsigned o = 0; o < frame_size; o += kSystemPointerSize) {
+      SetFrameSlot(o, kZapUint32);
+    }
+  }
+
+  void* operator new(size_t size, uint32_t frame_size) {
+    // Subtracts kSystemPointerSize, as the member frame_content_ already
+    // supplies the first element of the area to store the frame.
+    return base::Malloc(size + frame_size - kSystemPointerSize);
+  }
+
   static const uint32_t kZapUint32 = 0xbeeddead;
 
   // Frame_size_ must hold a uint32_t value.  It is only a uintptr_t to
