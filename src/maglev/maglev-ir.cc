@@ -604,6 +604,24 @@ CapturedObject CapturedObject::CreateJSGeneratorObject(
   return object;
 }
 
+// static
+CapturedObject CapturedObject::CreateJSIteratorResult(Zone* zone,
+                                                      compiler::MapRef map,
+                                                      ValueNode* value,
+                                                      ValueNode* done) {
+  static_assert(JSIteratorResult::kSize == 5 * kTaggedSize);
+  int slot_count = JSIteratorResult::kSize / kTaggedSize;
+  CapturedObject iter_result(zone, slot_count);
+  iter_result.set(JSIteratorResult::kMapOffset, map);
+  iter_result.set(JSIteratorResult::kPropertiesOrHashOffset,
+                  RootIndex::kEmptyFixedArray);
+  iter_result.set(JSIteratorResult::kElementsOffset,
+                  RootIndex::kEmptyFixedArray);
+  iter_result.set(JSIteratorResult::kValueOffset, value);
+  iter_result.set(JSIteratorResult::kDoneOffset, done);
+  return iter_result;
+}
+
 CapturedFixedDoubleArray::CapturedFixedDoubleArray(
     Zone* zone, compiler::FixedDoubleArrayRef elements, int length)
     : length(length), values(zone->AllocateArray<Float64>(length)) {

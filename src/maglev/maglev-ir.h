@@ -905,6 +905,9 @@ class CapturedObject {
   static CapturedObject CreateJSGeneratorObject(
       Zone* zone, compiler::MapRef map, int instance_size, ValueNode* context,
       ValueNode* closure, ValueNode* receiver, CapturedObject register_file);
+  static CapturedObject CreateJSIteratorResult(Zone* zone, compiler::MapRef map,
+                                               ValueNode* value,
+                                               ValueNode* done);
 
   bool IsArgumentsObject() const {
     return base::IsInRange(tag_, kStrictArgumentsObject, kRestParameter);

@@ -8321,8 +8321,18 @@ void MaglevGraphBuilder::
 void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  SetAccumulator(BuildCallBuiltin<Builtin::kCreateIterResultObject>(
-      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+  ValueNode* value = GetTaggedValue(args[0]);
+  ValueNode* done = GetTaggedValue(args[1]);
+  compiler::MapRef map =
+      broker()->target_native_context().iterator_result_map(broker());
+  CapturedObject iter_result =
+      CapturedObject::CreateJSIteratorResult(zone(), map, value, done);
+  ValueNode* allocation =
+      BuildInlinedAllocation(iter_result, AllocationType::kYoung);
+  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+  // next side effect clear it.
+  ClearCurrentAllocationBlock();
+  SetAccumulator(allocation);
 }
 
 void MaglevGraphBuilder::VisitIntrinsicCreateAsyncFromSyncIterator(
