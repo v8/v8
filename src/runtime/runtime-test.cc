@@ -342,6 +342,12 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
     }
   }
 
+  if (function->is_compiled(isolate) &&
+      !function->HasAvailableCodeKind(isolate,
+                                      CodeKind::INTERPRETED_FUNCTION)) {
+    return CrashUnlessFuzzingReturnFalse(isolate);
+  }
+
   if (function->HasAvailableCodeKind(isolate, target_kind) ||
       function->HasAvailableHigherTierCodeThan(isolate, target_kind) ||
       IsInProgress(function->tiering_state())) {
