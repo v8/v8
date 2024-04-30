@@ -37,8 +37,10 @@ class PPCOperandConverter final : public InstructionOperandConverter {
   RCBit OutputRCBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
+      case kFlags_conditional_branch:
       case kFlags_deoptimize:
       case kFlags_set:
+      case kFlags_conditional_set:
       case kFlags_trap:
       case kFlags_select:
         return SetRC;
